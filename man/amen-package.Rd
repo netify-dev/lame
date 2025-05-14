@@ -28,7 +28,6 @@ fit<-ame(YX_frn$Y,YX_frn$X,burn=5,nscan=5,odens=1,family="frn")
 
 summary(fit)
 
-plot(fit) 
 
 
 }

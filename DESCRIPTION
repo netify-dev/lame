@@ -14,4 +14,11 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Imports: 
-    Rcpp
+    Rcpp,
+    ggplot2,
+    plyr,
+    reshape2,
+    ggrepel,
+    network,
+    gridExtra,
+    coda

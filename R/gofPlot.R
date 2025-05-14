@@ -56,7 +56,7 @@ gofPlot <- function(GOF, symmetric){
   # cleanup
   ggData<-lapply(ggData,function(x){
     x$Var2<-factor(x$Var2,
-                   levels=c('sd.rowmean','sd.colmean','sd.nodemean','dyad.dep','triad.dep'))
+                   levels=c('sd.rowmean','sd.colmean','sd.nodemean','dyad.dep','cycle.dep', 'trans.dep'))
     return(x) })
   ggDens<-ggData$ggDens;ggMu<-ggData$ggMu;meltGOF<-ggData$meltGOF;rm(ggData)
   

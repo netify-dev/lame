@@ -100,7 +100,7 @@ ame_repL <- function(
     symmetric = FALSE,
     odmax = NULL,
     seed = 1, nscan = 10000, burn = 500, odens = 25,
-    plot = TRUE, print = FALSE, gof = TRUE, 
+    plot = FALSE, print = FALSE, gof = TRUE, 
     startVals = NULL, periodicSave=FALSE, outFile=NULL,
     saveInterval=0.25
 )
@@ -212,8 +212,8 @@ ame_repL <- function(
   UVPS <- U %*% t(V) * 0
   APS<-BPS<-rep(0,nrow(Y[,,1]))
   YPS<-array(0,dim=dim(Y),dimnames=dimnames(Y)) 
-  GOF <- matrix(NA, nrow=(nscan/odens)+1, ncol=4,
-                dimnames=list(c('obs',1:(nscan/odens)),c("sd.rowmean","sd.colmean","dyad.dep","triad.dep")))
+  GOF <- matrix(NA, nrow=(nscan/odens)+1, ncol=5,
+                dimnames=list(c('obs',1:(nscan/odens)),c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep", "trans.dep")))
   GOF[1,] <- rowMeans(apply(Y,3,gofstats))
   names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-rownames(Y[,,1])
   
