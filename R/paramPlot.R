@@ -11,7 +11,7 @@ paramPlot <- function(mcmcData){
   suppressMessages(library(ggplot2))
   suppressMessages(library(plyr))
   suppressMessages(library(reshape2))
-  s
+  
   colnames(mcmcData) <- names(data.frame(mcmcData))
   mcmcMelt <- reshape2::melt(mcmcData)
   names(mcmcMelt) <- c('Var1', 'Var2', 'value')

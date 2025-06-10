@@ -27,7 +27,7 @@
 #' intercept, row random effects and row regression effects are not estimable
 #' for this model.
 #' 
-#' @usage ame_repL(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl")
+#' @usage lame(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl")
 #' , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, family ="nrm",
 #' intercept=!is.element(family,c("rrl","ord")),
 #' symmetric=FALSE,
@@ -86,11 +86,11 @@
 #' @examples
 #' 
 #' data(YX_bin_list) 
-#' fit<-ame_repL(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,family="bin")
+#' fit<-lame(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,family="bin")
 #' # you should run the Markov chain much longer than this
 #' 
-#' @export ame_repL
-ame_repL <- function(
+#' @export lame
+lame <- function(
     Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL, 
     rvar = !(family=="rrl") , cvar = TRUE, dcor = !symmetric, 
     nvar = TRUE, 
