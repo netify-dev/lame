@@ -1,0 +1,137 @@
+---
+title: "lame-overview"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{lame-overview}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Introduction
+
+This vignette shows how to use the main functions in the `lame` package. To do so, we will make use of data from the Threat and Imposition of Sanctions (TIES) dataset, which contains information on sanctions imposed by countries on each other. The data has been processed and contains 35 countries in the years 1993-1995 and 2000. When loaded, the dataset includes 4 rda files- Y- the dv, X- the dyadic covariates and Xcol and Xrow for the nodal covariates.
+
+We will focus on the years 1993-1995 and 2000.
+
+Load the Data
+
+```{r setup, include=FALSE}
+
+library(lame)
+
+# Load the TIES data
+load("vignette_data.RData")
+```
+
+The dependent variable consists of binary sanctions networks for four years: 1993, 1994, 1995, and 2000. Each matrix indicates whether country i imposed sanctions on country j in a given year.
+
+Dyadic Covariates
+We include two dyadic covariates found in Xdyad: distance and shared IGOs. These are stored in a list of matrices, one for each year.
+
+Nodal Covariates
+We include two nodal covariates for each country: GDP and population. These are stored in two matrices, Xrow and Xcol, where rows correspond to the sender countries and columns to the target countries. We can add diffferent covariates for either target or sender countries but tto keep it simple, we will use the same covariates for both.
+
+
+Run the model
+```{r}
+# Fit the AME model for binary data
+fit <- lame(
+  Y = Y,                    # Ties
+  Xdyad = X,               # Dyadic covariates (distance, IGOs)
+  Xrow = Xrow,             # Sender effects (GDP, population)
+  Xcol = Xcol,             # Target effects (GDP, population)
+  family = "bin",          # Binary  model
+  R = 2,                   # Multiplicative effects dimension
+  symmetric = FALSE,       # Directed networks
+  burn = 100,              # Burn-in iterations
+  nscan = 500,             # Post-burn-in iterations
+  odens = 25,              # Output density
+  print = FALSE,           # Suppress iteration output
+  plot = FALSE             # Suppress real-time plots
+)
+
+
+```
+Lets check the summary
+
+```{r}
+summary.ame(fit)
+
+```
+
+sender is the row and target is the column
+We see that the model shows that wealtheir  and more populous countries are more likely to impose sanctions on less wealthy and less populous countries. We see that more populous countries are also more likely to be sanctioned (target-column effects). We also see that countruies that belong to the same international organizations are mor elikey to sanction eahc other suggetsing that institudtions provide information and facuilitate economic sanctions for countries that are members of the same organization. Distance is negatively associated with sanctions, meaning that countries that are geographically closer are more likely to sanction each other.
+
+
+We use name function to see the types of parameters a=that come with the fitted lame model. 
+```{r}
+
+names(fit)
+```
+
+Now we will sue the paramPlot function to visualize how well the model converged. The function produces traceplots on the left and density plots on the right for each parameter in the model. The red line shows where the posterior mean les in teh shaded regions of the 90% and 95% credible intervals of the probability distribution. From the trace plots, we need to run the Markov chain much longer for the model to converge
+
+```{r}
+
+paramPlot(fit$BETA)
+```
+We see that
+
+
+```{r}
+
+gofPlot(fit$GOF, FALSE)
+
+```
+
+
+```{r}
+
+# Network plot for 1993
+ggCirc(Y[[1]], U = fit$U, V = fit$V) +
+  ggtitle("Sanctions Network - 1993") +
+  theme_minimal() +
+  theme(
+    legend.position='none',
+    axis.text=element_blank(),
+    axis.title=element_blank()
+  )
+
+# Network plot for 2000 
+ggCirc(Y[[2]], U = fit$U, V = fit$V) +
+  ggtitle("Sanctions Network - 1994") +
+  theme_minimal() +
+  theme(
+    legend.position='none',
+    axis.text=element_blank(),
+    axis.title=element_blank()
+  )
+
+
+ggCirc(Y=Y[[3]], U=fit$U, V=fit$V) +
+  ggtitle("Sanctions Network - 1995") +
+  theme_minimal() +
+  theme(
+    legend.position='none',
+    axis.text=element_blank(),
+    axis.title=element_blank()
+  )
+
+
+ggCirc(Y=Y[[4]], U=fit$U, V=fit$V) +
+  ggtitle("Sanctions Network - 2000") +
+  theme_minimal() +
+  theme(
+    legend.position='none',
+    axis.text=element_blank(),
+    axis.title=element_blank()
+  )
+```
+
