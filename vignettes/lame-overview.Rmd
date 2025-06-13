@@ -124,7 +124,6 @@ Next, we will use the `gofPlot` function to visualize the goodness of fit of the
 
 ```{r, fig.width=8, fig.height=6, dpi=100, dev="png"}
 
-# Now this should work
 gofPlot(fit$GOF, FALSE)
 
 ```
