@@ -1,5 +1,7 @@
 ---
 title: "lame-overview"
+author: "Cassy Dorff, Shahryar Minhas, and Tosin Salau"
+date: "r Sys.Date()"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{lame-overview}
@@ -14,11 +16,37 @@ knitr::opts_chunk$set(
 )
 ```
 
+##Package Overview
+
+This vignette provides an overview of the `lame` package, which offers a toolkit for estimating Additive and Multiplicative Effects (AME) models for replicated relational/longitudinal data. It allows for easy handling with changing actor composition and c++ implementation for faster computation and it allows handling of missing data (Minhas et al. 2022; Hoff 2021). The package is designed to also work with the `netify` package, which provides a convenient way to prepare relational data for use with `lame`.
+
+**What users can do:**
+
+(1) **Model different types of relational data** such as normal (nrm), binary probit (bin), ordinal probit (ord), censored binary (cbin), fixed rank nomination (frn), and row rank (rrl) models showing its flexibility for various data.
+
+(2) **Analyze replicated data** as the package handles temporal or replicated network data, allowing users to model how relationships evolve over time while accounting for network dependencies across time periods.
+
+(2) **Visualize model parameters** using trace plots and density plots to assess convergence and parameter distributions. Users are able to visualize MCMC diagnostics and parameter uncertainty
+
+(3) **Evaluate model fit** using goodness-of-fit plots for network statistics such as heterogeneity, transitivity, dyadic dependence, and cyclic dependence. Users are able to visualize actual or deviation of the model fit for each year in the data, allowing users to analyze how well the model captures the unique network structure present in the data over time.
+
+(4) **Visualize network patterns and actor latent space** using circular network plots to show sender and target countries in a clear and informative manner.
+
+
+Users working with `netify` can easily prepare their data for use with lame using the `to_amen()` function and setting `lame = TRUE` allowing for direct model fitting without data conversion.
+
+
+
 ## Introduction
 
-This vignette shows how to use the main functions in the `lame` package. To do so, we will make use of data from the Threat and Imposition of Sanctions (TIES) dataset, which contains information on sanctions imposed by countries on each other. The data has been processed and contains 35 countries in the years 1993-1995 and 2000. When loaded, the dataset includes 4 rda files- Y- the dv, X- the dyadic covariates and Xcol and Xrow for the nodal covariates.
+This vignette shows how to use the main functions in the `lame` package. To do so, we will make use of data from the Threat and Imposition of Sanctions (TIES) dataset (Morgan et.al 2014), which contains information on sanctions imposed by countries on each other. The data has been processed and contains 35 countries in the years 1993-1995 and 2000. When loaded, the dataset includes 4 Rda files:
 
-We will focus on the years 1993-1995 and 2000.
+Y- the sanction matrices (Dependent Variable). The dependent variable consists of directed binary sanctions networks for four years: 1993, 1994, 1995, and 2000. Each matrix indicates whether country i imposed sanctions on country j in a given year.
+
+Xdyad (Dyadic covariates): We include two dyadic covariates found in Xdyad: distance and shared IGOs. These are stored in a list of matrices, one for each year.
+
+Xrow and Xcol (Nodal covariates): We include two nodal covariates for each country: GDP and population. These are stored in two matrices, Xrow and Xcol, where rows correspond to the sender countries and columns to the target countries. We can add diffferent covariates for either target or sender countries but tto keep it simple, we will use the same covariates for both.
+
 
 Load the Data
 
@@ -27,27 +55,27 @@ Load the Data
 library(lame)
 
 # Load the TIES data
-load("vignette_data.RData")
+data("vignette_data")
+
 ```
 
-The dependent variable consists of binary sanctions networks for four years: 1993, 1994, 1995, and 2000. Each matrix indicates whether country i imposed sanctions on country j in a given year.
 
-Dyadic Covariates
-We include two dyadic covariates found in Xdyad: distance and shared IGOs. These are stored in a list of matrices, one for each year.
+We run the model using the `lame()` function. We specify family = "bin" for binary network data and include both additive effects (sender and receiver random effects) and multiplicative effects (R = 2) to capture complex relational patterns across the time periods.
 
-Nodal Covariates
-We include two nodal covariates for each country: GDP and population. These are stored in two matrices, Xrow and Xcol, where rows correspond to the sender countries and columns to the target countries. We can add diffferent covariates for either target or sender countries but tto keep it simple, we will use the same covariates for both.
 
 
 Run the model
 ```{r}
 # Fit the AME model for binary data
 fit <- lame(
-  Y = Y,                    # Ties
-  Xdyad = X,               # Dyadic covariates (distance, IGOs)
-  Xrow = Xrow,             # Sender effects (GDP, population)
-  Xcol = Xcol,             # Target effects (GDP, population)
+  Y = Y,                    
+  Xdyad = Xdyad,           # dyadic covariates
+  Xrow = Xrow,             # sender covariates
+  Xcol = Xcol,             # receiver covariates 
   family = "bin",          # Binary  model
+  rvar = TRUE,             # sender random effects
+  cvar = TRUE,             # receiver random effects
+  dcor = TRUE,            # Dyadic correlation
   R = 2,                   # Multiplicative effects dimension
   symmetric = FALSE,       # Directed networks
   burn = 100,              # Burn-in iterations
@@ -59,62 +87,69 @@ fit <- lame(
 
 
 ```
-Lets check the summary
 
+
+Lets check the summary of the model
 ```{r}
-summary.ame(fit)
-
+summary(fit)
 ```
 
-sender is the row and target is the column
-We see that the model shows that wealtheir  and more populous countries are more likely to impose sanctions on less wealthy and less populous countries. We see that more populous countries are also more likely to be sanctioned (target-column effects). We also see that countruies that belong to the same international organizations are mor elikey to sanction eahc other suggetsing that institudtions provide information and facuilitate economic sanctions for countries that are members of the same organization. Distance is negatively associated with sanctions, meaning that countries that are geographically closer are more likely to sanction each other.
+We see that the model shows that wealthier and more populous countries are more likely to impose sanctions on less wealthy and less populous countries. We see that more populous countries are also more likely to be sanctioned (target-column effects). We also see that countries that belong to the same international organizations are more likely to sanction each other suggesting that institutions provide information and facilitate economic sanctions for countries that are members of the same organization. Distance is negatively associated with sanctions, meaning that countries that are geographically closer are more likely to sanction each other.
 
 
-We use name function to see the types of parameters a=that come with the fitted lame model. 
+We can check the types of parameters included in the fitted lame model. 
 ```{r}
 
 names(fit)
 ```
 
-Now we will sue the paramPlot function to visualize how well the model converged. The function produces traceplots on the left and density plots on the right for each parameter in the model. The red line shows where the posterior mean les in teh shaded regions of the 90% and 95% credible intervals of the probability distribution. From the trace plots, we need to run the Markov chain much longer for the model to converge
 
+Now we will use the paramPlot function to visualize how well the model converged. 
 ```{r}
 
 paramPlot(fit$BETA)
 ```
-We see that
+The `paramPlot` function produces traceplots on the left and density plots on the right for each parameter in the model. The red line shows where the posterior mean lies in the shaded regions of the 90% and 95% credible intervals of the probability distribution.
 
+Looking at the density plots, we check if the parameters overlap with the 90% and 95% credible intervals. If they do, it indicates that there is no evidence for sender or receiver heterogeneity If they do not overlap, it suggests that there is evidence for sender or receiver effects. In our example, all variables show there is no evidence for sender or receiver heterogeneity in sanctioning patterns across the countries, as the posterior distributions overlap with the credible intervals. From the trace plots, we need to run the Markov chain much longer for the model to converge.
+
+
+Next, we will use the `gofPlot` function to visualize the goodness of fit of the model on average and the `gofPlot_long` to analyze the model fit for each year in our data. 
 
 ```{r}
 
+# Now this should work
 gofPlot(fit$GOF, FALSE)
 
 ```
-
+ 
+ We analyze how well our model is able to accurately represent heterogeneity, transitivity and cycle dependence. The blue line shows the observed heterogeneity in the model and the red line is heterogeneity in the simulated values. The shaded area shows the 90% credible interval. We see that the model does a good job representing heterogeneity and transitivity but not dyadic and cyclic dependence in the data.
+ 
+Next, we can analyze these network properties for each year in our data using the `gofPlot_long` function. This function allows us to visualize the goodness of fit for each year separately, which can help us understand how well the model fits the data over time. We can analyze the `actual` and `deviation` (difference in the observed and simulated) of the model fit for each year.
 
 ```{r}
 
-# Network plot for 1993
-ggCirc(Y[[1]], U = fit$U, V = fit$V) +
-  ggtitle("Sanctions Network - 1993") +
-  theme_minimal() +
-  theme(
-    legend.position='none',
-    axis.text=element_blank(),
-    axis.title=element_blank()
-  )
+gofPlot_long(fit$GOF, type= "actual", symmetric = FALSE)
 
-# Network plot for 2000 
-ggCirc(Y[[2]], U = fit$U, V = fit$V) +
-  ggtitle("Sanctions Network - 1994") +
-  theme_minimal() +
-  theme(
-    legend.position='none',
-    axis.text=element_blank(),
-    axis.title=element_blank()
-  )
+```
+The `gofPlot_long` function produces a plot for each year in the data, showing the actual and simulated values for heterogeneity, transitivity, dyadic dependence, and cyclic dependence. The boxplots show the distribution of the simulated values from the posterior prediction and the diamonds points represent the observed values. Among the years in the data, we see that in 1995, the observed values fall outside the posterior predictive distributions across the network statistics suggesting the model struggles to capture the unique network structure present in the sanctions data during this time. This may possibly reflect the geopolitical conditions during this post-Cold War transition period.
 
 
+To analyze the difference between the observed and simulated values, we can use the `type = "deviation"` argument in the function. This will show us how well the model captures the differences between the observed and simulated values for each year.
+
+
+```{r}
+gofPlot_long(fit$GOF, type= "deviation", symmetric = FALSE)
+```
+
+In our example, the model struggles to capture both dyadic dependency and transitivity in 1993 and 1994, although it performs better in the later years.
+
+
+Let's visualize the sender and target countries using `ggCirc` function.
+
+```{r}
+
+# Network plot for 1995
 ggCirc(Y=Y[[3]], U=fit$U, V=fit$V) +
   ggtitle("Sanctions Network - 1995") +
   theme_minimal() +
@@ -124,14 +159,23 @@ ggCirc(Y=Y[[3]], U=fit$U, V=fit$V) +
     axis.title=element_blank()
   )
 
-
-ggCirc(Y=Y[[4]], U=fit$U, V=fit$V) +
-  ggtitle("Sanctions Network - 2000") +
-  theme_minimal() +
-  theme(
-    legend.position='none',
-    axis.text=element_blank(),
-    axis.title=element_blank()
-  )
 ```
 
+This function creates a circular network plot where the outer circle shows the sender countries and the inner circle shows the target countries. The plot shows that if actors are close together, they tend to target or are targeted by similar actors. In our example, we show the sanction network for the year 1995. Again, countries impose sanctions or receive sanctions from similar countries if they are close to each other.
+
+For instance, Canada (CAN) and USA are positioned close together indicating they sanction similar countries. Similarly, countries like Italy (ITA), Dominican Republic (DOM) and Japan (JPN) suggest they receive sanctions from similar countries. Actors diagonal to each other, such as Norway (NOR) and Iran (IRN), indicate that they are likely to sanction each other.
+
+
+#Conclusion
+
+The lame package provides a way for users to analyze additive and multiplicative effects across replicated relational data. This vignette demonstrated basic functionality and a real-world application to international sanctions data.
+
+**References**:
+
+Hoff, PD (2005) Bilinear Mixed-effects Models for Dyadic Data. Journal of the American Statistical Association 100, 286–295.
+
+Hoff, PD (2021) Additive and Multiplicative Effects Network Models. Statistical Science 36, 34–50.
+
+Morgan, T. Clifton, Bapat, N., & Kobayashi, Y. (2014). Threat and Imposition of Economic Sanctions 1945-2005. Conflict Management and Peace Science 31(5): 541-558.
+
+Minhas, S., Dorff, C., Gallop, M. B., Foster, M., Liu, H., Tellez, J., & Ward, M. D. (2022). Taking dyads seriously. Political Science Research and Methods, 10(4), 703–721. doi:10.1017/psrm.2021.56
