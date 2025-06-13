@@ -9,7 +9,7 @@ The proposed lame package provides easy handling for amen with changing actor co
       install_github("netify-dev/lame")
       
 ## Usage
-See our `lame-overview` vignette for detailed examples and documentation. To get started, supply network data (matrix or netify object) to the `lame` functions. You can estimate latent attributes, model hidden network features, and generate diagnostic statistics. For example, to estimate latent attributes, we use the code below:
+See our `lame-overview` vignette for detailed examples and documentation. To get started, supply data to the `lame` function. For example, we use the code below:
 
     library(lame)
     
