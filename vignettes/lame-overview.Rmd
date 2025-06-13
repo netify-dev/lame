@@ -1,7 +1,7 @@
 ---
 title: "lame-overview"
 author: "Cassy Dorff, Shahryar Minhas, and Tosin Salau"
-date: "r Sys.Date()"
+date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{lame-overview}
@@ -12,11 +12,17 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "",
+  fig.width = 6,
+  fig.height = 4,
+  dpi = 200,
+  out.width = "100%",
+  fig.align = "center",
+  dev = "png" 
 )
 ```
 
-##Package Overview
+## Package Overview
 
 This vignette provides an overview of the `lame` package, which offers a toolkit for estimating Additive and Multiplicative Effects (AME) models for replicated relational/longitudinal data. It allows for easy handling with changing actor composition and c++ implementation for faster computation and it allows handling of missing data (Minhas et al. 2022; Hoff 2021). The package is designed to also work with the `netify` package, which provides a convenient way to prepare relational data for use with `lame`.
 
@@ -63,9 +69,9 @@ data("vignette_data")
 We run the model using the `lame()` function. We specify family = "bin" for binary network data and include both additive effects (sender and receiver random effects) and multiplicative effects (R = 2) to capture complex relational patterns across the time periods.
 
 
-
 Run the model
-```{r}
+
+```{r, message=FALSE, warning=FALSE}
 # Fit the AME model for binary data
 fit <- lame(
   Y = Y,                    
@@ -105,7 +111,7 @@ names(fit)
 
 
 Now we will use the paramPlot function to visualize how well the model converged. 
-```{r}
+```{r, fig.width=8, fig.height=6, dpi=100, dev="png"}
 
 paramPlot(fit$BETA)
 ```
@@ -116,7 +122,7 @@ Looking at the density plots, we check if the parameters overlap with the 90% an
 
 Next, we will use the `gofPlot` function to visualize the goodness of fit of the model on average and the `gofPlot_long` to analyze the model fit for each year in our data. 
 
-```{r}
+```{r, fig.width=8, fig.height=6, dpi=100, dev="png"}
 
 # Now this should work
 gofPlot(fit$GOF, FALSE)
@@ -127,7 +133,7 @@ gofPlot(fit$GOF, FALSE)
  
 Next, we can analyze these network properties for each year in our data using the `gofPlot_long` function. This function allows us to visualize the goodness of fit for each year separately, which can help us understand how well the model fits the data over time. We can analyze the `actual` and `deviation` (difference in the observed and simulated) of the model fit for each year.
 
-```{r}
+```{r, fig.width=8, fig.height=6, dpi=100, dev="png"}
 
 gofPlot_long(fit$GOF, type= "actual", symmetric = FALSE)
 
@@ -138,7 +144,7 @@ The `gofPlot_long` function produces a plot for each year in the data, showing t
 To analyze the difference between the observed and simulated values, we can use the `type = "deviation"` argument in the function. This will show us how well the model captures the differences between the observed and simulated values for each year.
 
 
-```{r}
+```{r, fig.width=8, fig.height=6, dpi=100, dev="png"}
 gofPlot_long(fit$GOF, type= "deviation", symmetric = FALSE)
 ```
 
@@ -147,7 +153,7 @@ In our example, the model struggles to capture both dyadic dependency and transi
 
 Let's visualize the sender and target countries using `ggCirc` function.
 
-```{r}
+```{r, fig.width=8, fig.height=6, dpi=100, dev="png"}
 
 # Network plot for 1995
 ggCirc(Y=Y[[3]], U=fit$U, V=fit$V) +
@@ -166,7 +172,7 @@ This function creates a circular network plot where the outer circle shows the s
 For instance, Canada (CAN) and USA are positioned close together indicating they sanction similar countries. Similarly, countries like Italy (ITA), Dominican Republic (DOM) and Japan (JPN) suggest they receive sanctions from similar countries. Actors diagonal to each other, such as Norway (NOR) and Iran (IRN), indicate that they are likely to sanction each other.
 
 
-#Conclusion
+## Conclusion
 
 The lame package provides a way for users to analyze additive and multiplicative effects across replicated relational data. This vignette demonstrated basic functionality and a real-world application to international sanctions data.
 
