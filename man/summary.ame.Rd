@@ -19,5 +19,5 @@ fit
 Summary method for an AME object
 }
 \author{
-Peter Hoff, Shahryar Minhas, Tosin Salau
+Peter Hoff, Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

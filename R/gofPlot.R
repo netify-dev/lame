@@ -5,7 +5,7 @@
 #' @param rvar logical: fit row random effects (asymmetric case)?
 #' @param cvar logical: fit column random effects (asymmetric case)? 
 #' @return Plot for goodness of fit statistics
-#' @author Shahryar Minhas
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @export
 gofPlot <- function(GOF, symmetric){
   
@@ -14,6 +14,11 @@ gofPlot <- function(GOF, symmetric){
   suppressMessages(library(plyr))
   suppressMessages(library(reshape2))
   
+  # Convert if longit data
+  if(length(dim(GOF)) == 3) {
+    GOF <- apply(GOF, c(1,3), mean)  # average
+    GOF <- t(GOF)  # transpose
+  }
   # org data
   actGOF <- GOF[1,]
   meltGOF <- reshape2::melt(GOF[-1,])

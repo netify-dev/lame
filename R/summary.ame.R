@@ -6,7 +6,7 @@
 #' @param ... additional parameters (not used)
 #' @return a summary of parameter estimates and confidence intervals for an AME
 #' fit
-#' @author Peter Hoff, Shahryar Minhas, Tosin Salau
+#' @author Peter Hoff, Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @method summary ame
 #' @export
 summary.ame <- function(object, ...) {

@@ -22,5 +22,5 @@ Plot for goodness of fit statistics
 Plot results of goodness of fit tests
 }
 \author{
-Shahryar Minhas
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

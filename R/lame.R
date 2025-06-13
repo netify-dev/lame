@@ -212,9 +212,24 @@ lame <- function(
   UVPS <- U %*% t(V) * 0
   APS<-BPS<-rep(0,nrow(Y[,,1]))
   YPS<-array(0,dim=dim(Y),dimnames=dimnames(Y)) 
-  GOF <- matrix(NA, nrow=(nscan/odens)+1, ncol=5,
-                dimnames=list(c('obs',1:(nscan/odens)),c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep", "trans.dep")))
-  GOF[1,] <- rowMeans(apply(Y,3,gofstats))
+  # GOF <- matrix(NA, nrow=(nscan/odens)+1, ncol=5,
+  #               dimnames=list(c('obs',1:(nscan/odens)),c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep", "trans.dep")))
+  # GOF[1,] <- rowMeans(apply(Y,3,gofstats))
+  # 5 corresponds to number of stats we want
+  GOF <- array(NA, dim=c(5, N, (nscan/odens)+1))
+  
+  # add label to first dim
+  dimnames(GOF)[[1]] <- c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep","trans.dep")
+  
+  # add row/col names
+  if(!is.null(dimnames(Y)[[3]])) { dimnames(GOF)[[2]] <- dimnames(Y)[[3]] }
+  
+  # add time dimnames
+  dimnames(GOF)[[3]] <- c('obs', 1:(nscan/odens))
+  
+  # fill in first entry with values from OBSERVED 
+  GOF[,,1] <- apply(Y, 3, gofstats)
+  
   names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-rownames(Y[,,1])
   
   # names of parameters, asymmetric case  
@@ -408,7 +423,12 @@ lame <- function(
       YPS<-YPS+Ys
       
       # save posterior predictive GOF stats
-      if(gof){Ys[is.na(Y)]<-NA ;GOF[(iter)+1,]<-rowMeans(apply(Ys,3,gofstats))}
+      #if(gof){Ys[is.na(Y)]<-NA ;GOF[(iter)+1,]<-rowMeans(apply(Ys,3,gofstats))}
+      if(gof){
+        
+        Ys[is.na(Y)] <- NA
+        GOF[,,(iter)+1] <- apply(Ys,3,gofstats)
+      }
       
       # print MC progress 
       if(print)
@@ -465,6 +485,7 @@ lame <- function(
   fit <- getFitObject( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
                        BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr, 
                        startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks)
+  class(fit) <- "lame" # set class
   return(fit) # output object to workspace
   
 }
