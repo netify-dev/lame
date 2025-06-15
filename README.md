@@ -1,5 +1,5 @@
 ## lame
-The proposed lame package provides easy handling for amen with changing actor composition and C++ integration. It offers tools for analyzing longitudinal and replicate relational data, enabling researchers to efficiently model networks with temporal dependencies.
+The `lame` R package provides easy way to model longitudinal network data via the Additive and Multiplicative Effects Model (`amen`). It handles networks with changing actor compositions, as well as C++ integration. This package enables researchers to efficiently model networks with temporal dependencies.
 
 ## Installation
     if (!require(devtools)) {
