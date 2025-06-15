@@ -24,24 +24,21 @@ knitr::opts_chunk$set(
 
 ## Package Overview
 
-This vignette provides an overview of the `lame` package, which offers a toolkit for estimating Additive and Multiplicative Effects (AME) models for replicated relational/longitudinal data. It allows for easy handling with changing actor composition and c++ implementation for faster computation and it allows handling of missing data (Minhas et al. 2022; Hoff 2021). The package is designed to also work with the `netify` package, which provides a convenient way to prepare relational data for use with `lame`.
+This vignette provides an overview of the `lame` package, which offers a toolkit for estimating Additive and Multiplicative Effects (AME) models for replicated relational/longitudinal data. It easily handles changing actor composition and c++ implementation for faster computation as well as missing data (Minhas et al. 2022; Hoff 2021). The package is designed as a part of the `netify-verse`, which means it works seamlessly with the core `netify` package. The `netify` package provides a convenient way to prepare relational data for use with `lame`.
 
 **What users can do:**
 
-(1) **Model different types of relational data** such as normal (nrm), binary probit (bin), ordinal probit (ord), censored binary (cbin), fixed rank nomination (frn), and row rank (rrl) models showing its flexibility for various data.
+(1) **Model different types of relational data:** flexible for various data including normal (nrm), binary probit (bin), ordinal probit (ord), censored binary (cbin), fixed rank nomination (frn), and row rank (rrl) models showing its flexibility for various data.
 
-(2) **Analyze replicated data** as the package handles temporal or replicated network data, allowing users to model how relationships evolve over time while accounting for network dependencies across time periods.
+(2) **Analyze replicated data:** allows users to model how relationships evolve over time while accounting for network dependencies across time periods.
 
-(2) **Visualize model parameters** using trace plots and density plots to assess convergence and parameter distributions. Users are able to visualize MCMC diagnostics and parameter uncertainty
+(2) **Visualize model parameters:** use trace plots and density plots to assess convergence and parameter distributions. Users are able to visualize MCMC diagnostics and parameter uncertainty.
 
-(3) **Evaluate model fit** using goodness-of-fit plots for network statistics such as heterogeneity, transitivity, dyadic dependence, and cyclic dependence. Users are able to visualize actual or deviation of the model fit for each year in the data, allowing users to analyze how well the model captures the unique network structure present in the data over time.
-
-(4) **Visualize network patterns and actor latent space** using circular network plots to show sender and target countries in a clear and informative manner.
-
+(3) **Evaluate model fit:** use goodness-of-fit plots for network statistics such as heterogeneity, transitivity, dyadic dependence, and cyclic dependence. Users are able to visualize actual or deviation of the model fit for each year in the data, enabling users to analyze how well the model captures the unique network structure present in the data over time.
+  
+(4) **Visualize network patterns and actor latent space:** using circular network plots to show sender and target countries in a clear and informative manner.
 
 Users working with `netify` can easily prepare their data for use with lame using the `to_amen()` function and setting `lame = TRUE` allowing for direct model fitting without data conversion.
-
-
 
 ## Introduction
 
