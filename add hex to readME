@@ -1,4 +1,7 @@
-## lame
+# lame
+
+## Overview <img src="[https://raw.githubusercontent.com/netify-dev/netify/main/man/figures/hex.png](https://github.com/netify-dev/lame/blob/main/man/figures/lame_hex.png)" align = "right" alt="hex" width="200px">
+
 The `lame` R package provides easy way to model longitudinal network data via the Additive and Multiplicative Effects Model (`amen`). It handles networks with changing actor compositions, as well as C++ integration. This package enables researchers to efficiently model networks with temporal dependencies.
 
 ## Installation
