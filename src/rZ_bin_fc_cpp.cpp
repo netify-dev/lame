@@ -17,7 +17,8 @@ using namespace Rcpp;
  //' @param Y square binary relational matrix
  //' @return a square matrix , the new value of Z
  //' @author Peter Hoff, Shahryar Minhas
- //' @export rZ_bin_fc_cpp
+ //' @keywords internal
+
  // [[Rcpp::export]]
  
  arma::cube rZ_bin_fc_cpp(

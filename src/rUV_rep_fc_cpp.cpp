@@ -24,7 +24,8 @@ using namespace Rcpp;
  //' SS/s 
  //' S0*5
  //' 
- //' @export rwish_cpp
+ //' @keywords internal 
+
  // [[Rcpp::export]]
  
  arma::mat rwish_cpp(
@@ -58,7 +59,8 @@ using namespace Rcpp;
  //' @param rLoopIDs shuffled vector of latent space dimension sequence
  //' @return \item{U}{a new value of U} \item{V}{a new value of V}
  //' @author Peter Hoff, Yanjun He, Shahryar Minhas
- //' @export rUV_rep_fc_cpp
+ //' @keywords internal
+
  // [[Rcpp::export]]
  
  List rUV_rep_fc_cpp(

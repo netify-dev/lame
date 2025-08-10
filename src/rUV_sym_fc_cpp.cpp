@@ -46,7 +46,8 @@ arma::mat matMultVec(arma::mat x, arma::vec y){
  //' E<- U0%*%t(V0) + matrix(rnorm(30^2),30,30) 
  //' rUV_sym_fc_cpp(E,U0,V0,s2=1,shrink=TRUE,uLoopIDs=rep( sample(1:nrow(E)),4)-1 )
  //' 
- //' @export rUV_sym_fc_cpp
+ //' @keywords internal 
+
  // [[Rcpp::export]]
  
  List rUV_sym_fc_cpp(
