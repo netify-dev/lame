@@ -1,13 +1,33 @@
 Package: lame
-Title: What the Package Does (One Line, Title Case)
+Title: Longitudinal Additive and Multiplicative Effects Models for Networks
 Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Authors@R: c(
+    person("Shahryar", "Minhas", , "s7.minhas@gmail.com", role = c("aut", "cre")),
+    person("Tosin", "Salau", role = "aut"),
+    person("Cassy", "Dorff", role = "aut"),
+    person("Peter", "Hoff", role = "ctb", 
+           comment = "Original amen package author"))
+Description: An extension of the 'amen' package specifically designed for 
+    longitudinal network analysis. Provides tools for fitting Additive and 
+    Multiplicative Effects (AME) models to longitudinal/replicated relational 
+    data with key enhancements including: (1) robust handling of changing actor 
+    compositions across time periods, allowing for networks with different sets 
+    of actors at each time point; (2) significant performance improvements through 
+    C++ implementations of computationally intensive operations via Rcpp and 
+    RcppArmadillo; (3) specialized functions for temporal network dynamics and 
+    time-varying covariates. Supports various data types including binary networks, 
+    continuous relations, ordinal data, and fixed-rank nominations. The package 
+    maintains compatibility with the original 'amen' framework while offering 
+    enhanced capabilities for panel and time-series network data.
+Author: Shahryar Minhas [aut, cre], Tosin Salau [aut], Cassy Dorff [aut], 
+    Peter Hoff [ctb]
+Maintainer: Shahryar Minhas <s7.minhas@gmail.com>
+License: MIT + file LICENSE
+URL: https://github.com/netify-dev/lame
+BugReports: https://github.com/netify-dev/lame/issues
+Depends: R (>= 3.5.0)
 Encoding: UTF-8
+LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 LinkingTo: 

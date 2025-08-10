@@ -19,7 +19,8 @@ using namespace Rcpp;
  //' @param V an n by k matrix of multiplicative column effects
  //' @return An n by n by N array
  //' @author Peter Hoff, Shahryar Minhas
- //' @export get_EZ_cpp
+ //' @keywords internal
+
  // [[Rcpp::export]]
  
  arma::cube get_EZ_cpp(

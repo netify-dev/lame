@@ -30,7 +30,8 @@ arma::mat mhalf_cpp2(
  //' @param rhoMat inverted off-diagnoal matrix of rho
  //' @return a new value of s2
  //' @author Peter Hoff, Yanjun He, Shahryar Minhas
- //' @export rs2_rep_fc_cpp
+ //' @keywords internal
+
  // [[Rcpp::export]]
  
  double rs2_rep_fc_cpp(

@@ -17,7 +17,8 @@ using namespace Rcpp;
  //' @param s2 current value of s2
  //' @return a new value of rho
  //' @author Peter Hoff, Yanjun He, Shahryar Minhas
- //' @export rrho_mh_rep_cpp
+ //' @keywords internal
+
  // [[Rcpp::export]]
  
  double rrho_mh_rep_cpp(
