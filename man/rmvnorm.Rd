@@ -4,7 +4,7 @@
 \alias{rmvnorm}
 \title{Simulation from a multivariate normal distribution}
 \usage{
-rmvnorm(n, mu, Sigma, Sigma.chol = chol(Sigma))
+rmvnorm(n, mu, Sigma, Sigma.chol = NULL)
 }
 \arguments{
 \item{n}{sample size}

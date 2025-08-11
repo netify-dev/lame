@@ -41,7 +41,8 @@ Imports:
     ggrepel,
     network,
     gridExtra,
-    coda
+    coda,
+    patchwork
 Suggests: 
     knitr,
     rmarkdown,

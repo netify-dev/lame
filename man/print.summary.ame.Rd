@@ -4,10 +4,12 @@
 \alias{print.summary.ame}
 \title{Print method for summary.ame objects}
 \usage{
-\method{print}{summary.ame}(x, ...)
+\method{print}{summary.ame}(x, digits = 3, ...)
 }
 \arguments{
 \item{x}{a summary.ame object}
+
+\item{digits}{number of digits to display (default: 3)}
 
 \item{...}{additional arguments (not used)}
 }
@@ -15,5 +17,5 @@
 the summary.ame object invisibly
 }
 \description{
-Print method for summary.ame objects
+Prints a formatted summary of an AME model fit
 }

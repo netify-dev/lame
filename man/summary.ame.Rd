@@ -7,17 +7,44 @@
 \method{summary}{ame}(object, ...)
 }
 \arguments{
-\item{object}{the result of fitting an AME model}
+\item{object}{an object of class "ame", typically the result of fitting an
+AME model using the \code{ame} function}
 
-\item{...}{additional parameters (not used)}
+\item{...}{additional parameters (currently not used)}
 }
 \value{
-a summary of parameter estimates and confidence intervals for an AME
-fit
+A list of class "summary.ame" containing:
+\item{call}{The original function call}
+\item{beta}{Matrix of regression coefficient estimates and statistics}
+\item{variance}{Matrix of variance component estimates}
+\item{model.fit}{Model fit statistics (AIC, BIC) if available}
 }
 \description{
-Summary method for an AME object
+Provides a comprehensive summary of a fitted AME (Additive and Multiplicative
+Effects) model, including parameter estimates, standard errors, confidence
+intervals, and model diagnostics.
+}
+\details{
+The summary includes:
+\describe{
+\item{Regression coefficients}{Point estimates, standard errors, z-values,
+p-values, and 95\% confidence intervals for dyadic, sender, and
+receiver covariates}
+\item{Variance components}{Estimates and standard errors for:
+\describe{
+\item{va}{Variance of additive sender/row effects (asymmetric networks)}
+\item{cab}{Covariance between sender and receiver effects}
+\item{vb}{Variance of additive receiver/column effects (asymmetric networks)}
+\item{rho}{Dyadic correlation (reciprocity in directed networks)}
+\item{ve}{Residual variance}
+}
+For symmetric networks, only va and ve are estimated.}
+\item{Model fit statistics}{If available, AIC and BIC for model comparison}
+}
+}
+\seealso{
+\code{\link{ame}}, \code{\link{print.summary.ame}}
 }
 \author{
-Peter Hoff, Cassy Dorff, Shahryar Minhas, Tosin Salau
+Peter Hoff, Cassy Dorff, Shahryar Minhas
 }

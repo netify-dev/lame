@@ -4,7 +4,7 @@
 #' assuming they are the same across replicates. 
 #' 
 #' 
-#' @usage rUV_rep_fc(E.T,U,V,rho,s2=1,shrink=TRUE,tmp)
+#' @usage rUV_rep_fc(E.T,U,V,rho,s2=1,shrink=TRUE)
 #' @param E.T Array of square residual relational matrix series with additive
 #' effects and covariates subtracted out. The third dimension of the array is
 #' for different replicates. Each slice of the array according to the third
@@ -14,21 +14,19 @@
 #' @param rho dyadic correlation
 #' @param s2 dyadic variance
 #' @param shrink adaptively shrink the factors with a hierarchical prior
-#' @param tmp temporary parameter (internal use)
 #'
 #' @return \item{U}{a new value of U} \item{V}{a new value of V}
-#' @author Peter Hoff, Yanjun He, Shahryar Minhas
+#' @author Peter Hoff, Yanjun He
 #' @export rUV_rep_fc
 rUV_rep_fc <-
-  function(E.T,U,V,rho,s2=1,shrink=TRUE,tmp)
+  function(E.T,U,V,rho,s2=1,shrink=TRUE)
   {
     Time<-dim(E.T)[3]
     
     R<-ncol(U) ; n<-nrow(U)
-    UV<-cbind(U,V)
     if(shrink)
     {
-      Suv<-solve( rwish(solve( diag(nrow=2*R) +t(UV)%*%UV) ,n+R+2) )
+      Suv<-rSuv_fc(U, V, Suv0=diag(2*R)/(n+R+2), kappa0=n+R+2)
     }
     if(!shrink){ Suv<-diag(n,nrow=2*R)  }
     
@@ -45,7 +43,7 @@ rUV_rep_fc <-
       return((g^2+d^2)*matrix(Er,n)+2*g*d*matrix(Er,n,byrow=T))
     }
     
-    for(r in tmp)
+    for(r in sample(1:R))
     {
       #Er.t<-Es.t<-array(dim=dim(E))
       #for (t in 1:Time){       

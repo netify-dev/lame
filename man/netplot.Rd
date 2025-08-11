@@ -6,7 +6,7 @@
 \usage{
 netplot(Y,X=NULL,xaxt="n",yaxt="n",xlab="",ylab="",
  lcol="gray",ncol="black",lwd=1,lty=1,pch=16,bty="n",plotnames=FALSE,
- seed=1,
+ seed=6886,
  plot.iso=TRUE,directed=NULL,add=FALSE,...)
 }
 \arguments{

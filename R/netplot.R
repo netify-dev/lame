@@ -4,7 +4,7 @@
 #' 
 #' @usage netplot(Y,X=NULL,xaxt="n",yaxt="n",xlab="",ylab="",
 #'  lcol="gray",ncol="black",lwd=1,lty=1,pch=16,bty="n",plotnames=FALSE,
-#'  seed=1,
+#'  seed=6886,
 #'  plot.iso=TRUE,directed=NULL,add=FALSE,...)
 #' @param Y a sociomatrix 
 #' @param X coordinates for plotting the nodes
@@ -34,7 +34,7 @@
 #' @export netplot
 netplot<-function(Y,X=NULL,xaxt="n",yaxt="n",xlab="",ylab="",
                   lcol="gray",ncol="black",lwd=1,lty=1,pch=16,
-                  bty="n",plotnames=FALSE,seed=1,plot.iso=TRUE,
+                  bty="n",plotnames=FALSE,seed=6886,plot.iso=TRUE,
                   directed=NULL,add=FALSE,...)
 {
   if(nrow(Y)!=ncol(Y))

@@ -2,22 +2,83 @@
 % Please edit documentation in R/plot.ame.R
 \name{plot.ame}
 \alias{plot.ame}
-\title{Plot results of an AME object}
+\title{Plot comprehensive diagnostics for an AME model fit}
 \usage{
-\method{plot}{ame}(x, ...)
+\method{plot}{ame}(
+  x,
+  which = c(1, 2, 3, 4),
+  ask = FALSE,
+  pages = c("single", "multiple"),
+  ...
+)
 }
 \arguments{
-\item{x}{the result of fitting an AME model}
+\item{x}{an object of class "ame" from fitting an AME model}
 
-\item{...}{additional parameters (not used)}
+\item{which}{numeric or character vector specifying which plots to produce:
+1 or "trace" = MCMC trace plots,
+2 or "density" = posterior density plots,
+3 or "gof" = goodness-of-fit plots,
+4 or "effects" = additive and multiplicative effects.
+Default is c(1,2,3,4) to show all plots.}
+
+\item{ask}{logical; if TRUE, user is prompted before each plot page}
+
+\item{pages}{character string specifying how to arrange plots:
+"single" = one comprehensive page (default),
+"multiple" = separate pages for each plot type}
+
+\item{...}{additional arguments (currently not used)}
 }
 \value{
-a series of plots
+NULL (invisibly). Plots are displayed as side effects.
 }
 \description{
-A set of plots summarizing the MCMC routine for an AME fit, as well as some
-posterior predictive checks.
+Creates a comprehensive set of diagnostic plots for an AME (Additive and
+Multiplicative Effects) model, including MCMC diagnostics, parameter estimates,
+and goodness-of-fit checks. This is the default plot method for AME objects.
+}
+\details{
+The function produces a multi-panel plot containing:
+\describe{
+\item{MCMC trace plots}{Shows mixing and convergence of key parameters}
+\item{Posterior distributions}{Density plots of regression coefficients
+and variance components}
+\item{Goodness-of-fit}{Comparison of observed network statistics to
+posterior predictive distributions (if gof=TRUE in model fit)}
+\item{Effect visualizations}{Plots of additive sender/receiver effects
+and multiplicative effects if present}
+}
+
+The plot adapts to the model specification:
+\itemize{
+\item Shows only relevant variance components (e.g., omits cab for symmetric networks)
+\item Includes multiplicative effects plots only if R > 0
+\item Includes GOF plots only if computed during model fitting
+}
+}
+\examples{
+\dontrun{
+# Fit an AME model
+fit <- ame(Y, X, R = 2, gof = TRUE)
+
+# Default comprehensive plot
+plot(fit)
+
+# Only MCMC diagnostics
+plot(fit, which = c("trace", "density"))
+
+# Only effects plots
+plot(fit, which = "effects")
+
+# Separate pages for each plot type
+plot(fit, pages = "multiple")
+}
+}
+\seealso{
+\code{\link{ame}}, \code{\link{trace_plot}}, \code{\link{gof_plot}},
+\code{\link{ab_plot}}, \code{\link{uv_plot}}
 }
 \author{
-Peter Hoff
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

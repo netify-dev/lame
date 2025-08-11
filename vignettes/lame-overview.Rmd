@@ -1,10 +1,10 @@
 ---
-title: "lame-overview"
+title: "lame Overview"
 author: "Cassy Dorff, Shahryar Minhas, and Tosin Salau"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Foundations}
+  %\VignetteIndexEntry{lame Overview}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -97,47 +97,35 @@ summary(fit)
 
 We see that the model shows that wealthier and more populous countries are more likely to impose sanctions on less wealthy and less populous countries. We also observe that more populous countries are more likely to be sanctioned (target-column effects). In addition, countries that belong to the same international organizations are more likely to sanction each other. This suggests that institutions provide information and facilitate economic sanctions for countries that are members of the same organization. Distance is negatively associated with sanctions, this indicates that geographically closer countries are more likely to sanction each other.
 
-We can check the types of parameters included in the fitted lame model and use the `paramPlot` function to visualize how well the model's paramters converged.
-```{r}
+We can check the types of parameters included in the fitted lame model and use the `trace_plot` function to visualize how well the model's parameters converged.
+```{r, fig.alt="MCMC trace plots and density plots showing convergence and posterior distributions of regression coefficients"}
 names(fit)
-paramPlot(fit$BETA)
+trace_plot(fit, params = "beta")
 ```
 
-The `paramPlot` function produces traceplots on the left and density plots on the right for each parameter in the model. The red line shows where the posterior mean lies in the shaded regions of the 90% and 95% credible intervals of the probability distribution.
+The `trace_plot` function produces traceplots and density plots for each parameter in the model, helping visualize MCMC convergence and posterior distributions.
 
 Looking at the density plots, we can check if the parameters overlap with the 90% and 95% credible intervals. If they do, it indicates that there is no evidence for sender or receiver heterogeneity. If they do not overlap, it suggests that there is evidence for sender or receiver effects. In our example, all variables show there is no evidence for sender or receiver heterogeneity in sanctioning patterns across the countries, as the posterior distributions overlap with the credible intervals. From the trace plots, we need to run the Markov chain much longer for the model to converge.
 
-Next, we will use the `gofPlot` function to visualize the goodness of fit of the model on average and the `gofPlot_long` to analyze the model fit for each year in our data. 
+Next, we will use the `gof_plot` function to visualize the goodness of fit of the model. 
 
-```{r, fig.width=8, fig.height=6, dpi=100, dev="png"}
-gofPlot(fit$GOF, FALSE) 
+```{r, fig.width=8, fig.height=6, dpi=100, dev="png", fig.alt="Goodness of fit plots comparing observed network statistics to posterior predictive distributions across time periods"}
+gof_plot(fit) 
 ```
  
 We analyze how well our model is able to accurately represent heterogeneity, transitivity and cycle dependence. The blue line shows the observed heterogeneity in the model and the red line is heterogeneity in the simulated values. The shaded area shows the 90% credible interval. We see that the model does a good job representing heterogeneity and transitivity but not dyadic and cyclic dependence in the data.
  
-While the plot above focuses on average performance, but users might want to analyze these network properties for each year of the data using the `gofPlot_long` function. This function allows us to visualize the goodness of fit for each year separately, which can help us understand how well the model fits the data over time. We can analyze the `actual` and `deviation` (difference in the observed and simulated) of the model fit for each year.
+Since this is a longitudinal model (LAME), the `gof_plot` function will automatically produce time series plots showing how the network statistics evolve over time with credible intervals.
 
-```{r, fig.width=8, fig.height=6, dpi=100, dev="png"}
-gofPlot_long(fit$GOF, type= "actual", symmetric = FALSE)
-```
+The plot shows the observed values (points) and posterior predictive intervals (shaded regions) for each network statistic across time periods. When observed values fall outside the credible bands, it suggests the model may not fully capture the network structure at those time points. This can help identify periods where the network exhibits unique characteristics that the model struggles to represent.
 
-The `gofPlot_long` function produces a plot for each year in the data, plotting the actual and simulated values for heterogeneity, transitivity, dyadic dependence, and cyclic dependence. The boxplots show the distribution of the simulated values from the posterior prediction and the diamonds points represent the observed values. Among the years in the data, we see that in 1995 the observed values fall outside the posterior predictive distributions across the network statistics suggesting the model struggles to capture the unique network structure present in the sanctions data during this time. This may possibly reflect the geopolitical conditions during this post-Cold War transition period.
+Finally, let's visualize the latent space of sender and receiver countries using the `uv_plot` function.
 
-To analyze the difference between the observed and simulated values, we can use the `type = "deviation"` argument in the function. This will show us how well the model captures the differences between the observed and simulated values for each year.
+```{r, fig.width=8, fig.height=6, dpi=100, dev="png", fig.alt="Network visualization showing multiplicative effects latent space positions of countries in the sanctions network"}
 
-```{r, fig.width=8, fig.height=6, dpi=100, dev="png"}
-gofPlot_long(fit$GOF, type= "deviation", symmetric = FALSE)
-```
-
-In our example, the model struggles to capture both dyadic dependency and transitivity in 1993 and 1994, although it performs better in the later years.
-
-Finally, 's visualize the latent space of sender and reciever countries using `ggCirc` function.
-
-```{r, fig.width=8, fig.height=6, dpi=100, dev="png"}
-
-# Network plot for 1995
-ggCirc(Y=Y[[3]], U=fit$U, V=fit$V) +
-  ggtitle("Sanctions Network - 1995") +
+# Network plot showing multiplicative effects
+uv_plot(fit) +
+  ggtitle("Sanctions Network - Multiplicative Effects") +
   theme_minimal() +
   theme(
     legend.position='none',
@@ -147,7 +135,7 @@ ggCirc(Y=Y[[3]], U=fit$U, V=fit$V) +
 
 ```
 
-This function creates a circular network plot where the outer circle shows the sender countries and the inner circle shows the target countries. The plot shows that if actors are close together in the latent space, they tend to target or are targeted by similar actors. In our example, we show the sanction network for the year 1995. Again, countries impose sanctions or receive sanctions from similar countries if they are close to each other.
+This function creates a visualization of the multiplicative effects (latent factors) from the model. Actors that are close together in the latent space tend to have similar patterns of connections - either targeting similar actors (if looking at sender positions) or being targeted by similar actors (if looking at receiver positions). Countries impose sanctions or receive sanctions from similar countries if they are close to each other in this latent space representation.
 
 For instance, Canada (CAN) and USA are positioned close together indicating they sanction similar countries. Similarly, countries like Italy (ITA), Dominican Republic (DOM) and Japan (JPN) suggest they receive sanctions from similar countries. Actors diagonal to each other, such as Norway (NOR) and Iran (IRN), indicate that they are likely to sanction each other.
 

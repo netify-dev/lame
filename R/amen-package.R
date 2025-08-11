@@ -36,12 +36,11 @@
 #' @useDynLib lame, .registration = TRUE
 #'
 #' @examples
-#' 
-#' 
-#' data(YX_frn)
-#' fit<-ame(YX_frn$Y,YX_frn$X,burn=5,nscan=5,odens=1,family="frn")
-#' 
+#' \dontrun{
+#' data(YX_nrm)
+#' fit<-ame(YX_nrm$Y,YX_nrm$X,burn=10,nscan=20,odens=5,family="nrm")
 #' summary(fit)
+#' }
 #' 
 #' 
 #' 
