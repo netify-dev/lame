@@ -21,7 +21,7 @@ covariates
 \examples{
 
 data(YX_cbin)
-gofstats(YX_cbin$Y) 
+gof_stats(YX_cbin$Y) 
 
 }
 \keyword{datasets}

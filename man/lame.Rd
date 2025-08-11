@@ -5,8 +5,8 @@
 \title{AME model fitting routine for replicated relational data}
 \usage{
 lame(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl")
-, cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, family ="nrm",
-intercept=!is.element(family,c("rrl","ord")),
+, cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, family ="normal",
+intercept=!is.element(family,c("rrl","ordinal")),
 symmetric=FALSE,
 odmax=NULL, prior=list(), g=NA,
 seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
@@ -33,7 +33,7 @@ See family below for various data types.}
 
 \item{R}{integer: dimension of the multiplicative effects (can be zero)}
 
-\item{family}{character: one of "nrm","tob","bin","ord","cbin","frn","rrl" - see
+\item{family}{character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 the details below}
 
 \item{intercept}{logical: fit model with an intercept?}
@@ -99,17 +99,17 @@ various types.
 }
 \details{
 This command provides posterior inference for parameters in AME models of
-independent replicated relational data, assuming one of seven possible data
+independent replicated relational data, assuming one of eight possible data
 types/models:
 
-"nrm": A normal AME model.
+"normal": A normal AME model.
 
-"tob": A tobit AME model for censored continuous data. Values are censored
+"tobit": A tobit AME model for censored continuous data. Values are censored
 at zero, appropriate for non-negative continuous relational data.
 
-"bin": A binary probit AME model.
+"binary": A binary probit AME model.
 
-"ord": An ordinal probit AME model. An intercept is not identifiable in this
+"ordinal": An ordinal probit AME model. An intercept is not identifiable in this
 model.
 
 "cbin": An AME model for censored binary data.  The value of 'odmax'
@@ -123,11 +123,14 @@ the maximum number of links each row may have.
 relationships across rows are not directly comparable in terms of scale. An
 intercept, row random effects and row regression effects are not estimable
 for this model.
+
+"poisson": An overdispersed Poisson AME model for count data. The latent
+variable represents the log mean of the Poisson distribution.
 }
 \examples{
 
 data(YX_bin_list) 
-fit<-lame(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,family="bin")
+fit<-lame(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,family="binary")
 # you should run the Markov chain much longer than this
 
 }

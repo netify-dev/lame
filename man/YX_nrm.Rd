@@ -20,7 +20,7 @@ well as information on eight covariates
 \examples{
 
 data(YX_nrm)
-gofstats(YX_nrm$Y)
+gof_stats(YX_nrm$Y)
 
 
 }

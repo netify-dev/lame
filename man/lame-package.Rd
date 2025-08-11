@@ -24,7 +24,7 @@ by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).
 \examples{
 \dontrun{
 data(YX_nrm)
-fit<-ame(YX_nrm$Y,YX_nrm$X,burn=10,nscan=20,odens=5,family="nrm")
+fit<-ame(YX_nrm$Y,YX_nrm$X,burn=10,nscan=20,odens=5,family="normal")
 summary(fit)
 }
 

@@ -20,7 +20,7 @@ information on eight covariates
 \examples{
 
 data(YX_bin)
-gofstats(YX_bin$Y) 
+gof_stats(YX_bin$Y) 
 
 }
 \keyword{datasets}

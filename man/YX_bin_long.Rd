@@ -17,7 +17,7 @@ as well as information on covariates
 \examples{
 
 data(YX_bin_long)
-gofstats(YX_bin_long$Y[,,1]) 
+gof_stats(YX_bin_long$Y[,,1]) 
 
 }
 \keyword{datasets}

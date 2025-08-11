@@ -2,7 +2,7 @@
 # These are column names used in non-standard evaluation
 utils::globalVariables(c(
   "mu", "ymax", "ymin", "id",  # ab_plot
-  "odmax",  # getStartVals
+  "odmax",  # get_start_vals
   "X1", "X2", "eff", "actor", "tPch",  # uv_plot
   "Var2", "value", "x", "..density..", "y", "q90", "q95", "actual",  # gof_plot
   "time",  # gof_plot

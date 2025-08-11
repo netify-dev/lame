@@ -41,5 +41,5 @@ llYZ<-function(y,z){ dpois(y,z,log=TRUE) }
 
 }
 \author{
-Peter Hoff
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

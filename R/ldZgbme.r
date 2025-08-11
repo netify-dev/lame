@@ -24,7 +24,7 @@
 #' ## For (overdispersed) Poisson regression, use
 #' llYZ<-function(y,z){ dpois(y,z,log=TRUE) } 
 #' 
-#' @author Peter Hoff
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @export ldZgbme
 ldZgbme<-function(Z,Y,llYZ,EZ,rho,s2=1)
 {

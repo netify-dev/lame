@@ -16,5 +16,5 @@ a matrix \code{H} such that \code{H^2} equals \code{M}
 Computes the symmetric square root of a positive definite matrix
 }
 \author{
-Peter Hoff
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

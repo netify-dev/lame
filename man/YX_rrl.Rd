@@ -20,7 +20,7 @@ well as information on five covariates
 \examples{
 
 data(YX_rrl)
-gofstats(YX_rrl$Y)
+gof_stats(YX_rrl$Y)
 
 }
 \keyword{datasets}

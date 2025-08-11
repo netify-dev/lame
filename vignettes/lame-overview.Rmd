@@ -62,7 +62,7 @@ data("vignette_data")
 ```
 
 
-We run the model using the `lame()` function. We specify family = "bin" for binary network data and include both additive effects (sender and receiver random effects) and multiplicative effects (R = 2) to capture complex relational patterns across the time periods.
+We run the model using the `lame()` function. We specify family = "binary" for binary network data and include both additive effects (sender and receiver random effects) and multiplicative effects (R = 2) to capture complex relational patterns across the time periods.
 
 
 Run the model
@@ -74,7 +74,7 @@ fit <- lame(
   Xdyad = Xdyad,           # dyadic covariates
   Xrow = Xrow,             # sender covariates
   Xcol = Xcol,             # receiver covariates 
-  family = "bin",          # Binary  model
+  family = "binary",       # Binary  model
   rvar = TRUE,             # sender random effects
   cvar = TRUE,             # receiver random effects
   dcor = TRUE,            # Dyadic correlation

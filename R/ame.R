@@ -4,16 +4,16 @@
 #' (AME) regression model to relational data of various types
 #' 
 #' This command provides posterior inference for parameters in AME models of
-#' relational data, assuming one of seven possible data types/models:
+#' relational data, assuming one of eight possible data types/models:
 #' 
-#' "nrm": A normal AME model.
+#' "normal": A normal AME model.
 #' 
-#' "tob": A tobit AME model for censored continuous data. Values are censored
+#' "tobit": A tobit AME model for censored continuous data. Values are censored
 #' at zero, appropriate for non-negative continuous relational data.
 #' 
-#' "bin": A binary probit AME model.
+#' "binary": A binary probit AME model.
 #' 
-#' "ord": An ordinal probit AME model. An intercept is not identifiable in this
+#' "ordinal": An ordinal probit AME model. An intercept is not identifiable in this
 #' model.
 #' 
 #' "cbin": An AME model for censored binary data.  The value of 'odmax'
@@ -28,9 +28,12 @@
 #' intercept, row random effects and row regression effects are not estimable
 #' for this model.
 #' 
+#' "poisson": An overdispersed Poisson AME model for count data. The latent
+#' variable represents the log mean of the Poisson distribution.
+#' 
 #' @usage ame(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl") ,
-#' cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, family="nrm",
-#' intercept=!is.element(family,c("rrl","ord")),
+#' cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, family="normal",
+#' intercept=!is.element(family,c("rrl","ordinal")),
 #' symmetric=FALSE,
 #' odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)), 
 #' prior=list(), g=NA,
@@ -46,7 +49,7 @@
 #' @param dcor logical: fit a dyadic correlation (asymmetric case)?
 #' @param nvar logical: fit nodal random effects (symmetric case)?
 #' @param R integer: dimension of the multiplicative effects (can be zero)
-#' @param family character: one of "nrm","tob","bin","ord","cbin","frn","rrl" - see
+#' @param family character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 #' the details below
 #' @param intercept logical: fit model with an intercept? 
 #' @param symmetric logical: Is the sociomatrix symmetric by design?
@@ -82,7 +85,7 @@
 #' @examples
 #' \dontrun{
 #' data(YX_bin) 
-#' fit<-ame(YX_bin$Y,YX_bin$X,burn=10,nscan=10,odens=1,family="bin")
+#' fit<-ame(YX_bin$Y,YX_bin$X,burn=10,nscan=10,odens=1,family="binary")
 #' # Note: you should run the Markov chain much longer in practice
 #' } 
 #'  
@@ -91,8 +94,8 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
                rvar = !(family=="rrl") , cvar = TRUE, dcor = !symmetric, 
                nvar=TRUE, 
                R = 0,
-               family="nrm",
-               intercept=!is.element(family,c("rrl","ord")), 
+               family="normal",
+               intercept=!is.element(family,c("rrl","ordinal")), 
                symmetric=FALSE,
                odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
                prior=list(), g=NA,
@@ -108,10 +111,10 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   diag(Y) <- NA 
   
   # force binary if binary family specified
-  if(is.element(family,c("bin","cbin"))) { Y<-1*(Y>0) }
+  if(is.element(family,c("binary","cbin"))) { Y<-1*(Y>0) }
   
   # handle tobit family
-  if(family=="tob") { Y[Y<0]<-0 } 
+  if(family=="tobit") { Y[Y<0]<-0 } 
   
   # observed and max outdegrees 
   if(is.element(family,c("cbin","frn","rrl")))
@@ -124,9 +127,9 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   if(symmetric){ Xcol<-Xrow ; rvar<-cvar<-nvar }
   
   if(is.na(g)) {
-    if(family=="nrm") { 
+    if(family=="normal") { 
       g <- sum(!is.na(Y))*var(c(Y),na.rm=TRUE)
-    } else if(family=="tob") {
+    } else if(family=="tobit") {
       g <- sum(!is.na(Y))*var(c(Y),na.rm=TRUE)*4
     } else {
       g <- sum(!is.na(Y))
@@ -172,16 +175,17 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   }
   
   # starting Z values
-  if(family=="nrm") { Z<-Y }
-  if(family=="tob") { Z<-Y ; Z[Y==0]<-min(Y[Y>0],na.rm=TRUE)/2 }
-  if(family=="ord") { Z<-matrix(zscores(Y),nrow(Y),ncol(Y)) } 
+  if(family=="normal") { Z<-Y }
+  if(family=="tobit") { Z<-Y ; Z[Y==0]<-min(Y[Y>0],na.rm=TRUE)/2 }
+  if(family=="ordinal") { Z<-matrix(zscores(Y),nrow(Y),ncol(Y)) } 
   if(family=="rrl") { Z<-matrix(t(apply(Y,1,zscores)),nrow(Y),ncol(Y)) }  
-  if(family=="bin")
+  if(family=="binary")
   { 
     Z<-matrix(zscores(Y),nrow(Y),nrow(Y)) 
     z01<- .5* ( max(Z[Y==0],na.rm=TRUE) + min(Z[Y==1],na.rm=TRUE) ) 
     Z<-Z - z01
   } 
+  if(family=="poisson") { Z<-log(Y+1) ; diag(Z)<-0 }
   
   if(is.element(family,c("cbin","frn")))
   {
@@ -229,7 +233,7 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   UVPS <- U %*% t(V) * 0 
   APS<-BPS<- rep(0,nrow(Y))  
   YPS<-matrix(0,nrow(Y),ncol(Y)) ; dimnames(YPS)<-dimnames(Y)
-  GOF<-matrix(gofstats(Y),1,5)  
+  GOF<-matrix(gof_stats(Y),1,5)  
   rownames(GOF)<-"obs"
   colnames(GOF)<- c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep","trans.dep")
   names(APS)<-names(BPS)<- rownames(U)<-rownames(V)<-rownames(Y)
@@ -270,16 +274,17 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     
     # update Z 
     EZ<-Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V)
-    if(family=="nrm"){ Z<-rZ_nrm_fc(Z,EZ,rho,s2,Y) }
-    if(family=="tob"){ Z<-rZ_tob_fc(Z,EZ,rho,s2,Y) }
-    if(family=="bin"){ Z<-rZ_bin_fc(Z,EZ,rho,Y) }
-    if(family=="ord"){ Z<-rZ_ord_fc(Z,EZ,rho,Y) }
+    if(family=="normal"){ Z<-rZ_nrm_fc(Z,EZ,rho,s2,Y) }
+    if(family=="tobit"){ Z<-rZ_tob_fc(Z,EZ,rho,s2,Y) }
+    if(family=="binary"){ Z<-rZ_bin_fc(Z,EZ,rho,Y) }
+    if(family=="ordinal"){ Z<-rZ_ord_fc(Z,EZ,rho,Y) }
     if(family=="cbin"){Z<-rZ_cbin_fc(Z,EZ,rho,Y,odmax,odobs)}
     if(family=="frn"){ Z<-rZ_frn_fc(Z,EZ,rho,Y,YL,odmax,odobs)}
-    if(family=="rrl"){ Z<-rZ_rrl_fc(Z,EZ,rho,Y,YL)} 
+    if(family=="rrl"){ Z<-rZ_rrl_fc(Z,EZ,rho,Y,YL)}
+    if(family=="poisson"){ Z<-rZ_pois_fc(Z,EZ,rho,s2,Y) } 
     
     # update s2
-    if (is.element(family,c("nrm","tob"))) s2<-rs2_fc(Z,rho,offset=EZ)  
+    if (is.element(family,c("normal","tobit","poisson"))) s2<-rs2_fc(Z,rho,offset=EZ)  
     
     # update beta, a b with g-prior
     X_precomp <- X
@@ -291,14 +296,14 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     if(symmetric){ a<-b<-(a+b)/2 }
     
     # update Sab using unified function
-    if(is.element(family,c("nrm","tob","ord")))
+    if(is.element(family,c("normal","tobit","ordinal")))
     { 
       Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
                      rvar=rvar, cvar=cvar, symmetric=symmetric)
     }
     
     # special updates for discrete families
-    if(family=="bin")
+    if(family=="binary")
     {
       if(rvar & cvar & !symmetric) {
         tmp<-raSab_bin_fc(Z,Y,a,b,Sab,Sab0=prior$Sab0/prior$etaab,eta0=prior$etaab)
@@ -396,12 +401,14 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       EZ<-Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V) 
       if(symmetric){ EZ<-(EZ+t(EZ))/2 } 
       
-      if(family=="bin") { Ys<-simY_bin(EZ,rho) }
+      if(family=="binary") { Ys<-simY_bin(EZ,rho) }
       if(family=="cbin"){ Ys<-1*(simY_frn(EZ,rho,odmax,YO=Y)>0) }
       if(family=="frn") { Ys<-simY_frn(EZ,rho,odmax,YO=Y) }
       if(family=="rrl") { Ys<-simY_rrl(EZ,rho,odobs,YO=Y ) }
-      if(family=="nrm") { Ys<-simY_nrm(EZ,rho,s2) }
-      if(family=="ord") { Ys<-simY_ord(EZ,rho,Y) } 
+      if(family=="normal") { Ys<-simY_nrm(EZ,rho,s2) }
+      if(family=="ordinal") { Ys<-simY_ord(EZ,rho,Y) }
+      if(family=="tobit") { Ys<-simY_tob(EZ,rho,s2) }
+      if(family=="poisson") { Ys<-simY_pois(EZ) } 
       
       if(symmetric){ Ys[lower.tri(Ys)]<-0 ; Ys<-Ys+t(Ys)  }
       
@@ -409,7 +416,7 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       YPS<-YPS+Ys
       
       # save posterior predictive GOF stats
-      if(gof){ Ys[is.na(Y)]<-NA ; GOF<-rbind(GOF,gofstats(Ys)) }
+      if(gof){ Ys[is.na(Y)]<-NA ; GOF<-rbind(GOF,gof_stats(Ys)) }
       
       # print MC progress 
       if (print) 
@@ -482,11 +489,11 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     EZobs <- EZ[!is.na(Y)]
     s2_mean <- mean(VC[,ncol(VC)])
     
-    if(family=="nrm") {
+    if(family=="normal") {
       ll <- sum(dnorm(Yobs, EZobs, sqrt(s2_mean), log=TRUE))
-    } else if(family=="bin") {
+    } else if(family=="binary") {
       ll <- sum(Yobs*pnorm(EZobs,log.p=TRUE) + (1-Yobs)*pnorm(-EZobs,log.p=TRUE))
-    } else if(family=="tob") {
+    } else if(family=="tobit") {
       ll <- sum(ifelse(Yobs==0, pnorm(0, EZobs, sqrt(s2_mean), log.p=TRUE),
                        dnorm(Yobs, EZobs, sqrt(s2_mean), log=TRUE)))
     } else {

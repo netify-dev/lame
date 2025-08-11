@@ -28,7 +28,7 @@ test_that("plot.lame method works", {
     Y = Y, 
     Xdyad = X,
     R = 0,  # No multiplicative effects for test stability
-    family = "bin",
+    family = "binary",
     burn = 2,     
     nscan = 4,     
     odens = 2,

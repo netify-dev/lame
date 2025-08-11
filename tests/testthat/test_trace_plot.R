@@ -24,7 +24,7 @@ test_that("trace_plot works", {
   fit <- lame(
     Y = Y, 
     Xdyad = X,
-    family = "bin",
+    family = "binary",
     burn = 2,     
     nscan = 4,     
     odens = 2,     

@@ -5,8 +5,8 @@
 \title{AME model fitting routine}
 \usage{
 ame(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl") ,
-cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, family="nrm",
-intercept=!is.element(family,c("rrl","ord")),
+cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, family="normal",
+intercept=!is.element(family,c("rrl","ordinal")),
 symmetric=FALSE,
 odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)), 
 prior=list(), g=NA,
@@ -33,7 +33,7 @@ various data types.}
 
 \item{R}{integer: dimension of the multiplicative effects (can be zero)}
 
-\item{family}{character: one of "nrm","tob","bin","ord","cbin","frn","rrl" - see
+\item{family}{character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 the details below}
 
 \item{intercept}{logical: fit model with an intercept?}
@@ -87,16 +87,16 @@ An MCMC routine providing a fit to an additive and multiplicative effects
 }
 \details{
 This command provides posterior inference for parameters in AME models of
-relational data, assuming one of seven possible data types/models:
+relational data, assuming one of eight possible data types/models:
 
-"nrm": A normal AME model.
+"normal": A normal AME model.
 
-"tob": A tobit AME model for censored continuous data. Values are censored
+"tobit": A tobit AME model for censored continuous data. Values are censored
 at zero, appropriate for non-negative continuous relational data.
 
-"bin": A binary probit AME model.
+"binary": A binary probit AME model.
 
-"ord": An ordinal probit AME model. An intercept is not identifiable in this
+"ordinal": An ordinal probit AME model. An intercept is not identifiable in this
 model.
 
 "cbin": An AME model for censored binary data.  The value of 'odmax'
@@ -110,11 +110,14 @@ the maximum number of links each row may have.
 relationships across rows are not directly comparable in terms of scale. An
 intercept, row random effects and row regression effects are not estimable
 for this model.
+
+"poisson": An overdispersed Poisson AME model for count data. The latent
+variable represents the log mean of the Poisson distribution.
 }
 \examples{
 \dontrun{
 data(YX_bin) 
-fit<-ame(YX_bin$Y,YX_bin$X,burn=10,nscan=10,odens=1,family="bin")
+fit<-ame(YX_bin$Y,YX_bin$X,burn=10,nscan=10,odens=1,family="binary")
 # Note: you should run the Markov chain much longer in practice
 } 
  

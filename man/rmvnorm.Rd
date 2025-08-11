@@ -23,5 +23,5 @@ Simulates a matrix where the rows are i.i.d. samples from a multivariate
 normal distribution
 }
 \author{
-Peter Hoff
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }
