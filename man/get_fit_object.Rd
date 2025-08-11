@@ -22,13 +22,14 @@ get_fit_object(
   model.name = NULL,
   U = NULL,
   V = NULL,
-  dynamic_uv = FALSE
+  dynamic_uv = FALSE,
+  dynamic_ab = FALSE
 )
 }
 \arguments{
-\item{APS}{summed additive sender random effects}
+\item{APS}{summed additive sender random effects (or matrix for dynamic)}
 
-\item{BPS}{summed additive sender random effects}
+\item{BPS}{summed additive receiver random effects (or matrix for dynamic)}
 
 \item{UVPS}{summed multiplicative random effects}
 
@@ -61,6 +62,8 @@ get_fit_object(
 \item{V}{Latent receiver positions (optional, for dynamic UV)}
 
 \item{dynamic_uv}{logical indicating whether UV effects are dynamic}
+
+\item{dynamic_ab}{logical indicating whether additive effects are dynamic}
 }
 \value{
 Fitted AME object

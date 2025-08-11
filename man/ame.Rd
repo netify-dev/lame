@@ -44,9 +44,33 @@ the details below}
 number of nominations that each node may make - used for "frn" and "cbin"
 families}
 
-\item{prior}{a list containing hyperparameters for the prior distributions}
+\item{prior}{a list containing hyperparameters for the prior distributions.
+Available options and their defaults:
+\describe{
+\item{Sab0}{Prior covariance matrix for additive effects (default: diag(2)).
+A 2x2 matrix where Sab0\[1,1\] is the prior variance for row effects,
+Sab0\[2,2\] is the prior variance for column effects, and off-diagonals
+control correlation between row and column effects.}
+\item{eta0}{Prior degrees of freedom for covariance of multiplicative effects
+(default: 4 + 3 \\* n/100, where n is the number of actors). Higher values
+impose stronger shrinkage on the latent factors. Common values: 4-10 for
+weak shrinkage, 10-20 for moderate, >20 for strong shrinkage.}
+\item{etaab}{Prior degrees of freedom for covariance of additive effects
+(default: 4 + 3 \\* n/100). Controls shrinkage of row/column random effects.
+Larger values shrink effects toward zero.}
+\item{s20}{Prior variance for regression coefficients (default: 1).
+Larger values allow for larger coefficient values.}
+\item{s2u0}{Prior variance for multiplicative effects (default: 1).}
+\item{Suv0}{Prior covariance for multiplicative effects (default: identity matrix).}
+}
+Common usage: prior = list(Sab0 = diag(c(2, 2)), eta0 = 10) for moderate
+shrinkage, or prior = list(Sab0 = diag(c(0.5, 0.5))) for tighter control.}
 
-\item{g}{optional scalar or vector of length dim(X)\[3\] for g-prior}
+\item{g}{optional scalar or vector of length dim(X)\[3\] for g-prior on
+regression coefficients. If not specified, defaults are: for normal family,
+g = n\emph{var(Y); for tobit, g = n}var(Y)*4; for other families, g = n, where
+n is the number of non-missing dyads. The g-prior controls the variance of
+regression coefficients.}
 
 \item{seed}{random seed}
 
@@ -87,7 +111,64 @@ An MCMC routine providing a fit to an additive and multiplicative effects
 }
 \details{
 This command provides posterior inference for parameters in AME models of
-relational data, assuming one of eight possible data types/models:
+relational data, assuming one of eight possible data types/models.
+
+\strong{Theoretical Foundation:}
+
+The AME model decomposes network structure into several components:
+\deqn{y_{ij} = \beta'x_{ij} + a_i + b_j + u_i'v_j + \epsilon_{ij}}
+where:
+\itemize{
+\item \eqn{\beta'x_{ij}}: Fixed effects of dyadic/nodal covariates
+\item \eqn{a_i}: Additive sender (row) effect for node i
+\item \eqn{b_j}: Additive receiver (column) effect for node j
+\item \eqn{u_i'v_j}: Multiplicative interaction between latent factors
+\item \eqn{\epsilon_{ij}}: Dyadic error term (may be correlated)
+}
+
+This specification generalizes the social relations model (Warner et al. 1979)
+and latent space models (Hoff et al. 2002) within a unified framework.
+
+\strong{Prior Distributions:}
+
+The model uses conjugate and semi-conjugate priors where possible:
+\itemize{
+\item Regression coefficients: \eqn{\beta \sim N(0, g\sigma^2(X'X)^{-1})} (g-prior)
+\item Additive effects: \eqn{(a_i, b_i)' \sim N(0, \Sigma_{ab})} jointly
+\item Covariance: \eqn{\Sigma_{ab} \sim IW(\eta_0, \eta_0 S_{ab0})} (inverse-Wishart)
+\item Multiplicative effects: Hierarchical shrinkage via \eqn{\eta_0}
+\item Dyadic correlation: \eqn{\rho \sim Uniform(-1, 1)} with Metropolis updates
+}
+
+The inverse-Wishart prior on \eqn{\Sigma_{ab}} allows learning correlation between
+sender and receiver effects, capturing reciprocity patterns.
+
+\strong{Multiplicative Effects (Latent Factors):}
+
+When R > 0, the model includes R-dimensional latent factors:
+\itemize{
+\item Asymmetric case: \eqn{u_i, v_j \in \mathbb{R}^R} with \eqn{u_i'v_j} interaction
+\item Symmetric case: \eqn{u_i = v_i} with eigendecomposition \eqn{ULU'}
+\item Captures homophily, transitivity, and community structure
+\item R chosen via model selection or set to 2-3 for visualization
+}
+
+\strong{Estimation Algorithm:}
+
+The model uses a Gibbs sampler with the following updates:
+\enumerate{
+\item Sample latent Z given parameters (data augmentation for non-normal families)
+\item Update regression coefficients \eqn{\beta} via g-prior conjugate update
+\item Update additive effects (a,b) jointly with \eqn{\beta}
+\item Update covariance \eqn{\Sigma_{ab}} from inverse-Wishart
+\item Update multiplicative effects U,V via Gibbs or Metropolis-Hastings
+\item Update dyadic correlation \eqn{\rho} via Metropolis-Hastings
+\item Update variance \eqn{\sigma^2} (for continuous families)
+}
+
+\strong{Standard Model Types:}
+
+The following data types/models are available:
 
 "normal": A normal AME model.
 

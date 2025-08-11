@@ -28,7 +28,24 @@ function(S0,nu=dim(S0)[1]+2)
   {
     # sample from a Wishart distribution 
     # with expected value nu*S0 
-    sS0<-chol(S0)
+    
+    # Ensure S0 is positive definite
+    eigenvals <- eigen(S0, symmetric = TRUE, only.values = TRUE)$values
+    min_eig <- min(eigenvals)
+    if(min_eig <= 0) {
+      # Add small ridge to make positive definite
+      S0 <- S0 + diag(nrow(S0)) * (1e-6 - min_eig)
+    }
+    
+    sS0 <- tryCatch({
+      chol(S0)
+    }, error = function(e) {
+      # If chol still fails, use eigen decomposition
+      eig <- eigen(S0, symmetric = TRUE)
+      sqrt_evals <- sqrt(pmax(eig$values, 1e-10))
+      eig$vectors %*% diag(sqrt_evals)
+    })
+    
     Z<-matrix( rnorm(nu*dim(S0)[1]) , nu, dim(S0)[1] ) %*% sS0
     t(Z)%*%Z
   }

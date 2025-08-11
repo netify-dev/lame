@@ -46,6 +46,71 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sample_dynamic_ab_cpp
+List sample_dynamic_ab_cpp(arma::mat a_current, arma::mat b_current, const arma::cube& Z_array, const arma::cube& EZ_array, double rho_ab, double sigma_ab, const arma::mat& Sab, bool symmetric);
+RcppExport SEXP _lame_sample_dynamic_ab_cpp(SEXP a_currentSEXP, SEXP b_currentSEXP, SEXP Z_arraySEXP, SEXP EZ_arraySEXP, SEXP rho_abSEXP, SEXP sigma_abSEXP, SEXP SabSEXP, SEXP symmetricSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type a_current(a_currentSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type b_current(b_currentSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type Z_array(Z_arraySEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type EZ_array(EZ_arraySEXP);
+    Rcpp::traits::input_parameter< double >::type rho_ab(rho_abSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma_ab(sigma_abSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Sab(SabSEXP);
+    Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_dynamic_ab_cpp(a_current, b_current, Z_array, EZ_array, rho_ab, sigma_ab, Sab, symmetric));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sample_rho_ab_cpp
+double sample_rho_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat, double sigma_ab, double rho_current, bool symmetric);
+RcppExport SEXP _lame_sample_rho_ab_cpp(SEXP a_matSEXP, SEXP b_matSEXP, SEXP sigma_abSEXP, SEXP rho_currentSEXP, SEXP symmetricSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type a_mat(a_matSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type b_mat(b_matSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma_ab(sigma_abSEXP);
+    Rcpp::traits::input_parameter< double >::type rho_current(rho_currentSEXP);
+    Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_rho_ab_cpp(a_mat, b_mat, sigma_ab, rho_current, symmetric));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sample_sigma_ab_cpp
+double sample_sigma_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat, double rho_ab, bool symmetric, double prior_shape, double prior_scale);
+RcppExport SEXP _lame_sample_sigma_ab_cpp(SEXP a_matSEXP, SEXP b_matSEXP, SEXP rho_abSEXP, SEXP symmetricSEXP, SEXP prior_shapeSEXP, SEXP prior_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type a_mat(a_matSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type b_mat(b_matSEXP);
+    Rcpp::traits::input_parameter< double >::type rho_ab(rho_abSEXP);
+    Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
+    Rcpp::traits::input_parameter< double >::type prior_shape(prior_shapeSEXP);
+    Rcpp::traits::input_parameter< double >::type prior_scale(prior_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_sigma_ab_cpp(a_mat, b_mat, rho_ab, symmetric, prior_shape, prior_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
+// init_dynamic_ab_cpp
+List init_dynamic_ab_cpp(int n, int T, double rho_ab, double sigma_ab, double mean_a, double mean_b);
+RcppExport SEXP _lame_init_dynamic_ab_cpp(SEXP nSEXP, SEXP TSEXP, SEXP rho_abSEXP, SEXP sigma_abSEXP, SEXP mean_aSEXP, SEXP mean_bSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< double >::type rho_ab(rho_abSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma_ab(sigma_abSEXP);
+    Rcpp::traits::input_parameter< double >::type mean_a(mean_aSEXP);
+    Rcpp::traits::input_parameter< double >::type mean_b(mean_bSEXP);
+    rcpp_result_gen = Rcpp::wrap(init_dynamic_ab_cpp(n, T, rho_ab, sigma_ab, mean_a, mean_b));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rUV_dynamic_fc_cpp
 List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current, const arma::cube& ET, double rho_uv, double sigma_uv, double s2, bool shrink, bool symmetric);
 RcppExport SEXP _lame_rUV_dynamic_fc_cpp(SEXP U_currentSEXP, SEXP V_currentSEXP, SEXP ETSEXP, SEXP rho_uvSEXP, SEXP sigma_uvSEXP, SEXP s2SEXP, SEXP shrinkSEXP, SEXP symmetricSEXP) {
@@ -507,6 +572,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_Xbeta_cpp", (DL_FUNC) &_lame_Xbeta_cpp, 2},
     {"_lame_outer_cpp", (DL_FUNC) &_lame_outer_cpp, 2},
     {"_lame_gof_stats_cpp", (DL_FUNC) &_lame_gof_stats_cpp, 1},
+    {"_lame_sample_dynamic_ab_cpp", (DL_FUNC) &_lame_sample_dynamic_ab_cpp, 8},
+    {"_lame_sample_rho_ab_cpp", (DL_FUNC) &_lame_sample_rho_ab_cpp, 5},
+    {"_lame_sample_sigma_ab_cpp", (DL_FUNC) &_lame_sample_sigma_ab_cpp, 6},
+    {"_lame_init_dynamic_ab_cpp", (DL_FUNC) &_lame_init_dynamic_ab_cpp, 6},
     {"_lame_rUV_dynamic_fc_cpp", (DL_FUNC) &_lame_rUV_dynamic_fc_cpp, 8},
     {"_lame_init_dynamic_positions", (DL_FUNC) &_lame_init_dynamic_positions, 5},
     {"_lame_sample_rho_uv", (DL_FUNC) &_lame_sample_rho_uv, 5},

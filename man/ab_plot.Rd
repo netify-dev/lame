@@ -9,7 +9,10 @@ ab_plot(
   effect = c("sender", "receiver"),
   sorted = TRUE,
   labels = NULL,
-  title = NULL
+  title = NULL,
+  time_point = NULL,
+  plot_type = c("snapshot", "trajectory", "faceted", "ribbon"),
+  show_actors = NULL
 )
 }
 \arguments{
@@ -24,15 +27,23 @@ ab_plot(
 for n <= 50 actors)}
 
 \item{title}{Optional title for the plot}
+
+\item{time_point}{For dynamic effects, which time point to plot (default: last).
+Can be numeric index, "all" for faceted plot, or "average" for time-averaged}
+
+\item{plot_type}{For dynamic effects: "snapshot" (single time), "trajectory" (evolution over time),
+"faceted" (grid of time points), or "ribbon" (confidence bands over time).
+For static effects, this parameter is ignored.}
+
+\item{show_actors}{Character vector of specific actors to highlight (for dynamic trajectory/ribbon plots)}
 }
 \value{
 A ggplot2 object that can be further customized
 }
 \description{
 Creates a visualization of the additive sender (row) and receiver (column)
-random effects from an AME or LAME model. These effects capture heterogeneity
-in actors' propensities to send and receive ties that is not explained by
-covariates.
+random effects from an AME or LAME model. Automatically detects whether effects
+are static or dynamic and provides appropriate visualization options.
 }
 \details{
 The additive effects in AME models represent:
@@ -45,13 +56,11 @@ Positive values indicate actors who receive more ties than expected;
 negative values indicate actors who receive fewer ties.}
 }
 
-The plot displays these effects as a dot plot with vertical lines extending
-from zero to each effect estimate, making it easy to identify:
-\itemize{
-\item Which actors are most active/inactive as senders
-\item Which actors are most popular/unpopular as receivers
-\item The overall distribution and range of effects
-}
+For static effects, the plot displays these effects as a dot plot with vertical
+lines extending from zero to each effect estimate.
+
+For dynamic effects (when fit contains a_dynamic/b_dynamic), additional options
+are available to visualize how effects evolve over time.
 }
 \examples{
 \dontrun{
