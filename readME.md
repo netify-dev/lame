@@ -171,9 +171,9 @@ The dynamic effects implementation draws on:
 
 ## Contributors
 
-- **Shahryar Minhas** (Michigan State University) - Package maintainer
-- **Cassy Dorff** (Vanderbilt University) - Core developer
-- **Tosin Salau** (Michigan State University) - Core developer
+- **Shahryar Minhas** (Michigan State University)
+- **Cassy Dorff** (Vanderbilt University)
+- **Tosin Salau** (Michigan State University)
 
 ## License
 
