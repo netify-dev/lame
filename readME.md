@@ -1,129 +1,158 @@
-# lame
+# **lame** <img src="man/figures/lame_hex.png" align="right" alt="hex" width="200px">
 
-## Overview <img src="https://github.com/netify-dev/lame/blob/main/man/figures/lame_hex.png" align = "right" alt="hex" width="200px">
+> **L**ongitudinal **A**dditive and **M**ultiplicative **E**ffects Models for Networks
 
-The `lame` R package provides a framework for modeling longitudinal network data via the Additive and Multiplicative Effects Model (`amen`). Key features include:
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/netify-dev/lame/workflows/R-CMD-check/badge.svg)](https://github.com/netify-dev/lame/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<!-- badges: end -->
 
-- **Dynamic effects modeling**: Both additive (sender/receiver) and multiplicative (latent factor) effects can evolve over time following AR(1) processes, capturing temporal heterogeneity in network structure
-- **Temporal handling**: Manages networks with changing actor compositions across time periods
-- **Performance**: Computations implemented in C++ via Rcpp/RcppArmadillo
+## Overview
+
+The `lame` package extends the Additive and Multiplicative Effects (AME) framework for longitudinal network analysis, enabling researchers to model how network structure and individual behaviors evolve over time. Built on the foundation of the `amen` package, `lame` introduces dynamic effects that capture temporal heterogeneity through autoregressive processes.
 
 ## Installation
 
-    if (!require(devtools)) {
-        install.packages("devtools")
-      }
-      library(devtools)
-      install_github("netify-dev/lame")
+You have two options for installing `lame`:
 
-## Usage
+### 🔧 Option 1: Install from GitHub (requires build tools)
 
-See our `lame-overview` vignette for detailed examples and documentation. To get started, supply data to the `lame` function. For example, we use the code below:
+> ⚠️ **Requires R build tools:**
+> - **macOS**: Xcode Command Line Tools
+> - **Windows**: Rtools
+> - **Linux**: build-essential and related packages
 
-```{r}
-    library(lame)
-    
-    # load data
-    data("vignette_data")
-    
-    # run model with static effects
-    fit <- lame(
-      Y = Y,                    
-      Xdyad = Xdyad,           # dyadic covariates
-      Xrow = Xrow,             # sender covariates
-      Xcol = Xcol,             # receiver covariates 
-      family = "binary",       # Binary model
-      rvar = TRUE,             # sender random effects
-      cvar = TRUE,             # receiver random effects
-      dcor = TRUE,             # Dyadic correlation
-      R = 2,                   # Multiplicative effects dimension
-      symmetric = FALSE,       # Directed networks
-      burn = 100,              # Burn-in iterations
-      nscan = 500,             # Post-burn-in iterations
-      odens = 25,              # Output density
-      print = FALSE,           # Suppress iteration output
-      plot = FALSE             # Suppress real-time plots
-    )
-    
-    # run model with dynamic effects (AR(1) temporal evolution)
-    fit_dynamic <- lame(
-      Y = Y,                    
-      Xdyad = Xdyad,           
-      Xrow = Xrow,             
-      Xcol = Xcol,             
-      family = "binary",       
-      dynamic_ab = TRUE,       # Time-varying sender/receiver effects
-      dynamic_uv = TRUE,       # Time-varying latent positions
-      R = 2,                   
-      symmetric = FALSE,       
-      burn = 1000,             # Longer burn-in recommended for dynamic models
-      nscan = 5000,            # More samples for temporal correlation
-      odens = 25,              
-      print = FALSE,           
-      plot = FALSE,
-      prior = list(            # Customize temporal persistence
-        rho_uv_mean = 0.9,     # High persistence for latent factors
-        rho_ab_mean = 0.8      # Moderate persistence for additive effects
-      )
-    )
-    
-    # summarize model results
-    summary(fit)
-    
-    # analyze model convergence
-    trace_plot(list(BETA = fit$BETA, VC = fit$VC))
+```r
+# Install from GitHub
+# install.packages("devtools")
+devtools::install_github("netify-dev/lame", dependencies = TRUE)
+```
+
+### 📦 Option 2: Install from CRAN (coming soon)
+
+```r
+# Once available on CRAN
+install.packages("lame")
+```
+
+#### First, install dependencies (if needed):
+
+```r
+# Install required packages if you don't already have them
+deps <- c("Rcpp", "RcppArmadillo", "ggplot2", "plyr", "reshape2", 
+          "ggrepel", "network", "gridExtra", "coda", "cli", 
+          "rlang", "lifecycle", "purrr")
+
+# Check which packages are not installed
+missing_deps <- deps[!deps %in% installed.packages()[,"Package"]]
+
+# Install missing packages
+if(length(missing_deps) > 0) {
+  install.packages(missing_deps, repos='https://cloud.r-project.org/')
+}
+```
+
+## Quick Start
+
+```r
+library(lame)
+
+# Load example data
+data("vignette_data")
+
+# Fit a basic longitudinal AME model
+fit <- lame(
+  Y = Y,                    # List of T network matrices
+  Xdyad = Xdyad,           # Dyadic covariates
+  Xrow = Xrow,             # Sender covariates
+  Xcol = Xcol,             # Receiver covariates
+  family = "binary",       # Network type
+  R = 2,                   # Latent dimensions
+  burn = 100,              # Burn-in iterations
+  nscan = 500              # Post-burn samples
+)
+
+# Summary and diagnostics
+summary(fit)
+```
+
+### Dynamic Effects Models
+
+The key innovation in `lame` is the ability to model time-varying network effects:
+
+```r
+# Fit model with dynamic effects
+fit_dynamic <- lame(
+  Y = Y,
+  Xdyad = Xdyad,
+  Xrow = Xrow,
+  Xcol = Xcol,
+  family = "binary",
+  dynamic_ab = TRUE,       # Time-varying sender/receiver effects
+  dynamic_uv = TRUE,       # Time-varying latent positions
+  R = 2,
+  burn = 1000,            # Longer burn-in for dynamic models
+  nscan = 5000,           # More samples for temporal correlation
+  prior = list(           # Customize temporal persistence
+    rho_uv_mean = 0.9,    # High persistence for latent factors
+    rho_ab_mean = 0.8     # Moderate persistence for additive effects
+  )
+)
 ```
 
 ## Visualization
 
-The package provides unified plotting functions that automatically detect whether effects are static or dynamic:
+The package provides comprehensive plotting functions that automatically detect whether effects are static or dynamic:
 
-```{r}
-    # Visualize additive effects (sender/receiver)
-    ab_plot(fit, effect = "sender")                    # Static effects
-    ab_plot(fit_dynamic, plot_type = "trajectory")     # Dynamic effects over time
-    ab_plot(fit_dynamic, time_point = "average")       # Time-averaged dynamic effects
-    
-    # Visualize multiplicative effects (latent factors)
-    uv_plot(fit)                                       # Static latent positions
-    uv_plot(fit_dynamic, plot_type = "trajectory")     # Dynamic trajectories
-    uv_plot(fit_dynamic, plot_type = "faceted")        # Multiple time points
+```r
+# Visualize additive effects (sender/receiver)
+ab_plot(fit, effect = "sender")                    # Static effects
+ab_plot(fit_dynamic, plot_type = "trajectory")     # Dynamic effects over time
+ab_plot(fit_dynamic, time_point = "average")       # Time-averaged dynamic effects
+
+# Visualize multiplicative effects (latent factors)
+uv_plot(fit)                                       # Static latent positions
+uv_plot(fit_dynamic, plot_type = "trajectory")     # Dynamic trajectories
+uv_plot(fit_dynamic, plot_type = "faceted")        # Multiple time points
+
+# Model diagnostics
+trace_plot(list(BETA = fit$BETA, VC = fit$VC))    # MCMC convergence
+gof_plot(fit)                                       # Goodness-of-fit
 ```
 
-## Key Improvements over amen
+## Key Features
 
-### Dynamic Effects Modeling
+### 📈 Dynamic Effects Modeling
 
-- **Time-varying latent positions** (`dynamic_uv`): Captures evolving community structure, homophily patterns, and network reconfiguration via AR(1) processes on multiplicative effects
-- **Time-varying heterogeneity** (`dynamic_ab`): Models changing individual activity levels and popularity through AR(1) evolution of additive effects
-- **Priors**: Customizable temporal persistence (ρ) and innovation variance (σ²) parameters with defaults
+- **Time-varying latent positions** (`dynamic_uv`): Captures evolving community structure and homophily patterns via AR(1) processes
+- **Time-varying heterogeneity** (`dynamic_ab`): Models changing individual activity levels and popularity over time
+- **Flexible priors**: Customizable temporal persistence (ρ) and innovation variance (σ²) parameters
 - **Theoretical foundation**: Based on Sewell & Chen (2015, JASA) and Durante & Dunson (2014, Biometrika)
 
-### Performance & Implementation
+### ⚡ Performance & Implementation
 
-- **C++ acceleration**: Functions implemented in C++ via Rcpp/RcppArmadillo
-- **Memory efficiency**: ~70% reduction in memory usage for dynamic effects
-- **Sampling**: Forward-filtering backward-sampling (FFBS) for temporal updates
-- **Processing**: Vectorized operations for actor updates
+- **C++ acceleration**: Core functions implemented in C++ via Rcpp/RcppArmadillo
+- **Memory efficiency**: ~50% reduction in memory usage for dynamic effects
+- **Advanced sampling**: Forward-filtering backward-sampling (FFBS) for temporal updates
+- **Parallel processing**: Vectorized operations for efficient computation
 
-### User Interface
+### 🛠 User Experience
 
 - **Temporal flexibility**: Handles networks with actors entering/exiting over time
-- **CLI**: Console output with progress bars via cli, crayon, and progress packages
-- **Plotting**: Various additional plotting functions
-- **Diagnostics**: Convergence monitoring 
+- **Modern CLI**: Progress bars and informative messages via cli package
+- **Comprehensive plotting**: Unified interface for static and dynamic visualization
+- **Extensive diagnostics**: Built-in convergence monitoring and model selection tools 
 
 ## Documentation
 
-For information on the dynamic effects implementation, see:
-
-- `vignette("dynamic_effects")` - Guide to temporal modeling
-- `?lame` - Function documentation with mathematical details
-- Package website with examples and tutorials (coming soon)
+- 📖 **Getting Started**: `vignette("lame-overview")`
+- 🔬 **Dynamic Effects**: `vignette("dynamic_effects")`
+- 📚 **Function Reference**: `?lame` for detailed documentation
+- 🌐 **Package Website**: [https://netify-dev.github.io/lame/](https://netify-dev.github.io/lame/)
 
 ## Citation
 
-If you use the dynamic effects features in your research, please cite:
+If you use `lame` in your research, please cite:
 
 ```bibtex
 @Manual{lame2024,
@@ -137,11 +166,21 @@ If you use the dynamic effects features in your research, please cite:
 
 The dynamic effects implementation draws on:
 
-- Sewell, D. K., & Chen, Y. (2015). Latent space models for dynamic networks. *JASA*, 110(512), 1646-1657.
+- Sewell, D. K., & Chen, Y. (2015). Latent space models for dynamic networks. *Journal of the American Statistical Association*, 110(512), 1646-1657.
 - Durante, D., & Dunson, D. B. (2014). Nonparametric Bayes dynamic modeling of relational data. *Biometrika*, 101(4), 883-898.
 
 ## Contributors
 
-- **Cassy Dorff** (Vanderbilt University)
-- **Shahryar Minhas** (Michigan State University)
-- **Tosin Salau** (Michigan State University)
+- **Shahryar Minhas** (Michigan State University) - Package maintainer
+- **Cassy Dorff** (Vanderbilt University) - Core developer
+- **Tosin Salau** (Michigan State University) - Core developer
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Support
+
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/netify-dev/lame/issues)
+- 💬 **Questions**: [GitHub Discussions](https://github.com/netify-dev/lame/discussions)
+- 📧 **Contact**: <minhassh@msu.edu>
