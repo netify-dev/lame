@@ -23,9 +23,8 @@ arma::mat matMultVec(arma::mat x, arma::vec y){
   return(xy);
 }
 
-//' Gibbs sampling of U and V
- //' 
- //' A Gibbs sampler for updating the multiplicative effect matrices U and V
+// Gibbs sampling of U and V
+// A Gibbs sampler for updating the multiplicative effect matrices U and V
  //' in the symmetric case. In this case \code{U\%*\%t(V)} is symmetric, so
  //' this is parameterized as \code{V=U\%*\%L} where \code{L} is the 
  //' diagonal matrix of eigenvalues of \code{U\%*\%t(V)}. 

@@ -18,9 +18,8 @@ arma::mat mhalf_cpp2(
   return(tmp);
 }
 
-//' Gibbs update for dyadic variance with independent replicate relational data
- //' 
- //' Gibbs update for dyadic variance with independent replicate relational data
+// Gibbs update for dyadic variance with independent replicate relational data
+// Gibbs update for dyadic variance with independent replicate relational data
  //' 
  //' 
  //' @usage rs2_rep_fc_cpp(E.T, rhoMat=solve(matrix(c(1,rho,rho,1),2,2)) )

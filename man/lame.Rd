@@ -5,7 +5,7 @@
 \title{AME model fitting routine for replicated relational data}
 \usage{
 lame(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl")
-, cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, family ="normal",
+, cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, dynamic_uv = FALSE, family ="normal",
 intercept=!is.element(family,c("rrl","ordinal")),
 symmetric=FALSE,
 odmax=NULL, prior=list(), g=NA,
@@ -33,6 +33,8 @@ See family below for various data types.}
 
 \item{R}{integer: dimension of the multiplicative effects (can be zero)}
 
+\item{dynamic_uv}{logical: fit dynamic multiplicative effects that evolve over time using AR(1) process?}
+
 \item{family}{character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 the details below}
 
@@ -44,7 +46,10 @@ the details below}
 number of nominations that each node may make - used for "frn" and "cbin"
 families}
 
-\item{prior}{a list containing hyperparameters for the prior distributions}
+\item{prior}{a list containing hyperparameters for the prior distributions.
+For dynamic multiplicative effects, can include rho_uv_mean (default 0.9) and
+rho_uv_sd (default 0.1) for the AR(1) parameter prior, and sigma_uv_shape/sigma_uv_scale
+for the innovation variance prior}
 
 \item{g}{optional scalar or vector for g-prior}
 
@@ -77,8 +82,9 @@ families}
 \item{VC}{posterior samples of the variance parameters}
 \item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
 mean of additive column effects b} \item{U}{posterior mean of multiplicative
-row effects u}
-\item{V}{posterior mean of multiplicative column effects v (asymmetric case)}
+row effects u. For dynamic_uv=TRUE, this is a 3D array (n x R x T)}
+\item{V}{posterior mean of multiplicative column effects v (asymmetric case).
+For dynamic_uv=TRUE, this is a 3D array (n x R x T)}
 \item{UVPM}{posterior mean of UV}
 \item{ULUPM}{posterior mean of ULU (symmetric case)}
 \item{L}{posterior mean of L (symmetric case)}

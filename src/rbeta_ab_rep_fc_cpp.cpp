@@ -31,9 +31,8 @@ arma::vec rmvnorm_cpp(
   return( tmp );
 }
 
-//' Gibbs sampling of additive row and column effects and regression coefficient
- //' with independent replicate relational data
- //' 
+// Gibbs sampling of additive row and column effects and regression coefficient
+// with independent replicate relational data 
  //' Simulates from the joint full conditional distribution of (a,b,beta),
  //' assuming same additive row and column effects and regression coefficient
  //' across replicates. 

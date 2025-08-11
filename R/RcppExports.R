@@ -13,8 +13,55 @@ gof_stats_cpp <- function(Y) {
     .Call(`_lame_gof_stats_cpp`, Y)
 }
 
-#' Linear combinations of submatrices of an array
-NULL
+#' Update dynamic latent positions using AR(1) process
+#' 
+#' @param U_current Current 3D array of U positions (n x R x T)
+#' @param V_current Current 3D array of V positions (n x R x T) 
+#' @param ET 3D array of residuals (n x n x T)
+#' @param rho_uv AR(1) autoregressive parameter for latent positions
+#' @param sigma_uv Innovation standard deviation for latent positions
+#' @param s2 Dyadic variance
+#' @param shrink Whether to apply shrinkage
+#' @param symmetric Whether network is symmetric
+#' @return List with updated U and V arrays
+rUV_dynamic_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, shrink, symmetric) {
+    .Call(`_lame_rUV_dynamic_fc_cpp`, U_current, V_current, ET, rho_uv, sigma_uv, s2, shrink, symmetric)
+}
+
+#' Initialize dynamic latent positions with AR(1) structure
+#' 
+#' @param n Number of actors
+#' @param R Latent dimension
+#' @param T Number of time points
+#' @param rho_uv AR(1) parameter
+#' @param sigma_uv Innovation standard deviation
+#' @return 3D array of latent positions (n x R x T)
+init_dynamic_positions <- function(n, R, T, rho_uv, sigma_uv) {
+    .Call(`_lame_init_dynamic_positions`, n, R, T, rho_uv, sigma_uv)
+}
+
+#' Sample AR(1) parameter for dynamic latent factors
+#' 
+#' @param U_cube 3D array of U positions (n x R x T)
+#' @param V_cube 3D array of V positions (n x R x T)
+#' @param sigma_uv Innovation standard deviation
+#' @param rho_current Current value of rho
+#' @param symmetric Whether network is symmetric
+#' @return Updated rho value
+sample_rho_uv <- function(U_cube, V_cube, sigma_uv, rho_current, symmetric) {
+    .Call(`_lame_sample_rho_uv`, U_cube, V_cube, sigma_uv, rho_current, symmetric)
+}
+
+#' Sample innovation variance for dynamic latent factors
+#' 
+#' @param U_cube 3D array of U positions (n x R x T)
+#' @param V_cube 3D array of V positions (n x R x T)
+#' @param rho_uv AR(1) parameter
+#' @param symmetric Whether network is symmetric
+#' @return Updated sigma_uv value
+sample_sigma_uv <- function(U_cube, V_cube, rho_uv, symmetric) {
+    .Call(`_lame_sample_sigma_uv`, U_cube, V_cube, rho_uv, symmetric)
+}
 
 get_EZ_cpp <- function(Xlist, beta, ab, U, V) {
     .Call(`_lame_get_EZ_cpp`, Xlist, beta, ab, U, V)
@@ -44,6 +91,30 @@ design_array_cpp <- function(Xrow, Xcol, Xdyad, intercept, n, symmetric) {
     .Call(`_lame_design_array_cpp`, Xrow, Xcol, Xdyad, intercept, n, symmetric)
 }
 
+precomputeX_cpp <- function(X) {
+    .Call(`_lame_precomputeX_cpp`, X)
+}
+
+llsrmRho_cpp <- function(Y, Sab, rhos, s2) {
+    .Call(`_lame_llsrmRho_cpp`, Y, Sab, rhos, s2)
+}
+
+rbeta_ab_fc_cpp <- function(Z, Sab, rho, X, s2, offset, iV0, m0, g) {
+    .Call(`_lame_rbeta_ab_fc_cpp`, Z, Sab, rho, X, s2, offset, iV0, m0, g)
+}
+
+ldZgbme_opt_cpp <- function(Z, Y, EZ, rho, s2) {
+    .Call(`_lame_ldZgbme_opt_cpp`, Z, Y, EZ, rho, s2)
+}
+
+array_to_list_cpp <- function(arr, actorByYr, pdLabs) {
+    .Call(`_lame_array_to_list_cpp`, arr, actorByYr, pdLabs)
+}
+
+rrho_fc_cpp <- function(Z, Sab, s2, offset, ngp, asp) {
+    .Call(`_lame_rrho_fc_cpp`, Z, Sab, s2, offset, ngp, asp)
+}
+
 ldZgbme_cpp <- function(Z, Y, EZ, rho, s2) {
     .Call(`_lame_ldZgbme_cpp`, Z, Y, EZ, rho, s2)
 }
@@ -60,8 +131,17 @@ simY_pois <- function(EZ) {
     .Call(`_lame_simY_pois`, EZ)
 }
 
-#' Simulation from a Wishart distribution
-NULL
+rwish_opt_cpp <- function(S0, nu) {
+    .Call(`_lame_rwish_opt_cpp`, S0, nu)
+}
+
+rUV_rep_opt_cpp <- function(ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs) {
+    .Call(`_lame_rUV_rep_opt_cpp`, ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs)
+}
+
+rUV_sym_opt_cpp <- function(E, U, V, s2, shrink, uLoopIDs) {
+    .Call(`_lame_rUV_sym_opt_cpp`, E, U, V, s2, shrink, uLoopIDs)
+}
 
 rwish_cpp <- function(S0, nu) {
     .Call(`_lame_rwish_cpp`, S0, nu)
@@ -71,36 +151,21 @@ rUV_rep_fc_cpp <- function(ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs)
     .Call(`_lame_rUV_rep_fc_cpp`, ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs)
 }
 
-#' Gibbs sampling of U and V
-NULL
-
 rUV_sym_fc_cpp <- function(E, U, V, s2, shrink, uLoopIDs) {
     .Call(`_lame_rUV_sym_fc_cpp`, E, U, V, s2, shrink, uLoopIDs)
 }
-
-#' Simulate Z based on a probit model
-NULL
 
 rZ_bin_fc_cpp <- function(ZT, EZT, rho, YT) {
     .Call(`_lame_rZ_bin_fc_cpp`, ZT, EZT, rho, YT)
 }
 
-#' Gibbs sampling of additive row and column effects and regression coefficient
-NULL
-
 rbeta_ab_rep_fc_cpp <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G) {
     .Call(`_lame_rbeta_ab_rep_fc_cpp`, ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G)
 }
 
-#' Metropolis update for dyadic correlation with independent replicate data
-NULL
-
 rrho_mh_rep_cpp <- function(ET, rho, s2) {
     .Call(`_lame_rrho_mh_rep_cpp`, ET, rho, s2)
 }
-
-#' Gibbs update for dyadic variance with independent replicate relational data
-NULL
 
 rs2_rep_fc_cpp <- function(ET, rhoMat) {
     .Call(`_lame_rs2_rep_fc_cpp`, ET, rhoMat)
