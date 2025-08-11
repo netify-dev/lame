@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">lame</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.0.0.9000</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.10</span>
       </span>
     </div>
 
@@ -32,9 +32,15 @@
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
+      <a href="../articles/dynamic_effects.html">Dynamic Effects in Longitudinal AME Models</a>
+    </li>
+    <li>
       <a href="../articles/lame-overview.html">lame Overview</a>
     </li>
   </ul></li>
+<li>
+  <a href="../news/index.html">Changelog</a>
+</li>
       </ul><ul class="nav navbar-nav navbar-right"><li>
   <a href="https://github.com/netify-dev/lame/" class="external-link">
     <span class="fab fa-github fa-lg"></span>
@@ -126,10 +132,6 @@
         </td>
         <td><p>AddHealth community 9 data</p></td>
       </tr><tr><td>
-          <p><code><a href="addlines.html">addlines()</a></code> </p>
-        </td>
-        <td><p>Add lines</p></td>
-      </tr><tr><td>
           <p><code><a href="ame.html">ame()</a></code> </p>
         </td>
         <td><p>AME model fitting routine</p></td>
@@ -186,6 +188,14 @@
         </td>
         <td><p>Goodness of fit statistics</p></td>
       </tr><tr><td>
+          <p><code><a href="init_dynamic_ab_cpp.html">init_dynamic_ab_cpp()</a></code> </p>
+        </td>
+        <td><p>Initialize dynamic additive effects with AR(1) structure</p></td>
+      </tr><tr><td>
+          <p><code><a href="init_dynamic_positions.html">init_dynamic_positions()</a></code> </p>
+        </td>
+        <td><p>Initialize dynamic latent positions with AR(1) structure</p></td>
+      </tr><tr><td>
           <p><code><a href="lame.html">lame()</a></code> </p>
         </td>
         <td><p>AME model fitting routine for replicated relational data</p></td>
@@ -209,10 +219,6 @@
           <p><code><a href="mhalf.html">mhalf()</a></code> </p>
         </td>
         <td><p>Symmetric square root of a matrix</p></td>
-      </tr><tr><td>
-          <p><code><a href="netplot.html">netplot()</a></code> </p>
-        </td>
-        <td><p>Network plotting</p></td>
       </tr><tr><td>
           <p><code><a href="plot.ame.html">plot(<i>&lt;ame&gt;</i>)</a></code> </p>
         </td>
@@ -249,6 +255,14 @@
           <p><code><a href="rSuv_fc.html">rSuv_fc()</a></code> </p>
         </td>
         <td><p>Gibbs update for multiplicative effects covariance</p></td>
+      </tr><tr><td>
+          <p><code><a href="rUV_dynamic_fc.html">rUV_dynamic_fc()</a></code> </p>
+        </td>
+        <td><p>Gibbs sampling of dynamic U and V with AR(1) evolution</p></td>
+      </tr><tr><td>
+          <p><code><a href="rUV_dynamic_fc_cpp.html">rUV_dynamic_fc_cpp()</a></code> </p>
+        </td>
+        <td><p>Update dynamic latent positions using AR(1) process</p></td>
       </tr><tr><td>
           <p><code><a href="rUV_fc.html">rUV_fc()</a></code> </p>
         </td>
@@ -342,6 +356,26 @@
         </td>
         <td><p>Simulation from a Wishart distribution</p></td>
       </tr><tr><td>
+          <p><code><a href="sample_dynamic_ab_cpp.html">sample_dynamic_ab_cpp()</a></code> </p>
+        </td>
+        <td><p>Sample dynamic additive effects with AR(1) evolution</p></td>
+      </tr><tr><td>
+          <p><code><a href="sample_rho_ab_cpp.html">sample_rho_ab_cpp()</a></code> </p>
+        </td>
+        <td><p>Sample AR(1) parameter for dynamic additive effects</p></td>
+      </tr><tr><td>
+          <p><code><a href="sample_rho_uv.html">sample_rho_uv()</a></code> </p>
+        </td>
+        <td><p>Sample AR(1) parameter for dynamic latent factors</p></td>
+      </tr><tr><td>
+          <p><code><a href="sample_sigma_ab_cpp.html">sample_sigma_ab_cpp()</a></code> </p>
+        </td>
+        <td><p>Sample innovation variance for dynamic additive effects</p></td>
+      </tr><tr><td>
+          <p><code><a href="sample_sigma_uv.html">sample_sigma_uv()</a></code> </p>
+        </td>
+        <td><p>Sample innovation variance for dynamic latent factors</p></td>
+      </tr><tr><td>
           <p><code><a href="sampsonmonks.html">sampsonmonks</a></code> </p>
         </td>
         <td><p>Sampson's monastery data</p></td>
@@ -401,10 +435,6 @@
           <p><code><a href="uv_plot.html">uv_plot()</a></code> </p>
         </td>
         <td><p>Visualize multiplicative effects (latent factors) from AME models</p></td>
-      </tr><tr><td>
-          <p><code><a href="xnet.html">xnet()</a></code> </p>
-        </td>
-        <td><p>Network embedding</p></td>
       </tr><tr><td>
           <p><code><a href="zscores.html">zscores()</a></code> </p>
         </td>

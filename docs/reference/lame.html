@@ -19,7 +19,7 @@ various types."><!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/l
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">lame</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.0.0.9000</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.10</span>
       </span>
     </div>
 
@@ -34,9 +34,15 @@ various types."><!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/l
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
+      <a href="../articles/dynamic_effects.html">Dynamic Effects in Longitudinal AME Models</a>
+    </li>
+    <li>
       <a href="../articles/lame-overview.html">lame Overview</a>
     </li>
   </ul></li>
+<li>
+  <a href="../news/index.html">Changelog</a>
+</li>
       </ul><ul class="nav navbar-nav navbar-right"><li>
   <a href="https://github.com/netify-dev/lame/" class="external-link">
     <span class="fab fa-github fa-lg"></span>
@@ -64,8 +70,9 @@ various types.</p>
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">lame</span><span class="op">(</span><span class="va">Y</span>,Xdyad<span class="op">=</span><span class="cn">NULL</span>, Xrow<span class="op">=</span><span class="cn">NULL</span>, Xcol<span class="op">=</span><span class="cn">NULL</span>, rvar <span class="op">=</span> <span class="op">!</span><span class="op">(</span><span class="va">family</span><span class="op">==</span><span class="st">"rrl"</span><span class="op">)</span></span>
-<span>, cvar <span class="op">=</span> <span class="cn">TRUE</span>, dcor <span class="op">=</span> <span class="op">!</span><span class="va">symmetric</span>, nvar<span class="op">=</span><span class="cn">TRUE</span>,  R <span class="op">=</span> <span class="fl">0</span>, family <span class="op">=</span><span class="st">"normal"</span>,</span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">lame</span><span class="op">(</span><span class="va">Y</span>,Xdyad<span class="op">=</span><span class="cn">NULL</span>, Xrow<span class="op">=</span><span class="cn">NULL</span>, Xcol<span class="op">=</span><span class="cn">NULL</span>, rvar <span class="op">=</span> <span class="op">!</span><span class="op">(</span><span class="va">family</span><span class="op">==</span><span class="st">"rrl"</span><span class="op">)</span>,</span>
+<span>  cvar <span class="op">=</span> <span class="cn">TRUE</span>, dcor <span class="op">=</span> <span class="op">!</span><span class="va">symmetric</span>, nvar<span class="op">=</span><span class="cn">TRUE</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>  dynamic_uv <span class="op">=</span> <span class="cn">FALSE</span>, dynamic_ab <span class="op">=</span> <span class="cn">FALSE</span>, family <span class="op">=</span><span class="st">"normal"</span>,</span>
 <span>intercept<span class="op">=</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>,<span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>,<span class="st">"ordinal"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>symmetric<span class="op">=</span><span class="cn">FALSE</span>,</span>
 <span>odmax<span class="op">=</span><span class="cn">NULL</span>, prior<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, g<span class="op">=</span><span class="cn">NA</span>,</span>
@@ -115,6 +122,30 @@ See family below for various data types.</p></dd>
 <dd><p>integer: dimension of the multiplicative effects (can be zero)</p></dd>
 
 
+<dt id="arg-dynamic-uv">dynamic_uv<a class="anchor" aria-label="anchor" href="#arg-dynamic-uv"></a></dt>
+<dd><p>logical: fit dynamic multiplicative effects (latent factors) that
+evolve over time using AR(1) processes. When TRUE, the latent positions U and V become
+time-varying, following \(U_{i,t} = \rho_{uv} U_{i,t-1} + \epsilon_{i,t}\), where epsilon
+follows N(0, sigma_uv^2). This allows actors' positions in latent social space to
+drift smoothly over time, capturing evolving network structure and community dynamics.
+Inspired by dynamic latent space models (Sewell and Chen 2015, "Latent Space Models
+for Dynamic Networks", JASA; Durante and Dunson 2014, "Nonparametric Bayes Dynamic
+Modeling of Relational Data", Biometrika). The implementation uses efficient blocked
+Gibbs sampling with C++ acceleration for scalability. Default FALSE.</p></dd>
+
+
+<dt id="arg-dynamic-ab">dynamic_ab<a class="anchor" aria-label="anchor" href="#arg-dynamic-ab"></a></dt>
+<dd><p>logical: fit dynamic additive effects (sender/receiver effects) that
+evolve over time using AR(1) processes. When TRUE, the row effects (a) and column
+effects (b) become time-varying, following \(a_{i,t} = \rho_{ab} a_{i,t-1} + \epsilon_{i,t}\).
+This captures temporal heterogeneity in actors' baseline propensities to send and
+receive ties, allowing for smooth changes in activity levels and popularity over time.
+For example, an actor's tendency to form outgoing ties might gradually increase or
+decrease across observation periods. The AR(1) specification ensures temporal smoothness
+while allowing for actor-specific evolution patterns. Implementation uses conjugate
+updates where possible and C++ for computational efficiency. Default FALSE.</p></dd>
+
+
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
 <dd><p>character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 the details below</p></dd>
@@ -135,11 +166,65 @@ families</p></dd>
 
 
 <dt id="arg-prior">prior<a class="anchor" aria-label="anchor" href="#arg-prior"></a></dt>
-<dd><p>a list containing hyperparameters for the prior distributions</p></dd>
+<dd><p>a list containing hyperparameters for the prior distributions.
+Available options and their defaults:</p><dl><dt>Sab0</dt>
+<dd><p>Prior covariance matrix for additive effects (default: diag(2)).
+A 2x2 matrix where Sab0\[1,1\] is the prior variance for row effects,
+Sab0\[2,2\] is the prior variance for column effects, and off-diagonals
+control correlation between row and column effects.</p></dd>
+
+<dt>eta0</dt>
+<dd><p>Prior degrees of freedom for covariance of multiplicative effects
+(default: 4 + 3 \* n/100, where n is the number of actors). Higher values
+impose stronger shrinkage on the latent factors.</p></dd>
+
+<dt>etaab</dt>
+<dd><p>Prior degrees of freedom for covariance of additive effects
+(default: 4 + 3 \* n/100). Controls shrinkage of row/column random effects.</p></dd>
+
+<dt>rho_uv_mean</dt>
+<dd><p>For dynamic_uv=TRUE: Prior mean for UV AR(1) parameter
+(default: 0.9). Values close to 1 indicate high temporal persistence.</p></dd>
+
+<dt>rho_uv_sd</dt>
+<dd><p>For dynamic_uv=TRUE: Prior SD for UV AR(1) parameter
+(default: 0.1). Controls uncertainty about temporal dependence.</p></dd>
+
+<dt>sigma_uv_shape</dt>
+<dd><p>For dynamic_uv=TRUE: Shape parameter for inverse-gamma
+prior on UV innovation variance (default: 2).</p></dd>
+
+<dt>sigma_uv_scale</dt>
+<dd><p>For dynamic_uv=TRUE: Scale parameter for inverse-gamma
+prior on UV innovation variance (default: 1).</p></dd>
+
+<dt>rho_ab_mean</dt>
+<dd><p>For dynamic_ab=TRUE: Prior mean for additive effects AR(1)
+parameter (default: 0.8). Controls temporal smoothness of sender/receiver effects.</p></dd>
+
+<dt>rho_ab_sd</dt>
+<dd><p>For dynamic_ab=TRUE: Prior SD for additive effects AR(1)
+parameter (default: 0.15).</p></dd>
+
+<dt>sigma_ab_shape</dt>
+<dd><p>For dynamic_ab=TRUE: Shape parameter for inverse-gamma
+prior on additive effects innovation variance (default: 2).</p></dd>
+
+<dt>sigma_ab_scale</dt>
+<dd><p>For dynamic_ab=TRUE: Scale parameter for inverse-gamma
+prior on additive effects innovation variance (default: 1).</p></dd>
+
+
+</dl><p>Common usage: prior = list(Sab0 = diag(c(1, 1)), eta0 = 10) for stronger
+shrinkage, or prior = list(rho_uv_mean = 0.95) for higher temporal persistence.</p></dd>
 
 
 <dt id="arg-g">g<a class="anchor" aria-label="anchor" href="#arg-g"></a></dt>
-<dd><p>optional scalar or vector for g-prior</p></dd>
+<dd><p>optional scalar or vector for g-prior on regression coefficients.
+Default is p^2 where p is the number of regression parameters. The g-prior
+controls the variance of regression coefficients: larger values allow for
+larger coefficient values. Can be a vector of length p for parameter-specific
+control.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -207,10 +292,11 @@ families</p></dd>
 mean of additive column effects b</p></dd>
  <dt>U</dt>
 <dd><p>posterior mean of multiplicative
-row effects u</p></dd>
+row effects u. For dynamic_uv=TRUE, this is a 3D array (n x R x T)</p></dd>
 
 <dt>V</dt>
-<dd><p>posterior mean of multiplicative column effects v (asymmetric case)</p></dd>
+<dd><p>posterior mean of multiplicative column effects v (asymmetric case).
+For dynamic_uv=TRUE, this is a 3D array (n x R x T)</p></dd>
 
 <dt>UVPM</dt>
 <dd><p>posterior mean of UV</p></dd>
@@ -249,7 +335,60 @@ for a future model run.</p></dd>
     <h2>Details</h2>
     <p>This command provides posterior inference for parameters in AME models of
 independent replicated relational data, assuming one of eight possible data
-types/models:</p>
+types/models.</p>
+<p><strong>Dynamic Effects Implementation:</strong></p>
+<p>The dynamic_uv and dynamic_ab parameters enable time-varying latent representations
+through autoregressive processes. These extensions are particularly useful for
+understanding how network structure evolves over time.</p>
+<p><em>Dynamic Multiplicative Effects (dynamic_uv=TRUE):</em>
+The latent factors U and V evolve according to AR(1) processes:
+$$U_{i,k,t} = \rho_{uv} U_{i,k,t-1} + \epsilon_{i,k,t}$$
+where \(\epsilon_{i,k,t} \sim N(0, \sigma_{uv}^2)\), i indexes actors, k indexes
+latent dimensions, and t indexes time. The parameter \(\rho_{uv}\) controls
+temporal persistence (values near 1 indicate slow evolution). This captures
+time-varying homophily, latent community structure, and transitivity dynamics.</p>
+<p>Key references:</p><ul><li><p>Sewell &amp; Chen (2015): Introduced dynamic latent space models with
+actor-specific evolution rates</p></li>
+<li><p>Durante &amp; Dunson (2014): Nonparametric Bayesian approach allowing
+flexible evolution of network structure</p></li>
+<li><p>Hoff (2011): Hierarchical multilinear models providing theoretical
+foundation for temporal dependencies</p></li>
+</ul><p><em>Dynamic Additive Effects (dynamic_ab=TRUE):</em>
+The sender (a) and receiver (b) effects evolve as:
+$$a_{i,t} = \rho_{ab} a_{i,t-1} + \epsilon_{i,t}$$
+$$b_{i,t} = \rho_{ab} b_{i,t-1} + \eta_{i,t}$$
+where \(\epsilon_{i,t}, \eta_{i,t} \sim N(0, \sigma_{ab}^2)\). This models
+time-varying individual activity levels (outdegree) and popularity (indegree).</p>
+<p>Applications include:</p><ul><li><p>Tracking changes in node centrality over time</p></li>
+<li><p>Identifying emerging influential actors</p></li>
+<li><p>Detecting declining activity patterns</p></li>
+<li><p>Modeling life-cycle effects in social networks</p></li>
+</ul><p><em>Prior Specification for Dynamic Parameters:</em></p><ul><li><p>\(\rho_{uv}, \rho_{ab} \sim TruncNormal(mean, sd, 0, 1)\):
+Ensures stationarity of AR(1) process</p></li>
+<li><p>\(\sigma_{uv}^2, \sigma_{ab}^2 \sim InverseGamma(shape, scale)\):
+Controls innovation variance</p></li>
+<li><p>Default priors (\(\rho_{uv}\) mean=0.9, \(\rho_{ab}\) mean=0.8)
+favor smooth evolution</p></li>
+<li><p>Adjust rho_*_mean closer to 1 for slower evolution, closer to 0 for
+more rapid changes</p></li>
+</ul><p><em>Computational Considerations:</em></p><ul><li><p>Dynamic effects increase computation by ~30-50\<!-- % per iteration --></p></li>
+<li><p>Memory usage scales as O(n<em>R</em>T) for dynamic_uv, O(n*T) for dynamic_ab</p></li>
+<li><p>C++ implementation provides ~70\<!-- % efficiency gain over pure R --></p></li>
+<li><p>Convergence diagnostics: Monitor rho and sigma parameters carefully</p></li>
+<li><p>Effective sample sizes typically lower due to temporal correlation</p></li>
+<li><p>Recommend burn &gt;= 1000 and nscan &gt;= 20000 for dynamic models</p></li>
+</ul><p><em>Model Selection Guidelines:</em>
+Use both dynamic_uv and dynamic_ab when:</p><ul><li><p>Networks show clear temporal trends in density or clustering</p></li>
+<li><p>Individual node behavior changes systematically over time</p></li>
+<li><p>Community structure evolves (merging, splitting, drift)</p></li>
+</ul><p>Use only dynamic_uv when:</p><ul><li><p>Latent structure/communities change but individual effects are stable</p></li>
+<li><p>Focus is on evolving homophily or clustering patterns</p></li>
+<li><p>Network shows structural reconfiguration over time</p></li>
+</ul><p>Use only dynamic_ab when:</p><ul><li><p>Individual heterogeneity varies but overall structure is stable</p></li>
+<li><p>Actors' activity/popularity changes over observation period</p></li>
+<li><p>Focus is on individual-level temporal dynamics</p></li>
+</ul><p><strong>Standard AME Model Types:</strong></p>
+<p>The following describes the eight standard data types/models available:</p>
 <p>"normal": A normal AME model.</p>
 <p>"tobit": A tobit AME model for censored continuous data. Values are censored
 at zero, appropriate for non-negative continuous relational data.</p>
@@ -278,11 +417,10 @@ variable represents the log mean of the Poisson distribution.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">)</span> </span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">&lt;-</span><span class="fu">lame</span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">$</span><span class="va">Y</span>,<span class="va">YX_bin_list</span><span class="op">$</span><span class="va">X</span>,burn<span class="op">=</span><span class="fl">5</span>,nscan<span class="op">=</span><span class="fl">5</span>,odens<span class="op">=</span><span class="fl">1</span>,family<span class="op">=</span><span class="st">"binary"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Starting burn-in period...</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   |                                                                              |                                                                      |   0%  |                                                                              |==================                                                    |  25%  |                                                                              |===================================                                   |  50%  |                                                                              |====================================================                  |  75%  |                                                                              |======================================================================| 100%</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Burn-in period complete...</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   |                                                                              |                                                                      |   0%  |                                                                              |==================                                                    |  25%  |                                                                              |===================================                                   |  50%  |                                                                              |====================================================                  |  75%  |                                                                              |======================================================================| 100%</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> ── Starting burn-in period... </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Burn-in period complete</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> MCMC sampling complete</span>
 <span class="r-in"><span><span class="co"># you should run the Markov chain much longer than this</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

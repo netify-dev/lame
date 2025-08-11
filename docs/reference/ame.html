@@ -18,7 +18,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">lame</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.0.0.9000</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.10</span>
       </span>
     </div>
 
@@ -33,9 +33,15 @@
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
+      <a href="../articles/dynamic_effects.html">Dynamic Effects in Longitudinal AME Models</a>
+    </li>
+    <li>
       <a href="../articles/lame-overview.html">lame Overview</a>
     </li>
   </ul></li>
+<li>
+  <a href="../news/index.html">Changelog</a>
+</li>
       </ul><ul class="nav navbar-nav navbar-right"><li>
   <a href="https://github.com/netify-dev/lame/" class="external-link">
     <span class="fab fa-github fa-lg"></span>
@@ -133,11 +139,45 @@ families</p></dd>
 
 
 <dt id="arg-prior">prior<a class="anchor" aria-label="anchor" href="#arg-prior"></a></dt>
-<dd><p>a list containing hyperparameters for the prior distributions</p></dd>
+<dd><p>a list containing hyperparameters for the prior distributions.
+Available options and their defaults:</p><dl><dt>Sab0</dt>
+<dd><p>Prior covariance matrix for additive effects (default: diag(2)).
+A 2x2 matrix where Sab0\[1,1\] is the prior variance for row effects,
+Sab0\[2,2\] is the prior variance for column effects, and off-diagonals
+control correlation between row and column effects.</p></dd>
+
+<dt>eta0</dt>
+<dd><p>Prior degrees of freedom for covariance of multiplicative effects
+(default: 4 + 3 \* n/100, where n is the number of actors). Higher values
+impose stronger shrinkage on the latent factors. Common values: 4-10 for
+weak shrinkage, 10-20 for moderate, &gt;20 for strong shrinkage.</p></dd>
+
+<dt>etaab</dt>
+<dd><p>Prior degrees of freedom for covariance of additive effects
+(default: 4 + 3 \* n/100). Controls shrinkage of row/column random effects.
+Larger values shrink effects toward zero.</p></dd>
+
+<dt>s20</dt>
+<dd><p>Prior variance for regression coefficients (default: 1).
+Larger values allow for larger coefficient values.</p></dd>
+
+<dt>s2u0</dt>
+<dd><p>Prior variance for multiplicative effects (default: 1).</p></dd>
+
+<dt>Suv0</dt>
+<dd><p>Prior covariance for multiplicative effects (default: identity matrix).</p></dd>
+
+
+</dl><p>Common usage: prior = list(Sab0 = diag(c(2, 2)), eta0 = 10) for moderate
+shrinkage, or prior = list(Sab0 = diag(c(0.5, 0.5))) for tighter control.</p></dd>
 
 
 <dt id="arg-g">g<a class="anchor" aria-label="anchor" href="#arg-g"></a></dt>
-<dd><p>optional scalar or vector of length dim(X)\[3\] for g-prior</p></dd>
+<dd><p>optional scalar or vector of length dim(X)\[3\] for g-prior on
+regression coefficients. If not specified, defaults are: for normal family,
+g = n<em>var(Y); for tobit, g = n</em>var(Y)*4; for other families, g = n, where
+n is the number of non-missing dyads. The g-prior controls the variance of
+regression coefficients.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -225,7 +265,40 @@ values of four goodness-of-fit statistics</p></dd>
     <div id="details">
     <h2>Details</h2>
     <p>This command provides posterior inference for parameters in AME models of
-relational data, assuming one of eight possible data types/models:</p>
+relational data, assuming one of eight possible data types/models.</p>
+<p><strong>Theoretical Foundation:</strong></p>
+<p>The AME model decomposes network structure into several components:
+$$y_{ij} = \beta'x_{ij} + a_i + b_j + u_i'v_j + \epsilon_{ij}$$
+where:</p><ul><li><p>\(\beta'x_{ij}\): Fixed effects of dyadic/nodal covariates</p></li>
+<li><p>\(a_i\): Additive sender (row) effect for node i</p></li>
+<li><p>\(b_j\): Additive receiver (column) effect for node j</p></li>
+<li><p>\(u_i'v_j\): Multiplicative interaction between latent factors</p></li>
+<li><p>\(\epsilon_{ij}\): Dyadic error term (may be correlated)</p></li>
+</ul><p>This specification generalizes the social relations model (Warner et al. 1979)
+and latent space models (Hoff et al. 2002) within a unified framework.</p>
+<p><strong>Prior Distributions:</strong></p>
+<p>The model uses conjugate and semi-conjugate priors where possible:</p><ul><li><p>Regression coefficients: \(\beta \sim N(0, g\sigma^2(X'X)^{-1})\) (g-prior)</p></li>
+<li><p>Additive effects: \((a_i, b_i)' \sim N(0, \Sigma_{ab})\) jointly</p></li>
+<li><p>Covariance: \(\Sigma_{ab} \sim IW(\eta_0, \eta_0 S_{ab0})\) (inverse-Wishart)</p></li>
+<li><p>Multiplicative effects: Hierarchical shrinkage via \(\eta_0\)</p></li>
+<li><p>Dyadic correlation: \(\rho \sim Uniform(-1, 1)\) with Metropolis updates</p></li>
+</ul><p>The inverse-Wishart prior on \(\Sigma_{ab}\) allows learning correlation between
+sender and receiver effects, capturing reciprocity patterns.</p>
+<p><strong>Multiplicative Effects (Latent Factors):</strong></p>
+<p>When R &gt; 0, the model includes R-dimensional latent factors:</p><ul><li><p>Asymmetric case: \(u_i, v_j \in \mathbb{R}^R\) with \(u_i'v_j\) interaction</p></li>
+<li><p>Symmetric case: \(u_i = v_i\) with eigendecomposition \(ULU'\)</p></li>
+<li><p>Captures homophily, transitivity, and community structure</p></li>
+<li><p>R chosen via model selection or set to 2-3 for visualization</p></li>
+</ul><p><strong>Estimation Algorithm:</strong></p>
+<p>The model uses a Gibbs sampler with the following updates:</p><ol><li><p>Sample latent Z given parameters (data augmentation for non-normal families)</p></li>
+<li><p>Update regression coefficients \(\beta\) via g-prior conjugate update</p></li>
+<li><p>Update additive effects (a,b) jointly with \(\beta\)</p></li>
+<li><p>Update covariance \(\Sigma_{ab}\) from inverse-Wishart</p></li>
+<li><p>Update multiplicative effects U,V via Gibbs or Metropolis-Hastings</p></li>
+<li><p>Update dyadic correlation \(\rho\) via Metropolis-Hastings</p></li>
+<li><p>Update variance \(\sigma^2\) (for continuous families)</p></li>
+</ol><p><strong>Standard Model Types:</strong></p>
+<p>The following data types/models are available:</p>
 <p>"normal": A normal AME model.</p>
 <p>"tobit": A tobit AME model for censored continuous data. Values are censored
 at zero, appropriate for non-negative continuous relational data.</p>

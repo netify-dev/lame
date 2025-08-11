@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">lame</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.0.0.9000</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.10</span>
       </span>
     </div>
 
@@ -32,9 +32,15 @@
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
+      <a href="../articles/dynamic_effects.html">Dynamic Effects in Longitudinal AME Models</a>
+    </li>
+    <li>
       <a href="../articles/lame-overview.html">lame Overview</a>
     </li>
   </ul></li>
+<li>
+  <a href="../news/index.html">Changelog</a>
+</li>
       </ul><ul class="nav navbar-nav navbar-right"><li>
   <a href="https://github.com/netify-dev/lame/" class="external-link">
     <span class="fab fa-github fa-lg"></span>
@@ -75,7 +81,11 @@
 <span>  <span class="va">tryErrorChecks</span>,</span>
 <span>  AIC <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  BIC <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  model.name <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  model.name <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  U <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  V <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  dynamic_uv <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  dynamic_ab <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -84,11 +94,11 @@
 
 
 <dl><dt id="arg-aps">APS<a class="anchor" aria-label="anchor" href="#arg-aps"></a></dt>
-<dd><p>summed additive sender random effects</p></dd>
+<dd><p>summed additive sender random effects (or matrix for dynamic)</p></dd>
 
 
 <dt id="arg-bps">BPS<a class="anchor" aria-label="anchor" href="#arg-bps"></a></dt>
-<dd><p>summed additive sender random effects</p></dd>
+<dd><p>summed additive receiver random effects (or matrix for dynamic)</p></dd>
 
 
 <dt id="arg-uvps">UVPS<a class="anchor" aria-label="anchor" href="#arg-uvps"></a></dt>
@@ -141,6 +151,22 @@
 
 <dt id="arg-model-name">model.name<a class="anchor" aria-label="anchor" href="#arg-model-name"></a></dt>
 <dd><p>Name of the model (optional)</p></dd>
+
+
+<dt id="arg-u">U<a class="anchor" aria-label="anchor" href="#arg-u"></a></dt>
+<dd><p>Latent sender positions (optional, for dynamic UV)</p></dd>
+
+
+<dt id="arg-v">V<a class="anchor" aria-label="anchor" href="#arg-v"></a></dt>
+<dd><p>Latent receiver positions (optional, for dynamic UV)</p></dd>
+
+
+<dt id="arg-dynamic-uv">dynamic_uv<a class="anchor" aria-label="anchor" href="#arg-dynamic-uv"></a></dt>
+<dd><p>logical indicating whether UV effects are dynamic</p></dd>
+
+
+<dt id="arg-dynamic-ab">dynamic_ab<a class="anchor" aria-label="anchor" href="#arg-dynamic-ab"></a></dt>
+<dd><p>logical indicating whether additive effects are dynamic</p></dd>
 
 </dl></div>
     <div id="value">
