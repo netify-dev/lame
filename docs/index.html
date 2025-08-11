@@ -54,172 +54,198 @@
 </nav><div class="container template-home">
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
-<div class="page-header"><h1 id="lame">lame<a class="anchor" aria-label="anchor" href="#lame"></a>
+<div class="page-header"><h1 id="lame-">
+<strong>lame</strong> <img src="reference/figures/lame_hex.png" align="right" alt="hex" width="200px"><a class="anchor" aria-label="anchor" href="#lame-"></a>
 </h1></div>
+<blockquote>
+<p><strong>L</strong>ongitudinal <strong>A</strong>dditive and <strong>M</strong>ultiplicative <strong>E</strong>ffects Models for Networks</p>
+</blockquote>
+<!-- badges: start -->
+
 <div class="section level2">
-<h2 id="overview-">Overview <img src="https://github.com/netify-dev/lame/blob/main/man/figures/lame_hex.png" align="right" alt="hex" width="200px"><a class="anchor" aria-label="anchor" href="#overview-"></a>
+<h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>The <code>lame</code> R package provides a framework for modeling longitudinal network data via the Additive and Multiplicative Effects Model (<code>amen</code>). Key features include:</p>
-<ul>
-<li>
-<strong>Dynamic effects modeling</strong>: Both additive (sender/receiver) and multiplicative (latent factor) effects can evolve over time following AR(1) processes, capturing temporal heterogeneity in network structure</li>
-<li>
-<strong>Temporal handling</strong>: Manages networks with changing actor compositions across time periods</li>
-<li>
-<strong>Performance</strong>: Computations implemented in C++ via Rcpp/RcppArmadillo</li>
-</ul>
+<p>The <code>lame</code> package extends the Additive and Multiplicative Effects (AME) framework for longitudinal network analysis, enabling researchers to model how network structure and individual behaviors evolve over time. Built on the foundation of the <code>amen</code> package, <code>lame</code> introduces dynamic effects that capture temporal heterogeneity through autoregressive processes.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<div class="sourceCode" id="cb1"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">require</span>(devtools)) {</span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>    <span class="fu">install.packages</span>(<span class="st">"devtools"</span>)</span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>  }</span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>  <span class="fu">library</span>(devtools)</span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>  <span class="fu">install_github</span>(<span class="st">"netify-dev/lame"</span>)</span></code></pre></div>
+<p>You have two options for installing <code>lame</code>:</p>
+<div class="section level3">
+<h3 id="wrench-option-1-install-from-github-requires-build-tools">🔧 Option 1: Install from GitHub (requires build tools)<a class="anchor" aria-label="anchor" href="#wrench-option-1-install-from-github-requires-build-tools"></a>
+</h3>
+<blockquote>
+<p>⚠️ <strong>Requires R build tools:</strong> - <strong>macOS</strong>: Xcode Command Line Tools - <strong>Windows</strong>: Rtools - <strong>Linux</strong>: build-essential and related packages</p>
+</blockquote>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Install from GitHub</span></span>
+<span><span class="co"># install.packages("devtools")</span></span>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"netify-dev/lame"</span>, dependencies <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="package-option-2-install-from-cran-coming-soon">📦 Option 2: Install from CRAN (coming soon)<a class="anchor" aria-label="anchor" href="#package-option-2-install-from-cran-coming-soon"></a>
+</h3>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Once available on CRAN</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"lame"</span><span class="op">)</span></span></code></pre></div>
+<div class="section level4">
+<h4 id="first-install-dependencies-if-needed">First, install dependencies (if needed):<a class="anchor" aria-label="anchor" href="#first-install-dependencies-if-needed"></a>
+</h4>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Install required packages if you don't already have them</span></span>
+<span><span class="va">deps</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Rcpp"</span>, <span class="st">"RcppArmadillo"</span>, <span class="st">"ggplot2"</span>, <span class="st">"plyr"</span>, <span class="st">"reshape2"</span>, </span>
+<span>          <span class="st">"ggrepel"</span>, <span class="st">"network"</span>, <span class="st">"gridExtra"</span>, <span class="st">"coda"</span>, <span class="st">"cli"</span>, </span>
+<span>          <span class="st">"rlang"</span>, <span class="st">"lifecycle"</span>, <span class="st">"purrr"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Check which packages are not installed</span></span>
+<span><span class="va">missing_deps</span> <span class="op">&lt;-</span> <span class="va">deps</span><span class="op">[</span><span class="op">!</span><span class="va">deps</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/utils/installed.packages.html" class="external-link">installed.packages</a></span><span class="op">(</span><span class="op">)</span><span class="op">[</span>,<span class="st">"Package"</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="co"># Install missing packages</span></span>
+<span><span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">missing_deps</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="va">missing_deps</span>, repos<span class="op">=</span><span class="st">'https://cloud.r-project.org/'</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+</div>
+</div>
 </div>
 <div class="section level2">
-<h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
+<h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
-<p>See our <code>lame-overview</code> vignette for detailed examples and documentation. To get started, supply data to the <code>lame</code> function. For example, we use the code below:</p>
-<p>```{r} library(lame)</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># load data</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"vignette_data"</span>)</span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co"># run model with static effects</span></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lame</span>(</span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="at">Y =</span> Y,                    </span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="at">Xdyad =</span> Xdyad,           <span class="co"># dyadic covariates</span></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  <span class="at">Xrow =</span> Xrow,             <span class="co"># sender covariates</span></span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="at">Xcol =</span> Xcol,             <span class="co"># receiver covariates </span></span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"binary"</span>,       <span class="co"># Binary model</span></span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>  <span class="at">rvar =</span> <span class="cn">TRUE</span>,             <span class="co"># sender random effects</span></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>  <span class="at">cvar =</span> <span class="cn">TRUE</span>,             <span class="co"># receiver random effects</span></span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>  <span class="at">dcor =</span> <span class="cn">TRUE</span>,             <span class="co"># Dyadic correlation</span></span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>  <span class="at">R =</span> <span class="dv">2</span>,                   <span class="co"># Multiplicative effects dimension</span></span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>  <span class="at">symmetric =</span> <span class="cn">FALSE</span>,       <span class="co"># Directed networks</span></span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>  <span class="at">burn =</span> <span class="dv">100</span>,              <span class="co"># Burn-in iterations</span></span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>  <span class="at">nscan =</span> <span class="dv">500</span>,             <span class="co"># Post-burn-in iterations</span></span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>  <span class="at">odens =</span> <span class="dv">25</span>,              <span class="co"># Output density</span></span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>  <span class="at">print =</span> <span class="cn">FALSE</span>,           <span class="co"># Suppress iteration output</span></span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>  <span class="at">plot =</span> <span class="cn">FALSE</span>             <span class="co"># Suppress real-time plots</span></span>
-<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>)</span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a></span>
-<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="co"># run model with dynamic effects (AR(1) temporal evolution)</span></span>
-<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>fit_dynamic <span class="ot">&lt;-</span> <span class="fu">lame</span>(</span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>  <span class="at">Y =</span> Y,                    </span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>  <span class="at">Xdyad =</span> Xdyad,           </span>
-<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>  <span class="at">Xrow =</span> Xrow,             </span>
-<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>  <span class="at">Xcol =</span> Xcol,             </span>
-<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"binary"</span>,       </span>
-<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>  <span class="at">dynamic_ab =</span> <span class="cn">TRUE</span>,       <span class="co"># Time-varying sender/receiver effects</span></span>
-<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>  <span class="at">dynamic_uv =</span> <span class="cn">TRUE</span>,       <span class="co"># Time-varying latent positions</span></span>
-<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>  <span class="at">R =</span> <span class="dv">2</span>,                   </span>
-<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a>  <span class="at">symmetric =</span> <span class="cn">FALSE</span>,       </span>
-<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a>  <span class="at">burn =</span> <span class="dv">1000</span>,             <span class="co"># Longer burn-in recommended for dynamic models</span></span>
-<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a>  <span class="at">nscan =</span> <span class="dv">5000</span>,            <span class="co"># More samples for temporal correlation</span></span>
-<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a>  <span class="at">odens =</span> <span class="dv">25</span>,              </span>
-<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a>  <span class="at">print =</span> <span class="cn">FALSE</span>,           </span>
-<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a>  <span class="at">plot =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a>  <span class="at">prior =</span> <span class="fu">list</span>(            <span class="co"># Customize temporal persistence</span></span>
-<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a>    <span class="at">rho_uv_mean =</span> <span class="fl">0.9</span>,     <span class="co"># High persistence for latent factors</span></span>
-<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a>    <span class="at">rho_ab_mean =</span> <span class="fl">0.8</span>      <span class="co"># Moderate persistence for additive effects</span></span>
-<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a>  )</span>
-<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a>)</span>
-<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a></span>
-<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a><span class="co"># summarize model results</span></span>
-<span id="cb2-46"><a href="#cb2-46" tabindex="-1"></a><span class="fu">summary</span>(fit)</span>
-<span id="cb2-47"><a href="#cb2-47" tabindex="-1"></a></span>
-<span id="cb2-48"><a href="#cb2-48" tabindex="-1"></a><span class="co"># analyze model convergence</span></span>
-<span id="cb2-49"><a href="#cb2-49" tabindex="-1"></a><span class="fu">trace_plot</span>(<span class="fu">list</span>(<span class="at">BETA =</span> fit<span class="sc">$</span>BETA, <span class="at">VC =</span> fit<span class="sc">$</span>VC))</span></code></pre></div>
-<pre><code>
-## Visualization
-
-The package provides unified plotting functions that automatically detect whether effects are static or dynamic:
-
-```{r}
-    # Visualize additive effects (sender/receiver)
-    ab_plot(fit, effect = "sender")                    # Static effects
-    ab_plot(fit_dynamic, plot_type = "trajectory")     # Dynamic effects over time
-    ab_plot(fit_dynamic, time_point = "average")       # Time-averaged dynamic effects
-
-    # Visualize multiplicative effects (latent factors)
-    uv_plot(fit)                                       # Static latent positions
-    uv_plot(fit_dynamic, plot_type = "trajectory")     # Dynamic trajectories
-    uv_plot(fit_dynamic, plot_type = "faceted")        # Multiple time points</code></pre>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/lame/">lame</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Load example data</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"vignette_data"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Fit a basic longitudinal AME model</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/lame.html">lame</a></span><span class="op">(</span></span>
+<span>  Y <span class="op">=</span> <span class="va">Y</span>,                    <span class="co"># List of T network matrices</span></span>
+<span>  Xdyad <span class="op">=</span> <span class="va">Xdyad</span>,           <span class="co"># Dyadic covariates</span></span>
+<span>  Xrow <span class="op">=</span> <span class="va">Xrow</span>,             <span class="co"># Sender covariates</span></span>
+<span>  Xcol <span class="op">=</span> <span class="va">Xcol</span>,             <span class="co"># Receiver covariates</span></span>
+<span>  family <span class="op">=</span> <span class="st">"binary"</span>,       <span class="co"># Network type</span></span>
+<span>  R <span class="op">=</span> <span class="fl">2</span>,                   <span class="co"># Latent dimensions</span></span>
+<span>  burn <span class="op">=</span> <span class="fl">100</span>,              <span class="co"># Burn-in iterations</span></span>
+<span>  nscan <span class="op">=</span> <span class="fl">500</span>              <span class="co"># Post-burn samples</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Summary and diagnostics</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="dynamic-effects-models">Dynamic Effects Models<a class="anchor" aria-label="anchor" href="#dynamic-effects-models"></a>
+</h3>
+<p>The key innovation in <code>lame</code> is the ability to model time-varying network effects:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Fit model with dynamic effects</span></span>
+<span><span class="va">fit_dynamic</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/lame.html">lame</a></span><span class="op">(</span></span>
+<span>  Y <span class="op">=</span> <span class="va">Y</span>,</span>
+<span>  Xdyad <span class="op">=</span> <span class="va">Xdyad</span>,</span>
+<span>  Xrow <span class="op">=</span> <span class="va">Xrow</span>,</span>
+<span>  Xcol <span class="op">=</span> <span class="va">Xcol</span>,</span>
+<span>  family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span>  dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,       <span class="co"># Time-varying sender/receiver effects</span></span>
+<span>  dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,       <span class="co"># Time-varying latent positions</span></span>
+<span>  R <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  burn <span class="op">=</span> <span class="fl">1000</span>,            <span class="co"># Longer burn-in for dynamic models</span></span>
+<span>  nscan <span class="op">=</span> <span class="fl">5000</span>,           <span class="co"># More samples for temporal correlation</span></span>
+<span>  prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>           <span class="co"># Customize temporal persistence</span></span>
+<span>    rho_uv_mean <span class="op">=</span> <span class="fl">0.9</span>,    <span class="co"># High persistence for latent factors</span></span>
+<span>    rho_ab_mean <span class="op">=</span> <span class="fl">0.8</span>     <span class="co"># Moderate persistence for additive effects</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
-<h2 id="key-improvements-over-amen">Key Improvements over amen<a class="anchor" aria-label="anchor" href="#key-improvements-over-amen"></a>
+<h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
+</h2>
+<p>The package provides comprehensive plotting functions that automatically detect whether effects are static or dynamic:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Visualize additive effects (sender/receiver)</span></span>
+<span><span class="fu"><a href="reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"sender"</span><span class="op">)</span>                    <span class="co"># Static effects</span></span>
+<span><span class="fu"><a href="reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span>     <span class="co"># Dynamic effects over time</span></span>
+<span><span class="fu"><a href="reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, time_point <span class="op">=</span> <span class="st">"average"</span><span class="op">)</span>       <span class="co"># Time-averaged dynamic effects</span></span>
+<span></span>
+<span><span class="co"># Visualize multiplicative effects (latent factors)</span></span>
+<span><span class="fu"><a href="reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>                                       <span class="co"># Static latent positions</span></span>
+<span><span class="fu"><a href="reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span>     <span class="co"># Dynamic trajectories</span></span>
+<span><span class="fu"><a href="reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"faceted"</span><span class="op">)</span>        <span class="co"># Multiple time points</span></span>
+<span></span>
+<span><span class="co"># Model diagnostics</span></span>
+<span><span class="fu"><a href="reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>BETA <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">BETA</span>, VC <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">VC</span><span class="op">)</span><span class="op">)</span>    <span class="co"># MCMC convergence</span></span>
+<span><span class="fu"><a href="reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>                                       <span class="co"># Goodness-of-fit</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
 </h2>
 <div class="section level3">
-<h3 id="dynamic-effects-modeling">Dynamic Effects Modeling<a class="anchor" aria-label="anchor" href="#dynamic-effects-modeling"></a>
+<h3 id="chart_with_upwards_trend-dynamic-effects-modeling">📈 Dynamic Effects Modeling<a class="anchor" aria-label="anchor" href="#chart_with_upwards_trend-dynamic-effects-modeling"></a>
 </h3>
 <ul>
 <li>
-<strong>Time-varying latent positions</strong> (<code>dynamic_uv</code>): Captures evolving community structure, homophily patterns, and network reconfiguration via AR(1) processes on multiplicative effects</li>
+<strong>Time-varying latent positions</strong> (<code>dynamic_uv</code>): Captures evolving community structure and homophily patterns via AR(1) processes</li>
 <li>
-<strong>Time-varying heterogeneity</strong> (<code>dynamic_ab</code>): Models changing individual activity levels and popularity through AR(1) evolution of additive effects</li>
+<strong>Time-varying heterogeneity</strong> (<code>dynamic_ab</code>): Models changing individual activity levels and popularity over time</li>
 <li>
-<strong>Priors</strong>: Customizable temporal persistence (ρ) and innovation variance (σ²) parameters with defaults</li>
+<strong>Flexible priors</strong>: Customizable temporal persistence (ρ) and innovation variance (σ²) parameters</li>
 <li>
 <strong>Theoretical foundation</strong>: Based on Sewell &amp; Chen (2015, JASA) and Durante &amp; Dunson (2014, Biometrika)</li>
 </ul>
 </div>
 <div class="section level3">
-<h3 id="performance--implementation">Performance &amp; Implementation<a class="anchor" aria-label="anchor" href="#performance--implementation"></a>
+<h3 id="zap-performance--implementation">⚡ Performance &amp; Implementation<a class="anchor" aria-label="anchor" href="#zap-performance--implementation"></a>
 </h3>
 <ul>
 <li>
-<strong>C++ acceleration</strong>: Functions implemented in C++ via Rcpp/RcppArmadillo</li>
+<strong>C++ acceleration</strong>: Core functions implemented in C++ via Rcpp/RcppArmadillo</li>
 <li>
-<strong>Memory efficiency</strong>: ~70% reduction in memory usage for dynamic effects</li>
+<strong>Memory efficiency</strong>: ~50% reduction in memory usage for dynamic effects</li>
 <li>
-<strong>Sampling</strong>: Forward-filtering backward-sampling (FFBS) for temporal updates</li>
+<strong>Advanced sampling</strong>: Forward-filtering backward-sampling (FFBS) for temporal updates</li>
 <li>
-<strong>Processing</strong>: Vectorized operations for actor updates</li>
+<strong>Parallel processing</strong>: Vectorized operations for efficient computation</li>
 </ul>
 </div>
 <div class="section level3">
-<h3 id="user-interface">User Interface<a class="anchor" aria-label="anchor" href="#user-interface"></a>
+<h3 id="id_-user-experience">🛠 User Experience<a class="anchor" aria-label="anchor" href="#id_-user-experience"></a>
 </h3>
 <ul>
 <li>
 <strong>Temporal flexibility</strong>: Handles networks with actors entering/exiting over time</li>
 <li>
-<strong>CLI</strong>: Console output with progress bars via cli, crayon, and progress packages</li>
+<strong>Modern CLI</strong>: Progress bars and informative messages via cli package</li>
 <li>
-<strong>Plotting</strong>: Various additional plotting functions</li>
+<strong>Comprehensive plotting</strong>: Unified interface for static and dynamic visualization</li>
 <li>
-<strong>Diagnostics</strong>: Convergence monitoring</li>
+<strong>Extensive diagnostics</strong>: Built-in convergence monitoring and model selection tools</li>
 </ul>
 </div>
 </div>
 <div class="section level2">
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
-<p>For information on the dynamic effects implementation, see:</p>
 <ul>
-<li>
-<code><a href="articles/dynamic_effects.html">vignette("dynamic_effects")</a></code> - Guide to temporal modeling</li>
-<li>
-<code><a href="reference/lame.html">?lame</a></code> - Function documentation with mathematical details</li>
-<li>Package website with examples and tutorials (coming soon)</li>
+<li>📖 <strong>Getting Started</strong>: <code><a href="articles/lame-overview.html">vignette("lame-overview")</a></code>
+</li>
+<li>🔬 <strong>Dynamic Effects</strong>: <code><a href="articles/dynamic_effects.html">vignette("dynamic_effects")</a></code>
+</li>
+<li>📚 <strong>Function Reference</strong>: <code><a href="reference/lame.html">?lame</a></code> for detailed documentation</li>
+<li>🌐 <strong>Package Website</strong>: <a href="https://netify-dev.github.io/lame/">https://netify-dev.github.io/lame/</a>
+</li>
 </ul>
 </div>
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
 </h2>
-<p>If you use the dynamic effects features in your research, please cite:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode bibtex"><code class="sourceCode bibtex"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="va">@Manual</span>{<span class="ot">lame2024</span>,</span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="dt">title</span> = {lame: Longitudinal Additive and Multiplicative Effects Models for Networks},</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="dt">author</span> = {Shahryar Minhas and Tosin Salau and Cassy Dorff},</span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="dt">year</span> = {2024},</span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="dt">note</span> = {R package version 0.10},</span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="dt">url</span> = {https://github.com/netify-dev/lame},</span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>}</span></code></pre></div>
+<p>If you use <code>lame</code> in your research, please cite:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bibtex"><code class="sourceCode bibtex"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="va">@Manual</span>{<span class="ot">lame2024</span>,</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="dt">title</span> = {lame: Longitudinal Additive and Multiplicative Effects Models for Networks},</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="dt">author</span> = {Shahryar Minhas and Tosin Salau and Cassy Dorff},</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="dt">year</span> = {2024},</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="dt">note</span> = {R package version 0.10},</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="dt">url</span> = {https://github.com/netify-dev/lame},</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>}</span></code></pre></div>
 <p>The dynamic effects implementation draws on:</p>
 <ul>
-<li>Sewell, D. K., &amp; Chen, Y. (2015). Latent space models for dynamic networks. <em>JASA</em>, 110(512), 1646-1657.</li>
+<li>Sewell, D. K., &amp; Chen, Y. (2015). Latent space models for dynamic networks. <em>Journal of the American Statistical Association</em>, 110(512), 1646-1657.</li>
 <li>Durante, D., &amp; Dunson, D. B. (2014). Nonparametric Bayes dynamic modeling of relational data. <em>Biometrika</em>, 101(4), 883-898.</li>
 </ul>
 </div>
@@ -228,11 +254,28 @@ The package provides unified plotting functions that automatically detect whethe
 </h2>
 <ul>
 <li>
-<strong>Cassy Dorff</strong> (Vanderbilt University)</li>
+<strong>Shahryar Minhas</strong> (Michigan State University) - Package maintainer</li>
 <li>
-<strong>Shahryar Minhas</strong> (Michigan State University)</li>
+<strong>Cassy Dorff</strong> (Vanderbilt University) - Core developer</li>
 <li>
-<strong>Tosin Salau</strong> (Michigan State University)</li>
+<strong>Tosin Salau</strong> (Michigan State University) - Core developer</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
+</h2>
+<p>MIT License - see <a href="LICENSE">LICENSE</a> file for details.</p>
+</div>
+<div class="section level2">
+<h2 id="support">Support<a class="anchor" aria-label="anchor" href="#support"></a>
+</h2>
+<ul>
+<li>🐛 <strong>Bug Reports</strong>: <a href="https://github.com/netify-dev/lame/issues" class="external-link">GitHub Issues</a>
+</li>
+<li>💬 <strong>Questions</strong>: <a href="https://github.com/netify-dev/lame/discussions" class="external-link">GitHub Discussions</a>
+</li>
+<li>📧 <strong>Contact</strong>: <a href="mailto:minhassh@msu.edu" class="email">minhassh@msu.edu</a>
+</li>
 </ul>
 </div>
 </div>
@@ -270,7 +313,13 @@ The package provides unified plotting functions that automatically detect whethe
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/netify-dev/lame/actions" class="external-link"><img src="https://github.com/netify-dev/lame/workflows/R-CMD-check/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://opensource.org/licenses/MIT" class="external-link"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>
