@@ -156,9 +156,10 @@ covariates for both.</p></li>
 </ul>
 <p>We begin by loading the TIES data.</p>
 <p>We run the model using the <code><a href="../reference/lame.html">lame()</a></code> function. We specify
-family = “bin” for binary network data and include both additive effects
-(sender and receiver random effects) and multiplicative effects (R = 2)
-to capture complex relational patterns across the time periods.</p>
+family = “binary” for binary network data and include both additive
+effects (sender and receiver random effects) and multiplicative effects
+(R = 2) to capture complex relational patterns across the time
+periods.</p>
 <p>Run the model</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># Fit the AME model for binary data</span></span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lame</span>(</span>
@@ -166,7 +167,7 @@ to capture complex relational patterns across the time periods.</p>
 <span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>  <span class="at">Xdyad =</span> Xdyad,           <span class="co"># dyadic covariates</span></span>
 <span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>  <span class="at">Xrow =</span> Xrow,             <span class="co"># sender covariates</span></span>
 <span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>  <span class="at">Xcol =</span> Xcol,             <span class="co"># receiver covariates </span></span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"bin"</span>,          <span class="co"># Binary  model</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="at">family =</span> <span class="st">"binary"</span>,       <span class="co"># Binary  model</span></span>
 <span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  <span class="at">rvar =</span> <span class="cn">TRUE</span>,             <span class="co"># sender random effects</span></span>
 <span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>  <span class="at">cvar =</span> <span class="cn">TRUE</span>,             <span class="co"># receiver random effects</span></span>
 <span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  <span class="at">dcor =</span> <span class="cn">TRUE</span>,            <span class="co"># Dyadic correlation</span></span>
@@ -195,23 +196,23 @@ built-in summary function.</p>
 <span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>Regression coefficients<span class="sc">:</span></span>
 <span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="sc">------------------------</span></span>
 <span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>                 Estimate StdError z_value p_value CI_lower CI_upper    </span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>intercept          <span class="sc">-</span><span class="fl">5.998</span>    <span class="fl">1.459</span>  <span class="sc">-</span><span class="fl">4.111</span>       <span class="dv">0</span>   <span class="sc">-</span><span class="fl">8.857</span>   <span class="sc">-</span><span class="fl">3.138</span> <span class="sc">**</span><span class="er">*</span></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>log_gdp.row         <span class="sc">-</span><span class="fl">0.01</span>    <span class="fl">0.085</span>  <span class="sc">-</span><span class="fl">0.114</span>   <span class="fl">0.909</span>   <span class="sc">-</span><span class="fl">0.176</span>    <span class="fl">0.156</span>    </span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>log_pop.row         <span class="fl">0.067</span>    <span class="fl">0.131</span>    <span class="fl">0.51</span>    <span class="fl">0.61</span>    <span class="sc">-</span><span class="fl">0.19</span>    <span class="fl">0.324</span>    </span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>log_gdp.col        <span class="sc">-</span><span class="fl">0.001</span>    <span class="fl">0.065</span>  <span class="sc">-</span><span class="fl">0.016</span>   <span class="fl">0.987</span>   <span class="sc">-</span><span class="fl">0.128</span>    <span class="fl">0.126</span>    </span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>log_pop.col         <span class="fl">0.018</span>    <span class="fl">0.096</span>   <span class="fl">0.188</span>   <span class="fl">0.851</span>   <span class="sc">-</span><span class="fl">0.169</span>    <span class="fl">0.205</span>    </span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>distance.dyad       <span class="fl">0.045</span>    <span class="fl">0.024</span>   <span class="fl">1.858</span>   <span class="fl">0.063</span>   <span class="sc">-</span><span class="fl">0.002</span>    <span class="fl">0.092</span>   .</span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>shared_igos.dyad    <span class="fl">0.029</span>    <span class="fl">0.008</span>   <span class="fl">3.466</span>   <span class="fl">0.001</span>    <span class="fl">0.013</span>    <span class="fl">0.046</span> <span class="sc">**</span><span class="er">*</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>intercept          <span class="sc">-</span><span class="fl">9.845</span>    <span class="fl">2.908</span>  <span class="sc">-</span><span class="fl">3.385</span>   <span class="fl">0.001</span>  <span class="sc">-</span><span class="fl">15.546</span>   <span class="sc">-</span><span class="fl">4.145</span> <span class="sc">**</span><span class="er">*</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>log_gdp.row         <span class="fl">0.041</span>    <span class="fl">0.095</span>   <span class="fl">0.426</span>    <span class="fl">0.67</span>   <span class="sc">-</span><span class="fl">0.146</span>    <span class="fl">0.228</span>    </span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>log_pop.row         <span class="fl">0.129</span>    <span class="fl">0.138</span>   <span class="fl">0.937</span>   <span class="fl">0.349</span>   <span class="sc">-</span><span class="fl">0.141</span>    <span class="fl">0.398</span>    </span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>log_gdp.col         <span class="fl">0.071</span>    <span class="fl">0.096</span>    <span class="fl">0.74</span>   <span class="fl">0.459</span>   <span class="sc">-</span><span class="fl">0.117</span>    <span class="fl">0.259</span>    </span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>log_pop.col         <span class="fl">0.088</span>    <span class="fl">0.065</span>    <span class="fl">1.35</span>   <span class="fl">0.177</span>    <span class="sc">-</span><span class="fl">0.04</span>    <span class="fl">0.216</span>    </span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>distance.dyad       <span class="fl">0.001</span>    <span class="fl">0.029</span>   <span class="fl">0.028</span>   <span class="fl">0.978</span>   <span class="sc">-</span><span class="fl">0.056</span>    <span class="fl">0.057</span>    </span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>shared_igos.dyad    <span class="fl">0.005</span>    <span class="fl">0.011</span>   <span class="fl">0.437</span>   <span class="fl">0.662</span>   <span class="sc">-</span><span class="fl">0.016</span>    <span class="fl">0.025</span>    </span>
 <span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="sc">---</span></span>
 <span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>Signif. codes<span class="sc">:</span> <span class="dv">0</span> <span class="st">'***'</span> <span class="fl">0.001</span> <span class="st">'**'</span> <span class="fl">0.01</span> <span class="st">'*'</span> <span class="fl">0.05</span> <span class="st">'.'</span> <span class="fl">0.1</span> <span class="st">' '</span> <span class="dv">1</span></span>
 <span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a></span>
 <span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>Variance components<span class="sc">:</span></span>
 <span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="sc">-------------------</span></span>
 <span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>    Estimate StdError</span>
-<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>va     <span class="fl">0.722</span>    <span class="fl">0.219</span></span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>cab    <span class="fl">0.228</span>    <span class="fl">0.113</span></span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>vb     <span class="fl">0.188</span>    <span class="fl">0.077</span></span>
-<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>rho    <span class="fl">0.196</span>    <span class="fl">0.210</span></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>va     <span class="fl">0.608</span>    <span class="fl">0.189</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>cab    <span class="fl">0.163</span>    <span class="fl">0.106</span></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>vb     <span class="fl">0.161</span>    <span class="fl">0.080</span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>rho    <span class="fl">0.292</span>    <span class="fl">0.145</span></span>
 <span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>ve     <span class="fl">1.000</span>    <span class="fl">0.000</span></span>
 <span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a></span>
 <span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>Model fit statistics<span class="sc">:</span></span>

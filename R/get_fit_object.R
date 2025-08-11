@@ -67,8 +67,8 @@ get_fit_object <- function(
   }
   
   # reformat EZ and YPM as list objects
-  EZ <- arrayToList(EZ, actorByYr, pdLabs)
-  YPM <- arrayToList(YPM, actorByYr, pdLabs)
+  EZ <- array_to_list(EZ, actorByYr, pdLabs)
+  YPM <- array_to_list(YPM, actorByYr, pdLabs)
   
   # create fitted object
   if(symmetric){

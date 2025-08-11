@@ -38,7 +38,7 @@
 #' @examples
 #' \dontrun{
 #' data(YX_nrm)
-#' fit<-ame(YX_nrm$Y,YX_nrm$X,burn=10,nscan=20,odens=5,family="nrm")
+#' fit<-ame(YX_nrm$Y,YX_nrm$X,burn=10,nscan=20,odens=5,family="normal")
 #' summary(fit)
 #' }
 #' 
@@ -66,7 +66,7 @@ NULL
 #' @examples
 #' 
 #' data(YX_bin)
-#' gofstats(YX_bin$Y) 
+#' gof_stats(YX_bin$Y) 
 #' 
 NULL
 
@@ -92,7 +92,7 @@ NULL
 #' @examples
 #' 
 #' data(YX_cbin)
-#' gofstats(YX_cbin$Y) 
+#' gof_stats(YX_cbin$Y) 
 #' 
 NULL
 
@@ -117,7 +117,7 @@ NULL
 #' @examples
 #' 
 #' data(YX_frn)
-#' gofstats(YX_frn$Y) 
+#' gof_stats(YX_frn$Y) 
 #' 
 NULL
 
@@ -142,7 +142,7 @@ NULL
 #' @examples
 #' 
 #' data(YX_nrm)
-#' gofstats(YX_nrm$Y)
+#' gof_stats(YX_nrm$Y)
 #' 
 #' 
 NULL
@@ -168,7 +168,7 @@ NULL
 #' @examples
 #' 
 #' data(YX_ord)
-#' gofstats(YX_ord$Y)
+#' gof_stats(YX_ord$Y)
 #' 
 NULL
 
@@ -193,7 +193,7 @@ NULL
 #' @examples
 #' 
 #' data(YX_rrl)
-#' gofstats(YX_rrl$Y)
+#' gof_stats(YX_rrl$Y)
 #' 
 NULL
 
@@ -212,7 +212,7 @@ NULL
 #' @examples
 #' 
 #' data(YX_bin_long)
-#' gofstats(YX_bin_long$Y[,,1]) 
+#' gof_stats(YX_bin_long$Y[,,1]) 
 #' 
 NULL
 

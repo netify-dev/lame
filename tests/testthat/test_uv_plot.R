@@ -25,7 +25,7 @@ test_that("uv_plot works", {
     Y = Y, 
     Xdyad = X,
     R = 2,
-    family = "bin",
+    family = "binary",
     burn = 2,     
     nscan = 4,     
     odens = 2,     

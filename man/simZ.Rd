@@ -20,5 +20,5 @@ a simulated value of Z
 Simulate Z given its expectation and covariance
 }
 \author{
-Peter Hoff
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

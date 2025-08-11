@@ -5,17 +5,17 @@
 #' various types. 
 #' 
 #' This command provides posterior inference for parameters in AME models of
-#' independent replicated relational data, assuming one of seven possible data
+#' independent replicated relational data, assuming one of eight possible data
 #' types/models:
 #' 
-#' "nrm": A normal AME model.
+#' "normal": A normal AME model.
 #' 
-#' "tob": A tobit AME model for censored continuous data. Values are censored
+#' "tobit": A tobit AME model for censored continuous data. Values are censored
 #' at zero, appropriate for non-negative continuous relational data.
 #' 
-#' "bin": A binary probit AME model.
+#' "binary": A binary probit AME model.
 #' 
-#' "ord": An ordinal probit AME model. An intercept is not identifiable in this
+#' "ordinal": An ordinal probit AME model. An intercept is not identifiable in this
 #' model.
 #' 
 #' "cbin": An AME model for censored binary data.  The value of 'odmax'
@@ -30,9 +30,12 @@
 #' intercept, row random effects and row regression effects are not estimable
 #' for this model.
 #' 
+#' "poisson": An overdispersed Poisson AME model for count data. The latent
+#' variable represents the log mean of the Poisson distribution.
+#' 
 #' @usage lame(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl")
-#' , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, family ="nrm",
-#' intercept=!is.element(family,c("rrl","ord")),
+#' , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, family ="normal",
+#' intercept=!is.element(family,c("rrl","ordinal")),
 #' symmetric=FALSE,
 #' odmax=NULL, prior=list(), g=NA,
 #' seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
@@ -48,7 +51,7 @@
 #' @param dcor logical: fit a dyadic correlation (asymmetric case)?
 #' @param nvar logical: fit nodal random effects (symmetric case)? 
 #' @param R integer: dimension of the multiplicative effects (can be zero)
-#' @param family character: one of "nrm","tob","bin","ord","cbin","frn","rrl" - see
+#' @param family character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 #' the details below
 #' @param intercept logical: fit model with an intercept?
 #' @param symmetric logical: Is the sociomatrix symmetric by design?
@@ -91,7 +94,7 @@
 #' @examples
 #' 
 #' data(YX_bin_list) 
-#' fit<-lame(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,family="bin")
+#' fit<-lame(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,family="binary")
 #' # you should run the Markov chain much longer than this
 #' 
 #' @export lame
@@ -100,8 +103,8 @@ lame <- function(
     rvar = !(family=="rrl") , cvar = TRUE, dcor = !symmetric, 
     nvar = TRUE, 
     R = 0,
-    family = "nrm",
-    intercept = !is.element(family,c("rrl","ord")),
+    family = "normal",
+    intercept = !is.element(family,c("rrl","ordinal")),
     symmetric = FALSE,
     odmax = NULL,
     prior = list(), g = NA,
@@ -129,21 +132,21 @@ lame <- function(
   savePoints <- savePoints[round(quantile(1:length(savePoints), probs=seq(saveInterval,1,saveInterval)))]
   
   # check formatting of input objects
-  checkFormat(Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol)
+  check_format(Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol)
   
   # set diag to NA 
   N<-length(Y) ; pdLabs <- names(Y) ; Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
   
   # convert into large array format
-  arrayObj<-listToArray(actorSet, Y, Xdyad, Xrow, Xcol)
+  arrayObj<-list_to_array(actorSet, Y, Xdyad, Xrow, Xcol)
   Y<-arrayObj$Y ; Xdyad<-arrayObj$Xdyad ; Xrow<-arrayObj$Xrow
   Xcol<-arrayObj$Xcol ; rm(arrayObj)
   
   # force binary if binary family specified 
-  if(is.element(family,c("bin","cbin"))) { Y<-1*(Y>0) }
+  if(is.element(family,c("binary","cbin"))) { Y<-1*(Y>0) }
   
   # handle tobit family
-  if(family=="tob") { 
+  if(family=="tobit") { 
     Y <- lapply(Y, function(y) { y[y<0]<-0; return(y) })
   } 
   
@@ -160,7 +163,7 @@ lame <- function(
   pr<-length(Xrow[,,1])/n
   pc<-length(Xcol[,,1])/n
   pd<-length(Xdyad[,,,1])/n^2
-  designObj <- getDesignRep(
+  designObj <- get_design_rep(
     Y=Y,Xdyad=Xdyad,Xrow=Xrow,Xcol=Xcol,actorSet=actorSet,
     intercept=intercept,n=n,N=N,pr=pr,pc=pc,pd=pd)
   Y<-designObj$Y ; X<-designObj$X ; Xlist<-designObj$Xlist
@@ -176,7 +179,7 @@ lame <- function(
   }
   
   # design matrix warning for rrl and ord
-  if( is.element(family,c("ord","rrl")) & 
+  if( is.element(family,c("ordinal","rrl")) & 
       any( apply(X,c(3),function(x){var(c(x))})==0 ) )
   {
     cat("WARNING: an intercept is not estimable using this procedure ","\n")
@@ -216,7 +219,7 @@ lame <- function(
   if(is.null(prior$etaab)) { prior$etaab<-round(4+3*n/100) }
   
   # Get starting values for MCMC
-  startValsObj <- getStartVals(startVals,Y,family,xP=dim(X)[3],rvar,cvar,R)
+  startValsObj <- get_start_vals(startVals,Y,family,xP=dim(X)[3],rvar,cvar,R)
   Z<-startValsObj$Z ; beta<-startValsObj$beta ; a<-startValsObj$a
   b<-startValsObj$b ; U<-startValsObj$U ; V<-startValsObj$V
   rho<-startValsObj$rho ; s2<-startValsObj$s2 ; Sab<-startValsObj$Sab
@@ -236,7 +239,7 @@ lame <- function(
   YPS<-array(0,dim=dim(Y),dimnames=dimnames(Y)) 
   # GOF <- matrix(NA, nrow=(nscan/odens)+1, ncol=5,
   #               dimnames=list(c('obs',1:(nscan/odens)),c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep", "trans.dep")))
-  # GOF[1,] <- rowMeans(apply(Y,3,gofstats))
+  # GOF[1,] <- rowMeans(apply(Y,3,gof_stats))
   # 5 corresponds to number of stats we want
   GOF <- array(NA, dim=c(5, N, (nscan/odens)+1))
   
@@ -250,7 +253,7 @@ lame <- function(
   dimnames(GOF)[[3]] <- c('obs', 1:(nscan/odens))
   
   # fill in first entry with values from OBSERVED 
-  GOF[,,1] <- apply(Y, 3, gofstats)
+  GOF[,,1] <- apply(Y, 3, gof_stats)
   
   names(APS)<-names(BPS)<-rownames(U)<-rownames(V)<-rownames(Y[,,1])
   
@@ -289,26 +292,30 @@ lame <- function(
     E.nrm<-array(dim=dim(Z))
     EZ <- get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
     for(t in 1:N ){
-      if(family=="nrm")
+      if(family=="normal")
       { 
         Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ[,,t],rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ[,,t]
       }
-      if(family=="tob")
+      if(family=="tobit")
       { 
         Z[,,t]<-rZ_tob_fc(Z[,,t],EZ[,,t],rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ[,,t]
       }
-      if(family=="bin"){ Z[,,t]<-rZ_bin_fc(Z[,,t],EZ[,,t],rho,Y[,,t]) }
-      if(family=="ord"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ[,,t],rho,Y[,,t]) }
+      if(family=="binary"){ Z[,,t]<-rZ_bin_fc(Z[,,t],EZ[,,t],rho,Y[,,t]) }
+      if(family=="ordinal"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ[,,t],rho,Y[,,t]) }
       if(family=="cbin"){Z[,,t]<-rZ_cbin_fc(Z[,,t],EZ[,,t],rho,Y[,,t],odmax,odobs)}
       if(family=="frn")
       { 
         Z[,,t]<-rZ_frn_fc(Z[,,t],EZ[,,t],rho,Y[,,t],YL[[t]],odmax,odobs)
       }
-      if(family=="rrl"){ Z[,,t]<-rZ_rrl_fc(Z[,,t],EZ[,,t],rho,Y[,,t],YL[[t]]) } 
+      if(family=="rrl"){ Z[,,t]<-rZ_rrl_fc(Z[,,t],EZ[,,t],rho,Y[,,t],YL[[t]]) }
+      if(family=="poisson")
+      { 
+        Z[,,t]<-rZ_pois_fc(Z[,,t],EZ[,,t],rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ[,,t]
+      }
     }
     
     # update s2
-    if (is.element(family,c("nrm","tob"))){
+    if (is.element(family,c("normal","tobit","poisson"))){
       s2New<-try(
         rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))), 
         silent=TRUE)
@@ -411,13 +418,14 @@ lame <- function(
       {
         if(symmetric){ EZ[,,t]<-(EZ[,,t]+t(EZ[,,t]))/2 }
         
-        if(family=="bin"){ Ys[,,t]<-simY_bin(EZ[,,t],rho) }
+        if(family=="binary"){ Ys[,,t]<-simY_bin(EZ[,,t],rho) }
         if(family=="cbin"){ Ys[,,t]<-1*(simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t])>0)}
         if(family=="frn"){ Ys[,,t]<-simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t]) }
         if(family=="rrl"){ Ys[,,t]<-simY_rrl(EZ[,,t],rho,odobs,YO=Y[,,t] ) }
-        if(family=="nrm"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho,s2) }
-        if(family=="tob"){ Ys[,,t]<-simY_tob(EZ[,,t],rho,s2) }
-        if(family=="ord"){ Ys[,,t]<-simY_ord(EZ[,,t],rho,Y[,,t]) }
+        if(family=="normal"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho,s2) }
+        if(family=="tobit"){ Ys[,,t]<-simY_tob(EZ[,,t],rho,s2) }
+        if(family=="ordinal"){ Ys[,,t]<-simY_ord(EZ[,,t],rho,Y[,,t]) }
+        if(family=="poisson"){ Ys[,,t]<-simY_pois(EZ[,,t]) }
         
         if(symmetric)
         {  
@@ -429,11 +437,11 @@ lame <- function(
       YPS<-YPS+Ys
       
       # save posterior predictive GOF stats
-      #if(gof){Ys[is.na(Y)]<-NA ;GOF[(iter)+1,]<-rowMeans(apply(Ys,3,gofstats))}
+      #if(gof){Ys[is.na(Y)]<-NA ;GOF[(iter)+1,]<-rowMeans(apply(Ys,3,gof_stats))}
       if(gof){
         
         Ys[is.na(Y)] <- NA
-        GOF[,,(iter)+1] <- apply(Ys,3,gofstats)
+        GOF[,,(iter)+1] <- apply(Ys,3,gof_stats)
       }
       
       # print MC progress 
@@ -500,7 +508,7 @@ lame <- function(
     s2_mean <- mean(VC[,ncol(VC)])
     n_obs <- sum(!is.na(Y))
     
-    if(family %in% c("nrm", "tob", "bin")) {
+    if(family %in% c("normal", "tobit", "binary")) {
       # Use a simplified log-likelihood based on residual variance
       # This provides a rough approximation for model comparison
       ll <- -n_obs/2 * (log(2*pi*s2_mean) + 1)

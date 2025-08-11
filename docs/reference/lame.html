@@ -65,8 +65,8 @@ various types.</p>
 
     <div id="ref-usage">
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">lame</span><span class="op">(</span><span class="va">Y</span>,Xdyad<span class="op">=</span><span class="cn">NULL</span>, Xrow<span class="op">=</span><span class="cn">NULL</span>, Xcol<span class="op">=</span><span class="cn">NULL</span>, rvar <span class="op">=</span> <span class="op">!</span><span class="op">(</span><span class="va">family</span><span class="op">==</span><span class="st">"rrl"</span><span class="op">)</span></span>
-<span>, cvar <span class="op">=</span> <span class="cn">TRUE</span>, dcor <span class="op">=</span> <span class="op">!</span><span class="va">symmetric</span>, nvar<span class="op">=</span><span class="cn">TRUE</span>,  R <span class="op">=</span> <span class="fl">0</span>, family <span class="op">=</span><span class="st">"nrm"</span>,</span>
-<span>intercept<span class="op">=</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>,<span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>,<span class="st">"ord"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>, cvar <span class="op">=</span> <span class="cn">TRUE</span>, dcor <span class="op">=</span> <span class="op">!</span><span class="va">symmetric</span>, nvar<span class="op">=</span><span class="cn">TRUE</span>,  R <span class="op">=</span> <span class="fl">0</span>, family <span class="op">=</span><span class="st">"normal"</span>,</span>
+<span>intercept<span class="op">=</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>,<span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>,<span class="st">"ordinal"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>symmetric<span class="op">=</span><span class="cn">FALSE</span>,</span>
 <span>odmax<span class="op">=</span><span class="cn">NULL</span>, prior<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, g<span class="op">=</span><span class="cn">NA</span>,</span>
 <span>seed <span class="op">=</span> <span class="fl">6886</span>, nscan <span class="op">=</span> <span class="fl">10000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>, plot<span class="op">=</span><span class="cn">FALSE</span>, print <span class="op">=</span> <span class="cn">FALSE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>,</span>
@@ -116,7 +116,7 @@ See family below for various data types.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>character: one of "nrm","tob","bin","ord","cbin","frn","rrl" - see
+<dd><p>character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 the details below</p></dd>
 
 
@@ -248,13 +248,13 @@ for a future model run.</p></dd>
     <div id="details">
     <h2>Details</h2>
     <p>This command provides posterior inference for parameters in AME models of
-independent replicated relational data, assuming one of seven possible data
+independent replicated relational data, assuming one of eight possible data
 types/models:</p>
-<p>"nrm": A normal AME model.</p>
-<p>"tob": A tobit AME model for censored continuous data. Values are censored
+<p>"normal": A normal AME model.</p>
+<p>"tobit": A tobit AME model for censored continuous data. Values are censored
 at zero, appropriate for non-negative continuous relational data.</p>
-<p>"bin": A binary probit AME model.</p>
-<p>"ord": An ordinal probit AME model. An intercept is not identifiable in this
+<p>"binary": A binary probit AME model.</p>
+<p>"ordinal": An ordinal probit AME model. An intercept is not identifiable in this
 model.</p>
 <p>"cbin": An AME model for censored binary data.  The value of 'odmax'
 specifies the maximum number of links each row may have.</p>
@@ -265,6 +265,8 @@ the maximum number of links each row may have.</p>
 relationships across rows are not directly comparable in terms of scale. An
 intercept, row random effects and row regression effects are not estimable
 for this model.</p>
+<p>"poisson": An overdispersed Poisson AME model for count data. The latent
+variable represents the log mean of the Poisson distribution.</p>
     </div>
     <div id="author">
     <h2>Author</h2>
@@ -275,7 +277,7 @@ for this model.</p>
     <h2>Examples</h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">)</span> </span></span>
-<span class="r-in"><span><span class="va">fit</span><span class="op">&lt;-</span><span class="fu">lame</span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">$</span><span class="va">Y</span>,<span class="va">YX_bin_list</span><span class="op">$</span><span class="va">X</span>,burn<span class="op">=</span><span class="fl">5</span>,nscan<span class="op">=</span><span class="fl">5</span>,odens<span class="op">=</span><span class="fl">1</span>,family<span class="op">=</span><span class="st">"bin"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">fit</span><span class="op">&lt;-</span><span class="fu">lame</span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">$</span><span class="va">Y</span>,<span class="va">YX_bin_list</span><span class="op">$</span><span class="va">X</span>,burn<span class="op">=</span><span class="fl">5</span>,nscan<span class="op">=</span><span class="fl">5</span>,odens<span class="op">=</span><span class="fl">1</span>,family<span class="op">=</span><span class="st">"binary"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Starting burn-in period...</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   |                                                                              |                                                                      |   0%  |                                                                              |==================                                                    |  25%  |                                                                              |===================================                                   |  50%  |                                                                              |====================================================                  |  75%  |                                                                              |======================================================================| 100%</span>

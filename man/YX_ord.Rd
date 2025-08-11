@@ -20,7 +20,7 @@ information on seven covariates
 \examples{
 
 data(YX_ord)
-gofstats(YX_ord$Y)
+gof_stats(YX_ord$Y)
 
 }
 \keyword{datasets}
