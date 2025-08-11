@@ -319,8 +319,26 @@ plot.lame <- function(x,
     # Additive effects
     if (!is.null(fit$APM) && !is.null(fit$BPM)) {
       # Check if we have time-varying effects
-      if (!is.null(fit$APM_T)) {
-        # Time-varying effects
+      if (!is.null(fit$a_dynamic) && !is.null(fit$b_dynamic)) {
+        # Time-varying effects using a_dynamic/b_dynamic
+        A <- fit$a_dynamic
+        B <- fit$b_dynamic
+        
+        # Convert to long format using as.table for efficiency
+        df_a <- as.data.frame(as.table(A))
+        names(df_a) <- c("actor", "time", "effect")
+        df_a$type <- "Sender"
+        df_a$time <- as.integer(df_a$time)
+        
+        df_b <- as.data.frame(as.table(B))
+        names(df_b) <- c("actor", "time", "effect")
+        df_b$type <- "Receiver"
+        df_b$time <- as.integer(df_b$time)
+        
+        effects_time_data <- rbind(df_a, df_b)
+        names(effects_time_data)[1] <- "name"  # Rename actor to name for consistency
+      } else if (!is.null(fit$APM_T)) {
+        # Legacy support for APM_T/BPM_T format
         n_time <- length(fit$APM_T)
         effects_time_data <- data.frame()
         

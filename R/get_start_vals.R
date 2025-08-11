@@ -11,11 +11,12 @@
 #' @param cvar logical indicating whether to include receiver random
 #' effects
 #' @param R Number of dimensions for multiplicative effects
+#' @param odmax vector of maximum ranks for cbin/frn families (optional)
 #' @return List of starting values for MCMC
 #' @author Peter Hoff, Shahryar Minhas
 #' @export get_start_vals
 
-get_start_vals <- function(startVals, Y, family, xP, rvar, cvar, R){
+get_start_vals <- function(startVals, Y, family, xP, rvar, cvar, R, odmax = NULL){
   
   # dims
   N <- dim(Y)[3]
@@ -35,9 +36,17 @@ get_start_vals <- function(startVals, Y, family, xP, rvar, cvar, R){
       if(family=="binary" ){
         Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t]))
         # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
-        zyMax <- ifelse( sum(Y[,,t]==0, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==0],na.rm=TRUE), 0)
-        # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)
-        zyMin <- ifelse( sum(Y[,,t]==1, na.rm=TRUE)!=0, max(Z[,,t][Y[,,t]==1],na.rm=TRUE), 0)
+        zyMax <- if (sum(Y[,,t] == 0, na.rm = TRUE) > 0) {
+          max(Z[,,t][Y[,,t] == 0], na.rm = TRUE)
+        } else {
+          min(Z[,,t][Y[,,t] == 1], na.rm = TRUE) - 1e-6
+        }
+        # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)  
+        zyMin <- if (sum(Y[,,t] == 1, na.rm = TRUE) > 0) {
+          min(Z[,,t][Y[,,t] == 1], na.rm = TRUE)
+        } else {
+          max(Z[,,t][Y[,,t] == 0], na.rm = TRUE) + 1e-6
+        }
         z01<-.5*(zyMax+zyMin ) 
         Z[,,t]<-Z[,,t] - z01
       } 
@@ -48,6 +57,9 @@ get_start_vals <- function(startVals, Y, family, xP, rvar, cvar, R){
       
       if(is.element(family,c("cbin","frn")))
       {
+        if(is.null(odmax)) {
+          stop("odmax must be provided for family=cbin/frn")
+        }
         Z[,,t]<-Y[,,t]
         for(i in 1:nrow(Y[,,t]))
         {
