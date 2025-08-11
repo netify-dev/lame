@@ -32,7 +32,7 @@
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
-      <a href="../articles/lame-overview.html">lame-overview</a>
+      <a href="../articles/lame-overview.html">lame Overview</a>
     </li>
   </ul></li>
       </ul><ul class="nav navbar-nav navbar-right"><li>
@@ -60,7 +60,7 @@
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">raSab_bin_fc</span><span class="op">(</span><span class="va">Z</span>, <span class="va">Y</span>, <span class="va">a</span>, <span class="va">b</span>, <span class="va">Sab</span>, SS <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">Z</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">raSab_bin_fc</span><span class="op">(</span><span class="va">Z</span>, <span class="va">Y</span>, <span class="va">a</span>, <span class="va">b</span>, <span class="va">Sab</span>, Sab0<span class="op">=</span><span class="cn">NULL</span>, eta0<span class="op">=</span><span class="cn">NULL</span>, SS <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">Z</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -85,6 +85,14 @@
 
 <dt id="arg-sab">Sab<a class="anchor" aria-label="anchor" href="#arg-sab"></a></dt>
 <dd><p>current value of Cov(a,b)</p></dd>
+
+
+<dt id="arg-sab-">Sab0<a class="anchor" aria-label="anchor" href="#arg-sab-"></a></dt>
+<dd><p>prior (inverse) scale matrix for the prior distribution</p></dd>
+
+
+<dt id="arg-eta-">eta0<a class="anchor" aria-label="anchor" href="#arg-eta-"></a></dt>
+<dd><p>prior degrees of freedom for the prior distribution</p></dd>
 
 
 <dt id="arg-ss">SS<a class="anchor" aria-label="anchor" href="#arg-ss"></a></dt>

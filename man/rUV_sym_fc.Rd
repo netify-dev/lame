@@ -4,7 +4,7 @@
 \alias{rUV_sym_fc}
 \title{Gibbs sampling of U and V}
 \usage{
-rUV_sym_fc(E, U, V, s2 = 1, shrink=TRUE, tmp=rep(sample(1:n),4))
+rUV_sym_fc(E, U, V, s2 = 1, shrink=TRUE)
 }
 \arguments{
 \item{E}{square residual relational matrix}
@@ -16,8 +16,6 @@ rUV_sym_fc(E, U, V, s2 = 1, shrink=TRUE, tmp=rep(sample(1:n),4))
 \item{s2}{dyadic variance}
 
 \item{shrink}{adaptively shrink the factors with a hierarchical prior}
-
-\item{tmp}{temporary parameter (internal use)}
 }
 \value{
 \item{U}{a new value of U} \item{V}{a new value of V}

@@ -37,6 +37,6 @@ rZ_ord_fc<-
       Z[up] <- ez + sz * qnorm(runif(sum(up), pnorm((lb - ez)/sz),
                                      pnorm((ub - ez)/sz)))
     }
-    diag(Z) <- rnorm(nrow(Z), diag(EZ), 1)
+    diag(Z)<-rnorm(nrow(Z),diag(EZ),sqrt(1+rho))
     Z
   }

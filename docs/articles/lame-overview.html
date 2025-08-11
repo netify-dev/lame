@@ -5,13 +5,13 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>lame-overview • lame</title>
+<title>lame Overview • lame</title>
 <!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="../bootstrap-toc.css">
 <script src="../bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
 <!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- pkgdown --><link href="../pkgdown.css" rel="stylesheet">
-<script src="../pkgdown.js"></script><meta property="og:title" content="lame-overview">
+<script src="../pkgdown.js"></script><meta property="og:title" content="lame Overview">
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
 <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
 <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
@@ -49,7 +49,7 @@
   </a>
   <ul class="dropdown-menu" role="menu">
 <li>
-      <a href="../articles/lame-overview.html">lame-overview</a>
+      <a href="../articles/lame-overview.html">lame Overview</a>
     </li>
   </ul>
 </li>
@@ -74,7 +74,7 @@
       </header><div class="row">
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
-      <h1 data-toc-skip>lame-overview</h1>
+      <h1 data-toc-skip>lame Overview</h1>
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
@@ -186,19 +186,38 @@ to capture complex relational patterns across the time periods.</p>
 <p>First we can check the summary of the model using <code>lame</code>’s
 built-in summary function.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">summary</span>(fit)</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>               Length Class  Mode   </span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>BETA            <span class="dv">140</span>   <span class="sc">-</span>none<span class="sc">-</span> numeric</span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>VC              <span class="dv">100</span>   <span class="sc">-</span>none<span class="sc">-</span> numeric</span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>APM              <span class="dv">35</span>   <span class="sc">-</span>none<span class="sc">-</span> numeric</span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>BPM              <span class="dv">35</span>   <span class="sc">-</span>none<span class="sc">-</span> numeric</span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>U                <span class="dv">70</span>   <span class="sc">-</span>none<span class="sc">-</span> numeric</span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>V                <span class="dv">70</span>   <span class="sc">-</span>none<span class="sc">-</span> numeric</span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>UVPM           <span class="dv">1225</span>   <span class="sc">-</span>none<span class="sc">-</span> numeric</span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>EZ                <span class="dv">4</span>   <span class="sc">-</span>none<span class="sc">-</span> list   </span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>YPM               <span class="dv">4</span>   <span class="sc">-</span>none<span class="sc">-</span> list   </span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>GOF             <span class="dv">420</span>   <span class="sc">-</span>none<span class="sc">-</span> numeric</span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>startVals         <span class="dv">9</span>   <span class="sc">-</span>none<span class="sc">-</span> list   </span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>tryErrorChecks    <span class="dv">4</span>   <span class="sc">-</span>none<span class="sc">-</span> list   </span></code></pre></div>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="sc">==</span><span class="er">=</span> Longitudinal AME Model Summary <span class="sc">==</span><span class="er">=</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>Call<span class="sc">:</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="cn">NULL</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>Regression coefficients<span class="sc">:</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="sc">------------------------</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>                 Estimate StdError z_value p_value CI_lower CI_upper    </span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>intercept          <span class="sc">-</span><span class="fl">5.998</span>    <span class="fl">1.459</span>  <span class="sc">-</span><span class="fl">4.111</span>       <span class="dv">0</span>   <span class="sc">-</span><span class="fl">8.857</span>   <span class="sc">-</span><span class="fl">3.138</span> <span class="sc">**</span><span class="er">*</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>log_gdp.row         <span class="sc">-</span><span class="fl">0.01</span>    <span class="fl">0.085</span>  <span class="sc">-</span><span class="fl">0.114</span>   <span class="fl">0.909</span>   <span class="sc">-</span><span class="fl">0.176</span>    <span class="fl">0.156</span>    </span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>log_pop.row         <span class="fl">0.067</span>    <span class="fl">0.131</span>    <span class="fl">0.51</span>    <span class="fl">0.61</span>    <span class="sc">-</span><span class="fl">0.19</span>    <span class="fl">0.324</span>    </span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>log_gdp.col        <span class="sc">-</span><span class="fl">0.001</span>    <span class="fl">0.065</span>  <span class="sc">-</span><span class="fl">0.016</span>   <span class="fl">0.987</span>   <span class="sc">-</span><span class="fl">0.128</span>    <span class="fl">0.126</span>    </span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>log_pop.col         <span class="fl">0.018</span>    <span class="fl">0.096</span>   <span class="fl">0.188</span>   <span class="fl">0.851</span>   <span class="sc">-</span><span class="fl">0.169</span>    <span class="fl">0.205</span>    </span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>distance.dyad       <span class="fl">0.045</span>    <span class="fl">0.024</span>   <span class="fl">1.858</span>   <span class="fl">0.063</span>   <span class="sc">-</span><span class="fl">0.002</span>    <span class="fl">0.092</span>   .</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>shared_igos.dyad    <span class="fl">0.029</span>    <span class="fl">0.008</span>   <span class="fl">3.466</span>   <span class="fl">0.001</span>    <span class="fl">0.013</span>    <span class="fl">0.046</span> <span class="sc">**</span><span class="er">*</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="sc">---</span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>Signif. codes<span class="sc">:</span> <span class="dv">0</span> <span class="st">'***'</span> <span class="fl">0.001</span> <span class="st">'**'</span> <span class="fl">0.01</span> <span class="st">'*'</span> <span class="fl">0.05</span> <span class="st">'.'</span> <span class="fl">0.1</span> <span class="st">' '</span> <span class="dv">1</span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>Variance components<span class="sc">:</span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="sc">-------------------</span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>    Estimate StdError</span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>va     <span class="fl">0.722</span>    <span class="fl">0.219</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>cab    <span class="fl">0.228</span>    <span class="fl">0.113</span></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>vb     <span class="fl">0.188</span>    <span class="fl">0.077</span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>rho    <span class="fl">0.196</span>    <span class="fl">0.210</span></span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>ve     <span class="fl">1.000</span>    <span class="fl">0.000</span></span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a></span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>Model fit statistics<span class="sc">:</span></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="sc">--------------------</span></span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>AIC BIC </span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a> <span class="cn">NA</span>  <span class="cn">NA</span> </span></code></pre></div>
 <p>We see that the model shows that wealthier and more populous
 countries are more likely to impose sanctions on less wealthy and less
 populous countries. We also observe that more populous countries are
@@ -210,18 +229,18 @@ members of the same organization. Distance is negatively associated with
 sanctions, this indicates that geographically closer countries are more
 likely to sanction each other.</p>
 <p>We can check the types of parameters included in the fitted lame
-model and use the <code>paramPlot</code> function to visualize how well
-the model’s paramters converged.</p>
+model and use the <code>trace_plot</code> function to visualize how well
+the model’s parameters converged.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">names</span>(fit)</span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a> [<span class="dv">1</span>] <span class="st">"BETA"</span>           <span class="st">"VC"</span>             <span class="st">"APM"</span>            <span class="st">"BPM"</span>           </span>
 <span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a> [<span class="dv">5</span>] <span class="st">"U"</span>              <span class="st">"V"</span>              <span class="st">"UVPM"</span>           <span class="st">"EZ"</span>            </span>
 <span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a> [<span class="dv">9</span>] <span class="st">"YPM"</span>            <span class="st">"GOF"</span>            <span class="st">"startVals"</span>      <span class="st">"tryErrorChecks"</span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="fu">paramPlot</span>(fit<span class="sc">$</span>BETA)</span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/unnamed-chunk-4-1.png" width="100%" style="display: block; margin: auto;"></p>
-<p>The <code>paramPlot</code> function produces traceplots on the left
-and density plots on the right for each parameter in the model. The red
-line shows where the posterior mean lies in the shaded regions of the
-90% and 95% credible intervals of the probability distribution.</p>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>[<span class="dv">13</span>] <span class="st">"AIC"</span>            <span class="st">"BIC"</span>            <span class="st">"model.name"</span>    </span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="fu">trace_plot</span>(fit, <span class="at">params =</span> <span class="st">"beta"</span>)</span></code></pre></div>
+<p><img src="lame-overview_files/figure-html/unnamed-chunk-4-1.png" alt="MCMC trace plots and density plots showing convergence and posterior distributions of regression coefficients" width="100%" style="display: block; margin: auto;"></p>
+<p>The <code>trace_plot</code> function produces traceplots and density
+plots for each parameter in the model, helping visualize MCMC
+convergence and posterior distributions.</p>
 <p>Looking at the density plots, we can check if the parameters overlap
 with the 90% and 95% credible intervals. If they do, it indicates that
 there is no evidence for sender or receiver heterogeneity. If they do
@@ -231,20 +250,11 @@ sender or receiver heterogeneity in sanctioning patterns across the
 countries, as the posterior distributions overlap with the credible
 intervals. From the trace plots, we need to run the Markov chain much
 longer for the model to converge.</p>
-<p>Next, we will use the <code>gofPlot</code> function to visualize the
-goodness of fit of the model on average and the
-<code>gofPlot_long</code> to analyze the model fit for each year in our
-data.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">gofPlot</span>(fit<span class="sc">$</span>GOF, <span class="cn">FALSE</span>) </span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>Warning<span class="sc">:</span>  [<span class="dv">1</span>m [<span class="dv">22</span>mThe dot<span class="sc">-</span>dot <span class="fu">notation</span> (<span class="st">`</span><span class="at">..density..</span><span class="st">`</span>) was deprecated <span class="cf">in</span> ggplot2 <span class="dv">3</span>.<span class="dv">4</span>.<span class="fl">0.</span></span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a> [<span class="dv">36</span>mℹ [<span class="dv">39</span>m Please use <span class="st">`</span><span class="at">after_stat(density)</span><span class="st">`</span> instead.</span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a> [<span class="dv">36</span>mℹ [<span class="dv">39</span>m The deprecated feature was likely used <span class="cf">in</span> the  [<span class="dv">34</span>mlame [<span class="dv">39</span>m package.</span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  Please report the issue at  [<span class="dv">3</span>m [<span class="dv">34</span>m<span class="sc">&lt;</span>https<span class="sc">:</span><span class="er">//</span>github.com<span class="sc">/</span>netify<span class="sc">-</span>dev<span class="sc">/</span>lame<span class="sc">/</span>issues<span class="sc">&gt;</span> [<span class="dv">39</span>m [<span class="dv">23</span>m.</span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a> [<span class="dv">90</span>mThis warning is displayed once every <span class="dv">8</span> hours. [<span class="dv">39</span>m</span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a> [<span class="dv">90</span>mCall <span class="st">`</span><span class="at">lifecycle::last_lifecycle_warnings()</span><span class="st">`</span> to see where this warning was [<span class="dv">39</span>m</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a> [<span class="dv">90</span>mgenerated. [<span class="dv">39</span>m</span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a> [<span class="dv">1</span>m [<span class="dv">22</span>m<span class="st">`</span><span class="at">stat_bin()</span><span class="st">`</span> using <span class="st">`</span><span class="at">bins = 30</span><span class="st">`</span>. Pick better value with <span class="st">`</span><span class="at">binwidth</span><span class="st">`</span>.</span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/unnamed-chunk-5-1.png" width="100%" style="display: block; margin: auto;"></p>
+<p>Next, we will use the <code>gof_plot</code> function to visualize the
+goodness of fit of the model.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> </span></code></pre></div>
+<p><img src="lame-overview_files/figure-html/unnamed-chunk-5-1.png" alt="Goodness of fit plots comparing observed network statistics to posterior predictive distributions across time periods" width="100%" style="display: block; margin: auto;"></p>
 <p>We analyze how well our model is able to accurately represent
 heterogeneity, transitivity and cycle dependence. The blue line shows
 the observed heterogeneity in the model and the red line is
@@ -252,58 +262,36 @@ heterogeneity in the simulated values. The shaded area shows the 90%
 credible interval. We see that the model does a good job representing
 heterogeneity and transitivity but not dyadic and cyclic dependence in
 the data.</p>
-<p>While the plot above focuses on average performance, but users might
-want to analyze these network properties for each year of the data using
-the <code>gofPlot_long</code> function. This function allows us to
-visualize the goodness of fit for each year separately, which can help
-us understand how well the model fits the data over time. We can analyze
-the <code>actual</code> and <code>deviation</code> (difference in the
-observed and simulated) of the model fit for each year.</p>
+<p>Since this is a longitudinal model (LAME), the <code>gof_plot</code>
+function will automatically produce time series plots showing how the
+network statistics evolve over time with credible intervals.</p>
+<p>The plot shows the observed values (points) and posterior predictive
+intervals (shaded regions) for each network statistic across time
+periods. When observed values fall outside the credible bands, it
+suggests the model may not fully capture the network structure at those
+time points. This can help identify periods where the network exhibits
+unique characteristics that the model struggles to represent.</p>
+<p>Finally, let’s visualize the latent space of sender and receiver
+countries using the <code>uv_plot</code> function.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/gofPlot_long.html">gofPlot_long</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">GOF</span>, type<span class="op">=</span> <span class="st">"actual"</span>, symmetric <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/unnamed-chunk-6-1.png" width="100%" style="display: block; margin: auto;"></p>
-<p>The <code>gofPlot_long</code> function produces a plot for each year
-in the data, plotting the actual and simulated values for heterogeneity,
-transitivity, dyadic dependence, and cyclic dependence. The boxplots
-show the distribution of the simulated values from the posterior
-prediction and the diamonds points represent the observed values. Among
-the years in the data, we see that in 1995 the observed values fall
-outside the posterior predictive distributions across the network
-statistics suggesting the model struggles to capture the unique network
-structure present in the sanctions data during this time. This may
-possibly reflect the geopolitical conditions during this post-Cold War
-transition period.</p>
-<p>To analyze the difference between the observed and simulated values,
-we can use the <code>type = "deviation"</code> argument in the function.
-This will show us how well the model captures the differences between
-the observed and simulated values for each year.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/gofPlot_long.html">gofPlot_long</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">GOF</span>, type<span class="op">=</span> <span class="st">"deviation"</span>, symmetric <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/unnamed-chunk-7-1.png" width="100%" style="display: block; margin: auto;"></p>
-<p>In our example, the model struggles to capture both dyadic dependency
-and transitivity in 1993 and 1994, although it performs better in the
-later years.</p>
-<p>Finally, ’s visualize the latent space of sender and reciever
-countries using <code>ggCirc</code> function.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
-<span><span class="co"># Network plot for 1995</span></span>
-<span><span class="fu"><a href="../reference/ggCirc.html">ggCirc</a></span><span class="op">(</span>Y<span class="op">=</span><span class="va">Y</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span>, U<span class="op">=</span><span class="va">fit</span><span class="op">$</span><span class="va">U</span>, V<span class="op">=</span><span class="va">fit</span><span class="op">$</span><span class="va">V</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">ggtitle</span><span class="op">(</span><span class="st">"Sanctions Network - 1995"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">theme_minimal</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">theme</span><span class="op">(</span></span>
+<span><span class="co"># Network plot showing multiplicative effects</span></span>
+<span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Sanctions Network - Multiplicative Effects"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
 <span>    legend.position<span class="op">=</span><span class="st">'none'</span>,</span>
-<span>    axis.text<span class="op">=</span><span class="fu">element_blank</span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    axis.title<span class="op">=</span><span class="fu">element_blank</span><span class="op">(</span><span class="op">)</span></span>
+<span>    axis.text<span class="op">=</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    axis.title<span class="op">=</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/unnamed-chunk-8-1.png" width="100%" style="display: block; margin: auto;"></p>
-<p>This function creates a circular network plot where the outer circle
-shows the sender countries and the inner circle shows the target
-countries. The plot shows that if actors are close together in the
-latent space, they tend to target or are targeted by similar actors. In
-our example, we show the sanction network for the year 1995. Again,
-countries impose sanctions or receive sanctions from similar countries
-if they are close to each other.</p>
+<p><img src="lame-overview_files/figure-html/unnamed-chunk-6-1.png" alt="Network visualization showing multiplicative effects latent space positions of countries in the sanctions network" width="100%" style="display: block; margin: auto;"></p>
+<p>This function creates a visualization of the multiplicative effects
+(latent factors) from the model. Actors that are close together in the
+latent space tend to have similar patterns of connections - either
+targeting similar actors (if looking at sender positions) or being
+targeted by similar actors (if looking at receiver positions). Countries
+impose sanctions or receive sanctions from similar countries if they are
+close to each other in this latent space representation.</p>
 <p>For instance, Canada (CAN) and USA are positioned close together
 indicating they sanction similar countries. Similarly, countries like
 Italy (ITA), Dominican Republic (DOM) and Japan (JPN) suggest they

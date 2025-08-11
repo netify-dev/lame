@@ -4,7 +4,7 @@
 \alias{rUV_rep_fc}
 \title{Gibbs sampling of U and V}
 \usage{
-rUV_rep_fc(E.T,U,V,rho,s2=1,shrink=TRUE,tmp)
+rUV_rep_fc(E.T,U,V,rho,s2=1,shrink=TRUE)
 }
 \arguments{
 \item{E.T}{Array of square residual relational matrix series with additive
@@ -21,8 +21,6 @@ dimension is a square residual relational matrix.}
 \item{s2}{dyadic variance}
 
 \item{shrink}{adaptively shrink the factors with a hierarchical prior}
-
-\item{tmp}{temporary parameter (internal use)}
 }
 \value{
 \item{U}{a new value of U} \item{V}{a new value of V}
@@ -32,5 +30,5 @@ A Gibbs sampler for updating the multiplicative effect matrices U and V,
 assuming they are the same across replicates.
 }
 \author{
-Peter Hoff, Yanjun He, Shahryar Minhas
+Peter Hoff, Yanjun He
 }

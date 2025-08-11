@@ -32,7 +32,7 @@
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
-      <a href="../articles/lame-overview.html">lame-overview</a>
+      <a href="../articles/lame-overview.html">lame Overview</a>
     </li>
   </ul></li>
       </ul><ul class="nav navbar-nav navbar-right"><li>
@@ -60,7 +60,7 @@
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">rwish</span><span class="op">(</span><span class="va">S0</span>, nu <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">S0</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">rwish</span><span class="op">(</span><span class="va">S0</span>, nu <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">S0</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -95,16 +95,16 @@
 <span class="r-in"><span><span class="kw">for</span><span class="op">(</span><span class="va">s</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fl">1000</span><span class="op">)</span> <span class="op">{</span> <span class="va">SS</span><span class="op">&lt;-</span><span class="va">SS</span><span class="op">+</span><span class="fu">rwish</span><span class="op">(</span><span class="va">S0</span>,<span class="fl">5</span><span class="op">)</span> <span class="op">}</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">SS</span><span class="op">/</span><span class="va">s</span> </span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>           [,1]       [,2]      [,3]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 28.630770  -4.438786  19.72765</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] -4.438786  38.230454 -10.09418</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 19.727651 -10.094178  16.53720</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            [,1]       [,2]     [,3]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 23.8349204 -0.9159601 12.28685</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] -0.9159601 15.4451109  9.06313</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 12.2868457  9.0631301 20.55292</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">S0</span><span class="op">*</span><span class="fl">5</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>           [,1]       [,2]      [,3]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 28.900056  -3.988388  19.80921</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] -3.988388  40.044713 -10.14609</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 19.809212 -10.146090  16.62983</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           [,1]      [,2]      [,3]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 24.048072 -1.035026 12.471823</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] -1.035026 15.040531  8.849892</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 12.471823  8.849892 20.553682</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

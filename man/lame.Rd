@@ -8,9 +8,9 @@ lame(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl")
 , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, family ="nrm",
 intercept=!is.element(family,c("rrl","ord")),
 symmetric=FALSE,
-odmax=NULL, seed = 1,
-nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
-startVals=NULL, periodicSave=FALSE, outFile=NULL, saveInterval=0.25)
+odmax=NULL, prior=list(), g=NA,
+seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
+startVals=NULL, periodicSave=FALSE, outFile=NULL, saveInterval=0.25, model.name=NULL)
 }
 \arguments{
 \item{Y}{a T length list of n x n relational matrices, where T
@@ -33,7 +33,7 @@ See family below for various data types.}
 
 \item{R}{integer: dimension of the multiplicative effects (can be zero)}
 
-\item{family}{character: one of "nrm","bin","ord","cbin","frn","rrl" - see
+\item{family}{character: one of "nrm","tob","bin","ord","cbin","frn","rrl" - see
 the details below}
 
 \item{intercept}{logical: fit model with an intercept?}
@@ -43,6 +43,10 @@ the details below}
 \item{odmax}{a scalar integer or vector of length n giving the maximum
 number of nominations that each node may make - used for "frn" and "cbin"
 families}
+
+\item{prior}{a list containing hyperparameters for the prior distributions}
+
+\item{g}{optional scalar or vector for g-prior}
 
 \item{seed}{random seed}
 
@@ -65,6 +69,8 @@ families}
 \item{outFile}{character vector indicating name and path in which file should be stored if periodicSave is selected. For example, on an Apple OS outFile="~/Desktop/ameFit.rda".}
 
 \item{saveInterval}{quantile interval indicating when to save during post burn-in phase.}
+
+\item{model.name}{optional string for model selection output}
 }
 \value{
 \item{BETA}{posterior samples of regression coefficients}
@@ -82,6 +88,9 @@ matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 values of four goodness-of-fit statistics}
 \item{startVals}{Final parameter values from MCMC, can be used as the input
 for a future model run.}
+\item{AIC}{Akaike Information Criterion (if model.name provided)}
+\item{BIC}{Bayesian Information Criterion (if model.name provided)}
+\item{model.name}{Name of the model (if provided)}
 }
 \description{
 An MCMC routine providing a fit to an additive and multiplicative effects
@@ -90,10 +99,13 @@ various types.
 }
 \details{
 This command provides posterior inference for parameters in AME models of
-independent replicated relational data, assuming one of six possible data
+independent replicated relational data, assuming one of seven possible data
 types/models:
 
 "nrm": A normal AME model.
+
+"tob": A tobit AME model for censored continuous data. Values are censored
+at zero, appropriate for non-negative continuous relational data.
 
 "bin": A binary probit AME model.
 

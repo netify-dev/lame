@@ -68,6 +68,6 @@ rZ_frn_fc <-
       } 
     }
     
-    diag(Z)<-rnorm(nrow(Z),diag(EZ),1)
+    diag(Z)<-rnorm(nrow(Z),diag(EZ),sqrt(1+rho))
     Z
   }

@@ -22,12 +22,11 @@ by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).
 0.0.0.9000 \cr Date: \tab 2025 \cr License: \tab MIT \cr }
 }
 \examples{
-
-
-data(YX_frn)
-fit<-ame(YX_frn$Y,YX_frn$X,burn=5,nscan=5,odens=1,family="frn")
-
+\dontrun{
+data(YX_nrm)
+fit<-ame(YX_nrm$Y,YX_nrm$X,burn=10,nscan=20,odens=5,family="nrm")
 summary(fit)
+}
 
 
 

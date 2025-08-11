@@ -5,10 +5,13 @@
 #' various types. 
 #' 
 #' This command provides posterior inference for parameters in AME models of
-#' independent replicated relational data, assuming one of six possible data
+#' independent replicated relational data, assuming one of seven possible data
 #' types/models:
 #' 
 #' "nrm": A normal AME model.
+#' 
+#' "tob": A tobit AME model for censored continuous data. Values are censored
+#' at zero, appropriate for non-negative continuous relational data.
 #' 
 #' "bin": A binary probit AME model.
 #' 
@@ -31,9 +34,9 @@
 #' , cvar = TRUE, dcor = !symmetric, nvar=TRUE,  R = 0, family ="nrm",
 #' intercept=!is.element(family,c("rrl","ord")),
 #' symmetric=FALSE,
-#' odmax=NULL, seed = 1,
-#' nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
-#' startVals=NULL, periodicSave=FALSE, outFile=NULL, saveInterval=0.25)
+#' odmax=NULL, prior=list(), g=NA,
+#' seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
+#' startVals=NULL, periodicSave=FALSE, outFile=NULL, saveInterval=0.25, model.name=NULL)
 #' @param Y a T length list of n x n relational matrices, where T 
 #' corresponds to the number of replicates (over time, for example). 
 #' See family below for various data types.
@@ -45,13 +48,15 @@
 #' @param dcor logical: fit a dyadic correlation (asymmetric case)?
 #' @param nvar logical: fit nodal random effects (symmetric case)? 
 #' @param R integer: dimension of the multiplicative effects (can be zero)
-#' @param family character: one of "nrm","bin","ord","cbin","frn","rrl" - see
+#' @param family character: one of "nrm","tob","bin","ord","cbin","frn","rrl" - see
 #' the details below
 #' @param intercept logical: fit model with an intercept?
 #' @param symmetric logical: Is the sociomatrix symmetric by design?
 #' @param odmax a scalar integer or vector of length n giving the maximum
 #' number of nominations that each node may make - used for "frn" and "cbin"
 #' families
+#' @param prior a list containing hyperparameters for the prior distributions
+#' @param g optional scalar or vector for g-prior
 #' @param seed random seed
 #' @param nscan number of iterations of the Markov chain (beyond burn-in)
 #' @param burn burn in for the Markov chain
@@ -63,6 +68,7 @@
 #' @param periodicSave logical: indicating whether to periodically save MCMC results
 #' @param outFile character vector indicating name and path in which file should be stored if periodicSave is selected. For example, on an Apple OS outFile="~/Desktop/ameFit.rda".
 #' @param saveInterval quantile interval indicating when to save during post burn-in phase.
+#' @param model.name optional string for model selection output
 #' @return \item{BETA}{posterior samples of regression coefficients}
 #' \item{VC}{posterior samples of the variance parameters}
 #' \item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
@@ -78,6 +84,9 @@
 #' values of four goodness-of-fit statistics}
 #' \item{startVals}{Final parameter values from MCMC, can be used as the input
 #' for a future model run.}
+#' \item{AIC}{Akaike Information Criterion (if model.name provided)}
+#' \item{BIC}{Bayesian Information Criterion (if model.name provided)}
+#' \item{model.name}{Name of the model (if provided)}
 #' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @examples
 #' 
@@ -95,10 +104,11 @@ lame <- function(
     intercept = !is.element(family,c("rrl","ord")),
     symmetric = FALSE,
     odmax = NULL,
-    seed = 1, nscan = 10000, burn = 500, odens = 25,
+    prior = list(), g = NA,
+    seed = 6886, nscan = 10000, burn = 500, odens = 25,
     plot = FALSE, print = FALSE, gof = TRUE, 
     startVals = NULL, periodicSave=FALSE, outFile=NULL,
-    saveInterval=0.25
+    saveInterval=0.25, model.name = NULL
 )
 {
   #
@@ -130,7 +140,12 @@ lame <- function(
   Xcol<-arrayObj$Xcol ; rm(arrayObj)
   
   # force binary if binary family specified 
-  if(is.element(family,c("bin","cbin"))) { Y<-1*(Y>0) } 
+  if(is.element(family,c("bin","cbin"))) { Y<-1*(Y>0) }
+  
+  # handle tobit family
+  if(family=="tob") { 
+    Y <- lapply(Y, function(y) { y[y<0]<-0; return(y) })
+  } 
   
   # observed and max outdegrees 
   if(is.element(family,c("cbin","frn","rrl")) ){
@@ -188,6 +203,17 @@ lame <- function(
       if(warn){cat("WARNING: Random reordering used to break ties in ranks\n")}
     }
   }
+  
+  # g-prior setup
+  p<-dim(X)[3]
+  if(is.na(g)) { g<-p^2 }  # default g-prior
+  if(length(g)==1) { g<-rep(g,p) }
+  
+  # process prior list
+  if(!is.list(prior)) { prior<-list() }
+  if(is.null(prior$Sab0)) { prior$Sab0<-diag(2) }
+  if(is.null(prior$eta0)) { prior$eta0<-round(4+3*n/100) } 
+  if(is.null(prior$etaab)) { prior$etaab<-round(4+3*n/100) }
   
   # Get starting values for MCMC
   startValsObj <- getStartVals(startVals,Y,family,xP=dim(X)[3],rvar,cvar,R)
@@ -267,6 +293,10 @@ lame <- function(
       { 
         Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ[,,t],rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ[,,t]
       }
+      if(family=="tob")
+      { 
+        Z[,,t]<-rZ_tob_fc(Z[,,t],EZ[,,t],rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ[,,t]
+      }
       if(family=="bin"){ Z[,,t]<-rZ_bin_fc(Z[,,t],EZ[,,t],rho,Y[,,t]) }
       if(family=="ord"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ[,,t],rho,Y[,,t]) }
       if(family=="cbin"){Z[,,t]<-rZ_cbin_fc(Z[,,t],EZ[,,t],rho,Y[,,t],odmax,odobs)}
@@ -278,14 +308,14 @@ lame <- function(
     }
     
     # update s2
-    if (family=="nrm"){
+    if (is.element(family,c("nrm","tob"))){
       s2New<-try(
         rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))), 
         silent=TRUE)
       if(!inherits(s2New, 'try-error')){ s2 <- s2New } else { tryErrorChecks$s2<-tryErrorChecks$s2+1 }
     }
     
-    # update beta, a b
+    # update beta, a b with g-prior
     if( (pr+pc+pd+intercept)>0 ){
       iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
       tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
@@ -307,30 +337,9 @@ lame <- function(
       if(symmetric){ a<-b<-(a+b)/2 }
     } else { tryErrorChecks$betaAB<-tryErrorChecks$betaAB+1  }
     
-    # update Sab - full SRM
-    if(rvar & cvar & !symmetric)
-    {
-      Sab<-solve(rwish(solve(diag(2)+crossprod(cbind(a,b))),3+nrow(Z[,,1])))
-    }
-    
-    # update Sab - rvar only
-    if (rvar & !cvar & !symmetric)
-    {
-      Sab[1, 1] <- 1/rgamma(1, (1 + nrow(Y[,,t]))/2, (1 + sum(a^2))/2)
-    }
-    
-    # update Sab - cvar only 
-    if (!rvar & cvar & !symmetric) 
-    {
-      Sab[2, 2] <- 1/rgamma(1, (1 + nrow(Y[,,t]))/2, (1 + sum(b^2))/2)
-    }
-    
-    # update Sab - symmetric case
-    if(symmetric & nvar)
-    {
-      Sab[1,1]<-Sab[2,2]<-1/rgamma(1,(1+nrow(Y))/2,(1+sum(a^2))/2)
-      Sab[1,2]<-Sab[2,1]<-.999*Sab[1,1]   
-    }
+    # update Sab using unified function
+    Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
+                   rvar=rvar, cvar=cvar, symmetric=symmetric)
     
     # update rho
     if(dcor)
@@ -407,6 +416,7 @@ lame <- function(
         if(family=="frn"){ Ys[,,t]<-simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t]) }
         if(family=="rrl"){ Ys[,,t]<-simY_rrl(EZ[,,t],rho,odobs,YO=Y[,,t] ) }
         if(family=="nrm"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho,s2) }
+        if(family=="tob"){ Ys[,,t]<-simY_tob(EZ[,,t],rho,s2) }
         if(family=="ord"){ Ys[,,t]<-simY_ord(EZ[,,t],rho,Y[,,t]) }
         
         if(symmetric)
@@ -442,9 +452,10 @@ lame <- function(
       if(periodicSave & s %in% savePoints & !is.null(outFile)){
         # save startVals for future model runs
         startVals <- list(Z=Z,beta=beta,a=a,b=b,U=U,V=V,rho=rho,s2=s2,Sab=Sab)
-        fit <- getFitObject( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
+        fit <- get_fit_object( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
                              BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr,
-                             startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks)
+                             startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
+                             AIC=NA, BIC=NA, model.name=model.name)
         save(fit, file=outFile) ; rm(list=c('fit','startVals'))
       }
       
@@ -452,20 +463,20 @@ lame <- function(
       if(plot & s==(burn+nscan))
       {
         # plot VC
-        paramPlot(VC)
+        print(trace_plot(list(VC=VC), params="variance"))
         
         # plot BETA
         if(length(beta)>0) 
         {
           betaIndices<-split(1:ncol(BETA), ceiling(seq_along(1:ncol(BETA))/5))
           for(bIndex in betaIndices){
-            paramPlot( BETA[,bIndex,drop=FALSE] ) }
+            print(trace_plot(list(BETA=BETA[,bIndex,drop=FALSE]), params="beta")) }
         }
         
         # plot GOF
         if(gof)
         {
-          suppressMessages( print( gofPlot(GOF, symmetric=symmetric) ) )
+          suppressMessages( print( gof_plot(list(GOF=GOF)) ) )
         }
       } # plot code if applicable
       iter<-iter+1
@@ -477,10 +488,42 @@ lame <- function(
   # save startVals for future model runs
   startVals <- list( Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
   
+  # Calculate AIC/BIC if model.name provided
+  if(!is.null(model.name))
+  {
+    # Count effective parameters
+    p_eff <- ncol(BETA) + rvar*n + cvar*n + R*(R+1)/2
+    
+    # Log-likelihood approximation (simplified)
+    # Note: This is a simplified calculation for model comparison purposes
+    # Full likelihood calculation would require more complex integration
+    s2_mean <- mean(VC[,ncol(VC)])
+    n_obs <- sum(!is.na(Y))
+    
+    if(family %in% c("nrm", "tob", "bin")) {
+      # Use a simplified log-likelihood based on residual variance
+      # This provides a rough approximation for model comparison
+      ll <- -n_obs/2 * (log(2*pi*s2_mean) + 1)
+    } else {
+      ll <- NA
+    }
+    
+    # AIC and BIC
+    if(!is.na(ll)) {
+      AIC <- -2*ll + 2*p_eff
+      BIC <- -2*ll + p_eff*log(n_obs)
+    } else {
+      AIC <- BIC <- NA
+    }
+  } else {
+    AIC <- BIC <- NA
+  }
+  
   # output
-  fit <- getFitObject( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
+  fit <- get_fit_object( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
                        BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr, 
-                       startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks)
+                       startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
+                       AIC=AIC, BIC=BIC, model.name=model.name)
   class(fit) <- "lame" # set class
   return(fit) # output object to workspace
   

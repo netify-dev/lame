@@ -34,7 +34,7 @@ various types."><!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/l
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
-      <a href="../articles/lame-overview.html">lame-overview</a>
+      <a href="../articles/lame-overview.html">lame Overview</a>
     </li>
   </ul></li>
       </ul><ul class="nav navbar-nav navbar-right"><li>
@@ -68,9 +68,9 @@ various types.</p>
 <span>, cvar <span class="op">=</span> <span class="cn">TRUE</span>, dcor <span class="op">=</span> <span class="op">!</span><span class="va">symmetric</span>, nvar<span class="op">=</span><span class="cn">TRUE</span>,  R <span class="op">=</span> <span class="fl">0</span>, family <span class="op">=</span><span class="st">"nrm"</span>,</span>
 <span>intercept<span class="op">=</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>,<span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>,<span class="st">"ord"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>symmetric<span class="op">=</span><span class="cn">FALSE</span>,</span>
-<span>odmax<span class="op">=</span><span class="cn">NULL</span>, seed <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>nscan <span class="op">=</span> <span class="fl">10000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>, plot<span class="op">=</span><span class="cn">FALSE</span>, print <span class="op">=</span> <span class="cn">FALSE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>,</span>
-<span>startVals<span class="op">=</span><span class="cn">NULL</span>, periodicSave<span class="op">=</span><span class="cn">FALSE</span>, outFile<span class="op">=</span><span class="cn">NULL</span>, saveInterval<span class="op">=</span><span class="fl">0.25</span><span class="op">)</span></span></code></pre></div>
+<span>odmax<span class="op">=</span><span class="cn">NULL</span>, prior<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, g<span class="op">=</span><span class="cn">NA</span>,</span>
+<span>seed <span class="op">=</span> <span class="fl">6886</span>, nscan <span class="op">=</span> <span class="fl">10000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>, plot<span class="op">=</span><span class="cn">FALSE</span>, print <span class="op">=</span> <span class="cn">FALSE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>,</span>
+<span>startVals<span class="op">=</span><span class="cn">NULL</span>, periodicSave<span class="op">=</span><span class="cn">FALSE</span>, outFile<span class="op">=</span><span class="cn">NULL</span>, saveInterval<span class="op">=</span><span class="fl">0.25</span>, model.name<span class="op">=</span><span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -116,7 +116,7 @@ See family below for various data types.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>character: one of "nrm","bin","ord","cbin","frn","rrl" - see
+<dd><p>character: one of "nrm","tob","bin","ord","cbin","frn","rrl" - see
 the details below</p></dd>
 
 
@@ -132,6 +132,14 @@ the details below</p></dd>
 <dd><p>a scalar integer or vector of length n giving the maximum
 number of nominations that each node may make - used for "frn" and "cbin"
 families</p></dd>
+
+
+<dt id="arg-prior">prior<a class="anchor" aria-label="anchor" href="#arg-prior"></a></dt>
+<dd><p>a list containing hyperparameters for the prior distributions</p></dd>
+
+
+<dt id="arg-g">g<a class="anchor" aria-label="anchor" href="#arg-g"></a></dt>
+<dd><p>optional scalar or vector for g-prior</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -176,6 +184,10 @@ families</p></dd>
 
 <dt id="arg-saveinterval">saveInterval<a class="anchor" aria-label="anchor" href="#arg-saveinterval"></a></dt>
 <dd><p>quantile interval indicating when to save during post burn-in phase.</p></dd>
+
+
+<dt id="arg-model-name">model.name<a class="anchor" aria-label="anchor" href="#arg-model-name"></a></dt>
+<dd><p>optional string for model selection output</p></dd>
 
 </dl></div>
     <div id="value">
@@ -223,13 +235,24 @@ values of four goodness-of-fit statistics</p></dd>
 <dd><p>Final parameter values from MCMC, can be used as the input
 for a future model run.</p></dd>
 
+<dt>AIC</dt>
+<dd><p>Akaike Information Criterion (if model.name provided)</p></dd>
+
+<dt>BIC</dt>
+<dd><p>Bayesian Information Criterion (if model.name provided)</p></dd>
+
+<dt>model.name</dt>
+<dd><p>Name of the model (if provided)</p></dd>
+
 </dl></div>
     <div id="details">
     <h2>Details</h2>
     <p>This command provides posterior inference for parameters in AME models of
-independent replicated relational data, assuming one of six possible data
+independent replicated relational data, assuming one of seven possible data
 types/models:</p>
 <p>"nrm": A normal AME model.</p>
+<p>"tob": A tobit AME model for censored continuous data. Values are censored
+at zero, appropriate for non-negative continuous relational data.</p>
 <p>"bin": A binary probit AME model.</p>
 <p>"ord": An ordinal probit AME model. An intercept is not identifiable in this
 model.</p>

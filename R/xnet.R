@@ -24,7 +24,7 @@
 #' netplot(Y,X) 
 #' 
 #' @export xnet
-xnet<-function(Y,fm=requireNamespace("network", quietly = TRUE),seed=1)
+xnet<-function(Y,fm=requireNamespace("network", quietly = TRUE),seed=6886)
 {
   if(!is.null(seed)) { set.seed(seed) }
   if(fm)

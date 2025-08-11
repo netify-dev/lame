@@ -7,14 +7,52 @@
 gofstats(Y)
 }
 \arguments{
-\item{Y}{a relational data matrix}
+\item{Y}{a relational data matrix (n x n square matrix) where Y\[i,j\]
+represents the relationship from node i to node j. Missing values (NA)
+are allowed and will be handled appropriately.}
 }
 \value{
-a vector of gof statistics
+A named numeric vector containing five goodness-of-fit statistics:
+\describe{
+\item{sd.rowmean}{Standard deviation of row means. Measures the
+heterogeneity in out-degree centrality (sender effects). Higher values
+indicate more variation in how active nodes are as senders.}
+\item{sd.colmean}{Standard deviation of column means. Measures the
+heterogeneity in in-degree centrality (receiver effects). Higher values
+indicate more variation in how popular nodes are as receivers.}
+\item{dyad.dep}{Dyadic dependence/reciprocity correlation. Pearson correlation
+between Y\[i,j\] and Y\[j,i\] across all dyads. Positive values indicate
+reciprocity (mutual relationships), negative values indicate
+anti-reciprocity. Range: \[-1, 1\].}
+\item{cycle.dep}{Cyclic/transitive triadic dependence. Normalized sum of
+products along three-cycles (i to j to k to i). Positive values indicate
+transitivity clustering, where 'a friend of a friend is a friend'.
+Based on the trace of the cubed centered matrix, normalized by the
+trace of the cubed data availability matrix and the cubed standard deviation.}
+\item{trans.dep}{Transitive triadic dependence. Normalized sum of products
+along two-paths that close into triangles (i to j to k with k to i). Measures
+the tendency for open triads to close. Based on the trace of the product
+E*E'*E where E is the centered matrix, normalized appropriately.}
+}
 }
 \description{
-Goodness of fit statistics evaluating second and third-order dependence
-patterns
+Calculates goodness of fit statistics for relational data matrices,
+evaluating second-order (dyadic) and third-order (triadic) dependence
+patterns. These statistics are useful for assessing model fit in
+network analysis and relational data modeling.
+}
+\details{
+The function computes network statistics that capture different aspects of
+network structure beyond simple density. These statistics are particularly
+useful for:
+\itemize{
+\item Model checking: comparing observed statistics to those from simulated networks
+\item Model selection: choosing between models that better capture network dependencies
+\item Descriptive analysis: summarizing key structural features of the network
+}
+
+Missing values in Y are handled by pairwise deletion for correlations and
+are excluded from matrix products in triadic calculations.
 }
 \examples{
 

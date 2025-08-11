@@ -32,7 +32,7 @@
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
-      <a href="../articles/lame-overview.html">lame-overview</a>
+      <a href="../articles/lame-overview.html">lame Overview</a>
     </li>
   </ul></li>
       </ul><ul class="nav navbar-nav navbar-right"><li>
@@ -60,15 +60,15 @@
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">rrho_mh</span><span class="op">(</span><span class="va">E</span>, <span class="va">rho</span>, s2 <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">rrho_mh</span><span class="op">(</span><span class="va">Z</span>, <span class="va">rho</span>, s2 <span class="op">=</span> <span class="fl">1</span>,offset<span class="op">=</span><span class="fl">0</span>, asp<span class="op">=</span><span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
     <h2>Arguments</h2>
 
 
-<dl><dt id="arg-e">E<a class="anchor" aria-label="anchor" href="#arg-e"></a></dt>
-<dd><p>square residual relational matrix</p></dd>
+<dl><dt id="arg-z">Z<a class="anchor" aria-label="anchor" href="#arg-z"></a></dt>
+<dd><p>n X n normal relational matrix</p></dd>
 
 
 <dt id="arg-rho">rho<a class="anchor" aria-label="anchor" href="#arg-rho"></a></dt>
@@ -77,6 +77,17 @@
 
 <dt id="arg-s-">s2<a class="anchor" aria-label="anchor" href="#arg-s-"></a></dt>
 <dd><p>current value of s2</p></dd>
+
+
+<dt id="arg-offset">offset<a class="anchor" aria-label="anchor" href="#arg-offset"></a></dt>
+<dd><p>matrix of the same dimension as Z. It is assumed that
+Z-offset is equal to dyadic noise, so the offset should contain any
+additive and multiplicative effects (such as
+<code>Xbeta(X,beta+ U%*%t(V) +  outer(a,b,"+")  </code>   )</p></dd>
+
+
+<dt id="arg-asp">asp<a class="anchor" aria-label="anchor" href="#arg-asp"></a></dt>
+<dd><p>use arc sine prior (TRUE) or uniform prior (FALSE)</p></dd>
 
 </dl></div>
     <div id="value">

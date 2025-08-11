@@ -32,7 +32,7 @@
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
-      <a href="../articles/lame-overview.html">lame-overview</a>
+      <a href="../articles/lame-overview.html">lame Overview</a>
     </li>
   </ul></li>
       </ul><ul class="nav navbar-nav navbar-right"><li>
@@ -60,15 +60,15 @@
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">rUV_fc</span><span class="op">(</span><span class="va">E</span>, <span class="va">U</span>, <span class="va">V</span>, <span class="va">rho</span>, s2 <span class="op">=</span> <span class="fl">1</span>, shrink<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">rUV_fc</span><span class="op">(</span><span class="va">Z</span>, <span class="va">U</span>, <span class="va">V</span>, <span class="va">Suv</span>, <span class="va">rho</span>, s2 <span class="op">=</span> <span class="fl">1</span>, offset <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
     <h2>Arguments</h2>
 
 
-<dl><dt id="arg-e">E<a class="anchor" aria-label="anchor" href="#arg-e"></a></dt>
-<dd><p>square residual relational matrix</p></dd>
+<dl><dt id="arg-z">Z<a class="anchor" aria-label="anchor" href="#arg-z"></a></dt>
+<dd><p>n X n normal relational matrix</p></dd>
 
 
 <dt id="arg-u">U<a class="anchor" aria-label="anchor" href="#arg-u"></a></dt>
@@ -79,6 +79,10 @@
 <dd><p>current value of V</p></dd>
 
 
+<dt id="arg-suv">Suv<a class="anchor" aria-label="anchor" href="#arg-suv"></a></dt>
+<dd><p>covariance of (U V)</p></dd>
+
+
 <dt id="arg-rho">rho<a class="anchor" aria-label="anchor" href="#arg-rho"></a></dt>
 <dd><p>dyadic correlation</p></dd>
 
@@ -87,8 +91,11 @@
 <dd><p>dyadic variance</p></dd>
 
 
-<dt id="arg-shrink">shrink<a class="anchor" aria-label="anchor" href="#arg-shrink"></a></dt>
-<dd><p>adaptively shrink the factors with a hierarchical prior</p></dd>
+<dt id="arg-offset">offset<a class="anchor" aria-label="anchor" href="#arg-offset"></a></dt>
+<dd><p>a matrix of the same dimension as Z. It is assumed that
+Z-offset is equal to the multiplicative effects plus dyadic noise, so the
+offset should contain any additive effects (such as <code>Xbeta(X,beta+
+outer(a,b,"+")  </code>  )</p></dd>
 
 </dl></div>
     <div id="value">
