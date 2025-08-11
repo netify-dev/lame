@@ -42,7 +42,20 @@ rSab_fc <- function(a, b, Sab0=NULL, eta0=NULL, rvar=TRUE, cvar=TRUE, symmetric=
   # Full covariance update (both row and column variances)
   if(rvar & cvar & !symmetric)
   {
-    Sab <- solve(rwish(solve(eta0*Sab0 + crossprod(cbind(a, b))), eta0 + n))
+    # Ensure the scale matrix is positive definite
+    scale_mat <- eta0*Sab0 + crossprod(cbind(a, b))
+    # Add small ridge if needed
+    min_eig <- min(eigen(scale_mat, symmetric = TRUE, only.values = TRUE)$values)
+    if(min_eig <= 0) {
+      scale_mat <- scale_mat + diag(2) * (1e-6 - min_eig)
+    }
+    
+    Sab <- tryCatch({
+      solve(rwish(solve(scale_mat), eta0 + n))
+    }, error = function(e) {
+      # If rwish fails, use diagonal approximation
+      diag(c(var(a), var(b))) 
+    })
   }
   
   # Row variance only

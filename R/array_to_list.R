@@ -11,7 +11,21 @@
 array_to_list <- function(arrayObj, actorList, sliceLabel){
   listObj <- lapply(1:dim(arrayObj)[3], function(t){
     actorT <- actorList[[t]]
-    mat <- arrayObj[actorT,actorT,t]
+    # Get indices for actors present at time t
+    all_actors <- rownames(arrayObj)
+    if(is.null(all_actors)) {
+      all_actors <- 1:nrow(arrayObj)
+    }
+    actor_indices <- match(actorT, all_actors)
+    # Remove NAs from indices (actors not in full set)
+    actor_indices <- actor_indices[!is.na(actor_indices)]
+    
+    # Extract submatrix for actors present at time t
+    mat <- arrayObj[actor_indices, actor_indices, t, drop=FALSE]
+    if(length(dim(mat)) == 3) {
+      mat <- mat[,,1]
+    }
+    rownames(mat) <- colnames(mat) <- actorT[actorT %in% all_actors]
     diag(mat) <- NA
     return(mat) })
   names(listObj) <- sliceLabel

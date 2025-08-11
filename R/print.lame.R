@@ -8,47 +8,72 @@
 #' @author Peter Hoff, Cassy Dorff, Shahryar Minhas
 #' @method print lame
 #' @export
+#' @import cli
 print.lame <- function(x, ...) {
-  cat("\nLongitudinal Additive and Multiplicative Effects (LAME) Model\n")
-  cat("==============================================================\n")
+  cli::cli_h1("Longitudinal Additive and Multiplicative Effects (LAME) Model")
   
   # Basic model info
   n_periods <- length(x$Y_T)
   if (n_periods > 0) {
     n_nodes <- nrow(x$Y_T[[1]])
-    cat("\nNumber of time periods: ", n_periods, "\n")
-    cat("Network dimensions: ", n_nodes, "x", n_nodes, " (per period)\n")
+    cli::cli_h3("Network Structure")
+    cli::cli_bullets(c(
+      "*" = "Time periods: {.val {n_periods}}",
+      "*" = "Network dimensions: {.val {n_nodes}} x {.val {n_nodes}} per period"
+    ))
   }
   
   nscan <- nrow(x$BETA)
-  cat("MCMC iterations: ", nscan, "\n")
+  cli::cli_bullets(c(
+    "*" = "MCMC iterations: {.val {nscan}}"
+  ))
   
   # Model type info
   if (!is.null(x$model.name)) {
-    cat("Model type: ", x$model.name, "\n")
+    cli::cli_bullets(c(
+      "*" = "Model type: {.field {x$model.name}}"
+    ))
   }
   
+  # Check for dynamic UV
+  is_dynamic_uv <- !is.null(x$U) && length(dim(x$U)) == 3
+  
   # Number of parameters
-  cat("\nNumber of parameters:\n")
-  cat("  Regression coefficients: ", ncol(x$BETA), "\n")
+  cli::cli_h3("Model Parameters")
+  param_info <- character()
+  param_info <- c(param_info, "*" = "Regression coefficients: {.val {ncol(x$BETA)}}")
+  
   if (!is.null(x$U)) {
-    cat("  Multiplicative effects dimension: ", ncol(x$U), "\n")
+    if (is_dynamic_uv) {
+      R <- dim(x$U)[2]
+      T <- dim(x$U)[3]
+      param_info <- c(param_info, 
+        "*" = "Multiplicative effects: {.val {R}}-dimensional {.emph (dynamic over {T} periods)}")
+    } else {
+      param_info <- c(param_info, 
+        "*" = "Multiplicative effects: {.val {ncol(x$U)}}-dimensional")
+    }
   }
+  cli::cli_bullets(param_info)
   
   # Composition changes if applicable
   if (!is.null(x$nodeID)) {
     total_nodes <- length(unique(unlist(x$nodeID)))
-    cat("  Total unique nodes across periods: ", total_nodes, "\n")
+    cli::cli_bullets(c(
+      "i" = "Total unique nodes across periods: {.val {total_nodes}}"
+    ))
   }
   
   # Model fit if available
   if (!is.null(x$AIC) || !is.null(x$BIC)) {
-    cat("\nModel fit:\n")
-    if (!is.null(x$AIC)) cat("  AIC: ", round(x$AIC, 2), "\n")
-    if (!is.null(x$BIC)) cat("  BIC: ", round(x$BIC, 2), "\n")
+    cli::cli_h3("Model Fit")
+    fit_info <- character()
+    if (!is.null(x$AIC)) fit_info <- c(fit_info, "*" = "AIC: {.val {round(x$AIC, 2)}}")
+    if (!is.null(x$BIC)) fit_info <- c(fit_info, "*" = "BIC: {.val {round(x$BIC, 2)}}")
+    cli::cli_bullets(fit_info)
   }
   
-  cat("\nUse summary(object) for detailed results\n")
+  cli::cli_alert_info("Use {.code summary(object)} for detailed results")
   
   invisible(x)
 }

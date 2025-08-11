@@ -19,7 +19,10 @@ uv_plot(
   label.nodes = TRUE,
   label.size = 3,
   colors = NULL,
-  title = NULL
+  title = NULL,
+  time_point = NULL,
+  plot_type = c("snapshot", "trajectory", "faceted"),
+  show_arrows = TRUE
 )
 }
 \arguments{
@@ -53,6 +56,14 @@ or a network matrix Y if U and V are provided separately}
 \item{colors}{Optional vector of colors for nodes (e.g., for communities)}
 
 \item{title}{Optional title for the plot}
+
+\item{time_point}{For dynamic UV, which time point to plot (default: last).
+Can be numeric index or "average" for time-averaged positions}
+
+\item{plot_type}{For dynamic UV: "snapshot" (single time), "trajectory" (evolution),
+"faceted" (grid of time points). For static UV, this is ignored.}
+
+\item{show_arrows}{For trajectory plots, whether to show directional arrows}
 }
 \value{
 A ggplot2 object that can be further customized

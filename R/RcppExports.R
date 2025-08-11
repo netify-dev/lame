@@ -13,6 +13,64 @@ gof_stats_cpp <- function(Y) {
     .Call(`_lame_gof_stats_cpp`, Y)
 }
 
+#' Sample dynamic additive effects with AR(1) evolution
+#' 
+#' Updates row effects (a) and column effects (b) that evolve over time
+#' according to AR(1) processes: \eqn{a_{i,t} = \rho_{ab} a_{i,t-1} + \epsilon_{i,t}}
+#' 
+#' @param a_current Current 2D array of row effects (n x T)
+#' @param b_current Current 2D array of column effects (n x T) 
+#' @param Z_array 3D array of latent positions (n x n x T)
+#' @param EZ_array 3D array of expected values without additive effects (n x n x T)
+#' @param rho_ab AR(1) parameter for additive effects
+#' @param sigma_ab Innovation standard deviation
+#' @param Sab Covariance matrix for a and b (2x2)
+#' @param symmetric Whether the network is symmetric
+#' @return List with updated a and b arrays
+sample_dynamic_ab_cpp <- function(a_current, b_current, Z_array, EZ_array, rho_ab, sigma_ab, Sab, symmetric) {
+    .Call(`_lame_sample_dynamic_ab_cpp`, a_current, b_current, Z_array, EZ_array, rho_ab, sigma_ab, Sab, symmetric)
+}
+
+#' Sample AR(1) parameter for dynamic additive effects
+#' 
+#' Uses Metropolis-Hastings to sample rho_ab given the time series of effects
+#' 
+#' @param a_mat Matrix of row effects (n x T)
+#' @param b_mat Matrix of column effects (n x T)
+#' @param sigma_ab Innovation standard deviation
+#' @param rho_current Current value of rho
+#' @param symmetric Whether the network is symmetric
+#' @return Updated rho value
+sample_rho_ab_cpp <- function(a_mat, b_mat, sigma_ab, rho_current, symmetric) {
+    .Call(`_lame_sample_rho_ab_cpp`, a_mat, b_mat, sigma_ab, rho_current, symmetric)
+}
+
+#' Sample innovation variance for dynamic additive effects
+#' 
+#' @param a_mat Matrix of row effects (n x T)
+#' @param b_mat Matrix of column effects (n x T)
+#' @param rho_ab AR(1) parameter
+#' @param symmetric Whether the network is symmetric
+#' @param prior_shape Shape parameter for inverse gamma prior
+#' @param prior_scale Scale parameter for inverse gamma prior
+#' @return Updated sigma_ab value
+sample_sigma_ab_cpp <- function(a_mat, b_mat, rho_ab, symmetric, prior_shape = 2.0, prior_scale = 1.0) {
+    .Call(`_lame_sample_sigma_ab_cpp`, a_mat, b_mat, rho_ab, symmetric, prior_shape, prior_scale)
+}
+
+#' Initialize dynamic additive effects with AR(1) structure
+#' 
+#' @param n Number of actors
+#' @param T Number of time points
+#' @param rho_ab AR(1) parameter
+#' @param sigma_ab Innovation standard deviation
+#' @param mean_a Mean for row effects
+#' @param mean_b Mean for column effects
+#' @return List with initialized a and b matrices
+init_dynamic_ab_cpp <- function(n, T, rho_ab, sigma_ab, mean_a = 0.0, mean_b = 0.0) {
+    .Call(`_lame_init_dynamic_ab_cpp`, n, T, rho_ab, sigma_ab, mean_a, mean_b)
+}
+
 #' Update dynamic latent positions using AR(1) process
 #' 
 #' @param U_current Current 3D array of U positions (n x R x T)

@@ -1,7 +1,7 @@
 #' Get fitted object from MCMC results
 #' 
-#' @param APS summed additive sender random effects
-#' @param BPS summed additive sender random effects
+#' @param APS summed additive sender random effects (or matrix for dynamic)
+#' @param BPS summed additive receiver random effects (or matrix for dynamic)
 #' @param UVPS summed multiplicative random effects
 #' @param YPS summed Y posterior predictive values
 #' @param BETA Matrix of draws for regression coefficient estimates
@@ -18,6 +18,7 @@
 #' @param U Latent sender positions (optional, for dynamic UV)
 #' @param V Latent receiver positions (optional, for dynamic UV)
 #' @param dynamic_uv logical indicating whether UV effects are dynamic
+#' @param dynamic_ab logical indicating whether additive effects are dynamic
 #' @return Fitted AME object
 #' @author Peter Hoff, Shahryar Minhas
 #' @export get_fit_object
@@ -27,11 +28,15 @@ get_fit_object <- function(
     Xlist, actorByYr, startVals,
     symmetric, tryErrorChecks,
     AIC=NA, BIC=NA, model.name=NULL,
-    U=NULL, V=NULL, dynamic_uv=FALSE
+    U=NULL, V=NULL, dynamic_uv=FALSE, dynamic_ab=FALSE
 ){
   
   # some labels and dims
-  actors <- names(APS)
+  if(is.matrix(APS)) {
+    actors <- rownames(APS)
+  } else {
+    actors <- names(APS)
+  }
   pdLabs <- dimnames(YPS)[[3]]
   if(dynamic_uv && !is.null(U)) {
     if(length(dim(U)) == 3) {
@@ -45,8 +50,22 @@ get_fit_object <- function(
   N <- dim(YPS)[3]
   
   # posterior means 
-  APM<-APS/nrow(VC) ; BPM<-BPS/nrow(VC)  
+  if(dynamic_ab && is.matrix(APS)) {
+    # For dynamic effects, APS and BPS are already averaged matrices
+    APM <- APS
+    BPM <- BPS
+    # Extract time-averaged values for EZ calculation
+    APM_avg <- rowMeans(APM)
+    BPM_avg <- rowMeans(BPM)
+  } else {
+    APM<-APS/nrow(VC) 
+    BPM<-BPS/nrow(VC)
+    APM_avg <- APM
+    BPM_avg <- BPM
+  }
   YPM<-YPS/nrow(VC)
+  # Set dimension names for YPM
+  dimnames(YPM) <- list(actors, actors, pdLabs)
   
   # Handle UVPM based on dynamic or static
   if(dynamic_uv && length(dim(UVPS)) == 3) {
@@ -54,16 +73,19 @@ get_fit_object <- function(
     # For EZ calculation, use time-averaged UV
     UV_avg <- apply(UVPS, c(1,2), mean)
     EZ<-get_EZ_cpp(Xlist, 
-                   apply(BETA,2,mean), outer(APM,BPM,"+"), 
+                   apply(BETA,2,mean), outer(APM_avg,BPM_avg,"+"), 
                    UV_avg, diag(nrow(UV_avg)))
   } else {
     UVPM<-UVPS
     if(length(dim(UVPM)) == 2) {
       EZ<-get_EZ_cpp(Xlist, 
-                     apply(BETA,2,mean), outer(APM,BPM,"+"), 
+                     apply(BETA,2,mean), outer(APM_avg,BPM_avg,"+"), 
                      UVPM, diag(nrow(UVPM)))
     }
   }
+  
+  # Set dimension names for EZ
+  dimnames(EZ) <- list(actors, actors, pdLabs)
   
   # adding names
   if(dynamic_uv && length(dim(UVPM)) == 3) {
@@ -71,7 +93,6 @@ get_fit_object <- function(
   } else if(length(dim(UVPM)) == 2) {
     rownames(UVPM)<-colnames(UVPM)<-actors
   }
-  dimnames(EZ)<-list(actors,actors,pdLabs)
   rownames(BETA)<-NULL
   
   # asymmetric uv
@@ -130,12 +151,24 @@ get_fit_object <- function(
       BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
       YPM=YPM,GOF=GOF, startVals=startVals, tryErrorChecks=tryErrorChecks,
       AIC=AIC, BIC=BIC, model.name=model.name)
+    # Add dynamic fields if applicable
+    if(dynamic_ab && is.matrix(APM)) {
+      fit$a_dynamic <- APM
+      fit$APM <- APM_avg  # Overwrite with time-averaged for compatibility
+    }
   }
   if(!symmetric){
     fit <- list(
       BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
       YPM=YPM,GOF=GOF, startVals=startVals, tryErrorChecks=tryErrorChecks,
       AIC=AIC, BIC=BIC, model.name=model.name)
+    # Add dynamic fields if applicable
+    if(dynamic_ab && is.matrix(APM)) {
+      fit$a_dynamic <- APM
+      fit$b_dynamic <- BPM
+      fit$APM <- APM_avg  # Overwrite with time-averaged for compatibility
+      fit$BPM <- BPM_avg
+    }
   }
   class(fit)<-"ame"
   return(fit)

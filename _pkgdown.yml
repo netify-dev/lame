@@ -10,6 +10,7 @@ navbar:
     github:
       icon: fab fa-github fa-lg
       href: https://github.com/netify-dev/lame
+      aria-label: GitHub
       
 articles:
 - title: Getting Started
@@ -35,10 +36,24 @@ reference:
   - trace_plot
   - gof_plot
   
+- title: Print and Summary Methods
+  desc: Methods for displaying model results
+  contents:
+  - print.ame
+  - print.lame
+  - print.summary.ame
+  - print.summary.lame
+  - summary.ame
+  - summary.lame
+  
 - title: Data
   desc: Example datasets
   contents:
   - starts_with("YX")
+  - "Y"
+  - Xrow
+  - Xcol
+  - Xdyad
   - coldwar
   - IR90s
   - addhealthc3
@@ -49,13 +64,52 @@ reference:
   - sampsonmonks
   - sheep
   
+- title: Data Manipulation
+  desc: Functions for data preparation and transformation
+  contents:
+  - array_to_list
+  - list_to_array
+  - el2sm
+  - sm2el
+  - design_array
+  - design_array_listwisedel
+  - check_format
+  
+- title: Model Fitting Helpers
+  desc: Helper functions for model estimation
+  contents:
+  - get_design_rep
+  - get_fit_object
+  - get_start_vals
+  - Xbeta
+  - precomputeX
+  - mhalf
+  - gof_stats
+  - zscores
+  - ldZgbme
+  - llsrmRho
+  
+- title: Dynamic Effects Functions
+  desc: Functions for dynamic network models
+  contents:
+  - init_dynamic_positions
+  - sample_rho_uv
+  - sample_sigma_uv
+  - matches("dynamic")
+  
+- title: Statistical Functions
+  desc: Functions for statistical sampling and computation
+  contents:
+  - rmvnorm
+  - rwish
+  - rrho_mh
+  - rrho_mh_rep
+  
 - title: Internal Functions
   desc: Supporting functions (not typically called directly)
   contents:
   - matches("^r[A-Z]")
   - ends_with("_fc")
   - ends_with("_cpp")
-  - check_format
-  - design_array
-  - gof_stats
-  - zscores
+  - matches("^sim[YZ]")
+

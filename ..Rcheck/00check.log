@@ -8,6 +8,6 @@
 * using session charset: UTF-8
 * using options ‘--no-manual --as-cran’
 * checking for file ‘./DESCRIPTION’ ... OK
-* this is package ‘lame’ version ‘0.0.0.9000’
+* this is package ‘lame’ version ‘0.10’
 * package encoding: UTF-8
 * checking CRAN incoming feasibility ...
