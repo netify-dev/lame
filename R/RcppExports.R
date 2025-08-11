@@ -165,8 +165,8 @@ ldZgbme_opt_cpp <- function(Z, Y, EZ, rho, s2) {
     .Call(`_lame_ldZgbme_opt_cpp`, Z, Y, EZ, rho, s2)
 }
 
-array_to_list_cpp <- function(arr, actorByYr, pdLabs) {
-    .Call(`_lame_array_to_list_cpp`, arr, actorByYr, pdLabs)
+array_to_list_cpp <- function(arr, actorByYr, pdLabs, actorIndices) {
+    .Call(`_lame_array_to_list_cpp`, arr, actorByYr, pdLabs, actorIndices)
 }
 
 rrho_fc_cpp <- function(Z, Sab, s2, offset, ngp, asp) {

@@ -391,19 +391,14 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
   } else if (plot_type == "ribbon") {
     # Show confidence bands over time for each actor
     
-    # Calculate summary statistics
-    ribbon_data <- data.frame()
-    for (i in 1:n_actors) {
-      effects_i <- effects_mat[i, ]
-      ribbon_data <- rbind(ribbon_data, data.frame(
-        actor = actor_names[i],
-        time = 1:n_times,
-        mean_effect = effects_i,
-        # Add some variation for visualization (in practice, would use posterior samples)
-        lower = effects_i - 0.1 * abs(effects_i),
-        upper = effects_i + 0.1 * abs(effects_i)
-      ))
-    }
+    # Calculate summary statistics efficiently
+    ribbon <- as.data.frame(as.table(effects_mat))
+    names(ribbon) <- c("actor", "time", "mean_effect")
+    ribbon$time <- as.integer(ribbon$time)
+    # Add some variation for visualization (in practice, would use posterior samples)
+    ribbon$lower <- ribbon$mean_effect - 0.1 * abs(ribbon$mean_effect)
+    ribbon$upper <- ribbon$mean_effect + 0.1 * abs(ribbon$mean_effect)
+    ribbon_data <- ribbon
     
     # Filter actors if needed
     if (!is.null(show_actors)) {

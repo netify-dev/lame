@@ -61,26 +61,33 @@ rSab_fc <- function(a, b, Sab0=NULL, eta0=NULL, rvar=TRUE, cvar=TRUE, symmetric=
   # Row variance only
   if(rvar & !cvar & !symmetric) 
   {
+    tiny <- 1e-8
     Sab[1, 1] <- 1/rgamma(1, (eta0 + n)/2, (eta0*Sab0[1,1] + sum(a^2))/2)
-    Sab[2, 2] <- 0  # No column variance
+    Sab[2, 2] <- tiny  # Small positive value to avoid singularity
     Sab[1, 2] <- Sab[2, 1] <- 0  # No covariance
   }
   
   # Column variance only
   if(!rvar & cvar & !symmetric) 
   {
-    Sab[1, 1] <- 0  # No row variance
+    tiny <- 1e-8
+    Sab[1, 1] <- tiny  # Small positive value to avoid singularity
     Sab[2, 2] <- 1/rgamma(1, (eta0 + n)/2, (eta0*Sab0[2,2] + sum(b^2))/2)
     Sab[1, 2] <- Sab[2, 1] <- 0  # No covariance
   }
   
-  # Symmetric case (equal variances, high correlation)
+  # Symmetric case (equal variances, no correlation for undirected)
   if(symmetric)
   { 
     var_ab <- 1/rgamma(1, (eta0 + n)/2, (eta0*Sab0[1,1] + sum(a^2))/2)
     Sab[1, 1] <- Sab[2, 2] <- var_ab
-    Sab[1, 2] <- Sab[2, 1] <- 0.999 * var_ab   
+    Sab[1, 2] <- Sab[2, 1] <- 0  # No cross-correlation for symmetric networks
   }
+  
+  # Final SPD enforcement
+  tiny <- 1e-10
+  Sab <- (Sab + t(Sab))/2  # Ensure symmetry
+  Sab <- Sab + diag(tiny, 2)  # Add small ridge for numerical stability
   
   return(Sab)
 }

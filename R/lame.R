@@ -377,10 +377,18 @@ lame <- function(
   }
   
   # Get starting values for MCMC
-  startValsObj <- get_start_vals(startVals,Y,family,xP=dim(X)[3],rvar,cvar,R)
+  startValsObj <- get_start_vals(startVals,Y,family,xP=dim(X)[3],rvar,cvar,R,odmax=odmax)
   Z<-startValsObj$Z ; beta<-startValsObj$beta ; a<-startValsObj$a
   b<-startValsObj$b ; U<-startValsObj$U ; V<-startValsObj$V
   rho<-startValsObj$rho ; s2<-startValsObj$s2 ; Sab<-startValsObj$Sab
+  
+  # For symmetric models, don't use rho (dyadic correlation)
+  if(symmetric) {
+    rho <- 0
+    use_rho <- FALSE
+  } else {
+    use_rho <- TRUE
+  }
   
   # Initialize dynamic AB parameters if needed
   if(dynamic_ab) {
@@ -625,8 +633,8 @@ lame <- function(
     Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
                    rvar=rvar, cvar=cvar, symmetric=symmetric)
     
-    # update rho
-    if(dcor)
+    # update rho (only for asymmetric models)
+    if(dcor && !symmetric)
     {
       if(dynamic_ab) {
         E.T <- Z - get_EZ_dynamic_ab(Xlist, beta, a_mat, b_mat, U, V, N)
@@ -636,9 +644,6 @@ lame <- function(
       rhoNew<-try( rrho_mh_rep_cpp(E.T, rho,s2), silent=TRUE )
       if(!inherits(rhoNew, 'try-error')){ rho<-rhoNew } else { tryErrorChecks$rho<-tryErrorChecks$rho+1 }
     }
-    
-    # shrink rho - symmetric case 
-    if(symmetric){ rho<-min(.9999,1-1/sqrt(s)) }
     
     # update U,V
     if (R > 0)
@@ -754,13 +759,8 @@ lame <- function(
         BPS <- BPS + b
       } 
       
-      # simulate from posterior predictive 
-      if(dynamic_ab) {
-        # Use dynamic helper to compute EZ with time-varying additive effects
-        EZ <- get_EZ_dynamic_ab(Xlist, beta, a_mat, b_mat, U, V, N)
-      } else {
-        EZ <- get_EZ_cpp( Xlist, beta, outer(a, b,"+"), U, V )
-      }
+      # simulate from posterior predictive
+      # EZ already computed earlier in the iteration, reuse it
       dimnames(EZ) <- dimnames(Y)
       Ys <- EZ*0
       for (t in 1:N)

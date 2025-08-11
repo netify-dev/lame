@@ -93,9 +93,8 @@ arma::vec llsrmRho_cpp(const arma::mat& Y, const arma::mat& Sab,
     arma::mat G = inv_sympd(iSabt + n * eye(2, 2));
     
     // Compute pH = -inv(iSabt + n*ones)
-    arma::mat tmp = iSabt;
-    tmp.fill(tmp(0,0) + tmp(0,1) + tmp(1,0) + tmp(1,1) + n);
-    arma::mat pH = -inv(tmp);
+    arma::mat ones22(2, 2, arma::fill::ones);
+    arma::mat pH = -inv_sympd(iSabt + n * ones22);
     
     // Compute H matrix elements
     const double sumH = pH(0,0) * G(1,0) + pH(0,1) * G(0,0) +
@@ -110,7 +109,6 @@ arma::vec llsrmRho_cpp(const arma::mat& Y, const arma::mat& Sab,
     
     // Add determinant terms
     ldV += (n-1) * log(arma::det(eye(2,2) + n * Sabt));
-    arma::mat ones22(2, 2, fill::ones);
     ldV += log(arma::det(eye(2,2) + n * Sabt * ones22));
     
     // Compute quadratic form
@@ -307,7 +305,8 @@ arma::mat ldZgbme_opt_cpp(const arma::mat& Z, const arma::mat& Y,
 // [[Rcpp::export]]
 List array_to_list_cpp(const arma::cube& arr, 
                        const List& actorByYr,
-                       const CharacterVector& pdLabs) {
+                       const CharacterVector& pdLabs,
+                       const IntegerMatrix& actorIndices) {
   const int T = arr.n_slices;
   List result(T);
   
@@ -317,23 +316,14 @@ List array_to_list_cpp(const arma::cube& arr,
     
     // Extract submatrix for actors at time t
     arma::mat mat_t(n_t, n_t);
-    IntegerVector idx(n_t);
     
-    // Find indices of actors
-    CharacterVector all_actors = rownames(wrap(arr.slice(0)));
-    for(int i = 0; i < n_t; i++) {
-      for(int j = 0; j < all_actors.size(); j++) {
-        if(actors_t[i] == all_actors[j]) {
-          idx[i] = j;
-          break;
-        }
-      }
-    }
+    // Use precomputed indices
+    IntegerVector idx = actorIndices(_, t);
     
     // Extract submatrix
     for(int i = 0; i < n_t; i++) {
       for(int j = 0; j < n_t; j++) {
-        mat_t(i,j) = arr(idx[i], idx[j], t);
+        mat_t(i,j) = arr(idx[i] - 1, idx[j] - 1, t);  // R uses 1-based indexing
       }
     }
     

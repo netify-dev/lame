@@ -14,7 +14,11 @@ mhalf <-
     tryCatch({
       return(mhalf_cpp(M))
     }, error = function(e) {
-      tmp<-eigen(M)
-      tmp$vec%*%sqrt(diag(tmp$val,nrow=nrow(M)))%*%t(tmp$vec)
+      # Ensure symmetry first
+      M <- (M + t(M))/2
+      tmp <- eigen(M, symmetric = TRUE)
+      # Floor eigenvalues at small positive value for stability
+      D <- pmax(tmp$values, 1e-12)
+      tmp$vectors %*% diag(sqrt(D), nrow(M)) %*% t(tmp$vectors)
     })
   }

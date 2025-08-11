@@ -144,7 +144,7 @@ arma::vec rmvnorm_cpp(
    arma::mat RcT = ZcT - XcT * beta; 
    
    arma::mat RTcrossiA0G = join_rows(RrT, RcT) * (iA0 * G.t()).t();
-   arma:vec RrTC0G = sum(accu(RrT) * C0 * G.t(),1);
+   arma::vec RrTC0G = C0 * G.t() * accu(RrT);
    arma::mat m = arma::zeros(n,RTcrossiA0G.n_cols);
    for( int r=0 ; r < RTcrossiA0G.n_cols ; r++ ) {
      m.col(r) = RTcrossiA0G.col(r) + RrTC0G[r];

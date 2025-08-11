@@ -329,15 +329,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // array_to_list_cpp
-List array_to_list_cpp(const arma::cube& arr, const List& actorByYr, const CharacterVector& pdLabs);
-RcppExport SEXP _lame_array_to_list_cpp(SEXP arrSEXP, SEXP actorByYrSEXP, SEXP pdLabsSEXP) {
+List array_to_list_cpp(const arma::cube& arr, const List& actorByYr, const CharacterVector& pdLabs, const IntegerMatrix& actorIndices);
+RcppExport SEXP _lame_array_to_list_cpp(SEXP arrSEXP, SEXP actorByYrSEXP, SEXP pdLabsSEXP, SEXP actorIndicesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::cube& >::type arr(arrSEXP);
     Rcpp::traits::input_parameter< const List& >::type actorByYr(actorByYrSEXP);
     Rcpp::traits::input_parameter< const CharacterVector& >::type pdLabs(pdLabsSEXP);
-    rcpp_result_gen = Rcpp::wrap(array_to_list_cpp(arr, actorByYr, pdLabs));
+    Rcpp::traits::input_parameter< const IntegerMatrix& >::type actorIndices(actorIndicesSEXP);
+    rcpp_result_gen = Rcpp::wrap(array_to_list_cpp(arr, actorByYr, pdLabs, actorIndices));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -591,7 +592,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_llsrmRho_cpp", (DL_FUNC) &_lame_llsrmRho_cpp, 4},
     {"_lame_rbeta_ab_fc_cpp", (DL_FUNC) &_lame_rbeta_ab_fc_cpp, 9},
     {"_lame_ldZgbme_opt_cpp", (DL_FUNC) &_lame_ldZgbme_opt_cpp, 5},
-    {"_lame_array_to_list_cpp", (DL_FUNC) &_lame_array_to_list_cpp, 3},
+    {"_lame_array_to_list_cpp", (DL_FUNC) &_lame_array_to_list_cpp, 4},
     {"_lame_rrho_fc_cpp", (DL_FUNC) &_lame_rrho_fc_cpp, 6},
     {"_lame_ldZgbme_cpp", (DL_FUNC) &_lame_ldZgbme_cpp, 5},
     {"_lame_rZ_pois_fc_cpp", (DL_FUNC) &_lame_rZ_pois_fc_cpp, 5},
