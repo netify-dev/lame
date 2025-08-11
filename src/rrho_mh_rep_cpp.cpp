@@ -4,9 +4,8 @@
 using namespace arma; 
 using namespace Rcpp; 
 
-//' Metropolis update for dyadic correlation with independent replicate data
- //' 
- //' Metropolis update for dyadic correlation with independent replicate data. 
+// Metropolis update for dyadic correlation with independent replicate data
+// Metropolis update for dyadic correlation with independent replicate data. 
  //' 
  //' 
  //' @usage rrho_mh_rep_cpp(E.T, rho, s2 = 1)

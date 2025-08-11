@@ -4,9 +4,8 @@
 using namespace arma; 
 using namespace Rcpp; 
 
-//' Simulate Z based on a probit model
- //' 
- //' Simulates a random latent matrix Z given its expectation, dyadic correlation
+// Simulate Z based on a probit model
+// Simulates a random latent matrix Z given its expectation, dyadic correlation
  //' and a binary relational matrix Y
  //' 
  //' 

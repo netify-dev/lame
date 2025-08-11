@@ -19,7 +19,10 @@ get_fit_object(
   tryErrorChecks,
   AIC = NA,
   BIC = NA,
-  model.name = NULL
+  model.name = NULL,
+  U = NULL,
+  V = NULL,
+  dynamic_uv = FALSE
 )
 }
 \arguments{
@@ -52,6 +55,12 @@ get_fit_object(
 \item{BIC}{Bayesian Information Criterion (optional)}
 
 \item{model.name}{Name of the model (optional)}
+
+\item{U}{Latent sender positions (optional, for dynamic UV)}
+
+\item{V}{Latent receiver positions (optional, for dynamic UV)}
+
+\item{dynamic_uv}{logical indicating whether UV effects are dynamic}
 }
 \value{
 Fitted AME object

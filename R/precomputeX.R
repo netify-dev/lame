@@ -14,6 +14,23 @@
 #' @author Peter Hoff
 #' @export precomputeX
 precomputeX <- function(X) {
+  # Try C++ version first if available
+  if(exists("precomputeX_cpp", mode = "function")) {
+    tryCatch({
+      result <- precomputeX_cpp(X)
+      attributes(X)$Xr <- result$Xr
+      attributes(X)$Xc <- result$Xc
+      attributes(X)$mX <- result$mX
+      attributes(X)$mXt <- result$mXt
+      attributes(X)$XX <- result$XX
+      attributes(X)$XXt <- result$XXt
+      return(X)
+    }, error = function(e) {
+      # Fall back to R implementation
+    })
+  }
+  
+  # R implementation
   Xr <- apply(X, c(1,3), sum)           # row sum
   Xc <- apply(X, c(2,3), sum)           # col sum
   mX <- apply(X, 3, c)                  # design matrix
