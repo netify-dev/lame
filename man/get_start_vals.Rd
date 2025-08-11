@@ -4,7 +4,7 @@
 \alias{get_start_vals}
 \title{Get fitted object from MCMC results}
 \usage{
-get_start_vals(startVals, Y, family, xP, rvar, cvar, R)
+get_start_vals(startVals, Y, family, xP, rvar, cvar, R, odmax = NULL)
 }
 \arguments{
 \item{startVals}{List object that is null or contains
@@ -24,6 +24,8 @@ effects}
 effects}
 
 \item{R}{Number of dimensions for multiplicative effects}
+
+\item{odmax}{vector of maximum ranks for cbin/frn families (optional)}
 }
 \value{
 List of starting values for MCMC
