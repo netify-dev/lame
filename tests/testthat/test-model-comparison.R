@@ -98,8 +98,9 @@ test_that("Dynamic models outperform static when temporal correlation exists", {
   # 1. Dynamic model should detect temporal correlation
   if(!is.null(fit_dynamic$rho_uv) && length(fit_dynamic$rho_uv) > 0) {
     rho_est <- median(fit_dynamic$rho_uv)
-    # Should detect some temporal correlation
-    expect_gt(rho_est, 0.1)
+    # Temporal alignment can flip signs, so check absolute value
+    rho_abs <- abs(rho_est)
+    expect_gt(rho_abs, 0.1)
   } else {
     # rho_uv not available - just check models ran
     expect_true(!is.null(fit_dynamic$BETA))

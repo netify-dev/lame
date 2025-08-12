@@ -113,8 +113,6 @@ row effects u} \item{V}{posterior mean of multiplicative column effects v (asymm
 matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 \item{GOF}{observed (first row) and posterior predictive (remaining rows)
 values of four goodness-of-fit statistics}
-\item{AIC}{Akaike Information Criterion (if model.name provided)}
-\item{BIC}{Bayesian Information Criterion (if model.name provided)}
 \item{model.name}{Name of the model (if provided)}
 }
 \description{

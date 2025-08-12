@@ -12,13 +12,14 @@
 #' @param startVals startVals for future model run
 #' @param symmetric logical indicating whether model is symmetric
 #' @param tryErrorChecks list with counts of MCMC errors
-#' @param AIC Akaike Information Criterion (optional)
-#' @param BIC Bayesian Information Criterion (optional)
 #' @param model.name Name of the model (optional)
 #' @param U Latent sender positions (optional, for dynamic UV)
 #' @param V Latent receiver positions (optional, for dynamic UV)
 #' @param dynamic_uv logical indicating whether UV effects are dynamic
 #' @param dynamic_ab logical indicating whether additive effects are dynamic
+#' @param bip logical indicating whether the network is bipartite
+#' @param rho_ab temporal correlation parameter for additive effects (optional)
+#' @param rho_uv temporal correlation parameter for multiplicative effects (optional)
 #' @return Fitted AME object
 #' @author Peter Hoff, Shahryar Minhas
 #' @export get_fit_object
@@ -27,7 +28,7 @@ get_fit_object <- function(
     BETA, VC, GOF,
     Xlist, actorByYr, startVals,
     symmetric, tryErrorChecks,
-    AIC=NA, BIC=NA, model.name=NULL,
+    model.name=NULL,
     U=NULL, V=NULL, dynamic_uv=FALSE, dynamic_ab=FALSE,
     bip=FALSE,
     rho_ab=NULL, rho_uv=NULL
@@ -195,7 +196,7 @@ get_fit_object <- function(
     fit <- list(
       BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
       YPM=YPM,GOF=GOF, startVals=startVals, tryErrorChecks=tryErrorChecks,
-      AIC=AIC, BIC=BIC, model.name=model.name)
+      model.name=model.name)
     # Add dynamic fields if applicable
     if(dynamic_ab && is.matrix(APM)) {
       fit$a_dynamic <- APM
@@ -209,7 +210,7 @@ get_fit_object <- function(
     fit <- list(
       BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
       YPM=YPM,GOF=GOF, startVals=startVals, tryErrorChecks=tryErrorChecks,
-      AIC=AIC, BIC=BIC, model.name=model.name)
+      model.name=model.name)
     # Add dynamic fields if applicable
     if(dynamic_ab && is.matrix(APM)) {
       fit$a_dynamic <- APM

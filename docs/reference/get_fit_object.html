@@ -54,13 +54,14 @@
 <span>  <span class="va">startVals</span>,</span>
 <span>  <span class="va">symmetric</span>,</span>
 <span>  <span class="va">tryErrorChecks</span>,</span>
-<span>  AIC <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  BIC <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  model.name <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  U <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  V <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dynamic_uv <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  dynamic_ab <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  dynamic_ab <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  bip <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  rho_ab <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  rho_uv <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -116,14 +117,6 @@
 <dd><p>list with counts of MCMC errors</p></dd>
 
 
-<dt id="arg-aic">AIC<a class="anchor" aria-label="anchor" href="#arg-aic"></a></dt>
-<dd><p>Akaike Information Criterion (optional)</p></dd>
-
-
-<dt id="arg-bic">BIC<a class="anchor" aria-label="anchor" href="#arg-bic"></a></dt>
-<dd><p>Bayesian Information Criterion (optional)</p></dd>
-
-
 <dt id="arg-model-name">model.name<a class="anchor" aria-label="anchor" href="#arg-model-name"></a></dt>
 <dd><p>Name of the model (optional)</p></dd>
 
@@ -142,6 +135,18 @@
 
 <dt id="arg-dynamic-ab">dynamic_ab<a class="anchor" aria-label="anchor" href="#arg-dynamic-ab"></a></dt>
 <dd><p>logical indicating whether additive effects are dynamic</p></dd>
+
+
+<dt id="arg-bip">bip<a class="anchor" aria-label="anchor" href="#arg-bip"></a></dt>
+<dd><p>logical indicating whether the network is bipartite</p></dd>
+
+
+<dt id="arg-rho-ab">rho_ab<a class="anchor" aria-label="anchor" href="#arg-rho-ab"></a></dt>
+<dd><p>temporal correlation parameter for additive effects (optional)</p></dd>
+
+
+<dt id="arg-rho-uv">rho_uv<a class="anchor" aria-label="anchor" href="#arg-rho-uv"></a></dt>
+<dd><p>temporal correlation parameter for multiplicative effects (optional)</p></dd>
 
 </dl></div>
     <div class="section level2">

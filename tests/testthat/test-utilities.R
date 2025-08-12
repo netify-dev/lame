@@ -251,15 +251,6 @@ test_that("summary and print methods work", {
   })
 })
 
-test_that("bipartite helper functions work correctly", {
-  skip_on_cran()
-  skip("Bipartite helper functions are internal and tested indirectly")
-  
-  # These functions are tested indirectly through the ame() function
-  # with bipartite networks. Direct testing would require using :::
-  # which is not recommended for internal functions.
-})
-
 test_that("effective sample size calculation works", {
   skip_on_cran()
   skip_if_not(requireNamespace("coda", quietly = TRUE),

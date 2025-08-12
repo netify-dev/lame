@@ -172,8 +172,6 @@
 #' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 #' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
 #' values of four goodness-of-fit statistics}
-#' \item{AIC}{Akaike Information Criterion (if model.name provided)}
-#' \item{BIC}{Bayesian Information Criterion (if model.name provided)}
 #' \item{model.name}{Name of the model (if provided)}
 #' @author Peter Hoff
 #' @examples
@@ -1028,27 +1026,6 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       p_eff <- length(beta) + rvar*n + cvar*n + R*(R+1)/2
     }
     
-    # Log-likelihood approximation
-    Yobs <- Y[!is.na(Y)]
-    EZobs <- EZ[!is.na(Y)]
-    s2_mean <- mean(VC[,ncol(VC)])
-    
-    if(family=="normal") {
-      ll <- sum(dnorm(Yobs, EZobs, sqrt(s2_mean), log=TRUE))
-    } else if(family=="binary") {
-      ll <- sum(Yobs*pnorm(EZobs,log.p=TRUE) + (1-Yobs)*pnorm(-EZobs,log.p=TRUE))
-    } else if(family=="tobit") {
-      ll <- sum(ifelse(Yobs==0, pnorm(0, EZobs, sqrt(s2_mean), log.p=TRUE),
-                       dnorm(Yobs, EZobs, sqrt(s2_mean), log=TRUE)))
-    } else {
-      ll <- NA
-    }
-    
-    # AIC and BIC
-    AIC <- -2*ll + 2*p_eff
-    BIC <- -2*ll + p_eff*log(length(Yobs))
-  } else {
-    AIC <- BIC <- NA
   }
   
   # asymmetric output 
@@ -1063,7 +1040,7 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       }
       # Include G matrix in output for bipartite
       fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,G=G,UVPM=UVPM,EZ=EZ,
-                  YPM=YPM,GOF=GOF,AIC=AIC,BIC=BIC,model.name=model.name,
+                  YPM=YPM,GOF=GOF,model.name=model.name,
                   mode="bipartite",nA=nA,nB=nB,RA=RA,RB=RB)
     } else {
       # Unipartite networks (existing logic)
@@ -1072,7 +1049,7 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
       rownames(U)<-rownames(V)<-rownames(Y) 
       fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-                  YPM=YPM,GOF=GOF,AIC=AIC,BIC=BIC,model.name=model.name,
+                  YPM=YPM,GOF=GOF,model.name=model.name,
                   mode="unipartite")
     }
   }
@@ -1088,7 +1065,7 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-rownames(Y)
     EZ<-.5*(EZ+t(EZ)) ; YPM<-.5*(YPM+t(YPM)) 
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-              YPM=YPM,GOF=GOF,AIC=AIC,BIC=BIC,model.name=model.name,
+              YPM=YPM,GOF=GOF,model.name=model.name,
               mode="unipartite")
   } 
   
