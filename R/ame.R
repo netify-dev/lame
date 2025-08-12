@@ -964,36 +964,8 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         }
       }
       
-      # plot MC progress
-      if(plot) 
-      { 
-        # plot VC
-        par(mfrow=c(1+2*gof,2),mar=c(3,3,1,1),mgp=c(1.75,0.75,0))
-        mVC <- apply(VC, 2, median)
-        matplot(VC, type = "l", lty = 1)
-        abline(h = mVC, col = 1:length(mVC)) 
-        
-        # plot BETA
-        if(length(beta)>0) 
-        {
-          mBETA <- apply(BETA, 2, median)
-          matplot(BETA, type = "l", lty = 1, col = 1:length(mBETA))
-          abline(h = mBETA, col = 1:length(mBETA))
-          abline(h = 0, col = "gray") 
-        } 
-        
-        # plot GOF 
-        if(gof)
-        {
-          for(k in 1:4)
-          {
-            hist(GOF[-1,k],xlim=range(GOF[,k]),main="",prob=TRUE,
-                 xlab=colnames(GOF)[k],col="lightblue",ylab="",yaxt="n")  
-            abline(v=GOF[1,k],col="red") 
-          }
-        } 
-        
-      }
+      # Note: plotting removed to match modern approach
+      # Users should use plot(fit) or trace_plot(fit) after fitting
       
       
     }
