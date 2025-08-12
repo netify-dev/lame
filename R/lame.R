@@ -1152,12 +1152,13 @@ lame <- function(
       # print MC progress 
       if(print)
       {
-        cat('\n',s,
-            round(apply(BETA[1:iter,,drop=FALSE],2,mean),2),":",
-            round(apply(VC[1:iter,,drop=FALSE],2,mean),2),"\n")
+        beta_means <- round(apply(BETA[1:iter,,drop=FALSE],2,mean),2)
+        vc_means <- round(apply(VC[1:iter,,drop=FALSE],2,mean),2)
+        cli::cli_text("Iteration {.val {s}}: beta = [{.field {paste(beta_means, collapse=', ')}}], VC = [{.field {paste(vc_means, collapse=', ')}}]")
         if (have_coda & nrow(VC[1:iter,,drop=FALSE]) > 3 & length(beta)>0) 
         {
-          cat(round(coda::effectiveSize(BETA[1:iter,,drop=FALSE])), "\n")
+          eff_sizes <- round(coda::effectiveSize(BETA[1:iter,,drop=FALSE]))
+          cli::cli_text("  Effective sizes: [{.emph {paste(eff_sizes, collapse=', ')}}]")
         }
       }
       
@@ -1186,26 +1187,8 @@ lame <- function(
         save(fit, file=out_file) ; rm(list=c('fit','start_vals'))
       }
       
-      # plot MC results
-      if(plot & s==(burn+nscan))
-      {
-        # plot VC
-        print(trace_plot(list(VC=VC), params="variance"))
-        
-        # plot BETA
-        if(length(beta)>0) 
-        {
-          betaIndices<-split(1:ncol(BETA), ceiling(seq_along(1:ncol(BETA))/5))
-          for(bIndex in betaIndices){
-            print(trace_plot(list(BETA=BETA[,bIndex,drop=FALSE]), params="beta")) }
-        }
-        
-        # plot GOF
-        if(gof)
-        {
-          suppressMessages( print( gof_plot(list(GOF=GOF)) ) )
-        }
-      } # plot code if applicable
+      # Note: plotting removed - trace_plot requires a fit object
+      # Users should use plot(fit) or trace_plot(fit) after fitting
       iter<-iter+1
     } # post burn-in
     if(print && s > burn){
