@@ -20,6 +20,11 @@
 #' @param bip logical indicating whether the network is bipartite
 #' @param rho_ab temporal correlation parameter for additive effects (optional)
 #' @param rho_uv temporal correlation parameter for multiplicative effects (optional)
+#' @param family character string specifying the model family (e.g., "binary", "normal", "poisson")
+#' @param odmax vector of maximum ranks for ordinal or fixed rank nomination families
+#' @param nA number of actors in first mode (for bipartite networks)
+#' @param nB number of actors in second mode (for bipartite networks)
+#' @param n_time number of time periods (for longitudinal models)
 #' @return Fitted AME object
 #' @author Shahryar Minhas
 #' @export get_fit_object
@@ -31,7 +36,8 @@ get_fit_object <- function(
     model.name=NULL,
     U=NULL, V=NULL, dynamic_uv=FALSE, dynamic_ab=FALSE,
     bip=FALSE,
-    rho_ab=NULL, rho_uv=NULL
+    rho_ab=NULL, rho_uv=NULL,
+    family=NULL, odmax=NULL, nA=NULL, nB=NULL, n_time=NULL
 ){
   
   # some labels and dims
@@ -196,7 +202,8 @@ get_fit_object <- function(
     fit <- list(
       BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
       YPM=YPM,GOF=GOF, start_vals=start_vals, tryErrorChecks=tryErrorChecks,
-      model.name=model.name)
+      model.name=model.name, family=family, symmetric=symmetric, odmax=odmax,
+      mode=if(bip) "bipartite" else "unipartite")
     # Add dynamic fields if applicable
     if(dynamic_ab && is.matrix(APM)) {
       fit$a_dynamic <- APM
@@ -210,7 +217,8 @@ get_fit_object <- function(
     fit <- list(
       BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
       YPM=YPM,GOF=GOF, start_vals=start_vals, tryErrorChecks=tryErrorChecks,
-      model.name=model.name)
+      model.name=model.name, family=family, symmetric=symmetric, odmax=odmax,
+      mode=if(bip) "bipartite" else "unipartite")
     # Add dynamic fields if applicable
     if(dynamic_ab && is.matrix(APM)) {
       fit$a_dynamic <- APM
@@ -222,6 +230,18 @@ get_fit_object <- function(
     if(!is.null(rho_ab)) fit$rho_ab <- rho_ab
     if(!is.null(rho_uv)) fit$rho_uv <- rho_uv
   }
+  # Add bipartite dimensions if applicable
+  if(bip) {
+    fit$nA <- nA
+    fit$nB <- nB
+  }
+  # Add longitudinal info if applicable
+  if(!is.null(n_time)) fit$n_time <- n_time
+  # Add dynamic flags
+  fit$dynamic_uv <- dynamic_uv
+  fit$dynamic_ab <- dynamic_ab
+  # Add Xlist if present
+  if(!is.null(Xlist)) fit$Xlist <- Xlist
   class(fit)<-"ame"
   return(fit)
 }

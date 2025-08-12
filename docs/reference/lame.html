@@ -61,7 +61,7 @@ use the <code>ame</code> function.</p>
 <span>symmetric<span class="op">=</span><span class="cn">FALSE</span>,</span>
 <span>odmax<span class="op">=</span><span class="cn">NULL</span>, prior<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, g<span class="op">=</span><span class="cn">NA</span>,</span>
 <span>seed <span class="op">=</span> <span class="fl">6886</span>, nscan <span class="op">=</span> <span class="fl">10000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>, plot<span class="op">=</span><span class="cn">FALSE</span>, print <span class="op">=</span> <span class="cn">FALSE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>,</span>
-<span>startVals<span class="op">=</span><span class="cn">NULL</span>, periodicSave<span class="op">=</span><span class="cn">FALSE</span>, outFile<span class="op">=</span><span class="cn">NULL</span>, saveInterval<span class="op">=</span><span class="fl">0.25</span>, model.name<span class="op">=</span><span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+<span>start_vals<span class="op">=</span><span class="cn">NULL</span>, periodic_save<span class="op">=</span><span class="cn">FALSE</span>, out_file<span class="op">=</span><span class="cn">NULL</span>, save_interval<span class="op">=</span><span class="fl">0.25</span>, model.name<span class="op">=</span><span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -257,19 +257,19 @@ control.</p></dd>
 <dd><p>logical: calculate goodness of fit statistics?</p></dd>
 
 
-<dt id="arg-startvals">startVals<a class="anchor" aria-label="anchor" href="#arg-startvals"></a></dt>
+<dt id="arg-start-vals">start_vals<a class="anchor" aria-label="anchor" href="#arg-start-vals"></a></dt>
 <dd><p>List from previous model run containing parameter starting values for new MCMC</p></dd>
 
 
-<dt id="arg-periodicsave">periodicSave<a class="anchor" aria-label="anchor" href="#arg-periodicsave"></a></dt>
+<dt id="arg-periodic-save">periodic_save<a class="anchor" aria-label="anchor" href="#arg-periodic-save"></a></dt>
 <dd><p>logical: indicating whether to periodically save MCMC results</p></dd>
 
 
-<dt id="arg-outfile">outFile<a class="anchor" aria-label="anchor" href="#arg-outfile"></a></dt>
-<dd><p>character vector indicating name and path in which file should be stored if periodicSave is selected. For example, on an Apple OS outFile="~/Desktop/ameFit.rda".</p></dd>
+<dt id="arg-out-file">out_file<a class="anchor" aria-label="anchor" href="#arg-out-file"></a></dt>
+<dd><p>character vector indicating name and path in which file should be stored if periodic_save is selected. For example, on an Apple OS out_file="~/Desktop/ameFit.rda".</p></dd>
 
 
-<dt id="arg-saveinterval">saveInterval<a class="anchor" aria-label="anchor" href="#arg-saveinterval"></a></dt>
+<dt id="arg-save-interval">save_interval<a class="anchor" aria-label="anchor" href="#arg-save-interval"></a></dt>
 <dd><p>quantile interval indicating when to save during post burn-in phase.</p></dd>
 
 
@@ -319,7 +319,7 @@ matrix</p></dd>
 <dd><p>observed (first row) and posterior predictive (remaining rows)
 values of four goodness-of-fit statistics</p></dd>
 
-<dt>startVals</dt>
+<dt>start_vals</dt>
 <dd><p>Final parameter values from MCMC, can be used as the input
 for a future model run.</p></dd>
 
@@ -428,7 +428,7 @@ variable represents the log mean of the Poisson distribution.</p>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
-    <p>Peter Hoff, Yanjun He, Shahryar Minhas</p>
+    <p>Cassy Dorff, Shahryar Minhas, Tosin Salau</p>
     </div>
 
     <div class="section level2">

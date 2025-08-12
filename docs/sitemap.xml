@@ -61,6 +61,7 @@
 <url><loc>https://netify-dev.github.io/lame/reference/precomputeX.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/precomputeX_opt.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/print.ame.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/print.ame.sim.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/print.lame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/print.summary.ame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/print.summary.lame.html</loc></url>
@@ -109,9 +110,13 @@
 <url><loc>https://netify-dev.github.io/lame/reference/simY_rrl.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/simY_tob.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/simZ.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/simulate.ame.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/simulate.lame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/sm2el.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/summary.ame.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/summary.ame.sim.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/summary.lame.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/summary.lame.sim.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/trace_plot.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/update_variances_bipartite.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/use_cpp_optimization.html</loc></url>

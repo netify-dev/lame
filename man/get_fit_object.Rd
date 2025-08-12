@@ -14,7 +14,7 @@ get_fit_object(
   GOF,
   Xlist,
   actorByYr,
-  startVals,
+  start_vals,
   symmetric,
   tryErrorChecks,
   model.name = NULL,
@@ -24,7 +24,12 @@ get_fit_object(
   dynamic_ab = FALSE,
   bip = FALSE,
   rho_ab = NULL,
-  rho_uv = NULL
+  rho_uv = NULL,
+  family = NULL,
+  odmax = NULL,
+  nA = NULL,
+  nB = NULL,
+  n_time = NULL
 )
 }
 \arguments{
@@ -46,7 +51,7 @@ get_fit_object(
 
 \item{actorByYr}{List of actors by time point}
 
-\item{startVals}{startVals for future model run}
+\item{start_vals}{start_vals for future model run}
 
 \item{symmetric}{logical indicating whether model is symmetric}
 
@@ -67,6 +72,16 @@ get_fit_object(
 \item{rho_ab}{temporal correlation parameter for additive effects (optional)}
 
 \item{rho_uv}{temporal correlation parameter for multiplicative effects (optional)}
+
+\item{family}{character string specifying the model family (e.g., "binary", "normal", "poisson")}
+
+\item{odmax}{vector of maximum ranks for ordinal or fixed rank nomination families}
+
+\item{nA}{number of actors in first mode (for bipartite networks)}
+
+\item{nB}{number of actors in second mode (for bipartite networks)}
+
+\item{n_time}{number of time periods (for longitudinal models)}
 }
 \value{
 Fitted AME object
@@ -75,5 +90,5 @@ Fitted AME object
 Get fitted object from MCMC results
 }
 \author{
-Peter Hoff, Shahryar Minhas
+Shahryar Minhas
 }

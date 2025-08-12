@@ -1090,7 +1090,8 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=V, s2=s2, Sab=Sab, G=G)
       fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,G=G,UVPM=UVPM,EZ=EZ,
                   YPM=YPM,GOF=GOF,start_vals=start_vals_final,model.name=model.name,
-                  mode="bipartite",nA=nA,nB=nB,RA=RA,RB=RB)
+                  mode="bipartite",nA=nA,nB=nB,RA=RA,RB=RB,
+                  family=family,symmetric=symmetric,odmax=odmax)
     } else {
       # Unipartite networks (existing logic)
       UDV<-svd(UVPM)
@@ -1101,7 +1102,7 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
       fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
                   YPM=YPM,GOF=GOF,start_vals=start_vals_final,model.name=model.name,
-                  mode="unipartite")
+                  mode="unipartite",family=family,symmetric=symmetric,odmax=odmax)
     }
   }
   
@@ -1119,7 +1120,7 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
               YPM=YPM,GOF=GOF,start_vals=start_vals_final,model.name=model.name,
-              mode="unipartite")
+              mode="unipartite",family=family,symmetric=symmetric,odmax=odmax)
   } 
   
   # Ensure scalars are properly typed

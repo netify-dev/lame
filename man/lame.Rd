@@ -12,7 +12,7 @@ intercept=!is.element(family,c("rrl","ordinal")),
 symmetric=FALSE,
 odmax=NULL, prior=list(), g=NA,
 seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
-startVals=NULL, periodicSave=FALSE, outFile=NULL, saveInterval=0.25, model.name=NULL)
+start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.name=NULL)
 }
 \arguments{
 \item{Y}{a T length list of n x n relational matrices, where T
@@ -128,13 +128,13 @@ control.}
 
 \item{gof}{logical: calculate goodness of fit statistics?}
 
-\item{startVals}{List from previous model run containing parameter starting values for new MCMC}
+\item{start_vals}{List from previous model run containing parameter starting values for new MCMC}
 
-\item{periodicSave}{logical: indicating whether to periodically save MCMC results}
+\item{periodic_save}{logical: indicating whether to periodically save MCMC results}
 
-\item{outFile}{character vector indicating name and path in which file should be stored if periodicSave is selected. For example, on an Apple OS outFile="~/Desktop/ameFit.rda".}
+\item{out_file}{character vector indicating name and path in which file should be stored if periodic_save is selected. For example, on an Apple OS out_file="~/Desktop/ameFit.rda".}
 
-\item{saveInterval}{quantile interval indicating when to save during post burn-in phase.}
+\item{save_interval}{quantile interval indicating when to save during post burn-in phase.}
 
 \item{model.name}{optional string for model selection output}
 }
@@ -153,7 +153,7 @@ For dynamic_uv=TRUE, this is a 3D array (n x R x T)}
 matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 \item{GOF}{observed (first row) and posterior predictive (remaining rows)
 values of four goodness-of-fit statistics}
-\item{startVals}{Final parameter values from MCMC, can be used as the input
+\item{start_vals}{Final parameter values from MCMC, can be used as the input
 for a future model run.}
 \item{model.name}{Name of the model (if provided)}
 }
@@ -324,5 +324,5 @@ fit<-lame(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,family="binary")
 
 }
 \author{
-Peter Hoff, Yanjun He, Shahryar Minhas
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

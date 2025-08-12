@@ -13,7 +13,7 @@ test_that("get_start_vals returns appropriate starting values", {
   
   # Call with proper parameters
   starts_bin <- get_start_vals(
-    startVals = NULL,
+    start_vals = NULL,
     Y = Y_bin,
     family = "binary",
     xP = 0,  # No exogenous covariates
@@ -31,7 +31,7 @@ test_that("get_start_vals returns appropriate starting values", {
   Y_norm <- array(Y_norm_2d, dim=c(n, n, T))
   
   starts_norm <- get_start_vals(
-    startVals = NULL,
+    start_vals = NULL,
     Y = Y_norm,
     family = "normal",
     xP = 0,

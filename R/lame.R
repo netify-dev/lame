@@ -1180,7 +1180,9 @@ lame <- function(
         fit <- get_fit_object( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
                              BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr,
                              start_vals=start_vals, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
-                             model.name=model.name)
+                             model.name=model.name, family=family, odmax=odmax, 
+                             nA=if(bip) nA else NULL, nB=if(bip) nB else NULL, n_time=N,
+                             dynamic_uv=dynamic_uv, dynamic_ab=dynamic_ab, bip=bip)
         save(fit, file=out_file) ; rm(list=c('fit','start_vals'))
       }
       
@@ -1258,7 +1260,9 @@ lame <- function(
                        start_vals=start_vals, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
                        model.name=model.name, U=U_final, V=V_final, 
                        dynamic_uv=dynamic_uv, dynamic_ab=dynamic_ab, bip=bip,
-                       rho_ab=RHO_AB, rho_uv=RHO_UV)
+                       rho_ab=RHO_AB, rho_uv=RHO_UV,
+                       family=family, odmax=odmax, nA=if(bip) nA else NULL, 
+                       nB=if(bip) nB else NULL, n_time=N)
   
   # -------- shape/typing hygiene on scalars used in tests ----------
   if (!is.null(fit$RHO)) fit$RHO <- as.numeric(fit$RHO)
