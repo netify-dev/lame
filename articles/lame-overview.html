@@ -186,12 +186,7 @@ built-in summary function.</p>
 <span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>cab    <span class="fl">1.325</span>    <span class="fl">0.339</span></span>
 <span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>vb     <span class="fl">1.343</span>    <span class="fl">0.324</span></span>
 <span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>rho    <span class="fl">0.539</span>    <span class="fl">0.077</span></span>
-<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>ve     <span class="fl">1.000</span>    <span class="fl">0.000</span></span>
-<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a></span>
-<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>Model fit statistics<span class="sc">:</span></span>
-<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="sc">--------------------</span></span>
-<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>AIC BIC </span>
-<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a> <span class="cn">NA</span>  <span class="cn">NA</span> </span></code></pre></div>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>ve     <span class="fl">1.000</span>    <span class="fl">0.000</span></span></code></pre></div>
 <p>We see that the model shows that wealthier and more populous
 countries are more likely to impose sanctions on less wealthy and less
 populous countries. We also observe that more populous countries are
@@ -209,7 +204,7 @@ the model’s parameters converged.</p>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a> [<span class="dv">1</span>] <span class="st">"BETA"</span>           <span class="st">"VC"</span>             <span class="st">"APM"</span>            <span class="st">"BPM"</span>           </span>
 <span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a> [<span class="dv">5</span>] <span class="st">"U"</span>              <span class="st">"V"</span>              <span class="st">"UVPM"</span>           <span class="st">"EZ"</span>            </span>
 <span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a> [<span class="dv">9</span>] <span class="st">"YPM"</span>            <span class="st">"GOF"</span>            <span class="st">"startVals"</span>      <span class="st">"tryErrorChecks"</span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>[<span class="dv">13</span>] <span class="st">"AIC"</span>            <span class="st">"BIC"</span>            <span class="st">"model.name"</span>    </span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>[<span class="dv">13</span>] <span class="st">"model.name"</span>    </span>
 <span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="fu">trace_plot</span>(fit, <span class="at">params =</span> <span class="st">"beta"</span>)</span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/unnamed-chunk-4-1.png" alt="MCMC trace plots and density plots showing convergence and posterior distributions of regression coefficients" width="100%" style="display: block; margin: auto;"></p>
 <p>The <code>trace_plot</code> function produces traceplots and density
@@ -282,8 +277,6 @@ This vignette demonstrates the basic functionality of the
 <code>lame</code> package and provides a walk-through application to
 international sanctions data.</p>
 <p><strong>References</strong>:</p>
-<p>Hoff, PD (2005) Bilinear Mixed-effects Models for Dyadic Data.
-Journal of the American Statistical Association 100, 286–295.</p>
 <p>Hoff, PD (2021) Additive and Multiplicative Effects Network Models.
 Statistical Science 36, 34–50.</p>
 <p>Morgan, T. Clifton, Bapat, N., &amp; Kobayashi, Y. (2014). Threat and

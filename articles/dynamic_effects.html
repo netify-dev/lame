@@ -241,27 +241,31 @@ posterior distribution.</p>
 <span></span>
 <span><span class="co"># Simulate longitudinal network data</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
-<span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">50</span>  <span class="co"># actors</span></span>
-<span><span class="cn">T</span> <span class="op">&lt;-</span> <span class="fl">10</span>  <span class="co"># time periods</span></span>
+<span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">25</span>  <span class="co"># actors (reduced for faster vignette building)</span></span>
+<span><span class="cn">T</span> <span class="op">&lt;-</span> <span class="fl">5</span>   <span class="co"># time periods (reduced for faster vignette building)</span></span>
 <span></span>
 <span><span class="co"># Generate networks (example with binary data)</span></span>
 <span><span class="va">Y_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="kw">for</span><span class="op">(</span><span class="va">t</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="cn">T</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">Y_t</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span><span class="op">*</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fl">0.1</span><span class="op">)</span>, <span class="va">n</span>, <span class="va">n</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Y_t</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
+<span>  <span class="co"># Add actor labels (required for lame function)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Y_t</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Y_t</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Actor"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n</span><span class="op">)</span></span>
 <span>  <span class="va">Y_list</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">Y_t</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="co"># Fit model with dynamic effects</span></span>
+<span><span class="co"># Fit model with dynamic effects (reduced iterations for vignette)</span></span>
 <span><span class="va">fit_dynamic</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>  Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
 <span>  R <span class="op">=</span> <span class="fl">2</span>,                <span class="co"># 2-dimensional latent space</span></span>
 <span>  dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,    <span class="co"># Dynamic latent factors</span></span>
 <span>  dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,    <span class="co"># Dynamic additive effects</span></span>
 <span>  family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>  burn <span class="op">=</span> <span class="fl">1000</span>,         <span class="co"># Longer burn-in recommended</span></span>
-<span>  nscan <span class="op">=</span> <span class="fl">5000</span>,</span>
-<span>  odens <span class="op">=</span> <span class="fl">25</span></span>
+<span>  burn <span class="op">=</span> <span class="fl">100</span>,          <span class="co"># Reduced for vignette (use 1000+ in practice)</span></span>
+<span>  nscan <span class="op">=</span> <span class="fl">500</span>,         <span class="co"># Reduced for vignette (use 5000+ in practice)</span></span>
+<span>  odens <span class="op">=</span> <span class="fl">25</span>,</span>
+<span>  print <span class="op">=</span> <span class="cn">FALSE</span>,       <span class="co"># Suppress output for vignette</span></span>
+<span>  plot <span class="op">=</span> <span class="cn">FALSE</span>         <span class="co"># Suppress plots for vignette</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
@@ -269,14 +273,21 @@ posterior distribution.</p>
 </h3>
 <p>Plotting functions can illustrate temporal dynamics:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Plot latent positions at specific time</span></span>
-<span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, time_point <span class="op">=</span> <span class="fl">5</span>, plot_type <span class="op">=</span> <span class="st">"snapshot"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Plot trajectory of latent positions</span></span>
-<span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span>, show_actors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">5</span>, <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Plot additive effects evolution</span></span>
-<span><span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, effect <span class="op">=</span> <span class="st">"sender"</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="co"># Plot latent positions (last time point)</span></span>
+<span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"snapshot"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Detected dynamic UV effects</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Using last time point for visualization</span></span></code></pre></div>
+<p><img src="dynamic_effects_files/figure-html/unnamed-chunk-3-1.png" width="700"></p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span></span>
+<span><span class="co"># Plot sender effects </span></span>
+<span><span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, effect <span class="op">=</span> <span class="st">"sender"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="dynamic_effects_files/figure-html/unnamed-chunk-3-2.png" width="700"></p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span></span>
+<span><span class="co"># Plot trace of parameters</span></span>
+<span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, params <span class="op">=</span> <span class="st">"beta"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="dynamic_effects_files/figure-html/unnamed-chunk-3-3.png" width="700"></p>
 </div>
 <div class="section level3">
 <h3 id="model-selection">Model Selection<a class="anchor" aria-label="anchor" href="#model-selection"></a>
@@ -284,7 +295,7 @@ posterior distribution.</p>
 <p>Choose between static and dynamic specifications based on:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>Model fit statistics</strong>: Compare GOF, AIC, BIC</li>
+<strong>Model fit statistics</strong>: Compare GOF statistics</li>
 <li>
 <strong>Parameter estimates</strong>: Check if
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
@@ -293,25 +304,320 @@ significantly differs from 0</li>
 <strong>Visual inspection</strong>: Look for temporal patterns in
 residuals</li>
 </ol>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Static model</span></span>
-<span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, family <span class="op">=</span> <span class="st">"binary"</span><span class="op">)</span></span>
+<span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, family <span class="op">=</span> <span class="st">"binary"</span>, </span>
+<span>                   burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>, </span>
+<span>                   print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Dynamic UV only</span></span>
-<span><span class="va">fit_uv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span><span class="op">)</span></span>
+<span><span class="va">fit_uv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span>               burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
+<span>               print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Dynamic AB only  </span></span>
-<span><span class="va">fit_ab</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span><span class="op">)</span></span>
+<span><span class="va">fit_ab</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span>               burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
+<span>               print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Full dynamic</span></span>
-<span><span class="va">fit_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span><span class="op">)</span></span>
+<span><span class="va">fit_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span>                 burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
+<span>                 print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Compare models</span></span>
-<span><span class="va">model_comparison</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  Model <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Static"</span>, <span class="st">"Dynamic UV"</span>, <span class="st">"Dynamic AB"</span>, <span class="st">"Full Dynamic"</span><span class="op">)</span>,</span>
-<span>  AIC <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">$</span><span class="va">AIC</span>, <span class="va">fit_uv</span><span class="op">$</span><span class="va">AIC</span>, <span class="va">fit_ab</span><span class="op">$</span><span class="va">AIC</span>, <span class="va">fit_full</span><span class="op">$</span><span class="va">AIC</span><span class="op">)</span>,</span>
-<span>  BIC <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">$</span><span class="va">BIC</span>, <span class="va">fit_uv</span><span class="op">$</span><span class="va">BIC</span>, <span class="va">fit_ab</span><span class="op">$</span><span class="va">BIC</span>, <span class="va">fit_full</span><span class="op">$</span><span class="va">BIC</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="co"># Compare GOF statistics</span></span>
+<span><span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">$</span><span class="va">GOF</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">fit_full</span><span class="op">$</span><span class="va">GOF</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Static model GOF (sample):\n"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">$</span><span class="va">GOF</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nDynamic model GOF (sample):\n"</span><span class="op">)</span>  </span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit_full</span><span class="op">$</span><span class="va">GOF</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="co">#&gt; Static model GOF (sample):</span></span>
+<span><span class="co">#&gt; $sd.rowmean</span></span>
+<span><span class="co">#&gt;             obs          1          2          3          4          5</span></span>
+<span><span class="co">#&gt; [1,] 0.04853168 0.06396433 0.05281431 0.07701761 0.05281431 0.05000000</span></span>
+<span><span class="co">#&gt; [2,] 0.06918005 0.05600513 0.05641693 0.06804138 0.05469825 0.06328214</span></span>
+<span><span class="co">#&gt; [3,] 0.05242941 0.05926830 0.05574620 0.06468406 0.05553819 0.06095308</span></span>
+<span><span class="co">#&gt; [4,] 0.06596857 0.05000000 0.05170697 0.05626286 0.05858082 0.05443311</span></span>
+<span><span class="co">#&gt; [5,] 0.06189522 0.05308754 0.05308754 0.04677072 0.04670881 0.05005784</span></span>
+<span><span class="co">#&gt;               6          7          8          9         10         11</span></span>
+<span><span class="co">#&gt; [1,] 0.05828371 0.06014065 0.05148265 0.06486275 0.05501473 0.04947643</span></span>
+<span><span class="co">#&gt; [2,] 0.04888810 0.04614791 0.05931710 0.06095308 0.05114431 0.06123724</span></span>
+<span><span class="co">#&gt; [3,] 0.05892557 0.05389891 0.05641693 0.06189522 0.06014065 0.06052433</span></span>
+<span><span class="co">#&gt; [4,] 0.05574620 0.05892557 0.04336804 0.05379144 0.05980292 0.05758448</span></span>
+<span><span class="co">#&gt; [5,] 0.05176290 0.04762897 0.05142641 0.05286907 0.05527708 0.04941791</span></span>
+<span><span class="co">#&gt;              12         13         14         15         16         17</span></span>
+<span><span class="co">#&gt; [1,] 0.06364688 0.05548607 0.05707978 0.06351035 0.06123724 0.05142641</span></span>
+<span><span class="co">#&gt; [2,] 0.05641693 0.06147304 0.06446001 0.05892557 0.06588078 0.07367660</span></span>
+<span><span class="co">#&gt; [3,] 0.06212853 0.04658475 0.05034602 0.06943055 0.07066975 0.07557649</span></span>
+<span><span class="co">#&gt; [4,] 0.07363731 0.07115938 0.06189522 0.05469825 0.05379144 0.05142641</span></span>
+<span><span class="co">#&gt; [5,] 0.05335937 0.06189522 0.05877807 0.05902369 0.06441510 0.05379144</span></span>
+<span><span class="co">#&gt;              18         19         20</span></span>
+<span><span class="co">#&gt; [1,] 0.06014065 0.06662325 0.04959325</span></span>
+<span><span class="co">#&gt; [2,] 0.04187448 0.06980462 0.06250000</span></span>
+<span><span class="co">#&gt; [3,] 0.06189522 0.07503857 0.05281431</span></span>
+<span><span class="co">#&gt; [4,] 0.05091751 0.04947643 0.05368374</span></span>
+<span><span class="co">#&gt; [5,] 0.04545297 0.06419011 0.05553819</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $sd.colmean</span></span>
+<span><span class="co">#&gt;             obs          1          2          3          4          5</span></span>
+<span><span class="co">#&gt; [1,] 0.07244890 0.04039733 0.04383259 0.06250000 0.05000000 0.05142641</span></span>
+<span><span class="co">#&gt; [2,] 0.05778512 0.04912428 0.05768489 0.06133167 0.04110736 0.05057539</span></span>
+<span><span class="co">#&gt; [3,] 0.06696980 0.06047650 0.06419011 0.06355590 0.05808479 0.04110736</span></span>
+<span><span class="co">#&gt; [4,] 0.05253967 0.04214997 0.05574620 0.06351035 0.04455282 0.04416143</span></span>
+<span><span class="co">#&gt; [5,] 0.04577016 0.05170697 0.05443311 0.05259471 0.05114431 0.05005784</span></span>
+<span><span class="co">#&gt;               6          7          8          9         10         11</span></span>
+<span><span class="co">#&gt; [1,] 0.05828371 0.05641693 0.05422006 0.06142596 0.04947643 0.06795628</span></span>
+<span><span class="co">#&gt; [2,] 0.05707978 0.04614791 0.05931710 0.05600513 0.04180532 0.05758448</span></span>
+<span><span class="co">#&gt; [3,] 0.06250000 0.05522471 0.05641693 0.07557649 0.03803629 0.04859127</span></span>
+<span><span class="co">#&gt; [4,] 0.07931273 0.04500514 0.04658475 0.05768489 0.05980292 0.05368374</span></span>
+<span><span class="co">#&gt; [5,] 0.06644930 0.05469825 0.05926830 0.05682576 0.05120086 0.05877807</span></span>
+<span><span class="co">#&gt;              12         13         14         15         16         17</span></span>
+<span><span class="co">#&gt; [1,] 0.06250000 0.05000000 0.05176290 0.07783976 0.03974747 0.05000000</span></span>
+<span><span class="co">#&gt; [2,] 0.05768489 0.05395257 0.05475112 0.05511982 0.06250000 0.06194195</span></span>
+<span><span class="co">#&gt; [3,] 0.05469825 0.06250000 0.06076290 0.05005784 0.07367660 0.05170697</span></span>
+<span><span class="co">#&gt; [4,] 0.06640574 0.05379144 0.05951190 0.04762897 0.04811252 0.04701753</span></span>
+<span><span class="co">#&gt; [5,] 0.07083333 0.06189522 0.06463931 0.07985809 0.07480685 0.06804138</span></span>
+<span><span class="co">#&gt;              18         19         20</span></span>
+<span><span class="co">#&gt; [1,] 0.05511982 0.05198602 0.06477347</span></span>
+<span><span class="co">#&gt; [2,] 0.04356774 0.05335937 0.05379144</span></span>
+<span><span class="co">#&gt; [3,] 0.06189522 0.05501473 0.06508541</span></span>
+<span><span class="co">#&gt; [4,] 0.05368374 0.06240734 0.04799209</span></span>
+<span><span class="co">#&gt; [5,] 0.04039733 0.06419011 0.04551658</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $dyad.dep</span></span>
+<span><span class="co">#&gt;               obs             1            2            3          4</span></span>
+<span><span class="co">#&gt; [1,]  0.015231092 -7.913669e-02 -0.030085023 -0.020850709 0.01896664</span></span>
+<span><span class="co">#&gt; [2,] -0.014458955  1.524094e-01  0.015015015  0.019182652 0.01114425</span></span>
+<span><span class="co">#&gt; [3,]  0.016534867  2.121849e-01 -0.007178828 -0.010668164 0.11006864</span></span>
+<span><span class="co">#&gt; [4,]  0.142309681 -5.448155e-02  0.088855143  0.003728187 0.07834101</span></span>
+<span><span class="co">#&gt; [5,] -0.007178828 -3.703841e-05 -0.007178828 -0.065719361 0.05437352</span></span>
+<span><span class="co">#&gt;                5           6           7            8           9          10</span></span>
+<span><span class="co">#&gt; [1,] 0.117069980  0.08885514  0.01501502 -0.055499983  0.02052239  0.03144301</span></span>
+<span><span class="co">#&gt; [2,] 0.023199023  0.07310759 -0.02406554  0.145858182  0.05823262  0.04017551</span></span>
+<span><span class="co">#&gt; [3,] 0.011144247 -0.01785714 -0.01467160 -0.003636364  0.17774732  0.12010114</span></span>
+<span><span class="co">#&gt; [4,] 0.088855143  0.03567985  0.03571429  0.015015015 -0.03303303 -0.02406554</span></span>
+<span><span class="co">#&gt; [5,] 0.007348698 -0.02709699  0.01114425  0.015231092  0.05351853 -0.06571936</span></span>
+<span><span class="co">#&gt;               11          12            13          14          15           16</span></span>
+<span><span class="co">#&gt; [1,] 0.048913043  0.01501502 -2.415966e-02  0.12320989  0.04664624  0.048913043</span></span>
+<span><span class="co">#&gt; [2,] 0.094202899  0.06306306 -8.184801e-02 -0.07526882  0.25000000  0.111111111</span></span>
+<span><span class="co">#&gt; [3,] 0.053518526  0.02319902  8.928571e-02  0.02300530 -0.03882113  0.088882427</span></span>
+<span><span class="co">#&gt; [4,] 0.003623188 -0.09289617 -4.727273e-02  0.03567985 -0.03594412 -0.003636364</span></span>
+<span><span class="co">#&gt; [5,] 0.136087962  0.02319902 -3.703841e-05  0.13608796  0.16044776  0.152409355</span></span>
+<span><span class="co">#&gt;               17          18         19           20</span></span>
+<span><span class="co">#&gt; [1,] -0.07913669  0.03571429 0.02319902  0.040000000</span></span>
+<span><span class="co">#&gt; [2,]  0.12765339 -0.01142536 0.02319902  0.015015015</span></span>
+<span><span class="co">#&gt; [3,]  0.08885514 -0.05003750 0.03144301  0.018966645</span></span>
+<span><span class="co">#&gt; [4,]  0.06801831 -0.09489051 0.04891304  0.003623188</span></span>
+<span><span class="co">#&gt; [5,]  0.11111111  0.21764272 0.04440905 -0.014107827</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $cycle.dep</span></span>
+<span><span class="co">#&gt;              obs             1             2           3            4</span></span>
+<span><span class="co">#&gt; [1,] 0.004697636  1.144382e-02 -0.0079786148 0.004915964  0.010546149</span></span>
+<span><span class="co">#&gt; [2,] 0.022057807 -8.683577e-03 -0.0005191933 0.008225308 -0.003425739</span></span>
+<span><span class="co">#&gt; [3,] 0.003409118  3.288189e-03 -0.0065989119 0.025987177  0.007601129</span></span>
+<span><span class="co">#&gt; [4,] 0.012866730 -8.912113e-05  0.0054653473 0.003881961 -0.017290327</span></span>
+<span><span class="co">#&gt; [5,] 0.006597912 -7.028462e-03  0.0116966851 0.007126572 -0.001178605</span></span>
+<span><span class="co">#&gt;                 5             6            7            8            9</span></span>
+<span><span class="co">#&gt; [1,]  0.029315733 -0.0007815572 -0.006749513 -0.020865480  0.002005652</span></span>
+<span><span class="co">#&gt; [2,]  0.008204561  0.0028610008  0.006078508  0.029813474 -0.001660334</span></span>
+<span><span class="co">#&gt; [3,]  0.012539666 -0.0010349121  0.001180299  0.021302693 -0.008964122</span></span>
+<span><span class="co">#&gt; [4,] -0.023833514  0.0297923303 -0.023389014 -0.017726743 -0.003189330</span></span>
+<span><span class="co">#&gt; [5,]  0.011164385 -0.0106810214  0.015187774  0.003288189  0.012915648</span></span>
+<span><span class="co">#&gt;                 10           11           12            13           14</span></span>
+<span><span class="co">#&gt; [1,] -0.0065999362 -0.018349435  0.014314901 -1.045392e-02 -0.009817533</span></span>
+<span><span class="co">#&gt; [2,] -0.0007012322  0.011190375  0.017578402 -5.870135e-03 -0.004235112</span></span>
+<span><span class="co">#&gt; [3,] -0.0095252034  0.003488636 -0.005118136  1.852493e-02 -0.007058583</span></span>
+<span><span class="co">#&gt; [4,]  0.0413275900 -0.015308573  0.019344845  2.814999e-02  0.015095867</span></span>
+<span><span class="co">#&gt; [5,]  0.0021152752  0.016813879  0.006724261  8.069163e-05  0.005406851</span></span>
+<span><span class="co">#&gt;                 15            16           17            18            19</span></span>
+<span><span class="co">#&gt; [1,]  0.0069743846 -0.0005386671 -0.019321972  0.0026907716 -0.0244545513</span></span>
+<span><span class="co">#&gt; [2,]  0.0166620855 -0.0168659596 -0.017910564 -0.0172023194 -0.0127046723</span></span>
+<span><span class="co">#&gt; [3,] -0.0188679140 -0.0216094054 -0.013926452  0.0004493919  0.0009950682</span></span>
+<span><span class="co">#&gt; [4,] -0.0166662802 -0.0060864836 -0.008876291  0.0031372489 -0.0066203929</span></span>
+<span><span class="co">#&gt; [5,]  0.0004329343  0.0188337205 -0.015353288 -0.0066537974 -0.0001304713</span></span>
+<span><span class="co">#&gt;                20</span></span>
+<span><span class="co">#&gt; [1,]  0.028149987</span></span>
+<span><span class="co">#&gt; [2,] -0.025737154</span></span>
+<span><span class="co">#&gt; [3,]  0.016177024</span></span>
+<span><span class="co">#&gt; [4,]  0.002067787</span></span>
+<span><span class="co">#&gt; [5,]  0.006494095</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $trans.dep</span></span>
+<span><span class="co">#&gt;                obs            1            2             3            4</span></span>
+<span><span class="co">#&gt; [1,] -0.0096317459  0.010138114 -0.008468256  0.0004533634 -0.004687137</span></span>
+<span><span class="co">#&gt; [2,]  0.0001052847 -0.004871325 -0.001705921  0.0130890407  0.004249936</span></span>
+<span><span class="co">#&gt; [3,] -0.0012054802  0.009160886 -0.006232333  0.0034401835 -0.012304411</span></span>
+<span><span class="co">#&gt; [4,]  0.0003049938  0.004731639  0.001159969  0.0010984519  0.007601617</span></span>
+<span><span class="co">#&gt; [5,] -0.0067322132 -0.019451883  0.005531502 -0.0189079387 -0.005279977</span></span>
+<span><span class="co">#&gt;                  5            6             7            8             9</span></span>
+<span><span class="co">#&gt; [1,] -0.0059928472 -0.004946160 -0.0049694217  0.003700150  1.360445e-02</span></span>
+<span><span class="co">#&gt; [2,] -0.0004305205 -0.004355795 -0.0058452551  0.001532438 -3.988622e-03</span></span>
+<span><span class="co">#&gt; [3,] -0.0048841178  0.001759351 -0.0002670327 -0.010080738 -4.517969e-03</span></span>
+<span><span class="co">#&gt; [4,] -0.0016379403  0.004065188 -0.0069339113  0.010556931 -9.320756e-03</span></span>
+<span><span class="co">#&gt; [5,] -0.0002374555 -0.010695062  0.0081005671 -0.001684029 -1.389004e-05</span></span>
+<span><span class="co">#&gt;                10            11           12            13            14</span></span>
+<span><span class="co">#&gt; [1,]  0.006512806 -0.0005386671 -0.002694861  0.0076731360  0.0028469604</span></span>
+<span><span class="co">#&gt; [2,] -0.008468579  0.0201681610  0.008282370  0.0017574902  0.0002906961</span></span>
+<span><span class="co">#&gt; [3,]  0.002078155  0.0005698643  0.003270229 -0.0001034912  0.0067712685</span></span>
+<span><span class="co">#&gt; [4,] -0.006280429  0.0220505999 -0.001116898  0.0030432418 -0.0062323335</span></span>
+<span><span class="co">#&gt; [5,] -0.013394646  0.0043193961 -0.015171839 -0.0045883562  0.0066368001</span></span>
+<span><span class="co">#&gt;                15           16           17           18            19</span></span>
+<span><span class="co">#&gt; [1,]  0.014903039  0.001488575  0.010437340  0.015420191 -1.045338e-02</span></span>
+<span><span class="co">#&gt; [2,] -0.011901490  0.005621987  0.007637247  0.004142716 -1.184116e-02</span></span>
+<span><span class="co">#&gt; [3,]  0.002768258 -0.006555981  0.001945964 -0.005582490 -8.684127e-05</span></span>
+<span><span class="co">#&gt; [4,]  0.008996063 -0.004374660 -0.001205243 -0.003224379  2.646999e-03</span></span>
+<span><span class="co">#&gt; [5,] -0.008479134 -0.005088802 -0.018715683  0.011962780  1.767761e-02</span></span>
+<span><span class="co">#&gt;                 20</span></span>
+<span><span class="co">#&gt; [1,]  0.0013314183</span></span>
+<span><span class="co">#&gt; [2,]  0.0084801574</span></span>
+<span><span class="co">#&gt; [3,] -0.0181522735</span></span>
+<span><span class="co">#&gt; [4,] -0.0006834701</span></span>
+<span><span class="co">#&gt; [5,]  0.0050075050</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Dynamic model GOF (sample):</span></span>
+<span><span class="co">#&gt; $sd.rowmean</span></span>
+<span><span class="co">#&gt;             obs          1          2          3          4          5</span></span>
+<span><span class="co">#&gt; [1,] 0.04853168 0.10535434 0.07248882 0.09507551 0.06640574 0.07216878</span></span>
+<span><span class="co">#&gt; [2,] 0.06918005 0.10186343 0.07599647 0.07595838 0.05641693 0.06959705</span></span>
+<span><span class="co">#&gt; [3,] 0.05242941 0.06918005 0.07701761 0.08946213 0.11250000 0.09880654</span></span>
+<span><span class="co">#&gt; [4,] 0.06596857 0.08796174 0.08378351 0.06943055 0.05308754 0.07511565</span></span>
+<span><span class="co">#&gt; [5,] 0.06189522 0.09568225 0.07671647 0.07967672 0.07614861 0.06623122</span></span>
+<span><span class="co">#&gt;               6          7          8          9         10         11</span></span>
+<span><span class="co">#&gt; [1,] 0.06259252 0.08157875 0.07115938 0.07363731 0.05975451 0.07607258</span></span>
+<span><span class="co">#&gt; [2,] 0.05907270 0.06731456 0.07821060 0.07607258 0.08460830 0.09880654</span></span>
+<span><span class="co">#&gt; [3,] 0.07216878 0.06147304 0.07308512 0.06123724 0.08783007 0.07228896</span></span>
+<span><span class="co">#&gt; [4,] 0.07576768 0.09160351 0.06618751 0.05803495 0.08779711 0.07025911</span></span>
+<span><span class="co">#&gt; [5,] 0.06623122 0.08025567 0.06752914 0.07618660 0.06909635 0.07308512</span></span>
+<span><span class="co">#&gt;              12         13         14         15         16         17</span></span>
+<span><span class="co">#&gt; [1,] 0.06530732 0.07128126 0.05753421 0.08157875 0.06463931 0.06004435</span></span>
+<span><span class="co">#&gt; [2,] 0.09007456 0.07324332 0.05833333 0.05833333 0.07124066 0.06579288</span></span>
+<span><span class="co">#&gt; [3,] 0.05522471 0.08115201 0.06259252 0.05828371 0.06423517 0.09182436</span></span>
+<span><span class="co">#&gt; [4,] 0.05768489 0.07709272 0.08920300 0.05005784 0.09026709 0.09601432</span></span>
+<span><span class="co">#&gt; [5,] 0.04811252 0.07843227 0.04608517 0.08733450 0.07607258 0.05902369</span></span>
+<span><span class="co">#&gt;              18         19         20</span></span>
+<span><span class="co">#&gt; [1,] 0.05902369 0.07978559 0.05379144</span></span>
+<span><span class="co">#&gt; [2,] 0.07204840 0.07978559 0.05758448</span></span>
+<span><span class="co">#&gt; [3,] 0.06282324 0.06984606 0.05803495</span></span>
+<span><span class="co">#&gt; [4,] 0.07519265 0.05999614 0.06355590</span></span>
+<span><span class="co">#&gt; [5,] 0.08057950 0.06305311 0.06147304</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $sd.colmean</span></span>
+<span><span class="co">#&gt;             obs          1          2          3          4          5</span></span>
+<span><span class="co">#&gt; [1,] 0.07244890 0.05063257 0.07248882 0.08959141 0.07363731 0.07511565</span></span>
+<span><span class="co">#&gt; [2,] 0.05778512 0.07087417 0.08913811 0.09307628 0.07013545 0.05828371</span></span>
+<span><span class="co">#&gt; [3,] 0.06696980 0.07985809 0.07115938 0.08097353 0.05828371 0.05951190</span></span>
+<span><span class="co">#&gt; [4,] 0.05253967 0.10518942 0.07168604 0.08007520 0.07363731 0.06909635</span></span>
+<span><span class="co">#&gt; [5,] 0.04577016 0.07913011 0.07184732 0.08991380 0.07021791 0.05808479</span></span>
+<span><span class="co">#&gt;               6          7          8          9         10         11</span></span>
+<span><span class="co">#&gt; [1,] 0.05902369 0.06909635 0.10891936 0.07264832 0.07383352 0.09622504</span></span>
+<span><span class="co">#&gt; [2,] 0.07426336 0.06052433 0.08357604 0.06696980 0.06748628 0.09583333</span></span>
+<span><span class="co">#&gt; [3,] 0.08838835 0.06147304 0.08239050 0.05501473 0.07445792 0.07618660</span></span>
+<span><span class="co">#&gt; [4,] 0.06552848 0.07013545 0.05926830 0.05926830 0.06833841 0.07228896</span></span>
+<span><span class="co">#&gt; [5,] 0.06512986 0.06309898 0.07066975 0.06263873 0.07216878 0.05631426</span></span>
+<span><span class="co">#&gt;              12         13         14         15         16         17</span></span>
+<span><span class="co">#&gt; [1,] 0.06640574 0.06490734 0.05086065 0.08838835 0.08147227 0.07208855</span></span>
+<span><span class="co">#&gt; [2,] 0.08596538 0.07422438 0.05314202 0.05707978 0.06142596 0.06123724</span></span>
+<span><span class="co">#&gt; [3,] 0.06373774 0.06644930 0.06142596 0.05828371 0.06859199 0.08696929</span></span>
+<span><span class="co">#&gt; [4,] 0.07013545 0.06812638 0.05768489 0.04859127 0.07046473 0.08733450</span></span>
+<span><span class="co">#&gt; [5,] 0.05103104 0.08025567 0.06212853 0.09138213 0.10063456 0.05778512</span></span>
+<span><span class="co">#&gt;              18         19         20</span></span>
+<span><span class="co">#&gt; [1,] 0.07802540 0.05103104 0.07701761</span></span>
+<span><span class="co">#&gt; [2,] 0.06118997 0.07013545 0.07308512</span></span>
+<span><span class="co">#&gt; [3,] 0.06282324 0.06984606 0.05548607</span></span>
+<span><span class="co">#&gt; [4,] 0.07519265 0.06351035 0.07787692</span></span>
+<span><span class="co">#&gt; [5,] 0.07001157 0.07164567 0.08168509</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $dyad.dep</span></span>
+<span><span class="co">#&gt;               obs          1          2           3           4           5</span></span>
+<span><span class="co">#&gt; [1,]  0.015231092 0.09114213 0.17929293  0.15628767  0.07512075  0.01600000</span></span>
+<span><span class="co">#&gt; [2,] -0.014458955 0.27732611 0.07309537  0.00256914  0.03703704 -0.04819649</span></span>
+<span><span class="co">#&gt; [3,]  0.016534867 0.04985974 0.16390634  0.22526695  0.01346213  0.03575733</span></span>
+<span><span class="co">#&gt; [4,]  0.142309681 0.08331515 0.06770882  0.08635426 -0.02450783 -0.09973046</span></span>
+<span><span class="co">#&gt; [5,] -0.007178828 0.28958827 0.05245511 -0.02436323  0.02052239  0.05351853</span></span>
+<span><span class="co">#&gt;                 6            7           8           9          10           11</span></span>
+<span><span class="co">#&gt; [1,] -0.076675081  0.037037037  0.01653487  0.04429144  0.18599919  0.016534867</span></span>
+<span><span class="co">#&gt; [2,] -0.007315026  0.027284330 -0.03168755  0.01653487  0.09602250 -0.084773001</span></span>
+<span><span class="co">#&gt; [3,] -0.038461538 -0.046377583  0.23578800  0.01744171 -0.04166667 -0.007315026</span></span>
+<span><span class="co">#&gt; [4,]  0.025533161  0.016534867  0.06656841 -0.06355042 -0.03168755 -0.046377583</span></span>
+<span><span class="co">#&gt; [5,] -0.055499983  0.004865104 -0.06620142  0.06003370  0.15456506 -0.086956522</span></span>
+<span><span class="co">#&gt;                 12          13         14           15          16           17</span></span>
+<span><span class="co">#&gt; [1,] -3.703841e-05 -0.04329056 0.07891851 -0.020952381 -0.02145046 -0.052779337</span></span>
+<span><span class="co">#&gt; [2,]  4.985974e-02 -0.11317254 0.05011147 -0.027430455  0.05550373 -0.057833180</span></span>
+<span><span class="co">#&gt; [3,] -3.680161e-03  0.10437859 0.09048507 -0.088929220 -0.06620142 -0.009166597</span></span>
+<span><span class="co">#&gt; [4,] -3.636364e-03  0.02052239 0.15456506 -0.038821130  0.02146465 -0.020717299</span></span>
+<span><span class="co">#&gt; [5,]  1.501502e-02  0.01134051 0.01114425  0.008708801  0.02964960 -0.069518717</span></span>
+<span><span class="co">#&gt;               18          19          20</span></span>
+<span><span class="co">#&gt; [1,] -0.04944030  0.05921601  0.04000000</span></span>
+<span><span class="co">#&gt; [2,] -0.02145046  0.02964960 -0.01066816</span></span>
+<span><span class="co">#&gt; [3,] -0.06443953 -0.12570356  0.16612165</span></span>
+<span><span class="co">#&gt; [4,]  0.02052239  0.04132335  0.01744171</span></span>
+<span><span class="co">#&gt; [5,] -0.02145046  0.01346213 -0.01090716</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $cycle.dep</span></span>
+<span><span class="co">#&gt;              obs            1            2            3           4</span></span>
+<span><span class="co">#&gt; [1,] 0.004697636 -0.001103624  0.005166549 -0.043316381 0.018152911</span></span>
+<span><span class="co">#&gt; [2,] 0.022057807  0.008162098 -0.002012598  0.022176913 0.023291087</span></span>
+<span><span class="co">#&gt; [3,] 0.003409118 -0.012458788  0.017083731 -0.007613892 0.013395423</span></span>
+<span><span class="co">#&gt; [4,] 0.012866730 -0.009894645  0.014593610 -0.010875492 0.001318978</span></span>
+<span><span class="co">#&gt; [5,] 0.006597912 -0.005309164 -0.013706567  0.003762132 0.004954498</span></span>
+<span><span class="co">#&gt;                 5             6             7           8            9</span></span>
+<span><span class="co">#&gt; [1,]  0.023429739  0.0008855049 -0.0008031409  0.01845672  0.007296080</span></span>
+<span><span class="co">#&gt; [2,]  0.021161920 -0.0037596776 -0.0228106981  0.02145241 -0.016333337</span></span>
+<span><span class="co">#&gt; [3,]  0.019589614 -0.0157842088 -0.0205482958 -0.01682673  0.006492367</span></span>
+<span><span class="co">#&gt; [4,] -0.021241868  0.0120933780  0.0071409237 -0.01524721 -0.003876502</span></span>
+<span><span class="co">#&gt; [5,] -0.006814007 -0.0002113734 -0.0114875897  0.01688435  0.019873100</span></span>
+<span><span class="co">#&gt;                 10            11           12            13           14</span></span>
+<span><span class="co">#&gt; [1,]  0.0108876044 -0.0203660950 -0.002717218  0.0097722915  0.020980010</span></span>
+<span><span class="co">#&gt; [2,] -0.0001741058 -0.0076395268  0.012085242  0.0004795836  0.007465208</span></span>
+<span><span class="co">#&gt; [3,] -0.0031747482 -0.0005560865 -0.012300390 -0.0113514425 -0.020405579</span></span>
+<span><span class="co">#&gt; [4,]  0.0099316048 -0.0134350333  0.011887663 -0.0009431939 -0.023917329</span></span>
+<span><span class="co">#&gt; [5,] -0.0003226875 -0.0044483480  0.002744308  0.0234218377 -0.014900875</span></span>
+<span><span class="co">#&gt;                15           16           17            18            19</span></span>
+<span><span class="co">#&gt; [1,] -0.003934121 -0.006617595  0.025143287 -0.0256152072  0.0334966624</span></span>
+<span><span class="co">#&gt; [2,]  0.016110175 -0.016670374  0.016971878 -0.0064052204 -0.0222250628</span></span>
+<span><span class="co">#&gt; [3,] -0.010477457 -0.019157848 -0.016255004  0.0004144152  0.0188460452</span></span>
+<span><span class="co">#&gt; [4,] -0.015570323 -0.010252212  0.016390588  0.0302162810  0.0005143712</span></span>
+<span><span class="co">#&gt; [5,]  0.006584058  0.015354836  0.004002596 -0.0176610786 -0.0024832008</span></span>
+<span><span class="co">#&gt;                20</span></span>
+<span><span class="co">#&gt; [1,]  0.027294075</span></span>
+<span><span class="co">#&gt; [2,]  0.012874434</span></span>
+<span><span class="co">#&gt; [3,]  0.004833667</span></span>
+<span><span class="co">#&gt; [4,] -0.007174238</span></span>
+<span><span class="co">#&gt; [5,]  0.025782001</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $trans.dep</span></span>
+<span><span class="co">#&gt;                obs             1             2            3            4</span></span>
+<span><span class="co">#&gt; [1,] -0.0096317459  0.0001668722 -0.0006470824  0.013525596  0.003975326</span></span>
+<span><span class="co">#&gt; [2,]  0.0001052847  0.0026044475 -0.0025086253  0.007485888  0.011511687</span></span>
+<span><span class="co">#&gt; [3,] -0.0012054802  0.0024143456  0.0107763290 -0.007058557 -0.006976384</span></span>
+<span><span class="co">#&gt; [4,]  0.0003049938  0.0058686861 -0.0060236255  0.004441567  0.005719648</span></span>
+<span><span class="co">#&gt; [5,] -0.0067322132 -0.0037803306 -0.0196088427  0.011721019  0.009541593</span></span>
+<span><span class="co">#&gt;                  5            6             7            8             9</span></span>
+<span><span class="co">#&gt; [1,] -0.0100856493 -0.009991440  0.0099054049 -0.002248781  0.0156454030</span></span>
+<span><span class="co">#&gt; [2,] -0.0017038403 -0.007723588 -0.0006805453 -0.003481510 -0.0139257208</span></span>
+<span><span class="co">#&gt; [3,] -0.0036448717 -0.005847518 -0.0062966800 -0.020854636 -0.0172129673</span></span>
+<span><span class="co">#&gt; [4,] -0.0004855284 -0.012795181 -0.0098327727 -0.015091369 -0.0009401536</span></span>
+<span><span class="co">#&gt; [5,]  0.0013088725 -0.010638587  0.0187370708  0.003809377  0.0118189302</span></span>
+<span><span class="co">#&gt;                10           11           12            13           14</span></span>
+<span><span class="co">#&gt; [1,]  0.015698579 -0.006000650 -0.006025437  0.0008534936  0.003430211</span></span>
+<span><span class="co">#&gt; [2,]  0.007029371 -0.000697995 -0.007211753  0.0059005969  0.010332527</span></span>
+<span><span class="co">#&gt; [3,] -0.015139033 -0.001256605  0.007629036  0.0280707121 -0.007561715</span></span>
+<span><span class="co">#&gt; [4,] -0.002535357  0.011680930  0.006752193 -0.0213885276  0.011193745</span></span>
+<span><span class="co">#&gt; [5,]  0.004492546  0.001922984 -0.002002603 -0.0169213390  0.002804351</span></span>
+<span><span class="co">#&gt;                15            16           17           18           19</span></span>
+<span><span class="co">#&gt; [1,]  0.007556011  0.0006975328 -0.002337213  0.010917721 -0.001752866</span></span>
+<span><span class="co">#&gt; [2,] -0.008491422 -0.0055958179 -0.016657204 -0.009000911  0.004867422</span></span>
+<span><span class="co">#&gt; [3,]  0.005899404 -0.0054807367  0.003341629  0.001260388  0.004941414</span></span>
+<span><span class="co">#&gt; [4,] -0.001113087 -0.0169926541  0.014628287 -0.016080604  0.003836330</span></span>
+<span><span class="co">#&gt; [5,]  0.006398971  0.0120046899  0.011383988 -0.007419899 -0.008528328</span></span>
+<span><span class="co">#&gt;                20</span></span>
+<span><span class="co">#&gt; [1,]  0.002757938</span></span>
+<span><span class="co">#&gt; [2,]  0.013610132</span></span>
+<span><span class="co">#&gt; [3,] -0.003218213</span></span>
+<span><span class="co">#&gt; [4,] -0.002311782</span></span>
+<span><span class="co">#&gt; [5,] -0.006409589</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -327,18 +633,18 @@ and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>σ</mi><mn>2</mn></msup><annotation encoding="application/x-tex">\sigma^2</annotation></semantics></math>
 parameters</li>
 </ul>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Check effective sample sizes</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">coda</span><span class="op">)</span></span>
 <span><span class="va">mcmc_samples</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/coda/man/mcmc.html" class="external-link">as.mcmc</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">BETA</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/coda/man/effectiveSize.html" class="external-link">effectiveSize</a></span><span class="op">(</span><span class="va">mcmc_samples</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Trace plots for dynamic parameters</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">rho_uv_samples</span>, type <span class="op">=</span> <span class="st">"l"</span>, main <span class="op">=</span> <span class="st">"rho_uv trace"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">sigma_uv_samples</span>, type <span class="op">=</span> <span class="st">"l"</span>, main <span class="op">=</span> <span class="st">"sigma_uv trace"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">rho_ab_samples</span>, type <span class="op">=</span> <span class="st">"l"</span>, main <span class="op">=</span> <span class="st">"rho_ab trace"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">sigma_ab_samples</span>, type <span class="op">=</span> <span class="st">"l"</span>, main <span class="op">=</span> <span class="st">"sigma_ab trace"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="co"># Trace plots for dynamic parameters (if available)</span></span>
+<span><span class="co"># par(mfrow = c(2, 2))</span></span>
+<span><span class="co"># if(!is.null(fit_dynamic$rho_uv)) plot(fit_dynamic$rho_uv, type = "l", main = "rho_uv trace")</span></span>
+<span><span class="co"># if(!is.null(fit_dynamic$sigma_uv)) plot(fit_dynamic$sigma_uv, type = "l", main = "sigma_uv trace")</span></span>
+<span><span class="co"># if(!is.null(fit_dynamic$rho_ab)) plot(fit_dynamic$rho_ab, type = "l", main = "rho_ab trace")</span></span>
+<span><span class="co"># if(!is.null(fit_dynamic$sigma_ab)) plot(fit_dynamic$sigma_ab, type = "l", main = "sigma_ab trace")</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
