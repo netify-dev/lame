@@ -9,7 +9,7 @@
 
 ## Overview
 
-The `lame` package extends the Additive and Multiplicative Effects (AME) framework for longitudinal network analysis, enabling researchers to model how network structure and individual behaviors evolve over time. Built on the foundation of the `amen` package, `lame` introduces dynamic effects that capture temporal heterogeneity through autoregressive processes.
+The `lame` package extends the Additive and Multiplicative Effects (AME) framework for network analysis, providing support for both cross-sectional and longitudinal networks. The package includes two main functions: `ame` for cross-sectional network analysis and `lame` for longitudinal network analysis with dynamic effects that capture temporal heterogeneity through autoregressive processes. Both functions support unipartite (square) and bipartite (rectangular) network structures, making them suitable for analyzing various types of relational data.
 
 ## Installation
 
@@ -28,7 +28,7 @@ You have two options for installing `lame`:
 devtools::install_github("netify-dev/lame", dependencies = TRUE)
 ```
 
-### 📦 Option 2: Install from CRAN (coming soon)
+### 📦 Option 2: Install from CRAN (coming soon ... maybe ... probably)
 
 ```r
 # Once available on CRAN
@@ -102,7 +102,7 @@ fit_dynamic <- lame(
 
 ## Visualization
 
-The package provides comprehensive plotting functions that automatically detect whether effects are static or dynamic:
+Plotting functions:
 
 ```r
 # Visualize additive effects (sender/receiver)
@@ -126,29 +126,15 @@ gof_plot(fit)                                       # Goodness-of-fit
 
 - **Time-varying latent positions** (`dynamic_uv`): Captures evolving community structure and homophily patterns via AR(1) processes
 - **Time-varying heterogeneity** (`dynamic_ab`): Models changing individual activity levels and popularity over time
+- **Bipartite network support**: Handles rectangular adjacency matrices with separate latent factors for row and column nodes
 - **Flexible priors**: Customizable temporal persistence (ρ) and innovation variance (σ²) parameters
 - **Theoretical foundation**: Based on Sewell & Chen (2015, JASA) and Durante & Dunson (2014, Biometrika)
 
-### ⚡ Performance & Implementation
-
-- **C++ acceleration**: Core functions implemented in C++ via Rcpp/RcppArmadillo
-- **Memory efficiency**: ~50% reduction in memory usage for dynamic effects
-- **Advanced sampling**: Forward-filtering backward-sampling (FFBS) for temporal updates
-- **Parallel processing**: Vectorized operations for efficient computation
-
-### 🛠 User Experience
-
-- **Temporal flexibility**: Handles networks with actors entering/exiting over time
-- **Modern CLI**: Progress bars and informative messages via cli package
-- **Comprehensive plotting**: Unified interface for static and dynamic visualization
-- **Extensive diagnostics**: Built-in convergence monitoring and model selection tools 
-
 ## Documentation
 
-- 📖 **Getting Started**: `vignette("lame-overview")`
-- 🔬 **Dynamic Effects**: `vignette("dynamic_effects")`
-- 📚 **Function Reference**: `?lame` for detailed documentation
-- 🌐 **Package Website**: [https://netify-dev.github.io/lame/](https://netify-dev.github.io/lame/)
+- **Getting Started**: `vignette("lame-overview")`
+- **Dynamic Effects**: `vignette("dynamic_effects")`
+- **Bipartite Networks**: `vignette("bipartite")`
 
 ## Citation
 

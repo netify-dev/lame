@@ -28,7 +28,9 @@ get_fit_object <- function(
     Xlist, actorByYr, startVals,
     symmetric, tryErrorChecks,
     AIC=NA, BIC=NA, model.name=NULL,
-    U=NULL, V=NULL, dynamic_uv=FALSE, dynamic_ab=FALSE
+    U=NULL, V=NULL, dynamic_uv=FALSE, dynamic_ab=FALSE,
+    bip=FALSE,
+    rho_ab=NULL, rho_uv=NULL
 ){
   
   # some labels and dims
@@ -36,6 +38,14 @@ get_fit_object <- function(
     actors <- rownames(APS)
   } else {
     actors <- names(APS)
+  }
+  # If no actor names, create default ones
+  if(is.null(actors)) {
+    if(is.matrix(APS)) {
+      actors <- paste0("Actor", 1:nrow(APS))
+    } else {
+      actors <- paste0("Actor", 1:length(APS))
+    }
   }
   pdLabs <- dimnames(YPS)[[3]]
   if(dynamic_uv && !is.null(U)) {
@@ -54,44 +64,61 @@ get_fit_object <- function(
     # For dynamic effects, APS and BPS are already averaged matrices
     APM <- APS
     BPM <- BPS
+    rownames(APM) <- rownames(BPM) <- actors
     # Extract time-averaged values for EZ calculation
     APM_avg <- rowMeans(APM)
     BPM_avg <- rowMeans(BPM)
+    names(APM_avg) <- names(BPM_avg) <- actors
   } else {
     APM<-APS/nrow(VC) 
     BPM<-BPS/nrow(VC)
+    names(APM) <- names(BPM) <- actors
     APM_avg <- APM
     BPM_avg <- BPM
   }
   YPM<-YPS/nrow(VC)
   # Set dimension names for YPM
-  dimnames(YPM) <- list(actors, actors, pdLabs)
-  
-  # Handle UVPM based on dynamic or static
-  if(dynamic_uv && length(dim(UVPS)) == 3) {
-    UVPM <- UVPS  # Already averaged, keep as 3D
-    # For EZ calculation, use time-averaged UV
-    UV_avg <- apply(UVPS, c(1,2), mean)
-    EZ<-get_EZ_cpp(Xlist, 
-                   apply(BETA,2,mean), outer(APM_avg,BPM_avg,"+"), 
-                   UV_avg, diag(nrow(UV_avg)))
+  if(!bip) {
+    dimnames(YPM) <- list(actors, actors, pdLabs)
   } else {
-    UVPM<-UVPS
-    if(length(dim(UVPM)) == 2) {
-      EZ<-get_EZ_cpp(Xlist, 
-                     apply(BETA,2,mean), outer(APM_avg,BPM_avg,"+"), 
-                     UVPM, diag(nrow(UVPM)))
-    }
+    # For bipartite, YPM is rectangular
+    # Need to handle row and column actors separately
+    # For now, skip dimnames for bipartite
   }
   
-  # Set dimension names for EZ
-  dimnames(EZ) <- list(actors, actors, pdLabs)
+  # Handle UVPM based on dynamic or static
+  if(!bip) {
+    if(dynamic_uv && length(dim(UVPS)) == 3) {
+      UVPM <- UVPS  # Already averaged, keep as 3D
+      # For EZ calculation, use time-averaged UV
+      UV_avg <- apply(UVPS, c(1,2), mean)
+      EZ<-get_EZ_cpp(Xlist, 
+                     apply(BETA,2,mean), outer(APM_avg,BPM_avg,"+"), 
+                     UV_avg, diag(nrow(UV_avg)))
+    } else {
+      UVPM<-UVPS
+      if(length(dim(UVPM)) == 2) {
+        EZ<-get_EZ_cpp(Xlist, 
+                       apply(BETA,2,mean), outer(APM_avg,BPM_avg,"+"), 
+                       UVPM, diag(nrow(UVPM)))
+      }
+    }
+    
+    # Set dimension names for EZ
+    dimnames(EZ) <- list(actors, actors, pdLabs)
+  } else {
+    # For bipartite, skip EZ computation for now
+    UVPM <- UVPS
+    EZ <- NULL
+  }
   
   # adding names
-  if(dynamic_uv && length(dim(UVPM)) == 3) {
-    dimnames(UVPM) <- list(actors, actors, pdLabs)
-  } else if(length(dim(UVPM)) == 2) {
-    rownames(UVPM)<-colnames(UVPM)<-actors
+  if(!bip) {
+    if(dynamic_uv && length(dim(UVPM)) == 3) {
+      dimnames(UVPM) <- list(actors, actors, pdLabs)
+    } else if(length(dim(UVPM)) == 2) {
+      rownames(UVPM)<-colnames(UVPM)<-actors
+    }
   }
   rownames(BETA)<-NULL
   
@@ -107,10 +134,12 @@ get_fit_object <- function(
       }
     } else {
       # Standard SVD for static case
-      UDV<-svd(UVPM)
-      U<-UDV$u[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
-      V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
-      rownames(U)<-rownames(V)<-actors
+      if(!bip) {
+        UDV<-svd(UVPM)
+        U<-UDV$u[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
+        V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
+        rownames(U)<-rownames(V)<-actors
+      }
     }
   }
   
@@ -142,8 +171,24 @@ get_fit_object <- function(
   }
   
   # reformat EZ and YPM as list objects
-  EZ <- array_to_list(EZ, actorByYr, pdLabs)
-  YPM <- array_to_list(YPM, actorByYr, pdLabs)
+  if(!bip) {
+    EZ <- array_to_list(EZ, actorByYr, pdLabs)
+    YPM <- array_to_list(YPM, actorByYr, pdLabs)
+  } else {
+    # For bipartite, skip list conversion for now
+    # EZ is already NULL, YPM needs special handling
+  }
+  
+  # Reformat GOF from 3D array to named list if needed
+  if(is.array(GOF) && length(dim(GOF)) == 3) {
+    # GOF is [5 stats, N time points, nscan/odens+1 iterations]
+    gof_names <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
+    GOF_list <- list()
+    for(i in 1:5) {
+      GOF_list[[gof_names[i]]] <- GOF[i,,]
+    }
+    GOF <- GOF_list
+  }
   
   # create fitted object
   if(symmetric){
@@ -156,6 +201,9 @@ get_fit_object <- function(
       fit$a_dynamic <- APM
       fit$APM <- APM_avg  # Overwrite with time-averaged for compatibility
     }
+    # Add rho values
+    if(!is.null(rho_ab)) fit$rho_ab <- rho_ab
+    if(!is.null(rho_uv)) fit$rho_uv <- rho_uv
   }
   if(!symmetric){
     fit <- list(
@@ -169,6 +217,9 @@ get_fit_object <- function(
       fit$APM <- APM_avg  # Overwrite with time-averaged for compatibility
       fit$BPM <- BPM_avg
     }
+    # Add rho values
+    if(!is.null(rho_ab)) fit$rho_ab <- rho_ab
+    if(!is.null(rho_uv)) fit$rho_uv <- rho_uv
   }
   class(fit)<-"ame"
   return(fit)

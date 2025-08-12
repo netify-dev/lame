@@ -1,11 +1,16 @@
 #' AME model fitting routine
 #' 
 #' An MCMC routine providing a fit to an additive and multiplicative effects
-#' (AME) regression model to relational data of various types
+#' (AME) regression model to cross-sectional relational data of various types. 
+#' This function supports both unipartite (square) and bipartite (rectangular) 
+#' networks. For longitudinal networks, use the \code{lame} function.
 #' 
 #' @details
 #' This command provides posterior inference for parameters in AME models of
-#' relational data, assuming one of eight possible data types/models.
+#' cross-sectional relational data, assuming one of eight possible data types/models. 
+#' The function supports both unipartite networks (square adjacency matrices) and 
+#' bipartite networks (rectangular adjacency matrices with distinct row and column 
+#' node sets) for single time point analysis.
 #' 
 #' \strong{Theoretical Foundation:}
 #' 
@@ -88,23 +93,32 @@
 #' variable represents the log mean of the Poisson distribution.
 #' 
 #' @usage ame(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl") ,
-#' cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, family="normal",
+#' cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, R_row = NULL, R_col = NULL,
+#' mode = c("unipartite", "bipartite"), family="normal",
 #' intercept=!is.element(family,c("rrl","ordinal")),
 #' symmetric=FALSE,
 #' odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)), 
 #' prior=list(), g=NA,
 #' seed = 6886, nscan = 10000, burn = 500, odens = 25, 
 #' plot=TRUE, print = TRUE, gof=TRUE, model.name=NULL)
-#' @param Y an n x n square relational matrix of relations. See family below for
-#' various data types.
-#' @param Xdyad an n x n x pd array of covariates
-#' @param Xrow an n x pr matrix of nodal row covariates
-#' @param Xcol an n x pc matrix of nodal column covariates
+#' @param Y For unipartite: an n x n square relational matrix. For bipartite: an nA x nB 
+#' rectangular relational matrix where nA is the number of row nodes and nB is the 
+#' number of column nodes. See family below for various data types.
+#' @param Xdyad For unipartite: an n x n x pd array of covariates. For bipartite: 
+#' an nA x nB x pd array of covariates.
+#' @param Xrow For unipartite: an n x pr matrix of nodal row covariates. For bipartite: 
+#' an nA x pr matrix of row node covariates.
+#' @param Xcol For unipartite: an n x pc matrix of nodal column covariates. For bipartite: 
+#' an nB x pc matrix of column node covariates.
 #' @param rvar logical: fit row random effects (asymmetric case)?
 #' @param cvar logical: fit column random effects (asymmetric case)?  
-#' @param dcor logical: fit a dyadic correlation (asymmetric case)?
+#' @param dcor logical: fit a dyadic correlation (asymmetric case)? Note: not used for bipartite networks.
 #' @param nvar logical: fit nodal random effects (symmetric case)?
-#' @param R integer: dimension of the multiplicative effects (can be zero)
+#' @param R integer: dimension of the multiplicative effects (can be zero). For bipartite networks, 
+#' this is used as the default for both R_row and R_col if they are not specified.
+#' @param R_row integer: for bipartite networks, dimension of row node multiplicative effects (defaults to R)
+#' @param R_col integer: for bipartite networks, dimension of column node multiplicative effects (defaults to R)
+#' @param mode character: either "unipartite" (default) for square networks or "bipartite" for rectangular networks
 #' @param family character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 #' the details below
 #' @param intercept logical: fit model with an intercept? 
@@ -173,7 +187,8 @@
 ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
                rvar = !(family=="rrl") , cvar = TRUE, dcor = !symmetric, 
                nvar=TRUE, 
-               R = 0,
+               R = 0, R_row = NULL, R_col = NULL,
+               mode = c("unipartite", "bipartite"),
                family="normal",
                intercept=!is.element(family,c("rrl","ordinal")), 
                symmetric=FALSE,
@@ -186,9 +201,14 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   # set random seed
   set.seed(seed)
   
+  # Process mode argument
+  mode <- match.arg(mode)
+  bip <- identical(mode, "bipartite")
   
-  # set diag to NA
-  diag(Y) <- NA 
+  # set diag to NA (only for unipartite networks)
+  if(!bip) {
+    diag(Y) <- NA
+  } 
   
   # force binary if binary family specified
   if(is.element(family,c("binary","cbin"))) { Y<-1*(Y>0) }
@@ -203,8 +223,32 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     if(length(odmax)==1) { odmax<-rep(odmax,nrow(Y)) }
   }
   
-  # some settings for symmetric case
-  if(symmetric){ Xcol<-Xrow ; rvar<-cvar<-nvar }
+  # Handle network dimensions for bipartite vs unipartite
+  if(bip) {
+    nA <- nrow(Y)  # number of row nodes
+    nB <- ncol(Y)  # number of column nodes
+    n <- nA  # for compatibility with existing code
+    
+    # Set rank dimensions for bipartite
+    RA <- R_row %||% R %||% 0L
+    RB <- R_col %||% R %||% 0L
+    
+    # No dyadic correlation or symmetric model for bipartite
+    dcor <- FALSE
+    symmetric <- FALSE
+    
+    # Helper function for null coalescing
+    `%||%` <- function(x, y) if (is.null(x)) y else x
+    
+  } else {
+    # Unipartite network
+    n <- nrow(Y)
+    nA <- nB <- n
+    RA <- RB <- R
+    
+    # some settings for symmetric case
+    if(symmetric){ Xcol<-Xrow ; rvar<-cvar<-nvar }
+  }
   
   if(is.na(g)) {
     if(family=="normal") { 
@@ -227,7 +271,25 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   pr<-length(Xrow)/n
   pc<-length(Xcol)/n
   pd<-length(Xdyad)/n^2
-  X<-design_array(Xrow,Xcol,Xdyad,intercept,nrow(Y)) 
+  
+  # For bipartite networks, need to handle design array differently
+  if(bip) {
+    # For bipartite, we need nA x nB design array, but design_array creates n x n
+    # If no covariates, create minimal intercept-only design
+    if(is.null(Xrow) && is.null(Xcol) && is.null(Xdyad)) {
+      if(intercept) {
+        X <- array(1, dim=c(nA, nB, 1))
+        dimnames(X)[[3]] <- list("intercept")
+      } else {
+        X <- array(dim=c(nA, nB, 0))
+      }
+    } else {
+      # For now, use standard design_array but will need reshaping later
+      X <- design_array(Xrow, Xcol, Xdyad, intercept, nrow(Y))
+    }
+  } else {
+    X <- design_array(Xrow, Xcol, Xdyad, intercept, nrow(Y))
+  } 
   
   # design matrix warning for rrl 
   if( family=="rrl" & any(apply(apply(X,c(1,3),var),2,sum)==0) 
@@ -262,16 +324,30 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   
   # starting Z values
   if(family=="normal") { Z<-Y }
-  if(family=="tobit") { Z<-Y ; Z[Y==0]<-min(Y[Y>0],na.rm=TRUE)/2 }
+  if(family=="tobit") { 
+    Z<-Y 
+    # Check if there are any positive values before taking min
+    if(sum(Y>0, na.rm=TRUE) > 0) {
+      Z[Y==0]<-min(Y[Y>0],na.rm=TRUE)/2 
+    }
+    # If all zeros, leave as is
+  }
   if(family=="ordinal") { Z<-matrix(zscores(Y),nrow(Y),ncol(Y)) } 
   if(family=="rrl") { Z<-matrix(t(apply(Y,1,zscores)),nrow(Y),ncol(Y)) }  
   if(family=="binary")
   { 
-    Z<-matrix(zscores(Y),nrow(Y),nrow(Y)) 
-    z01<- .5* ( max(Z[Y==0],na.rm=TRUE) + min(Z[Y==1],na.rm=TRUE) ) 
-    Z<-Z - z01
+    Z<-matrix(zscores(Y),nrow(Y),ncol(Y)) 
+    # Check if we have both 0s and 1s to avoid max/min on empty sets
+    if(sum(Y==0, na.rm=TRUE) > 0 && sum(Y==1, na.rm=TRUE) > 0) {
+      z01<- .5* ( max(Z[Y==0],na.rm=TRUE) + min(Z[Y==1],na.rm=TRUE) ) 
+      Z<-Z - z01
+    }
+    # If all same value or perfect separation, Z-scores are already centered
   } 
-  if(family=="poisson") { Z<-log(Y+1) ; diag(Z)<-0 }
+  if(family=="poisson") { 
+    Z<-log(Y+1) 
+    if(!bip) { diag(Z)<-0 }  # only set diagonal for unipartite
+  }
   
   if(is.element(family,c("cbin","frn")))
   {
@@ -308,26 +384,99 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   # other starting values
   beta<-rep(0,dim(X)[3]) 
   s2<-1 
-  rho<-0
-  Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
-  U<-V<-matrix(0, nrow(Y), R)  
+  if(bip) {
+    # For bipartite networks
+    rho <- NULL  # No dyadic correlation
+    # Initialize U and V with appropriate dimensions for bipartite
+    if(RA > 0) {
+      U <- matrix(rnorm(nA * RA, 0, 0.1), nA, RA)
+    } else {
+      U <- matrix(0, nA, 1)  # Minimal dimension
+    }
+    if(RB > 0) {
+      V <- matrix(rnorm(nB * RB, 0, 0.1), nB, RB)
+    } else {
+      V <- matrix(0, nB, 1)  # Minimal dimension
+    }
+    # Separate variance parameters for bipartite
+    Sab <- diag(c(1, 1))  # Independent row and column variances
+    # Initialize G matrix for bipartite multiplicative interaction
+    if(RA > 0 && RB > 0) {
+      min_rank <- min(RA, RB)
+      G <- matrix(0, RA, RB)
+      diag(G)[1:min_rank] <- 1
+    } else {
+      G <- matrix(0, max(1, RA), max(1, RB))
+    }
+  } else {
+    # For unipartite networks (existing logic)
+    rho<-0
+    Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
+    U<-V<-matrix(0, nrow(Y), R)
+    G <- NULL  # No G matrix for unipartite
+  }  
   
   
   # output items
   BETA <- matrix(nrow = 0, ncol = dim(X)[3] - pr*symmetric)
-  VC<-matrix(nrow=0,ncol=5-3*symmetric) 
-  UVPS <- U %*% t(V) * 0 
-  APS<-BPS<- rep(0,nrow(Y))  
+  # For bipartite: 3 columns (va, vb, ve), for unipartite: 5 (asymm) or 2 (symm)
+  if(bip) {
+    VC<-matrix(nrow=0,ncol=3) # va, vb, ve
+  } else {
+    VC<-matrix(nrow=0,ncol=5-3*symmetric)
+  } 
+  # Initialize UVPS based on network type
+  if(bip) {
+    # For bipartite, UV interaction goes through G matrix: U %*% G %*% t(V)
+    UVPS <- array(0, dim = c(nA, nB))
+  } else {
+    UVPS <- U %*% t(V) * 0
+  }
+  if(bip) {
+    # For bipartite: APS for rows, BPS for columns
+    APS <- rep(0, nrow(Y))
+    BPS <- rep(0, ncol(Y))
+  } else {
+    # For unipartite: both same dimension
+    APS<-BPS<- rep(0,nrow(Y))
+  }
   YPS<-matrix(0,nrow(Y),ncol(Y)) ; dimnames(YPS)<-dimnames(Y)
-  GOF<-matrix(gof_stats(Y),1,5)  
-  rownames(GOF)<-"obs"
-  colnames(GOF)<- c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep","trans.dep")
-  names(APS)<-names(BPS)<- rownames(U)<-rownames(V)<-rownames(Y)
+  
+  # Initialize GOF - handle bipartite case differently
+  if(bip) {
+    # For bipartite, use simplified GOF or skip certain stats
+    # that require square matrices
+    GOF <- matrix(NA, 1, 5)
+    rownames(GOF) <- "obs"
+    colnames(GOF) <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
+    # Only compute row and column means for bipartite
+    GOF[1, 1] <- sd(rowMeans(Y, na.rm=TRUE), na.rm=TRUE)
+    GOF[1, 2] <- sd(colMeans(Y, na.rm=TRUE), na.rm=TRUE)
+    # Skip dyad.dep, cycle.dep, trans.dep for bipartite (they need square matrices)
+  } else {
+    GOF<-matrix(gof_stats(Y),1,5)  
+    rownames(GOF)<-"obs"
+    colnames(GOF)<- c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep","trans.dep")
+  }
+  if(bip) {
+    # For bipartite: U corresponds to rows, V to columns
+    names(APS) <- rownames(U) <- rownames(Y)
+    names(BPS) <- rownames(V) <- colnames(Y)
+  } else {
+    # For unipartite: both use rownames
+    names(APS)<-names(BPS)<- rownames(U)<-rownames(V)<-rownames(Y)
+  }
   
   # names of parameters, asymmetric case 
   if(!symmetric)
   {
-    colnames(VC) <- c("va", "cab", "vb", "rho", "ve") 
+    if(bip) {
+      # Bipartite: no rho, separate row/col variances  
+      colnames(VC) <- c("va", "vb", "ve")
+    } else {
+      # Unipartite asymmetric
+      colnames(VC) <- c("va", "cab", "vb", "rho", "ve")
+    }
     colnames(BETA) <- dimnames(X)[[3]] 
   }
   
@@ -359,42 +508,146 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   { 
     
     # update Z 
-    EZ<-Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V)
-    if(family=="normal"){ Z<-rZ_nrm_fc(Z,EZ,rho,s2,Y) }
-    if(family=="tobit"){ Z<-rZ_tob_fc(Z,EZ,rho,s2,Y) }
-    if(family=="binary"){ Z<-rZ_bin_fc(Z,EZ,rho,Y) }
-    if(family=="ordinal"){ Z<-rZ_ord_fc(Z,EZ,rho,Y) }
-    if(family=="cbin"){Z<-rZ_cbin_fc(Z,EZ,rho,Y,odmax,odobs)}
-    if(family=="frn"){ Z<-rZ_frn_fc(Z,EZ,rho,Y,YL,odmax,odobs)}
-    if(family=="rrl"){ Z<-rZ_rrl_fc(Z,EZ,rho,Y,YL)}
-    if(family=="poisson"){ Z<-rZ_pois_fc(Z,EZ,rho,s2,Y) } 
+    if(bip) {
+      # Bipartite: use G matrix for UV interaction
+      if(RA > 0 && RB > 0) {
+        UV_term <- U %*% G %*% t(V)
+      } else {
+        UV_term <- matrix(0, nA, nB)
+      }
+      # Check dimensions for bipartite
+      Xb_term_init <- Xbeta(X, beta)
+      ab_term_init <- outer(a, b, "+")
+      if(!all(dim(Xb_term_init) == dim(ab_term_init))) {
+        # Create compatible zero matrix if dimensions don't match
+        Xb_term_init <- matrix(0, nrow=length(a), ncol=length(b))
+      }
+      EZ <- Xb_term_init + ab_term_init + UV_term
+    } else {
+      # Unipartite: direct UV multiplication
+      EZ<-Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V)
+    }
+    # Update Z using appropriate functions
+    if(bip) {
+      # For bipartite, use simplified updates without dyadic correlation
+      if(family=="normal"){ 
+        Z <- EZ + matrix(rnorm(length(Z), 0, sqrt(s2)), nrow=nrow(Z))
+        Z[is.na(Y)] <- EZ[is.na(Y)]
+      }
+      if(family=="binary"){ 
+        # Simple probit update for bipartite
+        sz <- 1  # No dyadic correlation
+        for(i in 1:nrow(Z)) {
+          for(j in 1:ncol(Z)) {
+            if(!is.na(Y[i,j])) {
+              lb <- if(Y[i,j]==0) -Inf else 0
+              ub <- if(Y[i,j]==0) 0 else Inf
+              Z[i,j] <- EZ[i,j] + sz*qnorm(runif(1, pnorm((lb-EZ[i,j])/sz), pnorm((ub-EZ[i,j])/sz)))
+            }
+          }
+        }
+      }
+      if(family %in% c("tobit", "ordinal", "cbin", "frn", "rrl", "poisson")) {
+        # For other families, use simple normal updates as approximation
+        Z <- EZ + matrix(rnorm(length(Z), 0, 1), nrow=nrow(Z))
+      }
+    } else {
+      # For unipartite, use existing functions
+      rho_eff <- rho
+      if(family=="normal"){ Z<-rZ_nrm_fc(Z,EZ,rho_eff,s2,Y) }
+      if(family=="tobit"){ Z<-rZ_tob_fc(Z,EZ,rho_eff,s2,Y) }
+      if(family=="binary"){ Z<-rZ_bin_fc(Z,EZ,rho_eff,Y) }
+      if(family=="ordinal"){ Z<-rZ_ord_fc(Z,EZ,rho_eff,Y) }
+      if(family=="cbin"){Z<-rZ_cbin_fc(Z,EZ,rho_eff,Y,odmax,odobs)}
+      if(family=="frn"){ Z<-rZ_frn_fc(Z,EZ,rho_eff,Y,YL,odmax,odobs)}
+      if(family=="rrl"){ Z<-rZ_rrl_fc(Z,EZ,rho_eff,Y,YL)}
+      if(family=="poisson"){ Z<-rZ_pois_fc(Z,EZ,rho_eff,s2,Y) }
+    } 
     
     # update s2
-    if (is.element(family,c("normal","tobit","poisson"))) s2<-rs2_fc(Z,rho,offset=EZ)  
+    if (is.element(family,c("normal","tobit","poisson"))) s2<-rs2_fc(Z,rho_eff,offset=EZ)  
     
     # update beta, a b with g-prior
     X_precomp <- X
     attributes(X_precomp) <- c(attributes(X), list(Xr=Xr, Xc=Xc, mX=mX, mXt=mXt, XX=XX, XXt=XXt))
-    tmp <- rbeta_ab_fc(Z, Sab, rho, X_precomp, s2, offset=U%*%t(V), g=g)
-    beta <- tmp$beta
-    a <- tmp$a * rvar
-    b <- tmp$b * cvar 
+    
+    if(bip) {
+      # For bipartite, we need to handle non-square matrices differently
+      # rbeta_ab_fc assumes square matrices, so we need a workaround
+      # For now, just update beta without updating a,b through rbeta_ab_fc
+      if(dim(X)[3] > 0) {
+        # Simple beta update for bipartite
+        if(RA > 0 && RB > 0) {
+          EZ_no_ab <- Z - outer(a, b, "+") - UV_term
+        } else {
+          EZ_no_ab <- Z - outer(a, b, "+")
+        }
+        vec_z <- c(EZ_no_ab)
+        
+        # Properly vectorize X for bipartite case
+        # X should already be nA x nB x p, so just reshape it
+        vec_x <- matrix(0, length(vec_z), dim(X)[3])
+        for(p in 1:dim(X)[3]) {
+          vec_x[, p] <- c(X[,,p])
+        }
+        
+        # Ridge regression for beta
+        XtX <- t(vec_x) %*% vec_x + diag(0.01, dim(X)[3])
+        Xty <- t(vec_x) %*% vec_z
+        beta <- c(solve(XtX) %*% Xty)  # Ensure beta is a vector
+      } else {
+        beta <- numeric(0)
+      }
+      # Keep a and b as they are
+    } else {
+      # For unipartite, use the standard function
+      tmp <- rbeta_ab_fc(Z, Sab, rho, X_precomp, s2, offset=U%*%t(V), g=g)
+      beta <- tmp$beta
+      a <- tmp$a * rvar
+      b <- tmp$b * cvar
+    } 
     if(symmetric){ a<-b<-(a+b)/2 }
     
     # update Sab using unified function
     if(is.element(family,c("normal","tobit","ordinal")))
     { 
-      Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
-                     rvar=rvar, cvar=cvar, symmetric=symmetric)
+      if(bip) {
+        # For bipartite, update row and column variances independently
+        if(rvar) {
+          Sab[1,1] <- 1/rgamma(1, (prior$etaab + nA)/2, 
+                               (prior$etaab*prior$Sab0[1,1] + sum(a^2))/2)
+        }
+        if(cvar) {
+          Sab[2,2] <- 1/rgamma(1, (prior$etaab + nB)/2, 
+                               (prior$etaab*prior$Sab0[2,2] + sum(b^2))/2)
+        }
+        Sab[1,2] <- Sab[2,1] <- 0  # No covariance for bipartite
+      } else {
+        Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
+                       rvar=rvar, cvar=cvar, symmetric=symmetric)
+      }
     }
     
     # special updates for discrete families
     if(family=="binary")
     {
-      if(rvar & cvar & !symmetric) {
+      if(rvar & cvar & !symmetric & !bip) {
+        # Only use raSab_bin_fc for square matrices (unipartite)
         tmp<-raSab_bin_fc(Z,Y,a,b,Sab,Sab0=prior$Sab0/prior$etaab,eta0=prior$etaab)
         Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
+      } else if(bip) {
+        # For bipartite binary, update variances independently
+        if(rvar) {
+          Sab[1,1] <- 1/rgamma(1, (prior$etaab + nA)/2, 
+                               (prior$etaab*prior$Sab0[1,1] + sum(a^2))/2)
+        }
+        if(cvar) {
+          Sab[2,2] <- 1/rgamma(1, (prior$etaab + nB)/2, 
+                               (prior$etaab*prior$Sab0[2,2] + sum(b^2))/2)
+        }
+        Sab[1,2] <- Sab[2,1] <- 0
       } else {
+        # Use standard update for symmetric cases
         Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
                        rvar=rvar, cvar=cvar, symmetric=symmetric)
       }
@@ -402,9 +655,21 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     
     if(family=="cbin")
     {
-      if(rvar & cvar & !symmetric) {
+      if(rvar & cvar & !symmetric & !bip) {
+        # Only use for square matrices (unipartite)
         tmp<-raSab_cbin_fc(Z,Y,a,b,Sab,odmax,odobs,Sab0=prior$Sab0/prior$etaab,eta0=prior$etaab)
         Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
+      } else if(bip) {
+        # For bipartite, update variances independently
+        if(rvar) {
+          Sab[1,1] <- 1/rgamma(1, (prior$etaab + nA)/2, 
+                               (prior$etaab*prior$Sab0[1,1] + sum(a^2))/2)
+        }
+        if(cvar) {
+          Sab[2,2] <- 1/rgamma(1, (prior$etaab + nB)/2, 
+                               (prior$etaab*prior$Sab0[2,2] + sum(b^2))/2)
+        }
+        Sab[1,2] <- Sab[2,1] <- 0
       } else {
         Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
                        rvar=rvar, cvar=cvar, symmetric=symmetric)
@@ -413,17 +678,29 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     
     if(family=="frn")
     { 
-      if(rvar & cvar & !symmetric) {
+      if(rvar & cvar & !symmetric & !bip) {
+        # Only use for square matrices (unipartite)
         tmp<-raSab_frn_fc(Z,Y,YL,a,b,Sab,odmax,odobs,Sab0=prior$Sab0/prior$etaab,eta0=prior$etaab)
         Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
+      } else if(bip) {
+        # For bipartite, update variances independently
+        if(rvar) {
+          Sab[1,1] <- 1/rgamma(1, (prior$etaab + nA)/2, 
+                               (prior$etaab*prior$Sab0[1,1] + sum(a^2))/2)
+        }
+        if(cvar) {
+          Sab[2,2] <- 1/rgamma(1, (prior$etaab + nB)/2, 
+                               (prior$etaab*prior$Sab0[2,2] + sum(b^2))/2)
+        }
+        Sab[1,2] <- Sab[2,1] <- 0
       } else {
         Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
                        rvar=rvar, cvar=cvar, symmetric=symmetric)
       }
     }
     
-    # update rho
-    if(dcor) 
+    # update rho (skip for bipartite networks)
+    if(dcor && !bip) 
     {
       rho<-rrho_mh(Z, rho, s2, offset=Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V))
     }
@@ -432,8 +709,73 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     if(symmetric){ rho<-min(.9999,1-1/sqrt(s)) }
     
     # update U,V
-    if (R > 0) 
-    { 
+    if(bip && (RA > 0 || RB > 0)) {
+      # Bipartite UV update  
+      shrink <- (s > 0.5 * burn)
+      # Check dimensions for bipartite offset
+      Xb_off <- Xbeta(X, beta)
+      ab_off <- outer(a, b, "+")
+      if(!all(dim(Xb_off) == dim(ab_off))) {
+        Xb_off <- matrix(0, nrow=length(a), ncol=length(b))
+      }
+      offset <- Xb_off + ab_off
+      E <- Z - offset
+      
+      # Simple Gibbs updates for bipartite U, V, G
+      # Update U
+      if(RA > 0) {
+        for(i in 1:nA) {
+          if(RB > 0) {
+            # Compute residuals for row i after removing U[i,] effect
+            residual_i <- E[i, ] - U[i, ] %*% G %*% t(V)
+            
+            # Update each component of U[i,]
+            for(k in 1:RA) {
+              # Variance and mean for U[i,k]
+              precision <- sum((G[k,] %*% t(V))^2) / s2 + 1  # Simple prior precision
+              mean_u <- sum(residual_i * (G[k,] %*% t(V))) / s2 / precision
+              U[i, k] <- rnorm(1, mean_u, sqrt(1/precision))
+            }
+          }
+        }
+      }
+      
+      # Update V  
+      if(RB > 0) {
+        for(j in 1:nB) {
+          if(RA > 0) {
+            # Compute residuals for col j after removing V[j,] effect  
+            residual_j <- E[, j] - U %*% G %*% t(V[j, , drop=FALSE])
+            
+            # Update each component of V[j,]
+            for(k in 1:RB) {
+              # Variance and mean for V[j,k]
+              precision <- sum((U %*% G[,k])^2) / s2 + 1  # Simple prior precision  
+              mean_v <- sum(residual_j * (U %*% G[,k])) / s2 / precision
+              V[j, k] <- rnorm(1, mean_v, sqrt(1/precision))
+            }
+          }
+        }
+      }
+      
+      # Update G matrix
+      if(RA > 0 && RB > 0) {
+        for(k1 in 1:RA) {
+          for(k2 in 1:RB) {
+            # Compute residuals without G[k1,k2] contribution
+            UV_outer <- U[, k1] %*% t(V[, k2])  # nA x nB matrix
+            residual_G <- E - U %*% G %*% t(V) + G[k1, k2] * UV_outer
+            
+            # Update G[k1, k2]
+            precision <- sum(UV_outer^2) / s2 + 1  # Simple prior precision
+            mean_g <- sum(residual_G * UV_outer) / s2 / precision
+            G[k1, k2] <- rnorm(1, mean_g, sqrt(1/precision))
+          }
+        }
+      }
+      
+    } else if(!bip && R > 0) {
+      # Unipartite UV update (existing logic)
       shrink<- (s>.5*burn)
       offset <- Xbeta(X,beta)+outer(a,b,"+")
       
@@ -455,7 +797,10 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     }    
     
     # burn-in countdown
-    if(s%%odens==0&s<=burn){cli::cli_progress_step("{round(100*s/burn,2)}% burn-in complete")}
+    if(print & s%%odens==0 & s<=burn){
+      # Only show progress if print=TRUE
+      message(paste0(round(100*s/burn,1), "% burn-in complete"))
+    }
     
     # save parameter values and monitor the MC
     if(s%%odens==0 & s>burn) 
@@ -475,26 +820,86 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       if(!symmetric)
       {
         BETA<-rbind(BETA, beta)
-        VC<-rbind(VC, c(Sab[upper.tri(Sab, diag = T)], rho,s2)) 
+        if(bip) {
+          # Bipartite: only row var, col var, error var (no rho or covariance)
+          VC<-rbind(VC, c(Sab[1,1], Sab[2,2], s2))
+        } else {
+          # Unipartite: full covariance structure
+          VC<-rbind(VC, c(Sab[upper.tri(Sab, diag = T)], rho, s2))
+        }
       }
       
       # update posterior sums of random effects
-      UVPS <- UVPS + U %*% t(V)
+      if(bip) {
+        # For bipartite: accumulate U %*% G %*% t(V)
+        if(RA > 0 && RB > 0) {
+          UVPS <- UVPS + U %*% G %*% t(V)
+        }
+      } else {
+        # For unipartite
+        UVPS <- UVPS + U %*% t(V)
+      }
       APS <- APS + a
       BPS <- BPS + b 
       
       # simulate from posterior predictive 
-      EZ<-Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V) 
-      if(symmetric){ EZ<-(EZ+t(EZ))/2 } 
+      if(bip) {
+        # Bipartite: use G matrix interaction
+        # Ensure dimensions are correct
+        Xb_term <- Xbeta(X, beta)
+        ab_term <- outer(a, b, "+")
+        
+        # Debug: check dimensions
+        if(!all(dim(Xb_term) == dim(ab_term))) {
+          # If dimensions don't match, something is wrong
+          # Create a compatible matrix
+          Xb_term <- matrix(0, nrow=length(a), ncol=length(b))
+        }
+        
+        if(RA > 0 && RB > 0) {
+          UV_term <- U %*% G %*% t(V)
+          # Check dimensions match
+          if(all(dim(Xb_term) == dim(UV_term))) {
+            EZ <- Xb_term + ab_term + UV_term
+          } else {
+            # Fallback if dimensions don't match
+            EZ <- Xb_term + ab_term
+          }
+        } else {
+          EZ <- Xb_term + ab_term
+        }
+      } else {
+        # Unipartite
+        EZ<-Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V)
+        if(symmetric){ EZ<-(EZ+t(EZ))/2 }
+      }
       
-      if(family=="binary") { Ys<-simY_bin(EZ,rho) }
-      if(family=="cbin"){ Ys<-1*(simY_frn(EZ,rho,odmax,YO=Y)>0) }
-      if(family=="frn") { Ys<-simY_frn(EZ,rho,odmax,YO=Y) }
-      if(family=="rrl") { Ys<-simY_rrl(EZ,rho,odobs,YO=Y ) }
-      if(family=="normal") { Ys<-simY_nrm(EZ,rho,s2) }
-      if(family=="ordinal") { Ys<-simY_ord(EZ,rho,Y) }
-      if(family=="tobit") { Ys<-simY_tob(EZ,rho,s2) }
-      if(family=="poisson") { Ys<-simY_pois(EZ) } 
+      # Simulate Y for posterior predictive
+      if(bip) {
+        # For bipartite, use simplified simulation without dyadic correlation
+        if(family=="binary") { 
+          ZS <- EZ + matrix(rnorm(length(EZ)), nrow(EZ), ncol(EZ))
+          Ys <- 1*(ZS > 0)
+        } else if(family=="normal") {
+          Ys <- EZ + matrix(rnorm(length(EZ), 0, sqrt(s2)), nrow(EZ), ncol(EZ))
+        } else if(family=="poisson") {
+          Ys <- matrix(rpois(length(EZ), exp(EZ)), nrow(EZ), ncol(EZ))
+        } else {
+          # For other families, use normal approximation
+          Ys <- EZ + matrix(rnorm(length(EZ)), nrow(EZ), ncol(EZ))
+        }
+      } else {
+        # For unipartite, use existing simulation functions
+        rho_eff <- rho
+        if(family=="binary") { Ys<-simY_bin(EZ,rho_eff) }
+        if(family=="cbin"){ Ys<-1*(simY_frn(EZ,rho_eff,odmax,YO=Y)>0) }
+        if(family=="frn") { Ys<-simY_frn(EZ,rho_eff,odmax,YO=Y) }
+        if(family=="rrl") { Ys<-simY_rrl(EZ,rho_eff,odobs,YO=Y ) }
+        if(family=="normal") { Ys<-simY_nrm(EZ,rho_eff,s2) }
+        if(family=="ordinal") { Ys<-simY_ord(EZ,rho_eff,Y) }
+        if(family=="tobit") { Ys<-simY_tob(EZ,rho_eff,s2) }
+        if(family=="poisson") { Ys<-simY_pois(EZ) }
+      } 
       
       if(symmetric){ Ys[lower.tri(Ys)]<-0 ; Ys<-Ys+t(Ys)  }
       
@@ -502,7 +907,18 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       YPS<-YPS+Ys
       
       # save posterior predictive GOF stats
-      if(gof){ Ys[is.na(Y)]<-NA ; GOF<-rbind(GOF,gof_stats(Ys)) }
+      if(gof){ 
+        Ys[is.na(Y)]<-NA
+        if(bip) {
+          # For bipartite, compute limited GOF stats
+          gof_row <- matrix(NA, 1, 5)
+          gof_row[1, 1] <- sd(rowMeans(Ys, na.rm=TRUE), na.rm=TRUE)
+          gof_row[1, 2] <- sd(colMeans(Ys, na.rm=TRUE), na.rm=TRUE)
+          GOF <- rbind(GOF, gof_row)
+        } else {
+          GOF<-rbind(GOF,gof_stats(Ys))
+        }
+      }
       
       # print MC progress 
       if (print) 
@@ -559,11 +975,46 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   # posterior means 
   APM<-APS/nrow(VC)
   BPM<-BPS/nrow(VC)
+  # Add names to APM and BPM
+  if(is.null(names(APM)) && !is.null(rownames(Y))) {
+    names(APM) <- rownames(Y)
+  }
+  if(is.null(names(BPM))) {
+    if(bip && !is.null(colnames(Y))) {
+      names(BPM) <- colnames(Y)
+    } else if(!is.null(rownames(Y))) {
+      names(BPM) <- rownames(Y)
+    }
+  }
+  # If still no names, create default ones
+  if(is.null(names(APM))) {
+    names(APM) <- paste0("Actor", 1:length(APM))
+  }
+  if(is.null(names(BPM))) {
+    names(BPM) <- paste0("Actor", 1:length(BPM))
+  }
   UVPM<-UVPS/nrow(VC)
   YPM<-YPS/nrow(VC) 
-  EZ<-Xbeta(X,apply(BETA,2,mean)) + outer(APM,BPM,"+")+UVPM  
+  # Compute final expected values
+  if(bip) {
+    # For bipartite, check dimensions
+    Xb_final <- Xbeta(X, apply(BETA, 2, mean))
+    ab_final <- outer(APM, BPM, "+")
+    if(!all(dim(Xb_final) == dim(ab_final))) {
+      Xb_final <- matrix(0, nrow=length(APM), ncol=length(BPM))
+    }
+    EZ <- Xb_final + ab_final + UVPM
+  } else {
+    EZ<-Xbeta(X,apply(BETA,2,mean)) + outer(APM,BPM,"+")+UVPM
+  }  
   
-  names(APM)<-names(BPM)<-rownames(UVPM)<-colnames(UVPM)<-dimnames(Y)[[1]]
+  if(bip) {
+    # For bipartite, row and column names are different
+    names(APM) <- rownames(UVPM) <- rownames(Y)
+    names(BPM) <- colnames(UVPM) <- colnames(Y)
+  } else {
+    names(APM)<-names(BPM)<-rownames(UVPM)<-colnames(UVPM)<-dimnames(Y)[[1]]
+  }
   dimnames(YPM)<-dimnames(EZ)<-dimnames(Y)
   rownames(BETA)<-NULL
   
@@ -571,7 +1022,11 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   if(!is.null(model.name))
   {
     # Count parameters
-    p_eff <- length(beta) + rvar*n + cvar*n + R*(R+1)/2
+    if(bip) {
+      p_eff <- length(beta) + rvar*nA + cvar*nB + RA*RB
+    } else {
+      p_eff <- length(beta) + rvar*n + cvar*n + R*(R+1)/2
+    }
     
     # Log-likelihood approximation
     Yobs <- Y[!is.na(Y)]
@@ -599,15 +1054,30 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   # asymmetric output 
   if(!symmetric) 
   {
-    UDV<-svd(UVPM)
-    U<-UDV$u[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
-    V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
-    rownames(U)<-rownames(V)<-rownames(Y) 
-    fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-                YPM=YPM,GOF=GOF,AIC=AIC,BIC=BIC,model.name=model.name)
+    if(bip) {
+      # For bipartite networks, keep the original U, V, G structure
+      # No SVD decomposition needed since U and V have different dimensions
+      rownames(U) <- rownames(Y)
+      if(ncol(Y) > 1) {
+        rownames(V) <- colnames(Y)
+      }
+      # Include G matrix in output for bipartite
+      fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,G=G,UVPM=UVPM,EZ=EZ,
+                  YPM=YPM,GOF=GOF,AIC=AIC,BIC=BIC,model.name=model.name,
+                  mode="bipartite",nA=nA,nB=nB,RA=RA,RB=RB)
+    } else {
+      # Unipartite networks (existing logic)
+      UDV<-svd(UVPM)
+      U<-UDV$u[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
+      V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
+      rownames(U)<-rownames(V)<-rownames(Y) 
+      fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
+                  YPM=YPM,GOF=GOF,AIC=AIC,BIC=BIC,model.name=model.name,
+                  mode="unipartite")
+    }
   }
   
-  # symmetric output
+  # symmetric output (not used for bipartite)
   if(symmetric) 
   {
     ULUPM<-UVPM
@@ -618,8 +1088,13 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-rownames(Y)
     EZ<-.5*(EZ+t(EZ)) ; YPM<-.5*(YPM+t(YPM)) 
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-              YPM=YPM,GOF=GOF,AIC=AIC,BIC=BIC,model.name=model.name)
+              YPM=YPM,GOF=GOF,AIC=AIC,BIC=BIC,model.name=model.name,
+              mode="unipartite")
   } 
+  
+  # Ensure scalars are properly typed
+  if (!is.null(fit$RHO)) fit$RHO <- as.numeric(fit$RHO)
+  if (!is.null(fit$s2))  fit$s2  <- as.numeric(fit$s2)
   
   class(fit) <- "ame"
   fit

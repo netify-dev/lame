@@ -8,3 +8,5 @@
 ^.*\.tar\.gz$
 ^.*\.pdf$
 ^\.github$
+^_pkgdown\.yml$
+^pkgdown$

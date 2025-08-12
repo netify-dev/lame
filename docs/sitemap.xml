@@ -4,6 +4,7 @@
 <url><loc>https://netify-dev.github.io/lame/articles/dynamic_effects.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/articles/index.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/articles/lame-overview.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/articles/lame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/authors.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/index.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/news/index.html</loc></url>
@@ -30,9 +31,11 @@
 <url><loc>https://netify-dev.github.io/lame/reference/arrayToList.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/array_to_list.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/array_to_list_opt.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/bipartite_helpers.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/checkFormat.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/check_format.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/coldwar.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/compute_gof_bipartite.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/comtrade.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/design_array.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/design_array_listwisedel.html</loc></url>
@@ -60,6 +63,7 @@
 <url><loc>https://netify-dev.github.io/lame/reference/ldZgbme_opt.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/listToArray.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/list_to_array.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/list_to_array_bipartite.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/llsrmRho.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/llsrmRho_opt.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/mhalf.html</loc></url>
@@ -102,6 +106,7 @@
 <url><loc>https://netify-dev.github.io/lame/reference/rs2_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rs2_rep_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rwish.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/sample_ab_bipartite.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/sample_dynamic_ab_cpp.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/sample_rho_ab_cpp.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/sample_rho_uv.html</loc></url>
@@ -121,6 +126,7 @@
 <url><loc>https://netify-dev.github.io/lame/reference/summary.ame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/summary.lame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/trace_plot.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/update_variances_bipartite.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/use_cpp_optimization.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/uv_plot.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/xnet.html</loc></url>

@@ -79,7 +79,10 @@ design_array<-function(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n)
   ### missing values
   if( sum(is.na(X)) > sum( is.na(apply(X,3,diag)) ) )
   {
-    cat("WARNING: replacing NAs in design matrix with zeros","\n")
+    # Use suppressWarnings() in tests to avoid this message
+    if(getOption("lame.warn.na", TRUE)) {
+      warning("Replacing NAs in design matrix with zeros", call. = FALSE)
+    }
   } 
   X[is.na(X)]<-0
   ###

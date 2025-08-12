@@ -121,6 +121,26 @@ sample_sigma_uv <- function(U_cube, V_cube, rho_uv, symmetric) {
     .Call(`_lame_sample_sigma_uv`, U_cube, V_cube, rho_uv, symmetric)
 }
 
+count_four_cycles_bip_cpp <- function(Y) {
+    .Call(`_lame_count_four_cycles_bip_cpp`, Y)
+}
+
+compute_degrees_bip_cpp <- function(Y) {
+    .Call(`_lame_compute_degrees_bip_cpp`, Y)
+}
+
+clustering_coef_bip_cpp <- function(Y) {
+    .Call(`_lame_clustering_coef_bip_cpp`, Y)
+}
+
+get_EZ_bip_cpp <- function(base, a, b, U, V, G) {
+    .Call(`_lame_get_EZ_bip_cpp`, base, a, b, U, V, G)
+}
+
+outer_ab_bip_cpp <- function(a, b) {
+    .Call(`_lame_outer_ab_bip_cpp`, a, b)
+}
+
 get_EZ_cpp <- function(Xlist, beta, ab, U, V) {
     .Call(`_lame_get_EZ_cpp`, Xlist, beta, ab, U, V)
 }
@@ -227,5 +247,21 @@ rrho_mh_rep_cpp <- function(ET, rho, s2) {
 
 rs2_rep_fc_cpp <- function(ET, rhoMat) {
     .Call(`_lame_rs2_rep_fc_cpp`, ET, rhoMat)
+}
+
+sample_U_bip_cpp <- function(R, V, G, lambdaU, s2) {
+    .Call(`_lame_sample_U_bip_cpp`, R, V, G, lambdaU, s2)
+}
+
+sample_V_bip_cpp <- function(R, U, G, lambdaV, s2) {
+    .Call(`_lame_sample_V_bip_cpp`, R, U, G, lambdaV, s2)
+}
+
+sample_G_bip_cpp <- function(R, U, V, lambdaG, s2) {
+    .Call(`_lame_sample_G_bip_cpp`, R, U, V, lambdaG, s2)
+}
+
+canon_orient_bip_cpp <- function(U, V, G) {
+    .Call(`_lame_canon_orient_bip_cpp`, U, V, G)
 }
 

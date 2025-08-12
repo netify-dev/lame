@@ -54,6 +54,20 @@
 #' @export gof_stats
 gof_stats<-function(Y)
 {
+  # Check if matrix is square - GOF stats require square matrices
+  if(nrow(Y) != ncol(Y)) {
+    # For non-square (bipartite) matrices, return limited stats
+    gof <- c(
+      sd(rowMeans(Y, na.rm=TRUE), na.rm=TRUE),  # sd.rowmean
+      sd(colMeans(Y, na.rm=TRUE), na.rm=TRUE),  # sd.colmean
+      NA,  # dyad.dep (not applicable for bipartite)
+      NA,  # cycle.dep (not applicable for bipartite)
+      NA   # trans.dep (not applicable for bipartite)
+    )
+    names(gof) <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
+    return(gof)
+  }
+  
   tryCatch({
     gof <- as.vector(gof_stats_cpp(as.matrix(Y)))
     names(gof) <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")

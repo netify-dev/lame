@@ -1,0 +1,378 @@
+---
+title: "Bipartite Network Analysis"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Bipartite Network Analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5,
+  eval = FALSE
+)
+```
+
+```{r setup}
+library(lame)
+set.seed(6886)
+```
+
+## Introduction
+
+This vignette demonstrates how to analyze bipartite networks using the `lame` package. Bipartite networks consist of two distinct sets of nodes (e.g., people and organizations, students and courses, countries and treaties) where edges only occur between nodes from different sets.
+
+The `lame` package provides two functions for bipartite network analysis:
+
+- **`ame()`**: For cross-sectional bipartite networks (single time point)
+- **`lame()`**: For longitudinal bipartite networks (multiple time points)
+
+Both functions extend the Additive and Multiplicative Effects (AME) framework to handle rectangular adjacency matrices with separate latent factor representations for row and column nodes.
+
+## Bipartite Network Model
+
+### Mathematical Formulation
+
+For bipartite networks, the model uses:
+
+- **U**: n_A × R_row matrix of latent positions for row nodes
+- **V**: n_B × R_col matrix of latent positions for column nodes  
+- **G**: R_row × R_col interaction matrix mapping between latent spaces
+- **Multiplicative term**: U G V' captures bipartite community structure
+
+The model equation becomes:
+
+$$y_{ij} = \beta'x_{ij} + a_i + b_j + u_i'Gv_j + \epsilon_{ij}$$
+
+where i indexes row nodes (set A) and j indexes column nodes (set B).
+
+### Key Differences from Unipartite Models
+
+1. **No dyadic correlation (ρ)**: Bipartite edges are inherently directed from row to column nodes
+2. **Separate dimensions**: R_row and R_col can differ for row and column latent spaces
+3. **Rectangular structure**: Different interpretations of network density and clustering
+4. **Independent variance components**: σ²_a for row effects, σ²_b for column effects (no covariance)
+
+## Cross-Sectional Analysis with `ame()`
+
+For a single bipartite network observed at one time point, use the `ame()` function:
+
+### Simulate Cross-Sectional Bipartite Data
+
+```{r simulate_cross_sectional}
+# Simulate a bipartite network (e.g., students to courses)
+n_students <- 50  # Row nodes
+n_courses <- 30   # Column nodes
+
+# True latent dimensions
+R_row_true <- 2
+R_col_true <- 2
+
+# Generate true latent positions
+U_true <- matrix(rnorm(n_students * R_row_true), n_students, R_row_true)
+V_true <- matrix(rnorm(n_courses * R_col_true), n_courses, R_col_true)
+
+# True interaction matrix
+G_true <- matrix(c(1, 0.5, 0.5, -1), R_row_true, R_col_true)
+
+# Generate network
+eta <- U_true %*% G_true %*% t(V_true)
+prob <- plogis(eta)  # Convert to probabilities
+Y_bipartite <- matrix(rbinom(n_students * n_courses, 1, prob), 
+                      n_students, n_courses)
+
+# Add row and column names for clarity
+rownames(Y_bipartite) <- paste0("Student", 1:n_students)
+colnames(Y_bipartite) <- paste0("Course", 1:n_courses)
+
+cat("Bipartite network dimensions:", dim(Y_bipartite), "\n")
+cat("Network density:", mean(Y_bipartite), "\n")
+```
+
+### Fit Cross-Sectional Bipartite Model
+
+```{r fit_cross_sectional}
+# Fit bipartite AME model
+fit_cross <- ame(
+  Y = Y_bipartite,
+  mode = "bipartite",     # Specify bipartite mode
+  R_row = 2,              # Latent dimensions for students
+  R_col = 2,              # Latent dimensions for courses
+  family = "binary",
+  burn = 500,
+  nscan = 2000,
+  odens = 10,
+  print = TRUE
+)
+
+# Summary of results
+summary(fit_cross)
+
+# The fitted model includes:
+# - U: Posterior samples of student latent positions (50 × 2)
+# - V: Posterior samples of course latent positions (30 × 2)
+# - G: Posterior samples of interaction matrix (2 × 2)
+# - APM: Additive row effects (student activity levels)
+# - BPM: Additive column effects (course popularity)
+```
+
+### Visualize Results
+
+```{r visualize_cross_sectional}
+# Extract posterior means
+U_post <- apply(fit_cross$U, c(1,2), mean)
+V_post <- apply(fit_cross$V, c(1,2), mean)
+G_post <- apply(fit_cross$G, c(1,2), mean)
+
+# Plot latent positions
+par(mfrow = c(1, 2))
+
+# Student positions
+plot(U_post[,1], U_post[,2], 
+     xlab = "Dimension 1", ylab = "Dimension 2",
+     main = "Student Latent Positions",
+     pch = 19, col = "blue")
+
+# Course positions  
+plot(V_post[,1], V_post[,2],
+     xlab = "Dimension 1", ylab = "Dimension 2", 
+     main = "Course Latent Positions",
+     pch = 19, col = "red")
+
+# Interaction matrix heatmap
+library(ggplot2)
+library(reshape2)
+G_melt <- melt(G_post)
+ggplot(G_melt, aes(x = Var2, y = Var1, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
+  labs(title = "Interaction Matrix G",
+       x = "Column Dimension", y = "Row Dimension") +
+  theme_minimal()
+```
+
+## Longitudinal Analysis with `lame()`
+
+For bipartite networks observed over multiple time periods, use the `lame()` function:
+
+### Simulate Longitudinal Bipartite Data
+
+```{r simulate_longitudinal}
+# Simulate longitudinal bipartite networks
+T <- 10  # Number of time periods
+n_users <- 40    # Row nodes (e.g., users)
+n_items <- 25    # Column nodes (e.g., items)
+
+# Initialize storage
+Y_list <- list()
+
+# Generate evolving bipartite networks
+for(t in 1:T) {
+  # Add some temporal variation
+  eta_t <- U_true %*% G_true %*% t(V_true) + rnorm(1, 0, 0.2)
+  prob_t <- plogis(eta_t)
+  
+  # Sample first 40 rows and 25 columns for rectangular structure
+  Y_list[[t]] <- matrix(rbinom(n_users * n_items, 1, prob_t[1:n_users, 1:n_items]), 
+                        n_users, n_items)
+  
+  rownames(Y_list[[t]]) <- paste0("User", 1:n_users)
+  colnames(Y_list[[t]]) <- paste0("Item", 1:n_items)
+}
+
+cat("Longitudinal bipartite network:\n")
+cat("  Time periods:", length(Y_list), "\n")
+cat("  Dimensions per period:", dim(Y_list[[1]]), "\n")
+cat("  Average density:", mean(sapply(Y_list, mean)), "\n")
+```
+
+### Fit Static Longitudinal Bipartite Model
+
+```{r fit_longitudinal_static}
+# Fit static bipartite model (constant effects over time)
+fit_static <- lame(
+  Y = Y_list,
+  mode = "bipartite",     # Specify bipartite mode
+  R_row = 2,              # Latent dimensions for users
+  R_col = 2,              # Latent dimensions for items
+  family = "binary",
+  dynamic_uv = FALSE,     # Static latent positions
+  dynamic_ab = FALSE,     # Static additive effects
+  burn = 1000,
+  nscan = 3000,
+  odens = 10
+)
+
+summary(fit_static)
+```
+
+### Fit Dynamic Longitudinal Bipartite Model
+
+```{r fit_longitudinal_dynamic}
+# Fit dynamic bipartite model (time-varying effects)
+fit_dynamic <- lame(
+  Y = Y_list,
+  mode = "bipartite",     # Specify bipartite mode
+  R_row = 2,              # Latent dimensions for users  
+  R_col = 2,              # Latent dimensions for items
+  family = "binary",
+  dynamic_uv = TRUE,      # Time-varying latent positions
+  dynamic_ab = TRUE,      # Time-varying additive effects
+  dynamic_G = FALSE,      # Keep G constant (can also be dynamic)
+  burn = 2000,
+  nscan = 5000,
+  odens = 25,
+  prior = list(
+    rho_uv_mean = 0.9,    # High persistence for latent positions
+    rho_ab_mean = 0.8     # Moderate persistence for additive effects
+  )
+)
+
+summary(fit_dynamic)
+```
+
+### Dynamic Case Details
+
+When `dynamic_uv=TRUE`, the latent positions evolve over time:
+
+$$U_{i,k,t} = \rho_{uv} U_{i,k,t-1} + \epsilon_{i,k,t}$$
+$$V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}$$
+
+When `dynamic_G=TRUE`, the interaction matrix also evolves:
+
+$$G_{k,l,t} = \rho_G G_{k,l,t-1} + \xi_{k,l,t}$$
+
+The AR(1) parameter ρ controls temporal persistence (0 = independent, 1 = perfect persistence).
+
+### Visualize Temporal Evolution
+
+```{r visualize_longitudinal}
+# For dynamic models, visualize evolution over time
+# Extract posterior means for first and last time periods
+U_t1 <- apply(fit_dynamic$U[,,1,], c(1,2), mean)
+U_tT <- apply(fit_dynamic$U[,,T,], c(1,2), mean)
+
+# Plot evolution of user positions
+par(mfrow = c(1, 2))
+plot(U_t1[,1], U_t1[,2], 
+     xlab = "Dimension 1", ylab = "Dimension 2",
+     main = "User Positions: Period 1",
+     pch = 19, col = "blue", xlim = c(-3,3), ylim = c(-3,3))
+
+plot(U_tT[,1], U_tT[,2],
+     xlab = "Dimension 1", ylab = "Dimension 2",
+     main = paste("User Positions: Period", T),
+     pch = 19, col = "darkblue", xlim = c(-3,3), ylim = c(-3,3))
+
+# Trace plot for temporal correlation
+trace_plot(list(rho_uv = fit_dynamic$rho_uv))
+```
+
+## Model Comparison and Selection
+
+### Compare Static vs Dynamic Models
+
+```{r model_comparison}
+# Compare model fit using GOF statistics
+gof_static <- fit_static$GOF
+gof_dynamic <- fit_dynamic$GOF
+
+# Plot GOF comparison
+par(mfrow = c(2, 2))
+boxplot(gof_static$rowmean, gof_dynamic$rowmean,
+        names = c("Static", "Dynamic"),
+        main = "Row Mean GOF")
+
+boxplot(gof_static$colmean, gof_dynamic$colmean,
+        names = c("Static", "Dynamic"),
+        main = "Column Mean GOF")
+
+boxplot(gof_static$density, gof_dynamic$density,
+        names = c("Static", "Dynamic"),
+        main = "Density GOF")
+
+# For bipartite networks, four-cycle counts are particularly informative
+boxplot(gof_static$four_cycles, gof_dynamic$four_cycles,
+        names = c("Static", "Dynamic"),
+        main = "Four-Cycle GOF")
+```
+
+### Choosing Dimensions
+
+```{r dimension_selection}
+# Fit models with different dimensions
+dims_to_test <- list(
+  c(1, 1),  # R_row = 1, R_col = 1
+  c(2, 2),  # R_row = 2, R_col = 2
+  c(3, 2),  # R_row = 3, R_col = 2
+  c(2, 3)   # R_row = 2, R_col = 3
+)
+
+gof_results <- list()
+for(i in 1:length(dims_to_test)) {
+  fit_temp <- ame(
+    Y = Y_bipartite,
+    mode = "bipartite",
+    R_row = dims_to_test[[i]][1],
+    R_col = dims_to_test[[i]][2],
+    family = "binary",
+    burn = 500,
+    nscan = 1000,
+    print = FALSE
+  )
+  gof_results[[i]] <- c(
+    R_row = dims_to_test[[i]][1],
+    R_col = dims_to_test[[i]][2],
+    gof_mean = mean(abs(fit_temp$GOF$density))
+  )
+}
+
+# Display results
+do.call(rbind, gof_results)
+```
+
+## Practical Considerations
+
+### When to Use Bipartite Models
+
+Use bipartite models when:
+
+1. **Distinct node types**: Your network has two fundamentally different types of nodes
+2. **No within-type edges**: Connections only exist between types, not within
+3. **Rectangular structure**: The adjacency matrix is inherently non-square
+4. **Different role behaviors**: Row and column nodes have different generative processes
+
+### Interpretation Guidelines
+
+- **U positions**: Represent row node preferences/characteristics in latent space
+- **V positions**: Represent column node attributes in latent space
+- **G matrix**: Maps how row and column latent dimensions interact
+- **Positive G elements**: Indicate affinity between corresponding dimensions
+- **Negative G elements**: Indicate disaffinity between dimensions
+- **Additive effects**: Capture overall activity (rows) and popularity (columns)
+
+## Convergence Diagnostics
+
+As usual, check for convergence:
+
+```{r convergence}
+# Check effective sample sizes
+fit_cross$ESS
+
+# Visual convergence diagnostics
+trace_plot(list(
+  U = fit_cross$U[1,1,],  # First user, first dimension
+  V = fit_cross$V[1,1,],  # First item, first dimension
+  G = fit_cross$G[1,1,],  # First element of G
+  sigma_a = fit_cross$VC[1,1,],  # Row variance
+  sigma_b = fit_cross$VC[2,2,]   # Column variance
+))
+```
+
+## References
+
+- Minhas, S., Hoff, P. D., & Ward, M. D. (2019). Inferential approaches for network analysis: AMEN for latent factor models. *Political Analysis*, 27(2), 208-222.

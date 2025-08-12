@@ -3,7 +3,7 @@ test_that("dynamic UV works with lame", {
   skip_on_cran()
   
   # Generate simple test data
-  set.seed(123)
+  set.seed(6886)
   n <- 10
   T <- 3
   

@@ -60,17 +60,44 @@ check_format <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL){
   
   # make sure actor labels appear in same order across objects
   N <- length(Y)
+  
+  # Check if this is bipartite (rectangular matrices)
+  is_bipartite <- nrow(Y[[1]]) != ncol(Y[[1]])
+  
   for(t in 1:N){
-    tNames <- rownames(Y[[t]]) ; check <- identical(tNames, colnames(Y[[t]]))
-    if(!is.null(Xdyad)
-    ){ check <- c(check, identical( tNames, dimnames(Xdyad[[t]])[[1]] )) }
-    if(!is.null(Xdyad)
-    ){ check <- c(check, identical( tNames, dimnames(Xdyad[[t]])[[2]] )) }
-    if(!is.null(Xrow)
-    ){ check <- c(check, identical(tNames, rownames(Xrow[[t]]) )) }
-    if(!is.null(Xcol)
-    ){ check <- c(check, identical(tNames, rownames(Xcol[[t]]) )) }
-    if( sum(check)/length(check) != 1
-    ){
-      stop('Actor labels are not identical across inputted data within time periods.') } }
+    tRowNames <- rownames(Y[[t]])
+    tColNames <- colnames(Y[[t]])
+    
+    if(is_bipartite) {
+      # For bipartite, row and column names can be different
+      check <- TRUE  # Start with TRUE
+      if(!is.null(Xdyad)) {
+        check <- c(check, identical(tRowNames, dimnames(Xdyad[[t]])[[1]]))
+        check <- c(check, identical(tColNames, dimnames(Xdyad[[t]])[[2]]))
+      }
+      if(!is.null(Xrow)) {
+        check <- c(check, identical(tRowNames, rownames(Xrow[[t]])))
+      }
+      if(!is.null(Xcol)) {
+        check <- c(check, identical(tColNames, rownames(Xcol[[t]])))
+      }
+    } else {
+      # For unipartite, row and column names must be identical
+      check <- identical(tRowNames, tColNames)
+      if(!is.null(Xdyad)) {
+        check <- c(check, identical(tRowNames, dimnames(Xdyad[[t]])[[1]]))
+        check <- c(check, identical(tRowNames, dimnames(Xdyad[[t]])[[2]]))
+      }
+      if(!is.null(Xrow)) {
+        check <- c(check, identical(tRowNames, rownames(Xrow[[t]])))
+      }
+      if(!is.null(Xcol)) {
+        check <- c(check, identical(tRowNames, rownames(Xcol[[t]])))
+      }
+    }
+    
+    if(sum(check)/length(check) != 1) {
+      stop('Actor labels are not identical across inputted data within time periods.')
+    }
+  }
 }

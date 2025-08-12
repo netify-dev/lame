@@ -2,11 +2,12 @@
 % Please edit documentation in R/lame.R
 \name{lame}
 \alias{lame}
-\title{AME model fitting routine for replicated relational data}
+\title{AME model fitting routine for longitudinal relational data}
 \usage{
 lame(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl"),
-  cvar = TRUE, dcor = !symmetric, nvar=TRUE, R = 0,
-  dynamic_uv = FALSE, dynamic_ab = FALSE, family ="normal",
+  cvar = TRUE, dcor = !symmetric, nvar=TRUE, R = 0, R_row = NULL, R_col = NULL,
+  mode = c("unipartite", "bipartite"),
+  dynamic_uv = FALSE, dynamic_ab = FALSE, dynamic_G = FALSE, family ="normal",
 intercept=!is.element(family,c("rrl","ordinal")),
 symmetric=FALSE,
 odmax=NULL, prior=list(), g=NA,
@@ -34,6 +35,12 @@ See family below for various data types.}
 
 \item{R}{integer: dimension of the multiplicative effects (can be zero)}
 
+\item{R_row}{integer: for bipartite networks, dimension of row node multiplicative effects (defaults to R)}
+
+\item{R_col}{integer: for bipartite networks, dimension of column node multiplicative effects (defaults to R)}
+
+\item{mode}{character: either "unipartite" (default) for square networks or "bipartite" for rectangular networks}
+
 \item{dynamic_uv}{logical: fit dynamic multiplicative effects (latent factors) that
 evolve over time using AR(1) processes. When TRUE, the latent positions U and V become
 time-varying, following \eqn{U_{i,t} = \rho_{uv} U_{i,t-1} + \epsilon_{i,t}}, where epsilon
@@ -53,6 +60,10 @@ For example, an actor's tendency to form outgoing ties might gradually increase 
 decrease across observation periods. The AR(1) specification ensures temporal smoothness
 while allowing for actor-specific evolution patterns. Implementation uses conjugate
 updates where possible and C++ for computational efficiency. Default FALSE.}
+
+\item{dynamic_G}{logical: for bipartite networks, fit dynamic interaction matrix G that
+evolves over time. When TRUE, the rectangular interaction matrix G becomes time-varying,
+allowing the mapping between row and column latent spaces to change over time. Default FALSE.}
 
 \item{family}{character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 the details below}
@@ -150,13 +161,17 @@ for a future model run.}
 }
 \description{
 An MCMC routine providing a fit to an additive and multiplicative effects
-(AME) regression model to replicated relational data of
-various types.
+(AME) regression model to longitudinal (time-series) relational data of
+various types. Supports both unipartite (square) and bipartite (rectangular)
+network structures. For cross-sectional (single time point) networks,
+use the \code{ame} function.
 }
 \details{
 This command provides posterior inference for parameters in AME models of
-independent replicated relational data, assuming one of eight possible data
-types/models.
+longitudinal relational data, assuming one of eight possible data
+types/models. The model supports both unipartite networks (square adjacency
+matrices) and bipartite networks (rectangular adjacency matrices with
+distinct row and column node sets) across multiple time points.
 
 \strong{Dynamic Effects Implementation:}
 
@@ -239,6 +254,39 @@ Use only dynamic_ab when:
 \item Individual heterogeneity varies but overall structure is stable
 \item Actors' activity/popularity changes over observation period
 \item Focus is on individual-level temporal dynamics
+}
+
+\strong{Bipartite Network Models:}
+
+When mode="bipartite", the model handles rectangular adjacency matrices Y with
+dimensions n_A x n_B, where n_A and n_B represent the number of row and column
+nodes respectively.
+
+\emph{Static Bipartite Case:}
+The model uses separate latent factor matrices:
+\itemize{
+\item U: n_A x R_row matrix of row node latent positions
+\item V: n_B x R_col matrix of column node latent positions
+\item G: R_row x R_col interaction matrix mapping between latent spaces
+\item Multiplicative term: U G V' captures bipartite community structure
+}
+
+\emph{Dynamic Bipartite Case:}
+When dynamic_uv=TRUE for bipartite networks:
+\deqn{U_{i,k,t} = \rho_{uv} U_{i,k,t-1} + \epsilon_{i,k,t}}
+\deqn{V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}}
+where i indexes row nodes, j indexes column nodes, k indexes latent dimensions.
+
+When dynamic_G=TRUE, the interaction matrix also evolves:
+\deqn{G_{k,l,t} = \rho_G G_{k,l,t-1} + \xi_{k,l,t}}
+allowing the mapping between row and column latent spaces to change over time.
+
+\emph{Key Differences from Unipartite Models:}
+\itemize{
+\item No dyadic correlation (rho): Bipartite edges are inherently directed
+\item Separate dimensions: R_row and R_col can differ for row/column spaces
+\item Rectangular structure: Network density patterns differ from square matrices
+\item Community interpretation: Captures affiliation patterns between node types
 }
 
 \strong{Standard AME Model Types:}
