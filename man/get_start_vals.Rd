@@ -4,10 +4,10 @@
 \alias{get_start_vals}
 \title{Get fitted object from MCMC results}
 \usage{
-get_start_vals(startVals, Y, family, xP, rvar, cvar, R, odmax = NULL)
+get_start_vals(start_vals, Y, family, xP, rvar, cvar, R, odmax = NULL)
 }
 \arguments{
-\item{startVals}{List object that is null or contains
+\item{start_vals}{List object that is null or contains
 starting values}
 
 \item{Y}{dependent variable in array format}
@@ -34,5 +34,5 @@ List of starting values for MCMC
 Get fitted object from MCMC results
 }
 \author{
-Peter Hoff, Shahryar Minhas
+Shahryar Minhas
 }

@@ -12,7 +12,9 @@ symmetric=FALSE,
 odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)), 
 prior=list(), g=NA,
 seed = 6886, nscan = 10000, burn = 500, odens = 25, 
-plot=TRUE, print = TRUE, gof=TRUE, model.name=NULL)
+plot=TRUE, print = TRUE, gof=TRUE, 
+start_vals=NULL, periodic_save=FALSE, out_file=NULL,
+save_interval=0.25, model.name=NULL)
 }
 \arguments{
 \item{Y}{For unipartite: an n x n square relational matrix. For bipartite: an nA x nB
@@ -98,6 +100,14 @@ regression coefficients.}
 
 \item{gof}{logical: calculate goodness of fit statistics?}
 
+\item{start_vals}{List from previous model run containing parameter starting values for new MCMC}
+
+\item{periodic_save}{logical: indicating whether to periodically save MCMC results}
+
+\item{out_file}{character vector indicating name and path in which file should be stored if periodic_save is selected. For example, on an Apple OS out_file="~/Desktop/ameFit.rda".}
+
+\item{save_interval}{quantile interval indicating when to save during post burn-in phase.}
+
 \item{model.name}{optional string for model selection output}
 }
 \value{
@@ -119,7 +129,8 @@ values of four goodness-of-fit statistics}
 An MCMC routine providing a fit to an additive and multiplicative effects
 (AME) regression model to cross-sectional relational data of various types.
 This function supports both unipartite (square) and bipartite (rectangular)
-networks. For longitudinal networks, use the \code{lame} function.
+networks. For longitudinal networks, use the \code{lame} function. Original
+implementation by Peter Hoff.
 }
 \details{
 This command provides posterior inference for parameters in AME models of
@@ -219,5 +230,5 @@ fit<-ame(YX_bin$Y,YX_bin$X,burn=10,nscan=10,odens=1,family="binary")
  
 }
 \author{
-Peter Hoff
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

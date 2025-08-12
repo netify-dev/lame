@@ -51,7 +51,7 @@
 <span>  <span class="va">GOF</span>,</span>
 <span>  <span class="va">Xlist</span>,</span>
 <span>  <span class="va">actorByYr</span>,</span>
-<span>  <span class="va">startVals</span>,</span>
+<span>  <span class="va">start_vals</span>,</span>
 <span>  <span class="va">symmetric</span>,</span>
 <span>  <span class="va">tryErrorChecks</span>,</span>
 <span>  model.name <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -61,7 +61,12 @@
 <span>  dynamic_ab <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  bip <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  rho_ab <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  rho_uv <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  rho_uv <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  family <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  odmax <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  nA <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  nB <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  n_time <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -105,8 +110,8 @@
 <dd><p>List of actors by time point</p></dd>
 
 
-<dt id="arg-startvals">startVals<a class="anchor" aria-label="anchor" href="#arg-startvals"></a></dt>
-<dd><p>startVals for future model run</p></dd>
+<dt id="arg-start-vals">start_vals<a class="anchor" aria-label="anchor" href="#arg-start-vals"></a></dt>
+<dd><p>start_vals for future model run</p></dd>
 
 
 <dt id="arg-symmetric">symmetric<a class="anchor" aria-label="anchor" href="#arg-symmetric"></a></dt>
@@ -148,6 +153,26 @@
 <dt id="arg-rho-uv">rho_uv<a class="anchor" aria-label="anchor" href="#arg-rho-uv"></a></dt>
 <dd><p>temporal correlation parameter for multiplicative effects (optional)</p></dd>
 
+
+<dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
+<dd><p>character string specifying the model family (e.g., "binary", "normal", "poisson")</p></dd>
+
+
+<dt id="arg-odmax">odmax<a class="anchor" aria-label="anchor" href="#arg-odmax"></a></dt>
+<dd><p>vector of maximum ranks for ordinal or fixed rank nomination families</p></dd>
+
+
+<dt id="arg-na">nA<a class="anchor" aria-label="anchor" href="#arg-na"></a></dt>
+<dd><p>number of actors in first mode (for bipartite networks)</p></dd>
+
+
+<dt id="arg-nb">nB<a class="anchor" aria-label="anchor" href="#arg-nb"></a></dt>
+<dd><p>number of actors in second mode (for bipartite networks)</p></dd>
+
+
+<dt id="arg-n-time">n_time<a class="anchor" aria-label="anchor" href="#arg-n-time"></a></dt>
+<dd><p>number of time periods (for longitudinal models)</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -155,7 +180,7 @@
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
-    <p>Peter Hoff, Shahryar Minhas</p>
+    <p>Shahryar Minhas</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
