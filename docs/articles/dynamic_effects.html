@@ -286,7 +286,7 @@ posterior distribution.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># Plot trace of parameters</span></span>
-<span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, params <span class="op">=</span> <span class="st">"beta"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">)</span></span></code></pre></div>
 <p><img src="dynamic_effects_files/figure-html/unnamed-chunk-3-3.png" width="700"></p>
 </div>
 <div class="section level3">
@@ -619,32 +619,6 @@ residuals</li>
 <span><span class="co">#&gt; [4,] -0.002311782</span></span>
 <span><span class="co">#&gt; [5,] -0.006409589</span></span></code></pre></div>
 </div>
-</div>
-<div class="section level2">
-<h2 id="convergence-diagnostics">Convergence Diagnostics<a class="anchor" aria-label="anchor" href="#convergence-diagnostics"></a>
-</h2>
-<p>Dynamic models typically require:</p>
-<ul>
-<li>Longer burn-in (≥ 1000 iterations)</li>
-<li>More samples (≥ 20000 post burn-in)</li>
-<li>Careful monitoring of
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>σ</mi><mn>2</mn></msup><annotation encoding="application/x-tex">\sigma^2</annotation></semantics></math>
-parameters</li>
-</ul>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Check effective sample sizes</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">coda</span><span class="op">)</span></span>
-<span><span class="va">mcmc_samples</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/coda/man/mcmc.html" class="external-link">as.mcmc</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">BETA</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/coda/man/effectiveSize.html" class="external-link">effectiveSize</a></span><span class="op">(</span><span class="va">mcmc_samples</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Trace plots for dynamic parameters (if available)</span></span>
-<span><span class="co"># par(mfrow = c(2, 2))</span></span>
-<span><span class="co"># if(!is.null(fit_dynamic$rho_uv)) plot(fit_dynamic$rho_uv, type = "l", main = "rho_uv trace")</span></span>
-<span><span class="co"># if(!is.null(fit_dynamic$sigma_uv)) plot(fit_dynamic$sigma_uv, type = "l", main = "sigma_uv trace")</span></span>
-<span><span class="co"># if(!is.null(fit_dynamic$rho_ab)) plot(fit_dynamic$rho_ab, type = "l", main = "rho_ab trace")</span></span>
-<span><span class="co"># if(!is.null(fit_dynamic$sigma_ab)) plot(fit_dynamic$sigma_ab, type = "l", main = "sigma_ab trace")</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

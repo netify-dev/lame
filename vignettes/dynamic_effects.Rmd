@@ -173,7 +173,7 @@ uv_plot(fit_dynamic, plot_type = "snapshot")
 ab_plot(fit_dynamic, effect = "sender")
 
 # Plot trace of parameters
-trace_plot(fit_dynamic, params = "beta")
+trace_plot(fit_dynamic)
 ```
 
 ### Model Selection
@@ -214,27 +214,6 @@ if(!is.null(fit_static$GOF) && !is.null(fit_full$GOF)) {
 }
 ```
 
-## Convergence Diagnostics
-
-Dynamic models typically require:
-
-- Longer burn-in (≥ 1000 iterations)
-- More samples (≥ 20000 post burn-in)
-- Careful monitoring of $\rho$ and $\sigma^2$ parameters
-
-```{r, eval=FALSE}
-# Check effective sample sizes
-library(coda)
-mcmc_samples <- as.mcmc(fit_dynamic$BETA)
-effectiveSize(mcmc_samples)
-
-# Trace plots for dynamic parameters (if available)
-# par(mfrow = c(2, 2))
-# if(!is.null(fit_dynamic$rho_uv)) plot(fit_dynamic$rho_uv, type = "l", main = "rho_uv trace")
-# if(!is.null(fit_dynamic$sigma_uv)) plot(fit_dynamic$sigma_uv, type = "l", main = "sigma_uv trace")
-# if(!is.null(fit_dynamic$rho_ab)) plot(fit_dynamic$rho_ab, type = "l", main = "rho_ab trace")
-# if(!is.null(fit_dynamic$sigma_ab)) plot(fit_dynamic$sigma_ab, type = "l", main = "sigma_ab trace")
-```
 
 ## References
 
