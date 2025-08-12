@@ -204,8 +204,10 @@ the model’s parameters converged.</p>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a> [<span class="dv">1</span>] <span class="st">"BETA"</span>           <span class="st">"VC"</span>             <span class="st">"APM"</span>            <span class="st">"BPM"</span>           </span>
 <span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a> [<span class="dv">5</span>] <span class="st">"U"</span>              <span class="st">"V"</span>              <span class="st">"UVPM"</span>           <span class="st">"EZ"</span>            </span>
 <span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a> [<span class="dv">9</span>] <span class="st">"YPM"</span>            <span class="st">"GOF"</span>            <span class="st">"start_vals"</span>     <span class="st">"tryErrorChecks"</span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>[<span class="dv">13</span>] <span class="st">"model.name"</span>    </span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="fu">trace_plot</span>(fit, <span class="at">params =</span> <span class="st">"beta"</span>)</span></code></pre></div>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>[<span class="dv">13</span>] <span class="st">"model.name"</span>     <span class="st">"family"</span>         <span class="st">"symmetric"</span>      <span class="st">"odmax"</span>         </span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>[<span class="dv">17</span>] <span class="st">"mode"</span>           <span class="st">"n_time"</span>         <span class="st">"dynamic_uv"</span>     <span class="st">"dynamic_ab"</span>    </span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>[<span class="dv">21</span>] <span class="st">"Xlist"</span>         </span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="fu">trace_plot</span>(fit, <span class="at">params =</span> <span class="st">"beta"</span>)</span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/unnamed-chunk-4-1.png" alt="MCMC trace plots and density plots showing convergence and posterior distributions of regression coefficients" width="100%" style="display: block; margin: auto;"></p>
 <p>The <code>trace_plot</code> function produces traceplots and density
 plots for each parameter in the model, helping visualize MCMC
