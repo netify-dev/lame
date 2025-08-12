@@ -3,7 +3,7 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
+    <nav class="navbar navbar-expand-lg fixed-top bg-primary" data-bs-theme="dark" aria-label="Site navigation"><div class="container">
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
@@ -15,16 +15,13 @@
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/lame-overview.html">lame Overview</a></li>
-    <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects in Longitudinal AME Models</a></li>
-  </ul></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../index.html">Get Started</a></li>
+<li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/netify-dev/lame" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/netify-dev/lame" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -37,9 +34,9 @@
     </div>
 
     <div class="section level2">
-      <h2 id="main-functions">Main Functions<a class="anchor" aria-label="anchor" href="#main-functions"></a></h2>
+      <h2 id="all-functions">All functions<a class="anchor" aria-label="anchor" href="#all-functions"></a></h2>
 
-      <div class="section-desc"><p>Primary model fitting functions</p></div>
+
 
 
     </div><div class="section level2">
@@ -49,122 +46,41 @@
 
       <dl><dt>
 
-          <code><a href="ame.html">ame()</a></code>
+          <code><a href="IR90s.html">IR90s</a></code>
 
         </dt>
-        <dd>AME model fitting routine</dd>
+        <dd>International relations in the 90s</dd>
       </dl><dl><dt>
 
-          <code><a href="lame.html">lame()</a></code>
+          <code><a href="Xbeta.html">Xbeta()</a></code>
 
         </dt>
-        <dd>AME model fitting routine for replicated relational data</dd>
-      </dl></div><div class="section level2">
-      <h2 id="plotting-functions">Plotting Functions<a class="anchor" aria-label="anchor" href="#plotting-functions"></a></h2>
-
-      <div class="section-desc"><p>Functions for visualizing model results</p></div>
-
-
-    </div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="plot.ame.html">plot(<i>&lt;ame&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Plot comprehensive diagnostics for an AME model fit</dd>
+        <dd>Linear combinations of submatrices of an array</dd>
       </dl><dl><dt>
 
-          <code><a href="plot.lame.html">plot(<i>&lt;lame&gt;</i>)</a></code>
+          <code><a href="Xcol.html">Xcol</a></code>
 
         </dt>
-        <dd>Plot comprehensive diagnostics for a LAME model fit</dd>
+        <dd>Column covariates</dd>
       </dl><dl><dt>
 
-          <code><a href="ab_plot.html">ab_plot()</a></code>
+          <code><a href="Xdyad.html">Xdyad</a></code>
 
         </dt>
-        <dd>Visualize sender and receiver random effects</dd>
+        <dd>Dyadic covariates</dd>
       </dl><dl><dt>
 
-          <code><a href="uv_plot.html">uv_plot()</a></code>
+          <code><a href="Xrow.html">Xrow</a></code>
 
         </dt>
-        <dd>Visualize multiplicative effects (latent factors) from AME models</dd>
+        <dd>Row covariates</dd>
       </dl><dl><dt>
 
-          <code><a href="trace_plot.html">trace_plot()</a></code>
+          <code><a href="Y.html">Y</a></code>
 
         </dt>
-        <dd>MCMC trace plots and density plots for AME/LAME model parameters</dd>
+        <dd>Relational matrix</dd>
       </dl><dl><dt>
-
-          <code><a href="gof_plot.html">gof_plot()</a></code>
-
-        </dt>
-        <dd>Visualize goodness-of-fit statistics for AME and LAME models</dd>
-      </dl></div><div class="section level2">
-      <h2 id="print-and-summary-methods">Print and Summary Methods<a class="anchor" aria-label="anchor" href="#print-and-summary-methods"></a></h2>
-
-      <div class="section-desc"><p>Methods for displaying model results</p></div>
-
-
-    </div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="print.ame.html">print(<i>&lt;ame&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print method for AME objects</dd>
-      </dl><dl><dt>
-
-          <code><a href="print.lame.html">print(<i>&lt;lame&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print method for LAME objects</dd>
-      </dl><dl><dt>
-
-          <code><a href="print.summary.ame.html">print(<i>&lt;summary.ame&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print method for summary.ame objects</dd>
-      </dl><dl><dt>
-
-          <code><a href="print.summary.lame.html">print(<i>&lt;summary.lame&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print method for summary.lame objects</dd>
-      </dl><dl><dt>
-
-          <code><a href="summary.ame.html">summary(<i>&lt;ame&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Summary of an AME object</dd>
-      </dl><dl><dt>
-
-          <code><a href="summary.lame.html">summary(<i>&lt;lame&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Summary of a LAME object</dd>
-      </dl></div><div class="section level2">
-      <h2 id="data">Data<a class="anchor" aria-label="anchor" href="#data"></a></h2>
-
-      <div class="section-desc"><p>Example datasets</p></div>
-
-
-    </div><div class="section level2">
-
-
-
-
-      <dl><dt>
 
           <code><a href="YX_bin.html">YX_bin</a></code>
 
@@ -214,40 +130,10 @@
         <dd>row-specific ordinal relational data and covariates</dd>
       </dl><dl><dt>
 
-          <code><a href="Y.html">Y</a></code>
+          <code><a href="ab_plot.html">ab_plot()</a></code>
 
         </dt>
-        <dd>Relational matrix</dd>
-      </dl><dl><dt>
-
-          <code><a href="Xrow.html">Xrow</a></code>
-
-        </dt>
-        <dd>Row covariates</dd>
-      </dl><dl><dt>
-
-          <code><a href="Xcol.html">Xcol</a></code>
-
-        </dt>
-        <dd>Column covariates</dd>
-      </dl><dl><dt>
-
-          <code><a href="Xdyad.html">Xdyad</a></code>
-
-        </dt>
-        <dd>Dyadic covariates</dd>
-      </dl><dl><dt>
-
-          <code><a href="coldwar.html">coldwar</a></code>
-
-        </dt>
-        <dd>Cold War data</dd>
-      </dl><dl><dt>
-
-          <code><a href="IR90s.html">IR90s</a></code>
-
-        </dt>
-        <dd>International relations in the 90s</dd>
+        <dd>Visualize sender and receiver random effects</dd>
       </dl><dl><dt>
 
           <code><a href="addhealthc3.html">addhealthc3</a></code>
@@ -262,46 +148,11 @@
         <dd>AddHealth community 9 data</dd>
       </dl><dl><dt>
 
-          <code><a href="comtrade.html">comtrade</a></code>
+          <code><a href="ame.html">ame()</a></code>
 
         </dt>
-        <dd>Comtrade data</dd>
+        <dd>AME model fitting routine</dd>
       </dl><dl><dt>
-
-          <code><a href="dutchcollege.html">dutchcollege</a></code>
-
-        </dt>
-        <dd>Dutch college data</dd>
-      </dl><dl><dt>
-
-          <code><a href="lazegalaw.html">lazegalaw</a></code>
-
-        </dt>
-        <dd>Lazega's law firm data</dd>
-      </dl><dl><dt>
-
-          <code><a href="sampsonmonks.html">sampsonmonks</a></code>
-
-        </dt>
-        <dd>Sampson's monastery data</dd>
-      </dl><dl><dt>
-
-          <code><a href="sheep.html">sheep</a></code>
-
-        </dt>
-        <dd>Sheep dominance data</dd>
-      </dl></div><div class="section level2">
-      <h2 id="data-manipulation">Data Manipulation<a class="anchor" aria-label="anchor" href="#data-manipulation"></a></h2>
-
-      <div class="section-desc"><p>Functions for data preparation and transformation</p></div>
-
-
-    </div><div class="section level2">
-
-
-
-
-      <dl><dt>
 
           <code><a href="array_to_list.html">array_to_list()</a></code>
 
@@ -309,22 +160,22 @@
         <dd>Convert array to list.</dd>
       </dl><dl><dt>
 
-          <code><a href="list_to_array.html">list_to_array()</a></code>
+          <code><a href="check_format.html">check_format()</a></code>
 
         </dt>
-        <dd>Convert list to array</dd>
+        <dd>Check formatting of input objects into ame_repL function</dd>
       </dl><dl><dt>
 
-          <code><a href="el2sm.html">el2sm()</a></code>
+          <code><a href="coldwar.html">coldwar</a></code>
 
         </dt>
-        <dd>Edgelist to sociomatrix</dd>
+        <dd>Cold War data</dd>
       </dl><dl><dt>
 
-          <code><a href="sm2el.html">sm2el()</a></code>
+          <code><a href="comtrade.html">comtrade</a></code>
 
         </dt>
-        <dd>Sociomatrix to edgelist</dd>
+        <dd>Comtrade data</dd>
       </dl><dl><dt>
 
           <code><a href="design_array.html">design_array()</a></code>
@@ -339,22 +190,17 @@
         <dd>Computes the design socioarray of covariate values</dd>
       </dl><dl><dt>
 
-          <code><a href="check_format.html">check_format()</a></code>
+          <code><a href="dutchcollege.html">dutchcollege</a></code>
 
         </dt>
-        <dd>Check formatting of input objects into ame_repL function</dd>
-      </dl></div><div class="section level2">
-      <h2 id="model-fitting-helpers">Model Fitting Helpers<a class="anchor" aria-label="anchor" href="#model-fitting-helpers"></a></h2>
+        <dd>Dutch college data</dd>
+      </dl><dl><dt>
 
-      <div class="section-desc"><p>Helper functions for model estimation</p></div>
+          <code><a href="el2sm.html">el2sm()</a></code>
 
-
-    </div><div class="section level2">
-
-
-
-
-      <dl><dt>
+        </dt>
+        <dd>Edgelist to sociomatrix</dd>
+      </dl><dl><dt>
 
           <code><a href="get_design_rep.html">get_design_rep()</a></code>
 
@@ -374,22 +220,10 @@
         <dd>Get fitted object from MCMC results</dd>
       </dl><dl><dt>
 
-          <code><a href="Xbeta.html">Xbeta()</a></code>
+          <code><a href="gof_plot.html">gof_plot()</a></code>
 
         </dt>
-        <dd>Linear combinations of submatrices of an array</dd>
-      </dl><dl><dt>
-
-          <code><a href="precomputeX.html">precomputeX()</a></code>
-
-        </dt>
-        <dd>Precompute design matrix statistics</dd>
-      </dl><dl><dt>
-
-          <code><a href="mhalf.html">mhalf()</a></code>
-
-        </dt>
-        <dd>Symmetric square root of a matrix</dd>
+        <dd>Visualize goodness-of-fit statistics for AME and LAME models</dd>
       </dl><dl><dt>
 
           <code><a href="gof_stats.html">gof_stats()</a></code>
@@ -398,10 +232,28 @@
         <dd>Goodness of fit statistics</dd>
       </dl><dl><dt>
 
-          <code><a href="zscores.html">zscores()</a></code>
+          <code><a href="init_dynamic_ab_cpp.html">init_dynamic_ab_cpp()</a></code>
 
         </dt>
-        <dd>rank-based z-scores</dd>
+        <dd>Initialize dynamic additive effects with AR(1) structure</dd>
+      </dl><dl><dt>
+
+          <code><a href="init_dynamic_positions.html">init_dynamic_positions()</a></code>
+
+        </dt>
+        <dd>Initialize dynamic latent positions with AR(1) structure</dd>
+      </dl><dl><dt>
+
+          <code><a href="lame.html">lame()</a></code>
+
+        </dt>
+        <dd>AME model fitting routine for longitudinal relational data</dd>
+      </dl><dl><dt>
+
+          <code><a href="lazegalaw.html">lazegalaw</a></code>
+
+        </dt>
+        <dd>Lazega's law firm data</dd>
       </dl><dl><dt>
 
           <code><a href="ldZgbme.html">ldZgbme()</a></code>
@@ -410,110 +262,65 @@
         <dd>log density for GBME models</dd>
       </dl><dl><dt>
 
+          <code><a href="list_to_array.html">list_to_array()</a></code>
+
+        </dt>
+        <dd>Convert list to array</dd>
+      </dl><dl><dt>
+
           <code><a href="llsrmRho.html">llsrmRho()</a></code>
 
         </dt>
         <dd>SRM log likelihood evaluated on a grid of rho-values</dd>
-      </dl></div><div class="section level2">
-      <h2 id="dynamic-effects-functions">Dynamic Effects Functions<a class="anchor" aria-label="anchor" href="#dynamic-effects-functions"></a></h2>
-
-      <div class="section-desc"><p>Functions for dynamic network models</p></div>
-
-
-    </div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="init_dynamic_positions.html">init_dynamic_positions()</a></code>
-
-        </dt>
-        <dd>Initialize dynamic latent positions with AR(1) structure</dd>
       </dl><dl><dt>
 
-          <code><a href="sample_rho_uv.html">sample_rho_uv()</a></code>
+          <code><a href="mhalf.html">mhalf()</a></code>
 
         </dt>
-        <dd>Sample AR(1) parameter for dynamic latent factors</dd>
+        <dd>Symmetric square root of a matrix</dd>
       </dl><dl><dt>
 
-          <code><a href="sample_sigma_uv.html">sample_sigma_uv()</a></code>
+          <code><a href="plot.ame.html">plot(<i>&lt;ame&gt;</i>)</a></code>
 
         </dt>
-        <dd>Sample innovation variance for dynamic latent factors</dd>
+        <dd>Plot comprehensive diagnostics for an AME model fit</dd>
       </dl><dl><dt>
 
-          <code><a href="init_dynamic_ab_cpp.html">init_dynamic_ab_cpp()</a></code>
+          <code><a href="plot.lame.html">plot(<i>&lt;lame&gt;</i>)</a></code>
 
         </dt>
-        <dd>Initialize dynamic additive effects with AR(1) structure</dd>
+        <dd>Plot comprehensive diagnostics for a LAME model fit</dd>
       </dl><dl><dt>
 
-          <code><a href="rUV_dynamic_fc.html">rUV_dynamic_fc()</a></code>
+          <code><a href="precomputeX.html">precomputeX()</a></code>
 
         </dt>
-        <dd>Gibbs sampling of dynamic U and V with AR(1) evolution</dd>
+        <dd>Precompute design matrix statistics</dd>
       </dl><dl><dt>
 
-          <code><a href="rUV_dynamic_fc_cpp.html">rUV_dynamic_fc_cpp()</a></code>
+          <code><a href="print.ame.html">print(<i>&lt;ame&gt;</i>)</a></code>
 
         </dt>
-        <dd>Update dynamic latent positions using AR(1) process</dd>
+        <dd>Print method for AME objects</dd>
       </dl><dl><dt>
 
-          <code><a href="sample_dynamic_ab_cpp.html">sample_dynamic_ab_cpp()</a></code>
+          <code><a href="print.lame.html">print(<i>&lt;lame&gt;</i>)</a></code>
 
         </dt>
-        <dd>Sample dynamic additive effects with AR(1) evolution</dd>
-      </dl></div><div class="section level2">
-      <h2 id="statistical-functions">Statistical Functions<a class="anchor" aria-label="anchor" href="#statistical-functions"></a></h2>
-
-      <div class="section-desc"><p>Functions for statistical sampling and computation</p></div>
-
-
-    </div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="rmvnorm.html">rmvnorm()</a></code>
-
-        </dt>
-        <dd>Simulation from a multivariate normal distribution</dd>
+        <dd>Print method for LAME objects</dd>
       </dl><dl><dt>
 
-          <code><a href="rwish.html">rwish()</a></code>
+          <code><a href="print.summary.ame.html">print(<i>&lt;summary.ame&gt;</i>)</a></code>
 
         </dt>
-        <dd>Simulation from a Wishart distribution</dd>
+        <dd>Print method for summary.ame objects</dd>
       </dl><dl><dt>
 
-          <code><a href="rrho_mh.html">rrho_mh()</a></code>
+          <code><a href="print.summary.lame.html">print(<i>&lt;summary.lame&gt;</i>)</a></code>
 
         </dt>
-        <dd>Metropolis update for dyadic correlation</dd>
+        <dd>Print method for summary.lame objects</dd>
       </dl><dl><dt>
-
-          <code><a href="rrho_mh_rep.html">rrho_mh_rep()</a></code>
-
-        </dt>
-        <dd>Metropolis update for dyadic correlation with independent replicate data</dd>
-      </dl></div><div class="section level2">
-      <h2 id="internal-functions">Internal Functions<a class="anchor" aria-label="anchor" href="#internal-functions"></a></h2>
-
-      <div class="section-desc"><p>Supporting functions (not typically called directly)</p></div>
-
-
-    </div><div class="section level2">
-
-
-
-
-      <dl><dt>
 
           <code><a href="rSab_fc.html">rSab_fc()</a></code>
 
@@ -635,10 +442,28 @@
         <dd>Gibbs sampling of additive row and column effects and regression coefficient with independent replicate relational data</dd>
       </dl><dl><dt>
 
+          <code><a href="rmvnorm.html">rmvnorm()</a></code>
+
+        </dt>
+        <dd>Simulation from a multivariate normal distribution</dd>
+      </dl><dl><dt>
+
           <code><a href="rrho_fc.html">rrho_fc()</a></code>
 
         </dt>
         <dd>Griddy Gibbs update for dyadic correlation</dd>
+      </dl><dl><dt>
+
+          <code><a href="rrho_mh.html">rrho_mh()</a></code>
+
+        </dt>
+        <dd>Metropolis update for dyadic correlation</dd>
+      </dl><dl><dt>
+
+          <code><a href="rrho_mh_rep.html">rrho_mh_rep()</a></code>
+
+        </dt>
+        <dd>Metropolis update for dyadic correlation with independent replicate data</dd>
       </dl><dl><dt>
 
           <code><a href="rs2_fc.html">rs2_fc()</a></code>
@@ -653,10 +478,10 @@
         <dd>Gibbs update for dyadic variance with independent replicate relational data</dd>
       </dl><dl><dt>
 
-          <code><a href="init_dynamic_ab_cpp.html">init_dynamic_ab_cpp()</a></code>
+          <code><a href="rwish.html">rwish()</a></code>
 
         </dt>
-        <dd>Initialize dynamic additive effects with AR(1) structure</dd>
+        <dd>Simulation from a Wishart distribution</dd>
       </dl><dl><dt>
 
           <code><a href="sample_dynamic_ab_cpp.html">sample_dynamic_ab_cpp()</a></code>
@@ -671,10 +496,34 @@
         <dd>Sample AR(1) parameter for dynamic additive effects</dd>
       </dl><dl><dt>
 
+          <code><a href="sample_rho_uv.html">sample_rho_uv()</a></code>
+
+        </dt>
+        <dd>Sample AR(1) parameter for dynamic latent factors</dd>
+      </dl><dl><dt>
+
           <code><a href="sample_sigma_ab_cpp.html">sample_sigma_ab_cpp()</a></code>
 
         </dt>
         <dd>Sample innovation variance for dynamic additive effects</dd>
+      </dl><dl><dt>
+
+          <code><a href="sample_sigma_uv.html">sample_sigma_uv()</a></code>
+
+        </dt>
+        <dd>Sample innovation variance for dynamic latent factors</dd>
+      </dl><dl><dt>
+
+          <code><a href="sampsonmonks.html">sampsonmonks</a></code>
+
+        </dt>
+        <dd>Sampson's monastery data</dd>
+      </dl><dl><dt>
+
+          <code><a href="sheep.html">sheep</a></code>
+
+        </dt>
+        <dd>Sheep dominance data</dd>
       </dl><dl><dt>
 
           <code><a href="simY_bin.html">simY_bin()</a></code>
@@ -723,9 +572,44 @@
 
         </dt>
         <dd>Simulate Z given its expectation and covariance</dd>
+      </dl><dl><dt>
+
+          <code><a href="sm2el.html">sm2el()</a></code>
+
+        </dt>
+        <dd>Sociomatrix to edgelist</dd>
+      </dl><dl><dt>
+
+          <code><a href="summary.ame.html">summary(<i>&lt;ame&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Summary of an AME object</dd>
+      </dl><dl><dt>
+
+          <code><a href="summary.lame.html">summary(<i>&lt;lame&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Summary of a LAME object</dd>
+      </dl><dl><dt>
+
+          <code><a href="trace_plot.html">trace_plot()</a></code>
+
+        </dt>
+        <dd>MCMC trace plots and density plots for AME/LAME model parameters</dd>
+      </dl><dl><dt>
+
+          <code><a href="uv_plot.html">uv_plot()</a></code>
+
+        </dt>
+        <dd>Visualize multiplicative effects (latent factors) from AME models</dd>
+      </dl><dl><dt>
+
+          <code><a href="zscores.html">zscores()</a></code>
+
+        </dt>
+        <dd>rank-based z-scores</dd>
       </dl></div>
-  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
-    </nav></aside></div>
+  </main></div>
 
 
     <footer><div class="pkgdown-footer-left">
