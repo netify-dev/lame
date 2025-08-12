@@ -29,7 +29,8 @@ Imports:
     gridExtra,
     coda,
     patchwork,
-    cli
+    cli,
+    msm
 Suggests: 
     knitr,
     rmarkdown,

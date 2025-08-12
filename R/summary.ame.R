@@ -19,7 +19,6 @@
 #'       \item{ve}{Residual variance}
 #'     }
 #'     For symmetric networks, only va and ve are estimated.}
-#'   \item{Model fit statistics}{If available, AIC and BIC for model comparison}
 #' }
 #' 
 #' @param object an object of class "ame", typically the result of fitting an 
@@ -29,7 +28,6 @@
 #'   \item{call}{The original function call}
 #'   \item{beta}{Matrix of regression coefficient estimates and statistics}
 #'   \item{variance}{Matrix of variance component estimates}
-#'   \item{model.fit}{Model fit statistics (AIC, BIC) if available}
 #' @author Peter Hoff, Cassy Dorff, Shahryar Minhas
 #' @seealso \code{\link{ame}}, \code{\link{print.summary.ame}}
 #' @method summary ame
@@ -67,18 +65,13 @@ summary.ame <- function(object, ...) {
     StdError = vc_sd
   )
   
-  # Model fit statistics if available
-  model_fit <- NULL
-  if (!is.null(fit$AIC) || !is.null(fit$BIC)) {
-    model_fit <- c(AIC = fit$AIC, BIC = fit$BIC)
-  }
+  # Model fit statistics removed
   
   # Create summary object
   sum_obj <- list(
     call = fit$call,
     beta = beta_table,
-    variance = vc_table,
-    model.fit = model_fit
+    variance = vc_table
   )
   
   class(sum_obj) <- "summary.ame"
@@ -121,12 +114,6 @@ print.summary.ame <- function(x, digits = 3, ...) {
   var_table <- round(x$variance, digits)
   print(var_table, quote = FALSE, right = TRUE)
   
-  # Print model fit statistics if available
-  if (!is.null(x$model.fit)) {
-    cat("\nModel fit statistics:\n")
-    cat("--------------------\n")
-    print(round(x$model.fit, digits))
-  }
   
   invisible(x)
 }

@@ -2,11 +2,6 @@
 
 > **L**ongitudinal **A**dditive and **M**ultiplicative **E**ffects Models for Networks
 
-<!-- badges: start -->
-[![R-CMD-check](https://github.com/netify-dev/lame/workflows/R-CMD-check/badge.svg)](https://github.com/netify-dev/lame/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-<!-- badges: end -->
-
 ## Overview
 
 The `lame` package extends the Additive and Multiplicative Effects (AME) framework for network analysis, providing support for both cross-sectional and longitudinal networks. The package includes two main functions: `ame` for cross-sectional network analysis and `lame` for longitudinal network analysis with dynamic effects that capture temporal heterogeneity through autoregressive processes. Both functions support unipartite (square) and bipartite (rectangular) network structures, making them suitable for analyzing various types of relational data.

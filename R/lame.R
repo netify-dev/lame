@@ -273,8 +273,6 @@
 #' values of four goodness-of-fit statistics}
 #' \item{startVals}{Final parameter values from MCMC, can be used as the input
 #' for a future model run.}
-#' \item{AIC}{Akaike Information Criterion (if model.name provided)}
-#' \item{BIC}{Bayesian Information Criterion (if model.name provided)}
 #' \item{model.name}{Name of the model (if provided)}
 #' @author Peter Hoff, Yanjun He, Shahryar Minhas
 #' @examples
@@ -1182,7 +1180,7 @@ lame <- function(
         fit <- get_fit_object( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
                              BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr,
                              startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
-                             AIC=NA, BIC=NA, model.name=model.name)
+                             model.name=model.name)
         save(fit, file=outFile) ; rm(list=c('fit','startVals'))
       }
       
@@ -1227,35 +1225,11 @@ lame <- function(
     startVals <- list( Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
   }
   
-  # Calculate AIC/BIC if model.name provided
   if(!is.null(model.name))
   {
     # Count effective parameters
     p_eff <- ncol(BETA) + rvar*n + cvar*n + R*(R+1)/2
     
-    # Log-likelihood approximation (simplified)
-    # Note: This is a simplified calculation for model comparison purposes
-    # Full likelihood calculation would require more complex integration
-    s2_mean <- mean(VC[,ncol(VC)])
-    n_obs <- sum(!is.na(Y))
-    
-    if(family %in% c("normal", "tobit", "binary")) {
-      # Use a simplified log-likelihood based on residual variance
-      # This provides a rough approximation for model comparison
-      ll <- -n_obs/2 * (log(2*pi*s2_mean) + 1)
-    } else {
-      ll <- NA
-    }
-    
-    # AIC and BIC
-    if(!is.na(ll)) {
-      AIC <- -2*ll + 2*p_eff
-      BIC <- -2*ll + p_eff*log(n_obs)
-    } else {
-      AIC <- BIC <- NA
-    }
-  } else {
-    AIC <- BIC <- NA
   }
   
   # output
@@ -1282,7 +1256,7 @@ lame <- function(
   fit <- get_fit_object( APS=APS_final, BPS=BPS_final, UVPS=UVPS_final, YPS=YPS, 
                        BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr, 
                        startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
-                       AIC=AIC, BIC=BIC, model.name=model.name, U=U_final, V=V_final, 
+                       model.name=model.name, U=U_final, V=V_final, 
                        dynamic_uv=dynamic_uv, dynamic_ab=dynamic_ab, bip=bip,
                        rho_ab=RHO_AB, rho_uv=RHO_UV)
   

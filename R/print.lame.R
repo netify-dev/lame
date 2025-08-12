@@ -64,14 +64,6 @@ print.lame <- function(x, ...) {
     ))
   }
   
-  # Model fit if available
-  if (!is.null(x$AIC) || !is.null(x$BIC)) {
-    cli::cli_h3("Model Fit")
-    fit_info <- character()
-    if (!is.null(x$AIC)) fit_info <- c(fit_info, "*" = "AIC: {.val {round(x$AIC, 2)}}")
-    if (!is.null(x$BIC)) fit_info <- c(fit_info, "*" = "BIC: {.val {round(x$BIC, 2)}}")
-    cli::cli_bullets(fit_info)
-  }
   
   cli::cli_alert_info("Use {.code summary(object)} for detailed results")
   

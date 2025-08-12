@@ -17,8 +17,6 @@ get_fit_object(
   startVals,
   symmetric,
   tryErrorChecks,
-  AIC = NA,
-  BIC = NA,
   model.name = NULL,
   U = NULL,
   V = NULL,
@@ -54,10 +52,6 @@ get_fit_object(
 
 \item{tryErrorChecks}{list with counts of MCMC errors}
 
-\item{AIC}{Akaike Information Criterion (optional)}
-
-\item{BIC}{Bayesian Information Criterion (optional)}
-
 \item{model.name}{Name of the model (optional)}
 
 \item{U}{Latent sender positions (optional, for dynamic UV)}
@@ -67,6 +61,12 @@ get_fit_object(
 \item{dynamic_uv}{logical indicating whether UV effects are dynamic}
 
 \item{dynamic_ab}{logical indicating whether additive effects are dynamic}
+
+\item{bip}{logical indicating whether the network is bipartite}
+
+\item{rho_ab}{temporal correlation parameter for additive effects (optional)}
+
+\item{rho_uv}{temporal correlation parameter for multiplicative effects (optional)}
 }
 \value{
 Fitted AME object

@@ -55,12 +55,10 @@
 <blockquote>
 <p><strong>L</strong>ongitudinal <strong>A</strong>dditive and <strong>M</strong>ultiplicative <strong>E</strong>ffects Models for Networks</p>
 </blockquote>
-<!-- badges: start -->
-
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>The <code>lame</code> package extends the Additive and Multiplicative Effects (AME) framework for longitudinal network analysis, enabling researchers to model how network structure and individual behaviors evolve over time. Built on the foundation of the <code>amen</code> package, <code>lame</code> introduces dynamic effects that capture temporal heterogeneity through autoregressive processes.</p>
+<p>The <code>lame</code> package extends the Additive and Multiplicative Effects (AME) framework for network analysis, providing support for both cross-sectional and longitudinal networks. The package includes two main functions: <code>ame</code> for cross-sectional network analysis and <code>lame</code> for longitudinal network analysis with dynamic effects that capture temporal heterogeneity through autoregressive processes. Both functions support unipartite (square) and bipartite (rectangular) network structures, making them suitable for analyzing various types of relational data.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -78,7 +76,7 @@
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"netify-dev/lame"</span>, dependencies <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="package-option-2-install-from-cran-coming-soon">📦 Option 2: Install from CRAN (coming soon)<a class="anchor" aria-label="anchor" href="#package-option-2-install-from-cran-coming-soon"></a>
+<h3 id="package-option-2-install-from-cran-coming-soon--maybe--probably">📦 Option 2: Install from CRAN (coming soon … maybe … probably)<a class="anchor" aria-label="anchor" href="#package-option-2-install-from-cran-coming-soon--maybe--probably"></a>
 </h3>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Once available on CRAN</span></span>
@@ -152,7 +150,7 @@
 <div class="section level2">
 <h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
 </h2>
-<p>The package provides comprehensive plotting functions that automatically detect whether effects are static or dynamic:</p>
+<p>Plotting functions:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Visualize additive effects (sender/receiver)</span></span>
 <span><span class="fu"><a href="reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"sender"</span><span class="op">)</span>                    <span class="co"># Static effects</span></span>
@@ -180,37 +178,11 @@
 <li>
 <strong>Time-varying heterogeneity</strong> (<code>dynamic_ab</code>): Models changing individual activity levels and popularity over time</li>
 <li>
+<strong>Bipartite network support</strong>: Handles rectangular adjacency matrices with separate latent factors for row and column nodes</li>
+<li>
 <strong>Flexible priors</strong>: Customizable temporal persistence (ρ) and innovation variance (σ²) parameters</li>
 <li>
 <strong>Theoretical foundation</strong>: Based on Sewell &amp; Chen (2015, JASA) and Durante &amp; Dunson (2014, Biometrika)</li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="zap-performance--implementation">⚡ Performance &amp; Implementation<a class="anchor" aria-label="anchor" href="#zap-performance--implementation"></a>
-</h3>
-<ul>
-<li>
-<strong>C++ acceleration</strong>: Core functions implemented in C++ via Rcpp/RcppArmadillo</li>
-<li>
-<strong>Memory efficiency</strong>: ~50% reduction in memory usage for dynamic effects</li>
-<li>
-<strong>Advanced sampling</strong>: Forward-filtering backward-sampling (FFBS) for temporal updates</li>
-<li>
-<strong>Parallel processing</strong>: Vectorized operations for efficient computation</li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="id_-user-experience">🛠 User Experience<a class="anchor" aria-label="anchor" href="#id_-user-experience"></a>
-</h3>
-<ul>
-<li>
-<strong>Temporal flexibility</strong>: Handles networks with actors entering/exiting over time</li>
-<li>
-<strong>Modern CLI</strong>: Progress bars and informative messages via cli package</li>
-<li>
-<strong>Comprehensive plotting</strong>: Unified interface for static and dynamic visualization</li>
-<li>
-<strong>Extensive diagnostics</strong>: Built-in convergence monitoring and model selection tools</li>
 </ul>
 </div>
 </div>
@@ -218,12 +190,14 @@
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
 <ul>
-<li>📖 <strong>Getting Started</strong>: <code><a href="articles/lame-overview.html">vignette("lame-overview")</a></code>
+<li>
+<strong>Getting Started</strong>: <code><a href="articles/lame-overview.html">vignette("lame-overview")</a></code>
 </li>
-<li>🔬 <strong>Dynamic Effects</strong>: <code><a href="articles/dynamic_effects.html">vignette("dynamic_effects")</a></code>
+<li>
+<strong>Dynamic Effects</strong>: <code><a href="articles/dynamic_effects.html">vignette("dynamic_effects")</a></code>
 </li>
-<li>📚 <strong>Function Reference</strong>: <code><a href="reference/lame.html">?lame</a></code> for detailed documentation</li>
-<li>🌐 <strong>Package Website</strong>: <a href="https://netify-dev.github.io/lame/">https://netify-dev.github.io/lame/</a>
+<li>
+<strong>Bipartite Networks</strong>: <code><a href="articles/bipartite.html">vignette("bipartite")</a></code>
 </li>
 </ul>
 </div>
@@ -308,13 +282,7 @@
 </ul>
 </div>
 
-<div class="dev-status">
-<h2 data-toc-skip>Dev status</h2>
-<ul class="list-unstyled">
-<li><a href="https://github.com/netify-dev/lame/actions" class="external-link"><img src="https://github.com/netify-dev/lame/workflows/R-CMD-check/badge.svg" alt="R-CMD-check"></a></li>
-<li><a href="https://opensource.org/licenses/MIT" class="external-link"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a></li>
-</ul>
-</div>
+
 
   </aside>
 </div>

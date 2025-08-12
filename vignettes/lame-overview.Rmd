@@ -146,8 +146,6 @@ The `lame` package provides a way for users to analyze additive and multiplicati
 
 **References**:
 
-Hoff, PD (2005) Bilinear Mixed-effects Models for Dyadic Data. Journal of the American Statistical Association 100, 286–295.
-
 Hoff, PD (2021) Additive and Multiplicative Effects Network Models. Statistical Science 36, 34–50.
 
 Morgan, T. Clifton, Bapat, N., & Kobayashi, Y. (2014). Threat and Imposition of Economic Sanctions 1945-2005. Conflict Management and Peace Science 31(5): 541-558.

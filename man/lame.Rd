@@ -155,8 +155,6 @@ matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 values of four goodness-of-fit statistics}
 \item{startVals}{Final parameter values from MCMC, can be used as the input
 for a future model run.}
-\item{AIC}{Akaike Information Criterion (if model.name provided)}
-\item{BIC}{Bayesian Information Criterion (if model.name provided)}
 \item{model.name}{Name of the model (if provided)}
 }
 \description{

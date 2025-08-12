@@ -18,7 +18,6 @@
 #'       \item{rho}{Dyadic correlation (reciprocity)}
 #'       \item{ve}{Residual variance}
 #'     }}
-#'   \item{Model fit statistics}{If available, AIC and BIC}
 #' }
 #' 
 #' @param object an object of class "lame", typically the result of fitting a 
@@ -28,7 +27,6 @@
 #'   \item{call}{The original function call}
 #'   \item{beta}{Matrix of regression coefficient estimates and statistics}
 #'   \item{variance}{Matrix of variance component estimates}
-#'   \item{model.fit}{Model fit statistics (AIC, BIC) if available}
 #'   \item{n.periods}{Number of time periods in the longitudinal data}
 #' @author Peter Hoff, Cassy Dorff, Shahryar Minhas
 #' @seealso \code{\link{lame}}, \code{\link{print.summary.lame}}
@@ -67,11 +65,7 @@ summary.lame <- function(object, ...) {
     StdError = vc_sd
   )
   
-  # Model fit statistics if available
-  model_fit <- NULL
-  if (!is.null(fit$AIC) || !is.null(fit$BIC)) {
-    model_fit <- c(AIC = fit$AIC, BIC = fit$BIC)
-  }
+  # Model fit statistics removed
   
   # Number of time periods if available
   n_periods <- if (!is.null(fit$n.periods)) fit$n.periods else NULL
@@ -81,7 +75,6 @@ summary.lame <- function(object, ...) {
     call = fit$call,
     beta = beta_table,
     variance = vc_table,
-    model.fit = model_fit,
     n.periods = n_periods
   )
   
@@ -130,12 +123,6 @@ print.summary.lame <- function(x, digits = 3, ...) {
   var_table <- round(x$variance, digits)
   print(var_table, quote = FALSE, right = TRUE)
   
-  # Print model fit statistics if available
-  if (!is.null(x$model.fit)) {
-    cat("\nModel fit statistics:\n")
-    cat("--------------------\n")
-    print(round(x$model.fit, digits))
-  }
   
   invisible(x)
 }

@@ -17,7 +17,6 @@ A list of class "summary.ame" containing:
 \item{call}{The original function call}
 \item{beta}{Matrix of regression coefficient estimates and statistics}
 \item{variance}{Matrix of variance component estimates}
-\item{model.fit}{Model fit statistics (AIC, BIC) if available}
 }
 \description{
 Provides a comprehensive summary of a fitted AME (Additive and Multiplicative
@@ -39,7 +38,6 @@ receiver covariates}
 \item{ve}{Residual variance}
 }
 For symmetric networks, only va and ve are estimated.}
-\item{Model fit statistics}{If available, AIC and BIC for model comparison}
 }
 }
 \seealso{

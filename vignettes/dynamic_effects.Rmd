@@ -95,7 +95,7 @@ The package uses the following default priors:
 
 These can be customized via the `prior` argument:
 
-```r
+```{r}
 prior_custom <- list(
   rho_uv_mean = 0.95,    # Higher persistence for UV
   rho_uv_sd = 0.05,      # Tighter prior
@@ -128,32 +128,36 @@ This forward-filtering backward-sampling (FFBS) approach explores the posterior 
 
 ### Basic Example
 
-```r
+```{r}
 library(lame)
 
 # Simulate longitudinal network data
 set.seed(6886)
-n <- 50  # actors
-T <- 10  # time periods
+n <- 25  # actors (reduced for faster vignette building)
+T <- 5   # time periods (reduced for faster vignette building)
 
 # Generate networks (example with binary data)
 Y_list <- list()
 for(t in 1:T) {
   Y_t <- matrix(rbinom(n*n, 1, 0.1), n, n)
   diag(Y_t) <- NA
+  # Add actor labels (required for lame function)
+  rownames(Y_t) <- colnames(Y_t) <- paste0("Actor", 1:n)
   Y_list[[t]] <- Y_t
 }
 
-# Fit model with dynamic effects
+# Fit model with dynamic effects (reduced iterations for vignette)
 fit_dynamic <- lame(
   Y = Y_list,
   R = 2,                # 2-dimensional latent space
   dynamic_uv = TRUE,    # Dynamic latent factors
   dynamic_ab = TRUE,    # Dynamic additive effects
   family = "binary",
-  burn = 1000,         # Longer burn-in recommended
-  nscan = 5000,
-  odens = 25
+  burn = 100,          # Reduced for vignette (use 1000+ in practice)
+  nscan = 500,         # Reduced for vignette (use 5000+ in practice)
+  odens = 25,
+  print = FALSE,       # Suppress output for vignette
+  plot = FALSE         # Suppress plots for vignette
 )
 ```
 
@@ -161,44 +165,53 @@ fit_dynamic <- lame(
 
 Plotting functions can illustrate temporal dynamics:
 
-```r
-# Plot latent positions at specific time
-uv_plot(fit_dynamic, time_point = 5, plot_type = "snapshot")
+```{r}
+# Plot latent positions (last time point)
+uv_plot(fit_dynamic, plot_type = "snapshot")
 
-# Plot trajectory of latent positions
-uv_plot(fit_dynamic, plot_type = "trajectory", show_actors = c(1, 5, 10))
+# Plot sender effects 
+ab_plot(fit_dynamic, effect = "sender")
 
-# Plot additive effects evolution
-ab_plot(fit_dynamic, effect = "sender", plot_type = "trajectory")
+# Plot trace of parameters
+trace_plot(fit_dynamic, params = "beta")
 ```
 
 ### Model Selection
 
 Choose between static and dynamic specifications based on:
 
-1. **Model fit statistics**: Compare GOF, AIC, BIC
+1. **Model fit statistics**: Compare GOF statistics
 2. **Parameter estimates**: Check if $\rho$ significantly differs from 0
 3. **Visual inspection**: Look for temporal patterns in residuals
 
-```r
+```{r}
 # Static model
-fit_static <- lame(Y_list, R = 2, family = "binary")
+fit_static <- lame(Y_list, R = 2, family = "binary", 
+                   burn = 100, nscan = 400, odens = 20, 
+                   print = FALSE, plot = FALSE)
 
 # Dynamic UV only
-fit_uv <- lame(Y_list, R = 2, dynamic_uv = TRUE, family = "binary")
+fit_uv <- lame(Y_list, R = 2, dynamic_uv = TRUE, family = "binary",
+               burn = 100, nscan = 400, odens = 20,
+               print = FALSE, plot = FALSE)
 
 # Dynamic AB only  
-fit_ab <- lame(Y_list, R = 2, dynamic_ab = TRUE, family = "binary")
+fit_ab <- lame(Y_list, R = 2, dynamic_ab = TRUE, family = "binary",
+               burn = 100, nscan = 400, odens = 20,
+               print = FALSE, plot = FALSE)
 
 # Full dynamic
-fit_full <- lame(Y_list, R = 2, dynamic_uv = TRUE, dynamic_ab = TRUE, family = "binary")
+fit_full <- lame(Y_list, R = 2, dynamic_uv = TRUE, dynamic_ab = TRUE, family = "binary",
+                 burn = 100, nscan = 400, odens = 20,
+                 print = FALSE, plot = FALSE)
 
-# Compare models
-model_comparison <- data.frame(
-  Model = c("Static", "Dynamic UV", "Dynamic AB", "Full Dynamic"),
-  AIC = c(fit_static$AIC, fit_uv$AIC, fit_ab$AIC, fit_full$AIC),
-  BIC = c(fit_static$BIC, fit_uv$BIC, fit_ab$BIC, fit_full$BIC)
-)
+# Compare GOF statistics
+if(!is.null(fit_static$GOF) && !is.null(fit_full$GOF)) {
+  cat("Static model GOF (sample):\n")
+  print(head(fit_static$GOF))
+  cat("\nDynamic model GOF (sample):\n")  
+  print(head(fit_full$GOF))
+}
 ```
 
 ## Convergence Diagnostics
@@ -209,18 +222,18 @@ Dynamic models typically require:
 - More samples (≥ 20000 post burn-in)
 - Careful monitoring of $\rho$ and $\sigma^2$ parameters
 
-```r
+```{r, eval=FALSE}
 # Check effective sample sizes
 library(coda)
 mcmc_samples <- as.mcmc(fit_dynamic$BETA)
 effectiveSize(mcmc_samples)
 
-# Trace plots for dynamic parameters
-par(mfrow = c(2, 2))
-plot(fit_dynamic$rho_uv_samples, type = "l", main = "rho_uv trace")
-plot(fit_dynamic$sigma_uv_samples, type = "l", main = "sigma_uv trace")
-plot(fit_dynamic$rho_ab_samples, type = "l", main = "rho_ab trace")
-plot(fit_dynamic$sigma_ab_samples, type = "l", main = "sigma_ab trace")
+# Trace plots for dynamic parameters (if available)
+# par(mfrow = c(2, 2))
+# if(!is.null(fit_dynamic$rho_uv)) plot(fit_dynamic$rho_uv, type = "l", main = "rho_uv trace")
+# if(!is.null(fit_dynamic$sigma_uv)) plot(fit_dynamic$sigma_uv, type = "l", main = "sigma_uv trace")
+# if(!is.null(fit_dynamic$rho_ab)) plot(fit_dynamic$rho_ab, type = "l", main = "rho_ab trace")
+# if(!is.null(fit_dynamic$sigma_ab)) plot(fit_dynamic$sigma_ab, type = "l", main = "sigma_ab trace")
 ```
 
 ## References

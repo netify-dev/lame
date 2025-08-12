@@ -17,7 +17,6 @@ A list of class "summary.lame" containing:
 \item{call}{The original function call}
 \item{beta}{Matrix of regression coefficient estimates and statistics}
 \item{variance}{Matrix of variance component estimates}
-\item{model.fit}{Model fit statistics (AIC, BIC) if available}
 \item{n.periods}{Number of time periods in the longitudinal data}
 }
 \description{
@@ -39,7 +38,6 @@ receiver covariates}
 \item{rho}{Dyadic correlation (reciprocity)}
 \item{ve}{Residual variance}
 }}
-\item{Model fit statistics}{If available, AIC and BIC}
 }
 }
 \seealso{

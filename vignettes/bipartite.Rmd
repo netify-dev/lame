@@ -373,6 +373,3 @@ trace_plot(list(
 ))
 ```
 
-## References
-
-- Minhas, S., Hoff, P. D., & Ward, M. D. (2019). Inferential approaches for network analysis: AMEN for latent factor models. *Political Analysis*, 27(2), 208-222.

@@ -31,12 +31,6 @@ print.ame <- function(x, ...) {
     cat("  Multiplicative effects dimension: ", ncol(x$U), "\n")
   }
   
-  # Model fit if available
-  if (!is.null(x$AIC) || !is.null(x$BIC)) {
-    cat("\nModel fit:\n")
-    if (!is.null(x$AIC)) cat("  AIC: ", round(x$AIC, 2), "\n")
-    if (!is.null(x$BIC)) cat("  BIC: ", round(x$BIC, 2), "\n")
-  }
   
   cat("\nUse summary(object) for detailed results\n")
   
