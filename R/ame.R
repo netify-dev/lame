@@ -3,7 +3,8 @@
 #' An MCMC routine providing a fit to an additive and multiplicative effects
 #' (AME) regression model to cross-sectional relational data of various types. 
 #' This function supports both unipartite (square) and bipartite (rectangular) 
-#' networks. For longitudinal networks, use the \code{lame} function.
+#' networks. For longitudinal networks, use the \code{lame} function. Original
+#' implementation by Peter Hoff.
 #' 
 #' @details
 #' This command provides posterior inference for parameters in AME models of
@@ -100,7 +101,9 @@
 #' odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)), 
 #' prior=list(), g=NA,
 #' seed = 6886, nscan = 10000, burn = 500, odens = 25, 
-#' plot=TRUE, print = TRUE, gof=TRUE, model.name=NULL)
+#' plot=TRUE, print = TRUE, gof=TRUE, 
+#' start_vals=NULL, periodic_save=FALSE, out_file=NULL,
+#' save_interval=0.25, model.name=NULL)
 #' @param Y For unipartite: an n x n square relational matrix. For bipartite: an nA x nB 
 #' rectangular relational matrix where nA is the number of row nodes and nB is the 
 #' number of column nodes. See family below for various data types.
@@ -159,6 +162,10 @@
 #' @param plot logical: plot results while running?
 #' @param print logical: print results while running?
 #' @param gof logical: calculate goodness of fit statistics?
+#' @param start_vals List from previous model run containing parameter starting values for new MCMC
+#' @param periodic_save logical: indicating whether to periodically save MCMC results
+#' @param out_file character vector indicating name and path in which file should be stored if periodic_save is selected. For example, on an Apple OS out_file="~/Desktop/ameFit.rda".
+#' @param save_interval quantile interval indicating when to save during post burn-in phase.
 #' @param model.name optional string for model selection output
 #' @return \item{BETA}{posterior samples of regression coefficients}
 #' \item{VC}{posterior samples of the variance parameters}
@@ -173,7 +180,7 @@
 #' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
 #' values of four goodness-of-fit statistics}
 #' \item{model.name}{Name of the model (if provided)}
-#' @author Peter Hoff
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
 #' \dontrun{
 #' data(YX_bin) 
@@ -193,7 +200,9 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
                odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
                prior=list(), g=NA,
                seed = 6886, nscan = 10000, burn = 500, odens = 25,
-               plot=TRUE, print = TRUE, gof=TRUE, model.name=NULL)
+               plot=TRUE, print = TRUE, gof=TRUE, 
+               start_vals=NULL, periodic_save=FALSE, out_file=NULL,
+               save_interval=0.25, model.name=NULL)
 { 
   
   # set random seed
@@ -379,10 +388,24 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   Z[is.na(Z)]<-ZA[is.na(Z)] 
   
   
-  # other starting values
-  beta<-rep(0,dim(X)[3]) 
-  s2<-1 
-  if(bip) {
+  # other starting values (use start_vals if provided)
+  if(!is.null(start_vals)) {
+    beta <- start_vals$beta
+    s2 <- start_vals$s2
+    a <- start_vals$a
+    b <- start_vals$b
+    if(!is.null(start_vals$rho)) rho <- start_vals$rho else rho <- 0
+    if(!is.null(start_vals$Sab)) Sab <- start_vals$Sab
+    if(!is.null(start_vals$U)) U <- start_vals$U
+    if(!is.null(start_vals$V)) V <- start_vals$V
+    if(!is.null(start_vals$Z)) Z <- start_vals$Z
+  } else {
+    beta<-rep(0,dim(X)[3]) 
+    s2<-1
+  }
+  
+  # Initialize remaining values if not provided by start_vals
+  if(is.null(start_vals) && bip) {
     # For bipartite networks
     rho <- NULL  # No dyadic correlation
     # Initialize U and V with appropriate dimensions for bipartite
@@ -406,11 +429,17 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     } else {
       G <- matrix(0, max(1, RA), max(1, RB))
     }
-  } else {
+  } else if(is.null(start_vals) && !bip) {
     # For unipartite networks (existing logic)
     rho<-0
     Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
     U<-V<-matrix(0, nrow(Y), R)
+    G <- NULL  # No G matrix for unipartite
+  } else if(!is.null(start_vals) && bip) {
+    # Use provided start_vals for bipartite networks
+    if(!is.null(start_vals$G)) G <- start_vals$G
+  } else if(!is.null(start_vals) && !bip) {
+    # Use provided start_vals for unipartite networks  
     G <- NULL  # No G matrix for unipartite
   }  
   
@@ -501,6 +530,10 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   # MCMC 
   have_coda<-suppressWarnings(
     try(requireNamespace("coda",quietly = TRUE),silent=TRUE))
+  
+  # Set up save points for periodic saving
+  savePoints <- (burn:(nscan+burn))[(burn:(nscan+burn)) %% odens==0]
+  savePoints <- savePoints[round(quantile(1:length(savePoints), probs=seq(save_interval,1,save_interval)))]
   
   for (s in 1:(nscan + burn)) 
   { 
@@ -965,6 +998,20 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       
     }
     
+    # periodic save
+    if(periodic_save & s %in% savePoints & !is.null(out_file)){
+      # save start_vals for future model runs
+      start_vals <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
+      if(bip && !is.null(G)) start_vals$G <- G
+      
+      fit <- list(APM=APS/(sum(s>burn & s%%odens==0)), 
+                 BPM=BPS/(sum(s>burn & s%%odens==0)),
+                 BETA=BETA, VC=VC, GOF=GOF, 
+                 start_vals=start_vals, symmetric=symmetric,
+                 model.name=model.name)
+      save(fit, file=out_file)
+      rm(list=c('fit','start_vals'))
+    }
     
   } # end MCMC   
   
@@ -1039,8 +1086,10 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         rownames(V) <- colnames(Y)
       }
       # Include G matrix in output for bipartite
+      # save start_vals for future model runs
+      start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=V, s2=s2, Sab=Sab, G=G)
       fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,G=G,UVPM=UVPM,EZ=EZ,
-                  YPM=YPM,GOF=GOF,model.name=model.name,
+                  YPM=YPM,GOF=GOF,start_vals=start_vals_final,model.name=model.name,
                   mode="bipartite",nA=nA,nB=nB,RA=RA,RB=RB)
     } else {
       # Unipartite networks (existing logic)
@@ -1048,8 +1097,10 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       U<-UDV$u[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
       V<-UDV$v[,seq(1,R,length=R)]%*%diag(sqrt(UDV$d)[seq(1,R,length=R)],nrow=R)
       rownames(U)<-rownames(V)<-rownames(Y) 
+      # save start_vals for future model runs
+      start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
       fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-                  YPM=YPM,GOF=GOF,model.name=model.name,
+                  YPM=YPM,GOF=GOF,start_vals=start_vals_final,model.name=model.name,
                   mode="unipartite")
     }
   }
@@ -1064,8 +1115,10 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     L<-eULU$val[eR]
     rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-rownames(Y)
     EZ<-.5*(EZ+t(EZ)) ; YPM<-.5*(YPM+t(YPM)) 
+    # save start_vals for future model runs
+    start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
     fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-              YPM=YPM,GOF=GOF,model.name=model.name,
+              YPM=YPM,GOF=GOF,start_vals=start_vals_final,model.name=model.name,
               mode="unipartite")
   } 
   

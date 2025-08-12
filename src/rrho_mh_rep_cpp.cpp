@@ -15,7 +15,7 @@ using namespace Rcpp;
  //' @param rho current value of rho
  //' @param s2 current value of s2
  //' @return a new value of rho
- //' @author Peter Hoff, Yanjun He, Shahryar Minhas
+ //' @author Shahryar Minhas
  //' @keywords internal
 
  // [[Rcpp::export]]

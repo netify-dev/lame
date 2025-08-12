@@ -28,7 +28,7 @@ arma::mat mhalf_cpp2(
  //' according to the third dimension is a square residual relational matrix
  //' @param rhoMat inverted off-diagnoal matrix of rho
  //' @return a new value of s2
- //' @author Peter Hoff, Yanjun He, Shahryar Minhas
+ //' @author Shahryar Minhas
  //' @keywords internal
 
  // [[Rcpp::export]]

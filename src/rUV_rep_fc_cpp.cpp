@@ -39,7 +39,7 @@ using namespace Rcpp;
  //' @param shrink adaptively shrink the factors with a hierarchical prior
  //' @param rLoopIDs shuffled vector of latent space dimension sequence
  //' @return \item{U}{a new value of U} \item{V}{a new value of V}
- //' @author Peter Hoff, Yanjun He, Shahryar Minhas
+ //' @author Shahryar Minhas
  //' @keywords internal
 
  // [[Rcpp::export]]

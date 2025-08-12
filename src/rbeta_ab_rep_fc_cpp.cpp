@@ -54,7 +54,7 @@ arma::vec rmvnorm_cpp(
  //' @param G eigenvalue calcs from Sab
  //' @return \item{beta}{regression coefficients} \item{a}{additive row effects}
  //' \item{b}{additive column effects}
- //' @author Peter Hoff, Yanjun He, Shahryar Minhas
+ //' @author Shahryar Minhas
  //' @keywords internal
 
  // [[Rcpp::export]]
