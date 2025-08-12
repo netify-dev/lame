@@ -166,7 +166,7 @@
 #' symmetric=FALSE,
 #' odmax=NULL, prior=list(), g=NA,
 #' seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
-#' startVals=NULL, periodicSave=FALSE, outFile=NULL, saveInterval=0.25, model.name=NULL)
+#' start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.name=NULL)
 #' @param Y a T length list of n x n relational matrices, where T 
 #' corresponds to the number of replicates (over time, for example). 
 #' See family below for various data types.
@@ -252,10 +252,10 @@
 #' @param plot logical: plot results while running?
 #' @param print logical: print results while running?
 #' @param gof logical: calculate goodness of fit statistics?
-#' @param startVals List from previous model run containing parameter starting values for new MCMC
-#' @param periodicSave logical: indicating whether to periodically save MCMC results
-#' @param outFile character vector indicating name and path in which file should be stored if periodicSave is selected. For example, on an Apple OS outFile="~/Desktop/ameFit.rda".
-#' @param saveInterval quantile interval indicating when to save during post burn-in phase.
+#' @param start_vals List from previous model run containing parameter starting values for new MCMC
+#' @param periodic_save logical: indicating whether to periodically save MCMC results
+#' @param out_file character vector indicating name and path in which file should be stored if periodic_save is selected. For example, on an Apple OS out_file="~/Desktop/ameFit.rda".
+#' @param save_interval quantile interval indicating when to save during post burn-in phase.
 #' @param model.name optional string for model selection output
 #' @return \item{BETA}{posterior samples of regression coefficients}
 #' \item{VC}{posterior samples of the variance parameters}
@@ -271,10 +271,10 @@
 #' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 #' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
 #' values of four goodness-of-fit statistics}
-#' \item{startVals}{Final parameter values from MCMC, can be used as the input
+#' \item{start_vals}{Final parameter values from MCMC, can be used as the input
 #' for a future model run.}
 #' \item{model.name}{Name of the model (if provided)}
-#' @author Peter Hoff, Yanjun He, Shahryar Minhas
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
 #' 
 #' data(YX_bin_list) 
@@ -296,8 +296,8 @@ lame <- function(
     prior = list(), g = NA,
     seed = 6886, nscan = 10000, burn = 500, odens = 25,
     plot = FALSE, print = FALSE, gof = TRUE, 
-    startVals = NULL, periodicSave=FALSE, outFile=NULL,
-    saveInterval=0.25, model.name = NULL
+    start_vals = NULL, periodic_save=FALSE, out_file=NULL,
+    save_interval=0.25, model.name = NULL
 )
 {
   # Helper function
@@ -337,7 +337,7 @@ lame <- function(
   
   # calc savePoints
   savePoints <- (burn:(nscan+burn))[(burn:(nscan+burn)) %% odens==0]
-  savePoints <- savePoints[round(quantile(1:length(savePoints), probs=seq(saveInterval,1,saveInterval)))]
+  savePoints <- savePoints[round(quantile(1:length(savePoints), probs=seq(save_interval,1,save_interval)))]
   
   # check formatting of input objects
   check_format(Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol)
@@ -536,7 +536,7 @@ lame <- function(
     Sab <- diag(c(sigma2_a, sigma2_b))  # Independent variances
   } else {
     # Unipartite initialization (existing code)
-    startValsObj <- get_start_vals(startVals,Y,family,xP=dim(X)[3],rvar,cvar,R,odmax=odmax)
+    startValsObj <- get_start_vals(start_vals,Y,family,xP=dim(X)[3],rvar,cvar,R,odmax=odmax)
     Z<-startValsObj$Z ; beta<-startValsObj$beta ; a<-startValsObj$a
     b<-startValsObj$b ; U<-startValsObj$U ; V<-startValsObj$V
     rho<-startValsObj$rho ; s2<-startValsObj$s2 ; Sab<-startValsObj$Sab
@@ -608,7 +608,7 @@ lame <- function(
     sigma_uv <- NULL
   }
   
-  rm(list=c('startValsObj','startVals'))
+  rm(list=c('startValsObj','start_vals'))
   
   # helpful mcmc params
   symLoopIDs <- lapply(1:(nscan + burn), function(x){ rep(sample(1:nrow(U)),4) })  
@@ -1162,26 +1162,26 @@ lame <- function(
       }
       
       # periodic save
-      if(periodicSave & s %in% savePoints & !is.null(outFile)){
-        # save startVals for future model runs
+      if(periodic_save & s %in% savePoints & !is.null(out_file)){
+        # save start_vals for future model runs
         if(dynamic_uv && R > 0 && dynamic_ab) {
-          startVals <- list(Z=Z,beta=beta,a=a_mat,b=b_mat,U=U_cube,V=V_cube,
+          start_vals <- list(Z=Z,beta=beta,a=a_mat,b=b_mat,U=U_cube,V=V_cube,
                            rho=rho,s2=s2,Sab=Sab,rho_uv=rho_uv,sigma_uv=sigma_uv,
                            rho_ab=rho_ab, sigma_ab=sigma_ab)
         } else if(dynamic_uv && R > 0) {
-          startVals <- list(Z=Z,beta=beta,a=a,b=b,U=U_cube,V=V_cube,
+          start_vals <- list(Z=Z,beta=beta,a=a,b=b,U=U_cube,V=V_cube,
                            rho=rho,s2=s2,Sab=Sab,rho_uv=rho_uv,sigma_uv=sigma_uv)
         } else if(dynamic_ab) {
-          startVals <- list(Z=Z,beta=beta,a=a_mat,b=b_mat,U=U,V=V,rho=rho,s2=s2,Sab=Sab,
+          start_vals <- list(Z=Z,beta=beta,a=a_mat,b=b_mat,U=U,V=V,rho=rho,s2=s2,Sab=Sab,
                            rho_ab=rho_ab, sigma_ab=sigma_ab)
         } else {
-          startVals <- list(Z=Z,beta=beta,a=a,b=b,U=U,V=V,rho=rho,s2=s2,Sab=Sab)
+          start_vals <- list(Z=Z,beta=beta,a=a,b=b,U=U,V=V,rho=rho,s2=s2,Sab=Sab)
         }
         fit <- get_fit_object( APS=APS, BPS=BPS, UVPS=UVPS, YPS=YPS, 
                              BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr,
-                             startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
+                             start_vals=start_vals, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
                              model.name=model.name)
-        save(fit, file=outFile) ; rm(list=c('fit','startVals'))
+        save(fit, file=out_file) ; rm(list=c('fit','start_vals'))
       }
       
       # plot MC results
@@ -1217,12 +1217,12 @@ lame <- function(
     cli::cli_alert_success("MCMC sampling complete")
   }
   
-  # save startVals for future model runs
+  # save start_vals for future model runs
   if(dynamic_ab) {
-    startVals <- list( Z=Z, beta=beta, a=a_mat, b=b_mat, U=U, V=V, rho=rho, s2=s2, Sab=Sab,
+    start_vals <- list( Z=Z, beta=beta, a=a_mat, b=b_mat, U=U, V=V, rho=rho, s2=s2, Sab=Sab,
                       rho_ab=rho_ab, sigma_ab=sigma_ab)
   } else {
-    startVals <- list( Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
+    start_vals <- list( Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
   }
   
   if(!is.null(model.name))
@@ -1255,7 +1255,7 @@ lame <- function(
   
   fit <- get_fit_object( APS=APS_final, BPS=BPS_final, UVPS=UVPS_final, YPS=YPS, 
                        BETA=BETA, VC=VC, GOF=GOF, Xlist=Xlist, actorByYr=actorByYr, 
-                       startVals=startVals, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
+                       start_vals=start_vals, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
                        model.name=model.name, U=U_final, V=V_final, 
                        dynamic_uv=dynamic_uv, dynamic_ab=dynamic_ab, bip=bip,
                        rho_ab=RHO_AB, rho_uv=RHO_UV)

@@ -1,6 +1,6 @@
 #' Get fitted object from MCMC results
 #' 
-#' @param startVals List object that is null or contains 
+#' @param start_vals List object that is null or contains 
 #' starting values
 #' @param Y dependent variable in array format
 #' @param family character vector (e.g. 'bin', 'nrm') specifying
@@ -13,15 +13,15 @@
 #' @param R Number of dimensions for multiplicative effects
 #' @param odmax vector of maximum ranks for cbin/frn families (optional)
 #' @return List of starting values for MCMC
-#' @author Peter Hoff, Shahryar Minhas
+#' @author Shahryar Minhas
 #' @export get_start_vals
 
-get_start_vals <- function(startVals, Y, family, xP, rvar, cvar, R, odmax = NULL){
+get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NULL){
   
   # dims
   N <- dim(Y)[3]
   
-  if(is.null(startVals)){
+  if(is.null(start_vals)){
     # starting Z values
     Z<-array(dim=dim(Y))
     for (t in 1:N)
@@ -100,14 +100,14 @@ get_start_vals <- function(startVals, Y, family, xP, rvar, cvar, R, odmax = NULL
     rho<-0
     Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
     U<-V<-matrix(0, nrow(Y[,,1]), R) 
-  } # close of startVals condition    
+  } # close of start_vals condition    
   
   
-  # unpack startVals list if applicable
-  if(!is.null(startVals)){
-    Z<-startVals$Z ; beta<-startVals$beta ; a<-startVals$a ; b<-startVals$b
-    U<-startVals$U ; V<-startVals$V ; rho<-startVals$rho ; s2<-startVals$s2
-    Sab<-startVals$Sab
+  # unpack start_vals list if applicable
+  if(!is.null(start_vals)){
+    Z<-start_vals$Z ; beta<-start_vals$beta ; a<-start_vals$a ; b<-start_vals$b
+    U<-start_vals$U ; V<-start_vals$V ; rho<-start_vals$rho ; s2<-start_vals$s2
+    Sab<-start_vals$Sab
   }
   
   return(

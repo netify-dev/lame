@@ -9,7 +9,7 @@
 #' @param GOF Matrix of draws for goodness of fit calculations
 #' @param Xlist List based version of design array
 #' @param actorByYr List of actors by time point
-#' @param startVals startVals for future model run
+#' @param start_vals start_vals for future model run
 #' @param symmetric logical indicating whether model is symmetric
 #' @param tryErrorChecks list with counts of MCMC errors
 #' @param model.name Name of the model (optional)
@@ -21,12 +21,12 @@
 #' @param rho_ab temporal correlation parameter for additive effects (optional)
 #' @param rho_uv temporal correlation parameter for multiplicative effects (optional)
 #' @return Fitted AME object
-#' @author Peter Hoff, Shahryar Minhas
+#' @author Shahryar Minhas
 #' @export get_fit_object
 get_fit_object <- function(
     APS, BPS, UVPS, YPS, 
     BETA, VC, GOF,
-    Xlist, actorByYr, startVals,
+    Xlist, actorByYr, start_vals,
     symmetric, tryErrorChecks,
     model.name=NULL,
     U=NULL, V=NULL, dynamic_uv=FALSE, dynamic_ab=FALSE,
@@ -56,7 +56,7 @@ get_fit_object <- function(
       R <- ncol(U)
     }
   } else {
-    R <- ncol(startVals$U)
+    R <- ncol(start_vals$U)
   }
   N <- dim(YPS)[3]
   
@@ -195,7 +195,7 @@ get_fit_object <- function(
   if(symmetric){
     fit <- list(
       BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-      YPM=YPM,GOF=GOF, startVals=startVals, tryErrorChecks=tryErrorChecks,
+      YPM=YPM,GOF=GOF, start_vals=start_vals, tryErrorChecks=tryErrorChecks,
       model.name=model.name)
     # Add dynamic fields if applicable
     if(dynamic_ab && is.matrix(APM)) {
@@ -209,7 +209,7 @@ get_fit_object <- function(
   if(!symmetric){
     fit <- list(
       BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-      YPM=YPM,GOF=GOF, startVals=startVals, tryErrorChecks=tryErrorChecks,
+      YPM=YPM,GOF=GOF, start_vals=start_vals, tryErrorChecks=tryErrorChecks,
       model.name=model.name)
     # Add dynamic fields if applicable
     if(dynamic_ab && is.matrix(APM)) {
