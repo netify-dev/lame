@@ -231,7 +231,7 @@ plot.lame <- function(x,
         
         plot_list[["gof"]] <- p_gof
       }
-    } else if (!is.null(fit$GOF) && length(dim(fit$GOF)) == 3) {
+    } else if (!is.null(fit$GOF) && is.array(fit$GOF) && length(dim(fit$GOF)) == 3) {
       gof_long_data <- data.frame()
       n_stats <- dim(fit$GOF)[1]
       n_time <- dim(fit$GOF)[2]
@@ -279,7 +279,86 @@ plot.lame <- function(x,
         
         plot_list[["gof"]] <- p_gof
       }
-    } else if (!is.null(fit$GOF) && nrow(fit$GOF) > 1) {
+    } else if (!is.null(fit$GOF) && is.list(fit$GOF) && !is.data.frame(fit$GOF)) {
+      # Handle GOF as named list (new format)
+      gof_long_data <- data.frame()
+      stat_names <- names(fit$GOF)
+      
+      # Check if we have time-indexed data (multiple columns)
+      if (ncol(fit$GOF[[1]]) > 1) {
+        n_time <- ncol(fit$GOF[[1]])
+        
+        for (t in 1:n_time) {
+          for (stat_name in stat_names) {
+            vals <- fit$GOF[[stat_name]][, t]
+            if (length(vals) > 1) {
+              obs_val <- vals[1]
+              pred_vals <- vals[-1]
+              
+              gof_long_data <- rbind(gof_long_data, data.frame(
+                time = t,
+                statistic = stat_name,
+                observed = obs_val,
+                median = median(pred_vals),
+                lower = quantile(pred_vals, 0.025),
+                upper = quantile(pred_vals, 0.975),
+                stringsAsFactors = FALSE
+              ))
+            }
+          }
+        }
+        
+        if (nrow(gof_long_data) > 0) {
+          p_gof <- ggplot(gof_long_data, aes(x = time)) +
+            geom_ribbon(aes(ymin = lower, ymax = upper), 
+                       alpha = 0.3, fill = "blue") +
+            geom_line(aes(y = median), color = "blue", 
+                     linewidth = 1, linetype = "dashed") +
+            geom_line(aes(y = observed), color = "red", linewidth = 1) +
+            geom_point(aes(y = observed), color = "red", size = 2) +
+            facet_wrap(~ statistic, scales = "free_y", ncol = 2) +
+            labs(title = "Longitudinal GOF: Observed (red) vs 95% Credible Intervals",
+                 x = "Time Period", y = "Value") +
+            theme_minimal() +
+            theme(strip.text = element_text(size = 9))
+          
+          plot_list[["gof"]] <- p_gof
+        }
+      } else {
+        # Single time point - create static GOF plot
+        gof_plot_data <- data.frame()
+        for (stat_name in stat_names) {
+          vals <- fit$GOF[[stat_name]][, 1]
+          if (length(vals) > 1) {
+            obs_val <- vals[1]
+            pred_vals <- vals[-1]
+            
+            gof_plot_data <- rbind(gof_plot_data, data.frame(
+              value = pred_vals,
+              statistic = stat_name,
+              observed = obs_val,
+              stringsAsFactors = FALSE
+            ))
+          }
+        }
+        
+        if (nrow(gof_plot_data) > 0) {
+          p_gof <- ggplot(gof_plot_data, aes(x = value)) +
+            geom_histogram(aes(y = after_stat(density)), 
+                          bins = 30, fill = "lightblue", 
+                          color = "white", alpha = 0.7) +
+            geom_vline(aes(xintercept = observed), 
+                      color = "red", linewidth = 1) +
+            facet_wrap(~ statistic, scales = "free", ncol = 2) +
+            labs(title = "GOF: Observed (red) vs Posterior Predictive",
+                 x = "Value", y = "Density") +
+            theme_minimal() +
+            theme(strip.text = element_text(size = 9))
+          
+          plot_list[["gof"]] <- p_gof
+        }
+      }
+    } else if (!is.null(fit$GOF) && is.matrix(fit$GOF) && nrow(fit$GOF) > 1) {
       # Fall back to static GOF if no time-indexed version (2D array)
       gof_data <- fit$GOF
       obs_vals <- gof_data[1, ]

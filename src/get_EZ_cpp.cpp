@@ -24,13 +24,21 @@ using namespace Rcpp;
    
    for(int t=0 ; t<N ; ++t){
      
-     arma::cube Xt = Xlist[t];
      arma::mat Xbeta = arma::zeros(n,n);
      
-     for(int i=0 ; i<p ; ++i){
-       Xbeta = Xbeta + beta(i) * Xt.slice(i);
+     // Only process covariates if they exist
+     if(p > 0 && Xlist.size() > 0) {
+       arma::cube Xt = Xlist[t];
+       int num_covs = std::min(p, (int)Xt.n_slices);
+       
+       for(int i=0 ; i<num_covs ; ++i){
+         if(beta(i) != 0.0) {
+           Xbeta = Xbeta + beta(i) * Xt.slice(i);
+         }
+       }
      }
      
+     // Clone each slice to ensure independence in R
      EZ.slice(t) = Xbeta + ab + U*V.t();
    }	
    

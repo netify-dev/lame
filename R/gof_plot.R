@@ -109,8 +109,27 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
   # Extract GOF data
   gof_data <- fit$GOF
   
-  # Handle 3D array case (LAME) by averaging across time
-  if (length(dim(gof_data)) == 3) {
+  # Handle different GOF formats
+  if (is.list(gof_data) && !is.data.frame(gof_data)) {
+    # GOF is a named list (converted format)
+    # Convert to matrix format [iterations, statistics]
+    stat_names_full <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
+    n_iter <- nrow(gof_data[[1]])
+    gof_matrix <- matrix(NA, n_iter, length(stat_names_full))
+    colnames(gof_matrix) <- stat_names_full
+    
+    for (i in seq_along(stat_names_full)) {
+      if (stat_names_full[i] %in% names(gof_data)) {
+        # Average across time if there are multiple columns
+        if (ncol(gof_data[[stat_names_full[i]]]) > 1) {
+          gof_matrix[, i] <- rowMeans(gof_data[[stat_names_full[i]]], na.rm = TRUE)
+        } else {
+          gof_matrix[, i] <- gof_data[[stat_names_full[i]]][, 1]
+        }
+      }
+    }
+    gof_data <- gof_matrix
+  } else if (length(dim(gof_data)) == 3) {
     # GOF is [statistics, time, iterations]
     # Average across time to get [statistics, iterations]
     gof_data_avg <- apply(gof_data, c(1, 3), mean, na.rm = TRUE)
@@ -191,6 +210,33 @@ gof_plot_longitudinal <- function(fit, statistics, stat.names, credible.level,
   # Extract GOF data (should be time-indexed for LAME)
   if (!is.null(fit$GOF_T)) {
     gof_data <- fit$GOF_T
+  } else if (!is.null(fit$GOF) && is.list(fit$GOF) && !is.data.frame(fit$GOF)) {
+    # Handle GOF as named list format (new format from get_fit_object)
+    stat_names_full <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
+    
+    # Check if we have time-indexed data (multiple columns)
+    if (ncol(fit$GOF[[1]]) > 1) {
+      # Convert to list of matrices for each time point
+      gof_data <- list()
+      n_time <- ncol(fit$GOF[[1]])
+      
+      for (t in 1:n_time) {
+        # Create matrix for this time point [iterations, statistics]
+        gof_t <- matrix(NA, nrow(fit$GOF[[1]]), length(stat_names_full))
+        colnames(gof_t) <- stat_names_full
+        
+        for (i in seq_along(stat_names_full)) {
+          if (stat_names_full[i] %in% names(fit$GOF)) {
+            gof_t[, i] <- fit$GOF[[stat_names_full[i]]][, t]
+          }
+        }
+        gof_data[[t]] <- gof_t
+      }
+    } else {
+      # Single time point, fall back to static
+      warning("No time-indexed GOF found, using static GOF")
+      return(gof_plot_static(fit, statistics, stat.names, ncol, line.size, title))
+    }
   } else if (!is.null(fit$GOF) && length(dim(fit$GOF)) == 3) {
     # Handle LAME 3D GOF array [statistics, time, iterations]
     # Convert to list of matrices for each time point

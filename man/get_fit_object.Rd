@@ -23,7 +23,10 @@ get_fit_object(
   U = NULL,
   V = NULL,
   dynamic_uv = FALSE,
-  dynamic_ab = FALSE
+  dynamic_ab = FALSE,
+  bip = FALSE,
+  rho_ab = NULL,
+  rho_uv = NULL
 )
 }
 \arguments{

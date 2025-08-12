@@ -5,7 +5,8 @@
 \title{AME model fitting routine}
 \usage{
 ame(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl") ,
-cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, family="normal",
+cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, R_row = NULL, R_col = NULL,
+mode = c("unipartite", "bipartite"), family="normal",
 intercept=!is.element(family,c("rrl","ordinal")),
 symmetric=FALSE,
 odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)), 
@@ -14,24 +15,35 @@ seed = 6886, nscan = 10000, burn = 500, odens = 25,
 plot=TRUE, print = TRUE, gof=TRUE, model.name=NULL)
 }
 \arguments{
-\item{Y}{an n x n square relational matrix of relations. See family below for
-various data types.}
+\item{Y}{For unipartite: an n x n square relational matrix. For bipartite: an nA x nB
+rectangular relational matrix where nA is the number of row nodes and nB is the
+number of column nodes. See family below for various data types.}
 
-\item{Xdyad}{an n x n x pd array of covariates}
+\item{Xdyad}{For unipartite: an n x n x pd array of covariates. For bipartite:
+an nA x nB x pd array of covariates.}
 
-\item{Xrow}{an n x pr matrix of nodal row covariates}
+\item{Xrow}{For unipartite: an n x pr matrix of nodal row covariates. For bipartite:
+an nA x pr matrix of row node covariates.}
 
-\item{Xcol}{an n x pc matrix of nodal column covariates}
+\item{Xcol}{For unipartite: an n x pc matrix of nodal column covariates. For bipartite:
+an nB x pc matrix of column node covariates.}
 
 \item{rvar}{logical: fit row random effects (asymmetric case)?}
 
 \item{cvar}{logical: fit column random effects (asymmetric case)?}
 
-\item{dcor}{logical: fit a dyadic correlation (asymmetric case)?}
+\item{dcor}{logical: fit a dyadic correlation (asymmetric case)? Note: not used for bipartite networks.}
 
 \item{nvar}{logical: fit nodal random effects (symmetric case)?}
 
-\item{R}{integer: dimension of the multiplicative effects (can be zero)}
+\item{R}{integer: dimension of the multiplicative effects (can be zero). For bipartite networks,
+this is used as the default for both R_row and R_col if they are not specified.}
+
+\item{R_row}{integer: for bipartite networks, dimension of row node multiplicative effects (defaults to R)}
+
+\item{R_col}{integer: for bipartite networks, dimension of column node multiplicative effects (defaults to R)}
+
+\item{mode}{character: either "unipartite" (default) for square networks or "bipartite" for rectangular networks}
 
 \item{family}{character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 the details below}
@@ -107,11 +119,16 @@ values of four goodness-of-fit statistics}
 }
 \description{
 An MCMC routine providing a fit to an additive and multiplicative effects
-(AME) regression model to relational data of various types
+(AME) regression model to cross-sectional relational data of various types.
+This function supports both unipartite (square) and bipartite (rectangular)
+networks. For longitudinal networks, use the \code{lame} function.
 }
 \details{
 This command provides posterior inference for parameters in AME models of
-relational data, assuming one of eight possible data types/models.
+cross-sectional relational data, assuming one of eight possible data types/models.
+The function supports both unipartite networks (square adjacency matrices) and
+bipartite networks (rectangular adjacency matrices with distinct row and column
+node sets) for single time point analysis.
 
 \strong{Theoretical Foundation:}
 

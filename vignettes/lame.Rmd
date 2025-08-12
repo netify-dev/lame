@@ -1,0 +1,188 @@
+---
+title: "Introduction to LAME"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to LAME}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+```{r setup}
+library(lame)
+```
+
+## Overview
+
+The LAME (Longitudinal Analysis of Multilevel nEtworks) package implements Additive and Multiplicative Effects (AME) models for longitudinal network data. It extends the AME framework to handle temporal dependencies through dynamic latent factors and additive effects.
+
+## Key Features
+
+- **Longitudinal Network Analysis**: Model network evolution over time
+- **Dynamic Effects**: Time-varying additive and multiplicative effects with AR(1) processes
+- **Multiple Data Types**: Support for binary, continuous, ordinal, and count networks
+- **Bipartite Networks**: Full support for two-mode networks with rectangular adjacency matrices
+- **Efficient Implementation**: C++ backend for computational efficiency
+- **Comprehensive GOF**: Goodness-of-fit statistics for model assessment
+
+## Basic Usage
+
+### Fitting a Simple Model
+
+```{r}
+# Load example data (list of networks over time)
+data(example_networks)  # This would be your data
+
+# Fit a basic LAME model
+fit <- lame(
+  Y = example_networks,
+  R = 2,                # 2 latent dimensions
+  family = "binary",    # Binary networks
+  nscan = 5000,        # Number of MCMC iterations
+  burn = 500,          # Burn-in period
+  odens = 25           # Output density
+)
+
+# View results
+summary(fit)
+plot(fit)
+```
+
+### Dynamic Effects
+
+Model time-varying sender/receiver effects and latent positions:
+
+```{r}
+# Fit model with dynamic effects
+fit_dynamic <- lame(
+  Y = example_networks,
+  R = 2,
+  dynamic_ab = TRUE,   # Dynamic additive effects
+  dynamic_uv = TRUE,   # Dynamic multiplicative effects
+  family = "binary",
+  nscan = 10000,
+  burn = 1000,
+  odens = 25
+)
+
+# Visualize temporal evolution
+ab_plot(fit_dynamic, plot_type = "trajectory")
+uv_plot(fit_dynamic, time_point = "all")
+```
+
+### Including Covariates
+
+```{r}
+# Fit model with covariates
+fit_cov <- lame(
+  Y = example_networks,
+  Xdyad = dyadic_covariates,    # Dyadic covariates
+  Xrow = sender_covariates,      # Sender covariates
+  Xcol = receiver_covariates,    # Receiver covariates
+  R = 2,
+  family = "binary",
+  nscan = 10000
+)
+```
+
+## Model Families
+
+LAME supports various network data types:
+
+- `"normal"`: Continuous valued networks
+- `"binary"`: Binary networks
+- `"ordinal"`: Ordinal networks
+- `"poisson"`: Count networks
+- `"tobit"`: Censored continuous networks
+- `"frn"`: Fixed rank nomination networks
+- `"cbin"`: Censored binary networks
+- `"rrl"`: Row-ranked likelihood networks
+
+## Bipartite Networks
+
+For two-mode networks with different row and column node sets:
+
+```{r}
+# Fit bipartite model
+fit_bip <- lame(
+  Y = bipartite_networks,
+  mode = "bipartite",
+  R_row = 3,           # 3 dimensions for row nodes
+  R_col = 2,           # 2 dimensions for column nodes
+  family = "binary",
+  nscan = 10000
+)
+
+# Access the interaction matrix
+fit_bip$G  # Rectangular matrix mapping row to column latent spaces
+```
+
+## Model Assessment
+
+### Goodness-of-Fit
+
+```{r}
+# Plot GOF statistics
+gof_plot(fit)
+
+# Access GOF statistics directly
+gof_stats <- fit$GOF
+```
+
+### MCMC Diagnostics
+
+```{r}
+# Trace plots for convergence assessment
+trace_plot(fit)
+
+# Effective sample sizes
+fit$ESS
+```
+
+## Advanced Options
+
+### Priors
+
+Customize prior distributions:
+
+```{r}
+fit_custom <- lame(
+  Y = example_networks,
+  prior = list(
+    Sab0 = diag(2),     # Prior scale for variance
+    eta0 = 10,          # Prior degrees of freedom
+    rho_ab_mean = 0.8,  # AR(1) mean for dynamic effects
+    rho_ab_sd = 0.1     # AR(1) standard deviation
+  ),
+  nscan = 10000
+)
+```
+
+### Symmetric Networks
+
+For undirected networks:
+
+```{r}
+fit_sym <- lame(
+  Y = undirected_networks,
+  symmetric = TRUE,
+  R = 2,
+  family = "normal",
+  nscan = 10000
+)
+```
+
+## References
+
+- Minhas, S., Hoff, P. D., & Ward, M. D. (2019). Inferential approaches for network analysis: AMEN for latent factor models. *Political Analysis*, 27(2), 208-222.
+
+- Hoff, P. D. (2021). Additive and multiplicative effects network models. *Statistical Science*, 36(1), 34-50.
+
+- Dorff, C., Minhas, S., et al. (2024). LAME: Longitudinal Analysis of Multilevel Networks. R package.

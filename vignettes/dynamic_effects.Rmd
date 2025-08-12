@@ -132,7 +132,7 @@ This forward-filtering backward-sampling (FFBS) approach explores the posterior 
 library(lame)
 
 # Simulate longitudinal network data
-set.seed(123)
+set.seed(6886)
 n <- 50  # actors
 T <- 10  # time periods
 
