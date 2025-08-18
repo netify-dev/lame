@@ -45,7 +45,8 @@ arma::mat gof_stats_cpp(const arma::mat& Y) {
   arma::vec yt_vec = arma::vectorise(Y_clean.t());
   
   // Remove NAs for correlation
-  arma::uvec valid = arma::find_finite(y_vec) && arma::find_finite(yt_vec);
+  // FIX: Use intersect not && for index vectors
+  arma::uvec valid = arma::intersect(arma::find_finite(y_vec), arma::find_finite(yt_vec));
   if(valid.n_elem > 0) {
     stats(2) = arma::as_scalar(arma::cor(y_vec(valid), yt_vec(valid)));
   } else {
@@ -53,13 +54,17 @@ arma::mat gof_stats_cpp(const arma::mat& Y) {
   }
   
   // Triadic statistics
-  double y_mean = arma::mean(y_vec(arma::find_finite(y_vec)));
-  double y_sd = arma::stddev(y_vec(arma::find_finite(y_vec)));
+  // FIX: Guard against empty data
+  arma::uvec idx_f = arma::find_finite(y_vec);
+  double y_mean = idx_f.n_elem ? arma::mean(y_vec(idx_f)) : 0.0;
+  double y_sd = idx_f.n_elem > 1 ? arma::stddev(y_vec(idx_f)) : 1.0;
   
   arma::mat E = Y_clean - y_mean;
   E.elem(arma::find_nonfinite(E)).zeros();
   
-  arma::mat D = arma::conv_to<arma::mat>::from(arma::find_finite(Y_clean));
+  // FIX: Create mask matrix where 1 = finite, 0 = non-finite
+  arma::mat D(Y_clean.n_rows, Y_clean.n_cols, fill::ones);
+  D.elem(arma::find_nonfinite(Y_clean)).zeros();
   
   // Cycle dependence
   arma::mat E3 = E * E * E;

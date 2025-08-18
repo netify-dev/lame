@@ -249,6 +249,8 @@ List rbeta_ab_fc_cpp(const arma::mat& Z, const arma::mat& Sab, double rho,
       
       arma::mat A = n * G.t() * G + eye(k, k);
       arma::mat iA0 = inv_sympd(A);
+      // Ensure iA0 is symmetric before Cholesky
+      iA0 = 0.5 * (iA0 + iA0.t());
       
       arma::mat m_ab = iA0 * G.t() * join_cols(er, ec);
       arma::mat hiA0 = chol(iA0, "lower");

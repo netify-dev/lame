@@ -237,8 +237,12 @@ rZ_bin_fc_cpp <- function(ZT, EZT, rho, YT) {
     .Call(`_lame_rZ_bin_fc_cpp`, ZT, EZT, rho, YT)
 }
 
-rbeta_ab_rep_fc_cpp <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G) {
-    .Call(`_lame_rbeta_ab_rep_fc_cpp`, ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G)
+rbeta_ab_rep_fc_cpp <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g = 100.0) {
+    .Call(`_lame_rbeta_ab_rep_fc_cpp`, ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g)
+}
+
+test_rbeta_inputs <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g = 100.0) {
+    invisible(.Call(`_lame_test_rbeta_inputs`, ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g))
 }
 
 rrho_mh_rep_cpp <- function(ET, rho, s2) {

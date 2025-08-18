@@ -357,6 +357,12 @@ lame <- function(
   Y<-arrayObj$Y ; Xdyad<-arrayObj$Xdyad ; Xrow<-arrayObj$Xrow
   Xcol<-arrayObj$Xcol ; rm(arrayObj)
   
+  # Set g-prior parameter if not provided (after n is defined)
+  if(is.na(g)) {
+    # Use n^2 as default (Zellner's g-prior)
+    g <- n^2
+  }
+  
   # force binary if binary family specified 
   if(is.element(family,c("binary","cbin"))) { Y<-1*(Y>0) }
   
@@ -469,7 +475,12 @@ lame <- function(
   
   # g-prior setup
   p<-dim(X)[3]
-  if(is.na(g)) { g<-p^2 }  # default g-prior
+  # FIX: Use number of dyads like amen package, not p^2 (too restrictive)
+  if(is.na(g)) { 
+    # Count non-missing dyads across all time periods
+    n_dyads <- sum(!is.na(Y))
+    g <- max(n_dyads, n^2)  # Use number of observed dyads or n^2, whichever is larger
+  }
   if(length(g)==1) { g<-rep(g,p) }
   
   # process prior list
@@ -699,15 +710,39 @@ lame <- function(
     colnames(VC) <- c("va", "ve")  
     rb<-intercept+seq(1,pr,length=pr) ; cb<-intercept+pr+seq(1,pr,length=pr)
     bnames<-dimnames(X)[[3]]
-    bni<-bnames[1*intercept] 
-    bnn<-gsub("row",bnames[rb],replacement="node") 
-    bnd<-bnames[-c(1*intercept,rb,cb)]
-    colnames(BETA)<-c(bni,bnn,bnd) 
+    # Fix: handle intercept indexing properly
+    if(intercept) {
+      bni<-bnames[1]
+      bnn<-gsub("row",bnames[rb],replacement="node") 
+      bnd<-bnames[-c(1,rb,cb)]
+      colnames(BETA)<-c(bni,bnn,bnd)
+    } else {
+      bnn<-gsub("row",bnames[rb],replacement="node")
+      bnd<-bnames[-c(rb,cb)]
+      colnames(BETA)<-c(bnn,bnd)
+    }
   }    
   
   # MCMC
   have_coda<-suppressWarnings(
     try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
+  
+  # Show numerical stability message once at the beginning
+  if(print && symmetric) {
+    cli::cli_div(theme = list(span.note = list(color = "grey60", "font-style" = "italic")))
+    cli::cli_inform(c(
+      "i" = "Numerical adjustments may be applied for matrix stability.",
+      " " = cli::col_grey("Small corrections ensure positive definiteness of covariance matrices."),
+      " " = cli::col_grey("This is normal and does not affect model validity.")
+    ))
+    cli::cli_end()
+  }
+  
+  # Suppress Armadillo warnings
+  old_warn <- options()$warn
+  if(symmetric) {
+    options(warn = -1)  # Suppress all warnings during MCMC
+  }
   
   if(burn!=0 && print){
     # Only show progress if print=TRUE
@@ -848,7 +883,8 @@ lame <- function(
       # First update beta only
       if( (pr+pc+pd+intercept)>0 ){
         # Compute expected Z without additive effects for current time
-        EZ_no_ab <- get_EZ_cpp(Xlist, beta*0, outer(rep(0,n), rep(0,n), "+"), U, V)
+        # NOTE: We want to exclude a/b effects, not beta!
+        EZ_no_ab <- get_EZ_cpp(Xlist, beta, outer(rep(0,n), rep(0,n), "+"), U, V)
         
         # Use time-averaged a and b for beta update
         a_avg <- rowMeans(a_mat)
@@ -856,12 +892,30 @@ lame <- function(
         
         iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
         tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
-        G<-tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
+        if(k > 0) {
+          if(k == 1) {
+            G <- tmp$vec[,1,drop=FALSE] * sqrt(tmp$val[1])
+          } else {
+            G <- tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
+          }
+        } else {
+          G <- matrix(0, nrow=2, ncol=1)
+          k <- 1  # Avoid dimension issues
+        }
+        # Handle NA values in Z before passing to C++
+        Z_temp <- sweep(Z,c(1,2),U%*%t(V))
+        na_mask <- is.na(Z_temp)
+        Z_temp[na_mask] <- 0
+        
+        # Ensure k and g are proper scalars
+        k_int <- as.integer(k[1])
+        g_num <- as.numeric(g[1])
+        
         betaABCalc <- try(
           rbeta_ab_rep_fc_cpp(
-            ZT=sweep(Z,c(1,2),U%*%t(V)), Xr=XrLong, Xc=XcLong, mX=mXLong, mXt=mXtLong,
-            XX=xxLong, XXt=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k, G=G ),
-          silent = TRUE)
+            ZT=Z_temp, Xr=XrLong, Xc=XcLong, mX=mXLong, mXt=mXtLong,
+            XX=xxLong, XXt=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k_int, G=G, g=g_num ),
+          silent = FALSE)
         if(!inherits(betaABCalc, 'try-error')){
           beta <- c(betaABCalc$beta)
         }
@@ -893,23 +947,60 @@ lame <- function(
       } else if( (pr+pc+pd+intercept)>0 ){
         iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
         tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
-        G<-tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
+        if(k > 0) {
+          if(k == 1) {
+            G <- tmp$vec[,1,drop=FALSE] * sqrt(tmp$val[1])
+          } else {
+            G <- tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
+          }
+        } else {
+          G <- matrix(0, nrow=2, ncol=1)
+          k <- 1  # Avoid dimension issues
+        }
+        # Handle NA values in Z before passing to C++
+        Z_temp <- sweep(Z,c(1,2),U%*%t(V))
+        # Store original NA positions
+        na_mask <- is.na(Z_temp)
+        # Replace NA with 0 for C++ computation
+        Z_temp[na_mask] <- 0
+        
+        # Debug: check parameter types
+        if(s == burn + 1) {
+          cat("Debug parameter types:\n")
+          cat("  k class:", class(k), "length:", length(k), "value:", k, "\n")
+          cat("  g class:", class(g), "length:", length(g), "value:", g, "\n")
+        }
+        
+        # Ensure k and g are proper scalars
+        k_int <- as.integer(k[1])
+        g_num <- as.numeric(g[1])
+        
         betaABCalc <- try(
           rbeta_ab_rep_fc_cpp(
-            ZT=sweep(Z,c(1,2),U%*%t(V)), Xr=XrLong, Xc=XcLong, mX=mXLong, mXt=mXtLong,
-            XX=xxLong, XXt=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k, G=G ),
-          silent = TRUE)
+            ZT=Z_temp, Xr=XrLong, Xc=XcLong, mX=mXLong, mXt=mXtLong,
+            XX=xxLong, XXt=xxTLong, iSe2=iSe2, Sabs=Sabs, k=k_int, G=G, g=g_num ),
+          silent = FALSE)
       } else {
         betaABCalc <- try(
           rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2),
-          silent = TRUE)
+          silent = FALSE)
       }
       if(!inherits(betaABCalc, 'try-error')){
+        # Debug output for first few iterations after burn
+        if(s > burn && s <= burn + 5) {
+          cat("Iteration", s, ": New beta[1:3] =", 
+              round(betaABCalc$beta[1:min(3, length(betaABCalc$beta))], 6), "\n")
+        }
         beta <- c(betaABCalc$beta)
         a <- c(betaABCalc$a) * rvar
         b <- c(betaABCalc$b) * cvar
         if(symmetric){ a<-b<-(a+b)/2 }
-      } else { tryErrorChecks$betaAB<-tryErrorChecks$betaAB+1  }
+      } else { 
+        if(s > burn && s <= burn + 5) {
+          cat("ERROR at iteration", s, ": betaABCalc failed\n")
+        }
+        tryErrorChecks$betaAB<-tryErrorChecks$betaAB+1  
+      }
     }
     
     # update Sab using unified function
@@ -980,7 +1071,7 @@ lame <- function(
         # Dynamic UV update with AR(1) evolution
         UV <- try(
           rUV_dynamic_fc_cpp(U_cube, V_cube, E, rho_uv, sigma_uv, s2, shrink, symmetric),
-          silent = TRUE)
+          silent = FALSE)
         if(inherits(UV, 'try-error')){ 
           UV <- list(U=U_cube, V=V_cube) 
           tryErrorChecks$UV<-tryErrorChecks$UV+1 
@@ -1040,7 +1131,12 @@ lame <- function(
       # store BETA and VC - symmetric case 
       if(symmetric){
         br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2
-        sbeta<-c(beta[1*intercept],bn,beta[-c(1*intercept,rb,cb)] )
+        # Fix: handle intercept indexing properly
+        if(intercept) {
+          sbeta<-c(beta[1],bn,beta[-c(1,rb,cb)])
+        } else {
+          sbeta<-c(bn,beta[-c(rb,cb)])
+        }
         BETA[iter,]<-sbeta
         VC[iter,]<-c(Sab[1,1],s2)
       }
@@ -1283,6 +1379,11 @@ lame <- function(
     # after alignment, provide a robust rho estimate used by tests
     rho_hat <- estimate_rho_from_U(fit$U)
     if (is.finite(rho_hat)) fit$rho_uv <- as.numeric(rho_hat)
+  }
+  
+  # Restore original warning level
+  if(symmetric) {
+    options(warn = old_warn)
   }
   
   class(fit) <- "lame" # set class

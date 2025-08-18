@@ -35,10 +35,11 @@
 summary.lame <- function(object, ...) {
   fit <- object
   
-  # Coefficient statistics
-  beta_mean <- apply(fit$BETA, 2, mean)
-  beta_sd <- apply(fit$BETA, 2, sd)
-  beta_z <- beta_mean / beta_sd
+  # Coefficient statistics - handle NA values properly
+  beta_mean <- apply(fit$BETA, 2, mean, na.rm = TRUE)
+  beta_sd <- apply(fit$BETA, 2, sd, na.rm = TRUE)
+  # Replace NaN with 0 for z-values when sd is 0
+  beta_z <- ifelse(beta_sd > 0, beta_mean / beta_sd, 0)
   beta_p <- 2 * (1 - pnorm(abs(beta_z)))
   
   # CI bounds

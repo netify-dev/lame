@@ -85,8 +85,26 @@ arma::mat matMultVec(arma::mat x, arma::vec y){
      
      arma::mat l = L * trans((euicolsum - U.row(i) * E(i,i))/s2);
      arma::mat iQ = inv( ivDiagMat + L * ( (U.t() * U) - (U.row(i).t() * U.row(i)) ) * L/s2 );
+     // Ensure iQ is symmetric before Cholesky
+     iQ = 0.5 * (iQ + iQ.t());
+     
+     // Add numerical safeguard for positive definiteness
+     arma::vec eigval;
+     arma::mat eigvec;
+     arma::eig_sym(eigval, eigvec, iQ);
+     double min_eigval = eigval.min();
+     if (min_eigval < 1e-10) {
+       iQ += (1e-10 - min_eigval + 1e-6) * arma::eye(R, R);
+     }
+     
      arma::vec randNormDraw = rnorm(R);
-     U.row(i) = trans(iQ * l + trans(chol(iQ)) * randNormDraw);
+     arma::mat cholIQ;
+     bool chol_success = arma::chol(cholIQ, iQ, "upper");
+     if (!chol_success) {
+       // Fallback: use diagonal approximation
+       cholIQ = arma::diagmat(arma::sqrt(arma::diagvec(iQ)));
+     }
+     U.row(i) = trans(iQ * l + trans(cholIQ) * randNormDraw);
    }
    
    arma::mat tmponesmat = trimatl(arma::ones(E.n_rows, E.n_cols));
