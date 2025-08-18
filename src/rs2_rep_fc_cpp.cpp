@@ -5,7 +5,7 @@ using namespace arma;
 using namespace Rcpp; 
 
 arma::mat mhalf_cpp2(
-    arma::mat M
+   arma::mat M
 ) {
   
   arma::vec eigVal;
@@ -41,7 +41,7 @@ arma::mat mhalf_cpp2(
    arma::mat H = mhalf_cpp2(rhoMat);
    arma::mat tmp = trimatl(arma::ones(ET.n_rows, ET.n_cols));
    arma::uvec tmpindex = find(tmp==0);
-   arma::mat EM;
+   arma::mat EM(0, 2);  // FIX: Initialize to 0x2 matrix
    for(int t=0 ; t<N ; ++t){
      arma::mat E = ET.slice(t); arma::mat Et = E.t();
      arma::vec eUpperTri = E.elem( tmpindex );

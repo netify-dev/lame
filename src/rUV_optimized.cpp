@@ -235,8 +235,26 @@ List rUV_sym_opt_cpp(
     iQ = inv_sympd(Q);
     
     // Sample new U[i,:]
+    // Ensure iQ is symmetric before Cholesky
+    iQ = 0.5 * (iQ + iQ.t());
+    
+    // Add numerical safeguard for positive definiteness
+    vec eigval;
+    mat eigvec;
+    eig_sym(eigval, eigvec, iQ);
+    double min_eigval = eigval.min();
+    if (min_eigval < 1e-10) {
+      iQ += (1e-10 - min_eigval + 1e-6) * eye(R, R);
+    }
+    
     randNorm.randn();
-    U.row(i) = (iQ * l + chol(iQ, "lower") * randNorm).t();
+    mat cholIQ;
+    bool chol_success = chol(cholIQ, iQ, "lower");
+    if (!chol_success) {
+      // Fallback: use diagonal approximation
+      cholIQ = diagmat(sqrt(diagvec(iQ)));
+    }
+    U.row(i) = (iQ * l + cholIQ * randNorm).t();
     
     // Update UtU for next iteration
     UtU = UtU_temp + U.row(i).t() * U.row(i);

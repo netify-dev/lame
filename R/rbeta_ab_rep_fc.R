@@ -27,8 +27,25 @@ rbeta_ab_rep_fc <-
     Se<-matrix(c(1,rho,rho,1),2,2)*s2
     iSe2<-mhalf(solve(Se))
     td<-iSe2[1,1] ; to<-iSe2[1,2]
+    
+    # Ensure Sab is finite and symmetric before transformation
+    if(any(!is.finite(Sab))) {
+      Sab <- diag(c(1, 1))  # Reset to identity if non-finite
+    }
+    Sab <- (Sab + t(Sab))/2  # Ensure symmetry
+    
     Sabs<-iSe2%*%Sab%*%iSe2
-    tmp<-eigen(Sabs)
+    
+    # Ensure Sabs is symmetric after transformation
+    Sabs <- (Sabs + t(Sabs))/2
+    
+    # Add small ridge if needed for numerical stability
+    min_eig_check <- min(eigen(Sabs, symmetric=TRUE, only.values=TRUE)$values)
+    if(!is.finite(min_eig_check) || min_eig_check < 1e-10) {
+      Sabs <- Sabs + diag(1e-6, nrow(Sabs))
+    }
+    
+    tmp<-eigen(Sabs, symmetric=TRUE)
     k<-sum(zapsmall(tmp$val)>0 )
     ###
     

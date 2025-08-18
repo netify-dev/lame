@@ -76,19 +76,45 @@ gof_stats<-function(Y)
   }, error = function(e) {
     sd.rowmean <- sd(rowMeans(Y, na.rm=TRUE), na.rm=TRUE) 
     sd.colmean <- sd(colMeans(Y, na.rm=TRUE), na.rm=TRUE)
-    dyad.dep <- suppressWarnings(cor(c(Y), c(t(Y)), use="complete.obs")) 
+    
+    # Handle case where there are no complete pairs for correlation
+    dyad.dep <- tryCatch({
+      suppressWarnings(cor(c(Y), c(t(Y)), use="complete.obs"))
+    }, error = function(e2) {
+      # If no complete pairs, try pairwise.complete.obs
+      tryCatch({
+        suppressWarnings(cor(c(Y), c(t(Y)), use="pairwise.complete.obs"))
+      }, error = function(e3) {
+        # If still fails, return 0 (no dyadic dependence detected)
+        0
+      })
+    })
+    
     Y.mean <- mean(Y, na.rm=TRUE)
     E <- Y - Y.mean
     D <- 1 * (!is.na(E))
     E[is.na(E)] <- 0
     Y.sd <- sd(c(Y), na.rm=TRUE)
-    Y.sd3 <- Y.sd^3
-    EEE <- E %*% E %*% E
-    DDD <- D %*% D %*% D
-    EtE <- E %*% t(E) %*% E
-    DtD <- D %*% t(D) %*% D
-    cycle.dep <- sum(diag(EEE)) / (sum(diag(DDD)) * Y.sd3)
-    trans.dep <- sum(diag(EtE)) / (sum(diag(DtD)) * Y.sd3)
+    
+    # Handle case where Y.sd is 0 or NA
+    if(is.na(Y.sd) || Y.sd == 0) {
+      Y.sd3 <- 1  # Avoid division by zero
+      cycle.dep <- 0
+      trans.dep <- 0
+    } else {
+      Y.sd3 <- Y.sd^3
+      EEE <- E %*% E %*% E
+      DDD <- D %*% D %*% D
+      EtE <- E %*% t(E) %*% E
+      DtD <- D %*% t(D) %*% D
+      
+      ddd_diag_sum <- sum(diag(DDD))
+      dtd_diag_sum <- sum(diag(DtD))
+      
+      cycle.dep <- if(ddd_diag_sum > 0) sum(diag(EEE)) / (ddd_diag_sum * Y.sd3) else 0
+      trans.dep <- if(dtd_diag_sum > 0) sum(diag(EtE)) / (dtd_diag_sum * Y.sd3) else 0
+    }
+    
     gof <- c(sd.rowmean, sd.colmean, dyad.dep, cycle.dep, trans.dep)
     gof[is.na(gof)] <- 0 
     names(gof) <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")

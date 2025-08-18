@@ -12,6 +12,15 @@ using namespace Rcpp;
  arma::mat rwish_cpp(
      arma::mat S0, int nu
  ){
+   // Ensure S0 is symmetric
+   S0 = 0.5 * (S0 + S0.t());
+   
+   // Add small ridge if needed for numerical stability
+   double min_eig = S0.min();
+   if(min_eig < 1e-10) {
+     S0 += eye<mat>(S0.n_rows, S0.n_cols) * (1e-10 - min_eig);
+   }
+   
    arma::mat sS0 = chol(S0);
    arma::mat normMat = rnorm(nu * S0.n_rows) ; normMat.reshape(nu, S0.n_rows);
    arma::mat Z = normMat * sS0;

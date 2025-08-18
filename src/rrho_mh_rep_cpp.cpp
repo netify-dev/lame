@@ -27,7 +27,7 @@ using namespace Rcpp;
    int N = ET.n_slices;
    arma::mat tmp = trimatl(arma::ones(ET.n_rows, ET.n_cols));
    arma::uvec tmpindex = find(tmp==0);
-   arma::mat EM;
+   arma::mat EM(0, 2);  // FIX: Initialize to 0x2 matrix
    
    for(int t=0 ; t<N ; ++t){
      arma::mat E = ET.slice(t); arma::mat Et = E.t();
@@ -43,10 +43,18 @@ using namespace Rcpp;
    arma::mat emCor = arma::cor(EM);
    double sr = 2*( 1 - pow(emCor(0,1), 2) )/pow(m, .5);
    NumericVector x1; x1 = (-1-rho)/sr; NumericVector x2; x2 = (1-rho)/sr;
-   int runiflo = pnorm(x1,0.0,1.0,1,0)[0];
-   int runifhi = pnorm(x2,0.0,1.0,1,0)[0];
-   NumericVector runifdraw = runif(1,runiflo,runifhi);
-   double qnormdraw = qnorm(runifdraw)[0];
+   
+   // FIX: Use double not int to avoid truncation to 0/1
+   double runiflo = Rcpp::pnorm(x1,0.0,1.0,1,0)[0];
+   double runifhi = Rcpp::pnorm(x2,0.0,1.0,1,0)[0];
+   
+   // Guard against invalid truncation interval
+   if (runifhi <= runiflo || !R_finite(runiflo) || !R_finite(runifhi)) {
+     return rho; // No valid interval, keep current value
+   }
+   
+   double runifdraw = R::runif(runiflo, runifhi);
+   double qnormdraw = R::qnorm(runifdraw, 0.0, 1.0, 1, 0);
    double rho1 = rho + sr*qnormdraw;
    double lhr = ( -.5*(m*log(1-pow(rho1,2))+(emss-2*rho1*emcp)/(1-pow(rho1,2))) ) -
      (-.5*(m*log(1-pow(rho,2) )+(emss-2*rho*emcp )/(1-pow(rho,2) ))) + 

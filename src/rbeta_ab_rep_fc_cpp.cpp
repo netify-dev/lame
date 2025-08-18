@@ -5,7 +5,7 @@ using namespace arma;
 using namespace Rcpp; 
 
 arma::mat mhalf_cpp(
-    arma::mat M
+   arma::mat M
 ) {
   
   arma::vec eigVal;
@@ -19,14 +19,41 @@ arma::mat mhalf_cpp(
 }
 
 arma::vec rmvnorm_cpp(
-    arma::vec mu, arma::mat Sigma
+   arma::vec mu, arma::mat Sigma
 ) {
   int n = 1;
-  arma::mat E = rnorm( n * mu.size() ) ; E.reshape(n, mu.size());
-  arma::vec tmp = ( E * chol(Sigma) ).t();
-  for(int i=0 ; i < tmp.n_rows ; i++){
-    tmp.row(i) = tmp.row(i) + mu[i];
+  // Use R's RNG instead of Armadillo's
+  arma::vec E(mu.size());
+  for(int i = 0; i < mu.size(); i++) {
+    E(i) = R::rnorm(0.0, 1.0);
   }
+  
+  // Debug: Check if E has variation
+  if(E.n_elem > 0 && E.min() == E.max()) {
+    Rcpp::Rcout << "WARNING: Random vector E has no variation!" << std::endl;
+  }
+  
+  // Ensure Sigma is symmetric before Cholesky
+  arma::mat Sigma_sym = 0.5 * (Sigma + Sigma.t());
+  
+  // Try Cholesky decomposition with error handling
+  arma::mat cholSigma;
+  bool chol_success = chol(cholSigma, Sigma_sym);
+  
+  if(!chol_success) {
+    // If Cholesky fails, add small ridge and try again
+    Sigma_sym.diag() += 1e-6;
+    chol_success = chol(cholSigma, Sigma_sym);
+    
+    if(!chol_success) {
+      // If still fails, return the mean without randomness
+      Rcpp::Rcout << "WARNING: Cholesky decomposition failed in rmvnorm_cpp" << std::endl;
+      return mu;
+    }
+  }
+  
+  arma::vec tmp = cholSigma.t() * E;
+  tmp = tmp + mu;
   
   return( tmp );
 }
@@ -46,12 +73,12 @@ arma::vec rmvnorm_cpp(
  //' @param mX n^2 x p x T design array generated within ame_repL fn
  //' @param mXt n^2 x p x T transposed design array generated within ame_repL fn
  //' @param XX p x p x T regression sum of squares array generated within ame_repl fn
- //' @param XXt p x p x T transposed regression sum of squares array generated 
- //' within ame_repl fn
- //' @param iSe2 variance matrix
+ //' @param XXt p x p x T regression sum of squares array generated within ame_repl fn
+ //' @param iSe2 half matrix of inverse se2 
  //' @param Sabs row and column covariance
  //' @param k dimensions for row and column random effects
  //' @param G eigenvalue calcs from Sab
+ //' @param g g-prior parameter for regression coefficients
  //' @return \item{beta}{regression coefficients} \item{a}{additive row effects}
  //' \item{b}{additive column effects}
  //' @author Shahryar Minhas
@@ -63,7 +90,8 @@ arma::vec rmvnorm_cpp(
      arma::cube ZT, arma::cube Xr, arma::cube Xc, 
      arma::cube mX, arma::cube mXt, 
      arma::cube XX, arma::cube XXt,
-     arma::mat iSe2, arma::mat Sabs, int k, arma::mat G
+     arma::mat iSe2, arma::mat Sabs, int k, arma::mat G,
+     double g = 100.0  // Add g-prior parameter with default
  ) {
    
    double td = iSe2(0,0);
@@ -78,53 +106,55 @@ arma::vec rmvnorm_cpp(
    arma::vec ZrT = arma::zeros(n);
    arma::vec ZcT = arma::zeros(n);
    arma::mat XrT = arma::zeros(n,p);
-   arma::mat XcT = arma::zeros(n,p);
+   arma::mat XcT = arma::zeros(n,p);	
    
-   for(int t=0 ; t < N ; ++t){
-     arma::mat Z = ZT.slice(t);
+   for(int t=0 ; t<N ; ++t){
      arma::mat mXs = td * mX.slice(t) + to * mXt.slice(t);
-     arma::mat XXs = (pow(to,2)+pow(td,2))*XX.slice(t) + 2*to*td*XXt.slice(t);
-     arma::mat Zs = td*Z + to*trans(Z);
-     arma::vec zr = sum(Zs,1); arma::vec zc=trans(sum(Zs,0));
+     arma::mat XXs = (to*to+td*td) * XX.slice(t) + 2*to*td*XXt.slice(t);
+     arma::mat Zs = td * ZT.slice(t) + to * ZT.slice(t).t();
+     arma::vec zr = sum(Zs,1); arma::vec zc = sum(Zs,0).t(); 
      
      if(p>0){
        lb = lb + (trans(mXs) * vectorise(Zs));
-       Qb = Qb + XXs + (XX.slice(t)/mXs.n_rows)/ZT.n_slices;
+       // Add g-prior regularization
+       Qb = Qb + XXs + (XX.slice(t)/g)/N;  // Use g-prior instead of n
      }
      
-     arma::mat Xsr = td*Xr.slice(t) + to*Xc.slice(t);
-     arma::mat Xsc = td*Xc.slice(t) + to*Xr.slice(t);
+     arma::mat Xsr = td * Xr.slice(t) + to * Xc.slice(t);
+     arma::mat Xsc = td * Xc.slice(t) + to * Xr.slice(t);		
      
-     ZrT = ZrT+zr;
-     ZcT = ZcT+zc;
-     XrT = XrT+Xsr;
-     XcT = XcT+Xsc;
-   }
-   
-   // dyadic and prior contributions
+     ZrT = ZrT + zr;
+     ZcT = ZcT + zc;
+     XrT = XrT + Xsr;
+     XcT = XcT + Xsc;		
+   }	
    
    // row and column reduction
    arma::mat ab = arma::zeros(n,2);
+   arma::mat iA0, C0;  // Declare outside if block so they're accessible later
    
-   arma::mat K; arma::mat idmatk; arma::mat A; arma::mat B;
-   arma::mat iA0; arma::mat C0; arma::mat iA; arma::mat C;
-   arma::mat idmatn; arma::mat onesmatn; arma::mat H;
-   arma::mat Hrr; arma::mat Hrc; arma::mat Hcr; arma::mat Hcc;
-   if(k > 0){
-     K = arma::mat("0 1; 1 0");
-     idmatk = eye<mat>(k,k);
+   if(k>0){
+     arma::mat K = arma::zeros(2,2);
+     K(0,1) = 1; K(1,0) = 1;
      
-     A = N*n*G.t()*G + idmatk;
-     B = N*G.t()*K*G;
+     arma::mat A = N*n*G.t()*G + arma::eye(k,k);
+     arma::mat B = N*G.t()*K*G;
      iA0 = inv(A);
-     C0 = -inv(A + n*B)*B*iA0;
+     C0 = -inv(A + n*B) * B * iA0;
      
-     iA = G * iA0 * G.t();
-     C = G * C0 * G.t();
+     arma::mat iA = G * iA0 * G.t();
+     arma::mat C = G * C0 * G.t();
      
-     idmatn = eye<mat>(n,n);
-     onesmatn = ones<mat>(n,n);
-     H = arma::kron(iA, idmatn) + arma::kron(C,onesmatn);
+     // BigMatrix<-rbind(cbind(n*diag(n),matrix(1,n,n)),cbind(matrix(1,n,n),n*diag(n)))
+     // Gn<-G%x%diag(n)
+     // V.inv<-N*crossprod(crossprod(BigMatrix,Gn),Gn)+diag(k*n)
+     // V<-solve(V.inv)
+     // H<-tcrossprod(tcrossprod(Gn,V),Gn)
+     arma::mat iAkron = kron(iA, arma::eye(n,n));
+     arma::mat Ckron = kron(C, arma::ones(n,n));
+     arma::mat H = iAkron + Ckron;
+     
+     arma::mat Hrr, Hrc, Hcr, Hcc;
      Hrr = H.submat(0,0,n-1,n-1);
      Hrc = H.submat(0,n,n-1,2*n-1);
      Hcr = H.submat(n,0,2*n-1,n-1);
@@ -135,36 +165,106 @@ arma::vec rmvnorm_cpp(
    
    arma::mat Vb; arma::mat Mb; arma::vec beta;
    if(p > 0){
-     Vb = inv(Qb); Mb = Vb * lb;
-     beta = rmvnorm_cpp(Mb,Vb);
+     // Add larger ridge for numerical stability
+     double ridge = 1e-3;
+     Qb.diag() += ridge;
+     
+     // Compute inverse with error handling
+     bool inv_success = false;
+     try {
+       Vb = inv_sympd(Qb);  // Try symmetric positive definite inverse
+       inv_success = true;
+     } catch(...) {
+       // Fall back to regular inverse with more regularization
+       Qb.diag() += 0.1;
+       try {
+         Vb = inv(Qb);
+         inv_success = true;
+       } catch(...) {
+         Rcpp::Rcout << "ERROR: Matrix inversion failed completely" << std::endl;
+       }
+     }
+     
+     if(!inv_success || Vb.has_nan() || Vb.has_inf()) {
+       Rcpp::Rcout << "WARNING: Matrix inversion produced NaN/Inf" << std::endl;
+       Rcpp::Rcout << "  Qb condition number: " << cond(Qb) << std::endl;
+       Rcpp::Rcout << "  Qb(0,0): " << Qb(0,0) << " Qb(1,1): " << Qb(1,1) << std::endl;
+       beta = arma::zeros(p);
+     } else {
+       Mb = Vb * lb;
+       
+       // Check if Mb has NaN values
+       if(Mb.has_nan() || Mb.has_inf()) {
+         Rcpp::Rcout << "WARNING: Mb has NaN/Inf values after Vb * lb" << std::endl;
+         Rcpp::Rcout << "  Vb has NaN: " << Vb.has_nan() << " has Inf: " << Vb.has_inf() << std::endl;
+         Rcpp::Rcout << "  lb has NaN: " << lb.has_nan() << " has Inf: " << lb.has_inf() << std::endl;
+         Rcpp::Rcout << "  Vb(0,0): " << Vb(0,0) << " lb(0): " << lb(0) << std::endl;
+         beta = arma::zeros(p);
+       } else {
+         // Ensure Vb is positive definite before sampling
+         Vb = 0.5 * (Vb + Vb.t());  // Ensure symmetry
+         arma::vec eigval = eig_sym(Vb);
+         if(eigval.min() < 1e-6) {
+           Vb.diag() += (1e-6 - eigval.min() + 1e-6);
+         }
+         
+         beta = rmvnorm_cpp(Mb, Vb);
+         
+         // Check if beta has NaN after sampling
+         if(beta.has_nan() || beta.has_inf()) {
+           Rcpp::Rcout << "WARNING: beta has NaN/Inf after rmvnorm_cpp" << std::endl;
+           Rcpp::Rcout << "  Mb first 3: " << Mb(0) << " " << Mb(1) << " " << Mb(2) << std::endl;
+           Rcpp::Rcout << "  Vb(0,0): " << Vb(0,0) << std::endl;
+           beta = Mb;  // Use mean without randomness
+         }
+       }
+     }
    }
-   if(p==0){ beta = arma::zeros(1); }
+   if(p==0){ beta = arma::zeros(0); }  // FIX: Return empty vector when no predictors
    
-   arma::mat RrT = ZrT - XrT * beta; 
-   arma::mat RcT = ZcT - XcT * beta; 
-   
-   arma::mat RTcrossiA0G = join_rows(RrT, RcT) * (iA0 * G.t()).t();
-   arma::vec RrTC0G = C0 * G.t() * accu(RrT);
-   arma::mat m = arma::zeros(n,RTcrossiA0G.n_cols);
-   for( int r=0 ; r < RTcrossiA0G.n_cols ; r++ ) {
-     m.col(r) = RTcrossiA0G.col(r) + RrTC0G[r];
+   arma::vec a, b;
+   if(k > 0) {
+     // Ensure proper matrix dimensions for multiplication
+     arma::vec RrT, RcT;
+     if(p > 0 && beta.n_elem > 0) {
+       arma::mat beta_col = arma::reshape(beta, beta.n_elem, 1);
+       RrT = ZrT - XrT * beta_col;
+       RcT = ZcT - XcT * beta_col;
+     } else {
+       RrT = ZrT;
+       RcT = ZcT;
+     } 
+     
+     arma::mat RTcrossiA0G = join_rows(RrT, RcT) * (iA0 * G.t()).t();
+     
+     double sumRrT = arma::sum(arma::vectorise(RrT));
+     
+     arma::mat m = arma::zeros(n,k);
+     for(int r=0 ; r < n ; r++){
+       arma::mat C0Gt = C0 * G.t();
+      m.row(r) = RTcrossiA0G.row(r) + sumRrT * C0Gt.row(0);
+     }
+     
+     arma::mat hiA0 = mhalf_cpp(iA0);
+     // Use R's RNG for consistency
+     arma::mat e(n, k);
+     for(int i = 0; i < n; i++) {
+       for(int j = 0; j < k; j++) {
+         e(i,j) = R::rnorm(0.0, 1.0);
+       }
+     }
+     arma::mat w = m + e * hiA0 - 
+       arma::ones(n,1) * ((hiA0 - mhalf_cpp(iA0 + n*C0))/n * arma::sum(e,0).t()).t();
+     
+     arma::mat abvec = w * G.t() * inv(iSe2);
+     
+     a = abvec.col(0);
+     b = abvec.col(1);
+   } else {
+     // When k=0, no random effects
+     a = arma::zeros(n);
+     b = arma::zeros(n);
    }
-   
-   arma::mat hiA0 = mhalf_cpp(iA0);
-   arma::mat e = rnorm( n*k ); e.reshape(n,k);
-   arma::vec colE = sum(e, 0).t();
-   arma::mat ehiA0 = (e * hiA0).t();
-   arma::mat iA0nCo = mhalf_cpp(iA0+n*C0);
-   arma::mat hiA0nCo = (hiA0-iA0nCo)/n;
-   arma::vec ugh = hiA0nCo * colE;
-   arma::mat w = arma::zeros(n,RTcrossiA0G.n_cols);
-   for( int r=0 ; r < RTcrossiA0G.n_cols ; r++ ) {
-     w.col(r) = m.col(r) + (ehiA0.row(r) - ugh[r]).t();
-   }
-   
-   arma::mat abVec = w * G.t() * inv(iSe2);
-   arma::vec a = abVec.col(0);
-   arma::vec b = abVec.col(1);
    
    return(
      Rcpp::List::create(

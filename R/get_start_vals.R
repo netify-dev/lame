@@ -95,7 +95,18 @@ get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NUL
     Z[is.na(Z)]<-ZA[is.na(Z)] 
     
     # other starting values
-    beta<-rep(0,xP) 
+    # FIX: Initialize beta with small random values to avoid getting stuck at zero
+    if(xP > 0) {
+      beta <- rnorm(xP, mean=0, sd=0.1)  # Small random initialization
+      # Set first coefficient (often intercept) to reasonable value
+      z_mean <- mean(Z, na.rm=TRUE)
+      if(!is.finite(z_mean)) {
+        z_mean <- 0  # Default to 0 if mean is not finite
+      }
+      beta[1] <- z_mean
+    } else {
+      beta <- numeric(0)
+    } 
     s2<-1 
     rho<-0
     Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
