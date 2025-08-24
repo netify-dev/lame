@@ -74,7 +74,7 @@ get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NUL
           if(length(rnkd)<odmax[i]) 
           {
             urnkd<-which( !is.na(yi) & yi==0 ) 
-            if(max(zi[urnkd])>0) { zi[urnkd]<-zi[urnkd] - max(zi[urnkd]) -1e-3 }
+            if(length(urnkd) > 0 && max(zi[urnkd])>0) { zi[urnkd]<-zi[urnkd] - max(zi[urnkd]) -1e-3 }
           }
           
           Z[i,,t]<-zi
