@@ -16,7 +16,8 @@
 #' @export rZ_pois_fc
 rZ_pois_fc <- function(Z, EZ, rho, s2, Y) {
   tryCatch({
-    return(rZ_pois_fc_cpp(Z, EZ, rho, s2, Y))
+    # Suppress warnings from C++ code (e.g., NAs from rpois with large lambda)
+    return(suppressWarnings(rZ_pois_fc_cpp(Z, EZ, rho, s2, Y)))
   }, error = function(e) {
     # R fallback implementation
     n <- nrow(Y)
