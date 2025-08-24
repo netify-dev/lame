@@ -177,6 +177,16 @@ get_fit_object <- function(
     }
   }
   
+  # Transform EZ to count scale for Poisson family
+  # EZ is on log scale internally, but users expect count scale
+  if(!is.null(family) && family == "poisson" && !is.null(EZ)) {
+    if(is.array(EZ)) {
+      EZ <- exp(EZ)
+      # Cap extreme values to avoid numerical issues
+      EZ[EZ > 1e6] <- 1e6
+    }
+  }
+  
   # reformat EZ and YPM as list objects
   if(!bip) {
     EZ <- array_to_list(EZ, actorByYr, pdLabs)
