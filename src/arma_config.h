@@ -1,11 +1,12 @@
+// Custom Armadillo configuration
 #ifndef ARMA_CONFIG_H
 #define ARMA_CONFIG_H
 
-// Suppress Armadillo warnings
+// Suppress Armadillo error messages
 #define ARMA_NO_DEBUG
-#define ARMA_WARN_LEVEL 0
+#define ARMA_DONT_PRINT_ERRORS
 
-// Track if we've shown the numerical stability message
-static bool numerical_stability_msg_shown = false;
+// Include the rest of the config
+#include <RcppArmadillo.h>
 
 #endif

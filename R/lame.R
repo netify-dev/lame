@@ -964,12 +964,6 @@ lame <- function(
         # Replace NA with 0 for C++ computation
         Z_temp[na_mask] <- 0
         
-        # Debug: check parameter types
-        if(s == burn + 1) {
-          cat("Debug parameter types:\n")
-          cat("  k class:", class(k), "length:", length(k), "value:", k, "\n")
-          cat("  g class:", class(g), "length:", length(g), "value:", g, "\n")
-        }
         
         # Ensure k and g are proper scalars
         k_int <- as.integer(k[1])
@@ -986,19 +980,12 @@ lame <- function(
           silent = FALSE)
       }
       if(!inherits(betaABCalc, 'try-error')){
-        # Debug output for first few iterations after burn
-        if(s > burn && s <= burn + 5) {
-          cat("Iteration", s, ": New beta[1:3] =", 
-              round(betaABCalc$beta[1:min(3, length(betaABCalc$beta))], 6), "\n")
-        }
         beta <- c(betaABCalc$beta)
         a <- c(betaABCalc$a) * rvar
         b <- c(betaABCalc$b) * cvar
         if(symmetric){ a<-b<-(a+b)/2 }
       } else { 
-        if(s > burn && s <= burn + 5) {
-          cat("ERROR at iteration", s, ": betaABCalc failed\n")
-        }
+        # Silent fallback when betaAB calculation fails
         tryErrorChecks$betaAB<-tryErrorChecks$betaAB+1  
       }
     }

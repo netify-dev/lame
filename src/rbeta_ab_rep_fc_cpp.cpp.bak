@@ -182,17 +182,24 @@ arma::vec rmvnorm_cpp(
          Vb = inv(Qb);
          inv_success = true;
        } catch(...) {
-         // Silent fallback - matrix inversion failed
+         Rcpp::Rcout << "ERROR: Matrix inversion failed completely" << std::endl;
        }
      }
      
      if(!inv_success || Vb.has_nan() || Vb.has_inf()) {
+       Rcpp::Rcout << "WARNING: Matrix inversion produced NaN/Inf" << std::endl;
+       Rcpp::Rcout << "  Qb condition number: " << cond(Qb) << std::endl;
+       Rcpp::Rcout << "  Qb(0,0): " << Qb(0,0) << " Qb(1,1): " << Qb(1,1) << std::endl;
        beta = arma::zeros(p);
      } else {
        Mb = Vb * lb;
        
        // Check if Mb has NaN values
        if(Mb.has_nan() || Mb.has_inf()) {
+         Rcpp::Rcout << "WARNING: Mb has NaN/Inf values after Vb * lb" << std::endl;
+         Rcpp::Rcout << "  Vb has NaN: " << Vb.has_nan() << " has Inf: " << Vb.has_inf() << std::endl;
+         Rcpp::Rcout << "  lb has NaN: " << lb.has_nan() << " has Inf: " << lb.has_inf() << std::endl;
+         Rcpp::Rcout << "  Vb(0,0): " << Vb(0,0) << " lb(0): " << lb(0) << std::endl;
          beta = arma::zeros(p);
        } else {
          // Ensure Vb is positive definite before sampling
@@ -206,6 +213,9 @@ arma::vec rmvnorm_cpp(
          
          // Check if beta has NaN after sampling
          if(beta.has_nan() || beta.has_inf()) {
+           Rcpp::Rcout << "WARNING: beta has NaN/Inf after rmvnorm_cpp" << std::endl;
+           Rcpp::Rcout << "  Mb first 3: " << Mb(0) << " " << Mb(1) << " " << Mb(2) << std::endl;
+           Rcpp::Rcout << "  Vb(0,0): " << Vb(0,0) << std::endl;
            beta = Mb;  // Use mean without randomness
          }
        }
@@ -217,7 +227,7 @@ arma::vec rmvnorm_cpp(
    if(k > 0) {
      // Ensure proper matrix dimensions for multiplication
      arma::vec RrT, RcT;
-     if(p > 0 && beta.n_elem > 0 && XrT.n_cols == beta.n_elem) {
+     if(p > 0 && beta.n_elem > 0) {
        arma::mat beta_col = arma::reshape(beta, beta.n_elem, 1);
        RrT = ZrT - XrT * beta_col;
        RcT = ZcT - XcT * beta_col;

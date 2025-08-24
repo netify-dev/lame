@@ -7,9 +7,16 @@ align_over_time_unip <- function(U) {
   U_al <- U
   for (t in 2:T) {
     M <- crossprod(U_al[,,t], U_al[,,t-1])  # R x R
-    sv <- base::svd(M)
-    Ropt <- sv$u %*% t(sv$v)
-    U_al[,,t] <- U_al[,,t] %*% Ropt
+    # Check for non-finite values
+    if (!all(is.finite(M))) {
+      # Skip alignment for this time point if M has non-finite values
+      next
+    }
+    sv <- tryCatch(base::svd(M), error = function(e) NULL)
+    if (!is.null(sv)) {
+      Ropt <- sv$u %*% t(sv$v)
+      U_al[,,t] <- U_al[,,t] %*% Ropt
+    }
   }
   U_al
 }
@@ -25,7 +32,15 @@ align_over_time_bip <- function(U, V, G) {
   for (t in 2:T) {
     MU <- crossprod(U_al[,,t], U_al[,,t-1])
     MV <- crossprod(V_al[,,t], V_al[,,t-1])
-    su <- svd(MU); sv <- svd(MV)
+    # Check for non-finite values and skip if found
+    if (!all(is.finite(MU)) || !all(is.finite(MV))) {
+      next
+    }
+    su <- tryCatch(svd(MU), error = function(e) NULL)
+    sv <- tryCatch(svd(MV), error = function(e) NULL)
+    if (is.null(su) || is.null(sv)) {
+      next
+    }
     RU <- su$u %*% t(su$v)  # RA x RA
     RV <- sv$u %*% t(sv$v)  # RB x RB
     U_al[,,t] <- U_al[,,t] %*% RU

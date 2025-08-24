@@ -39,8 +39,8 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
   arma::mat UtU(R, R);
   arma::mat iVtV(R, R);
   arma::mat iUtU(R, R);
-  arma::vec ei(n);
-  arma::vec ej(n);
+  arma::vec ei(R);  // Changed from n to R - stores latent dimension effects
+  arma::vec ej(R);  // Changed from n to R - stores latent dimension effects
   arma::vec mu(R);
   arma::vec u_new(R);
   arma::vec v_new(R);
@@ -58,8 +58,8 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
     
     // Gibbs update for U given V at time t
     for(int i = 0; i < n; i++) {
-      // Compute residual + current effect
-      ei = E_t.row(i).t() + U_t.row(i) * VtV;
+      // Compute the contribution from the data: V' * E[i,:]
+      ei = V_t.t() * E_t.row(i).t();
       
       // Copy VtV for modification
       arma::mat VtV_mod = VtV;
@@ -79,7 +79,7 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
       
       // Compute posterior parameters using Cholesky
       iVtV = inv_sympd(VtV_mod);
-      mu = iVtV * (V_t.t() * ei);
+      mu = iVtV * ei;
       
       // Sample from posterior using Cholesky decomposition
       cholDecomp = chol(s2 * iVtV, "lower");
@@ -93,8 +93,8 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
       UtU = U_t.t() * U_t;
       
       for(int j = 0; j < n; j++) {
-        // Compute residual + current effect
-        ej = E_t.col(j) + V_t.row(j) * UtU;
+        // Compute the contribution from the data: U' * E[:,j]
+        ej = U_t.t() * E_t.col(j);
         
         // Copy UtU for modification
         arma::mat UtU_mod = UtU;
@@ -114,7 +114,7 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
         
         // Compute posterior parameters using Cholesky
         iUtU = inv_sympd(UtU_mod);
-        mu = iUtU * (U_t.t() * ej);
+        mu = iUtU * ej;
         
         // Sample from posterior
         cholDecomp = chol(s2 * iUtU, "lower");
