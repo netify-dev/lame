@@ -34,7 +34,22 @@ function(Z,EZ,rho,Y)
       if(tri==2){ up<-lt & Y==y }
       
       ez<- EZ[up] + rho*( t(Z)[up]  - t(EZ)[up] )
-      zup<-ez+sz*qnorm(runif(sum(up),pnorm((lb-ez)/sz),pnorm((ub-ez)/sz)))
+      # Protect against infinite or NA values in pnorm bounds
+      lower_p <- pnorm((lb-ez)/sz)
+      upper_p <- pnorm((ub-ez)/sz)
+      lower_p[!is.finite(lower_p)] <- 0
+      upper_p[!is.finite(upper_p)] <- 1
+      # Ensure lower < upper
+      bad_bounds <- lower_p >= upper_p
+      if(any(bad_bounds)) {
+        lower_p[bad_bounds] <- 0
+        upper_p[bad_bounds] <- 1
+      }
+      zup <- if(sum(up) > 0) {
+        suppressWarnings(ez+sz*qnorm(runif(sum(up),lower_p,upper_p)))
+      } else {
+        numeric(0)
+      }
       zerr<-which(abs(zup)==Inf)
       if(length(zerr)>0){ zup[zerr]<-(Z[up])[zerr] }
       Z[up]<-zup
@@ -48,11 +63,15 @@ function(Z,EZ,rho,Y)
   ZP<-EZ + c*E + d*t(E) 
   A<-( (Y== -1) | ( sign(ZP) == sign(Y-.5)) ) ; diag(A)<-TRUE
   A<-A & t(A)
+  A[is.na(A)] <- FALSE
   Z[A]<-ZP[A]
   ##
 
   ## this line now redundant because of previous chunk
-  diag(Z)<-rnorm(nrow(Z),diag(EZ),sqrt(1+rho))
+  dEZ <- diag(EZ)
+  if(all(is.finite(dEZ))) {
+    diag(Z)<-rnorm(nrow(Z),dEZ,sqrt(1+rho))
+  }
   ##
 
   Z

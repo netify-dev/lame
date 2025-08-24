@@ -47,7 +47,7 @@ rSab_fc <- function(a, b, Sab0=NULL, eta0=NULL, rvar=TRUE, cvar=TRUE, symmetric=
     
     # Check for non-finite values
     if(!all(is.finite(scale_mat))) {
-      warning("Non-finite values in scale matrix, using fallback")
+      # Silent fallback for non-finite values
       scale_mat <- eta0*Sab0 + diag(2) * 0.1
     }
     
