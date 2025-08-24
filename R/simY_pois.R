@@ -11,8 +11,10 @@
 #' @export simY_pois
 simY_pois <- function(EZ) {
   tryCatch({
-    return(.Call(`_lame_simY_pois`, EZ))
+    # Suppress warnings from C++ code (e.g., NAs from rpois with large lambda)
+    return(suppressWarnings(.Call(`_lame_simY_pois`, EZ)))
   }, error = function(e) {
+    # R fallback implementation with warning suppression
     n <- nrow(EZ)
     Y <- matrix(NA, n, n)
     for(i in 1:n) {
@@ -21,7 +23,7 @@ simY_pois <- function(EZ) {
           lambda <- exp(EZ[i,j])
           # Cap lambda to avoid numerical issues
           lambda <- min(lambda, 1e6)
-          Y[i,j] <- rpois(1, lambda)
+          Y[i,j] <- suppressWarnings(rpois(1, lambda))
         }
       }
     }
