@@ -1032,6 +1032,14 @@ ame<-function (Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   } else {
     names(APM)<-names(BPM)<-rownames(UVPM)<-colnames(UVPM)<-dimnames(Y)[[1]]
   }
+  # Transform EZ to count scale for Poisson family
+  # EZ is on log scale internally, but users expect count scale
+  if(family == "poisson") {
+    EZ <- exp(EZ)
+    # Cap extreme values to avoid numerical issues
+    EZ[EZ > 1e6] <- 1e6
+  }
+  
   dimnames(YPM)<-dimnames(EZ)<-dimnames(Y)
   rownames(BETA)<-NULL
   
