@@ -145,54 +145,6 @@ get_EZ_cpp <- function(Xlist, beta, ab, U, V) {
     .Call(`_lame_get_EZ_cpp`, Xlist, beta, ab, U, V)
 }
 
-rmvnorm_cpp <- function(n, mu, Sigma) {
-    .Call(`_lame_rmvnorm_cpp`, n, mu, Sigma)
-}
-
-simZ_cpp <- function(EZ, rho, s2 = 1.0) {
-    .Call(`_lame_simZ_cpp`, EZ, rho, s2)
-}
-
-simY_nrm_cpp <- function(EY, rho, s2) {
-    .Call(`_lame_simY_nrm_cpp`, EY, rho, s2)
-}
-
-rZ_nrm_fc_cpp <- function(Z, EZ, rho, s2, Y) {
-    .Call(`_lame_rZ_nrm_fc_cpp`, Z, EZ, rho, s2, Y)
-}
-
-mhalf_cpp <- function(M) {
-    .Call(`_lame_mhalf_cpp`, M)
-}
-
-design_array_cpp <- function(Xrow, Xcol, Xdyad, intercept, n, symmetric) {
-    .Call(`_lame_design_array_cpp`, Xrow, Xcol, Xdyad, intercept, n, symmetric)
-}
-
-precomputeX_cpp <- function(X) {
-    .Call(`_lame_precomputeX_cpp`, X)
-}
-
-llsrmRho_cpp <- function(Y, Sab, rhos, s2) {
-    .Call(`_lame_llsrmRho_cpp`, Y, Sab, rhos, s2)
-}
-
-rbeta_ab_fc_cpp <- function(Z, Sab, rho, X, s2, offset, iV0, m0, g) {
-    .Call(`_lame_rbeta_ab_fc_cpp`, Z, Sab, rho, X, s2, offset, iV0, m0, g)
-}
-
-ldZgbme_opt_cpp <- function(Z, Y, EZ, rho, s2) {
-    .Call(`_lame_ldZgbme_opt_cpp`, Z, Y, EZ, rho, s2)
-}
-
-array_to_list_cpp <- function(arr, actorByYr, pdLabs, actorIndices) {
-    .Call(`_lame_array_to_list_cpp`, arr, actorByYr, pdLabs, actorIndices)
-}
-
-rrho_fc_cpp <- function(Z, Sab, s2, offset, ngp, asp) {
-    .Call(`_lame_rrho_fc_cpp`, Z, Sab, s2, offset, ngp, asp)
-}
-
 ldZgbme_cpp <- function(Z, Y, EZ, rho, s2) {
     .Call(`_lame_ldZgbme_cpp`, Z, Y, EZ, rho, s2)
 }
@@ -209,18 +161,6 @@ simY_pois <- function(EZ) {
     .Call(`_lame_simY_pois`, EZ)
 }
 
-rwish_opt_cpp <- function(S0, nu) {
-    .Call(`_lame_rwish_opt_cpp`, S0, nu)
-}
-
-rUV_rep_opt_cpp <- function(ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs) {
-    .Call(`_lame_rUV_rep_opt_cpp`, ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs)
-}
-
-rUV_sym_opt_cpp <- function(E, U, V, s2, shrink, uLoopIDs) {
-    .Call(`_lame_rUV_sym_opt_cpp`, E, U, V, s2, shrink, uLoopIDs)
-}
-
 rwish_cpp <- function(S0, nu) {
     .Call(`_lame_rwish_cpp`, S0, nu)
 }
@@ -235,6 +175,10 @@ rUV_sym_fc_cpp <- function(E, U, V, s2, shrink, uLoopIDs) {
 
 rZ_bin_fc_cpp <- function(ZT, EZT, rho, YT) {
     .Call(`_lame_rZ_bin_fc_cpp`, ZT, EZT, rho, YT)
+}
+
+rZ_bin_fc_single <- function(Z, EZ, rho, Y) {
+    .Call(`_lame_rZ_bin_fc_single`, Z, EZ, rho, Y)
 }
 
 rbeta_ab_rep_fc_cpp <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g = 100.0) {
