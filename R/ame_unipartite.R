@@ -168,16 +168,25 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     U<-V<-matrix(0, nrow(Y), R)
   }
   
-  # output items
-  BETA <- matrix(nrow = 0, ncol = dim(X)[3] - pr*symmetric)
-  VC<-matrix(nrow=0,ncol=5-3*symmetric)
+  # output items - pre-allocate for efficiency
+  n_samples <- floor((nscan + burn * (burn > 0)) / odens) - floor(burn / odens)
+  BETA <- matrix(NA_real_, nrow = n_samples, ncol = dim(X)[3] - pr*symmetric)
+  VC <- matrix(NA_real_, nrow = n_samples, ncol = 5 - 3*symmetric)
+  sample_idx <- 0  # Track current sample index
   UVPS <- U %*% t(V) * 0
   APS<-BPS<- rep(0,nrow(Y))
   YPS<-matrix(0,nrow(Y),ncol(Y)) ; dimnames(YPS)<-dimnames(Y)
   
-  GOF<-matrix(gof_stats(Y),1,5)  
-  rownames(GOF)<-"obs"
-  colnames(GOF)<- c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep","trans.dep")
+  if(gof) {
+    GOF <- matrix(NA_real_, nrow = n_samples + 1, ncol = 5)
+    GOF[1,] <- gof_stats(Y)
+    gof_idx <- 1
+    rownames(GOF) <- c("obs", rep("", n_samples))
+  } else {
+    GOF <- matrix(gof_stats(Y), 1, 5)
+    rownames(GOF) <- "obs"
+  }  
+  colnames(GOF) <- c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep","trans.dep")
   
   names(APS)<-names(BPS)<- rownames(U)<-rownames(V)<-rownames(Y)
   
@@ -206,6 +215,11 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   XX<-t(mX)%*%mX                     # regression sums of squares
   XXt<-t(mX)%*%mXt                   # crossproduct sums of squares
   
+  # Pre-compute X with attributes ONCE (not in loop)
+  X_precomp <- X
+  attributes(X_precomp) <- c(attributes(X), list(Xr=Xr, Xc=Xc, mX=mX, 
+                                                 mXt=mXt, XX=XX, XXt=XXt))
+  
   # MCMC 
   have_coda<-suppressWarnings(
     try(requireNamespace("coda",quietly = TRUE),silent=TRUE))
@@ -215,38 +229,85 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   savePoints <- savePoints[round(quantile(1:length(savePoints), 
                                          probs=seq(save_interval,1,save_interval)))]
   
+  # Initialize running statistics for efficient diagnostics
+  beta_running_mean <- rep(0, dim(X)[3] - pr*symmetric)
+  vc_running_mean <- rep(0, 5 - 3*symmetric)
+  running_sample_count <- 0
+  
+  # Pre-select family-specific functions to avoid string comparisons in loop
+  update_Z_fn <- switch(family,
+    normal = rZ_nrm_fc,
+    tobit = rZ_tob_fc,
+    binary = rZ_bin_fc,
+    ordinal = rZ_ord_fc,
+    cbin = function(Z, EZ, rho, Y) rZ_cbin_fc(Z, EZ, rho, Y, odmax, odobs),
+    frn = function(Z, EZ, rho, Y) rZ_frn_fc(Z, EZ, rho, Y, YL, odmax, odobs),
+    rrl = function(Z, EZ, rho, Y) rZ_rrl_fc(Z, EZ, rho, Y, YL),
+    poisson = rZ_pois_fc,
+    stop(paste("Unknown family:", family))
+  )
+  
+  simulate_Y_fn <- switch(family,
+    normal = function(EZ, rho, s2) simY_nrm(EZ, rho, s2),
+    tobit = function(EZ, rho, s2) simY_tob(EZ, rho, s2),
+    binary = function(EZ, rho, s2) simY_bin(EZ, rho),
+    ordinal = function(EZ, rho, s2) simY_ord(EZ, rho, Y),
+    cbin = function(EZ, rho, s2) 1*(simY_frn(EZ, rho, odmax, YO=Y)>0),
+    frn = function(EZ, rho, s2) simY_frn(EZ, rho, odmax, YO=Y),
+    rrl = function(EZ, rho, s2) simY_rrl(EZ, rho, odobs, YO=Y),
+    poisson = function(EZ, rho, s2) simY_pois(EZ),
+    stop(paste("Unknown family:", family))
+  )
+  
+  # Family-specific flags
+  needs_s2 <- family %in% c("normal", "tobit", "poisson")
+  
+  # Initialize cached components for EZ computation
+  Xbeta_cache <- if(dim(X)[3] > 0) Xbeta(X, beta) else matrix(0, n, n)
+  ab_outer_cache <- outer(a, b, "+")
+  UV_cache <- U %*% t(V)
+  EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
+  
   for (s in 1:(nscan + burn)) {
     
-    # update Z 
-    EZ<-Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V)
+    # update Z (use cached EZ)
+    EZ <- EZ_cache
     
-    # Update Z using appropriate functions
+    # Update Z using pre-selected function
     rho_eff <- rho
-    if(family=="normal"){ Z<-rZ_nrm_fc(Z,EZ,rho_eff,s2,Y) }
-    if(family=="tobit"){ Z<-rZ_tob_fc(Z,EZ,rho_eff,s2,Y) }
-    if(family=="binary"){ Z<-rZ_bin_fc(Z,EZ,rho_eff,Y) }
-    if(family=="ordinal"){ Z<-rZ_ord_fc(Z,EZ,rho_eff,Y) }
-    if(family=="cbin"){Z<-rZ_cbin_fc(Z,EZ,rho_eff,Y,odmax,odobs)}
-    if(family=="frn"){ Z<-rZ_frn_fc(Z,EZ,rho_eff,Y,YL,odmax,odobs)}
-    if(family=="rrl"){ Z<-rZ_rrl_fc(Z,EZ,rho_eff,Y,YL)}
-    if(family=="poisson"){ Z<-rZ_pois_fc(Z,EZ,rho_eff,s2,Y) }
+    Z <- if(family %in% c("normal", "tobit", "poisson")) {
+      update_Z_fn(Z, EZ, rho_eff, s2, Y)
+    } else {
+      update_Z_fn(Z, EZ, rho_eff, Y)
+    }
     
     # update s2
-    if (is.element(family,c("normal","tobit","poisson"))) {
+    if (needs_s2) {
       s2<-rs2_fc(Z,rho_eff,offset=EZ)  
     }
     
     # update beta, a b with g-prior
-    X_precomp <- X
-    attributes(X_precomp) <- c(attributes(X), list(Xr=Xr, Xc=Xc, mX=mX, 
-                                                   mXt=mXt, XX=XX, XXt=XXt))
+    tmp <- rbeta_ab_fc(Z, Sab, rho, X_precomp, s2, offset=UV_cache, g=g)
+    beta_new <- tmp$beta
+    a_new <- tmp$a * rvar
+    b_new <- tmp$b * cvar
     
-    tmp <- rbeta_ab_fc(Z, Sab, rho, X_precomp, s2, offset=U%*%t(V), g=g)
-    beta <- tmp$beta
-    a <- tmp$a * rvar
-    b <- tmp$b * cvar
+    if(symmetric){ a_new<-b_new<-(a_new+b_new)/2 }
     
-    if(symmetric){ a<-b<-(a+b)/2 }
+    # Update cache if parameters changed
+    if(dim(X)[3] > 0 && !isTRUE(all.equal(beta, beta_new))) {
+      Xbeta_cache <- Xbeta(X, beta_new)
+    }
+    if(!isTRUE(all.equal(a, a_new)) || !isTRUE(all.equal(b, b_new))) {
+      ab_outer_cache <- outer(a_new, b_new, "+")
+    }
+    
+    beta <- beta_new
+    a <- a_new
+    b <- b_new
+    
+    # Update EZ cache with new components
+    EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
     
     # update Sab using unified function
     if(is.element(family,c("normal","tobit","ordinal"))) { 
@@ -289,7 +350,7 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     
     # update rho
     if(dcor) {
-      rho<-rrho_mh(Z, rho, s2, offset=Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V))
+      rho<-rrho_mh(Z, rho, s2, offset=EZ_cache)
     }
     
     # shrink rho - symmetric case 
@@ -298,7 +359,7 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     # update U,V
     if(R > 0) {
       shrink<- (s>.5*burn)
-      offset <- Xbeta(X,beta)+outer(a,b,"+")
+      offset <- Xbeta_cache + ab_outer_cache
       
       if(symmetric){ 
         E<-Z-offset ; E<-.5*(E+t(E))
@@ -315,6 +376,9 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       }
       
       U<-UV$U ; V<-UV$V
+      # Update UV cache
+      UV_cache <- U %*% t(V)
+      EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
     }    
     
     # burn-in countdown
@@ -324,41 +388,45 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     
     # save parameter values and monitor the MC
     if(s%%odens==0 & s>burn) {  
+      sample_idx <- sample_idx + 1
       
       # save BETA and VC - symmetric case 
       if(symmetric) {
         br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2 
         sbeta<-c(beta[1*intercept],bn,beta[-c(1*intercept,rb,cb)] )
-        BETA<-rbind(BETA,sbeta)
+        BETA[sample_idx,] <- sbeta
         
-        VC<-rbind(VC,c(Sab[1,1],s2) )
+        VC[sample_idx,] <- c(Sab[1,1],s2)
+        
+        # Update running means
+        beta_running_mean <- beta_running_mean + (sbeta - beta_running_mean) / sample_idx
+        vc_running_mean <- vc_running_mean + (c(Sab[1,1],s2) - vc_running_mean) / sample_idx
       }
       
       # save BETA and VC - asymmetric case 
       if(!symmetric) {
-        BETA<-rbind(BETA, beta)
-        VC<-rbind(VC, c(Sab[upper.tri(Sab, diag = T)], rho, s2))
+        BETA[sample_idx,] <- beta
+        VC[sample_idx,] <- c(Sab[upper.tri(Sab, diag = T)], rho, s2)
+        
+        # Update running means
+        beta_running_mean <- beta_running_mean + (beta - beta_running_mean) / sample_idx
+        vc_running_mean <- vc_running_mean + (c(Sab[upper.tri(Sab, diag = T)], rho, s2) - vc_running_mean) / sample_idx
       }
       
+      running_sample_count <- sample_idx
+      
       # update posterior sums of random effects
-      UVPS <- UVPS + U %*% t(V)
+      UVPS <- UVPS + UV_cache  # Use cached value
       APS <- APS + a
       BPS <- BPS + b 
       
-      # simulate from posterior predictive 
-      EZ<-Xbeta(X, beta) + outer(a, b, "+") + U %*% t(V)
+      # simulate from posterior predictive (use cached EZ)
+      EZ <- EZ_cache
       if(symmetric){ EZ<-(EZ+t(EZ))/2 }
       
-      # Simulate Y for posterior predictive
+      # Simulate Y for posterior predictive (use pre-selected function)
       rho_eff <- rho
-      if(family=="binary") { Ys<-simY_bin(EZ,rho_eff) }
-      if(family=="cbin"){ Ys<-1*(simY_frn(EZ,rho_eff,odmax,YO=Y)>0) }
-      if(family=="frn") { Ys<-simY_frn(EZ,rho_eff,odmax,YO=Y) }
-      if(family=="rrl") { Ys<-simY_rrl(EZ,rho_eff,odobs,YO=Y ) }
-      if(family=="normal") { Ys<-simY_nrm(EZ,rho_eff,s2) }
-      if(family=="ordinal") { Ys<-simY_ord(EZ,rho_eff,Y) }
-      if(family=="tobit") { Ys<-simY_tob(EZ,rho_eff,s2) }
-      if(family=="poisson") { Ys<-simY_pois(EZ) }
+      Ys <- simulate_Y_fn(EZ, rho_eff, s2)
       
       if(symmetric){ Ys[lower.tri(Ys)]<-0 ; Ys<-Ys+t(Ys)  }
       
@@ -368,16 +436,20 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       # save posterior predictive GOF stats
       if(gof){ 
         Ys[is.na(Y)]<-NA
-        GOF<-rbind(GOF,gof_stats(Ys))
+        gof_idx <- gof_idx + 1
+        GOF[gof_idx,] <- gof_stats(Ys)
       }
       
-      # print MC progress 
+      # print MC progress (use running means for efficiency)
       if (print) {
-        beta_means <- round(apply(BETA,2,mean),2)
-        vc_means <- round(apply(VC,2,mean),2)
+        beta_means <- round(beta_running_mean, 2)
+        vc_means <- round(vc_running_mean, 2)
         cli::cli_text("Iteration {.val {s}}: beta = [{.field {paste(beta_means, collapse=', ')}}], VC = [{.field {paste(vc_means, collapse=', ')}}]")
-        if (have_coda & nrow(VC) > 3 & length(beta)>0) {
-          eff_sizes <- round(coda::effectiveSize(BETA))
+        
+        # Only compute expensive diagnostics occasionally
+        if (have_coda & running_sample_count > 100 & running_sample_count %% 100 == 0 & length(beta) > 0) {
+          # Compute ESS only every 100 samples after first 100
+          eff_sizes <- round(coda::effectiveSize(BETA[1:sample_idx,, drop=FALSE]))
           cli::cli_text("  Effective sizes: [{.emph {paste(eff_sizes, collapse=', ')}}]")
         }
       }
@@ -401,6 +473,15 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   } # end MCMC   
   
   # output 
+  
+  # Trim matrices to actual sample size
+  if(exists("sample_idx") && sample_idx > 0) {
+    BETA <- BETA[1:sample_idx, , drop=FALSE]
+    VC <- VC[1:sample_idx, , drop=FALSE]
+    if(gof && exists("gof_idx")) {
+      GOF <- GOF[1:gof_idx, , drop=FALSE]
+    }
+  }
   
   # posterior means 
   APM<-APS/nrow(VC)

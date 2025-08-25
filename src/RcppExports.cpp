@@ -249,176 +249,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rmvnorm_cpp
-arma::mat rmvnorm_cpp(int n, const arma::vec& mu, const arma::mat& Sigma);
-RcppExport SEXP _lame_rmvnorm_cpp(SEXP nSEXP, SEXP muSEXP, SEXP SigmaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type mu(muSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Sigma(SigmaSEXP);
-    rcpp_result_gen = Rcpp::wrap(rmvnorm_cpp(n, mu, Sigma));
-    return rcpp_result_gen;
-END_RCPP
-}
-// simZ_cpp
-arma::mat simZ_cpp(const arma::mat& EZ, double rho, double s2);
-RcppExport SEXP _lame_simZ_cpp(SEXP EZSEXP, SEXP rhoSEXP, SEXP s2SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
-    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    rcpp_result_gen = Rcpp::wrap(simZ_cpp(EZ, rho, s2));
-    return rcpp_result_gen;
-END_RCPP
-}
-// simY_nrm_cpp
-arma::mat simY_nrm_cpp(const arma::mat& EY, double rho, double s2);
-RcppExport SEXP _lame_simY_nrm_cpp(SEXP EYSEXP, SEXP rhoSEXP, SEXP s2SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type EY(EYSEXP);
-    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    rcpp_result_gen = Rcpp::wrap(simY_nrm_cpp(EY, rho, s2));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rZ_nrm_fc_cpp
-arma::mat rZ_nrm_fc_cpp(const arma::mat& Z, const arma::mat& EZ, double rho, double s2, const arma::mat& Y);
-RcppExport SEXP _lame_rZ_nrm_fc_cpp(SEXP ZSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP YSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Z(ZSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
-    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
-    rcpp_result_gen = Rcpp::wrap(rZ_nrm_fc_cpp(Z, EZ, rho, s2, Y));
-    return rcpp_result_gen;
-END_RCPP
-}
-// mhalf_cpp
-arma::mat mhalf_cpp(const arma::mat& M);
-RcppExport SEXP _lame_mhalf_cpp(SEXP MSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type M(MSEXP);
-    rcpp_result_gen = Rcpp::wrap(mhalf_cpp(M));
-    return rcpp_result_gen;
-END_RCPP
-}
-// design_array_cpp
-arma::cube design_array_cpp(const arma::mat& Xrow, const arma::mat& Xcol, const arma::cube& Xdyad, bool intercept, bool n, bool symmetric);
-RcppExport SEXP _lame_design_array_cpp(SEXP XrowSEXP, SEXP XcolSEXP, SEXP XdyadSEXP, SEXP interceptSEXP, SEXP nSEXP, SEXP symmetricSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Xrow(XrowSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Xcol(XcolSEXP);
-    Rcpp::traits::input_parameter< const arma::cube& >::type Xdyad(XdyadSEXP);
-    Rcpp::traits::input_parameter< bool >::type intercept(interceptSEXP);
-    Rcpp::traits::input_parameter< bool >::type n(nSEXP);
-    Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
-    rcpp_result_gen = Rcpp::wrap(design_array_cpp(Xrow, Xcol, Xdyad, intercept, n, symmetric));
-    return rcpp_result_gen;
-END_RCPP
-}
-// precomputeX_cpp
-List precomputeX_cpp(const arma::cube& X);
-RcppExport SEXP _lame_precomputeX_cpp(SEXP XSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::cube& >::type X(XSEXP);
-    rcpp_result_gen = Rcpp::wrap(precomputeX_cpp(X));
-    return rcpp_result_gen;
-END_RCPP
-}
-// llsrmRho_cpp
-arma::vec llsrmRho_cpp(const arma::mat& Y, const arma::mat& Sab, const arma::vec& rhos, double s2);
-RcppExport SEXP _lame_llsrmRho_cpp(SEXP YSEXP, SEXP SabSEXP, SEXP rhosSEXP, SEXP s2SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Sab(SabSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type rhos(rhosSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    rcpp_result_gen = Rcpp::wrap(llsrmRho_cpp(Y, Sab, rhos, s2));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rbeta_ab_fc_cpp
-List rbeta_ab_fc_cpp(const arma::mat& Z, const arma::mat& Sab, double rho, const arma::cube& X, double s2, const arma::mat& offset, const arma::mat& iV0, const arma::vec& m0, double g);
-RcppExport SEXP _lame_rbeta_ab_fc_cpp(SEXP ZSEXP, SEXP SabSEXP, SEXP rhoSEXP, SEXP XSEXP, SEXP s2SEXP, SEXP offsetSEXP, SEXP iV0SEXP, SEXP m0SEXP, SEXP gSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Z(ZSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Sab(SabSEXP);
-    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
-    Rcpp::traits::input_parameter< const arma::cube& >::type X(XSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type offset(offsetSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type iV0(iV0SEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type m0(m0SEXP);
-    Rcpp::traits::input_parameter< double >::type g(gSEXP);
-    rcpp_result_gen = Rcpp::wrap(rbeta_ab_fc_cpp(Z, Sab, rho, X, s2, offset, iV0, m0, g));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ldZgbme_opt_cpp
-arma::mat ldZgbme_opt_cpp(const arma::mat& Z, const arma::mat& Y, const arma::mat& EZ, double rho, double s2);
-RcppExport SEXP _lame_ldZgbme_opt_cpp(SEXP ZSEXP, SEXP YSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP s2SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Z(ZSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
-    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    rcpp_result_gen = Rcpp::wrap(ldZgbme_opt_cpp(Z, Y, EZ, rho, s2));
-    return rcpp_result_gen;
-END_RCPP
-}
-// array_to_list_cpp
-List array_to_list_cpp(const arma::cube& arr, const List& actorByYr, const CharacterVector& pdLabs, const IntegerMatrix& actorIndices);
-RcppExport SEXP _lame_array_to_list_cpp(SEXP arrSEXP, SEXP actorByYrSEXP, SEXP pdLabsSEXP, SEXP actorIndicesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::cube& >::type arr(arrSEXP);
-    Rcpp::traits::input_parameter< const List& >::type actorByYr(actorByYrSEXP);
-    Rcpp::traits::input_parameter< const CharacterVector& >::type pdLabs(pdLabsSEXP);
-    Rcpp::traits::input_parameter< const IntegerMatrix& >::type actorIndices(actorIndicesSEXP);
-    rcpp_result_gen = Rcpp::wrap(array_to_list_cpp(arr, actorByYr, pdLabs, actorIndices));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rrho_fc_cpp
-double rrho_fc_cpp(const arma::mat& Z, const arma::mat& Sab, double s2, const arma::mat& offset, int ngp, bool asp);
-RcppExport SEXP _lame_rrho_fc_cpp(SEXP ZSEXP, SEXP SabSEXP, SEXP s2SEXP, SEXP offsetSEXP, SEXP ngpSEXP, SEXP aspSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Z(ZSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Sab(SabSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type offset(offsetSEXP);
-    Rcpp::traits::input_parameter< int >::type ngp(ngpSEXP);
-    Rcpp::traits::input_parameter< bool >::type asp(aspSEXP);
-    rcpp_result_gen = Rcpp::wrap(rrho_fc_cpp(Z, Sab, s2, offset, ngp, asp));
-    return rcpp_result_gen;
-END_RCPP
-}
 // ldZgbme_cpp
 arma::mat ldZgbme_cpp(const arma::mat& Z, const arma::mat& Y, const arma::mat& EZ, double rho, double s2);
 RcppExport SEXP _lame_ldZgbme_cpp(SEXP ZSEXP, SEXP YSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP s2SEXP) {
@@ -475,21 +305,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rwish_opt_cpp
-arma::mat rwish_opt_cpp(const arma::mat& S0, int nu);
-RcppExport SEXP _lame_rwish_opt_cpp(SEXP S0SEXP, SEXP nuSEXP) {
+// rwish_cpp
+arma::mat rwish_cpp(const arma::mat& S0, int nu);
+RcppExport SEXP _lame_rwish_cpp(SEXP S0SEXP, SEXP nuSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type S0(S0SEXP);
     Rcpp::traits::input_parameter< int >::type nu(nuSEXP);
-    rcpp_result_gen = Rcpp::wrap(rwish_opt_cpp(S0, nu));
+    rcpp_result_gen = Rcpp::wrap(rwish_cpp(S0, nu));
     return rcpp_result_gen;
 END_RCPP
 }
-// rUV_rep_opt_cpp
-List rUV_rep_opt_cpp(const arma::cube& ET, arma::mat U, arma::mat V, double rho, double s2, const arma::mat& iSe2, double maxmargin, bool shrink, const arma::uvec& rLoopIDs);
-RcppExport SEXP _lame_rUV_rep_opt_cpp(SEXP ETSEXP, SEXP USEXP, SEXP VSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP iSe2SEXP, SEXP maxmarginSEXP, SEXP shrinkSEXP, SEXP rLoopIDsSEXP) {
+// rUV_rep_fc_cpp
+List rUV_rep_fc_cpp(const arma::cube& ET, arma::mat U, arma::mat V, double rho, double s2, const arma::mat& iSe2, double maxmargin, bool shrink, const NumericVector& rLoopIDs);
+RcppExport SEXP _lame_rUV_rep_fc_cpp(SEXP ETSEXP, SEXP USEXP, SEXP VSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP iSe2SEXP, SEXP maxmarginSEXP, SEXP shrinkSEXP, SEXP rLoopIDsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -501,54 +331,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type iSe2(iSe2SEXP);
     Rcpp::traits::input_parameter< double >::type maxmargin(maxmarginSEXP);
     Rcpp::traits::input_parameter< bool >::type shrink(shrinkSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type rLoopIDs(rLoopIDsSEXP);
-    rcpp_result_gen = Rcpp::wrap(rUV_rep_opt_cpp(ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rUV_sym_opt_cpp
-List rUV_sym_opt_cpp(const arma::mat& E, arma::mat U, arma::mat V, double s2, bool shrink, const arma::uvec& uLoopIDs);
-RcppExport SEXP _lame_rUV_sym_opt_cpp(SEXP ESEXP, SEXP USEXP, SEXP VSEXP, SEXP s2SEXP, SEXP shrinkSEXP, SEXP uLoopIDsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type E(ESEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type U(USEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type V(VSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< bool >::type shrink(shrinkSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type uLoopIDs(uLoopIDsSEXP);
-    rcpp_result_gen = Rcpp::wrap(rUV_sym_opt_cpp(E, U, V, s2, shrink, uLoopIDs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rwish_cpp
-arma::mat rwish_cpp(arma::mat S0, int nu);
-RcppExport SEXP _lame_rwish_cpp(SEXP S0SEXP, SEXP nuSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat >::type S0(S0SEXP);
-    Rcpp::traits::input_parameter< int >::type nu(nuSEXP);
-    rcpp_result_gen = Rcpp::wrap(rwish_cpp(S0, nu));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rUV_rep_fc_cpp
-List rUV_rep_fc_cpp(arma::cube ET, arma::mat U, arma::mat V, double rho, double s2, arma::mat iSe2, double maxmargin, bool shrink, NumericVector rLoopIDs);
-RcppExport SEXP _lame_rUV_rep_fc_cpp(SEXP ETSEXP, SEXP USEXP, SEXP VSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP iSe2SEXP, SEXP maxmarginSEXP, SEXP shrinkSEXP, SEXP rLoopIDsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::cube >::type ET(ETSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type U(USEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type V(VSEXP);
-    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type iSe2(iSe2SEXP);
-    Rcpp::traits::input_parameter< double >::type maxmargin(maxmarginSEXP);
-    Rcpp::traits::input_parameter< bool >::type shrink(shrinkSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type rLoopIDs(rLoopIDsSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type rLoopIDs(rLoopIDsSEXP);
     rcpp_result_gen = Rcpp::wrap(rUV_rep_fc_cpp(ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs));
     return rcpp_result_gen;
 END_RCPP
@@ -580,6 +363,20 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
     Rcpp::traits::input_parameter< arma::cube >::type YT(YTSEXP);
     rcpp_result_gen = Rcpp::wrap(rZ_bin_fc_cpp(ZT, EZT, rho, YT));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rZ_bin_fc_single
+arma::mat rZ_bin_fc_single(const arma::mat& Z, const arma::mat& EZ, double rho, const arma::mat& Y);
+RcppExport SEXP _lame_rZ_bin_fc_single(SEXP ZSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP YSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
+    rcpp_result_gen = Rcpp::wrap(rZ_bin_fc_single(Z, EZ, rho, Y));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -728,29 +525,15 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_get_EZ_bip_cpp", (DL_FUNC) &_lame_get_EZ_bip_cpp, 6},
     {"_lame_outer_ab_bip_cpp", (DL_FUNC) &_lame_outer_ab_bip_cpp, 2},
     {"_lame_get_EZ_cpp", (DL_FUNC) &_lame_get_EZ_cpp, 5},
-    {"_lame_rmvnorm_cpp", (DL_FUNC) &_lame_rmvnorm_cpp, 3},
-    {"_lame_simZ_cpp", (DL_FUNC) &_lame_simZ_cpp, 3},
-    {"_lame_simY_nrm_cpp", (DL_FUNC) &_lame_simY_nrm_cpp, 3},
-    {"_lame_rZ_nrm_fc_cpp", (DL_FUNC) &_lame_rZ_nrm_fc_cpp, 5},
-    {"_lame_mhalf_cpp", (DL_FUNC) &_lame_mhalf_cpp, 1},
-    {"_lame_design_array_cpp", (DL_FUNC) &_lame_design_array_cpp, 6},
-    {"_lame_precomputeX_cpp", (DL_FUNC) &_lame_precomputeX_cpp, 1},
-    {"_lame_llsrmRho_cpp", (DL_FUNC) &_lame_llsrmRho_cpp, 4},
-    {"_lame_rbeta_ab_fc_cpp", (DL_FUNC) &_lame_rbeta_ab_fc_cpp, 9},
-    {"_lame_ldZgbme_opt_cpp", (DL_FUNC) &_lame_ldZgbme_opt_cpp, 5},
-    {"_lame_array_to_list_cpp", (DL_FUNC) &_lame_array_to_list_cpp, 4},
-    {"_lame_rrho_fc_cpp", (DL_FUNC) &_lame_rrho_fc_cpp, 6},
     {"_lame_ldZgbme_cpp", (DL_FUNC) &_lame_ldZgbme_cpp, 5},
     {"_lame_rZ_pois_fc_cpp", (DL_FUNC) &_lame_rZ_pois_fc_cpp, 5},
     {"_lame_ldZgbme_nrm_cpp", (DL_FUNC) &_lame_ldZgbme_nrm_cpp, 5},
     {"_lame_simY_pois", (DL_FUNC) &_lame_simY_pois, 1},
-    {"_lame_rwish_opt_cpp", (DL_FUNC) &_lame_rwish_opt_cpp, 2},
-    {"_lame_rUV_rep_opt_cpp", (DL_FUNC) &_lame_rUV_rep_opt_cpp, 9},
-    {"_lame_rUV_sym_opt_cpp", (DL_FUNC) &_lame_rUV_sym_opt_cpp, 6},
     {"_lame_rwish_cpp", (DL_FUNC) &_lame_rwish_cpp, 2},
     {"_lame_rUV_rep_fc_cpp", (DL_FUNC) &_lame_rUV_rep_fc_cpp, 9},
     {"_lame_rUV_sym_fc_cpp", (DL_FUNC) &_lame_rUV_sym_fc_cpp, 6},
     {"_lame_rZ_bin_fc_cpp", (DL_FUNC) &_lame_rZ_bin_fc_cpp, 4},
+    {"_lame_rZ_bin_fc_single", (DL_FUNC) &_lame_rZ_bin_fc_single, 4},
     {"_lame_rbeta_ab_rep_fc_cpp", (DL_FUNC) &_lame_rbeta_ab_rep_fc_cpp, 12},
     {"_lame_test_rbeta_inputs", (DL_FUNC) &_lame_test_rbeta_inputs, 12},
     {"_lame_rrho_mh_rep_cpp", (DL_FUNC) &_lame_rrho_mh_rep_cpp, 3},

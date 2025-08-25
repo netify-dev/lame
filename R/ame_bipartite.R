@@ -158,9 +158,10 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     G <- start_vals$G
   }
   
-  # Storage for posterior samples
-  BETA <- matrix(NA, n_eff, p)
-  VC <- matrix(NA, n_eff, 5)  # Store variance components
+  # Storage for posterior samples - pre-allocated for efficiency
+  BETA <- matrix(NA_real_, n_eff, p)
+  VC <- matrix(NA_real_, n_eff, 5)  # Store variance components
+  sample_idx <- 0  # Track current sample index
   if(!is.null(U) && !is.null(V) && !is.null(G)) {
     UVPS <- U %*% G %*% t(V) * 0  # Initialize UV product sum
   } else {
@@ -220,67 +221,88 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     cat("R_row =", R_row, ", R_col =", R_col, "\n")
   }
   
-  iter_save <- 0
-  
-  for(iter in 1:nscan) {
-    # Compute current expected value
-    EZ_curr <- matrix(0, nA, nB)
-    if(p > 0) {
-      for(k in 1:p) {
-        EZ_curr <- EZ_curr + beta[k] * X[,,k]
-      }
-    }
-    if(rvar) EZ_curr <- EZ_curr + a
-    if(cvar) {
-      for(j in 1:nB) {
-        EZ_curr[,j] <- EZ_curr[,j] + b[j]
-      }
-    }
-    if(!is.null(U) && !is.null(V) && !is.null(G)) {
-      EZ_curr <- EZ_curr + U %*% G %*% t(V)
-    }
-    
-    # Update Z given other parameters based on family
-    if(family == "normal") {
-      # For normal, Z = Y (observed)
-      Z <- Y
-    } else if(family == "tobit") {
-      # Truncated normal for censored data
-      Z <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-      Z[Y == 0] <- pmin(Z[Y == 0], 0)  # Censored at 0
-      Z[Y > 0] <- Y[Y > 0]  # Observed values
-    } else if(family == "binary") {
-      # Truncated normal
-      Z <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-      Z[Y == 0] <- pmin(Z[Y == 0], 0)
-      Z[Y == 1] <- pmax(Z[Y == 1], 0)
-    } else if(family == "ordinal") {
-      # Ordinal probit - simplified version
-      # Would need threshold parameters in full implementation
-      Z <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-    } else if(family == "cbin") {
-      # Censored binary - similar to binary but with row constraints
-      Z <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-      Z[Y == 0] <- pmin(Z[Y == 0], 0)
-      Z[Y == 1] <- pmax(Z[Y == 1], 0)
-    } else if(family == "frn") {
-      # Fixed rank nomination - simplified
-      Z <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-    } else if(family == "rrl") {
-      # Row rank likelihood - simplified
-      Z <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-    } else if(family == "poisson") {
-      # Use auxiliary variable approach
+  # Pre-select family-specific functions to avoid string comparisons
+  update_Z_fn <- switch(family,
+    normal = function(Z, EZ, s2, Y) Y,
+    tobit = function(Z, EZ, s2, Y) {
+      Z_new <- EZ + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
+      Z_new[Y == 0] <- pmin(Z_new[Y == 0], 0)
+      Z_new[Y > 0] <- Y[Y > 0]
+      Z_new
+    },
+    binary = function(Z, EZ, s2, Y) {
+      Z_new <- EZ + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
+      Z_new[Y == 0] <- pmin(Z_new[Y == 0], 0)
+      Z_new[Y == 1] <- pmax(Z_new[Y == 1], 0)
+      Z_new
+    },
+    poisson = function(Z, EZ, s2, Y) {
+      Z_new <- Z
+      lambda <- exp(pmin(EZ, 10))
       for(i in 1:nA) {
         for(j in 1:nB) {
           if(!is.na(Y[i,j])) {
-            lambda <- exp(EZ_curr[i,j])
-            # Use data augmentation
-            Z[i,j] <- log(Y[i,j] + rgamma(1, 1, lambda))
+            Z_new[i,j] <- log(Y[i,j] + rgamma(1, 1, lambda[i,j]))
           }
         }
       }
+      Z_new
+    },
+    ordinal = function(Z, EZ, s2, Y) {
+      EZ + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
+    },
+    cbin = function(Z, EZ, s2, Y) {
+      Z_new <- EZ + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
+      Z_new[Y == 0] <- pmin(Z_new[Y == 0], 0)
+      Z_new[Y == 1] <- pmax(Z_new[Y == 1], 0)
+      Z_new
+    },
+    frn = function(Z, EZ, s2, Y) {
+      EZ + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
+    },
+    rrl = function(Z, EZ, s2, Y) {
+      EZ + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
+    },
+    stop(paste("Unknown family:", family))
+  )
+  
+  needs_s2 <- family %in% c("normal", "tobit", "poisson")
+  
+  # Initialize cache components for EZ computation
+  Xbeta_cache <- matrix(0, nA, nB)
+  if(p > 0) {
+    for(k in 1:p) Xbeta_cache <- Xbeta_cache + beta[k] * X[,,k]
+  }
+  
+  a_mat_cache <- if(rvar) matrix(a, nA, nB, byrow = FALSE) else matrix(0, nA, nB)
+  b_mat_cache <- if(cvar) matrix(b, nA, nB, byrow = TRUE) else matrix(0, nA, nB)
+  UV_cache <- if(!is.null(U) && !is.null(V) && !is.null(G)) {
+    U %*% G %*% t(V)
+  } else {
+    matrix(0, nA, nB)
+  }
+  
+  EZ_cache <- Xbeta_cache + a_mat_cache + b_mat_cache + UV_cache
+  
+  # Pre-compute X statistics once if needed
+  if(p > 0) {
+    XtX <- matrix(0, p, p)
+    for(k1 in 1:p) {
+      for(k2 in k1:p) {
+        XtX[k1,k2] <- sum(X[,,k1] * X[,,k2], na.rm = TRUE)
+        if(k1 != k2) XtX[k2,k1] <- XtX[k1,k2]
+      }
     }
+  }
+  
+  iter_save <- 0
+  
+  for(iter in 1:nscan) {
+    # Use cached EZ
+    EZ_curr <- EZ_cache
+    
+    # Update Z using pre-selected function
+    Z <- update_Z_fn(Z, EZ_curr, s2, Y)
     
     # Update regression coefficients
     if(p > 0) {
@@ -293,7 +315,7 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         }
       }
       if(!is.null(U) && !is.null(V) && !is.null(G)) {
-        resid <- resid - U %*% G %*% t(V)
+        resid <- resid - UV_cache
       }
       
       # Use g-prior update
@@ -330,7 +352,7 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         }
       }
       if(!is.null(U) && !is.null(V) && !is.null(G)) {
-        resid <- resid - U %*% G %*% t(V)
+        resid <- resid - UV_cache
       }
       
       for(i in 1:nA) {
@@ -350,7 +372,7 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       }
       if(rvar) resid <- resid - a
       if(!is.null(U) && !is.null(V) && !is.null(G)) {
-        resid <- resid - U %*% G %*% t(V)
+        resid <- resid - UV_cache
       }
       
       for(j in 1:nB) {
@@ -416,6 +438,9 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
           V <- V_prop
         }
       }
+      
+      # Update UV cache after modifications
+      UV_cache <- U %*% G %*% t(V)
     }
     
     # Update error variance
@@ -433,13 +458,16 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         }
       }
       if(!is.null(U) && !is.null(V) && !is.null(G)) {
-        resid <- resid - U %*% G %*% t(V)
+        resid <- resid - UV_cache
       }
       
       shape <- (nA * nB) / 2
       rate <- sum(resid^2, na.rm = TRUE) / 2
       s2 <- 1 / rgamma(1, shape, rate)
     }
+    
+    # Update EZ cache for next iteration
+    EZ_cache <- Xbeta_cache + a_mat_cache + b_mat_cache + UV_cache
     
     # Store samples after burn-in
     if(iter > burn && (iter - burn) %% odens == 0) {
@@ -451,7 +479,7 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       if(rvar) APS <- APS + a
       if(cvar) BPS <- BPS + b
       if(!is.null(U) && !is.null(V) && !is.null(G)) {
-        UVPS <- UVPS + U %*% G %*% t(V)
+        UVPS <- UVPS + UV_cache
       }
       
       # Compute expected value
