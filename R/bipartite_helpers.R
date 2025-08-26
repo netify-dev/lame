@@ -5,8 +5,10 @@
 
 #' Initialize bipartite starting values
 #' @keywords internal
-init_bipartite_startvals <- function(Y, family, nA, nB, RA, RB, T, 
-                                    Xlist = NULL, odmax = NULL) {
+init_bipartite_startvals <- function(
+  Y, family, nA, nB, RA, RB, T, 
+  Xlist = NULL, odmax = NULL
+  ){
   # Initialize Z
   Z <- array(dim = c(nA, nB, T))
   
@@ -93,7 +95,9 @@ init_bipartite_startvals <- function(Y, family, nA, nB, RA, RB, T,
 
 #' Sample additive effects for bipartite networks
 #' @keywords internal
-sample_ab_bipartite <- function(Z, EZ_without_ab, sigma2_a, sigma2_b, s2) {
+sample_ab_bipartite <- function(
+  Z, EZ_without_ab, sigma2_a, sigma2_b, s2
+  ){
   dims <- dim(Z)
   nA <- dims[1]
   nB <- dims[2] 
@@ -136,8 +140,10 @@ sample_ab_bipartite <- function(Z, EZ_without_ab, sigma2_a, sigma2_b, s2) {
 
 #' Update variance parameters for bipartite
 #' @keywords internal
-update_variances_bipartite <- function(a, b, eta0_a = 2, eta0_b = 2,
-                                      Sab0_aa = 1, Sab0_bb = 1) {
+update_variances_bipartite <- function(
+  a, b, eta0_a = 2, eta0_b = 2,
+  Sab0_aa = 1, Sab0_bb = 1
+  ){
   nA <- nrow(a)
   nB <- nrow(b)
   T <- ncol(a)
@@ -157,7 +163,7 @@ update_variances_bipartite <- function(a, b, eta0_a = 2, eta0_b = 2,
 
 #' Compute GOF statistics for bipartite networks
 #' @keywords internal
-compute_gof_bipartite <- function(Y_obs, Y_sim, family) {
+compute_gof_bipartite <- function(Y_obs, Y_sim, family){
   T <- dim(Y_obs)[3]
   
   gof_stats <- list()
@@ -188,8 +194,10 @@ compute_gof_bipartite <- function(Y_obs, Y_sim, family) {
 
 #' Convert bipartite list data to array format
 #' @keywords internal
-list_to_array_bipartite <- function(rowActorSet, colActorSet, Y_list, 
-                                   Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
+list_to_array_bipartite <- function(
+  rowActorSet, colActorSet, Y_list, 
+  Xdyad = NULL, Xrow = NULL, Xcol = NULL
+  ){
   nA <- length(rowActorSet)
   nB <- length(colActorSet)
   T <- length(Y_list)

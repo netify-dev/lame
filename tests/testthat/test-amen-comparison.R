@@ -58,7 +58,7 @@ compare_amen_lame <- function(seed, n = 40, mu = 0, beta = 1,
     fit_amen <- amen::ame(Y, Xdyad = X, R = R, family = "nrm",
                           rvar = rvar, cvar = cvar, dcor = FALSE,
                           burn = burn, nscan = nscan, 
-                          print = FALSE, plot = FALSE)
+                          print = FALSE)
     
     beta_hat_amen <- median(fit_amen$BETA[,2])
     beta_ci_lower_amen <- quantile(fit_amen$BETA[,2], 0.025)
@@ -83,7 +83,7 @@ compare_amen_lame <- function(seed, n = 40, mu = 0, beta = 1,
   fit_lame <- lame::ame(Y, Xdyad = X, R = R, family = "normal",
                         rvar = rvar, cvar = cvar, dcor = FALSE,
                         burn = burn, nscan = nscan,
-                        print = FALSE, plot = FALSE)
+                        print = FALSE)
   
   beta_hat_lame <- median(fit_lame$BETA[,2])
   beta_ci_lower_lame <- quantile(fit_lame$BETA[,2], 0.025)
@@ -246,12 +246,12 @@ test_that("Detailed single run comparison", {
   fit_amen <- amen::ame(Y, Xdyad = X, R = 0, family = "nrm",
                        rvar = TRUE, cvar = TRUE, dcor = FALSE,
                        burn = 500, nscan = 2000,
-                       print = FALSE, plot = FALSE)
+                       print = FALSE)
   
   fit_lame <- lame::ame(Y, Xdyad = X, R = 0, family = "normal",
                        rvar = TRUE, cvar = TRUE, dcor = FALSE,
                        burn = 500, nscan = 2000,
-                       print = FALSE, plot = FALSE)
+                       print = FALSE)
   
   # Compare estimates
   beta_amen <- median(fit_amen$BETA[,2])

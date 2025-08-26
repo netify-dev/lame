@@ -13,7 +13,10 @@
 simY_nrm <-
   function(EY,rho,s2) 
   {
-    YS<-simZ(EY,rho,s2) 
-    diag(YS)<-NA 
+    YS<-simZ(EY,rho,s2)
+    # Only set diagonal to NA for square matrices
+    if(nrow(YS) == ncol(YS)) {
+      diag(YS)<-NA 
+    }
     YS
   }

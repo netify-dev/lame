@@ -36,7 +36,7 @@ diagnose_coverage <- function(n_sims = 50, n = 40, burn = 400, nscan = 1500) {
     fit <- ame(Y, Xdyad = X, R = 0, family = "normal",
               rvar = TRUE, cvar = TRUE, dcor = FALSE,
               burn = burn, nscan = nscan,
-              print = FALSE, plot = FALSE)
+              print = FALSE)
     
     # Extract estimates
     beta_samples <- fit$BETA[,2]
@@ -131,14 +131,14 @@ test_that("Test effect of prior specifications", {
   fit_default <- ame(Y, Xdyad = X, R = 0, family = "normal",
                     rvar = TRUE, cvar = TRUE, dcor = FALSE,
                     burn = 500, nscan = 2000,
-                    print = FALSE, plot = FALSE)
+                    print = FALSE)
   
   # Fit with specified g-prior
   prior_g <- list(g = n * var(c(Y), na.rm = TRUE))
   fit_gprior <- ame(Y, Xdyad = X, R = 0, family = "normal",
                    rvar = TRUE, cvar = TRUE, dcor = FALSE,
                    burn = 500, nscan = 2000,
-                   print = FALSE, plot = FALSE,
+                   print = FALSE,
                    prior = prior_g)
   
   # Fit with stronger prior on variance components
@@ -149,7 +149,7 @@ test_that("Test effect of prior specifications", {
   fit_strong <- ame(Y, Xdyad = X, R = 0, family = "normal",
                    rvar = TRUE, cvar = TRUE, dcor = FALSE,
                    burn = 500, nscan = 2000,
-                   print = FALSE, plot = FALSE,
+                   print = FALSE,
                    prior = prior_strong)
   
   cat("\n=== Effect of Priors ===\n")
@@ -181,7 +181,7 @@ test_that("Check MCMC convergence", {
   fit <- ame(Y, Xdyad = X, R = 0, family = "normal",
             rvar = TRUE, cvar = TRUE, dcor = FALSE,
             burn = 1000, nscan = 5000,
-            print = FALSE, plot = FALSE)
+            print = FALSE)
   
   if(requireNamespace("coda", quietly = TRUE)) {
     beta_chain <- coda::mcmc(fit$BETA[,2])

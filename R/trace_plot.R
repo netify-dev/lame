@@ -60,15 +60,17 @@
 #' @export
 #' @import ggplot2
 #' @import reshape2
-trace_plot <- function(fit,
-                      params = c("all", "beta", "variance"),
-                      include = NULL,
-                      exclude = NULL,
-                      ncol = 3,
-                      nrow = NULL,
-                      burn.in = 0,
-                      thin = 1,
-                      title = NULL) {
+trace_plot <- function(
+  fit,
+  params = c("all", "beta", "variance"),
+  include = NULL,
+  exclude = NULL,
+  ncol = 3,
+  nrow = NULL,
+  burn.in = 0,
+  thin = 1,
+  title = NULL
+  ){
   
   # Check input
   if (!inherits(fit, c("ame", "lame"))) {

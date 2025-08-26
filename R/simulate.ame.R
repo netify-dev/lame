@@ -1,9 +1,15 @@
 #' Simulate networks from a fitted AME model
 #' 
+#' @description
 #' Generates multiple network realizations from the posterior distribution of
 #' a fitted AME model. This function performs posterior predictive simulation
 #' by drawing from the full joint posterior distribution of model parameters,
 #' thereby propagating parameter uncertainty into the simulated networks.
+#' 
+#' \strong{Key Difference from print():} While \code{print.ame} displays existing
+#' model results without computation, \code{simulate.ame} actively generates new
+#' network data by sampling from the posterior predictive distribution. This is
+#' computationally intensive and produces new datasets for analysis.
 #' 
 #' @param object fitted model object of class "ame"
 #' @param nsim number of networks to simulate (default: 100)
@@ -120,12 +126,14 @@
 #' sims_new <- simulate(fit, nsim=50, newdata=list(Xdyad=new_X))
 #' }
 #' 
-#' @author Shahryar Minhas
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @importFrom stats simulate
 #' @method simulate ame
 #' @export
-simulate.ame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
-                        burn_in = 0, thin = 1, return_latent = FALSE, ...) {
+simulate.ame <- function(
+  object, nsim = 100, seed = NULL, newdata = NULL,
+  burn_in = 0, thin = 1, return_latent = FALSE, ...
+  ){
   
   # Set seed if provided
   if (!is.null(seed)) set.seed(seed)
@@ -181,17 +189,15 @@ simulate.ame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
     }
     X <- Xdyad  # For compatibility
   } else {
-    # Try to extract original covariates from the model
-    # This is tricky as AME doesn't store the original X
-    # We'll need to reconstruct or require users to provide it
-    warning("Original covariates not stored in model. Using zero covariates. ",
-            "Consider providing covariates via newdata argument.")
-    X <- array(0, dim = c(n_row, n_col, 1))
-  }
-  
-  # Check for stored design matrix components
-  if (!is.null(fit$X)) {
-    X <- fit$X
+    # Check for stored design matrix components first
+    if (!is.null(fit$X)) {
+      X <- fit$X
+    } else {
+      # No stored covariates and no new data provided
+      warning("Original covariates not stored in model. Using zero covariates. ",
+              "Consider providing covariates via newdata argument.")
+      X <- array(0, dim = c(n_row, n_col, 1))
+    }
   }
   
   # Prepare storage for simulations

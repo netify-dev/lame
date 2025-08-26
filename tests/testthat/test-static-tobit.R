@@ -52,7 +52,7 @@ sim_tobit_ame <- function(seed, n, mu, beta, gamma=NULL,
   fit <- ame(Y, Xdyad=X, R=R, family="tobit",
             rvar=rvar, cvar=cvar, dcor=FALSE,
             burn=burn, nscan=nscan, 
-            print=FALSE, plot=FALSE)
+            print=FALSE)
   
   # Extract results
   beta_hat <- median(fit$BETA[,2])
@@ -129,7 +129,7 @@ test_that("Tobit AME with covariates only recovers true parameters", {
   # Fit model with no additive or multiplicative effects
   fit <- ame(Y, Xdyad=X, R=0, family="tobit",
             rvar=FALSE, cvar=FALSE, dcor=FALSE,
-            burn=500, nscan=2000, print=FALSE, plot=FALSE)
+            burn=500, nscan=2000, print=FALSE)
   
   # Check parameter recovery
   beta_est <- median(fit$BETA[,2])
@@ -176,7 +176,7 @@ test_that("Tobit AME with additive effects recovers true parameters", {
   # Fit model with additive effects
   fit <- ame(Y, Xdyad=X, R=0, family="tobit",
             rvar=TRUE, cvar=TRUE, dcor=FALSE,
-            burn=500, nscan=2000, print=FALSE, plot=FALSE)
+            burn=500, nscan=2000, print=FALSE)
   
   # Check parameter recovery
   beta_est <- median(fit$BETA[,2])
@@ -234,7 +234,7 @@ test_that("Tobit AME with full model recovers true parameters", {
   # Fit full AME model
   fit <- ame(Y, Xdyad=X, R=R_true, family="tobit",
             rvar=TRUE, cvar=TRUE, dcor=FALSE,
-            burn=500, nscan=2000, print=FALSE, plot=FALSE)
+            burn=500, nscan=2000, print=FALSE)
   
   # Check parameter recovery
   beta_est <- median(fit$BETA[,2])
@@ -279,12 +279,12 @@ test_that("Multiplicative effects reduce bias in tobit models", {
   # Fit model WITHOUT multiplicative effects
   fit_no_uv <- ame(Y, Xdyad=X, R=0, family="tobit",
                   rvar=FALSE, cvar=FALSE, dcor=FALSE,
-                  burn=400, nscan=1500, print=FALSE, plot=FALSE)
+                  burn=400, nscan=1500, print=FALSE)
   
   # Fit model WITH multiplicative effects
   fit_with_uv <- ame(Y, Xdyad=X, R=2, family="tobit",
                     rvar=FALSE, cvar=FALSE, dcor=FALSE,
-                    burn=400, nscan=1500, print=FALSE, plot=FALSE)
+                    burn=400, nscan=1500, print=FALSE)
   
   beta_no_uv <- median(fit_no_uv$BETA[,2])
   beta_with_uv <- median(fit_with_uv$BETA[,2])
@@ -320,7 +320,7 @@ test_that("Tobit AME handles different censoring levels", {
   expect_gt(censored_prop, 0.3)  # Should have substantial censoring
   
   fit_heavy <- ame(Y_heavy, R=1, family="tobit",
-                  burn=200, nscan=800, print=FALSE, plot=FALSE)
+                  burn=200, nscan=800, print=FALSE)
   
   expect_true(!is.null(fit_heavy$BETA))
   expect_lt(median(fit_heavy$BETA[,1]), 0.5)  # Intercept should reflect censoring
@@ -334,7 +334,7 @@ test_that("Tobit AME handles different censoring levels", {
   expect_lt(censored_prop_light, 0.05)  # Should have minimal censoring
   
   fit_light <- ame(Y_light, R=1, family="tobit",
-                  burn=200, nscan=800, print=FALSE, plot=FALSE)
+                  burn=200, nscan=800, print=FALSE)
   
   expect_true(!is.null(fit_light$BETA))
   expect_gt(median(fit_light$BETA[,1]), 1)  # Intercept should be positive

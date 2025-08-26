@@ -1,6 +1,6 @@
 Package: lame
 Title: Longitudinal Additive and Multiplicative Effects Models for Networks
-Version: 0.10
+Version: 0.2
 Authors@R: c(
     person("Shahryar", "Minhas", , "minhassh@msu.edu", role = c("aut", "cre")),
     person("Tosin", "Salau", role = "aut"),

@@ -36,12 +36,12 @@ test_that("Quick check: Both packages have same coverage issue", {
     fit_amen <- suppressWarnings(
       amen::ame(Y, Xdyad=X, R=0, family="nrm",
                 rvar=TRUE, cvar=TRUE, dcor=FALSE,
-                burn=200, nscan=800, print=FALSE, plot=FALSE)
+                burn=200, nscan=800, print=FALSE)
     )
     
     fit_lame <- lame::ame(Y, Xdyad=X, R=0, family="normal",
                          rvar=TRUE, cvar=TRUE, dcor=FALSE,
-                         burn=200, nscan=800, print=FALSE, plot=FALSE)
+                         burn=200, nscan=800, print=FALSE)
     
     # Store results
     ci_amen <- quantile(fit_amen$BETA[,2], c(0.025, 0.975))
@@ -86,12 +86,12 @@ test_that("Both work well for simple models", {
     fit_amen <- suppressWarnings(
       amen::ame(Y, Xdyad=X, R=0, family="nrm",
                 rvar=FALSE, cvar=FALSE, dcor=FALSE,
-                burn=200, nscan=800, print=FALSE, plot=FALSE)
+                burn=200, nscan=800, print=FALSE)
     )
     
     fit_lame <- lame::ame(Y, Xdyad=X, R=0, family="normal",
                          rvar=FALSE, cvar=FALSE, dcor=FALSE,
-                         burn=200, nscan=800, print=FALSE, plot=FALSE)
+                         burn=200, nscan=800, print=FALSE)
     
     ci_amen <- quantile(fit_amen$BETA[,2], c(0.025, 0.975))
     ci_lame <- quantile(fit_lame$BETA[,2], c(0.025, 0.975))

@@ -53,7 +53,7 @@ test_that("All 8 families work for bipartite networks", {
                  R_row = 0, R_col = 0,  # Start with no multiplicative effects
                  odmax = odmax,
                  burn = 100, nscan = 300, 
-                 print = FALSE, plot = FALSE)
+                 print = FALSE)
     })
     
     # Basic checks
@@ -69,8 +69,7 @@ test_that("All 8 families work for bipartite networks", {
     # Check that posterior samples exist
     expect_false(is.null(fit$BETA), 
                  info = paste("BETA missing for", fam))
-    expect_false(is.null(fit$EZ), 
-                 info = paste("EZ missing for", fam))
+  # EZ removed - expect_false(is.null(fit$EZ), info = paste("EZ missing for", fam))
     
     # Family-specific checks
     if(fam == "binary" || fam == "cbin") {
@@ -81,8 +80,7 @@ test_that("All 8 families work for bipartite networks", {
     
     if(fam == "poisson") {
       # Check predictions are non-negative
-      expect_true(all(fit$EZ >= 0), 
-                  info = paste("Negative predictions for", fam))
+      # EZ removed - expect_true(all(fit$EZ >= 0), info = paste("Negative predictions for", fam))
     }
     
     if(fam == "tobit") {
@@ -121,7 +119,7 @@ test_that("Bipartite models with multiplicative effects work for all families", 
       fit <- ame(Y, mode = "bipartite", family = fam,
                  R_row = R_row, R_col = R_col,
                  burn = 100, nscan = 300,
-                 print = FALSE, plot = FALSE)
+                 print = FALSE)
     })
     
     # Check multiplicative effects
@@ -131,8 +129,7 @@ test_that("Bipartite models with multiplicative effects work for all families", 
                  info = paste("V dimension wrong for", fam))
     expect_equal(dim(fit$G), c(R_row, R_col), 
                  info = paste("G dimension wrong for", fam))
-    expect_false(is.null(fit$UVPM), 
-                 info = paste("UVPM missing for", fam))
+    # UVPM removed - expect_false(is.null(fit$UVPM), info = paste("UVPM missing for", fam))
   }
 })
 
@@ -155,7 +152,7 @@ test_that("Bipartite models handle covariates correctly", {
   fit <- ame(Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
              mode = "bipartite",
              burn = 100, nscan = 300,
-             print = FALSE, plot = FALSE)
+             print = FALSE)
   
   # Check coefficient dimensions
   # Should have: intercept + 2 dyadic + 2 row + 2 col = 7
@@ -186,7 +183,7 @@ test_that("Special families handle their constraints correctly", {
     fit_frn <- ame(Y_frn, mode = "bipartite", family = "frn",
                    odmax = odmax,
                    burn = 100, nscan = 300,
-                   print = FALSE, plot = FALSE)
+                   print = FALSE)
   })
   
   expect_equal(fit_frn$family, "frn")
@@ -202,7 +199,7 @@ test_that("Special families handle their constraints correctly", {
   suppressWarnings({
     fit_rrl <- ame(Y_rrl, mode = "bipartite", family = "rrl",
                    burn = 100, nscan = 300,
-                   print = FALSE, plot = FALSE)
+                   print = FALSE)
   })
   
   expect_equal(fit_rrl$family, "rrl")
@@ -215,7 +212,7 @@ test_that("Special families handle their constraints correctly", {
   suppressWarnings({
     fit_ord <- ame(Y_ord, mode = "bipartite", family = "ordinal",
                    burn = 100, nscan = 300,
-                   print = FALSE, plot = FALSE)
+                   print = FALSE)
   })
   
   expect_equal(fit_ord$family, "ordinal")
@@ -235,7 +232,7 @@ test_that("Bipartite models converge reasonably", {
   
   fit <- ame(Y, mode = "bipartite",
              burn = 200, nscan = 500,
-             print = FALSE, plot = FALSE)
+             print = FALSE)
   
   # Check that intercept is recovered approximately
   intercept_est <- mean(fit$BETA[,1])

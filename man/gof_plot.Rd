@@ -44,12 +44,22 @@ posterior predictive distributions. This helps assess whether the model
 adequately captures important network features.
 }
 \details{
-The function evaluates model fit using four key network statistics:
+The function evaluates model fit using key network statistics that vary by network type.
+
+For unipartite networks:
 \describe{
 \item{Standard deviation of row means}{Captures variance in out-degree/activity}
 \item{Standard deviation of column means}{Captures variance in in-degree/popularity}
 \item{Dyadic dependence}{Correlation between dyads (reciprocity)}
 \item{Triadic dependence}{Transitivity/clustering in the network}
+}
+
+For bipartite networks:
+\describe{
+\item{Standard deviation of row means}{Captures variance in activity from set A}
+\item{Standard deviation of column means}{Captures variance in popularity in set B}
+\item{Four-cycles}{Count of 4-node closed paths where pairs of A-nodes share
+multiple B-node connections, measuring clustering in bipartite networks}
 }
 
 For static models (AME), the function produces histograms comparing the observed

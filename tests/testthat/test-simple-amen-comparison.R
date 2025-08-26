@@ -27,13 +27,13 @@ if (amen_available) {
     fit_amen <- amen::ame(Y, Xdyad = X, R = 0, family = "nrm",
                           rvar = FALSE, cvar = FALSE, dcor = FALSE,
                           burn = burn, nscan = nscan,
-                          print = FALSE, plot = FALSE)
+                          print = FALSE)
     
     # Fit with lame
     fit_lame <- lame::ame(Y, Xdyad = X, R = 0, family = "normal",
                          rvar = FALSE, cvar = FALSE, dcor = FALSE,
                          burn = burn, nscan = nscan,
-                         print = FALSE, plot = FALSE)
+                         print = FALSE)
     
     # Compare beta estimates
     beta_amen <- median(fit_amen$BETA[,2])
@@ -99,13 +99,13 @@ if (amen_available) {
     fit_amen <- amen::ame(Y, Xdyad = X, R = 0, family = "nrm",
                           rvar = TRUE, cvar = TRUE, dcor = FALSE,
                           burn = burn, nscan = nscan,
-                          print = FALSE, plot = FALSE)
+                          print = FALSE)
     
     # Fit with lame
     fit_lame <- lame::ame(Y, Xdyad = X, R = 0, family = "normal",
                          rvar = TRUE, cvar = TRUE, dcor = FALSE,
                          burn = burn, nscan = nscan,
-                         print = FALSE, plot = FALSE)
+                         print = FALSE)
     
     beta_amen <- median(fit_amen$BETA[,2])
     beta_lame <- median(fit_lame$BETA[,2])

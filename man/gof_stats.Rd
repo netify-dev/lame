@@ -4,42 +4,49 @@
 \alias{gof_stats}
 \title{Goodness of fit statistics}
 \usage{
-gof_stats(Y)
+gof_stats(Y, mode = NULL, custom_gof = NULL)
 }
 \arguments{
-\item{Y}{a relational data matrix (n x n square matrix) where Y\[i,j\]
-represents the relationship from node i to node j. Missing values (NA)
-are allowed and will be handled appropriately.}
+\item{Y}{a relational data matrix. For unipartite networks, a square n x n
+matrix where Y\[i,j\] represents the relationship from node i to node j.
+For bipartite networks, an nA x nB matrix where Y\[i,j\]
+represents the relationship from node i in set A to node j in set B.
+Missing values (NA) are allowed and will be handled appropriately.}
+
+\item{mode}{character string specifying the network type: "unipartite" or "bipartite".
+If NULL (default), attempts to infer from matrix dimensions (rectangular = bipartite,
+square = unipartite). Note: square bipartite networks must specify mode="bipartite".}
+
+\item{custom_gof}{optional function or list of functions to compute custom GOF statistics.
+Each function should take Y as input and return a named numeric value or vector.
+Custom statistics will be added to the standard statistics.}
 }
 \value{
-A named numeric vector containing five goodness-of-fit statistics:
+A named numeric vector containing goodness-of-fit statistics.
+For unipartite networks:
 \describe{
 \item{sd.rowmean}{Standard deviation of row means. Measures the
-heterogeneity in out-degree centrality (sender effects). Higher values
-indicate more variation in how active nodes are as senders.}
+heterogeneity in out-degree centrality (sender effects).}
 \item{sd.colmean}{Standard deviation of column means. Measures the
-heterogeneity in in-degree centrality (receiver effects). Higher values
-indicate more variation in how popular nodes are as receivers.}
-\item{dyad.dep}{Dyadic dependence/reciprocity correlation. Pearson correlation
-between Y\[i,j\] and Y\[j,i\] across all dyads. Positive values indicate
-reciprocity (mutual relationships), negative values indicate
-anti-reciprocity. Range: \[-1, 1\].}
-\item{cycle.dep}{Cyclic/transitive triadic dependence. Normalized sum of
-products along three-cycles (i to j to k to i). Positive values indicate
-transitivity clustering, where 'a friend of a friend is a friend'.
-Based on the trace of the cubed centered matrix, normalized by the
-trace of the cubed data availability matrix and the cubed standard deviation.}
-\item{trans.dep}{Transitive triadic dependence. Normalized sum of products
-along two-paths that close into triangles (i to j to k with k to i). Measures
-the tendency for open triads to close. Based on the trace of the product
-E*E'*E where E is the centered matrix, normalized appropriately.}
+heterogeneity in in-degree centrality (receiver effects).}
+\item{dyad.dep}{Dyadic dependence/reciprocity correlation.}
+\item{cycle.dep}{Cyclic/transitive triadic dependence.}
+\item{trans.dep}{Transitive triadic dependence.}
 }
+For bipartite networks:
+\describe{
+\item{sd.rowmean}{Standard deviation of row means (sender heterogeneity).}
+\item{sd.colmean}{Standard deviation of column means (receiver heterogeneity).}
+\item{four.cycles}{Count of four-cycles in the bipartite network.}
+}
+
+If custom_gof is provided, additional statistics will be included with their
+user-specified names.
 }
 \description{
 Calculates goodness of fit statistics for relational data matrices,
 evaluating second-order (dyadic) and third-order (triadic) dependence
-patterns. These statistics are useful for assessing model fit in
-network analysis and relational data modeling.
+patterns. Can handle both unipartite and bipartite networks.
 }
 \details{
 The function computes network statistics that capture different aspects of
@@ -51,6 +58,9 @@ useful for:
 \item Descriptive analysis: summarizing key structural features of the network
 }
 
+For bipartite networks with square dimensions (nA = nB), you must explicitly
+specify mode="bipartite" to ensure correct statistics are calculated.
+
 Missing values in Y are handled by pairwise deletion for correlations and
 are excluded from matrix products in triadic calculations.
 }
@@ -58,8 +68,16 @@ are excluded from matrix products in triadic calculations.
 
 data(YX_nrm) 
 
+# Auto-detect unipartite
 gof_stats(YX_nrm$Y) 
 
+# Explicitly specify mode for square bipartite
+# Y_bip <- matrix(rnorm(100), 10, 10) # 10x10 bipartite
+# gof_stats(Y_bip, mode = "bipartite")
+
+# Custom GOF function
+# my_stat <- function(Y) { c(my_measure = sum(Y > 0, na.rm=TRUE)) }
+# gof_stats(YX_nrm$Y, custom_gof = my_stat)
 
 }
 \author{

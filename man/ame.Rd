@@ -12,7 +12,7 @@ symmetric=FALSE,
 odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)), 
 prior=list(), g=NA,
 seed = 6886, nscan = 10000, burn = 500, odens = 25, 
-plot=TRUE, print = TRUE, gof=TRUE, 
+print = TRUE, gof=TRUE, 
 start_vals=NULL, periodic_save=FALSE, out_file=NULL,
 save_interval=0.25, model.name=NULL)
 }
@@ -94,11 +94,19 @@ regression coefficients.}
 
 \item{odens}{output density for the Markov chain}
 
-\item{plot}{logical: plot results while running?}
-
 \item{print}{logical: print results while running?}
 
-\item{gof}{logical: calculate goodness of fit statistics?}
+\item{gof}{logical: calculate goodness of fit statistics? Setting to TRUE
+adds approximately 2-5\% to runtime. For faster sampling without GOF overhead,
+set gof=FALSE and use gof() after model fitting.}
+
+\item{custom_gof}{optional function or list of named functions for computing
+custom goodness-of-fit statistics. Each function must accept a single matrix Y
+as input and return a numeric vector. If a single function is provided, it
+should return a named vector. If a list of functions is provided, each function
+should return a single value and will be named according to the list names.
+Custom statistics will be computed in addition to default statistics.
+Example: custom_gof = function(Y) c(density = mean(Y > 0, na.rm = TRUE))}
 
 \item{start_vals}{List from previous model run containing parameter starting values for new MCMC}
 
@@ -109,20 +117,50 @@ regression coefficients.}
 \item{save_interval}{quantile interval indicating when to save during post burn-in phase.}
 
 \item{model.name}{optional string for model selection output}
+
+\item{use_sparse_matrices}{logical: use sparse matrix storage for large networks? (default: FALSE).
+Recommended only for truly sparse networks (< 10\% non-zero entries).}
+
+\item{plot}{logical: plot results while running?}
 }
 \value{
-\item{BETA}{posterior samples of regression coefficients}
-\item{VC}{posterior samples of the variance parameters}
-\item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
-mean of additive column effects b} \item{U}{posterior mean of multiplicative
-row effects u} \item{V}{posterior mean of multiplicative column effects v (asymmetric case)}
-\item{UVPM}{posterior mean of UV (asymmetric case)}
-\item{ULUPM}{posterior mean of ULU (symmetric case)}
-\item{L}{posterior mean of L (symmetric case)}
-\item{EZ}{estimate of expectation of Z
-matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
-\item{GOF}{observed (first row) and posterior predictive (remaining rows)
-values of four goodness-of-fit statistics}
+\strong{Posterior Samples (full MCMC chains):}
+\item{BETA}{Regression coefficients (nscan × p matrix)}
+\item{VC}{Variance components (nscan × k matrix)}
+\item{GOF}{Goodness-of-fit statistics (nscan × 4 matrix)}
+
+\strong{Posterior Means (averaged over chain):}
+\item{APM}{Additive row/sender effects (n-vector)}
+\item{BPM}{Additive column/receiver effects (m-vector); NULL for symmetric networks}
+\item{U}{Multiplicative row/sender factors (n × R matrix)}
+\item{V}{Multiplicative column/receiver factors (m × R matrix); NULL for symmetric networks}
+\item{L}{Eigenvalue matrix (R × R diagonal); symmetric networks only}
+\item{YPM}{Posterior mean of Y on response scale (for predictions and imputing missing values)}
+
+\strong{Metadata:}
+\item{family}{Model family (normal, binary, etc.)}
+\item{mode}{Network mode (unipartite or bipartite)}
+\item{symmetric}{Logical indicating if network is symmetric}
+\item{R}{Dimension of multiplicative effects}
+
+\strong{Optional Posterior Samples (if requested via posterior_options):}
+\item{U_samples}{Samples of U (n × R × iterations array)}
+\item{V_samples}{Samples of V (m × R × iterations array)}
+\item{a_samples}{Samples of row effects (n × iterations matrix)}
+\item{b_samples}{Samples of column effects (m × iterations matrix)}
+
+\strong{Note on reconstructing removed matrices:}
+To save memory, EZ (expected latent network) and UVPM/ULUPM (multiplicative products)
+are not stored but can be reconstructed using:
+\itemize{
+\item \code{reconstruct_EZ(fit)} - Returns linear predictor (link scale, not response scale)
+\item \code{reconstruct_UVPM(fit)} - Returns U\\%\emph{\\%t(V) or U\\%}\\%L\\%*\\%t(U)
+}
+
+\strong{Generating posterior distributions:}
+Use \code{simulate_posterior(fit, component="UV")} to generate posterior samples
+for components where only means are stored, or use \code{posterior_options()}
+during model fitting to save full posterior samples.
 \item{model.name}{Name of the model (if provided)}
 }
 \description{
@@ -196,18 +234,18 @@ The model uses a Gibbs sampler with the following updates:
 
 The following data types/models are available:
 
-"normal": A normal AME model.
+"normal": A normal AME model (identity link: E\link{Y} = η).
 
 "tobit": A tobit AME model for censored continuous data. Values are censored
-at zero, appropriate for non-negative continuous relational data.
+at zero, appropriate for non-negative continuous relational data (identity link with censoring).
 
-"binary": A binary probit AME model.
+"binary": A binary probit AME model (probit link: P(Y=1) = Φ(η)).
 
-"ordinal": An ordinal probit AME model. An intercept is not identifiable in this
-model.
+"ordinal": An ordinal probit AME model (cumulative probit link). An intercept is not
+identifiable in this model.
 
-"cbin": An AME model for censored binary data.  The value of 'odmax'
-specifies the maximum number of links each row may have.
+"cbin": An AME model for censored binary data (probit link with censoring). The value of
+'odmax' specifies the maximum number of links each row may have.
 
 "frn": An AME model for fixed rank nomination networks. A higher value of
 the rank indicates a stronger relationship. The value of 'odmax' specifies
@@ -218,8 +256,8 @@ relationships across rows are not directly comparable in terms of scale. An
 intercept, row random effects and row regression effects are not estimable
 for this model.
 
-"poisson": An overdispersed Poisson AME model for count data. The latent
-variable represents the log mean of the Poisson distribution.
+"poisson": An overdispersed Poisson AME model for count data (log link: E\link{Y} = exp(η)).
+The linear predictor η represents log(λ) where λ is the expected count.
 }
 \examples{
 \dontrun{

@@ -29,15 +29,15 @@
 #' @author Shahryar Minhas
 #' @export get_fit_object
 get_fit_object <- function(
-    APS, BPS, UVPS, YPS, 
-    BETA, VC, GOF,
-    Xlist, actorByYr, start_vals,
-    symmetric, tryErrorChecks,
-    model.name=NULL,
-    U=NULL, V=NULL, dynamic_uv=FALSE, dynamic_ab=FALSE,
-    bip=FALSE,
-    rho_ab=NULL, rho_uv=NULL,
-    family=NULL, odmax=NULL, nA=NULL, nB=NULL, n_time=NULL
+  APS, BPS, UVPS, YPS, 
+  BETA, VC, GOF,
+  Xlist, actorByYr, start_vals,
+  symmetric, tryErrorChecks,
+  model.name=NULL,
+  U=NULL, V=NULL, dynamic_uv=FALSE, dynamic_ab=FALSE,
+  bip=FALSE,
+  rho_ab=NULL, rho_uv=NULL,
+  family=NULL, odmax=NULL, nA=NULL, nB=NULL, n_time=NULL
 ){
   
   # some labels and dims

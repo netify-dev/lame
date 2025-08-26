@@ -34,7 +34,7 @@ test_that("Adjusting g-prior improves coverage with additive effects", {
     fit_default <- ame(Y, Xdyad = X, R = 0, family = "normal",
                       rvar = TRUE, cvar = TRUE, dcor = FALSE,
                       burn = 300, nscan = 1000,
-                      print = FALSE, plot = FALSE)
+                      print = FALSE)
     
     # Fit with adjusted g-prior (smaller to account for additive effects)
     # Use residual variance after removing row/col means as estimate
@@ -49,7 +49,7 @@ test_that("Adjusting g-prior improves coverage with additive effects", {
                        rvar = TRUE, cvar = TRUE, dcor = FALSE,
                        g = g_adjusted,
                        burn = 300, nscan = 1000,
-                       print = FALSE, plot = FALSE)
+                       print = FALSE)
     
     # Extract results for default
     beta_ci_default <- quantile(fit_default$BETA[,2], c(0.025, 0.975))
