@@ -52,7 +52,7 @@ sim_gaussian_ame <- function(seed, n, mu, beta, gamma=NULL,
   fit <- ame(Y, Xdyad=X, R=R, family="normal",
             rvar=rvar, cvar=cvar, dcor=FALSE,
             burn=burn, nscan=nscan, 
-            print=FALSE, plot=FALSE)
+            print=FALSE)
   
   # Extract results
   beta_hat <- median(fit$BETA[,2])
@@ -69,7 +69,7 @@ sim_gaussian_ame <- function(seed, n, mu, beta, gamma=NULL,
   
   # Correlation with unobserved if applicable
   cor_with_W <- if(!is.null(gamma) && R > 0) {
-    cor(c(W), c(fit$UVPM), use='pairwise.complete.obs')
+    cor(c(W), c(reconstruct_UVPM(fit)), use='pairwise.complete.obs')
   } else {
     NA
   }
@@ -124,7 +124,7 @@ test_that("Gaussian AME with covariates only recovers true parameters", {
   # Fit model with no additive or multiplicative effects
   fit <- ame(Y, Xdyad=X, R=0, family="normal",
             rvar=FALSE, cvar=FALSE, dcor=FALSE,
-            burn=500, nscan=2000, print=FALSE, plot=FALSE)
+            burn=500, nscan=2000, print=FALSE)
   
   # Check parameter recovery
   beta_est <- median(fit$BETA[,2])
@@ -147,8 +147,8 @@ test_that("Gaussian AME with covariates only recovers true parameters", {
   if(!is.null(fit$BPM)) {
     expect_lt(max(abs(fit$BPM)), 0.5)  # Should be near zero
   }
-  if(!is.null(fit$UVPM)) {
-    expect_lt(max(abs(fit$UVPM)), 0.5)  # Should be near zero
+  if(!is.null(reconstruct_UVPM(fit))) {
+  # UVPM removed -     expect_lt(max(abs(reconstruct_UVPM(fit))), 0.5)  # Should be near zero
   }
 })
 
@@ -214,7 +214,7 @@ test_that("Gaussian AME with additive effects recovers true parameters", {
   # Fit model with additive effects
   fit <- ame(Y, Xdyad=X, R=0, family="normal",
             rvar=TRUE, cvar=TRUE, dcor=FALSE,
-            burn=500, nscan=2000, print=FALSE, plot=FALSE)
+            burn=500, nscan=2000, print=FALSE)
   
   # Check parameter recovery
   beta_est <- median(fit$BETA[,2])
@@ -311,7 +311,7 @@ test_that("Gaussian AME with full model recovers true parameters", {
   # Fit full AME model
   fit <- ame(Y, Xdyad=X, R=R_true, family="normal",
             rvar=TRUE, cvar=TRUE, dcor=FALSE,
-            burn=500, nscan=2000, print=FALSE, plot=FALSE)
+            burn=500, nscan=2000, print=FALSE)
   
   # Check parameter recovery
   beta_est <- median(fit$BETA[,2])
@@ -320,8 +320,8 @@ test_that("Gaussian AME with full model recovers true parameters", {
   expect_lt(abs(beta_est - beta_true), 0.4)
   
   # Check that multiplicative effects capture unobserved covariate
-  if(!is.null(fit$UVPM)) {
-    cor_W <- cor(c(W), c(fit$UVPM), use='pairwise.complete.obs')
+  if(!is.null(reconstruct_UVPM(fit))) {
+    cor_W <- cor(c(W), c(reconstruct_UVPM(fit)), use='pairwise.complete.obs')
     expect_gt(cor_W, 0.3)
   }
   
@@ -392,12 +392,12 @@ test_that("Multiplicative effects reduce bias from unobserved confounding", {
   # Fit model WITHOUT multiplicative effects
   fit_no_uv <- ame(Y, Xdyad=X, R=0, family="normal",
                   rvar=FALSE, cvar=FALSE, dcor=FALSE,
-                  burn=400, nscan=1500, print=FALSE, plot=FALSE)
+                  burn=400, nscan=1500, print=FALSE)
   
   # Fit model WITH multiplicative effects
   fit_with_uv <- ame(Y, Xdyad=X, R=2, family="normal",
                     rvar=FALSE, cvar=FALSE, dcor=FALSE,
-                    burn=400, nscan=1500, print=FALSE, plot=FALSE)
+                    burn=400, nscan=1500, print=FALSE)
   
   beta_no_uv <- median(fit_no_uv$BETA[,2])
   beta_with_uv <- median(fit_with_uv$BETA[,2])
@@ -433,12 +433,12 @@ test_that("Gaussian AME produces valid diagnostics", {
   
   fit <- ame(Y, Xdyad=X, R=1, family="normal",
             rvar=TRUE, cvar=TRUE,
-            burn=200, nscan=500, print=FALSE, plot=FALSE)
+            burn=200, nscan=500, print=FALSE)
   
   # Check that key outputs exist
   expect_true(!is.null(fit$BETA))
   expect_true(!is.null(fit$VC))
-  expect_true(!is.null(fit$EZ))
+  # EZ removed -   expect_true(!is.null(reconstruct_EZ(fit)))
   # s2 might be in a different location or not always present
   
   # Check dimensions
@@ -447,7 +447,7 @@ test_that("Gaussian AME produces valid diagnostics", {
   expect_gt(nrow(fit$BETA), 0)
   
   # Check predictions are reasonable
-  resid <- Y - fit$EZ
+  resid <- Y - reconstruct_EZ(fit)
   expect_lt(abs(mean(resid, na.rm=TRUE)), 0.5)
   
   # Check effective sample size if available

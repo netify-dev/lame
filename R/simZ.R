@@ -16,10 +16,22 @@ function(EZ,rho,s2=1)
   tryCatch({
     return(simZ_cpp(EZ, rho, s2))
   }, error = function(e) {
-    c<-(sqrt(1+rho) + sqrt(1-rho))/2
-    d<-(sqrt(1+rho) - sqrt(1-rho))/2
-    EC<-matrix(rnorm(length(EZ)),nrow(EZ),nrow(EZ))
-    EC<- sqrt(s2)*( c*EC + d*t(EC) )
-    EZ+EC 
+    # Handle both square and rectangular matrices
+    nr <- nrow(EZ)
+    nc <- ncol(EZ)
+    
+    if(nr == nc) {
+      # Square matrix - original code for unipartite
+      c<-(sqrt(1+rho) + sqrt(1-rho))/2
+      d<-(sqrt(1+rho) - sqrt(1-rho))/2
+      EC<-matrix(rnorm(length(EZ)), nr, nc)
+      EC<- sqrt(s2)*( c*EC + d*t(EC) )
+      EZ+EC
+    } else {
+      # Rectangular matrix - bipartite, no dyadic correlation
+      # For bipartite, dyadic correlation doesn't apply since i->j and j->i don't exist
+      EC <- matrix(rnorm(length(EZ), 0, sqrt(s2)), nr, nc)
+      EZ + EC
+    }
   })
 }

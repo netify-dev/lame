@@ -8,17 +8,20 @@
 #' @return An ame object with posterior samples and estimates
 #' @keywords internal
 #' @noRd
-ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
-                          rvar = !(family=="rrl"), cvar = TRUE, dcor = !symmetric, 
-                          nvar=TRUE, R = 0, family="normal",
-                          intercept=!is.element(family,c("rrl","ordinal")), 
-                          symmetric=FALSE,
-                          odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
-                          prior=list(), g=NA,
-                          seed = 6886, nscan = 10000, burn = 500, odens = 25,
-                          plot=TRUE, print = TRUE, gof=TRUE, 
-                          start_vals=NULL, periodic_save=FALSE, out_file=NULL,
-                          save_interval=0.25, model.name=NULL) {
+ame_unipartite <- function(
+  Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
+  rvar = !(family=="rrl"), cvar = TRUE, dcor = !symmetric, 
+  nvar=TRUE, R = 0, family="normal",
+  intercept=!is.element(family,c("rrl","ordinal")), 
+  symmetric=FALSE,
+  odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
+  prior=list(), g=NA,
+  seed = 6886, nscan = 10000, burn = 500, odens = 25,
+  print = TRUE, gof=TRUE, custom_gof=NULL,
+  start_vals=NULL, periodic_save=FALSE, out_file=NULL,
+  save_interval=0.25, model.name=NULL,
+  posterior_opts = NULL, use_sparse_matrices = FALSE
+  ){
   
   # set random seed
   set.seed(seed)
@@ -173,20 +176,106 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   BETA <- matrix(NA_real_, nrow = n_samples, ncol = dim(X)[3] - pr*symmetric)
   VC <- matrix(NA_real_, nrow = n_samples, ncol = 5 - 3*symmetric)
   sample_idx <- 0  # Track current sample index
+  
+  # Initialize posterior sample storage if requested
+  U_samples <- NULL ; V_samples <- NULL
+  a_samples <- NULL ; b_samples <- NULL
+  
+  if(!is.null(posterior_opts)) {
+    if(posterior_opts$save_UV && R > 0) {
+      # Calculate thinned sample size
+      n_UV_samples <- ceiling(n_samples / posterior_opts$thin_UV)
+      U_samples <- array(NA_real_, dim = c(n, R, n_UV_samples))
+      if(!symmetric) {
+        V_samples <- array(NA_real_, dim = c(n, R, n_UV_samples))
+      }
+    }
+    if(posterior_opts$save_ab && (rvar || cvar)) {
+      # Calculate thinned sample size
+      n_ab_samples <- ceiling(n_samples / posterior_opts$thin_ab)
+      if(rvar) a_samples <- matrix(NA_real_, n, n_ab_samples)
+      if(cvar && !symmetric) b_samples <- matrix(NA_real_, n, n_ab_samples)
+    }
+  }
+  
+  # Track sample indices for thinned storage
+  UV_sample_idx <- 0
+  ab_sample_idx <- 0
+  
   UVPS <- U %*% t(V) * 0
   APS<-BPS<- rep(0,nrow(Y))
   YPS<-matrix(0,nrow(Y),ncol(Y)) ; dimnames(YPS)<-dimnames(Y)
   
   if(gof) {
-    GOF <- matrix(NA_real_, nrow = n_samples + 1, ncol = 5)
-    GOF[1,] <- gof_stats(Y)
+    # Determine number of GOF statistics
+    n_base_stats <- 5  # For unipartite: sd.rowmean, sd.colmean, dyad.dep, cycle.dep, trans.dep
+    
+    # Process custom GOF functions
+    custom_gof_names <- NULL
+    n_custom_stats <- 0
+    if(!is.null(custom_gof)) {
+      if(is.function(custom_gof)) {
+        # Single function - get example output to determine size
+        tryCatch({
+          test_output <- custom_gof(Y)
+          n_custom_stats <- length(test_output)
+          custom_gof_names <- names(test_output)
+          if(is.null(custom_gof_names)) {
+            custom_gof_names <- paste0("custom", seq_len(n_custom_stats))
+          }
+        }, error = function(e) {
+          warning("Custom GOF function failed on initial test. It will be skipped.")
+          custom_gof <- NULL
+        })
+      } else if(is.list(custom_gof)) {
+        # List of functions
+        n_custom_stats <- length(custom_gof)
+        custom_gof_names <- names(custom_gof)
+        if(is.null(custom_gof_names)) {
+          custom_gof_names <- paste0("custom", seq_len(n_custom_stats))
+        }
+      }
+    }
+    
+    # Initialize GOF matrix
+    n_total_stats <- n_base_stats + n_custom_stats
+    GOF <- matrix(NA_real_, nrow = n_samples + 1, ncol = n_total_stats)
+    
+    # Compute initial GOF for observed data
+    base_gof <- gof_stats(Y)
+    GOF[1, 1:n_base_stats] <- base_gof
+    
+    # Compute initial custom GOF if provided
+    if(!is.null(custom_gof)) {
+      if(is.function(custom_gof)) {
+        tryCatch({
+          custom_vals <- custom_gof(Y)
+          GOF[1, (n_base_stats + 1):(n_base_stats + length(custom_vals))] <- custom_vals
+        }, error = function(e) {})
+      } else if(is.list(custom_gof)) {
+        for(i in seq_along(custom_gof)) {
+          if(is.function(custom_gof[[i]])) {
+            tryCatch({
+              GOF[1, n_base_stats + i] <- custom_gof[[i]](Y)
+            }, error = function(e) {})
+          }
+        }
+      }
+    }
+    
     gof_idx <- 1
     rownames(GOF) <- c("obs", rep("", n_samples))
+    
+    # Set column names
+    base_names <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
+    all_names <- c(base_names, custom_gof_names)
+    colnames(GOF) <- all_names
   } else {
     GOF <- matrix(gof_stats(Y), 1, 5)
     rownames(GOF) <- "obs"
-  }  
-  colnames(GOF) <- c("sd.rowmean","sd.colmean","dyad.dep","cycle.dep","trans.dep")
+    colnames(GOF) <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
+    custom_gof <- NULL  # Don't compute custom GOF if gof=FALSE
+  }
   
   names(APS)<-names(BPS)<- rownames(U)<-rownames(V)<-rownames(Y)
   
@@ -217,8 +306,8 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   
   # Pre-compute X with attributes ONCE (not in loop)
   X_precomp <- X
-  attributes(X_precomp) <- c(attributes(X), list(Xr=Xr, Xc=Xc, mX=mX, 
-                                                 mXt=mXt, XX=XX, XXt=XXt))
+  attributes(X_precomp) <- c(
+    attributes(X), list(Xr=Xr, Xc=Xc, mX=mX, mXt=mXt, XX=XX, XXt=XXt))
   
   # MCMC 
   have_coda<-suppressWarnings(
@@ -226,13 +315,34 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   
   # Set up save points for periodic saving
   savePoints <- (burn:(nscan+burn))[(burn:(nscan+burn)) %% odens==0]
-  savePoints <- savePoints[round(quantile(1:length(savePoints), 
-                                         probs=seq(save_interval,1,save_interval)))]
+  savePoints <- savePoints[
+    round(quantile(1:length(savePoints), 
+    probs=seq(save_interval,1,save_interval))) ]
   
   # Initialize running statistics for efficient diagnostics
   beta_running_mean <- rep(0, dim(X)[3] - pr*symmetric)
   vc_running_mean <- rep(0, 5 - 3*symmetric)
   running_sample_count <- 0
+  
+  # Initialize posterior sample storage if requested
+  UV_sample_idx <- 0
+  ab_sample_idx <- 0
+  if(!is.null(posterior_opts)) {
+    if(posterior_opts$save_UV && R > 0) {
+      n_UV_samples <- floor((nscan) / (odens * posterior_opts$thin_UV))
+      if(n_UV_samples > 0) {
+        U_samples <- array(NA, dim = c(n, R, n_UV_samples))
+        V_samples <- array(NA, dim = c(n, R, n_UV_samples))
+      }
+    }
+    if(posterior_opts$save_ab && (rvar || cvar)) {
+      n_ab_samples <- floor((nscan) / (odens * posterior_opts$thin_ab))
+      if(n_ab_samples > 0) {
+        a_samples <- matrix(NA, n, n_ab_samples)
+        b_samples <- matrix(NA, n, n_ab_samples)
+      }
+    }
+  }
   
   # Pre-select family-specific functions to avoid string comparisons in loop
   update_Z_fn <- switch(family,
@@ -267,6 +377,35 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   ab_outer_cache <- outer(a, b, "+")
   UV_cache <- U %*% t(V)
   EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
+  
+  # Initialize progress bars if printing
+  if(print) {
+    cli::cli_h2("Running MCMC for unipartite network")
+    cli::cli_text("Dimensions: {.val {n}} x {.val {n}} nodes")
+    cli::cli_text("R = {.val {R}}, symmetric = {.val {symmetric}}")
+    cli::cli_text("Settings: Burn-in = {.val {burn}}, MCMC = {.val {nscan}}, Thin = {.val {odens}}")
+    
+    # Estimate time impact of GOF
+    if(gof) {
+      n_gof_stats <- 5
+      if(!is.null(custom_gof)) {
+        if(is.function(custom_gof)) {
+          tryCatch({
+            n_gof_stats <- n_gof_stats + length(custom_gof(Y))
+          }, error = function(e) {})
+        } else if(is.list(custom_gof)) {
+          n_gof_stats <- n_gof_stats + length(custom_gof)
+        }
+      }
+    }
+    
+    # Start timing
+    start_time <- Sys.time()
+    
+    if(burn > 0) {
+      cli::cli_progress_bar("Burn-in", total = burn, clear = TRUE)
+    }
+  }
   
   for (s in 1:(nscan + burn)) {
     
@@ -381,9 +520,17 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
     }    
     
-    # burn-in countdown
-    if(print & s%%odens==0 & s<=burn){
-      message(paste0(round(100*s/burn,1), "% burn-in complete"))
+    # Update progress bars
+    if(print) {
+      if(s <= burn) {
+        cli::cli_progress_update(id = NULL)
+        if(s == burn) {
+          cli::cli_progress_done()
+          cli::cli_progress_bar("Sampling", total = nscan, clear = TRUE)
+        }
+      } else if(s > burn) {
+        cli::cli_progress_update(id = NULL)
+      }
     }
     
     # save parameter values and monitor the MC
@@ -413,12 +560,59 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         vc_running_mean <- vc_running_mean + (c(Sab[upper.tri(Sab, diag = T)], rho, s2) - vc_running_mean) / sample_idx
       }
       
+      # Save posterior samples if requested
+      if(!is.null(posterior_opts)) {
+        # Save U/V samples (thinned)
+        if(posterior_opts$save_UV && R > 0) {
+          if(sample_idx %% posterior_opts$thin_UV == 0) {
+            UV_sample_idx <- UV_sample_idx + 1
+            if(UV_sample_idx <= dim(U_samples)[3]) {
+              U_samples[,,UV_sample_idx] <- U
+              if(!symmetric && !is.null(V_samples)) {
+                V_samples[,,UV_sample_idx] <- V
+              }
+            }
+          }
+        }
+        
+        # Save a/b samples (thinned)
+        if(posterior_opts$save_ab) {
+          if(sample_idx %% posterior_opts$thin_ab == 0) {
+            ab_sample_idx <- ab_sample_idx + 1
+            if(rvar && !is.null(a_samples) && ab_sample_idx <= ncol(a_samples)) {
+              a_samples[,ab_sample_idx] <- a
+            }
+            if(cvar && !symmetric && !is.null(b_samples) && ab_sample_idx <= ncol(b_samples)) {
+              b_samples[,ab_sample_idx] <- b
+            }
+          }
+        }
+      }
+      
       running_sample_count <- sample_idx
       
       # update posterior sums of random effects
       UVPS <- UVPS + UV_cache  # Use cached value
       APS <- APS + a
       BPS <- BPS + b 
+      
+      # Save posterior samples if requested
+      if(!is.null(posterior_opts)) {
+        if(posterior_opts$save_UV && R > 0 && sample_idx %% posterior_opts$thin_UV == 0) {
+          UV_sample_idx <- UV_sample_idx + 1
+          if(UV_sample_idx <= dim(U_samples)[3]) {
+            U_samples[,,UV_sample_idx] <- U
+            V_samples[,,UV_sample_idx] <- V
+          }
+        }
+        if(posterior_opts$save_ab && (rvar || cvar) && sample_idx %% posterior_opts$thin_ab == 0) {
+          ab_sample_idx <- ab_sample_idx + 1
+          if(ab_sample_idx <= ncol(a_samples)) {
+            a_samples[,ab_sample_idx] <- a
+            b_samples[,ab_sample_idx] <- b
+          }
+        }
+      } 
       
       # simulate from posterior predictive (use cached EZ)
       EZ <- EZ_cache
@@ -437,22 +631,29 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       if(gof){ 
         Ys[is.na(Y)]<-NA
         gof_idx <- gof_idx + 1
-        GOF[gof_idx,] <- gof_stats(Ys)
-      }
-      
-      # print MC progress (use running means for efficiency)
-      if (print) {
-        beta_means <- round(beta_running_mean, 2)
-        vc_means <- round(vc_running_mean, 2)
-        cli::cli_text("Iteration {.val {s}}: beta = [{.field {paste(beta_means, collapse=', ')}}], VC = [{.field {paste(vc_means, collapse=', ')}}]")
+        # Compute base GOF statistics
+        GOF[gof_idx, 1:5] <- gof_stats(Ys)
         
-        # Only compute expensive diagnostics occasionally
-        if (have_coda & running_sample_count > 100 & running_sample_count %% 100 == 0 & length(beta) > 0) {
-          # Compute ESS only every 100 samples after first 100
-          eff_sizes <- round(coda::effectiveSize(BETA[1:sample_idx,, drop=FALSE]))
-          cli::cli_text("  Effective sizes: [{.emph {paste(eff_sizes, collapse=', ')}}]")
+        # Compute custom GOF statistics if provided
+        if(!is.null(custom_gof)) {
+          if(is.function(custom_gof)) {
+            tryCatch({
+              custom_vals <- custom_gof(Ys)
+              GOF[gof_idx, (6):(5 + length(custom_vals))] <- custom_vals
+            }, error = function(e) {})
+          } else if(is.list(custom_gof)) {
+            for(i in seq_along(custom_gof)) {
+              if(is.function(custom_gof[[i]])) {
+                tryCatch({
+                  GOF[gof_idx, 5 + i] <- custom_gof[[i]](Ys)
+                }, error = function(e) {})
+              }
+            }
+          }
         }
       }
+      
+      # Update progress occasionally (no verbose output)
       
     }
     
@@ -463,7 +664,7 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       
       fit <- list(APM=APS/(sum(s>burn & s%%odens==0)), 
                  BPM=BPS/(sum(s>burn & s%%odens==0)),
-                 BETA=BETA, VC=VC, GOF=GOF, 
+                 BETA=BETA, VC=VC, GOF=GOF, X=X, Y=Y,
                  start_vals=start_vals, symmetric=symmetric,
                  model.name=model.name)
       save(fit, file=out_file)
@@ -471,6 +672,18 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     }
     
   } # end MCMC   
+  
+  # Close progress bar if printing
+  if(print) {
+    cli::cli_progress_done()
+    
+    # Report timing
+    if(exists("start_time")) {
+      end_time <- Sys.time()
+      elapsed <- difftime(end_time, start_time, units = "secs")
+      cli::cli_alert_success("MCMC complete in {.val {round(elapsed, 1)}} seconds")
+    }
+  }
   
   # output 
   
@@ -500,20 +713,16 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   if(is.null(names(BPM))) {
     names(BPM) <- paste0("Actor", 1:length(BPM))
   }
-  UVPM<-UVPS/nrow(VC)
+  UVPM<-UVPS/nrow(VC)  # Needed temporarily for computing U,V via SVD
   YPM<-YPS/nrow(VC) 
   
-  EZ<-Xbeta(X,apply(BETA,2,mean)) + outer(APM,BPM,"+")+UVPM
+  # note to self, EZ can be reconstructed as: 
+  # Xbeta(X,colMeans(BETA)) + outer(APM,BPM,"+") + U%*%t(V)
+  # leave otu to save memory
   
   names(APM)<-names(BPM)<-rownames(UVPM)<-colnames(UVPM)<-dimnames(Y)[[1]]
   
-  # Transform EZ to count scale for Poisson family
-  if(family == "poisson") {
-    EZ <- exp(EZ)
-    EZ[EZ > 1e6] <- 1e6
-  }
-  
-  dimnames(YPM)<-dimnames(EZ)<-dimnames(Y)
+  dimnames(YPM)<-dimnames(Y)
   rownames(BETA)<-NULL
   
   # asymmetric output 
@@ -530,9 +739,36 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     }
     # save start_vals for future model runs
     start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
-    fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
-                YPM=YPM,GOF=GOF,start_vals=start_vals_final,model.name=model.name,
-                mode="unipartite",family=family,symmetric=symmetric,odmax=odmax)
+    fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,L=NULL,
+                YPM=YPM,GOF=GOF,X=X,Y=Y,start_vals=start_vals_final,model.name=model.name,
+                mode="unipartite",family=family,symmetric=symmetric,odmax=odmax,R=R)
+    
+    # Add posterior samples if saved
+    if(!is.null(posterior_opts)) {
+      if(posterior_opts$save_UV && !is.null(U_samples) && UV_sample_idx > 0) {
+        actual_UV_samples <- min(UV_sample_idx, dim(U_samples)[3])
+        if(actual_UV_samples > 0) {
+          fit$U_samples <- U_samples[,,1:actual_UV_samples, drop=FALSE]
+          if(!is.null(V_samples)) {
+            fit$V_samples <- V_samples[,,1:actual_UV_samples, drop=FALSE]
+          }
+        }
+      }
+      if(posterior_opts$save_ab && ab_sample_idx > 0) {
+        if(rvar && !is.null(a_samples)) {
+          actual_ab_samples <- min(ab_sample_idx, ncol(a_samples))
+          if(actual_ab_samples > 0) {
+            fit$a_samples <- a_samples[,1:actual_ab_samples, drop=FALSE]
+          }
+        }
+        if(cvar && !is.null(b_samples)) {
+          actual_ab_samples <- min(ab_sample_idx, ncol(b_samples))
+          if(actual_ab_samples > 0) {
+            fit$b_samples <- b_samples[,1:actual_ab_samples, drop=FALSE]
+          }
+        }
+      }
+    }
   }
   
   # symmetric output
@@ -542,19 +778,47 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       eULU<-eigen(ULUPM)
       eR<- which( rank(-abs(eULU$val),ties.method="first") <= R )
       U<-eULU$vec[,seq(1,R,length=R),drop=FALSE]
-      L<-eULU$val[eR]
+      L<-diag(eULU$val[eR], nrow=R)  # Create diagonal matrix from eigenvalues
       rownames(U)<-rownames(ULUPM)
     } else {
       U <- NULL
       L <- NULL
     }
-    rownames(ULUPM)<-colnames(ULUPM)<-rownames(Y)
-    EZ<-.5*(EZ+t(EZ)) ; YPM<-.5*(YPM+t(YPM)) 
+    YPM<-.5*(YPM+t(YPM))  # Symmetrize YPM
     # save start_vals for future model runs
     start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=U, rho=rho, s2=s2, Sab=Sab)
-    fit<-list(BETA=BETA,VC=VC,APM=APM,U=U,L=L,ULUPM=ULUPM,EZ=EZ,
-              YPM=YPM,GOF=GOF,start_vals=start_vals_final,model.name=model.name,
-              mode="unipartite",family=family,symmetric=symmetric,odmax=odmax)
+    # note, ULUPM not stored: can be reconstructed as U %*% L %*% t(U)
+    # BPM is NULL for symmetric (same as APM)
+    fit<-list(BETA=BETA,VC=VC,APM=APM,BPM=NULL,U=U,V=NULL,L=L,
+              YPM=YPM,GOF=GOF,X=X,Y=Y,start_vals=start_vals_final,model.name=model.name,
+              mode="unipartite",family=family,symmetric=symmetric,odmax=odmax,R=R)  # For symmetric, V = U
+    
+    # Add posterior samples if saved
+    if(!is.null(posterior_opts)) {
+      if(posterior_opts$save_UV && !is.null(U_samples) && UV_sample_idx > 0) {
+        actual_UV_samples <- min(UV_sample_idx, dim(U_samples)[3])
+        if(actual_UV_samples > 0) {
+          fit$U_samples <- U_samples[,,1:actual_UV_samples, drop=FALSE]
+          if(!is.null(V_samples)) {
+            fit$V_samples <- V_samples[,,1:actual_UV_samples, drop=FALSE]
+          }
+        }
+      }
+      if(posterior_opts$save_ab && ab_sample_idx > 0) {
+        if(rvar && !is.null(a_samples)) {
+          actual_ab_samples <- min(ab_sample_idx, ncol(a_samples))
+          if(actual_ab_samples > 0) {
+            fit$a_samples <- a_samples[,1:actual_ab_samples, drop=FALSE]
+          }
+        }
+        if(cvar && !is.null(b_samples)) {
+          actual_ab_samples <- min(ab_sample_idx, ncol(b_samples))
+          if(actual_ab_samples > 0) {
+            fit$b_samples <- b_samples[,1:actual_ab_samples, drop=FALSE]
+          }
+        }
+      }
+    }
   } 
   
   # Ensure scalars are properly typed
@@ -562,5 +826,11 @@ ame_unipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   if (!is.null(fit$s2))  fit$s2  <- as.numeric(fit$s2)
   
   class(fit) <- "ame"
+  
+  # Apply sparse matrix optimization if requested
+  if(use_sparse_matrices) {
+    fit <- compact_ame(fit, use_sparse_matrices = use_sparse_matrices)
+  }
+  
   fit
 }

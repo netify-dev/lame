@@ -5,12 +5,22 @@
 #' adequately captures important network features.
 #' 
 #' @details
-#' The function evaluates model fit using four key network statistics:
+#' The function evaluates model fit using key network statistics that vary by network type.
+#' 
+#' For unipartite networks:
 #' \describe{
 #'   \item{Standard deviation of row means}{Captures variance in out-degree/activity}
 #'   \item{Standard deviation of column means}{Captures variance in in-degree/popularity}
 #'   \item{Dyadic dependence}{Correlation between dyads (reciprocity)}
 #'   \item{Triadic dependence}{Transitivity/clustering in the network}
+#' }
+#' 
+#' For bipartite networks:
+#' \describe{
+#'   \item{Standard deviation of row means}{Captures variance in activity from set A}
+#'   \item{Standard deviation of column means}{Captures variance in popularity in set B}
+#'   \item{Four-cycles}{Count of 4-node closed paths where pairs of A-nodes share 
+#'     multiple B-node connections, measuring clustering in bipartite networks}
 #' }
 #' 
 #' For static models (AME), the function produces histograms comparing the observed
@@ -57,14 +67,15 @@
 #' @export
 #' @import ggplot2
 #' @import reshape2
-gof_plot <- function(fit, 
-                    type = c("auto", "static", "longitudinal"),
-                    statistics = c("sd.row", "sd.col", "dyad.dep", "triad.dep"),
-                    credible.level = 0.95,
-                    ncol = 2,
-                    point.size = 2,
-                    line.size = 1,
-                    title = NULL) {
+gof_plot <- function(
+  fit, 
+  type = c("auto", "static", "longitudinal"),
+  statistics = c("sd.row", "sd.col", "dyad.dep", "triad.dep"),
+  credible.level = 0.95,
+  ncol = 2,
+  point.size = 2,
+  line.size = 1,
+  title = NULL) {
   
   # Check input
   if (!inherits(fit, c("ame", "lame"))) {
@@ -82,15 +93,55 @@ gof_plot <- function(fit,
     type <- ifelse(inherits(fit, "lame"), "longitudinal", "static")
   }
   
-  # Validate statistics argument
-  stat.names <- c("sd.row" = "sd.rowmean", 
-                  "sd.col" = "sd.colmean",
-                  "dyad.dep" = "dyad.dep", 
-                  "triad.dep" = "cycle.dep",
-                  "trans.dep" = "trans.dep")
+  # Detect if network is bipartite based on GOF columns
+  is_bipartite <- FALSE
+  if(!is.null(colnames(fit$GOF))) {
+    is_bipartite <- "four.cycles" %in% colnames(fit$GOF)
+  } else if(!is.null(fit$mode)) {
+    is_bipartite <- fit$mode == "bipartite"
+  }
   
-  statistics <- match.arg(statistics, several.ok = TRUE,
-                         choices = names(stat.names))
+  # Validate statistics argument based on network type
+  if(is_bipartite) {
+    # For bipartite networks
+    stat.names <- c("sd.row" = "sd.rowmean", 
+                    "sd.col" = "sd.colmean",
+                    "four.cycles" = "four.cycles")
+    
+    # Filter requested statistics to only those applicable to bipartite
+    valid_stats <- intersect(statistics, c("sd.row", "sd.col", "four.cycles"))
+    if(length(valid_stats) == 0) {
+      # If no valid stats specified, use all bipartite stats
+      statistics <- c("sd.row", "sd.col", "four.cycles")
+    } else {
+      statistics <- valid_stats
+    }
+  } else {
+    # For unipartite networks
+    stat.names <- c("sd.row" = "sd.rowmean", 
+                    "sd.col" = "sd.colmean",
+                    "dyad.dep" = "dyad.dep", 
+                    "triad.dep" = "cycle.dep",
+                    "trans.dep" = "trans.dep")
+    
+    statistics <- match.arg(statistics, several.ok = TRUE,
+                           choices = names(stat.names))
+  }
+  
+  # Add any custom GOF columns to available statistics
+  if (!is.null(colnames(fit$GOF))) {
+    custom_cols <- setdiff(colnames(fit$GOF), unname(stat.names))
+    if (length(custom_cols) > 0) {
+      # Add custom columns to stat.names mapping (identity mapping)
+      for (col in custom_cols) {
+        stat.names[col] <- col
+      }
+      # If no specific statistics requested, include custom ones
+      if (missing(statistics)) {
+        statistics <- c(statistics, custom_cols)
+      }
+    }
+  }
   
   # Create appropriate plot
   if (type == "static") {
@@ -144,7 +195,18 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
   plot_list <- list()
   
   for (stat in statistics) {
-    stat_col <- stat.names[stat]
+    # Check if this is a custom statistic or predefined
+    if (stat %in% names(stat.names)) {
+      stat_col <- stat.names[stat]
+    } else {
+      # Custom statistic - use as-is if it exists in columns
+      stat_col <- stat
+    }
+    
+    # Skip if column doesn't exist
+    if (!stat_col %in% colnames(gof_data)) {
+      next
+    }
     
     # Create data frame for this statistic
     df <- data.frame(
@@ -204,8 +266,9 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 }
 
 # Helper function for longitudinal GOF plots
-gof_plot_longitudinal <- function(fit, statistics, stat.names, credible.level,
-                                 ncol, point.size, line.size, title) {
+gof_plot_longitudinal <- function(
+  fit, statistics, stat.names, credible.level,
+  ncol, point.size, line.size, title) {
   
   # Extract GOF data (should be time-indexed for LAME)
   if (!is.null(fit$GOF_T)) {

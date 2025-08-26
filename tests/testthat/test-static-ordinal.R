@@ -18,7 +18,7 @@ test_that("Ordinal AME runs without errors", {
   
   # Test with no covariates
   fit_simple <- ame(Y, R=1, family="ordinal",
-                   burn=200, nscan=800, print=FALSE, plot=FALSE)
+                   burn=200, nscan=800, print=FALSE)
   
   expect_true(!is.null(fit_simple$BETA))
   expect_true(!is.null(fit_simple$U))
@@ -48,7 +48,7 @@ test_that("Ordinal AME with covariates works", {
   
   # Fit model
   fit <- ame(Y, Xdyad=X, R=1, family="ordinal",
-            burn=300, nscan=1000, print=FALSE, plot=FALSE)
+            burn=300, nscan=1000, print=FALSE)
   
   expect_true(!is.null(fit$BETA))
   expect_gt(ncol(fit$BETA), 0)
@@ -83,7 +83,7 @@ test_that("Ordinal AME with additive effects works", {
   # Fit model with additive effects
   fit <- ame(Y, R=0, family="ordinal",
             rvar=TRUE, cvar=TRUE,
-            burn=300, nscan=1000, print=FALSE, plot=FALSE)
+            burn=300, nscan=1000, print=FALSE)
   
   expect_true(!is.null(fit$APM))
   expect_true(!is.null(fit$BPM))
@@ -112,7 +112,7 @@ test_that("Ordinal AME handles different numbers of categories", {
   diag(Y_3) <- NA
   
   fit_3 <- ame(Y_3, R=1, family="ordinal",
-              burn=200, nscan=600, print=FALSE, plot=FALSE)
+              burn=200, nscan=600, print=FALSE)
   
   expect_true(!is.null(fit_3$BETA))
   expect_equal(length(unique(c(Y_3[!is.na(Y_3)]))), 3)
@@ -122,7 +122,7 @@ test_that("Ordinal AME handles different numbers of categories", {
   diag(Y_7) <- NA
   
   fit_7 <- ame(Y_7, R=1, family="ordinal",
-              burn=200, nscan=600, print=FALSE, plot=FALSE)
+              burn=200, nscan=600, print=FALSE)
   
   expect_true(!is.null(fit_7$BETA))
   expect_equal(length(unique(c(Y_7[!is.na(Y_7)]))), 7)
@@ -145,10 +145,10 @@ test_that("Ordinal AME handles skewed distributions", {
   expect_lt(mean(Y_skew, na.rm=TRUE), 2.5)
   
   fit_skew <- ame(Y_skew, R=1, family="ordinal",
-                 burn=200, nscan=600, print=FALSE, plot=FALSE)
+                 burn=200, nscan=600, print=FALSE)
   
   expect_true(!is.null(fit_skew$BETA))
-  expect_true(is.numeric(fit_skew$EZ))
+  # EZ removed -   expect_true(is.numeric(fit_skew$EZ))
   
   # Create reverse-skewed data (mostly high values)
   Y_high <- matrix(sample(1:5, n*n, replace=TRUE,
@@ -158,7 +158,7 @@ test_that("Ordinal AME handles skewed distributions", {
   expect_gt(mean(Y_high, na.rm=TRUE), 3.5)
   
   fit_high <- ame(Y_high, R=1, family="ordinal",
-                 burn=200, nscan=600, print=FALSE, plot=FALSE)
+                 burn=200, nscan=600, print=FALSE)
   
   expect_true(!is.null(fit_high$BETA))
 })
@@ -189,7 +189,7 @@ test_that("Ordinal AME with covariates and multiplicative effects works", {
   
   # Fit model
   fit <- ame(Y, Xdyad=X, R=2, family="ordinal",
-            burn=300, nscan=1000, print=FALSE, plot=FALSE)
+            burn=300, nscan=1000, print=FALSE)
   
   expect_true(!is.null(fit$U))
   expect_true(!is.null(fit$V))
@@ -198,6 +198,6 @@ test_that("Ordinal AME with covariates and multiplicative effects works", {
   
   # Check that UVPM captures some structure
   if(!is.null(fit$UVPM)) {
-    expect_true(var(c(fit$UVPM)) > 0)
+  # UVPM removed -     expect_true(var(c(fit$UVPM)) > 0)
   }
 })

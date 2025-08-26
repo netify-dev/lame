@@ -28,7 +28,7 @@
 #'   \item{call}{The original function call}
 #'   \item{beta}{Matrix of regression coefficient estimates and statistics}
 #'   \item{variance}{Matrix of variance component estimates}
-#' @author Peter Hoff, Cassy Dorff, Shahryar Minhas
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @seealso \code{\link{ame}}, \code{\link{print.summary.ame}}
 #' @method summary ame
 #' @export

@@ -10,14 +10,17 @@
 #' @return An ame object with posterior samples and estimates
 #' @keywords internal
 #' @noRd
-ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
-                        rvar = !(family=="rrl"), cvar = TRUE, R_row = 0, R_col = 0,
-                        family="normal", intercept=!is.element(family,c("rrl","ordinal")),
-                        odmax=NULL, prior=list(), g=NA,
-                        seed = 6886, nscan = 10000, burn = 500, odens = 25,
-                        plot=FALSE, print = TRUE, gof=TRUE, 
-                        start_vals=NULL, periodic_save=FALSE, out_file=NULL,
-                        save_interval=0.25, model.name=NULL) {
+ame_bipartite <- function(
+  Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
+  rvar = !(family=="rrl"), cvar = TRUE, R_row = 0, R_col = 0,
+  family="normal", intercept=!is.element(family,c("rrl","ordinal")),
+  odmax=NULL, prior=list(), g=NA,
+  seed = 6886, nscan = 10000, burn = 500, odens = 25,
+  print = TRUE, gof=TRUE, custom_gof=NULL,
+  start_vals=NULL, periodic_save=FALSE, out_file=NULL,
+  save_interval=0.25, model.name=NULL,
+  posterior_opts = NULL, use_sparse_matrices = FALSE
+  ){
   
   # Set seed for reproducibility
   set.seed(seed)
@@ -162,20 +165,78 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   BETA <- matrix(NA_real_, n_eff, p)
   VC <- matrix(NA_real_, n_eff, 5)  # Store variance components
   sample_idx <- 0  # Track current sample index
-  if(!is.null(U) && !is.null(V) && !is.null(G)) {
-    UVPS <- U %*% G %*% t(V) * 0  # Initialize UV product sum
-  } else {
-    UVPS <- matrix(0, nA, nB)
+  
+  # Initialize posterior sample storage if requested
+  U_samples <- NULL
+  V_samples <- NULL
+  a_samples <- NULL
+  b_samples <- NULL
+  
+  if(!is.null(posterior_opts)) {
+    if(posterior_opts$save_UV && R_row > 0 && R_col > 0) {
+      # Calculate thinned sample size
+      n_UV_samples <- ceiling(n_eff / posterior_opts$thin_UV)
+      U_samples <- array(NA_real_, dim = c(nA, R_row, n_UV_samples))
+      V_samples <- array(NA_real_, dim = c(nB, R_col, n_UV_samples))
+    }
+    if(posterior_opts$save_ab && (rvar || cvar)) {
+      # Calculate thinned sample size
+      n_ab_samples <- ceiling(n_eff / posterior_opts$thin_ab)
+      if(rvar) a_samples <- matrix(NA_real_, nA, n_ab_samples)
+      if(cvar) b_samples <- matrix(NA_real_, nB, n_ab_samples)
+    }
   }
+  
+  # Track sample indices for thinned storage
+  UV_sample_idx <- 0
+  ab_sample_idx <- 0
   APS <- rep(0, nA)  # Additive row effects posterior sum
   BPS <- rep(0, nB)  # Additive column effects posterior sum
   YPS <- array(0, dim = c(nA, nB))  # Posterior predictive sum
-  EZ <- array(0, dim = c(nA, nB))  # Expected value sum
+  # Note: EZ not accumulated - can be reconstructed from components if needed
   
   if(gof) {
-    GOF <- matrix(NA, n_eff, 4)  # Store GOF statistics
+    # Determine number of GOF statistics
+    n_base_stats <- 3  # sd.rowmean, sd.colmean, four.cycles
+    
+    # Process custom GOF functions
+    custom_gof_names <- NULL
+    n_custom_stats <- 0
+    if(!is.null(custom_gof)) {
+      if(is.function(custom_gof)) {
+        # Single function - get example output to determine size
+        tryCatch({
+          test_output <- custom_gof(Y)
+          n_custom_stats <- length(test_output)
+          custom_gof_names <- names(test_output)
+          if(is.null(custom_gof_names)) {
+            custom_gof_names <- paste0("custom", seq_len(n_custom_stats))
+          }
+        }, error = function(e) {
+          warning("Custom GOF function failed on initial test. It will be skipped.")
+          custom_gof <- NULL
+        })
+      } else if(is.list(custom_gof)) {
+        # List of functions
+        n_custom_stats <- length(custom_gof)
+        custom_gof_names <- names(custom_gof)
+        if(is.null(custom_gof_names)) {
+          custom_gof_names <- paste0("custom", seq_len(n_custom_stats))
+        }
+      }
+    }
+    
+    # Initialize GOF matrix
+    n_total_stats <- n_base_stats + n_custom_stats
+    GOF <- matrix(NA, n_eff, n_total_stats)
+    
+    # Set column names
+    base_names <- c("sd.rowmean", "sd.colmean", "four.cycles")
+    all_names <- c(base_names, custom_gof_names)
+    colnames(GOF) <- all_names
   } else {
     GOF <- NULL
+    custom_gof <- NULL  # Don't compute custom GOF if gof=FALSE
   }
   
   # Construct design matrix for regression
@@ -216,9 +277,29 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   
   # MCMC iterations
   if(print) {
-    cat("Running MCMC for bipartite network...\n")
-    cat("Dimensions: ", nA, "x", nB, "\n")
-    cat("R_row =", R_row, ", R_col =", R_col, "\n")
+    cli::cli_h2("Running MCMC for bipartite network")
+    cli::cli_text("Dimensions: {.val {nA}} x {.val {nB}}")
+    cli::cli_text("R_row = {.val {R_row}}, R_col = {.val {R_col}}")
+    cli::cli_text("Settings: Burn-in = {.val {burn}}, MCMC = {.val {nscan}}, Thin = {.val {odens}}")
+    
+    # Estimate time impact of GOF
+    if(gof) {
+      n_gof_stats <- 3
+      if(!is.null(custom_gof)) {
+        if(is.function(custom_gof)) {
+          n_gof_stats <- n_gof_stats + length(custom_gof(Y))
+        } else if(is.list(custom_gof)) {
+          n_gof_stats <- n_gof_stats + length(custom_gof)
+        }
+      }
+    }
+    
+    # Start timing
+    start_time <- Sys.time()
+    
+    if(burn > 0) {
+      cli::cli_progress_bar("Burn-in", total = burn, clear = TRUE)
+    }
   }
   
   # Pre-select family-specific functions to avoid string comparisons
@@ -237,16 +318,17 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       Z_new
     },
     poisson = function(Z, EZ, s2, Y) {
-      Z_new <- Z
       lambda <- exp(pmin(EZ, 10))
-      for(i in 1:nA) {
-        for(j in 1:nB) {
-          if(!is.na(Y[i,j])) {
-            Z_new[i,j] <- log(Y[i,j] + rgamma(1, 1, lambda[i,j]))
-          }
-        }
+      # Vectorized update for non-missing values
+      not_na <- !is.na(Y)
+      n_update <- sum(not_na)
+      if(n_update > 0) {
+        Z_new <- Z
+        Z_new[not_na] <- log(Y[not_na] + rgamma(n_update, 1, lambda[not_na]))
+        Z_new
+      } else {
+        Z
       }
-      Z_new
     },
     ordinal = function(Z, EZ, s2, Y) {
       EZ + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
@@ -297,7 +379,7 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
   
   iter_save <- 0
   
-  for(iter in 1:nscan) {
+  for(iter in 1:(nscan + burn)) {
     # Use cached EZ
     EZ_curr <- EZ_cache
     
@@ -396,7 +478,7 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
       Sab <- solve(matrix(rWishart(1, nu_post, solve(S_post)), 2, 2))
     }
     
-    # Update multiplicative effects (simplified)
+    # Update multiplicative effects
     if(R_row > 0 && R_col > 0) {
       # Update U
       resid <- Z
@@ -473,13 +555,42 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     if(iter > burn && (iter - burn) %% odens == 0) {
       iter_save <- iter_save + 1
       
-      BETA[iter_save,] <- beta
-      VC[iter_save,] <- c(Sab[1,1], Sab[1,2], Sab[2,2], s2, 0)  # No rho for bipartite
-      
-      if(rvar) APS <- APS + a
-      if(cvar) BPS <- BPS + b
-      if(!is.null(U) && !is.null(V) && !is.null(G)) {
-        UVPS <- UVPS + UV_cache
+      if(iter_save <= n_eff) {
+        BETA[iter_save,] <- beta
+        VC[iter_save,] <- c(Sab[1,1], Sab[1,2], Sab[2,2], s2, 0)  # No rho for bipartite
+        
+        if(rvar) APS <- APS + a
+        if(cvar) BPS <- BPS + b
+        if(!is.null(U) && !is.null(V) && !is.null(G)) {
+          # UVPS not accumulated
+        }
+        
+        # Save posterior samples if requested
+        if(!is.null(posterior_opts)) {
+          # Save U/V samples (thinned)
+          if(posterior_opts$save_UV && !is.null(U) && !is.null(V)) {
+            if(iter_save %% posterior_opts$thin_UV == 0) {
+              UV_sample_idx <- UV_sample_idx + 1
+              if(UV_sample_idx <= dim(U_samples)[3]) {
+                U_samples[,,UV_sample_idx] <- U
+                V_samples[,,UV_sample_idx] <- V
+              }
+            }
+          }
+          
+          # Save a/b samples (thinned)
+          if(posterior_opts$save_ab) {
+            if(iter_save %% posterior_opts$thin_ab == 0) {
+              ab_sample_idx <- ab_sample_idx + 1
+              if(rvar && !is.null(a_samples) && ab_sample_idx <= ncol(a_samples)) {
+                a_samples[,ab_sample_idx] <- a
+              }
+              if(cvar && !is.null(b_samples) && ab_sample_idx <= ncol(b_samples)) {
+                b_samples[,ab_sample_idx] <- b
+              }
+            }
+          }
+        }
       }
       
       # Compute expected value
@@ -499,8 +610,6 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         EZ_curr <- EZ_curr + U %*% G %*% t(V)
       }
       
-      EZ <- EZ + EZ_curr
-      
       # Generate posterior predictive sample
       if(family == "normal") {
         Y_sim <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
@@ -508,7 +617,7 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         Y_sim <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
         Y_sim[Y_sim < 0] <- 0  # Censor at 0
       } else if(family == "binary") {
-        Y_sim <- (EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)) > 0
+        Y_sim <- 1 * (EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB) > 0)
       } else if(family == "ordinal") {
         # Simplified ordinal simulation
         Y_sim <- round(EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB))
@@ -518,7 +627,7 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
           Y_sim[Y_sim > max_cat] <- max_cat
         }
       } else if(family == "cbin") {
-        Y_sim <- (EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)) > 0
+        Y_sim <- 1 * (EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB) > 0)
         # Apply row constraints if odmax specified
         if(!is.null(odmax)) {
           for(i in 1:nA) {
@@ -551,36 +660,70 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
         Y_sim <- EZ_curr
       }
       
-      YPS <- YPS + Y_sim
+      if(iter_save <= n_eff) {
+        YPS <- YPS + Y_sim
+      }
       
       # Compute GOF statistics
-      if(gof) {
-        # Simple GOF: density, mean, variance, correlation
-        GOF[iter_save, 1] <- mean(Y > 0, na.rm = TRUE)  # Observed density
-        GOF[iter_save, 2] <- mean(Y_sim > 0, na.rm = TRUE)  # Simulated density
-        GOF[iter_save, 3] <- mean(Y, na.rm = TRUE)  # Observed mean
-        GOF[iter_save, 4] <- mean(Y_sim, na.rm = TRUE)  # Simulated mean
+      if(gof && iter_save <= n_eff) {
+        # Use bipartite-specific GOF function for base stats
+        gof_vals <- gof_stats_bipartite(Y)
+        GOF[iter_save, 1:3] <- gof_vals
+        
+        # Compute custom GOF statistics if provided
+        if(!is.null(custom_gof)) {
+          if(is.function(custom_gof)) {
+            # Single function returning possibly multiple values
+            tryCatch({
+              custom_vals <- custom_gof(Y)
+              GOF[iter_save, (4):(3 + length(custom_vals))] <- custom_vals
+            }, error = function(e) {
+              # Leave as NA if function fails
+            })
+          } else if(is.list(custom_gof)) {
+            # List of functions each returning single value
+            for(i in seq_along(custom_gof)) {
+              if(is.function(custom_gof[[i]])) {
+                tryCatch({
+                  GOF[iter_save, 3 + i] <- custom_gof[[i]](Y)
+                }, error = function(e) {
+                  # Leave as NA if function fails
+                })
+              }
+            }
+          }
+        }
       }
     }
     
-    # Progress
-    if(print && iter %% 1000 == 0) {
-      cat("Iteration", iter, "of", nscan, "\n")
+    # Update progress bars
+    if(print) {
+      if(iter <= burn) {
+        cli::cli_progress_update(id = NULL)
+        if(iter == burn) {
+          cli::cli_progress_done()
+          cli::cli_progress_bar("Sampling", total = nscan, clear = TRUE)
+        }
+      } else if(iter > burn) {
+        cli::cli_progress_update(id = NULL)
+      }
     }
+  }
+  
+  # Close progress bar if printing
+  if(print) {
+    cli::cli_progress_done()
+    
+    # Report timing
+    end_time <- Sys.time()
+    elapsed <- difftime(end_time, start_time, units = "secs")
+    cli::cli_alert_success("MCMC complete in {.val {round(elapsed, 1)}} seconds")
   }
   
   # Compute posterior means
   APM <- APS / n_eff
   BPM <- BPS / n_eff
-  UVPM <- UVPS / n_eff
-  EZ <- EZ / n_eff
   YPM <- YPS / n_eff
-  
-  # Transform for count models
-  if(family == "poisson") {
-    EZ <- exp(EZ)
-    EZ[EZ > 1e6] <- 1e6
-  }
   
   # Prepare output
   fit <- list(
@@ -591,8 +734,6 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     U = U,
     V = V,
     G = G,
-    UVPM = UVPM,
-    EZ = EZ,
     YPM = YPM,
     GOF = GOF,
     X = X,
@@ -602,12 +743,42 @@ ame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     R_col = R_col,
     rvar = rvar,
     cvar = cvar,
+    symmetric = FALSE,  # Bipartite networks are never symmetric
     mode = "bipartite",
     nA = nA,
     nB = nB
   )
   
+  # Add posterior samples if saved
+  if(!is.null(posterior_opts)) {
+    if(!is.null(U_samples)) {
+      # Trim to actual number of samples saved
+      actual_UV_samples <- min(UV_sample_idx, dim(U_samples)[3])
+      if(actual_UV_samples > 0) {
+        fit$U_samples <- U_samples[,,1:actual_UV_samples, drop=FALSE]
+        fit$V_samples <- V_samples[,,1:actual_UV_samples, drop=FALSE]
+      }
+    }
+    if(!is.null(a_samples)) {
+      actual_ab_samples <- min(ab_sample_idx, ncol(a_samples))
+      if(actual_ab_samples > 0 && rvar) {
+        fit$a_samples <- a_samples[,1:actual_ab_samples, drop=FALSE]
+      }
+    }
+    if(!is.null(b_samples)) {
+      actual_ab_samples <- min(ab_sample_idx, ncol(b_samples))
+      if(actual_ab_samples > 0 && cvar) {
+        fit$b_samples <- b_samples[,1:actual_ab_samples, drop=FALSE]
+      }
+    }
+  }
+  
   class(fit) <- "ame"
+  
+  # Apply sparse matrix optimization if requested  
+  if(use_sparse_matrices) {
+    fit <- compact_ame(fit, use_sparse_matrices = use_sparse_matrices)
+  }
   
   return(fit)
 }

@@ -2,35 +2,40 @@
 #' 
 #' Calculates goodness of fit statistics for relational data matrices,
 #' evaluating second-order (dyadic) and third-order (triadic) dependence
-#' patterns. These statistics are useful for assessing model fit in
-#' network analysis and relational data modeling.
+#' patterns. Can handle both unipartite and bipartite networks.
 #' 
-#' @usage gof_stats(Y)
-#' @param Y a relational data matrix (n x n square matrix) where Y\\[i,j\\]
-#'   represents the relationship from node i to node j. Missing values (NA)
-#'   are allowed and will be handled appropriately.
-#' @return A named numeric vector containing five goodness-of-fit statistics:
+#' @usage gof_stats(Y, mode = NULL, custom_gof = NULL)
+#' @param Y a relational data matrix. For unipartite networks, a square n x n 
+#'   matrix where Y\\[i,j\\] represents the relationship from node i to node j.
+#'   For bipartite networks, an nA x nB matrix where Y\\[i,j\\] 
+#'   represents the relationship from node i in set A to node j in set B.
+#'   Missing values (NA) are allowed and will be handled appropriately.
+#' @param mode character string specifying the network type: "unipartite" or "bipartite".
+#'   If NULL (default), attempts to infer from matrix dimensions (rectangular = bipartite,
+#'   square = unipartite). Note: square bipartite networks must specify mode="bipartite".
+#' @param custom_gof optional function or list of functions to compute custom GOF statistics.
+#'   Each function should take Y as input and return a named numeric value or vector.
+#'   Custom statistics will be added to the standard statistics.
+#' @return A named numeric vector containing goodness-of-fit statistics.
+#'   For unipartite networks:
 #'   \describe{
 #'     \item{sd.rowmean}{Standard deviation of row means. Measures the 
-#'       heterogeneity in out-degree centrality (sender effects). Higher values
-#'       indicate more variation in how active nodes are as senders.}
+#'       heterogeneity in out-degree centrality (sender effects).}
 #'     \item{sd.colmean}{Standard deviation of column means. Measures the
-#'       heterogeneity in in-degree centrality (receiver effects). Higher values
-#'       indicate more variation in how popular nodes are as receivers.}
-#'     \item{dyad.dep}{Dyadic dependence/reciprocity correlation. Pearson correlation
-#'       between Y\\[i,j\\] and Y\\[j,i\\] across all dyads. Positive values indicate
-#'       reciprocity (mutual relationships), negative values indicate
-#'       anti-reciprocity. Range: \\[-1, 1\\].}
-#'     \item{cycle.dep}{Cyclic/transitive triadic dependence. Normalized sum of
-#'       products along three-cycles (i to j to k to i). Positive values indicate
-#'       transitivity clustering, where 'a friend of a friend is a friend'.
-#'       Based on the trace of the cubed centered matrix, normalized by the 
-#'       trace of the cubed data availability matrix and the cubed standard deviation.}
-#'     \item{trans.dep}{Transitive triadic dependence. Normalized sum of products
-#'       along two-paths that close into triangles (i to j to k with k to i). Measures
-#'       the tendency for open triads to close. Based on the trace of the product
-#'       E*E'*E where E is the centered matrix, normalized appropriately.}
+#'       heterogeneity in in-degree centrality (receiver effects).}
+#'     \item{dyad.dep}{Dyadic dependence/reciprocity correlation.}
+#'     \item{cycle.dep}{Cyclic/transitive triadic dependence.}
+#'     \item{trans.dep}{Transitive triadic dependence.}
 #'   }
+#'   For bipartite networks:
+#'   \describe{
+#'     \item{sd.rowmean}{Standard deviation of row means (sender heterogeneity).}
+#'     \item{sd.colmean}{Standard deviation of column means (receiver heterogeneity).}
+#'     \item{four.cycles}{Count of four-cycles in the bipartite network.}
+#'   }
+#'   
+#'   If custom_gof is provided, additional statistics will be included with their
+#'   user-specified names.
 #' @details
 #' The function computes network statistics that capture different aspects of
 #' network structure beyond simple density. These statistics are particularly
@@ -41,6 +46,9 @@
 #'   \item Descriptive analysis: summarizing key structural features of the network
 #' }
 #' 
+#' For bipartite networks with square dimensions (nA = nB), you must explicitly 
+#' specify mode="bipartite" to ensure correct statistics are calculated.
+#' 
 #' Missing values in Y are handled by pairwise deletion for correlations and
 #' are excluded from matrix products in triadic calculations.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
@@ -48,76 +56,77 @@
 #' 
 #' data(YX_nrm) 
 #' 
+#' # Auto-detect unipartite
 #' gof_stats(YX_nrm$Y) 
 #' 
+#' # Explicitly specify mode for square bipartite
+#' # Y_bip <- matrix(rnorm(100), 10, 10) # 10x10 bipartite
+#' # gof_stats(Y_bip, mode = "bipartite")
+#' 
+#' # Custom GOF function
+#' # my_stat <- function(Y) { c(my_measure = sum(Y > 0, na.rm=TRUE)) }
+#' # gof_stats(YX_nrm$Y, custom_gof = my_stat)
 #' 
 #' @export gof_stats
-gof_stats<-function(Y)
-{
-  # Check if matrix is square - GOF stats require square matrices
-  if(nrow(Y) != ncol(Y)) {
-    # For non-square (bipartite) matrices, return limited stats
-    gof <- c(
-      sd(rowMeans(Y, na.rm=TRUE), na.rm=TRUE),  # sd.rowmean
-      sd(colMeans(Y, na.rm=TRUE), na.rm=TRUE),  # sd.colmean
-      NA,  # dyad.dep (not applicable for bipartite)
-      NA,  # cycle.dep (not applicable for bipartite)
-      NA   # trans.dep (not applicable for bipartite)
-    )
-    names(gof) <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
-    return(gof)
+gof_stats <- function(Y, mode = NULL, custom_gof = NULL) {
+  
+  # Determine network mode
+  if(is.null(mode)) {
+    # Auto-detect based on dimensions
+    if(nrow(Y) != ncol(Y)) {
+      mode <- "bipartite"
+    } else {
+      mode <- "unipartite"
+      # Warn user about potential ambiguity
+      if(interactive()) {
+        message("Note: Square matrix assumed to be unipartite. ",
+                "Use mode='bipartite' for square bipartite networks.")
+      }
+    }
+  } else {
+    mode <- match.arg(mode, c("unipartite", "bipartite"))
   }
   
-  tryCatch({
-    gof <- as.vector(gof_stats_cpp(as.matrix(Y)))
-    names(gof) <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
-    gof[is.na(gof)] <- 0
-    return(gof)
-  }, error = function(e) {
-    sd.rowmean <- sd(rowMeans(Y, na.rm=TRUE), na.rm=TRUE) 
-    sd.colmean <- sd(colMeans(Y, na.rm=TRUE), na.rm=TRUE)
+  # Calculate standard GOF statistics based on mode
+  if(mode == "bipartite") {
+    standard_gof <- gof_stats_bipartite(Y)
+  } else {
+    standard_gof <- gof_stats_unipartite(Y)
+  }
+  
+  # Add custom GOF statistics if provided
+  if(!is.null(custom_gof)) {
+    custom_stats <- NULL
     
-    # Handle case where there are no complete pairs for correlation
-    dyad.dep <- tryCatch({
-      suppressWarnings(cor(c(Y), c(t(Y)), use="complete.obs"))
-    }, error = function(e2) {
-      # If no complete pairs, try pairwise.complete.obs
-      tryCatch({
-        suppressWarnings(cor(c(Y), c(t(Y)), use="pairwise.complete.obs"))
-      }, error = function(e3) {
-        # If still fails, return 0 (no dyadic dependence detected)
-        0
-      })
-    })
-    
-    Y.mean <- mean(Y, na.rm=TRUE)
-    E <- Y - Y.mean
-    D <- 1 * (!is.na(E))
-    E[is.na(E)] <- 0
-    Y.sd <- sd(c(Y), na.rm=TRUE)
-    
-    # Handle case where Y.sd is 0 or NA
-    if(is.na(Y.sd) || Y.sd == 0) {
-      Y.sd3 <- 1  # Avoid division by zero
-      cycle.dep <- 0
-      trans.dep <- 0
-    } else {
-      Y.sd3 <- Y.sd^3
-      EEE <- E %*% E %*% E
-      DDD <- D %*% D %*% D
-      EtE <- E %*% t(E) %*% E
-      DtD <- D %*% t(D) %*% D
-      
-      ddd_diag_sum <- sum(diag(DDD))
-      dtd_diag_sum <- sum(diag(DtD))
-      
-      cycle.dep <- if(ddd_diag_sum > 0) sum(diag(EEE)) / (ddd_diag_sum * Y.sd3) else 0
-      trans.dep <- if(dtd_diag_sum > 0) sum(diag(EtE)) / (dtd_diag_sum * Y.sd3) else 0
+    if(is.function(custom_gof)) {
+      # Single custom function
+      custom_stats <- custom_gof(Y)
+    } else if(is.list(custom_gof)) {
+      # List of custom functions
+      custom_stats <- numeric()
+      for(i in seq_along(custom_gof)) {
+        if(is.function(custom_gof[[i]])) {
+          stat_result <- custom_gof[[i]](Y)
+          # Get function name or use index
+          stat_name <- names(custom_gof)[i]
+          if(is.null(stat_name) || stat_name == "") {
+            stat_name <- paste0("custom", i)
+          }
+          names(stat_result) <- stat_name
+          custom_stats <- c(custom_stats, stat_result)
+        }
+      }
     }
     
-    gof <- c(sd.rowmean, sd.colmean, dyad.dep, cycle.dep, trans.dep)
-    gof[is.na(gof)] <- 0 
-    names(gof) <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
-    gof
-  })
+    # Combine standard and custom statistics
+    if(!is.null(custom_stats)) {
+      gof_result <- c(standard_gof, custom_stats)
+    } else {
+      gof_result <- standard_gof
+    }
+  } else {
+    gof_result <- standard_gof
+  }
+  
+  return(gof_result)
 }

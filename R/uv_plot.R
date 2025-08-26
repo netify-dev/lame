@@ -72,20 +72,22 @@
 #' @import ggplot2
 #' @import ggrepel
 #' @import cli
-uv_plot <- function(fit = NULL, Y = NULL, U = NULL, V = NULL,
-                    row.names = NULL, col.names = NULL,
-                    layout = c("circle", "biplot"),
-                    vscale = 0.8,
-                    show.edges = FALSE,
-                    edge.alpha = 0.3,
-                    node.size = 3,
-                    label.nodes = TRUE,
-                    label.size = 3,
-                    colors = NULL,
-                    title = NULL,
-                    time_point = NULL,
-                    plot_type = c("snapshot", "trajectory", "faceted"),
-                    show_arrows = TRUE) {
+uv_plot <- function(
+  fit = NULL, Y = NULL, U = NULL, V = NULL,
+  row.names = NULL, col.names = NULL,
+  layout = c("circle", "biplot"),
+  vscale = 0.8,
+  show.edges = FALSE,
+  edge.alpha = 0.3,
+  node.size = 3,
+  label.nodes = TRUE,
+  label.size = 3,
+  colors = NULL,
+  title = NULL,
+  time_point = NULL,
+  plot_type = c("snapshot", "trajectory", "faceted"),
+  show_arrows = TRUE
+  ){
   
   # Match arguments
   layout <- match.arg(layout)

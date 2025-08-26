@@ -53,6 +53,11 @@ Generates multiple network realizations from the posterior distribution of
 a fitted AME model. This function performs posterior predictive simulation
 by drawing from the full joint posterior distribution of model parameters,
 thereby propagating parameter uncertainty into the simulated networks.
+
+\strong{Key Difference from print():} While \code{print.ame} displays existing
+model results without computation, \code{simulate.ame} actively generates new
+network data by sampling from the posterior predictive distribution. This is
+computationally intensive and produces new datasets for analysis.
 }
 \details{
 \strong{Mathematical Framework:}
@@ -145,5 +150,5 @@ sims_new <- simulate(fit, nsim=50, newdata=list(Xdyad=new_X))
 
 }
 \author{
-Shahryar Minhas
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

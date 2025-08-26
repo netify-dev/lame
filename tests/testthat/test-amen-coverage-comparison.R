@@ -47,14 +47,14 @@ test_that("Compare coverage rates between amen and lame - additive effects", {
       amen::ame(Y, Xdyad = X, R = 0, family = "nrm",
                 rvar = TRUE, cvar = TRUE, dcor = FALSE,
                 burn = 400, nscan = 1500,
-                print = FALSE, plot = FALSE)
+                print = FALSE)
     )
     
     # Fit with lame
     fit_lame <- lame::ame(Y, Xdyad = X, R = 0, family = "normal",
                          rvar = TRUE, cvar = TRUE, dcor = FALSE,
                          burn = 400, nscan = 1500,
-                         print = FALSE, plot = FALSE)
+                         print = FALSE)
     
     # Extract results
     beta_ci_amen <- quantile(fit_amen$BETA[,2], c(0.025, 0.975))
@@ -139,14 +139,14 @@ test_that("Compare coverage rates between amen and lame - simple model", {
       amen::ame(Y, Xdyad = X, R = 0, family = "nrm",
                 rvar = FALSE, cvar = FALSE, dcor = FALSE,
                 burn = 300, nscan = 1000,
-                print = FALSE, plot = FALSE)
+                print = FALSE)
     )
     
     # Fit with lame
     fit_lame <- lame::ame(Y, Xdyad = X, R = 0, family = "normal",
                          rvar = FALSE, cvar = FALSE, dcor = FALSE,
                          burn = 300, nscan = 1000,
-                         print = FALSE, plot = FALSE)
+                         print = FALSE)
     
     # Extract results
     beta_ci_amen <- quantile(fit_amen$BETA[,2], c(0.025, 0.975))

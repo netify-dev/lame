@@ -2,21 +2,54 @@
 % Please edit documentation in R/print.ame.R
 \name{print.ame}
 \alias{print.ame}
-\title{Print method for AME objects}
+\title{Print method for AME model objects}
 \usage{
 \method{print}{ame}(x, ...)
 }
 \arguments{
-\item{x}{an object of class "ame"}
+\item{x}{an object of class "ame" from fitting an AME model}
 
-\item{...}{additional arguments (not used)}
+\item{...}{additional arguments (not currently used)}
 }
 \value{
-the ame object invisibly
+Invisibly returns the input object (for method chaining)
 }
 \description{
-Provides a concise print output for fitted AME models
+Displays a formatted summary of a fitted AME (Additive and Multiplicative Effects) model.
+This method provides a concise overview of model structure, parameter estimates,
+and goodness-of-fit statistics without generating new data.
+}
+\details{
+The print method displays:
+\itemize{
+\item Model type (unipartite/bipartite, symmetric/asymmetric)
+\item Network dimensions and observation count
+\item Family and link function used
+\item Number of MCMC iterations
+\item Parameter counts for regression coefficients and latent factors
+\item Basic convergence diagnostics if available
+}
+
+Unlike \code{simulate}, this method only formats existing results
+for display and does not perform any new computations or data generation.
+}
+\examples{
+\dontrun{
+# Fit model
+fit <- ame(Y, X, R = 2)
+
+# Display summary
+print(fit)
+# or simply:
+fit
+}
+
+}
+\seealso{
+\code{\link{summary.ame}} for detailed summaries,
+\code{\link{simulate.ame}} for generating new networks,
+\code{\link{predict.ame}} for predictions
 }
 \author{
-Peter Hoff, Cassy Dorff, Shahryar Minhas
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }
