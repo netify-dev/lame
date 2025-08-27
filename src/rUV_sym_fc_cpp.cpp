@@ -54,6 +54,15 @@ arma::mat matMultVec(arma::mat x, arma::vec y){
      double s2, bool shrink, NumericVector uLoopIDs) {
    
    int R = U.n_cols; int n = U.n_rows;
+   
+   // Handle edge case when R is 0
+   if(R == 0) {
+     return Rcpp::List::create(
+       Rcpp::Named("U") = U,
+       Rcpp::Named("V") = V
+     );
+   }
+   
    arma::mat L = diagmat( V.row(0)/U.row(0)  );
    L.replace(datum::nan, 0);
    

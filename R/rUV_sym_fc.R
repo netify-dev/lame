@@ -23,33 +23,9 @@
 #' @export rUV_sym_fc
 rUV_sym_fc<-function(E,U,V,s2=1,shrink=TRUE)
 {
-  
-  R<-ncol(U) ; n<-nrow(U) 
-  L<-diag( (V[1,]/U[1,]) ,nrow=R) 
-  L[is.na(L)]<-1  # to handle zero start vals
-  
-  ## update inverse variance of U
-  if(shrink){ivU<-diag( rgamma(R, (2+n)/2 ,(1+apply(U^2,2,sum))/2) ,nrow=R )}
-  if(!shrink){ivU<-diag(1/n,nrow=R) }
-  
-  ## update each U[i,]
-  for(i in rep(sample(1:n),4))
-  {
-    l<-L%*%( apply(U*E[i,],2,sum) -  U[i,]*E[i,i] )/s2
-    iQ<- solve( ( ivU +    L%*%( crossprod(U) - U[i,]%*%t(U[i,]) )%*%L/s2 ) )
-    U[i,]<- iQ%*%l + t(chol(iQ))%*%rnorm(R) 
-  }
-  
-  ## consider MH update - add in later verision
-  
-  ## update "eigenvalues"
-  for(r in 1:R)
-  {
-    Er<-E-U[,-r,drop=FALSE]%*%L[-r,-r,drop=FALSE]%*%t(U[,-r,drop=FALSE]) 
-    l<- sum( ( Er*(U[,r]%*%t(U[,r])))[upper.tri(Er)] )/s2
-    iq<- 1/(1+sum( ( (U[,r]%*%t(U[,r]))^2 )[upper.tri(Er)] )/s2 )
-    L[r,r]<-rnorm(1, iq*l,sqrt(iq) ) 
-  }
-  
-  list(U=U,V=U%*%L) 
+  n<-nrow(U)
+  # Use C++ version only
+  # Generate random loop IDs for the C++ version (C++ uses 0-based indexing)
+  uLoopIDs <- as.integer(rep(sample(1:n),4) - 1)  # Convert to 0-based indexing
+  rUV_sym_fc_cpp(E, U, V, s2, shrink, uLoopIDs)
 }
