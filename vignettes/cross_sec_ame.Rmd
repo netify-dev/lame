@@ -609,11 +609,6 @@ if(requireNamespace("coda", quietly = TRUE)) {
 }
 ```
 
-Good convergence is indicated by:
-- Stable traces without trending
-- Rapid mixing (fuzzy caterpillar appearance)
-- Consistent behavior across parameters
-
 # Goodness of Fit
 
 ```{r gof-analysis}
@@ -861,12 +856,7 @@ if(!is.null(fit_recovery$GOF) && nrow(fit_recovery$GOF) > 1) {
 ## Choosing R
 
 The latent dimension $R$ controls model complexity:
-- $R = 0$: No multiplicative effects
-- $R = 1$: One-dimensional ranking
-- $R = 2$: Two-dimensional positions (standard choice)
-- $R > 2$: Higher-dimensional structure
 
-Rule of thumb: $R \leq \lfloor \log(n) \rfloor$
 
 ## Variance Components
 
@@ -894,30 +884,3 @@ The AME framework extends to:
 
 **Dynamic networks**: Time-varying networks (see `dynamic_effects` vignette)
 
-# Summary
-
-The AME model provides:
-1. Principled handling of network dependencies
-2. Decomposition into interpretable components
-3. Uncertainty quantification via Bayesian inference
-4. Flexible framework for various network types
-
-Key findings from the AddHealth analysis:
-- Strong homophily by race and grade
-- Individual heterogeneity in social behavior
-- Moderate reciprocity in friendships
-- Latent clustering beyond observed attributes
-
-## References
-
-Hoff, P. D., Raftery, A. E., & Handcock, M. S. (2002). Latent space approaches to social network analysis. Journal of the American Statistical Association, 97(460), 1090-1098.
-
-Hoff, P. D. (2005). Bilinear mixed-effects models for dyadic data. Journal of the American Statistical Association, 100(469), 286-295.
-
-Minhas, S., Hoff, P. D., & Ward, M. D. (2019). Inferential approaches for network analysis: AMEN for latent factor models. Political Analysis, 27(2), 208-226.
-
-## Session Information
-
-```{r session-info}
-sessionInfo()
-```
