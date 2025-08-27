@@ -831,18 +831,13 @@ ame_unipartite <- function(
   # posterior means 
   APM<-APS/nrow(VC)
   BPM<-BPS/nrow(VC)
-  # Add names
-  if(is.null(names(APM)) && !is.null(rownames(Y))) {
+  # Always set names from Y if available
+  if(!is.null(rownames(Y))) {
     names(APM) <- rownames(Y)
-  }
-  if(is.null(names(BPM)) && !is.null(rownames(Y))) {
     names(BPM) <- rownames(Y)
-  }
-  # If still no names, create default ones
-  if(is.null(names(APM))) {
+  } else {
+    # Create default names if Y doesn't have them
     names(APM) <- paste0("Actor", 1:length(APM))
-  }
-  if(is.null(names(BPM))) {
     names(BPM) <- paste0("Actor", 1:length(BPM))
   }
   UVPM<-UVPS/nrow(VC)  # Needed temporarily for computing U,V via SVD
