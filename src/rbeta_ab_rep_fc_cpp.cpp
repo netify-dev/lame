@@ -28,11 +28,7 @@ arma::vec rmvnorm_cpp(
     E(i) = R::rnorm(0.0, 1.0);
   }
   
-  // Debug: Check if E has variation (only warn if vector has multiple elements)
-  if(E.n_elem > 1 && E.min() == E.max()) {
-    // This should never happen with proper RNG
-    Rcpp::Rcout << "ERROR: Random vector E has no variation despite having " << E.n_elem << " elements!" << std::endl;
-  }
+  // Removed debug output - not needed in production
   
   // Ensure Sigma is symmetric before Cholesky
   arma::mat Sigma_sym = 0.5 * (Sigma + Sigma.t());
