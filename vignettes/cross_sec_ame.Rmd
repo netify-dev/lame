@@ -448,8 +448,8 @@ The multiplicative effects $\mathbf{u}_i^T \mathbf{v}_j$ represent nodes in late
 
 ```{r latent-space, fig.width=12, fig.height=6}
 # Use the built-in uv_plot function for latent space visualization
-# Biplot layout showing U and V positions directly
-p1 <- uv_plot(fit, layout = "biplot", show.edges = FALSE,
+# Circle layout showing nodes arranged in a circle
+p1 <- uv_plot(fit, layout = "circle", show.edges = FALSE,
               label.nodes = TRUE, label.size = 2.5,
               title = "Latent Space Positions")
 

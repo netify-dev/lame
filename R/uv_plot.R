@@ -79,9 +79,12 @@ uv_plot <- function(
   vscale = 0.8,
   show.edges = FALSE,
   edge.alpha = 0.3,
-  node.size = 3,
+  node.size = "magnitude",
   label.nodes = TRUE,
   label.size = 3,
+  show.usernames = NULL,
+  sender.color = "darkred",
+  receiver.color = "darkblue",
   colors = NULL,
   title = NULL,
   time_point = NULL,
@@ -183,55 +186,83 @@ uv_plot <- function(
     if (is.null(col.names)) col.names <- paste0("R", 1:n_col)
   }
   
-  # Standardize U and V to have comparable scales
-  # This prevents one dimension from dominating
-  U_scaled <- U
-  V_scaled <- V
-  
-  # Scale each dimension to unit variance if variance > 0
-  for(d in 1:ncol(U)) {
-    u_sd <- sd(U[,d])
-    v_sd <- sd(V[,d])
-    combined_sd <- sqrt((u_sd^2 * n_row + v_sd^2 * n_col) / (n_row + n_col))
-    
-    if(combined_sd > 1e-10) {
-      U_scaled[,d] <- U[,d] / combined_sd
-      V_scaled[,d] <- V[,d] / combined_sd
-    }
-  }
-  
   # Create node data frame
   if (layout == "circle") {
-    # Circular layout - order by first principal component
-    n_total <- n_row + n_col
+    # Circular layout following AMEN's circplot approach:
+    # Normalize U and V to unit vectors, then place on different circles
     
-    # Use first dimension to determine angular position
-    combined_scores <- c(U_scaled[,1], V_scaled[,1])
-    # Map scores to angles
-    score_range <- range(combined_scores)
-    if(diff(score_range) > 0) {
-      angles <- 2 * pi * (combined_scores - score_range[1]) / diff(score_range)
-    } else {
-      angles <- seq(0, 2*pi, length.out = n_total + 1)[1:n_total]
+    # Calculate magnitudes for each node
+    mu <- sqrt(rowSums(U^2))
+    mv <- sqrt(rowSums(V^2))
+    
+    # Normalize to unit vectors (avoid division by zero)
+    u_norm <- U
+    v_norm <- V
+    for(i in 1:n_row) {
+      if(mu[i] > 1e-10) {
+        u_norm[i,] <- U[i,] / mu[i]
+      }
+    }
+    for(i in 1:n_col) {
+      if(mv[i] > 1e-10) {
+        v_norm[i,] <- V[i,] / mv[i]
+      }
     }
     
-    # Use second dimension for radial displacement
-    radii <- 1 + 0.3 * c(U_scaled[,2], V_scaled[,2])
+    # Scale V to inner circle (vscale typically 0.8)
+    v_norm <- v_norm * vscale
     
-    # Compute positions
+    # Apply radial positioning based on magnitude rank
+    # This ensures nodes are spread out even if they have similar angles
+    jitter_factor <- 0.15
+    
+    # For senders: outer circle with some radial variation
+    u_radii <- 1 + jitter_factor * (rank(mu) / (n_row + 1) - 0.5)
+    u_plot <- u_norm
+    for(i in 1:n_row) {
+      u_plot[i,] <- u_norm[i,] * u_radii[i]
+    }
+    
+    # For receivers: inner circle with some radial variation  
+    v_radii <- vscale + jitter_factor * vscale * (rank(mv) / (n_col + 1) - 0.5)
+    v_plot <- matrix(0, nrow = n_col, ncol = 2)
+    for(i in 1:n_col) {
+      # Use angles from normalized V but apply custom radius
+      angle <- atan2(v_norm[i, 2], v_norm[i, 1])
+      v_plot[i, 1] <- v_radii[i] * cos(angle)
+      v_plot[i, 2] <- v_radii[i] * sin(angle)
+    }
+    
+    # Create data frame with senders on outer circle, receivers on inner
     node_data <- data.frame(
-      x = radii * cos(angles),
-      y = radii * sin(angles),
+      x = c(u_plot[,1], v_plot[,1]),
+      y = c(u_plot[,2], v_plot[,2]),
       name = c(row.names, col.names),
       type = factor(c(rep("Sender", n_row), rep("Receiver", n_col))),
       label = "",  # Initialize label column
+      magnitude = c(mu, mv),  # Store for sizing if needed
       stringsAsFactors = FALSE
     )
   } else {
-    # Biplot layout - show scaled positions directly
+    # Biplot layout - show U and V directly with optional scaling
+    # Standardize dimensions for better visibility
+    U_plot <- U
+    V_plot <- V * vscale
+    
+    # Scale to unit variance per dimension if needed
+    for(d in 1:ncol(U)) {
+      u_sd <- sd(U[,d])
+      v_sd <- sd(V[,d])
+      if(u_sd > 1e-10 && v_sd > 1e-10) {
+        scale_factor <- max(u_sd, v_sd)
+        U_plot[,d] <- U[,d] / scale_factor
+        V_plot[,d] <- V[,d] * vscale / scale_factor
+      }
+    }
+    
     node_data <- data.frame(
-      x = c(U_scaled[,1], V_scaled[,1] * vscale),
-      y = c(U_scaled[,2], V_scaled[,2] * vscale),
+      x = c(U_plot[,1], V_plot[,1]),
+      y = c(U_plot[,2], V_plot[,2]),
       name = c(row.names, col.names),
       type = factor(c(rep("Sender", n_row), rep("Receiver", n_col))),
       label = "",  # Initialize label column
@@ -249,19 +280,50 @@ uv_plot <- function(
     }
   }
   
-  # Calculate node sizes if based on degree
-  if (is.character(node.size) && node.size == "degree" && !is.null(Y)) {
-    out_degree <- rowSums(Y > 0, na.rm = TRUE)
-    in_degree <- colSums(Y > 0, na.rm = TRUE)
-    node_data$size <- c(out_degree, in_degree)
-    node_data$size <- 1 + 4 * (node_data$size - min(node_data$size)) / 
-                     (max(node_data$size) - min(node_data$size) + 1)
+  # Calculate node sizes
+  if (is.character(node.size)) {
+    if (node.size == "degree" && !is.null(Y)) {
+      out_degree <- rowSums(Y > 0, na.rm = TRUE)
+      in_degree <- colSums(Y > 0, na.rm = TRUE)
+      node_data$size <- c(out_degree, in_degree)
+      node_data$size <- 1 + 4 * (node_data$size - min(node_data$size)) / 
+                       (max(node_data$size) - min(node_data$size) + 1)
+    } else if (node.size == "magnitude" && layout == "circle") {
+      # Use the magnitude stored earlier for circle layout
+      if ("magnitude" %in% names(node_data)) {
+        node_data$size <- 1 + 4 * (node_data$magnitude - min(node_data$magnitude)) /
+                         (max(node_data$magnitude) - min(node_data$magnitude) + 0.01)
+      } else {
+        # Calculate magnitude if not in circle layout
+        mag_u <- sqrt(rowSums(U^2))
+        mag_v <- sqrt(rowSums(V^2))
+        node_data$size <- c(mag_u, mag_v)
+        node_data$size <- 1 + 4 * (node_data$size - min(node_data$size)) /
+                         (max(node_data$size) - min(node_data$size) + 0.01)
+      }
+    } else {
+      node_data$size <- 3  # Default size
+    }
   } else {
     node_data$size <- node.size
   }
   
   # Start building plot
   p <- ggplot(node_data, aes(x = x, y = y))
+  
+  # Add circle guides for circle layout to show separation
+  if (layout == "circle") {
+    # Add circles to show sender/receiver separation
+    circle_df <- data.frame(
+      r = c(vscale, 1),  # Inner circle for receivers, outer for senders
+      type = c("Receiver circle", "Sender circle")
+    )
+    p <- p + 
+      ggforce::geom_circle(data = circle_df, 
+                          aes(x0 = 0, y0 = 0, r = r),
+                          color = "gray80", fill = NA, 
+                          linetype = "dotted", inherit.aes = FALSE)
+  }
   
   # Add edges if requested
   if (show.edges && !is.null(Y)) {
@@ -287,39 +349,77 @@ uv_plot <- function(
     }
   }
   
-  # Add nodes
+  # Add nodes with colors for sender/receiver distinction
   if (!is.null(colors)) {
+    # Custom colors provided
     p <- p + geom_point(aes(color = color, shape = type, size = size))
   } else {
-    # Use black points with different shapes for types
-    p <- p + geom_point(aes(shape = type, size = size), color = "black")
+    # Use default sender/receiver colors
+    p <- p + geom_point(aes(color = type, shape = type, size = size)) +
+      scale_color_manual(values = c("Sender" = sender.color, "Receiver" = receiver.color),
+                        name = "Node Type")
   }
   
-  # Add labels
-  if (label.nodes) {
-    if (nrow(node_data) <= 50) {
-      # Use ggrepel for small networks
-      node_data$label <- node_data$name
-    } else {
-      # Just show labels for high-degree nodes in large networks
-      if (!is.null(Y)) {
-        degree <- c(rowSums(Y > 0, na.rm = TRUE), colSums(Y > 0, na.rm = TRUE))
-        top_nodes <- degree >= quantile(degree, 0.9)
-        node_data$label <- ifelse(top_nodes, node_data$name, "")
+  # Add labels based on settings
+  if (label.nodes || !is.null(show.usernames)) {
+    # Determine which nodes to label
+    if (!is.null(show.usernames)) {
+      # Show specific usernames if provided
+      if (is.logical(show.usernames) && show.usernames) {
+        # Show all usernames
+        node_data$label <- node_data$name
+      } else if (is.character(show.usernames)) {
+        # Show only specified usernames
+        node_data$label <- ifelse(node_data$name %in% show.usernames, 
+                                  node_data$name, "")
+      } else if (is.numeric(show.usernames)) {
+        # Show top N nodes by magnitude/degree
+        if ("magnitude" %in% names(node_data)) {
+          top_indices <- order(node_data$magnitude, decreasing = TRUE)[1:min(show.usernames, nrow(node_data))]
+        } else if (!is.null(Y)) {
+          degree <- c(rowSums(Y > 0, na.rm = TRUE), colSums(Y > 0, na.rm = TRUE))
+          top_indices <- order(degree, decreasing = TRUE)[1:min(show.usernames, nrow(node_data))]
+        } else {
+          top_indices <- 1:min(show.usernames, nrow(node_data))
+        }
+        node_data$label <- ifelse(seq_len(nrow(node_data)) %in% top_indices,
+                                  node_data$name, "")
+      }
+    } else if (label.nodes) {
+      # Default labeling behavior
+      if (nrow(node_data) <= 50) {
+        node_data$label <- node_data$name
       } else {
-        # If no Y matrix, show no labels for large networks
-        node_data$label <- ""
+        # Show top 10% for large networks
+        if (!is.null(Y)) {
+          degree <- c(rowSums(Y > 0, na.rm = TRUE), colSums(Y > 0, na.rm = TRUE))
+          top_nodes <- degree >= quantile(degree, 0.9)
+          node_data$label <- ifelse(top_nodes, node_data$name, "")
+        } else {
+          node_data$label <- ""
+        }
       }
     }
     
     # Add the labels using the label column
     if (any(node_data$label != "")) {
-      p <- p + geom_text_repel(
-        data = node_data,
-        aes(x = x, y = y, label = label, color = type),
-        size = label.size,
-        max.overlaps = 20
-      )
+      if (is.null(colors)) {
+        # Match label colors to node colors
+        p <- p + geom_text_repel(
+          data = node_data[node_data$label != "",],
+          aes(x = x, y = y, label = label, color = type),
+          size = label.size,
+          max.overlaps = 20,
+          show.legend = FALSE
+        )
+      } else {
+        p <- p + geom_text_repel(
+          data = node_data[node_data$label != "",],
+          aes(x = x, y = y, label = label),
+          size = label.size,
+          max.overlaps = 20
+        )
+      }
     }
   }
   
