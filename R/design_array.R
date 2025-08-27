@@ -32,7 +32,12 @@ design_array<-function(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n)
     Xrowa<-array(dim=c(n,n,pr))
     for( j in 1:pr ){ Xrowa[,,j]<-matrix( Xrow[,j], n,n) }
     X[,,1:pr]<- Xrowa
-    dnX<-c(dnX,paste0(colnames(Xrow),rep(".row" ,pr)))
+    # Handle case when Xrow has no column names
+    row_names <- colnames(Xrow)
+    if(is.null(row_names)) {
+      row_names <- paste0("Xrow", 1:pr)
+    }
+    dnX<-c(dnX,paste0(row_names,"_row"))
   }
   ###
   
@@ -44,7 +49,12 @@ design_array<-function(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n)
     Xcola<-array(dim=c(n,n,pc))
     for( j in 1:pc ){ Xcola[,,j]<-t(matrix( Xcol[,j], n,n)) }
     X[,,pr+1:pc]<- Xcola
-    dnX<-c(dnX,paste0(colnames(Xcol),rep(".col" ,pc)))
+    # Handle case when Xcol has no column names
+    col_names <- colnames(Xcol)
+    if(is.null(col_names)) {
+      col_names <- paste0("Xcol", 1:pc)
+    }
+    dnX<-c(dnX,paste0(col_names,"_col"))
   }
   ###
   
@@ -53,8 +63,13 @@ design_array<-function(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n)
   if(pd>0)                                               
   {  
     if(pd==1){ Xdyad<-array(Xdyad,dim=c(n,n,pd)) }                      
-    X[,,pr+pc+1:pd]<-Xdyad                            
-    dnX<-c(dnX,paste0(dimnames(Xdyad)[[3]],rep(".dyad",pd)))
+    X[,,pr+pc+1:pd]<-Xdyad
+    # Handle case when Xdyad has no dimnames
+    dyad_names <- dimnames(Xdyad)[[3]]
+    if(is.null(dyad_names)) {
+      dyad_names <- paste0("Xdyad", 1:pd)
+    }
+    dnX<-c(dnX,paste0(dyad_names,"_dyad"))
   }      
   ###
   

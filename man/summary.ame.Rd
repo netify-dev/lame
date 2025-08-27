@@ -44,5 +44,5 @@ For symmetric networks, only va and ve are estimated.}
 \code{\link{ame}}, \code{\link{print.summary.ame}}
 }
 \author{
-Peter Hoff, Cassy Dorff, Shahryar Minhas
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

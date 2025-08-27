@@ -21,9 +21,9 @@ heterogeneity in in-degree centrality (receiver effects).}
 \item{dyad.dep}{Dyadic dependence/reciprocity correlation. Measures the
 correlation between Y\link{i,j} and Y\link{j,i}, capturing reciprocity patterns.}
 \item{cycle.dep}{Cyclic triadic dependence. Measures the tendency for
-directed cycles (i→j→k→i) in the network.}
+directed cycles (i->j->k->i) in the network.}
 \item{trans.dep}{Transitive triadic dependence. Measures the tendency for
-transitivity (if i→j and j→k, then i→k) in the network.}
+transitivity (if i->j and j->k, then i->k) in the network.}
 }
 }
 \description{

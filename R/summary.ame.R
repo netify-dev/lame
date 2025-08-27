@@ -46,6 +46,15 @@ summary.ame <- function(object, ...) {
   beta_lower <- beta_mean - z_val * beta_sd
   beta_upper <- beta_mean + z_val * beta_sd
   
+  # Set row names for beta table
+  if(!is.null(fit$X_names)) {
+    beta_names <- fit$X_names
+  } else if(!is.null(dimnames(fit$X)[[3]])) {
+    beta_names <- dimnames(fit$X)[[3]]
+  } else {
+    beta_names <- paste0("beta", 0:(ncol(fit$BETA)-1))
+  }
+  
   # Table
   beta_table <- cbind(
     Estimate = beta_mean,
@@ -67,9 +76,21 @@ summary.ame <- function(object, ...) {
   
   # Model fit statistics removed
   
+  # Add row names to tables
+  if(length(beta_names) == nrow(beta_table)) {
+    rownames(beta_table) <- beta_names
+  }
+  
   # Create summary object
+  # Use formatted call if available, otherwise use raw call
+  display_call <- tryCatch({
+    format_ame_call(fit)
+  }, error = function(e) {
+    fit$call
+  })
+  
   sum_obj <- list(
-    call = fit$call,
+    call = display_call,
     beta = beta_table,
     variance = vc_table
   )

@@ -44,6 +44,14 @@ ame_unipartite <- function(
   # Network dimensions
   n <- nrow(Y)
   
+  # Set default node names if not provided
+  if(is.null(rownames(Y))) {
+    rownames(Y) <- paste0("node", 1:n)
+  }
+  if(is.null(colnames(Y))) {
+    colnames(Y) <- paste0("node", 1:n)
+  }
+  
   # some settings for symmetric case
   if(symmetric){ Xcol<-Xrow ; rvar<-cvar<-nvar }
   
@@ -60,9 +68,62 @@ ame_unipartite <- function(
   
   # process prior list and set defaults
   if(!is.list(prior)) { prior <- list() }
-  if(is.null(prior$Sab0)) { prior$Sab0 <- diag(2) }
-  if(is.null(prior$eta0)) { prior$eta0 <- round(4 + 3*n/100) }
-  if(is.null(prior$etaab)) { prior$etaab <- round(4 + 3*n/100) }
+  
+  # Adaptive prior scaling for binary/discrete families
+  vscale <- 1  # Default for continuous families
+  vdfmlt <- 1
+  if(family %in% c("binary", "ordinal", "cbin", "frn", "rrl")) {
+    # Compute adaptive scale based on data heterogeneity
+    ydist <- table(Y)
+    ymode <- as.numeric(names(ydist)[ydist == max(ydist)])[1]
+    YB <- 1 * (Y != ymode)
+    ybar <- mean(YB, na.rm = TRUE)
+    if(ybar > 0 && ybar < 1) {
+      mu <- qnorm(ybar)
+      E <- (YB - ybar) / dnorm(qnorm(ybar))
+      diag(E) <- 0
+      a_init <- rowMeans(E, na.rm = TRUE)
+      a_init[is.na(a_init)] <- 0
+      b_init <- colMeans(E, na.rm = TRUE)
+      b_init[is.na(b_init)] <- 0
+      vscale <- mean(diag(cov(cbind(a_init, b_init))))
+      
+      # Also compute degrees of freedom multiplier
+      PHAT <- pnorm(mu + outer(a_init, b_init, "+"))
+      vdfmlt <- 0.25 / mean(PHAT * (1 - PHAT))
+    }
+  }
+  
+  # Set default priors with adaptive scaling
+  if(is.null(prior$Sab0)) { 
+    prior$Sab0 <- diag(2) * vscale
+  }
+  if(is.null(prior$Suv0) && R > 0) {
+    # Prior for multiplicative effects covariance
+    prior$Suv0 <- diag(2*R) * vscale
+  }
+  if(is.null(prior$kappa0) && R > 0) {
+    # Degrees of freedom for Suv
+    if(family %in% c("binary", "ordinal", "cbin", "frn", "rrl")) {
+      prior$kappa0 <- round((2*R + 2) * vdfmlt)
+    } else {
+      prior$kappa0 <- 2*R + 2
+    }
+  }
+  if(is.null(prior$eta0)) { 
+    if(family %in% c("binary", "ordinal", "cbin", "frn", "rrl")) {
+      prior$eta0 <- round(4 * vdfmlt)
+    } else {
+      prior$eta0 <- round(4 + 3*n/100)
+    }
+  }
+  if(is.null(prior$etaab)) { 
+    if(family %in% c("binary", "ordinal", "cbin", "frn", "rrl")) {
+      prior$etaab <- round(4 * vdfmlt)
+    } else {
+      prior$etaab <- round(4 + 3*n/100)
+    }
+  }
   
   # construct design matrix
   pr<-length(Xrow)/n
@@ -70,6 +131,16 @@ ame_unipartite <- function(
   pd<-length(Xdyad)/n^2
   
   X <- design_array(Xrow, Xcol, Xdyad, intercept, n)
+  
+  # Extract variable names from X array
+  Xnames <- dimnames(X)[[3]]
+  if(is.null(Xnames) || length(Xnames) == 0) {
+    if(dim(X)[3] > 0) {
+      Xnames <- paste0("X", 1:dim(X)[3])
+    } else {
+      Xnames <- character(0)
+    }
+  }
   
   # design matrix warning for rrl 
   if( family=="rrl" & any(apply(apply(X,c(1,3),var),2,sum)==0) 
@@ -143,32 +214,86 @@ ame_unipartite <- function(
   
   # starting values for missing entries 
   mu<-mean(Z,na.rm=TRUE) 
-  a<-rowMeans(Z,na.rm=TRUE) ; b<-colMeans(Z,na.rm=TRUE)  
+  a<-if(rvar) rowMeans(Z,na.rm=TRUE) else rep(0, nrow(Z))
+  b<-if(cvar) colMeans(Z,na.rm=TRUE) else rep(0, ncol(Z))
   a[is.na(a)]<-0 ; b[is.na(b)]<-0 
   ZA<-mu + outer(a,b,"+") 
   Z[is.na(Z)]<-ZA[is.na(Z)] 
   
   # other starting values (use start_vals if provided)
   if(!is.null(start_vals)) {
-    beta <- start_vals$beta
-    s2 <- start_vals$s2
-    a <- start_vals$a
-    b <- start_vals$b
+    # Only update values that are provided in start_vals
+    if(!is.null(start_vals$beta)) beta <- start_vals$beta else beta <- rep(0,dim(X)[3])
+    if(!is.null(start_vals$s2)) s2 <- start_vals$s2 else s2 <- 1
+    if(!is.null(start_vals$a)) a <- start_vals$a 
+    if(!is.null(start_vals$b)) b <- start_vals$b
     if(!is.null(start_vals$rho)) rho <- start_vals$rho else rho <- 0
     if(!is.null(start_vals$Sab)) Sab <- start_vals$Sab
-    if(!is.null(start_vals$U)) U <- start_vals$U
-    if(!is.null(start_vals$V)) V <- start_vals$V
+    if(!is.null(start_vals$U)) U <- start_vals$U else U <- matrix(0, nrow(Y), R)
+    if(!is.null(start_vals$V)) V <- start_vals$V else V <- matrix(0, nrow(Y), R)
     if(!is.null(start_vals$Z)) Z <- start_vals$Z
   } else {
     beta<-rep(0,dim(X)[3]) 
     s2<-1
+    # Initialize rho with observed correlation
+    E_init <- Z - mu - outer(a, b, "+")
+    if(dcor && !all(is.na(E_init))) {
+      rho <- cor(c(E_init[upper.tri(E_init)]), c(t(E_init)[upper.tri(E_init)]), 
+                 use="complete.obs")
+      if(is.na(rho)) rho <- 0
+    } else {
+      rho <- 0
+    }
+    # Initialize U,V with SVD for better identifiability
+    U<-V<-matrix(0, nrow(Y), R)
+    if(R > 0) {
+      # Compute residual matrix after removing row/col means
+      E_init <- Z - mu - outer(a, b, "+")
+      if(!all(is.na(E_init)) && any(E_init != 0, na.rm=TRUE)) {
+        E_init[is.na(E_init)] <- 0
+        # Use SVD to initialize U,V (but scale down to avoid dominating)
+        tryCatch({
+          svd_E <- svd(E_init)
+          if(length(svd_E$d) >= R) {
+            # Scale down the singular values to start conservatively
+            scaling_factor <- 0.5  # Start with half strength
+            U <- svd_E$u[, 1:R, drop=FALSE] %*% diag(sqrt(svd_E$d[1:R] * scaling_factor), nrow=R)
+            V <- svd_E$v[, 1:R, drop=FALSE] %*% diag(sqrt(svd_E$d[1:R] * scaling_factor), nrow=R)
+          }
+        }, error = function(e) {
+          # Keep zero initialization if SVD fails
+          U <- matrix(0, nrow(Y), R)
+          V <- matrix(0, nrow(Y), R)
+        })
+      }
+    }
   }
   
-  # Initialize remaining values if not provided by start_vals
-  if(is.null(start_vals)) {
-    rho<-0
-    Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
-    U<-V<-matrix(0, nrow(Y), R)
+  # Initialize Sab if not provided
+  if(!exists("Sab") || is.null(Sab)) {
+    # Initialize Sab carefully to avoid singular matrices
+    if(rvar && cvar) {
+      # Both variances estimated
+      Sab<-tryCatch({
+        S <- cov(cbind(a,b))
+        if(any(is.na(S)) || det(S) <= 0) {
+          diag(c(max(0.1, var(a, na.rm=TRUE)), max(0.1, var(b, na.rm=TRUE))))
+        } else {
+          S
+        }
+      }, error = function(e) {
+        diag(c(0.1, 0.1))
+      })
+    } else if(rvar && !cvar) {
+      # Only row variance
+      Sab<-matrix(c(max(0.1, var(a)), 0, 0, 0.1), 2, 2)
+    } else if(!rvar && cvar) {
+      # Only column variance  
+      Sab<-matrix(c(0.1, 0, 0, max(0.1, var(b))), 2, 2)
+    } else {
+      # Neither variance estimated
+      Sab<-diag(c(0.1, 0.1))
+    }
   }
   
   # output items - pre-allocate for efficiency
@@ -241,8 +366,8 @@ ame_unipartite <- function(
     n_total_stats <- n_base_stats + n_custom_stats
     GOF <- matrix(NA_real_, nrow = n_samples + 1, ncol = n_total_stats)
     
-    # Compute initial GOF for observed data
-    base_gof <- gof_stats(Y)
+    # Compute initial GOF for observed data (explicitly specify unipartite mode)
+    base_gof <- gof_stats(Y, mode = "unipartite")
     GOF[1, 1:n_base_stats] <- base_gof
     
     # Compute initial custom GOF if provided
@@ -271,7 +396,7 @@ ame_unipartite <- function(
     all_names <- c(base_names, custom_gof_names)
     colnames(GOF) <- all_names
   } else {
-    GOF <- matrix(gof_stats(Y), 1, 5)
+    GOF <- matrix(gof_stats(Y, mode = "unipartite"), 1, 5)
     rownames(GOF) <- "obs"
     colnames(GOF) <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
     custom_gof <- NULL  # Don't compute custom GOF if gof=FALSE
@@ -450,39 +575,39 @@ ame_unipartite <- function(
     
     # update Sab using unified function
     if(is.element(family,c("normal","tobit","ordinal"))) { 
-      Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
+      Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$etaab, 
                      rvar=rvar, cvar=cvar, symmetric=symmetric)
     }
     
     # special updates for discrete families
     if(family=="binary") {
       if(rvar & cvar & !symmetric) {
-        tmp<-raSab_bin_fc(Z,Y,a,b,Sab,Sab0=prior$Sab0/prior$etaab,eta0=prior$etaab)
+        tmp<-raSab_bin_fc(Z,Y,a,b,Sab,Sab0=prior$Sab0,eta0=prior$etaab)
         Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
       } else {
-        Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
+        Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$etaab, 
                        rvar=rvar, cvar=cvar, symmetric=symmetric)
       }
     }
     
     if(family=="cbin") {
       if(rvar & cvar & !symmetric) {
-        tmp<-raSab_cbin_fc(Z,Y,a,b,Sab,odmax,odobs,Sab0=prior$Sab0/prior$etaab,
+        tmp<-raSab_cbin_fc(Z,Y,a,b,Sab,odmax,odobs,Sab0=prior$Sab0,
                           eta0=prior$etaab)
         Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
       } else {
-        Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
+        Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$etaab, 
                        rvar=rvar, cvar=cvar, symmetric=symmetric)
       }
     }
     
     if(family=="frn") { 
       if(rvar & cvar & !symmetric) {
-        tmp<-raSab_frn_fc(Z,Y,YL,a,b,Sab,odmax,odobs,Sab0=prior$Sab0/prior$etaab,
+        tmp<-raSab_frn_fc(Z,Y,YL,a,b,Sab,odmax,odobs,Sab0=prior$Sab0,
                          eta0=prior$etaab)
         Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
       } else {
-        Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
+        Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$etaab, 
                        rvar=rvar, cvar=cvar, symmetric=symmetric)
       }
     }
@@ -505,13 +630,20 @@ ame_unipartite <- function(
         UV<-rUV_sym_fc(E, U, V, s2,shrink) 
       }
       if(!symmetric){
+        # Compute residual E by removing additive effects
+        E <- Z - offset
+        
         # Compute Suv for multiplicative effects
         if(shrink) {
-          Suv <- rSuv_fc(U, V, Suv0=diag(2*R)/(n+R+2), kappa0=n+R+2)
+          # Use adaptive prior if available
+          Suv0_use <- if(!is.null(prior$Suv0)) prior$Suv0 else diag(2*R)
+          kappa0_use <- if(!is.null(prior$kappa0)) prior$kappa0 else (2*R + 2)
+          Suv <- rSuv_fc(U, V, Suv0=Suv0_use/kappa0_use, kappa0=kappa0_use)
         } else {
           Suv <- diag(n, nrow=2*R)
         }
-        UV<-rUV_fc(Z, U, V, Suv, rho, s2, offset) 
+        # Pass residual E to rUV_fc
+        UV<-rUV_fc(E, U, V, Suv, rho, s2, offset=0) 
       }
       
       U<-UV$U ; V<-UV$V
@@ -631,8 +763,8 @@ ame_unipartite <- function(
       if(gof){ 
         Ys[is.na(Y)]<-NA
         gof_idx <- gof_idx + 1
-        # Compute base GOF statistics
-        GOF[gof_idx, 1:5] <- gof_stats(Ys)
+        # Compute base GOF statistics (specify unipartite to avoid repeated messages)
+        GOF[gof_idx, 1:5] <- gof_stats(Ys, mode = "unipartite")
         
         # Compute custom GOF statistics if provided
         if(!is.null(custom_gof)) {
@@ -718,7 +850,7 @@ ame_unipartite <- function(
   
   # note to self, EZ can be reconstructed as: 
   # Xbeta(X,colMeans(BETA)) + outer(APM,BPM,"+") + U%*%t(V)
-  # leave otu to save memory
+  # leave out to save memory
   
   names(APM)<-names(BPM)<-rownames(UVPM)<-colnames(UVPM)<-dimnames(Y)[[1]]
   
@@ -741,7 +873,9 @@ ame_unipartite <- function(
     start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
     fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,L=NULL,
                 YPM=YPM,GOF=GOF,X=X,Y=Y,start_vals=start_vals_final,model.name=model.name,
-                mode="unipartite",family=family,symmetric=symmetric,odmax=odmax,R=R)
+                mode="unipartite",family=family,symmetric=symmetric,odmax=odmax,R=R,
+                n=n,p=dim(X)[3],rvar=rvar,cvar=cvar,dcor=dcor,
+                X_names=colnames(BETA),actor_names=rownames(Y))
     
     # Add posterior samples if saved
     if(!is.null(posterior_opts)) {
@@ -791,7 +925,9 @@ ame_unipartite <- function(
     # BPM is NULL for symmetric (same as APM)
     fit<-list(BETA=BETA,VC=VC,APM=APM,BPM=NULL,U=U,V=NULL,L=L,
               YPM=YPM,GOF=GOF,X=X,Y=Y,start_vals=start_vals_final,model.name=model.name,
-              mode="unipartite",family=family,symmetric=symmetric,odmax=odmax,R=R)  # For symmetric, V = U
+              mode="unipartite",family=family,symmetric=symmetric,odmax=odmax,R=R,
+              call=match.call(),n=n,p=dim(X)[3],rvar=rvar,cvar=cvar,dcor=dcor,
+              X_names=colnames(BETA),actor_names=rownames(Y))  # For symmetric, V = U
     
     # Add posterior samples if saved
     if(!is.null(posterior_opts)) {

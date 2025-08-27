@@ -47,11 +47,25 @@ print.ame <- function(x, ...) {
   cat("\nAdditive and Multiplicative Effects (AME) Model\n")
   cat("================================================\n")
   
-  # Basic model info
-  n <- nrow(x$APM)
-  nscan <- nrow(x$BETA)
+  # Basic model info  
+  if(!is.null(x$n)) {
+    n <- x$n
+  } else if(!is.null(x$APM)) {
+    n <- length(x$APM)
+  } else if(!is.null(x$Y)) {
+    n <- nrow(x$Y)
+  } else {
+    n <- NA
+  }
   
-  cat("\nNetwork dimensions: ", n, "x", n, "\n")
+  # Get network dimensions properly
+  if(x$mode == "bipartite" && !is.null(x$Y)) {
+    cat("\nNetwork dimensions: ", nrow(x$Y), "x", ncol(x$Y), "\n")
+  } else {
+    cat("\nNetwork dimensions: ", n, "x", n, "\n")  
+  }
+  
+  nscan <- nrow(x$BETA)
   cat("MCMC iterations: ", nscan, "\n")
   
   # Model type info
@@ -62,8 +76,21 @@ print.ame <- function(x, ...) {
   # Number of parameters
   cat("\nNumber of parameters:\n")
   cat("  Regression coefficients: ", ncol(x$BETA), "\n")
-  if (!is.null(x$U)) {
-    cat("  Multiplicative effects dimension: ", ncol(x$U), "\n")
+  
+  # Show additive effects status
+  if(!is.null(x$rvar) && x$rvar) {
+    cat("  Row/sender effects: enabled\n")
+  }
+  if(!is.null(x$cvar) && x$cvar) {
+    cat("  Column/receiver effects: enabled\n") 
+  }
+  if(!is.null(x$dcor) && x$dcor) {
+    cat("  Dyadic correlation: enabled\n")
+  }
+  
+  # Show multiplicative effects
+  if (!is.null(x$R) && x$R > 0) {
+    cat("  Multiplicative effects dimension: ", x$R, "\n")
   }
   
   

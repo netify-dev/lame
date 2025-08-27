@@ -1,0 +1,923 @@
+---
+title: "Static AME Models: Theory and Application"
+author: "Cassy Dorff, Shahryar Minhas, and Tosin Salau"
+date: "`r Sys.Date()`"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    fig_width: 8
+    fig_height: 6
+vignette: >
+  %\VignetteIndexEntry{Static AME Models: Theory and Application}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "static-ame-",
+  fig.align = "center",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+# Introduction
+
+The Additive and Multiplicative Effects (AME) model provides a framework for analyzing network data while accounting for the complex dependencies inherent in relational observations. This vignette demonstrates the use of static AME models with the `lame` package.
+
+## Network Dependencies
+
+Standard regression models assume independent observations, but network data violates this assumption in several ways:
+
+1. **Row dependencies**: Individuals vary in their propensity to form outgoing ties
+2. **Column dependencies**: Individuals vary in their propensity to receive ties  
+3. **Dyadic dependencies**: The presence of tie $(i,j)$ may correlate with tie $(j,i)$
+4. **Third-order dependencies**: Transitivity and clustering patterns
+
+## Model Specification
+
+The AME model for a network $\mathbf{Y}$ with entries $y_{ij}$ takes the form:
+
+$$Y_{ij} \sim F(\eta_{ij})$$
+
+where $F$ belongs to the exponential family and the linear predictor is:
+
+$$\eta_{ij} = \mu + \boldsymbol{\beta}^T \mathbf{x}_{ij} + a_i + b_j + \mathbf{u}_i^T \mathbf{v}_j + \epsilon_{ij}$$
+
+### Model Components
+
+**Fixed Effects:**
+- $\mu \in \mathbb{R}$: intercept term
+- $\boldsymbol{\beta} \in \mathbb{R}^p$: regression coefficients for $p$ covariates
+- $\mathbf{x}_{ij} \in \mathbb{R}^p$: covariate vector for dyad $(i,j)$
+
+**Random Effects:**
+- $a_i \sim \mathcal{N}(0, \sigma_a^2)$: sender/row effects
+- $b_j \sim \mathcal{N}(0, \sigma_b^2)$: receiver/column effects
+
+**Multiplicative Effects:**
+- $\mathbf{u}_i, \mathbf{v}_j \in \mathbb{R}^R$: latent factors in $R$-dimensional space
+- $\mathbf{u}_i^T \mathbf{v}_j = \sum_{r=1}^{R} u_{ir} v_{jr}$: inner product capturing latent homophily
+
+**Dyadic Correlation:**
+$$\begin{pmatrix} \epsilon_{ij} \\ \epsilon_{ji} \end{pmatrix} \sim \mathcal{N}\left(\mathbf{0}, \begin{pmatrix} \sigma_\epsilon^2 & \rho\sigma_\epsilon^2 \\ \rho\sigma_\epsilon^2 & \sigma_\epsilon^2 \end{pmatrix}\right)$$
+
+where $\rho$ captures reciprocity.
+
+## Estimation
+
+The package uses Bayesian inference via MCMC to sample from the posterior distribution:
+
+$$p(\boldsymbol{\theta} | \mathbf{Y}) \propto p(\mathbf{Y} | \boldsymbol{\theta}) \cdot p(\boldsymbol{\theta})$$
+
+where $\boldsymbol{\theta}$ contains all model parameters.
+
+# Data Analysis Example
+
+This section analyzes friendship networks from the AddHealth study using the AME framework.
+
+```{r load-data}
+library(lame)
+library(ggplot2)
+library(gridExtra)
+library(reshape2)
+set.seed(123)
+
+# Load data
+data(addhealthc3)
+# Convert valued network to binary (Y > 0 indicates a friendship)
+Y <- (addhealthc3$Y > 0) * 1
+X_nodes <- addhealthc3$X  
+
+# Network dimensions
+n <- nrow(Y)
+n_edges <- sum(Y, na.rm = TRUE)
+density <- mean(Y, na.rm = TRUE)
+
+# Basic statistics
+out_degree <- rowSums(Y, na.rm = TRUE)
+in_degree <- colSums(Y, na.rm = TRUE)
+reciprocal_pairs <- sum(Y * t(Y), na.rm = TRUE) / 2
+reciprocity <- reciprocal_pairs / sum(Y, na.rm = TRUE)
+
+# Create a summary table
+network_stats <- data.frame(
+  Statistic = c("Nodes", "Edges", "Density", "Mean degree", "Degree SD", "Reciprocity"),
+  Value = c(n, n_edges, round(density, 3), round(mean(out_degree), 2), 
+            round(sd(out_degree), 2), round(reciprocity, 3))
+)
+knitr::kable(network_stats, caption = "Network Statistics")
+```
+
+## Covariate Construction
+
+Dyadic covariates capture homophily and heterophily patterns:
+
+```{r create-covariates}
+# Homophily indicators: I(x_i = x_j)
+same_female <- outer(X_nodes[,"female"], X_nodes[,"female"], "==") * 1
+same_race <- outer(X_nodes[,"race"], X_nodes[,"race"], "==") * 1
+same_grade <- outer(X_nodes[,"grade"], X_nodes[,"grade"], "==") * 1
+
+# Absolute difference: |x_i - x_j|
+grade_diff <- abs(outer(X_nodes[,"grade"], X_nodes[,"grade"], "-"))
+
+# Combine covariates
+Xdyad <- array(NA, dim = c(n, n, 4))
+Xdyad[,,1] <- same_female
+Xdyad[,,2] <- same_race  
+Xdyad[,,3] <- same_grade
+Xdyad[,,4] <- grade_diff
+
+# Remove diagonal
+for(k in 1:4) diag(Xdyad[,,k]) <- NA
+
+# Nodal covariates
+Xrow <- X_nodes[, c("female", "grade")]
+Xcol <- X_nodes[, c("female", "grade")]
+
+# Covariate summary
+cov_stats <- data.frame(
+  Covariate = c("Same gender", "Same race", "Same grade", "Grade difference"),
+  Mean = round(c(mean(same_female, na.rm=TRUE), 
+                 mean(same_race, na.rm=TRUE),
+                 mean(same_grade, na.rm=TRUE),
+                 mean(grade_diff, na.rm=TRUE)), 3)
+)
+knitr::kable(cov_stats, caption = "Dyadic Covariate Rates")
+```
+
+## Network Visualization
+
+```{r viz-network, fig.width=12, fig.height=5}
+# Degree distributions
+degree_df <- data.frame(
+  Degree = c(out_degree, in_degree),
+  Type = rep(c("Out-degree", "In-degree"), each = n)
+)
+
+ggplot(degree_df, aes(x = Degree, fill = Type)) +
+  geom_histogram(binwidth = 1, alpha = 0.7) +
+  facet_wrap(~Type) +
+  scale_fill_manual(values = c("darkgreen", "darkred")) +
+  labs(title = "Degree Distributions",
+       x = "Number of Ties", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+# Model Fitting
+
+The full model includes fixed effects for covariates, random effects for individual heterogeneity, and multiplicative effects for latent structure:
+
+$$\Phi^{-1}(P(Y_{ij} = 1)) = \mu + \sum_{k=1}^{4} \beta_k^{\text{dyad}} x_{ij}^{(k)} + \sum_{k=1}^{2} \beta_k^{\text{row}} x_i^{(k)} + \sum_{k=1}^{2} \beta_k^{\text{col}} x_j^{(k)} + a_i + b_j + \mathbf{u}_i^T \mathbf{v}_j$$
+
+## Prior Specification
+
+The AME model uses conjugate or weakly informative priors by default. Custom priors and starting values can be specified:
+
+```{r priors-example}
+# Example: Setting custom priors and starting values
+
+# Prior means for regression coefficients
+prior_mean_beta <- rep(0, 9)  # 9 coefficients in our model
+
+# Prior variance (inverse precision) for coefficients  
+prior_var_beta <- rep(10, 9)  # Diffuse prior with variance 10
+
+# Prior for variance components
+prior_nu <- 3     # Degrees of freedom for inverse-Wishart
+prior_s2 <- 1     # Scale for variance components
+
+# Starting values can be specified to improve convergence
+# Example: Use OLS-type estimates as starting values
+start_intercept <- qnorm(mean(Y, na.rm = TRUE))  # Probit transform of density
+
+# Create prior list
+prior_list <- list(
+  beta_mean = prior_mean_beta,
+  beta_var = prior_var_beta,
+  nu = prior_nu,
+  s2 = prior_s2
+)
+
+# Create starting values list
+start_vals <- list(
+  beta = c(start_intercept, rep(0, 8)),  # Start other coefficients at 0
+  s2a = var(rowMeans(Y, na.rm = TRUE)),  # Row variance from data
+  s2b = var(colMeans(Y, na.rm = TRUE)),  # Column variance from data
+  rho = 0.1  # Small positive reciprocity
+)
+```
+
+```{r fit-model}
+# Fit AME model with sufficient iterations for convergence
+# Note: prior and start_vals can be passed as arguments
+fit <- ame(Y, 
+          Xdyad = Xdyad,
+          Xrow = Xrow,
+          Xcol = Xcol,
+          R = 2,            # 2D latent space
+          family = "binary",
+          rvar = TRUE,      # row variance
+          cvar = TRUE,      # column variance
+          dcor = TRUE,      # dyadic correlation
+          burn = 10000,     # burn-in for convergence (proper burn-in)
+          nscan = 20000,    # sampling iterations (sufficient for convergence)
+          odens = 50,       # thinning interval
+          print = TRUE,
+          gof = TRUE,
+          # prior = prior_list,     # Custom priors (commented out for default)
+          # start_vals = start_vals # Custom starting values (commented out)
+          )
+
+# Model summary
+model_info <- data.frame(
+  Property = c("MCMC samples", "Parameters", "Latent dimensions", "Effective sample size"),
+  Value = c(nrow(fit$BETA), ncol(fit$BETA), fit$R, nrow(fit$BETA))
+)
+knitr::kable(model_info, caption = "Model Information")
+```
+
+### Prior Guidelines
+
+**For regression coefficients ($\boldsymbol{\beta}$)**:
+- Default: $\beta_k \sim \mathcal{N}(0, 10)$ (weakly informative)
+- Informative: Use smaller variance (e.g., 1) if prior knowledge exists
+- For binary networks, coefficients typically range from -3 to 3
+
+**For variance components ($\sigma^2_a, \sigma^2_b$)**:
+- Default: Inverse-Gamma with small shape and scale
+- Controls heterogeneity in individual effects
+- Larger prior variance allows more individual variation
+
+**For dyadic correlation ($\rho$)**:
+- Default: Uniform(-1, 1) or Beta-transformed
+- Positive values expected for social networks
+- Can constrain to [0, 1] if reciprocity expected
+
+### Starting Value Guidelines
+
+Good starting values accelerate convergence:
+
+1. **Intercept**: Use probit/logit transform of network density
+2. **Covariate effects**: Start at 0 or use GLM estimates
+3. **Variance components**: Use empirical variance of row/column means
+4. **Latent positions**: Random normal or from SVD of residual matrix
+5. **Reciprocity**: Start at observed reciprocity rate
+
+## Model Output
+
+```{r print-summary}
+# Basic model information
+print(fit)
+
+# Detailed results
+model_summary <- summary(fit)
+
+# Fixed Effects
+if(!is.null(model_summary$beta)) {
+  knitr::kable(round(model_summary$beta, 3), caption = "Fixed Effects")
+} else if(!is.null(model_summary$coefficients)) {
+  knitr::kable(round(model_summary$coefficients, 3), caption = "Fixed Effects")
+}
+
+# Variance Components
+if(!is.null(model_summary$variance)) {
+  knitr::kable(round(model_summary$variance, 3), caption = "Variance Components")
+} else if(!is.null(model_summary$variance_components)) {
+  knitr::kable(round(model_summary$variance_components, 3), caption = "Variance Components")
+}
+```
+
+## Coefficient Interpretation
+
+For binary networks with probit link:
+- A coefficient $\beta$ changes the probit-scale linear predictor by $\beta$
+- At the mean, this translates to approximately $0.4 \times \beta$ change in probability
+- The baseline probability is $\Phi(\mu)$ where $\Phi$ is the standard normal CDF
+
+## Goodness of Fit
+
+The goodness-of-fit statistics compare observed network features to those from the posterior predictive distribution:
+
+```{r gof-stats}
+# Check if GOF statistics are available
+if(!is.null(fit$GOF) && nrow(fit$GOF) > 1) {
+  # Extract observed and simulated statistics
+  gof_obs <- fit$GOF[1, ]
+  gof_sim <- fit$GOF[-1, , drop = FALSE]
+  
+  # Calculate z-scores for each statistic
+  gof_mean <- colMeans(gof_sim)
+  gof_sd <- apply(gof_sim, 2, sd)
+  gof_z <- (gof_obs - gof_mean) / gof_sd
+  
+  # Create summary table
+  gof_summary <- data.frame(
+    Statistic = c("Row heterogeneity", "Column heterogeneity", 
+                  "Dyadic dependence", "Triadic closure", "Transitivity"),
+    Observed = round(gof_obs, 3),
+    Expected = round(gof_mean, 3),
+    SD = round(gof_sd, 3),
+    `Z-score` = round(gof_z, 2),
+    check.names = FALSE
+  )
+  
+  knitr::kable(gof_summary, caption = "Goodness-of-Fit Statistics")
+  
+  cat("\nModel fit interpretation:\n")
+  cat("- |Z-score| < 2: Good fit\n")
+  cat("- |Z-score| 2-3: Adequate fit\n")
+  cat("- |Z-score| > 3: Poor fit\n\n")
+  
+  # Flag any poor fits
+  poor_fits <- which(abs(gof_z) > 3)
+  if(length(poor_fits) > 0) {
+    cat("⚠ Warning: Poor fit for", names(gof_obs)[poor_fits], "\n")
+  } else if(any(abs(gof_z) > 2)) {
+    cat("Note: Some statistics show moderate deviations\n")
+  } else {
+    cat("✓ All statistics show good fit\n")
+  }
+} else {
+  cat("GOF statistics not available. Set gof=TRUE when fitting the model.\n")
+}
+```
+
+```{r interpret-coefs}
+# Extract coefficients (handle different summary formats)
+if(!is.null(model_summary$beta)) {
+  coef_matrix <- model_summary$beta
+  coef_names <- rownames(model_summary$beta)
+} else if(!is.null(model_summary$coefficients)) {
+  coef_matrix <- model_summary$coefficients
+  coef_names <- rownames(model_summary$coefficients)
+} else {
+  coef_matrix <- NULL
+  coef_names <- NULL
+}
+
+# Baseline probability
+if(!is.null(coef_matrix)) {
+  coef_est <- coef_matrix[,1]
+  intercept_idx <- grep("intercept|Intercept", coef_names, ignore.case = TRUE)[1]
+  if(!is.na(intercept_idx)) {
+    mu <- coef_est[intercept_idx]
+    baseline_prob <- pnorm(mu)
+    cat("Baseline friendship probability: Φ(", round(mu, 3), ") = ", 
+        round(baseline_prob, 3), "\n\n", sep="")
+  }
+}
+
+# Variance interpretation
+if(!is.null(model_summary$variance)) {
+  var_comp <- model_summary$variance
+} else if(!is.null(model_summary$variance_components)) {
+  var_comp <- model_summary$variance_components
+} else {
+  var_comp <- NULL
+}
+
+if(!is.null(var_comp)) {
+  cat("Heterogeneity in network:\n")
+  
+  # Handle different row naming conventions
+  row_names <- rownames(var_comp)
+  
+  # Sender variance (might be called va, s2a, or similar)
+  sender_idx <- grep("^va$|^s2a", row_names, ignore.case = TRUE)[1]
+  if(!is.na(sender_idx)) {
+    cat("  Sender variance σ²ₐ =", round(var_comp[sender_idx, 1], 3), 
+        "- variation in outgoing ties\n")
+  }
+  
+  # Receiver variance (might be called vb, s2b, or similar)
+  receiver_idx <- grep("^vb$|^s2b", row_names, ignore.case = TRUE)[1]
+  if(!is.na(receiver_idx)) {
+    cat("  Receiver variance σ²ᵦ =", round(var_comp[receiver_idx, 1], 3), 
+        "- variation in incoming ties\n")
+  }
+  
+  # Reciprocity (might be called rho or similar)
+  recip_idx <- grep("rho", row_names, ignore.case = TRUE)[1]
+  if(!is.na(recip_idx)) {
+    cat("  Reciprocity ρ =", round(var_comp[recip_idx, 1], 3), 
+        "- correlation between (i,j) and (j,i)\n")
+  }
+}
+```
+
+# Individual Effects
+
+The model decomposes individual heterogeneity into sender effects $a_i$ and receiver effects $b_j$:
+
+```{r individual-effects, fig.width=12, fig.height=5}
+# Use the built-in ab_plot function for visualizing additive effects
+p1 <- ab_plot(fit, effect = "sender", sorted = TRUE, 
+              title = "Sender Effects")
+p2 <- ab_plot(fit, effect = "receiver", sorted = TRUE,
+              title = "Receiver Effects")
+
+grid.arrange(p1, p2, ncol = 2)
+
+# Extract effects for analysis
+sender_effects <- fit$APM
+receiver_effects <- fit$BPM
+
+# Identify influential nodes
+top_send <- order(sender_effects, decreasing = TRUE)[1:5]
+top_rec <- order(receiver_effects, decreasing = TRUE)[1:5]
+
+influential_nodes <- data.frame(
+  Node = c(top_send[1:3], top_rec[1:3]),
+  Type = rep(c("Top Senders", "Top Receivers"), each = 3),
+  Effect = round(c(sender_effects[top_send[1:3]], receiver_effects[top_rec[1:3]]), 3),
+  Degree = c(out_degree[top_send[1:3]], in_degree[top_rec[1:3]])
+)
+knitr::kable(influential_nodes, caption = "Most Influential Nodes")
+```
+
+# Latent Space
+
+The multiplicative effects $\mathbf{u}_i^T \mathbf{v}_j$ represent nodes in latent space where proximity indicates affinity:
+
+```{r latent-space, fig.width=12, fig.height=6}
+# Use the built-in uv_plot function for latent space visualization
+# Biplot layout showing U and V positions directly
+p1 <- uv_plot(fit, layout = "biplot", show.edges = FALSE,
+              label.nodes = TRUE, label.size = 2.5,
+              title = "Latent Space Positions")
+
+# Show the plot
+print(p1)
+
+# Extract latent positions for analysis
+U <- fit$U  # Sender positions
+V <- fit$V  # Receiver positions
+
+# Inner products
+UV_products <- U %*% t(V)
+cat("\nLatent affinity (uᵢᵀvⱼ) statistics:\n")
+cat("  Range: [", round(min(UV_products), 2), ", ", 
+    round(max(UV_products), 2), "]\n", sep="")
+cat("  SD:", round(sd(UV_products), 2), "\n")
+```
+
+# Model Predictions
+
+```{r predictions}
+# Generate predictions
+pred_link <- predict(fit, type = "link")      # Linear predictor η
+pred_resp <- predict(fit, type = "response")  # Probability Φ(η)
+
+# Classification performance
+Y_vec <- as.vector(Y)
+pred_vec <- as.vector(pred_resp)
+keep <- !is.na(Y_vec)
+
+threshold <- 0.5
+pred_binary <- (pred_vec > threshold) * 1
+confusion <- table(Actual = Y_vec[keep], Predicted = pred_binary[keep])
+
+# Confusion Matrix
+knitr::kable(confusion, caption = "Confusion Matrix")
+
+# Metrics
+accuracy <- sum(diag(confusion)) / sum(confusion)
+sensitivity <- confusion[2,2] / sum(confusion[2,])
+specificity <- confusion[1,1] / sum(confusion[1,])
+precision <- confusion[2,2] / sum(confusion[,2])
+
+# Performance metrics
+performance <- data.frame(
+  Metric = c("Accuracy", "Sensitivity", "Specificity", "Precision", "AUC"),
+  Value = round(c(accuracy, sensitivity, specificity, precision, NA), 3)
+)
+
+# AUC calculation - proper method
+calc_auc <- function(pred, actual) {
+  pos_scores <- pred[actual == 1]
+  neg_scores <- pred[actual == 0]
+  
+  # Count pairs where positive > negative
+  correct_pairs <- 0
+  total_pairs <- 0
+  
+  for(pos in pos_scores) {
+    for(neg in neg_scores) {
+      if(pos > neg) correct_pairs <- correct_pairs + 1
+      if(pos == neg) correct_pairs <- correct_pairs + 0.5
+      total_pairs <- total_pairs + 1
+    }
+  }
+  
+  return(correct_pairs / total_pairs)
+}
+
+auc <- calc_auc(pred_vec[keep], Y_vec[keep])
+performance$Value[5] <- round(auc, 3)
+knitr::kable(performance, caption = "Classification Performance")
+```
+
+## Model Components
+
+The `reconstruct_EZ()` and `reconstruct_UVPM()` functions extract specific model components:
+
+```{r reconstruct}
+# Full linear predictor
+EZ <- reconstruct_EZ(fit)  # η = μ + βᵀx + a + b + uᵀv
+
+# Multiplicative component only
+UVPM <- reconstruct_UVPM(fit)  # uᵀv
+
+# Variance decomposition
+variance_decomp <- data.frame(
+  Component = c("Total (EZ)", "Multiplicative (UV)", "Proportion from latent"),
+  Variance = c(round(var(as.vector(EZ), na.rm=TRUE), 3),
+              round(var(as.vector(UVPM), na.rm=TRUE), 3),
+              round(var(as.vector(UVPM), na.rm=TRUE) / var(as.vector(EZ), na.rm=TRUE), 3))
+)
+knitr::kable(variance_decomp, caption = "Linear Predictor Variance Decomposition")
+```
+
+# Convergence Diagnostics
+
+```{r trace-plots, fig.width=10, fig.height=8}
+# MCMC trace plots using the dedicated trace_plot function
+trace_plot(fit, params = "all", ncol = 3)
+
+# Convergence summary table
+conv_summary <- data.frame(
+  Property = c("Total iterations", "Burn-in", "Post-burn-in", 
+               "Thinning interval", "Stored samples"),
+  Value = c(fit$burn + fit$nscan, fit$burn, fit$nscan, 
+           fit$odens, nrow(fit$BETA))
+)
+knitr::kable(conv_summary, caption = "MCMC Convergence Summary")
+```
+
+```{r posterior-density, fig.width=10, fig.height=6}
+# Posterior density plots for key parameters
+library(ggplot2)
+library(reshape2)
+
+# Extract posterior samples for selected parameters
+beta_samples <- fit$BETA[,1:5]  # First 5 coefficients
+colnames(beta_samples) <- c("Intercept", "Same_Gender", "Same_Race", 
+                            "Same_Grade", "Grade_Diff")
+
+# Melt for plotting
+beta_melt <- melt(beta_samples)
+names(beta_melt) <- c("Iteration", "Parameter", "Value")
+
+# Density plots
+ggplot(beta_melt, aes(x = Value, fill = Parameter)) +
+  geom_density(alpha = 0.7) +
+  facet_wrap(~Parameter, scales = "free") +
+  theme_minimal() +
+  labs(title = "Posterior Distributions of Regression Coefficients",
+       x = "Parameter Value", y = "Density") +
+  theme(legend.position = "none")
+```
+
+```{r effective-size, fig.width=8, fig.height=4}
+# Calculate effective sample sizes using coda
+if(requireNamespace("coda", quietly = TRUE)) {
+  library(coda)
+  
+  # Convert to mcmc object
+  beta_mcmc <- mcmc(fit$BETA[,1:5])
+  
+  # Effective sample sizes
+  eff_sizes <- effectiveSize(beta_mcmc)
+  
+  eff_df <- data.frame(
+    Parameter = names(eff_sizes),
+    Effective_Size = round(eff_sizes, 0),
+    Efficiency = round(eff_sizes / nrow(fit$BETA), 3)
+  )
+  
+  knitr::kable(eff_df, caption = "Effective Sample Sizes")
+  
+  # Autocorrelation plot for intercept
+  autocorr.plot(beta_mcmc[,1], main = "Autocorrelation: Intercept")
+}
+```
+
+Good convergence is indicated by:
+- Stable traces without trending
+- Rapid mixing (fuzzy caterpillar appearance)
+- Consistent behavior across parameters
+
+# Goodness of Fit
+
+```{r gof-analysis}
+if(!is.null(fit$GOF)) {
+  gof_stats <- fit$GOF
+  observed <- gof_stats[1,]
+  simulated <- gof_stats[-1,]
+  
+  # GOF Statistics table
+  gof_results <- data.frame(
+    Statistic = names(observed),
+    Observed = round(observed, 3),
+    Expected = round(sapply(1:length(observed), function(i) mean(simulated[,i])), 3),
+    SD = round(sapply(1:length(observed), function(i) sd(simulated[,i])), 3),
+    Z_score = round(sapply(1:length(observed), function(i) {
+      (observed[i] - mean(simulated[,i])) / sd(simulated[,i])
+    }), 2),
+    P_value = round(sapply(1:length(observed), function(i) {
+      2 * min(mean(simulated[,i] <= observed[i]), mean(simulated[,i] >= observed[i]))
+    }), 3)
+  )
+  
+  # Mark poor fit
+  gof_results$Fit <- ifelse(abs(gof_results$Z_score) > 2, "Poor", "Good")
+  knitr::kable(gof_results, caption = "Goodness of Fit Statistics")
+}
+```
+
+## Visual GOF
+
+```{r gof-plot, fig.width=12, fig.height=8}
+# GOF plots
+p <- gof_plot(fit, statistics = c("sd.row", "sd.col", "dyad.dep", "trans.dep"))
+print(p)
+```
+
+The gray histograms show the distribution from simulated networks, the blue line shows the observed value, and red dashed lines indicate the 95% interval.
+
+## Custom Statistics
+
+```{r custom-gof}
+# Define custom network statistics
+custom_stats <- function(Y) {
+  out_deg <- rowSums(Y, na.rm = TRUE)
+  in_deg <- colSums(Y, na.rm = TRUE)
+  
+  c(
+    density = mean(Y, na.rm = TRUE),
+    reciprocity = sum(Y * t(Y), na.rm = TRUE) / (2 * sum(Y, na.rm = TRUE)),
+    deg_cor = cor(out_deg, in_deg),
+    max_degree = max(c(out_deg, in_deg))
+  )
+}
+
+# Compute custom GOF
+gof_custom <- gof(fit, custom_gof = custom_stats, nsim = 100, verbose = FALSE)
+
+observed <- gof_custom[1,]
+simulated <- gof_custom[-1,]
+
+cat("Custom Statistics:\n\n")
+for(i in 1:ncol(gof_custom)) {
+  stat_name <- colnames(gof_custom)[i]
+  obs_val <- observed[i]  # Fixed: removed incorrect indexing
+  sim_vals <- simulated[,i]
+  
+  z_score <- (obs_val - mean(sim_vals)) / sd(sim_vals)
+  
+  cat(stat_name, ":\n")
+  cat("  Observed:", round(obs_val, 3), "\n")
+  cat("  Expected:", round(mean(sim_vals), 3), 
+      "(SD:", round(sd(sim_vals), 3), ")\n")
+  cat("  Z-score:", round(z_score, 2), "\n\n")
+}
+```
+
+# Network Simulation
+
+```{r simulation, fig.width=10, fig.height=5}
+# Simulate from fitted model
+set.seed(456)
+simulated <- simulate(fit, nsim = 100)
+Y_sims <- simulated$Y
+
+# Calculate statistics
+sim_densities <- sapply(Y_sims, function(y) mean(y, na.rm = TRUE))
+sim_reciprocities <- sapply(Y_sims, function(y) {
+  sum(y * t(y), na.rm = TRUE) / (2 * sum(y, na.rm = TRUE))
+})
+
+obs_density <- mean(Y, na.rm = TRUE)
+obs_reciprocity <- sum(Y * t(Y), na.rm = TRUE) / (2 * sum(Y, na.rm = TRUE))
+
+# Plot distributions
+sim_df <- data.frame(
+  Density = sim_densities,
+  Reciprocity = sim_reciprocities
+)
+
+p1 <- ggplot(sim_df, aes(x = Density)) +
+  geom_histogram(bins = 20, fill = "gray70", alpha = 0.7) +
+  geom_vline(xintercept = obs_density, color = "red", size = 1.2, linetype = 2) +
+  labs(title = "Simulated Densities", x = "Density", y = "Count") +
+  theme_minimal()
+
+p2 <- ggplot(sim_df, aes(x = Reciprocity)) +
+  geom_histogram(bins = 20, fill = "gray70", alpha = 0.7) +
+  geom_vline(xintercept = obs_reciprocity, color = "red", size = 1.2, linetype = 2) +
+  labs(title = "Simulated Reciprocities", x = "Reciprocity", y = "Count") +
+  theme_minimal()
+
+grid.arrange(p1, p2, ncol = 2)
+
+# Credible intervals
+density_CI <- quantile(sim_densities, c(0.025, 0.975))
+recip_CI <- quantile(sim_reciprocities, c(0.025, 0.975))
+
+cat("95% Credible Intervals:\n")
+cat("  Density: [", round(density_CI[1], 3), ", ", 
+    round(density_CI[2], 3), "]\n", sep="")
+cat("  Reciprocity: [", round(recip_CI[1], 3), ", ", 
+    round(recip_CI[2], 3), "]\n", sep="")
+
+# Check coverage
+cat("\nObserved values:\n")
+cat("  Density:", round(obs_density, 3), 
+    ifelse(obs_density >= density_CI[1] & obs_density <= density_CI[2], 
+           "(within CI)", "(outside CI)"), "\n")
+cat("  Reciprocity:", round(obs_reciprocity, 3),
+    ifelse(obs_reciprocity >= recip_CI[1] & obs_reciprocity <= recip_CI[2], 
+           "(within CI)", "(outside CI)"), "\n")
+```
+
+# Parameter Recovery
+
+Testing parameter recovery with simulated data:
+
+```{r param-recovery}
+set.seed(789)
+n_sim <- 30
+R_true <- 2
+
+# True parameters
+beta_true <- c(-1.5, 0.8, -0.5)
+sigma_a <- 0.3
+sigma_b <- 0.3
+
+# Generate data
+X1_sim <- matrix(rbinom(n_sim * n_sim, 1, 0.5), n_sim, n_sim)
+X2_sim <- matrix(rnorm(n_sim * n_sim), n_sim, n_sim)
+diag(X1_sim) <- diag(X2_sim) <- NA
+
+# Latent factors
+U_true <- matrix(rnorm(n_sim * R_true), n_sim, R_true)
+V_true <- matrix(rnorm(n_sim * R_true), n_sim, R_true)
+
+# Random effects
+a_true <- rnorm(n_sim, 0, sigma_a)
+b_true <- rnorm(n_sim, 0, sigma_b)
+
+# Construct linear predictor
+eta_true <- matrix(beta_true[1], n_sim, n_sim)
+eta_true <- eta_true + beta_true[2] * X1_sim + beta_true[3] * X2_sim
+
+for(i in 1:n_sim) eta_true[i,] <- eta_true[i,] + a_true[i]
+for(j in 1:n_sim) eta_true[,j] <- eta_true[,j] + b_true[j]
+eta_true <- eta_true + U_true %*% t(V_true)
+
+# Generate network
+Y_sim <- matrix(rbinom(n_sim * n_sim, 1, pnorm(eta_true)), n_sim, n_sim)
+diag(Y_sim) <- NA
+
+cat("Simulated network:\n")
+cat("  True parameters:", paste(round(beta_true, 2), collapse=", "), "\n")
+cat("  Density:", round(mean(Y_sim, na.rm = TRUE), 3), "\n\n")
+
+# Fit model
+Xdyad_sim <- array(c(X1_sim, X2_sim), dim = c(n_sim, n_sim, 2))
+fit_recovery <- ame(Y_sim, 
+                    Xdyad = Xdyad_sim,
+                    R = R_true,
+                    family = "binary",
+                    rvar = TRUE, cvar = TRUE,
+                    burn = 5000, nscan = 10000, odens = 25,
+                    print = FALSE, gof = TRUE)
+
+# Compare estimates
+beta_post <- fit_recovery$BETA[,1:3]
+beta_est <- colMeans(beta_post)
+beta_CI <- apply(beta_post, 2, quantile, c(0.025, 0.975))
+
+cat("Parameter Recovery:\n")
+cat("Parameter | True | Estimate | 95% CI\n")
+cat("--------------------------------------\n")
+for(i in 1:3) {
+  covered <- beta_true[i] >= beta_CI[1,i] & beta_true[i] <= beta_CI[2,i]
+  cat(sprintf("β%d        | %5.2f | %5.2f    | [%5.2f, %5.2f] %s\n",
+              i-1, beta_true[i], beta_est[i], 
+              beta_CI[1,i], beta_CI[2,i],
+              ifelse(covered, "", "*")))
+}
+cat("\n* indicates true value outside 95% CI\n")
+
+# Variance components
+VC_est <- colMeans(fit_recovery$VC)
+cat("\nVariance Components:\n")
+cat("  σ²ₐ - True:", round(sigma_a^2, 3), " Estimated:", round(VC_est[1], 3), "\n")
+cat("  σ²ᵦ - True:", round(sigma_b^2, 3), " Estimated:", round(VC_est[2], 3), "\n")
+
+# GOF for simulated model
+if(!is.null(fit_recovery$GOF) && nrow(fit_recovery$GOF) > 1) {
+  cat("\nGoodness of Fit for Simulated Model:\n")
+  gof_obs_sim <- fit_recovery$GOF[1, ]
+  gof_pp_sim <- fit_recovery$GOF[-1, , drop = FALSE]
+  
+  # Calculate z-scores
+  gof_mean_sim <- colMeans(gof_pp_sim)
+  gof_sd_sim <- apply(gof_pp_sim, 2, sd)
+  gof_z_sim <- (gof_obs_sim - gof_mean_sim) / gof_sd_sim
+  
+  # Report statistics
+  cat("Statistic             | Observed | Expected | Z-score\n")
+  cat("--------------------------------------------------\n")
+  stat_names <- c("Row SD", "Col SD", "Dyad Dep", "Cycle Dep", "Trans Dep")
+  for(i in 1:length(gof_obs_sim)) {
+    cat(sprintf("%-20s | %7.3f  | %7.3f  | %6.2f %s\n",
+                stat_names[i], gof_obs_sim[i], gof_mean_sim[i], gof_z_sim[i],
+                ifelse(abs(gof_z_sim[i]) > 2, "*", "")))
+  }
+  cat("\n* indicates |Z| > 2\n")
+  
+  # Overall fit assessment
+  if(all(abs(gof_z_sim) < 2)) {
+    cat("✓ Model shows excellent fit to simulated data\n")
+  } else if(all(abs(gof_z_sim) < 3)) {
+    cat("Model shows adequate fit to simulated data\n")
+  } else {
+    cat("⚠ Some statistics show poor fit\n")
+  }
+}
+```
+
+# Model Selection Guidelines
+
+## Choosing R
+
+The latent dimension $R$ controls model complexity:
+- $R = 0$: No multiplicative effects
+- $R = 1$: One-dimensional ranking
+- $R = 2$: Two-dimensional positions (standard choice)
+- $R > 2$: Higher-dimensional structure
+
+Rule of thumb: $R \leq \lfloor \log(n) \rfloor$
+
+## Variance Components
+
+Include variance components based on network properties:
+- `rvar = TRUE` if out-degrees vary substantially
+- `cvar = TRUE` if in-degrees vary substantially  
+- `dcor = TRUE` if reciprocity is present
+
+## MCMC Settings
+
+For reliable inference:
+- `burn` ≥ 1000 (burn-in period)
+- `nscan` ≥ 4000 (sampling iterations)
+- `odens` = 25-50 (thinning to reduce autocorrelation)
+
+# Extensions
+
+The AME framework extends to:
+
+**Bipartite networks**: Two-mode networks with different node sets
+
+**Valued networks**: Continuous edge weights using Gaussian family
+
+**Ordinal networks**: Ordered categorical edges
+
+**Dynamic networks**: Time-varying networks (see `dynamic_effects` vignette)
+
+# Summary
+
+The AME model provides:
+1. Principled handling of network dependencies
+2. Decomposition into interpretable components
+3. Uncertainty quantification via Bayesian inference
+4. Flexible framework for various network types
+
+Key findings from the AddHealth analysis:
+- Strong homophily by race and grade
+- Individual heterogeneity in social behavior
+- Moderate reciprocity in friendships
+- Latent clustering beyond observed attributes
+
+## References
+
+Hoff, P. D., Raftery, A. E., & Handcock, M. S. (2002). Latent space approaches to social network analysis. Journal of the American Statistical Association, 97(460), 1090-1098.
+
+Hoff, P. D. (2005). Bilinear mixed-effects models for dyadic data. Journal of the American Statistical Association, 100(469), 286-295.
+
+Minhas, S., Hoff, P. D., & Ward, M. D. (2019). Inferential approaches for network analysis: AMEN for latent factor models. Political Analysis, 27(2), 208-226.
+
+## Session Information
+
+```{r session-info}
+sessionInfo()
+```
