@@ -154,7 +154,7 @@ trace_plot <- function(
   
   # Create trace plots
   trace_plots <- ggplot(plot_data, aes(x = iteration, y = value)) +
-    geom_line(alpha = 0.7, color = "steelblue") +
+    geom_line(alpha = 0.7, color = "black") +
     facet_wrap(~ parameter, scales = "free_y", 
               ncol = ncol, nrow = nrow) +
     labs(
@@ -169,7 +169,7 @@ trace_plot <- function(
   
   # Create density plots
   density_plots <- ggplot(plot_data, aes(x = value)) +
-    geom_density(fill = "steelblue", alpha = 0.5) +
+    geom_density(fill = "gray50", alpha = 0.5) +
     facet_wrap(~ parameter, scales = "free", 
               ncol = ncol, nrow = nrow) +
     labs(

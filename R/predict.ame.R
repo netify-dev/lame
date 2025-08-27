@@ -95,14 +95,27 @@ predict.ame <- function(
       
       EZ <- XB
     } else {
-      # Use fitted values - for simple prediction just return YPM
+      # Use fitted values
       if(type == "link") {
         # Reconstruct EZ from components
         EZ <- reconstruct_EZ(object)
         return(EZ)
       } else {
-        # For response scale, YPM is already on response scale
-        return(object$YPM)
+        # For response scale, transform EZ appropriately
+        EZ <- reconstruct_EZ(object)
+        # Transform to response scale based on family
+        if(object$family == "binary") {
+          return(pnorm(EZ))  # Probit link
+        } else if(object$family == "normal") {
+          return(EZ)  # Identity link
+        } else if(object$family == "poisson") {
+          return(exp(EZ))  # Log link
+        } else if(object$family == "tobit") {
+          return(pmax(0, EZ))  # Censored at 0
+        } else {
+          # Default: return YPM (posterior predictive mean)
+          return(object$YPM)
+        }
       }
     }
   }
@@ -187,7 +200,7 @@ predict_distribution <- function(object, X, n_samples, include_uncertainty) {
       }
       XB + beta_mean[1]
     } else {
-      object$EZ
+      reconstruct_EZ(object)
     }
     
     s2 <- mean(object$VC[, ncol(object$VC)])

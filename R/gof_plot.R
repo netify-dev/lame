@@ -1,38 +1,127 @@
 #' Visualize goodness-of-fit statistics for AME and LAME models
 #' 
-#' Creates diagnostic plots comparing observed network statistics to their 
-#' posterior predictive distributions. This helps assess whether the model 
-#' adequately captures important network features.
+#' @description
+#' Creates comprehensive diagnostic plots comparing observed network statistics to their 
+#' posterior predictive distributions. This function is essential for assessing whether 
+#' the fitted AME/LAME model adequately captures the structural properties and dependencies
+#' present in the observed network data.
 #' 
 #' @details
-#' The function evaluates model fit using key network statistics that vary by network type.
+#' \strong{Overview:}
 #' 
-#' For unipartite networks:
+#' Goodness-of-fit (GOF) assessment is crucial for network models because standard
+#' residual diagnostics are often inadequate for capturing network dependencies.
+#' This function implements posterior predictive checking by:
+#' 
+#' 1. Computing key network statistics from the observed data
+#' 2. Generating multiple networks from the model's posterior predictive distribution
+#' 3. Computing the same statistics on simulated networks
+#' 4. Visualizing the comparison to identify model inadequacies
+#' 
+#' \strong{Network Statistics Evaluated:}
+#' 
+#' \emph{For unipartite (square) networks:}
 #' \describe{
-#'   \item{Standard deviation of row means}{Captures variance in out-degree/activity}
-#'   \item{Standard deviation of column means}{Captures variance in in-degree/popularity}
-#'   \item{Dyadic dependence}{Correlation between dyads (reciprocity)}
-#'   \item{Triadic dependence}{Transitivity/clustering in the network}
+#'   \item{\code{sd.row} (Out-degree heterogeneity)}{
+#'     Standard deviation of row means. High values indicate substantial variation
+#'     in how active nodes are as senders/initiators. If the model underestimates
+#'     this, it may be missing important sender effects or covariates.
+#'   }
+#'   \item{\code{sd.col} (In-degree heterogeneity)}{
+#'     Standard deviation of column means. High values indicate substantial variation
+#'     in node popularity as receivers. Underestimation suggests missing receiver
+#'     effects or popularity-related covariates.
+#'   }
+#'   \item{\code{dyad.dep} (Reciprocity/Mutuality)}{
+#'     Correlation between Y[i,j] and Y[j,i]. Positive values indicate reciprocity
+#'     (mutual ties are more likely). The AME model captures this through the
+#'     dyadic correlation parameter rho. Poor fit here suggests the need to adjust
+#'     the dcor parameter.
+#'   }
+#'   \item{\code{triad.dep} (Transitivity/Clustering)}{
+#'     Measures tendency for triadic closure (friend of a friend is a friend).
+#'     Calculated as correlation between Y[i,j] and sum(Y[i,k]*Y[k,j])/sqrt(n-2).
+#'     AME captures this through multiplicative effects (U,V). Poor fit suggests
+#'     increasing the latent dimension R.
+#'   }
 #' }
 #' 
-#' For bipartite networks:
+#' \emph{For bipartite (rectangular) networks:}
 #' \describe{
-#'   \item{Standard deviation of row means}{Captures variance in activity from set A}
-#'   \item{Standard deviation of column means}{Captures variance in popularity in set B}
-#'   \item{Four-cycles}{Count of 4-node closed paths where pairs of A-nodes share 
-#'     multiple B-node connections, measuring clustering in bipartite networks}
+#'   \item{\code{sd.row} (Type A activity variation)}{
+#'     Standard deviation of row means for Type A nodes. Indicates heterogeneity
+#'     in how actively Type A nodes connect to Type B nodes.
+#'   }
+#'   \item{\code{sd.col} (Type B popularity variation)}{
+#'     Standard deviation of column means for Type B nodes. Indicates heterogeneity
+#'     in how popular Type B nodes are with Type A nodes.
+#'   }
+#'   \item{\code{four.cycles} (Bipartite clustering)}{
+#'     Count of 4-cycles (rectangular paths A1→B1→A2→B2→A1). High values indicate
+#'     that pairs of Type A nodes tend to connect to the same Type B nodes.
+#'     Captured through bipartite multiplicative effects with appropriate R_row, R_col.
+#'   }
 #' }
 #' 
-#' For static models (AME), the function produces histograms comparing the observed
-#' statistic (red line) to the posterior predictive distribution.
+#' \strong{Interpretation Guide:}
 #' 
-#' For longitudinal models (LAME), the function produces time series plots showing
-#' the observed statistics over time with posterior predictive intervals.
+#' \emph{Histogram plots (static models):}
+#' - Red vertical line: observed statistic value
+#' - Blue histogram: distribution from posterior predictive simulations
+#' - Good fit: red line falls within the bulk of the histogram
+#' - Poor fit: red line in the tail or outside the distribution
+#' 
+#' \emph{Common model inadequacies and solutions:}
+#' \describe{
+#'   \item{Observed sd.row/sd.col too high}{
+#'     Model underestimates degree heterogeneity.
+#'     Solutions: Add row/column covariates (Xrow, Xcol), enable random effects
+#'     (rvar=TRUE, cvar=TRUE), or increase their variance.
+#'   }
+#'   \item{Observed dyad.dep outside distribution}{
+#'     Reciprocity not captured well.
+#'     Solutions: For positive reciprocity, ensure dcor=TRUE. For negative,
+#'     consider transformation or different family.
+#'   }
+#'   \item{Observed triad.dep too high}{
+#'     Clustering/transitivity underestimated.
+#'     Solutions: Increase latent dimension R, add network covariates that
+#'     capture homophily, or consider including community structure covariates.
+#'   }
+#'   \item{Multiple statistics showing poor fit}{
+#'     Fundamental model misspecification.
+#'     Solutions: Change family, add missing covariates, or consider
+#'     different model class.
+#'   }
+#' }
+#' 
+#' \strong{Mathematical Details:}
+#' 
+#' The posterior predictive p-value for statistic s is:
+#' \deqn{p = P(s(Y_{rep}) \geq s(Y_{obs}) | Y_{obs})}
+#' 
+#' where Y_rep is drawn from the posterior predictive distribution.
+#' Values near 0 or 1 indicate poor fit. The function visualizes the full
+#' distribution rather than just p-values for richer diagnostics.
+#' 
+#' \strong{Customization:}
+#' 
+#' The function accepts custom GOF statistics through the model's custom_gof
+#' argument. These are automatically included in the plot. Custom statistics
+#' should capture network features important for your specific application.
+#' 
+#' \strong{Computational Notes:}
+#' 
+#' GOF computation involves simulating multiple networks, which can be
+#' computationally intensive. The model uses the networks simulated during
+#' MCMC if gof=TRUE was specified. For post-hoc GOF, use the gof() function
+#' which generates new simulations.
 #' 
 #' Good model fit is indicated when:
-#' - Observed values fall within the posterior predictive distributions
-#' - No systematic deviations across statistics
-#' - For longitudinal models, observed values track within the credible bands
+#' - Observed statistics fall within the central 95% of posterior predictive distributions
+#' - No systematic patterns of over/underestimation across statistics
+#' - Custom statistics (if provided) also show adequate fit
+#' - For longitudinal models, observed trajectories track within credible bands
 #' 
 #' @param fit An object of class "ame" or "lame" containing GOF statistics
 #' @param type Character string: "auto" (default), "static", or "longitudinal".
@@ -203,15 +292,22 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
       stat_col <- stat
     }
     
-    # Skip if column doesn't exist
+    # Skip if column doesn't exist or no data
     if (!stat_col %in% colnames(gof_data)) {
+      next
+    }
+    
+    # Check if we have predictive samples
+    if (nrow(pred_vals) == 0) {
+      warning("No posterior predictive samples available for GOF plots")
       next
     }
     
     # Create data frame for this statistic
     df <- data.frame(
-      value = pred_vals[, stat_col],
-      statistic = stat
+      value = as.vector(pred_vals[, stat_col]),
+      statistic = stat,
+      stringsAsFactors = FALSE
     )
     
     # Create individual plot

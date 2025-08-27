@@ -39,40 +39,131 @@ longitudinal plots (default 0.95)}
 A ggplot2 object that can be further customized
 }
 \description{
-Creates diagnostic plots comparing observed network statistics to their
-posterior predictive distributions. This helps assess whether the model
-adequately captures important network features.
+Creates comprehensive diagnostic plots comparing observed network statistics to their
+posterior predictive distributions. This function is essential for assessing whether
+the fitted AME/LAME model adequately captures the structural properties and dependencies
+present in the observed network data.
 }
 \details{
-The function evaluates model fit using key network statistics that vary by network type.
+\strong{Overview:}
 
-For unipartite networks:
-\describe{
-\item{Standard deviation of row means}{Captures variance in out-degree/activity}
-\item{Standard deviation of column means}{Captures variance in in-degree/popularity}
-\item{Dyadic dependence}{Correlation between dyads (reciprocity)}
-\item{Triadic dependence}{Transitivity/clustering in the network}
+Goodness-of-fit (GOF) assessment is crucial for network models because standard
+residual diagnostics are often inadequate for capturing network dependencies.
+This function implements posterior predictive checking by:
+\enumerate{
+\item Computing key network statistics from the observed data
+\item Generating multiple networks from the model's posterior predictive distribution
+\item Computing the same statistics on simulated networks
+\item Visualizing the comparison to identify model inadequacies
 }
 
-For bipartite networks:
+\strong{Network Statistics Evaluated:}
+
+\emph{For unipartite (square) networks:}
 \describe{
-\item{Standard deviation of row means}{Captures variance in activity from set A}
-\item{Standard deviation of column means}{Captures variance in popularity in set B}
-\item{Four-cycles}{Count of 4-node closed paths where pairs of A-nodes share
-multiple B-node connections, measuring clustering in bipartite networks}
+\item{\code{sd.row} (Out-degree heterogeneity)}{
+Standard deviation of row means. High values indicate substantial variation
+in how active nodes are as senders/initiators. If the model underestimates
+this, it may be missing important sender effects or covariates.
+}
+\item{\code{sd.col} (In-degree heterogeneity)}{
+Standard deviation of column means. High values indicate substantial variation
+in node popularity as receivers. Underestimation suggests missing receiver
+effects or popularity-related covariates.
+}
+\item{\code{dyad.dep} (Reciprocity/Mutuality)}{
+Correlation between Y\link{i,j} and Y\link{j,i}. Positive values indicate reciprocity
+(mutual ties are more likely). The AME model captures this through the
+dyadic correlation parameter rho. Poor fit here suggests the need to adjust
+the dcor parameter.
+}
+\item{\code{triad.dep} (Transitivity/Clustering)}{
+Measures tendency for triadic closure (friend of a friend is a friend).
+Calculated as correlation between Y\link{i,j} and sum(Y\link{i,k}*Y\link{k,j})/sqrt(n-2).
+AME captures this through multiplicative effects (U,V). Poor fit suggests
+increasing the latent dimension R.
+}
 }
 
-For static models (AME), the function produces histograms comparing the observed
-statistic (red line) to the posterior predictive distribution.
+\emph{For bipartite (rectangular) networks:}
+\describe{
+\item{\code{sd.row} (Type A activity variation)}{
+Standard deviation of row means for Type A nodes. Indicates heterogeneity
+in how actively Type A nodes connect to Type B nodes.
+}
+\item{\code{sd.col} (Type B popularity variation)}{
+Standard deviation of column means for Type B nodes. Indicates heterogeneity
+in how popular Type B nodes are with Type A nodes.
+}
+\item{\code{four.cycles} (Bipartite clustering)}{
+Count of 4-cycles (rectangular paths A1→B1→A2→B2→A1). High values indicate
+that pairs of Type A nodes tend to connect to the same Type B nodes.
+Captured through bipartite multiplicative effects with appropriate R_row, R_col.
+}
+}
 
-For longitudinal models (LAME), the function produces time series plots showing
-the observed statistics over time with posterior predictive intervals.
+\strong{Interpretation Guide:}
+
+\emph{Histogram plots (static models):}
+\itemize{
+\item Red vertical line: observed statistic value
+\item Blue histogram: distribution from posterior predictive simulations
+\item Good fit: red line falls within the bulk of the histogram
+\item Poor fit: red line in the tail or outside the distribution
+}
+
+\emph{Common model inadequacies and solutions:}
+\describe{
+\item{Observed sd.row/sd.col too high}{
+Model underestimates degree heterogeneity.
+Solutions: Add row/column covariates (Xrow, Xcol), enable random effects
+(rvar=TRUE, cvar=TRUE), or increase their variance.
+}
+\item{Observed dyad.dep outside distribution}{
+Reciprocity not captured well.
+Solutions: For positive reciprocity, ensure dcor=TRUE. For negative,
+consider transformation or different family.
+}
+\item{Observed triad.dep too high}{
+Clustering/transitivity underestimated.
+Solutions: Increase latent dimension R, add network covariates that
+capture homophily, or consider including community structure covariates.
+}
+\item{Multiple statistics showing poor fit}{
+Fundamental model misspecification.
+Solutions: Change family, add missing covariates, or consider
+different model class.
+}
+}
+
+\strong{Mathematical Details:}
+
+The posterior predictive p-value for statistic s is:
+\deqn{p = P(s(Y_{rep}) \geq s(Y_{obs}) | Y_{obs})}
+
+where Y_rep is drawn from the posterior predictive distribution.
+Values near 0 or 1 indicate poor fit. The function visualizes the full
+distribution rather than just p-values for richer diagnostics.
+
+\strong{Customization:}
+
+The function accepts custom GOF statistics through the model's custom_gof
+argument. These are automatically included in the plot. Custom statistics
+should capture network features important for your specific application.
+
+\strong{Computational Notes:}
+
+GOF computation involves simulating multiple networks, which can be
+computationally intensive. The model uses the networks simulated during
+MCMC if gof=TRUE was specified. For post-hoc GOF, use the gof() function
+which generates new simulations.
 
 Good model fit is indicated when:
 \itemize{
-\item Observed values fall within the posterior predictive distributions
-\item No systematic deviations across statistics
-\item For longitudinal models, observed values track within the credible bands
+\item Observed statistics fall within the central 95\% of posterior predictive distributions
+\item No systematic patterns of over/underestimation across statistics
+\item Custom statistics (if provided) also show adequate fit
+\item For longitudinal models, observed trajectories track within credible bands
 }
 }
 \examples{

@@ -2,7 +2,6 @@
 % Please edit documentation in R/ame_options.R
 \name{ame_options}
 \alias{ame_options}
-\alias{ame_options_large}
 \title{AME model fitting options}
 \usage{
 ame_options(
@@ -11,8 +10,6 @@ ame_options(
   odens = 25,
   use_sparse_matrices = FALSE
 )
-
-ame_options_large(n)
 }
 \arguments{
 \item{parallel_chains}{Number of parallel chains to run (default: 1)}

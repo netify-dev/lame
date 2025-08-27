@@ -29,6 +29,14 @@ ame_bipartite <- function(
   nA <- nrow(Y)  # Number of row nodes
   nB <- ncol(Y)  # Number of column nodes
   
+  # Set default node names if not provided
+  if(is.null(rownames(Y))) {
+    rownames(Y) <- paste0("rowNode", 1:nA)
+  }
+  if(is.null(colnames(Y))) {
+    colnames(Y) <- paste0("colNode", 1:nB)
+  }
+  
   # Note: bipartite networks don't have diagonals to set to NA
   
   # Initialize storage for MCMC samples

@@ -35,9 +35,6 @@ Run AME model with multiple parallel chains
 \dontrun{
 # Run 4 parallel chains
 fit_parallel <- ame_parallel(Y, n_chains = 4, R = 2, nscan = 10000)
-
-# Run sequentially (useful for debugging)
-fit_seq <- ame_parallel(Y, n_chains = 4, cores = 1, R = 2, nscan = 10000)
 }
 
 }

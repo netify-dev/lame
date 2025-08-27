@@ -127,14 +127,16 @@ ab_plot <- function(fit,
   # Build plot
   p <- ggplot(muDf, aes(x = id, y = mu)) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-    geom_segment(aes(xend = id, yend = 0), color = "steelblue") +
-    geom_point(size = 2, color = "steelblue") +
+    geom_segment(aes(xend = id, yend = 0), color = "black") +
+    geom_point(size = 2, color = "black") +
     xlab("") + 
     ylab(ylabel) +
     theme_bw() +
     theme(
       panel.grid.major.x = element_blank(),
-      panel.grid.minor = element_blank()
+      panel.grid.minor = element_blank(),
+      panel.border = element_blank(),
+      axis.ticks = element_blank()
     )
   
   # Add or remove x-axis labels
@@ -219,8 +221,8 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
       # Build plot
       p <- ggplot(muDf, aes(x = id, y = mu)) +
         geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-        geom_segment(aes(xend = id, yend = 0), color = "steelblue") +
-        geom_point(size = 2, color = "steelblue") +
+        geom_segment(aes(xend = id, yend = 0), color = "black") +
+        geom_point(size = 2, color = "black") +
         xlab("") + ylab(paste(ylabel, "(Time-Averaged)")) +
         theme_bw()
       
@@ -272,8 +274,8 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
     
     p <- ggplot(muDf, aes(x = id, y = mu)) +
       geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-      geom_segment(aes(xend = id, yend = 0), color = "steelblue") +
-      geom_point(size = 2, color = "steelblue") +
+      geom_segment(aes(xend = id, yend = 0), color = "black") +
+      geom_point(size = 2, color = "black") +
       xlab("") + ylab(ylabel) +
       theme_bw()
     
@@ -373,8 +375,8 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
     # Create faceted plot
     p <- ggplot(facet_data, aes(x = reorder(actor, effect), y = effect)) +
       geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-      geom_segment(aes(xend = actor, yend = 0), color = "steelblue") +
-      geom_point(size = 1.5, color = "steelblue") +
+      geom_segment(aes(xend = actor, yend = 0), color = "black") +
+      geom_point(size = 1.5, color = "black") +
       facet_wrap(~ time, scales = "free_x") +
       theme_bw() +
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 6)) +

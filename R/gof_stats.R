@@ -77,10 +77,11 @@ gof_stats <- function(Y, mode = NULL, custom_gof = NULL) {
       mode <- "bipartite"
     } else {
       mode <- "unipartite"
-      # Warn user about potential ambiguity
-      if(interactive()) {
+      # Only show message once per session using an option
+      if(is.null(getOption("lame.gof_stats.msg_shown"))) {
         message("Note: Square matrix assumed to be unipartite. ",
                 "Use mode='bipartite' for square bipartite networks.")
+        options(lame.gof_stats.msg_shown = TRUE)
       }
     }
   } else {

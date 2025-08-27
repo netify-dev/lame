@@ -245,6 +245,9 @@ ame<-function (
   use_sparse_matrices = FALSE
   ){
   
+  # Capture the call early
+  mc <- match.call()
+  
   # Process mode argument
   mode <- match.arg(mode)
   
@@ -290,6 +293,7 @@ ame<-function (
       model.name=model.name, posterior_opts=posterior_opts,
       use_sparse_matrices=use_sparse_matrices
     )
+    fit$call <- mc
     
   } else if(mode == "bipartite") {
     # Check that matrix is rectangular (or at least not constrained to be square)
@@ -315,6 +319,7 @@ ame<-function (
       model.name=model.name, posterior_opts=posterior_opts,
       use_sparse_matrices=use_sparse_matrices
     )
+    fit$call <- mc
   }
   
   # Return the fitted model

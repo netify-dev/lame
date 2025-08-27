@@ -183,32 +183,55 @@ uv_plot <- function(
     if (is.null(col.names)) col.names <- paste0("R", 1:n_col)
   }
   
+  # Standardize U and V to have comparable scales
+  # This prevents one dimension from dominating
+  U_scaled <- U
+  V_scaled <- V
+  
+  # Scale each dimension to unit variance if variance > 0
+  for(d in 1:ncol(U)) {
+    u_sd <- sd(U[,d])
+    v_sd <- sd(V[,d])
+    combined_sd <- sqrt((u_sd^2 * n_row + v_sd^2 * n_col) / (n_row + n_col))
+    
+    if(combined_sd > 1e-10) {
+      U_scaled[,d] <- U[,d] / combined_sd
+      V_scaled[,d] <- V[,d] / combined_sd
+    }
+  }
+  
   # Create node data frame
   if (layout == "circle") {
-    # Circular layout
+    # Circular layout - order by first principal component
     n_total <- n_row + n_col
-    angles <- seq(0, 2*pi, length.out = n_total + 1)[1:n_total]
     
-    # Base positions on circle
-    x_base <- cos(angles)
-    y_base <- sin(angles)
+    # Use first dimension to determine angular position
+    combined_scores <- c(U_scaled[,1], V_scaled[,1])
+    # Map scores to angles
+    score_range <- range(combined_scores)
+    if(diff(score_range) > 0) {
+      angles <- 2 * pi * (combined_scores - score_range[1]) / diff(score_range)
+    } else {
+      angles <- seq(0, 2*pi, length.out = n_total + 1)[1:n_total]
+    }
     
-    # Combine U and V with offsets from circle
+    # Use second dimension for radial displacement
+    radii <- 1 + 0.3 * c(U_scaled[,2], V_scaled[,2])
+    
+    # Compute positions
     node_data <- data.frame(
-      x = c(x_base[1:n_row] + U[,1]*0.2, 
-            x_base[(n_row+1):n_total] + V[,1]*0.2),
-      y = c(y_base[1:n_row] + U[,2]*0.2, 
-            y_base[(n_row+1):n_total] + V[,2]*0.2),
+      x = radii * cos(angles),
+      y = radii * sin(angles),
       name = c(row.names, col.names),
       type = factor(c(rep("Sender", n_row), rep("Receiver", n_col))),
       label = "",  # Initialize label column
       stringsAsFactors = FALSE
     )
   } else {
-    # Biplot layout
+    # Biplot layout - show scaled positions directly
     node_data <- data.frame(
-      x = c(U[,1], V[,1]),
-      y = c(U[,2], V[,2]),
+      x = c(U_scaled[,1], V_scaled[,1] * vscale),
+      y = c(U_scaled[,2], V_scaled[,2] * vscale),
       name = c(row.names, col.names),
       type = factor(c(rep("Sender", n_row), rep("Receiver", n_col))),
       label = "",  # Initialize label column
@@ -246,11 +269,12 @@ uv_plot <- function(
     for (i in 1:n_row) {
       for (j in 1:n_col) {
         if (!is.na(Y[i,j]) && Y[i,j] > 0) {
+          # Use the actual node positions from node_data
           edge_data <- rbind(edge_data, data.frame(
-            x = U[i,1],
-            y = U[i,2],
-            xend = V[j,1],
-            yend = V[j,2],
+            x = node_data$x[i],  # Sender position from node_data
+            y = node_data$y[i],
+            xend = node_data$x[n_row + j],  # Receiver position from node_data
+            yend = node_data$y[n_row + j],
             weight = Y[i,j]
           ))
         }
@@ -267,7 +291,8 @@ uv_plot <- function(
   if (!is.null(colors)) {
     p <- p + geom_point(aes(color = color, shape = type, size = size))
   } else {
-    p <- p + geom_point(aes(color = type, shape = type, size = size))
+    # Use black points with different shapes for types
+    p <- p + geom_point(aes(shape = type, size = size), color = "black")
   }
   
   # Add labels
