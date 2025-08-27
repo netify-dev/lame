@@ -132,6 +132,7 @@ Xdyad[,,1] <- same_female
 Xdyad[,,2] <- same_race  
 Xdyad[,,3] <- same_grade
 Xdyad[,,4] <- grade_diff
+dimnames(Xdyad)[[3]] = c('same_female', 'same_race', 'same_grade', 'grade_diff')
 
 # Remove diagonal
 for(k in 1:4) diag(Xdyad[,,k]) <- NA
@@ -151,7 +152,7 @@ cov_stats <- data.frame(
 knitr::kable(cov_stats, caption = "Dyadic Covariate Rates")
 ```
 
-## Network Visualization
+## Descriptive Visualization
 
 ```{r viz-network, fig.width=12, fig.height=5}
 # Degree distributions
@@ -160,10 +161,9 @@ degree_df <- data.frame(
   Type = rep(c("Out-degree", "In-degree"), each = n)
 )
 
-ggplot(degree_df, aes(x = Degree, fill = Type)) +
-  geom_histogram(binwidth = 1, alpha = 0.7) +
-  facet_wrap(~Type) +
-  scale_fill_manual(values = c("darkgreen", "darkred")) +
+ggplot(degree_df, aes(x = Degree)) +
+  geom_histogram(binwidth = 1, alpha = 0.7, color='grey40') +
+  facet_wrap(~Type, ncol=1) +
   labs(title = "Degree Distributions",
        x = "Number of Ties", y = "Count") +
   theme_minimal() +
@@ -230,17 +230,13 @@ fit <- ame(Y,
           nscan = 20000,    # sampling iterations (sufficient for convergence)
           odens = 50,       # thinning interval
           print = TRUE,
-          gof = TRUE,
+          gof = TRUE
           # prior = prior_list,     # Custom priors (commented out for default)
           # start_vals = start_vals # Custom starting values (commented out)
           )
 
 # Model summary
-model_info <- data.frame(
-  Property = c("MCMC samples", "Parameters", "Latent dimensions", "Effective sample size"),
-  Value = c(nrow(fit$BETA), ncol(fit$BETA), fit$R, nrow(fit$BETA))
-)
-knitr::kable(model_info, caption = "Model Information")
+fit
 ```
 
 ### Prior Guidelines
@@ -273,25 +269,11 @@ Good starting values accelerate convergence:
 ## Model Output
 
 ```{r print-summary}
-# Basic model information
-print(fit)
-
 # Detailed results
 model_summary <- summary(fit)
 
-# Fixed Effects
-if(!is.null(model_summary$beta)) {
-  knitr::kable(round(model_summary$beta, 3), caption = "Fixed Effects")
-} else if(!is.null(model_summary$coefficients)) {
-  knitr::kable(round(model_summary$coefficients, 3), caption = "Fixed Effects")
-}
-
-# Variance Components
-if(!is.null(model_summary$variance)) {
-  knitr::kable(round(model_summary$variance, 3), caption = "Variance Components")
-} else if(!is.null(model_summary$variance_components)) {
-  knitr::kable(round(model_summary$variance_components, 3), caption = "Variance Components")
-}
+# 
+print(model_summary)
 ```
 
 ## Coefficient Interpretation
@@ -306,47 +288,27 @@ For binary networks with probit link:
 The goodness-of-fit statistics compare observed network features to those from the posterior predictive distribution:
 
 ```{r gof-stats}
-# Check if GOF statistics are available
-if(!is.null(fit$GOF) && nrow(fit$GOF) > 1) {
-  # Extract observed and simulated statistics
-  gof_obs <- fit$GOF[1, ]
-  gof_sim <- fit$GOF[-1, , drop = FALSE]
-  
-  # Calculate z-scores for each statistic
-  gof_mean <- colMeans(gof_sim)
-  gof_sd <- apply(gof_sim, 2, sd)
-  gof_z <- (gof_obs - gof_mean) / gof_sd
-  
-  # Create summary table
-  gof_summary <- data.frame(
-    Statistic = c("Row heterogeneity", "Column heterogeneity", 
-                  "Dyadic dependence", "Triadic closure", "Transitivity"),
-    Observed = round(gof_obs, 3),
-    Expected = round(gof_mean, 3),
-    SD = round(gof_sd, 3),
-    `Z-score` = round(gof_z, 2),
-    check.names = FALSE
-  )
-  
-  knitr::kable(gof_summary, caption = "Goodness-of-Fit Statistics")
-  
-  cat("\nModel fit interpretation:\n")
-  cat("- |Z-score| < 2: Good fit\n")
-  cat("- |Z-score| 2-3: Adequate fit\n")
-  cat("- |Z-score| > 3: Poor fit\n\n")
-  
-  # Flag any poor fits
-  poor_fits <- which(abs(gof_z) > 3)
-  if(length(poor_fits) > 0) {
-    cat("⚠ Warning: Poor fit for", names(gof_obs)[poor_fits], "\n")
-  } else if(any(abs(gof_z) > 2)) {
-    cat("Note: Some statistics show moderate deviations\n")
-  } else {
-    cat("✓ All statistics show good fit\n")
-  }
-} else {
-  cat("GOF statistics not available. Set gof=TRUE when fitting the model.\n")
-}
+# Extract observed and simulated statistics
+gof_obs <- fit$GOF[1, ]
+gof_sim <- fit$GOF[-1, , drop = FALSE]
+
+# Calculate z-scores for each statistic
+gof_mean <- colMeans(gof_sim)
+gof_sd <- apply(gof_sim, 2, sd)
+gof_z <- (gof_obs - gof_mean) / gof_sd
+
+# Create summary table
+gof_summary <- data.frame(
+  Statistic = c("Row heterogeneity", "Column heterogeneity", 
+                "Dyadic dependence", "Triadic closure", "Transitivity"),
+  Observed = round(gof_obs, 3),
+  Expected = round(gof_mean, 3),
+  SD = round(gof_sd, 3),
+  `Z-score` = round(gof_z, 2),
+  check.names = FALSE
+)
+
+print(knitr::kable(gof_summary, caption = "Goodness-of-Fit Statistics"))
 ```
 
 ```{r interpret-coefs}
@@ -389,21 +351,21 @@ if(!is.null(var_comp)) {
   # Handle different row naming conventions
   row_names <- rownames(var_comp)
   
-  # Sender variance (might be called va, s2a, or similar)
-  sender_idx <- grep("^va$|^s2a", row_names, ignore.case = TRUE)[1]
+  # Sender variance
+  sender_idx <- grep("va", row_names, ignore.case = TRUE)[1]
   if(!is.na(sender_idx)) {
     cat("  Sender variance σ²ₐ =", round(var_comp[sender_idx, 1], 3), 
         "- variation in outgoing ties\n")
   }
   
-  # Receiver variance (might be called vb, s2b, or similar)
-  receiver_idx <- grep("^vb$|^s2b", row_names, ignore.case = TRUE)[1]
+  # Receiver variance
+  receiver_idx <- grep("vb", row_names, ignore.case = TRUE)[1]
   if(!is.na(receiver_idx)) {
     cat("  Receiver variance σ²ᵦ =", round(var_comp[receiver_idx, 1], 3), 
         "- variation in incoming ties\n")
   }
   
-  # Reciprocity (might be called rho or similar)
+  # Reciprocity
   recip_idx <- grep("rho", row_names, ignore.case = TRUE)[1]
   if(!is.na(recip_idx)) {
     cat("  Reciprocity ρ =", round(var_comp[recip_idx, 1], 3), 
@@ -423,7 +385,7 @@ p1 <- ab_plot(fit, effect = "sender", sorted = TRUE,
 p2 <- ab_plot(fit, effect = "receiver", sorted = TRUE,
               title = "Receiver Effects")
 
-grid.arrange(p1, p2, ncol = 2)
+grid.arrange(p1, p2, ncol = 1)
 
 # Extract effects for analysis
 sender_effects <- fit$APM
@@ -499,7 +461,7 @@ performance <- data.frame(
   Value = round(c(accuracy, sensitivity, specificity, precision, NA), 3)
 )
 
-# AUC calculation - proper method
+# AUC calculation
 calc_auc <- function(pred, actual) {
   pos_scores <- pred[actual == 1]
   neg_scores <- pred[actual == 0]
@@ -549,7 +511,7 @@ knitr::kable(variance_decomp, caption = "Linear Predictor Variance Decomposition
 
 ```{r trace-plots, fig.width=10, fig.height=8}
 # MCMC trace plots using the dedicated trace_plot function
-trace_plot(fit, params = "all", ncol = 3)
+trace_plot(fit, params = "beta", ncol = 3)
 
 # Convergence summary table
 conv_summary <- data.frame(
@@ -561,80 +523,30 @@ conv_summary <- data.frame(
 knitr::kable(conv_summary, caption = "MCMC Convergence Summary")
 ```
 
-```{r posterior-density, fig.width=10, fig.height=6}
-# Posterior density plots for key parameters
-library(ggplot2)
-library(reshape2)
-
-# Extract posterior samples for selected parameters
-beta_samples <- fit$BETA[,1:5]  # First 5 coefficients
-colnames(beta_samples) <- c("Intercept", "Same_Gender", "Same_Race", 
-                            "Same_Grade", "Grade_Diff")
-
-# Melt for plotting
-beta_melt <- melt(beta_samples)
-names(beta_melt) <- c("Iteration", "Parameter", "Value")
-
-# Density plots
-ggplot(beta_melt, aes(x = Value, fill = Parameter)) +
-  geom_density(alpha = 0.7) +
-  facet_wrap(~Parameter, scales = "free") +
-  theme_minimal() +
-  labs(title = "Posterior Distributions of Regression Coefficients",
-       x = "Parameter Value", y = "Density") +
-  theme(legend.position = "none")
-```
-
-```{r effective-size, fig.width=8, fig.height=4}
-# Calculate effective sample sizes using coda
-if(requireNamespace("coda", quietly = TRUE)) {
-  library(coda)
-  
-  # Convert to mcmc object
-  beta_mcmc <- mcmc(fit$BETA[,1:5])
-  
-  # Effective sample sizes
-  eff_sizes <- effectiveSize(beta_mcmc)
-  
-  eff_df <- data.frame(
-    Parameter = names(eff_sizes),
-    Effective_Size = round(eff_sizes, 0),
-    Efficiency = round(eff_sizes / nrow(fit$BETA), 3)
-  )
-  
-  knitr::kable(eff_df, caption = "Effective Sample Sizes")
-  
-  # Autocorrelation plot for intercept
-  autocorr.plot(beta_mcmc[,1], main = "Autocorrelation: Intercept")
-}
-```
-
 # Goodness of Fit
 
 ```{r gof-analysis}
-if(!is.null(fit$GOF)) {
-  gof_stats <- fit$GOF
-  observed <- gof_stats[1,]
-  simulated <- gof_stats[-1,]
-  
-  # GOF Statistics table
-  gof_results <- data.frame(
-    Statistic = names(observed),
-    Observed = round(observed, 3),
-    Expected = round(sapply(1:length(observed), function(i) mean(simulated[,i])), 3),
-    SD = round(sapply(1:length(observed), function(i) sd(simulated[,i])), 3),
-    Z_score = round(sapply(1:length(observed), function(i) {
-      (observed[i] - mean(simulated[,i])) / sd(simulated[,i])
-    }), 2),
-    P_value = round(sapply(1:length(observed), function(i) {
-      2 * min(mean(simulated[,i] <= observed[i]), mean(simulated[,i] >= observed[i]))
-    }), 3)
-  )
-  
-  # Mark poor fit
-  gof_results$Fit <- ifelse(abs(gof_results$Z_score) > 2, "Poor", "Good")
-  knitr::kable(gof_results, caption = "Goodness of Fit Statistics")
-}
+gof_stats <- fit$GOF
+observed <- gof_stats[1,]
+simulated <- gof_stats[-1,]
+
+# GOF Statistics table
+gof_results <- data.frame(
+  Statistic = names(observed),
+  Observed = round(observed, 3),
+  Expected = round(sapply(1:length(observed), function(i) mean(simulated[,i])), 3),
+  SD = round(sapply(1:length(observed), function(i) sd(simulated[,i])), 3),
+  Z_score = round(sapply(1:length(observed), function(i) {
+    (observed[i] - mean(simulated[,i])) / sd(simulated[,i])
+  }), 2),
+  P_value = round(sapply(1:length(observed), function(i) {
+    2 * min(mean(simulated[,i] <= observed[i]), mean(simulated[,i] >= observed[i]))
+  }), 3)
+)
+
+# Mark poor fit
+gof_results$Fit <- ifelse(abs(gof_results$Z_score) > 2, "Poor", "Good")
+knitr::kable(gof_results, caption = "Goodness of Fit Statistics")
 ```
 
 ## Visual GOF
@@ -747,7 +659,7 @@ cat("  Reciprocity:", round(obs_reciprocity, 3),
 Testing parameter recovery with simulated data:
 
 ```{r param-recovery}
-set.seed(789)
+set.seed(6886)
 n_sim <- 30
 R_true <- 2
 
@@ -819,36 +731,25 @@ cat("  σ²ₐ - True:", round(sigma_a^2, 3), " Estimated:", round(VC_est[1], 3)
 cat("  σ²ᵦ - True:", round(sigma_b^2, 3), " Estimated:", round(VC_est[2], 3), "\n")
 
 # GOF for simulated model
-if(!is.null(fit_recovery$GOF) && nrow(fit_recovery$GOF) > 1) {
-  cat("\nGoodness of Fit for Simulated Model:\n")
-  gof_obs_sim <- fit_recovery$GOF[1, ]
-  gof_pp_sim <- fit_recovery$GOF[-1, , drop = FALSE]
-  
-  # Calculate z-scores
-  gof_mean_sim <- colMeans(gof_pp_sim)
-  gof_sd_sim <- apply(gof_pp_sim, 2, sd)
-  gof_z_sim <- (gof_obs_sim - gof_mean_sim) / gof_sd_sim
-  
-  # Report statistics
-  cat("Statistic             | Observed | Expected | Z-score\n")
-  cat("--------------------------------------------------\n")
-  stat_names <- c("Row SD", "Col SD", "Dyad Dep", "Cycle Dep", "Trans Dep")
-  for(i in 1:length(gof_obs_sim)) {
-    cat(sprintf("%-20s | %7.3f  | %7.3f  | %6.2f %s\n",
-                stat_names[i], gof_obs_sim[i], gof_mean_sim[i], gof_z_sim[i],
-                ifelse(abs(gof_z_sim[i]) > 2, "*", "")))
-  }
-  cat("\n* indicates |Z| > 2\n")
-  
-  # Overall fit assessment
-  if(all(abs(gof_z_sim) < 2)) {
-    cat("✓ Model shows excellent fit to simulated data\n")
-  } else if(all(abs(gof_z_sim) < 3)) {
-    cat("Model shows adequate fit to simulated data\n")
-  } else {
-    cat("⚠ Some statistics show poor fit\n")
-  }
+cat("\nGoodness of Fit for Simulated Model:\n")
+gof_obs_sim <- fit_recovery$GOF[1, ]
+gof_pp_sim <- fit_recovery$GOF[-1, , drop = FALSE]
+
+# Calculate z-scores
+gof_mean_sim <- colMeans(gof_pp_sim)
+gof_sd_sim <- apply(gof_pp_sim, 2, sd)
+gof_z_sim <- (gof_obs_sim - gof_mean_sim) / gof_sd_sim
+
+# Report statistics
+cat("Statistic             | Observed | Expected | Z-score\n")
+cat("--------------------------------------------------\n")
+stat_names <- c("Row SD", "Col SD", "Dyad Dep", "Cycle Dep", "Trans Dep")
+for(i in 1:length(gof_obs_sim)) {
+  cat(sprintf("%-20s | %7.3f  | %7.3f  | %6.2f %s\n",
+              stat_names[i], gof_obs_sim[i], gof_mean_sim[i], gof_z_sim[i],
+              ifelse(abs(gof_z_sim[i]) > 2, "*", "")))
 }
+cat("\n* indicates |Z| > 2\n")
 ```
 
 # Model Selection Guidelines
