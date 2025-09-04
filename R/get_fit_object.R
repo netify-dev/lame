@@ -217,7 +217,7 @@ get_fit_object <- function(
     # Add dynamic fields if applicable
     if(dynamic_ab && is.matrix(APM)) {
       fit$a_dynamic <- APM
-      fit$APM <- APM_avg  # Overwrite with time-averaged for compatibility
+      fit$APM <- APM_avg
     }
     # Add rho values
     if(!is.null(rho_ab)) fit$rho_ab <- rho_ab
@@ -233,7 +233,7 @@ get_fit_object <- function(
     if(dynamic_ab && is.matrix(APM)) {
       fit$a_dynamic <- APM
       fit$b_dynamic <- BPM
-      fit$APM <- APM_avg  # Overwrite with time-averaged for compatibility
+      fit$APM <- APM_avg
       fit$BPM <- BPM_avg
     }
     # Add rho values

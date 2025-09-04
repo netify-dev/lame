@@ -187,7 +187,7 @@ simulate.ame <- function(
     if (!is.null(Xdyad) && length(dim(Xdyad)) == 2) {
       Xdyad <- array(Xdyad, dim = c(dim(Xdyad), 1))
     }
-    X <- Xdyad  # For compatibility
+    X <- Xdyad
   } else {
     # Check for stored design matrix components first
     if (!is.null(fit$X)) {

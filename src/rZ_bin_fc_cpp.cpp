@@ -56,12 +56,14 @@ arma::cube rZ_bin_fc_cpp(
       // Upper triangle
       arma::uvec up_u = arma::intersect(Y_indices, ut);
       if(up_u.n_elem > 0) {
+        // Transpose matrices for correct indexing (AMEN uses t(Z)[up])
+        arma::mat Zt = Z.t();
+        arma::mat EZt = EZ.t();
+        
         // Compute ez values efficiently
         for(unsigned int j = 0; j < up_u.n_elem; ++j) {
           int idx = up_u(j);
-          int row = idx % n;
-          int col = idx / n;
-          ez_u(j) = EZ(idx) + rho * (Z(col, row) - EZ(col, row));
+          ez_u(j) = EZ(idx) + rho * (Zt(idx) - EZt(idx));
         }
         
         // Batch RNG operations using Armadillo's RNG
@@ -81,12 +83,14 @@ arma::cube rZ_bin_fc_cpp(
       // Lower triangle
       arma::uvec up_l = arma::intersect(Y_indices, lt);
       if(up_l.n_elem > 0) {
+        // Transpose matrices for correct indexing (AMEN uses t(Z)[up])
+        arma::mat Zt = Z.t();
+        arma::mat EZt = EZ.t();
+        
         // Compute ez values efficiently
         for(unsigned int j = 0; j < up_l.n_elem; ++j) {
           int idx = up_l(j);
-          int row = idx % n;
-          int col = idx / n;
-          ez_l(j) = EZ(idx) + rho * (Z(col, row) - EZ(col, row));
+          ez_l(j) = EZ(idx) + rho * (Zt(idx) - EZt(idx));
         }
         
         // Batch RNG operations
@@ -104,9 +108,42 @@ arma::cube rZ_bin_fc_cpp(
       }
     }
     
-    // Update diagonal
-    arma::vec ezDiag = diagvec(EZ);
-    Z.diag() = ezDiag + arma::randn(n);
+    // AMEN's second step: additional proposal with special covariance structure
+    double c = (sqrt(1 + rho) + sqrt(1 - rho)) / 2.0;
+    double d = (sqrt(1 + rho) - sqrt(1 - rho)) / 2.0;
+    
+    // Generate random matrix E
+    arma::mat E = arma::randn(n, n);
+    
+    // Compute proposal ZP = EZ + c*E + d*t(E)
+    arma::mat ZP = EZ + c * E + d * E.t();
+    
+    // Accept updates where they satisfy constraints or for missing values
+    arma::mat A = arma::zeros<arma::mat>(n, n);
+    for(int i = 0; i < n; ++i) {
+      for(int j = 0; j < n; ++j) {
+        if(std::isnan(Y(i,j)) || Y_work(i,j) == -1) {
+          A(i,j) = 1;
+        } else if(Y_work(i,j) == 1 && ZP(i,j) > 0) {
+          A(i,j) = 1;
+        } else if(Y_work(i,j) == 0 && ZP(i,j) < 0) {
+          A(i,j) = 1;
+        }
+      }
+    }
+    
+    // Diagonal is always accepted
+    A.diag().ones();
+    
+    // A must be symmetric: A = A & t(A)
+    A = A % A.t();
+    
+    // Update Z where A is true
+    arma::uvec accept_idx = find(A == 1);
+    Z(accept_idx) = ZP(accept_idx);
+    
+    // Update diagonal with proper variance sqrt(1+rho)
+    Z.diag() = diagvec(EZ) + sqrt(1 + rho) * arma::randn(n);
   }
   
   return ZT;
@@ -150,11 +187,13 @@ arma::mat rZ_bin_fc_single(
       // Batch generate uniforms
       arma::vec unif_draws = arma::randu(up_u.n_elem);
       
+      // Transpose matrices for correct indexing (AMEN uses t(Z)[up])
+      arma::mat Zt = Z.t();
+      arma::mat EZt = EZ.t();
+      
       for(unsigned int j = 0; j < up_u.n_elem; ++j) {
         int idx = up_u(j);
-        int row = idx % n;
-        int col = idx / n;
-        double ez = EZ(idx) + rho * (Z(col, row) - EZ(col, row));
+        double ez = EZ(idx) + rho * (Zt(idx) - EZt(idx));
         
         double x1 = (lb - ez) / sz;
         double x2 = (ub - ez) / sz;
@@ -171,11 +210,13 @@ arma::mat rZ_bin_fc_single(
       // Batch generate uniforms
       arma::vec unif_draws = arma::randu(up_l.n_elem);
       
+      // Transpose matrices for correct indexing (AMEN uses t(Z)[up])
+      arma::mat Zt = Z.t();
+      arma::mat EZt = EZ.t();
+      
       for(unsigned int j = 0; j < up_l.n_elem; ++j) {
         int idx = up_l(j);
-        int row = idx % n;
-        int col = idx / n;
-        double ez = EZ(idx) + rho * (Z(col, row) - EZ(col, row));
+        double ez = EZ(idx) + rho * (Zt(idx) - EZt(idx));
         
         double x1 = (lb - ez) / sz;
         double x2 = (ub - ez) / sz;
@@ -187,8 +228,43 @@ arma::mat rZ_bin_fc_single(
     }
   }
   
-  // Update diagonal
-  Z_new.diag() = diagvec(EZ) + arma::randn(n);
+  // AMEN's second step: additional proposal with special covariance structure
+  double c = (sqrt(1 + rho) + sqrt(1 - rho)) / 2.0;
+  double d = (sqrt(1 + rho) - sqrt(1 - rho)) / 2.0;
+  
+  // Generate random matrix E
+  arma::mat E = arma::randn(n, n);
+  
+  // Compute proposal ZP = EZ + c*E + d*t(E)
+  arma::mat ZP = EZ + c * E + d * E.t();
+  
+  // Accept updates where they satisfy constraints or for missing values
+  // A = ((Y == -1) | (sign(ZP) == sign(Y - 0.5)))
+  arma::mat A = arma::zeros<arma::mat>(n, n);
+  for(int i = 0; i < n; ++i) {
+    for(int j = 0; j < n; ++j) {
+      if(std::isnan(Y(i,j)) || Y_work(i,j) == -1) {
+        A(i,j) = 1;
+      } else if(Y_work(i,j) == 1 && ZP(i,j) > 0) {
+        A(i,j) = 1;
+      } else if(Y_work(i,j) == 0 && ZP(i,j) < 0) {
+        A(i,j) = 1;
+      }
+    }
+  }
+  
+  // Diagonal is always accepted
+  A.diag().ones();
+  
+  // A must be symmetric: A = A & t(A)
+  A = A % A.t();
+  
+  // Update Z where A is true
+  arma::uvec accept_idx = find(A == 1);
+  Z_new(accept_idx) = ZP(accept_idx);
+  
+  // Update diagonal with proper variance sqrt(1+rho)
+  Z_new.diag() = diagvec(EZ) + sqrt(1 + rho) * arma::randn(n);
   
   return Z_new;
 }

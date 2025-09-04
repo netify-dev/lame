@@ -181,6 +181,14 @@ rZ_bin_fc_single <- function(Z, EZ, rho, Y) {
     .Call(`_lame_rZ_bin_fc_single`, Z, EZ, rho, Y)
 }
 
+rZ_bin_fc_exact <- function(Z, EZ, rho, Y) {
+    .Call(`_lame_rZ_bin_fc_exact`, Z, EZ, rho, Y)
+}
+
+rZ_bin_fc_fixed <- function(Z, EZ, rho, Y) {
+    .Call(`_lame_rZ_bin_fc_fixed`, Z, EZ, rho, Y)
+}
+
 rbeta_ab_rep_fc_cpp <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g = 100.0) {
     .Call(`_lame_rbeta_ab_rep_fc_cpp`, ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g)
 }
