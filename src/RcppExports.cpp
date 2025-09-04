@@ -380,6 +380,34 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rZ_bin_fc_exact
+arma::mat rZ_bin_fc_exact(arma::mat Z, const arma::mat& EZ, double rho, arma::mat Y);
+RcppExport SEXP _lame_rZ_bin_fc_exact(SEXP ZSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP YSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Y(YSEXP);
+    rcpp_result_gen = Rcpp::wrap(rZ_bin_fc_exact(Z, EZ, rho, Y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rZ_bin_fc_fixed
+arma::mat rZ_bin_fc_fixed(arma::mat Z, const arma::mat& EZ, double rho, arma::mat Y);
+RcppExport SEXP _lame_rZ_bin_fc_fixed(SEXP ZSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP YSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Y(YSEXP);
+    rcpp_result_gen = Rcpp::wrap(rZ_bin_fc_fixed(Z, EZ, rho, Y));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rbeta_ab_rep_fc_cpp
 List rbeta_ab_rep_fc_cpp(arma::cube ZT, arma::cube Xr, arma::cube Xc, arma::cube mX, arma::cube mXt, arma::cube XX, arma::cube XXt, arma::mat iSe2, arma::mat Sabs, int k, arma::mat G, double g);
 RcppExport SEXP _lame_rbeta_ab_rep_fc_cpp(SEXP ZTSEXP, SEXP XrSEXP, SEXP XcSEXP, SEXP mXSEXP, SEXP mXtSEXP, SEXP XXSEXP, SEXP XXtSEXP, SEXP iSe2SEXP, SEXP SabsSEXP, SEXP kSEXP, SEXP GSEXP, SEXP gSEXP) {
@@ -534,6 +562,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_rUV_sym_fc_cpp", (DL_FUNC) &_lame_rUV_sym_fc_cpp, 6},
     {"_lame_rZ_bin_fc_cpp", (DL_FUNC) &_lame_rZ_bin_fc_cpp, 4},
     {"_lame_rZ_bin_fc_single", (DL_FUNC) &_lame_rZ_bin_fc_single, 4},
+    {"_lame_rZ_bin_fc_exact", (DL_FUNC) &_lame_rZ_bin_fc_exact, 4},
+    {"_lame_rZ_bin_fc_fixed", (DL_FUNC) &_lame_rZ_bin_fc_fixed, 4},
     {"_lame_rbeta_ab_rep_fc_cpp", (DL_FUNC) &_lame_rbeta_ab_rep_fc_cpp, 12},
     {"_lame_test_rbeta_inputs", (DL_FUNC) &_lame_test_rbeta_inputs, 12},
     {"_lame_rrho_mh_rep_cpp", (DL_FUNC) &_lame_rrho_mh_rep_cpp, 3},

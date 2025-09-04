@@ -188,7 +188,7 @@ uv_plot <- function(
   
   # Create node data frame
   if (layout == "circle") {
-    # Circular layout following AMEN's circplot approach:
+    # Circular layout:
     # Normalize U and V to unit vectors, then place on different circles
     
     # Calculate magnitudes for each node

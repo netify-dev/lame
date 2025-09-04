@@ -169,6 +169,26 @@ ame_bipartite <- function(
     G <- start_vals$G
   }
   
+  # Binary family eta0 initialization
+  if(family == "binary" && is.null(prior$eta0)) {
+    ydist <- table(Y)
+    ymode <- as.numeric(names(ydist)[ydist == max(ydist)])[1]
+    YB <- 1 * (Y != ymode)
+    ybar <- mean(YB, na.rm=TRUE)
+    mu_bin <- qnorm(ybar)
+    E <- (YB - ybar) / dnorm(qnorm(ybar))
+    diag(E) <- NA
+    a_tmp <- rowMeans(E, na.rm=TRUE)
+    b_tmp <- colMeans(E, na.rm=TRUE)
+    a_tmp[is.na(a_tmp)] <- 0
+    b_tmp[is.na(b_tmp)] <- 0
+    vscale <- mean(diag(cov(cbind(a_tmp, b_tmp))))
+    PHAT <- pnorm(mu_bin + outer(a_tmp, b_tmp, "+"))
+    vdfmlt <- 0.25 / mean(PHAT * (1 - PHAT))
+    eta0 <- round(4 * vdfmlt)
+    if(is.null(prior$etaab)) etaab <- eta0
+  }
+  
   # Storage for posterior samples - pre-allocated for efficiency
   BETA <- matrix(NA_real_, n_eff, p)
   VC <- matrix(NA_real_, n_eff, 5)  # Store variance components

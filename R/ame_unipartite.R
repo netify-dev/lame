@@ -69,59 +69,23 @@ ame_unipartite <- function(
   # process prior list and set defaults
   if(!is.list(prior)) { prior <- list() }
   
-  # Adaptive prior scaling for binary/discrete families
+  # Will compute adaptive prior scaling after we have a,b from residuals
   vscale <- 1  # Default for continuous families
   vdfmlt <- 1
-  if(family %in% c("binary", "ordinal", "cbin", "frn", "rrl")) {
-    # Compute adaptive scale based on data heterogeneity
-    ydist <- table(Y)
-    ymode <- as.numeric(names(ydist)[ydist == max(ydist)])[1]
-    YB <- 1 * (Y != ymode)
-    ybar <- mean(YB, na.rm = TRUE)
-    if(ybar > 0 && ybar < 1) {
-      mu <- qnorm(ybar)
-      E <- (YB - ybar) / dnorm(qnorm(ybar))
-      diag(E) <- 0
-      a_init <- rowMeans(E, na.rm = TRUE)
-      a_init[is.na(a_init)] <- 0
-      b_init <- colMeans(E, na.rm = TRUE)
-      b_init[is.na(b_init)] <- 0
-      vscale <- mean(diag(cov(cbind(a_init, b_init))))
-      
-      # Also compute degrees of freedom multiplier
-      PHAT <- pnorm(mu + outer(a_init, b_init, "+"))
-      vdfmlt <- 0.25 / mean(PHAT * (1 - PHAT))
-    }
-  }
   
-  # Set default priors with adaptive scaling
-  if(is.null(prior$Sab0)) { 
-    prior$Sab0 <- diag(2) * vscale
-  }
-  if(is.null(prior$Suv0) && R > 0) {
-    # Prior for multiplicative effects covariance
-    prior$Suv0 <- diag(2*R) * vscale
-  }
-  if(is.null(prior$kappa0) && R > 0) {
-    # Degrees of freedom for Suv
-    if(family %in% c("binary", "ordinal", "cbin", "frn", "rrl")) {
-      prior$kappa0 <- round((2*R + 2) * vdfmlt)
-    } else {
+  # Set defaults for continuous families
+  if(!(family %in% c("binary", "ordinal", "cbin", "frn", "rrl"))) {
+    if(is.null(prior$Sab0)) {
+      prior$Sab0 <- diag(2)
+    }
+    if(is.null(prior$Suv0) && R > 0) {
+      prior$Suv0 <- diag(2*R)
+    }
+    if(is.null(prior$kappa0) && R > 0) {
       prior$kappa0 <- 2*R + 2
     }
-  }
-  if(is.null(prior$eta0)) { 
-    if(family %in% c("binary", "ordinal", "cbin", "frn", "rrl")) {
-      prior$eta0 <- round(4 * vdfmlt)
-    } else {
+    if(is.null(prior$eta0)) {
       prior$eta0 <- round(4 + 3*n/100)
-    }
-  }
-  if(is.null(prior$etaab)) { 
-    if(family %in% c("binary", "ordinal", "cbin", "frn", "rrl")) {
-      prior$etaab <- round(4 * vdfmlt)
-    } else {
-      prior$etaab <- round(4 + 3*n/100)
     }
   }
   
@@ -233,10 +197,75 @@ ame_unipartite <- function(
     if(!is.null(start_vals$V)) V <- start_vals$V else V <- matrix(0, nrow(Y), R)
     if(!is.null(start_vals$Z)) Z <- start_vals$Z
   } else {
-    beta<-rep(0,dim(X)[3]) 
+    # Initialize beta using regression
+    beta<-rep(0,dim(X)[3])
+    if(dim(X)[3]>0 && !all(is.na(Z))) {
+      # Precompute X if not already done
+      if(is.null(attributes(X)$XX)) {
+        X <- precomputeX(X)
+      }
+      # Initialize beta using regression
+      tryCatch({
+        beta <- solve(attributes(X)$XX + diag(dim(X)[3])) %*% 
+                crossprod(attributes(X)$mX, c(Z))
+        beta <- as.vector(beta)
+      }, error = function(e) {
+        beta <- rep(0, dim(X)[3])
+      })
+    }
+    
     s2<-1
+    
+    # Recalculate a, b after beta initialization
+    if(dim(X)[3] > 0) {
+      E_tmp <- Z - Xbeta(X, beta)
+      # Multiply by rvar/cvar
+      a <- rowMeans(E_tmp, na.rm=TRUE) * rvar
+      b <- colMeans(E_tmp, na.rm=TRUE) * cvar
+      a[is.na(a)] <- 0
+      b[is.na(b)] <- 0
+      
+      if(family %in% c("binary", "ordinal", "cbin", "frn", "rrl")) {
+        if(family == "binary") {
+          ydist <- table(Y)
+          ymode <- as.numeric(names(ydist)[ydist == max(ydist)])[1]
+          YB <- 1 * (Y != ymode)
+          ybar <- mean(YB, na.rm=TRUE)
+          mu_bin <- qnorm(ybar)
+          E <- (YB - ybar) / dnorm(qnorm(ybar))
+          diag(E) <- 0
+          a_tmp <- rowMeans(E, na.rm=TRUE)
+          b_tmp <- colMeans(E, na.rm=TRUE)
+          a_tmp[is.na(a_tmp)] <- 0
+          b_tmp[is.na(b_tmp)] <- 0
+          vscale <- mean(diag(cov(cbind(a_tmp, b_tmp))))
+          PHAT <- pnorm(mu_bin + outer(a_tmp, b_tmp, "+"))
+          vdfmlt <- 0.25 / mean(PHAT * (1 - PHAT))
+        } else {
+          vscale <- mean(diag(cov(cbind(a, b))))
+          PHAT <- pnorm(mu + outer(a, b, "+"))
+          vdfmlt <- 0.25 / mean(PHAT * (1 - PHAT))
+        }
+        
+        if(is.null(prior$Sab0)) {
+          prior$Sab0 <- diag(2) * vscale
+        }
+        if(is.null(prior$Suv0) && R > 0) {
+          prior$Suv0 <- diag(2*R) * vscale
+        }
+        if(is.null(prior$eta0)) {
+          prior$eta0 <- round(4 * vdfmlt)
+        }
+        if(is.null(prior$kappa0) && R > 0) {
+          prior$kappa0 <- round((2*R + 2) * vdfmlt)
+        }
+      }
+    }
+    
+    # Recalculate E after beta and a,b initialization
+    E_init <- Z - Xbeta(X, beta) - mu - outer(a, b, "+")
+    
     # Initialize rho with observed correlation
-    E_init <- Z - mu - outer(a, b, "+")
     if(dcor && !all(is.na(E_init))) {
       rho <- cor(c(E_init[upper.tri(E_init)]), c(t(E_init)[upper.tri(E_init)]), 
                  use="complete.obs")
@@ -275,7 +304,7 @@ ame_unipartite <- function(
     if(rvar && cvar) {
       # Both variances estimated
       Sab<-tryCatch({
-        S <- cov(cbind(a,b))
+        S <- cov(cbind(a,b)) * tcrossprod(c(rvar, cvar))
         if(any(is.na(S)) || det(S) <= 0) {
           diag(c(max(0.1, var(a, na.rm=TRUE)), max(0.1, var(b, na.rm=TRUE))))
         } else {
@@ -550,6 +579,14 @@ ame_unipartite <- function(
       s2<-rs2_fc(Z,rho_eff,offset=EZ)  
     }
     
+    # update rho
+    if(dcor) {
+      rho<-rrho_mh(Z, rho, s2, offset=EZ)
+    }
+    
+    # shrink rho - symmetric case 
+    if(symmetric){ rho<-min(.9999,1-1/sqrt(s)) }
+    
     # update beta, a b with g-prior
     tmp <- rbeta_ab_fc(Z, Sab, rho, X_precomp, s2, offset=UV_cache, g=g)
     beta_new <- tmp$beta
@@ -573,53 +610,6 @@ ame_unipartite <- function(
     # Update EZ cache with new components
     EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
     
-    # update Sab using unified function
-    if(is.element(family,c("normal","tobit","ordinal"))) { 
-      Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$etaab, 
-                     rvar=rvar, cvar=cvar, symmetric=symmetric)
-    }
-    
-    # special updates for discrete families
-    if(family=="binary") {
-      if(rvar & cvar & !symmetric) {
-        tmp<-raSab_bin_fc(Z,Y,a,b,Sab,Sab0=prior$Sab0,eta0=prior$etaab)
-        Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
-      } else {
-        Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$etaab, 
-                       rvar=rvar, cvar=cvar, symmetric=symmetric)
-      }
-    }
-    
-    if(family=="cbin") {
-      if(rvar & cvar & !symmetric) {
-        tmp<-raSab_cbin_fc(Z,Y,a,b,Sab,odmax,odobs,Sab0=prior$Sab0,
-                          eta0=prior$etaab)
-        Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
-      } else {
-        Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$etaab, 
-                       rvar=rvar, cvar=cvar, symmetric=symmetric)
-      }
-    }
-    
-    if(family=="frn") { 
-      if(rvar & cvar & !symmetric) {
-        tmp<-raSab_frn_fc(Z,Y,YL,a,b,Sab,odmax,odobs,Sab0=prior$Sab0,
-                         eta0=prior$etaab)
-        Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
-      } else {
-        Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$etaab, 
-                       rvar=rvar, cvar=cvar, symmetric=symmetric)
-      }
-    }
-    
-    # update rho
-    if(dcor) {
-      rho<-rrho_mh(Z, rho, s2, offset=EZ_cache)
-    }
-    
-    # shrink rho - symmetric case 
-    if(symmetric){ rho<-min(.9999,1-1/sqrt(s)) }
-    
     # update U,V
     if(R > 0) {
       shrink<- (s>.5*burn)
@@ -633,15 +623,11 @@ ame_unipartite <- function(
         # Compute residual E by removing additive effects
         E <- Z - offset
         
-        # Compute Suv for multiplicative effects
-        if(shrink) {
-          # Use adaptive prior if available
-          Suv0_use <- if(!is.null(prior$Suv0)) prior$Suv0 else diag(2*R)
-          kappa0_use <- if(!is.null(prior$kappa0)) prior$kappa0 else (2*R + 2)
-          Suv <- rSuv_fc(U, V, Suv0=Suv0_use/kappa0_use, kappa0=kappa0_use)
-        } else {
-          Suv <- diag(n, nrow=2*R)
-        }
+        # Update Suv
+        Suv0_use <- if(!is.null(prior$Suv0)) prior$Suv0 else diag(2*R)
+        kappa0_use <- if(!is.null(prior$kappa0)) prior$kappa0 else (2*R + 2)
+        Suv <- rSuv_fc(U, V, Suv0=Suv0_use/kappa0_use, kappa0=kappa0_use)
+        
         # Pass residual E to rUV_fc
         UV<-rUV_fc(E, U, V, Suv, rho, s2, offset=0) 
       }
@@ -650,7 +636,54 @@ ame_unipartite <- function(
       # Update UV cache
       UV_cache <- U %*% t(V)
       EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
-    }    
+    }
+    
+    # update Sab using unified function
+    if(is.element(family,c("normal","tobit","ordinal"))) { 
+      Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$eta0, 
+                     rvar=rvar, cvar=cvar, symmetric=symmetric)
+    }
+    
+    # special updates for discrete families
+    if(family=="binary") {
+      if(rvar & cvar & !symmetric) {
+        Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$eta0)
+        tmp<-raSab_bin_fc(Z,Y,a,b,Sab,Sab0=prior$Sab0,eta0=prior$eta0)
+        Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
+        ab_outer_cache <- outer(a, b, "+")
+        EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
+      } else {
+        Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$eta0, 
+                       rvar=rvar, cvar=cvar, symmetric=symmetric)
+      }
+    }
+    
+    if(family=="cbin") {
+      if(rvar & cvar & !symmetric) {
+        tmp<-raSab_cbin_fc(Z,Y,a,b,Sab,odmax,odobs,Sab0=prior$Sab0,
+                          eta0=prior$eta0)
+        Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
+        ab_outer_cache <- outer(a, b, "+")
+        EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
+      } else {
+        Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$eta0, 
+                       rvar=rvar, cvar=cvar, symmetric=symmetric)
+      }
+    }
+    
+    if(family=="frn") { 
+      if(rvar & cvar & !symmetric) {
+        tmp<-raSab_frn_fc(Z,Y,YL,a,b,Sab,odmax,odobs,Sab0=prior$Sab0,
+                         eta0=prior$eta0)
+        Z<-tmp$Z;Sab<-tmp$Sab;a<-tmp$a
+        ab_outer_cache <- outer(a, b, "+")
+        EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
+      } else {
+        Sab <- rSab_fc(a, b, Sab0=prior$Sab0, eta0=prior$eta0, 
+                       rvar=rvar, cvar=cvar, symmetric=symmetric)
+      }
+    }
+    
     
     # Update progress bars
     if(print) {

@@ -29,7 +29,6 @@ lame_bipartite <- function(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
     "i" = "Full bipartite support is coming in a future release."
   ))
   
-  # TODO: Implement bipartite-specific logic here
   # Key differences from unipartite:
   # - No diagonal to set to NA
   # - Separate row (nA) and column (nB) dimensions across time

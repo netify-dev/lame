@@ -73,38 +73,36 @@ function(Z,Sab,rho,X=NULL,s2=1,offset=0,iV0=NULL,m0=NULL,g=length(Z))
   Se<-matrix(c(1,rho,rho,1),2,2)*s2
   iSe2<-mhalf(solve(Se))
   td<-iSe2[1,1] ; to<-iSe2[1,2]
-  
-  # Ensure Sab is finite and symmetric before transformation
-  if(any(!is.finite(Sab))) {
-    Sab <- diag(c(1, 1))  # Reset to identity if non-finite
-  }
-  Sab <- (Sab + t(Sab))/2  # Ensure symmetry
-  
   Sabs<-iSe2%*%Sab%*%iSe2
-  
-  # Ensure Sabs is symmetric after transformation
-  Sabs <- (Sabs + t(Sabs))/2
-  
-  # Add small ridge if needed for numerical stability
-  min_eig_check <- min(eigen(Sabs, symmetric=TRUE, only.values=TRUE)$values)
-  if(!is.finite(min_eig_check) || min_eig_check < 1e-10) {
-    Sabs <- Sabs + diag(1e-6, nrow(Sabs))
-  }
-  
-  tmp<-eigen(Sabs, symmetric=TRUE)
+  tmp<-eigen(Sabs)
   k<-sum(zapsmall(tmp$val)>0 )
+  
+  # Debug k value
+  if(k == 0) {
+    warning(paste("k=0, no positive eigenvalues in Sabs. Eigenvalues:", 
+                  paste(round(tmp$val, 6), collapse=", ")))
+  }
 
   mXs<-td*mX+to*mXt                  # matricized transformed X
   XXs<-(to^2+td^2)*XX + 2*to*td*XXt  # sum of squares for transformed X
   Zs<-td*Z+to*t(Z)
-  zr<-rowSums(Zs) ; zc<-colSums(Zs) ; zs<-sum(zc) 
+  zr<-rowSums(Zs, na.rm=TRUE) ; zc<-colSums(Zs, na.rm=TRUE) ; zs<-sum(zc) 
   ###
 
   ### dyadic and prior contributions  
   if(p>0)
   {
-    lb<- crossprod(mXs,c(Zs)) + iV0%*%m0
-    Qb<- XXs + iV0 
+    # Handle NAs in Zs - replace with 0 for computation
+    Zs_no_na <- Zs
+    Zs_no_na[is.na(Zs_no_na)] <- 0
+    lb <- crossprod(mXs, c(Zs_no_na)) + iV0%*%m0
+    Qb <- XXs + iV0
+    
+    # Debug: Check if lb was actually computed
+    if(!exists("lb")) {
+      warning("lb was not created!")
+      lb <- rep(0, p)
+    }
   }
   ###
 
@@ -145,33 +143,16 @@ function(Z,Sab,rho,X=NULL,s2=1,offset=0,iV0=NULL,m0=NULL,g=length(Z))
   ### if covariates 
   if(p>0) 
   { 
-    tryCatch({
-      V <- solve(Qb)
-    }, error = function(e) {
-      diag(Qb) <- diag(Qb) + 1e-6
-      V <- solve(Qb)
-    })
-    
-    if(any(!is.finite(V))) {
-      V <- diag(1/diag(Qb))
+    # Debug: Check if lb exists at this point
+    if(!exists("lb")) {
+      warning("lb does not exist when trying to compute beta!")
+      lb <- rep(0, p)
+      Qb <- XXs + iV0
     }
     
-    tryCatch({
-      eV <- eigen(V, symmetric=TRUE)
-      if(any(eV$values < 1e-10)) {
-        V <- V + diag(max(1e-10, -2*min(eV$values)), nrow(V))
-      }
-    }, error = function(e) {
-      dV <- diag(V)
-      if(any(!is.finite(dV)) || any(dV <= 0)) {
-        V <- diag(rep(1e-3, nrow(V)))
-      } else {
-        V <- diag(dV)
-      }
-    })
-    
-    m<-V%*%(lb)
-    beta<-c(rmvnorm(1,m,V)) 
+    V <- solve(Qb)
+    m <- V%*%(lb)
+    beta <- c(rmvnorm(1,m,V))
   }
   ###
  
@@ -179,7 +160,7 @@ function(Z,Sab,rho,X=NULL,s2=1,offset=0,iV0=NULL,m0=NULL,g=length(Z))
   if(k>0) 
   {
     E<- Zs-Xbeta(td*X+to*aperm(X,c(2,1,3)),beta)
-    er<-rowSums(E) ; ec<-colSums(E) ; es<-sum(ec) 
+    er<-rowSums(E, na.rm=TRUE) ; ec<-colSums(E, na.rm=TRUE) ; es<-sum(ec) 
     m<-t(t(crossprod(rbind(er,ec),t(iA0%*%t(G)))) + rowSums(es*C0%*%t(G)) )
     hiA0<-mhalf(iA0)
     e<-matrix(rnorm(n*k),n,k) 

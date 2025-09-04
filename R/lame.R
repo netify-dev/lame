@@ -322,8 +322,8 @@ lame <- function(
     colActorSet <- sort(unique(unlist(colActorByYr)))
     nA <- length(rowActorSet)
     nB <- length(colActorSet)
-    n <- nA  # For compatibility with existing code
-    actorSet <- rowActorSet  # For compatibility
+    n <- nA
+    actorSet <- rowActorSet
     actorByYr <- rowActorByYr
   } else {
     actorByYr <- lapply(Y, rownames)
@@ -486,8 +486,34 @@ lame <- function(
   # process prior list
   if(!is.list(prior)) { prior<-list() }
   if(is.null(prior$Sab0)) { prior$Sab0<-diag(2) }
-  if(is.null(prior$eta0)) { prior$eta0<-round(4+3*n/100) } 
-  if(is.null(prior$etaab)) { prior$etaab<-round(4+3*n/100) }
+  
+  # Binary family eta0 calculation
+  if(family == "binary" && is.null(prior$eta0)) {
+    Y1 <- if(is.array(Y)) Y[,,1] else Y
+    ydist <- table(Y1)
+    ymode <- as.numeric(names(ydist)[ydist == max(ydist)])[1]
+    YB <- 1 * (Y1 != ymode)
+    ybar <- mean(YB, na.rm=TRUE)
+    if(ybar > 0 && ybar < 1) {
+      mu_bin <- qnorm(ybar)
+      E <- (YB - ybar) / dnorm(qnorm(ybar))
+      diag(E) <- 0
+      a_tmp <- rowMeans(E, na.rm=TRUE)
+      b_tmp <- colMeans(E, na.rm=TRUE)
+      a_tmp[is.na(a_tmp)] <- 0
+      b_tmp[is.na(b_tmp)] <- 0
+      vscale <- mean(diag(cov(cbind(a_tmp, b_tmp))))
+      PHAT <- pnorm(mu_bin + outer(a_tmp, b_tmp, "+"))
+      vdfmlt <- 0.25 / mean(PHAT * (1 - PHAT))
+      prior$eta0 <- round(4 * vdfmlt)
+    } else {
+      prior$eta0 <- round(4+3*n/100)
+    }
+  } else if(is.null(prior$eta0)) {
+    prior$eta0 <- round(4+3*n/100)
+  }
+  
+  if(is.null(prior$etaab)) { prior$etaab <- prior$eta0 }
   
   # Dynamic UV priors
   if(dynamic_uv && R > 0) {
@@ -710,7 +736,6 @@ lame <- function(
     colnames(VC) <- c("va", "ve")  
     rb<-intercept+seq(1,pr,length=pr) ; cb<-intercept+pr+seq(1,pr,length=pr)
     bnames<-dimnames(X)[[3]]
-    # Fix: handle intercept indexing properly
     if(intercept) {
       bni<-bnames[1]
       bnn<-gsub("row",bnames[rb],replacement="node") 
@@ -928,7 +953,6 @@ lame <- function(
       a_mat <- ab_update$a
       b_mat <- ab_update$b
       
-      # Use current time values for compatibility
       a <- a_mat[,1]  # Will be overridden in get_EZ_cpp calls
       b <- b_mat[,1]
       
@@ -942,7 +966,6 @@ lame <- function(
       # Standard static update
       if(bip) {
         # For bipartite, use simplified update without sweep
-        # TODO: Implement proper bipartite beta/ab update
         betaABCalc <- list(beta=beta, a=a, b=b)
       } else if( (pr+pc+pd+intercept)>0 ){
         iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
@@ -1065,7 +1088,6 @@ lame <- function(
         } else {
           U_cube <- UV$U
           V_cube <- UV$V
-          # Extract time-averaged positions for compatibility
           U <- apply(U_cube, c(1,2), mean)
           V <- apply(V_cube, c(1,2), mean)
         }
@@ -1079,7 +1101,6 @@ lame <- function(
         # Standard static UV update
         if(bip) {
           # For bipartite, skip UV update for now
-          # TODO: Implement bipartite-specific UV update
           # Keep U and V unchanged
         } else if(symmetric) { 
           EA<-apply(E,c(1,2),mean) ; EA<-.5*(EA+t(EA))
@@ -1118,8 +1139,7 @@ lame <- function(
       # store BETA and VC - symmetric case 
       if(symmetric){
         br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2
-        # Fix: handle intercept indexing properly
-        if(intercept) {
+            if(intercept) {
           sbeta<-c(beta[1],bn,beta[-c(1,rb,cb)])
         } else {
           sbeta<-c(bn,beta[-c(rb,cb)])
@@ -1168,7 +1188,6 @@ lame <- function(
           APS_dyn <- APS_dyn + a_mat
           BPS_dyn <- BPS_dyn + b_mat
         }
-        # Also track time-averaged for compatibility
         APS <- APS + rowMeans(a_mat)
         BPS <- BPS + rowMeans(b_mat)
       } else {
