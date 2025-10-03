@@ -88,7 +88,7 @@ plot.lame <- function(x,
   # Check for patchwork
   has_patchwork <- requireNamespace("patchwork", quietly = TRUE)
   if (!has_patchwork && pages == "single") {
-    warning("Package 'patchwork' not installed. Switching to multiple pages.")
+    cli::cli_warn("Package {.pkg patchwork} not installed. Switching to multiple pages.")
     pages <- "multiple"
   }
   
@@ -202,15 +202,19 @@ plot.lame <- function(x,
           
           for (j in 1:ncol(gof_t)) {
             stat_name <- colnames(gof_t)[j]
-            gof_long_data <- rbind(gof_long_data, data.frame(
-              time = t,
-              statistic = stat_name,
-              observed = obs_t[j],
-              median = median(pred_t[, j]),
-              lower = quantile(pred_t[, j], 0.025),
-              upper = quantile(pred_t[, j], 0.975),
-              stringsAsFactors = FALSE
-            ))
+            pred_vals <- pred_t[, j]
+            pred_vals <- pred_vals[!is.na(pred_vals)]
+            if (length(pred_vals) > 0) {
+              gof_long_data <- rbind(gof_long_data, data.frame(
+                time = t,
+                statistic = stat_name,
+                observed = obs_t[j],
+                median = median(pred_vals),
+                lower = quantile(pred_vals, 0.025),
+                upper = quantile(pred_vals, 0.975),
+                stringsAsFactors = FALSE
+              ))
+            }
           }
         }
       }
@@ -249,15 +253,18 @@ plot.lame <- function(x,
             stat_name <- stat_names[s]
             pred_vals <- fit$GOF[s, t, 2:n_iter]
             
-            gof_long_data <- rbind(gof_long_data, data.frame(
-              time = time_names[t],
-              statistic = stat_name,
-              observed = obs_t[s],
-              median = median(pred_vals),
-              lower = quantile(pred_vals, 0.025),
-              upper = quantile(pred_vals, 0.975),
-              stringsAsFactors = FALSE
-            ))
+            pred_vals <- pred_vals[!is.na(pred_vals)]
+            if (length(pred_vals) > 0) {
+              gof_long_data <- rbind(gof_long_data, data.frame(
+                time = time_names[t],
+                statistic = stat_name,
+                observed = obs_t[s],
+                median = median(pred_vals),
+                lower = quantile(pred_vals, 0.025),
+                upper = quantile(pred_vals, 0.975),
+                stringsAsFactors = FALSE
+              ))
+            }
           }
         }
       }
@@ -295,15 +302,18 @@ plot.lame <- function(x,
               obs_val <- vals[1]
               pred_vals <- vals[-1]
               
-              gof_long_data <- rbind(gof_long_data, data.frame(
-                time = t,
-                statistic = stat_name,
-                observed = obs_val,
-                median = median(pred_vals),
-                lower = quantile(pred_vals, 0.025),
-                upper = quantile(pred_vals, 0.975),
-                stringsAsFactors = FALSE
-              ))
+              pred_vals <- pred_vals[!is.na(pred_vals)]
+              if (length(pred_vals) > 0) {
+                gof_long_data <- rbind(gof_long_data, data.frame(
+                  time = t,
+                  statistic = stat_name,
+                  observed = obs_val,
+                  median = median(pred_vals),
+                  lower = quantile(pred_vals, 0.025),
+                  upper = quantile(pred_vals, 0.975),
+                  stringsAsFactors = FALSE
+                ))
+              }
             }
           }
         }
@@ -388,6 +398,8 @@ plot.lame <- function(x,
         theme(strip.text = element_text(size = 9))
       
       plot_list[["gof"]] <- p_gof
+    } else if ("gof" %in% plot_types) {
+      cli::cli_alert_info("No goodness-of-fit data available - consider setting {.arg gof=TRUE} in model fitting")
     }
   }
   
@@ -501,29 +513,66 @@ plot.lame <- function(x,
         
         effects_plots[["additive"]] <- p_additive
       }
+    } else if ("effects" %in% plot_types) {
+      cli::cli_alert_info("No additive effects available to plot")
     }
     
     # Multiplicative effects
-    if (!is.null(fit$U) && ncol(fit$U) >= 2) {
-      mult_data <- data.frame(
-        U1 = fit$U[, 1],
-        U2 = fit$U[, 2],
-        V1 = fit$V[, 1],
-        V2 = fit$V[, 2],
-        name = rownames(fit$U)
-      )
+    if (!is.null(fit$U) && !is.null(fit$V)) {
+      # Handle both 2D (static) and 3D (dynamic) U arrays
+      if (length(dim(fit$U)) == 3) {
+        # For dynamic UV, average across time or use first time point
+        U_2d <- apply(fit$U, c(1,2), mean)
+        V_2d <- apply(fit$V, c(1,2), mean)
+      } else {
+        # Static case
+        U_2d <- fit$U
+        V_2d <- fit$V
+      }
       
-      p_mult <- ggplot(mult_data) +
-        geom_point(aes(x = U1, y = U2), color = "steelblue", size = 2, alpha = 0.7) +
-        geom_point(aes(x = V1, y = V2), color = "darkred", size = 2, alpha = 0.7) +
-        geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-        geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
-        labs(title = "Multiplicative Effects (Blue=U, Red=V)",
-             x = "Dimension 1", y = "Dimension 2") +
-        theme_minimal() +
-        coord_fixed()
+      # Check if U and V are matrices and have data
+      if (is.matrix(U_2d) && is.matrix(V_2d) && ncol(U_2d) > 0 && ncol(V_2d) > 0) {
+        # Check if we have at least 2 dimensions
+        if (ncol(U_2d) >= 2) {
+          mult_data <- data.frame(
+            U1 = U_2d[, 1],
+            U2 = U_2d[, 2],
+            V1 = V_2d[, 1],
+            V2 = V_2d[, 2],
+            name = rownames(U_2d)
+          )
+        } else {
+          # Only 1 dimension - create scatter plot vs index
+          mult_data <- data.frame(
+            U1 = U_2d[, 1],
+            U2 = rep(0, nrow(U_2d)),
+            V1 = V_2d[, 1],
+            V2 = rep(0, nrow(V_2d)),
+            name = rownames(U_2d)
+          )
+        }
+      } else {
+        # No multiplicative effects or empty matrices
+        mult_data <- NULL
+        if ("effects" %in% plot_types && length(effects_plots) == 0) {
+          # Only show this message if effects were specifically requested but not available
+          cli::cli_alert_info("No multiplicative effects to plot (R=0 or insufficient dimensions)")
+        }
+      }
       
-      effects_plots[["multiplicative"]] <- p_mult
+      if (!is.null(mult_data)) {
+        p_mult <- ggplot(mult_data) +
+          geom_point(aes(x = U1, y = U2), color = "steelblue", size = 2, alpha = 0.7) +
+          geom_point(aes(x = V1, y = V2), color = "darkred", size = 2, alpha = 0.7) +
+          geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+          geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+          labs(title = "Multiplicative Effects (Blue=U, Red=V)",
+               x = "Dimension 1", y = "Dimension 2") +
+          theme_minimal() +
+          coord_fixed()
+        
+        effects_plots[["multiplicative"]] <- p_mult
+      }
     }
     
     # Combine effects plots
@@ -608,10 +657,20 @@ plot.lame <- function(x,
     }
   }
   
+  # Inform user about what's being plotted
+  if (length(plot_list) > 0) {
+    plot_names <- names(plot_list)
+    cli::cli_alert_info("Generating LAME diagnostic plots: {.field {paste(plot_names, collapse=', ')}}")
+  } else {
+    cli::cli_alert_warning("No plots generated - insufficient data or no parameters to display")
+    return(invisible(NULL))
+  }
+  
   # Display plots
   if (pages == "single" && has_patchwork) {
     # Combine all plots into one page
     if (length(plot_list) > 0) {
+      cli::cli_alert_info("Combining plots into single page layout")
       combined_plot <- patchwork::wrap_plots(plot_list, ncol = 1) +
         patchwork::plot_annotation(
           title = "LAME Model Diagnostics",
@@ -622,11 +681,17 @@ plot.lame <- function(x,
   } else {
     # Display plots on separate pages
     if (ask && length(plot_list) > 1) {
+      cli::cli_alert_info("Interactive mode: Press {.kbd Enter} to view each plot")
       oask <- devAskNewPage(TRUE)
       on.exit(devAskNewPage(oask))
     }
     
-    for (p in plot_list) {
+    for (i in seq_along(plot_list)) {
+      p <- plot_list[[i]]
+      plot_name <- names(plot_list)[i]
+      if (!ask) {
+        cli::cli_alert_info("Displaying {.field {plot_name}} plot")
+      }
       print(p)
       if (ask && length(plot_list) > 1) {
         readline(prompt = "Press [enter] to continue")

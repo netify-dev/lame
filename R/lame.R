@@ -1289,8 +1289,37 @@ lame <- function(
         save(fit, file=out_file) ; rm(list=c('fit','start_vals'))
       }
       
-      # Note: plotting removed - trace_plot requires a fit object
-      # Users should use plot(fit) or trace_plot(fit) after fitting
+      # plotting 
+      if(plot && iter %% 10 == 0){
+        if(iter == 10) {
+          cli::cli_alert_info("Real-time plotting enabled - updating every 10 iterations")
+        }
+        # Create temporary fit object for plotting
+        current_APS <- APS / iter
+        current_BPS <- BPS / iter
+        current_UVPS <- if(R > 0) UVPS / iter else NULL
+        current_U <- if(dynamic_uv && R > 0) U_SUM / iter else U
+        current_V <- if(dynamic_uv && R > 0) V_SUM / iter else V
+        
+        plot_result <- try({
+          temp_fit <- get_fit_object( APS=current_APS, BPS=current_BPS, UVPS=current_UVPS, YPS=YPS, 
+                                     BETA=BETA[1:iter,,drop=FALSE], VC=VC[1:iter,,drop=FALSE], 
+                                     GOF=GOF, Xlist=Xlist, actorByYr=actorByYr,
+                                     start_vals=NULL, symmetric=symmetric, tryErrorChecks=tryErrorChecks,
+                                     model.name=model.name, U=current_U, V=current_V, 
+                                     dynamic_uv=dynamic_uv, dynamic_ab=dynamic_ab, bip=bip,
+                                     rho_ab=if(dynamic_ab) RHO_AB[1:iter] else NULL, 
+                                     rho_uv=if(dynamic_uv) RHO_UV[1:iter] else NULL,
+                                     family=family, odmax=odmax, nA=if(bip) nA else NULL, 
+                                     nB=if(bip) nB else NULL, n_time=N)
+          class(temp_fit) <- "lame"
+          suppressMessages(plot(temp_fit, which=c(1,2), pages="single"))
+        }, silent=TRUE)
+        
+        if(inherits(plot_result, "try-error") && iter == 10) {
+          cli::cli_alert_warning("Real-time plotting failed - continuing without plots")
+        }
+      }
       iter<-iter+1
     } # post burn-in
     if(print && s > burn){
