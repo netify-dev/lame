@@ -302,11 +302,11 @@ lame <- function(
 {
   # Helper function
   `%||%` <- function(x, y) if (is.null(x)) y else x
-  
+
   # Process mode argument
   mode <- match.arg(mode)
   bip <- identical(mode, "bipartite")
-  
+
   #
   if( nscan %% odens !=0  ){ stop('"odens" must be a multiple of "nscan"')}
   
