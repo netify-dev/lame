@@ -55,7 +55,6 @@ arma::mat matMultVec(arma::mat x, arma::vec y){
    
    int R = U.n_cols; int n = U.n_rows;
    
-   // Handle edge case when R is 0
    if(R == 0) {
      return Rcpp::List::create(
        Rcpp::Named("U") = U,
@@ -94,10 +93,8 @@ arma::mat matMultVec(arma::mat x, arma::vec y){
      
      arma::mat l = L * trans((euicolsum - U.row(i) * E(i,i))/s2);
      arma::mat iQ = inv( ivDiagMat + L * ( (U.t() * U) - (U.row(i).t() * U.row(i)) ) * L/s2 );
-     // Ensure iQ is symmetric before Cholesky
      iQ = 0.5 * (iQ + iQ.t());
-     
-     // Add numerical safeguard for positive definiteness
+
      arma::vec eigval;
      arma::mat eigvec;
      arma::eig_sym(eigval, eigvec, iQ);
@@ -110,7 +107,6 @@ arma::mat matMultVec(arma::mat x, arma::vec y){
      arma::mat cholIQ;
      bool chol_success = arma::chol(cholIQ, iQ, "upper");
      if (!chol_success) {
-       // Fallback: use diagonal approximation
        cholIQ = arma::diagmat(arma::sqrt(arma::diagvec(iQ)));
      }
      U.row(i) = trans(iQ * l + trans(cholIQ) * randNormDraw);

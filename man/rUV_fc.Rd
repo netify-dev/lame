@@ -21,7 +21,7 @@ rUV_fc(Z, U, V, Suv, rho, s2 = 1, offset = 0)
 
 \item{offset}{a matrix of the same dimension as Z. It is assumed that
 Z-offset is equal to the multiplicative effects plus dyadic noise, so the
-offset should contain any additive effects (such as \code{Xbeta(X,beta+ 
+offset should contain any additive effects (such as \code{Xbeta(X,beta+
 outer(a,b,"+")  }  )}
 }
 \value{

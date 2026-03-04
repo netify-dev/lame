@@ -37,11 +37,17 @@ arma::mat mhalf_cpp2(
      arma::cube ET, arma::mat rhoMat
  ) {
    
+   // Guard: this function assumes square (unipartite) residual matrices
+   if(ET.n_rows != ET.n_cols) {
+     Rcpp::stop("rs2_rep_fc_cpp requires square residual matrices (unipartite). "
+                "Got %d x %d.", ET.n_rows, ET.n_cols);
+   }
+
    int N = ET.n_slices;
    arma::mat H = mhalf_cpp2(rhoMat);
    arma::mat tmp = trimatl(arma::ones(ET.n_rows, ET.n_cols));
    arma::uvec tmpindex = find(tmp==0);
-   arma::mat EM(0, 2);  // FIX: Initialize to 0x2 matrix
+   arma::mat EM(0, 2);
    for(int t=0 ; t<N ; ++t){
      arma::mat E = ET.slice(t); arma::mat Et = E.t();
      arma::vec eUpperTri = E.elem( tmpindex );

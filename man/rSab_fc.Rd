@@ -37,8 +37,8 @@ The function implements different update strategies:
 \itemize{
 \item Full update: When both rvar and cvar are TRUE, updates the full 2x2
 covariance matrix using an inverse-Wishart distribution
-\item Row variance only: When only rvar is TRUE, updates only Sab\[1,1\]
-\item Column variance only: When only cvar is TRUE, updates only Sab\[2,2\]
+\item Row variance only: When only rvar is TRUE, updates only Sab[1,1]
+\item Column variance only: When only cvar is TRUE, updates only Sab[2,2]
 \item Symmetric case: When symmetric is TRUE, enforces equal variances
 and high correlation (0.999) between row and column effects
 }

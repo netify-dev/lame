@@ -12,7 +12,8 @@ dominance encounters.
 }
 }
 \source{
-\url{http://moreno.ss.uci.edu/data.html#sheep}
+Originally available at \code{http://moreno.ss.uci.edu/data.html#sheep}
+(site no longer accessible).
 }
 \description{
 Number of dominance encounters between 28 female bighorn sheep.

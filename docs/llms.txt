@@ -1,0 +1,553 @@
+# **lame** ![hex](reference/figures/lame_hex.png)
+
+> **L**ongitudinal **A**dditive and **M**ultiplicative **E**ffects
+> Models for Networks
+
+The `lame` package builds on and extends Peter Hoff’s
+[`amen`](https://CRAN.R-project.org/package=amen) package, which
+implements Additive and Multiplicative Effects (AME) models for
+cross-sectional network analysis. While `amen` provides the foundational
+Bayesian framework for modeling network data with latent factor and
+nodal random effects, `lame` extends this in several directions: (1)
+longitudinal network analysis via
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) with
+dynamic additive and multiplicative effects modeled as AR(1) processes,
+(2) support for bipartite (rectangular) network structures, (3) C++
+acceleration of core MCMC sampling routines via Rcpp and RcppArmadillo,
+and (4) a full suite of S3 methods
+([`coef()`](https://rdrr.io/r/stats/coef.html),
+[`vcov()`](https://rdrr.io/r/stats/vcov.html),
+[`confint()`](https://rdrr.io/r/stats/confint.html),
+[`predict()`](https://rdrr.io/r/stats/predict.html),
+[`fitted()`](https://rdrr.io/r/stats/fitted.values.html),
+[`residuals()`](https://rdrr.io/r/stats/residuals.html),
+[`simulate()`](https://rdrr.io/r/stats/simulate.html)) for standard R
+model interoperability.
+
+The package includes two main functions:
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) for
+cross-sectional network analysis and
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) for
+longitudinal network analysis with dynamic effects that capture temporal
+heterogeneity through autoregressive processes. Both functions support
+unipartite (square) and bipartite (rectangular) network structures.
+
+## Installation
+
+Install from GitHub (requires C++ build tools: Xcode CLI on macOS,
+Rtools on Windows, or `build-essential` on Linux):
+
+``` r
+# install.packages("devtools")
+devtools::install_github("netify-dev/lame", dependencies = TRUE)
+```
+
+## Quick Start
+
+``` r
+library(lame)
+
+# Load example data (creates Y, Xdyad, Xrow, Xcol in your workspace)
+data("vignette_data")
+
+# Y      — list of 4 binary network matrices (35 × 35, years 1993–2000)
+# Xdyad  — list of dyadic covariate arrays (distance, shared IGOs)
+# Xrow   — list of sender covariate matrices (GDP, population)
+# Xcol   — list of receiver covariate matrices (GDP, population)
+
+# Fit a basic longitudinal AME model
+fit <- lame(
+  Y = Y,                    # List of T network matrices
+  Xdyad = Xdyad,           # Dyadic covariates
+  Xrow = Xrow,             # Sender covariates
+  Xcol = Xcol,             # Receiver covariates
+  family = "binary",       # Network type
+  R = 2,                   # Latent dimensions
+  burn = 100,              # Burn-in iterations
+  nscan = 500              # Post-burn samples
+)
+
+# Summary and diagnostics
+summary(fit)
+```
+
+### Dynamic Effects
+
+The key innovation in `lame` is time-varying network effects:
+
+``` r
+# Fit model with dynamic effects (builds on fit and data from Quick Start above)
+fit_dynamic <- lame(
+  Y = Y,
+  Xdyad = Xdyad,
+  Xrow = Xrow,
+  Xcol = Xcol,
+  family = "binary",
+  dynamic_ab = TRUE,       # Time-varying sender/receiver effects
+  dynamic_uv = TRUE,       # Time-varying latent positions
+  R = 2,
+  burn = 100,
+  nscan = 500,
+  prior = list(
+    rho_uv_mean = 0.9,    # High persistence for latent factors
+    rho_ab_mean = 0.8     # Moderate persistence for additive effects
+  )
+)
+```
+
+## Visualization
+
+``` r
+# Additive effects (sender/receiver)
+ab_plot(fit, effect = "sender")                    # Static effects
+ab_plot(fit_dynamic, plot_type = "trajectory")     # Dynamic over time
+
+# Multiplicative effects (latent factors)
+uv_plot(fit)                                       # Static latent positions
+uv_plot(fit_dynamic, plot_type = "trajectory")     # Dynamic trajectories
+
+# Diagnostics
+trace_plot(fit)                                     # MCMC convergence
+gof_plot(fit)                                       # Goodness-of-fit
+```
+
+## Key Features
+
+### Network Analysis
+
+- **Cross-sectional**:
+  [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) fits AME
+  models for a single network snapshot
+- **Longitudinal**:
+  [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) fits
+  AME models for networks observed over multiple time periods
+- **Bipartite**: full support for two-mode (rectangular) networks in
+  both [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) and
+  [`lame()`](https://netify-dev.github.io/lame/reference/lame.md)
+- **8 families**: normal, binary, ordinal, poisson, tobit, censored
+  binary, fixed rank nomination, row-ranked likelihood
+
+### Dynamic Modeling
+
+- **Time-varying latent positions** (`dynamic_uv`): captures evolving
+  community structure via AR(1) processes
+- **Time-varying heterogeneity** (`dynamic_ab`): models changing
+  sender/receiver activity over time
+- **Flexible priors**: customizable temporal persistence and innovation
+  variance
+
+### Inference and Diagnostics
+
+- **S3 methods**: [`coef()`](https://rdrr.io/r/stats/coef.html),
+  [`vcov()`](https://rdrr.io/r/stats/vcov.html),
+  [`confint()`](https://rdrr.io/r/stats/confint.html),
+  [`residuals()`](https://rdrr.io/r/stats/residuals.html),
+  [`predict()`](https://rdrr.io/r/stats/predict.html),
+  [`summary()`](https://rdrr.io/r/base/summary.html)
+- **Visualization**:
+  [`trace_plot()`](https://netify-dev.github.io/lame/reference/trace_plot.md),
+  [`gof_plot()`](https://netify-dev.github.io/lame/reference/gof_plot.md),
+  [`uv_plot()`](https://netify-dev.github.io/lame/reference/uv_plot.md),
+  [`ab_plot()`](https://netify-dev.github.io/lame/reference/ab_plot.md)
+- **Simulation**: [`simulate()`](https://rdrr.io/r/stats/simulate.html)
+  and [`gof()`](https://netify-dev.github.io/lame/reference/gof.md) for
+  posterior predictive checks
+
+## Documentation
+
+| Vignette                                                                                       | Topic                      |
+|------------------------------------------------------------------------------------------------|----------------------------|
+| [`vignette("lame-overview")`](https://netify-dev.github.io/lame/articles/lame-overview.md)     | Getting started            |
+| [`vignette("cross_sec_ame")`](https://netify-dev.github.io/lame/articles/cross_sec_ame.md)     | Cross-sectional AME models |
+| [`vignette("lame")`](https://netify-dev.github.io/lame/articles/lame.md)                       | Longitudinal models        |
+| [`vignette("bipartite")`](https://netify-dev.github.io/lame/articles/bipartite.md)             | Bipartite networks         |
+| [`vignette("dynamic_effects")`](https://netify-dev.github.io/lame/articles/dynamic_effects.md) | Dynamic effects            |
+
+## Citation
+
+If you use `lame` in your research, please cite:
+
+``` bibtex
+@Manual{lame2026,
+  title = {lame: Longitudinal Additive and Multiplicative Effects Models for Networks},
+  author = {Cassy Dorff and Shahryar Minhas and Tosin Salau},
+  year = {2026},
+  note = {R package version 0.3.0},
+  url = {https://github.com/netify-dev/lame},
+}
+```
+
+The dynamic effects implementation draws on:
+
+- Sewell, D. K., & Chen, Y. (2015). Latent space models for dynamic
+  networks. *Journal of the American Statistical Association*, 110(512),
+  1646-1657.
+  [doi:10.1080/01621459.2014.988214](https://doi.org/10.1080/01621459.2014.988214)
+- Durante, D., & Dunson, D. B. (2014). Nonparametric Bayes dynamic
+  modeling of relational data. *Biometrika*, 101(4), 883-898.
+  [doi:10.1093/biomet/asu040](https://doi.org/10.1093/biomet/asu040)
+
+## Contributors
+
+- **Cassy Dorff** (Vanderbilt University)
+- **Shahryar Minhas** (Michigan State University)
+- **Tosin Salau** (Michigan State University)
+
+## License
+
+MIT License - see [LICENSE](https://netify-dev.github.io/lame/LICENSE)
+file for details.
+
+## Support
+
+- **Bug Reports**: [GitHub
+  Issues](https://github.com/netify-dev/lame/issues)
+- **Questions**: [GitHub
+  Discussions](https://github.com/netify-dev/lame/discussions)
+- **Contact**: <minhassh@msu.edu>
+
+# Package index
+
+## Model Fitting
+
+Core functions for fitting AME and LAME models
+
+- [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) : AME
+  model fitting routine
+- [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) : AME
+  model fitting routine for longitudinal relational data
+- [`lame-package`](https://netify-dev.github.io/lame/reference/lame-package.md)
+  : Longitudinal Additive and Multiplicative Effects Models for Networks
+- [`ame_parallel()`](https://netify-dev.github.io/lame/reference/ame_parallel.md)
+  : Run AME model with multiple parallel chains
+- [`ame_options()`](https://netify-dev.github.io/lame/reference/ame_options.md)
+  : AME model fitting options
+
+## S3 Methods
+
+Standard R methods for model objects
+
+- [`coef(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/coef.ame.md)
+  [`coef(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/coef.ame.md)
+  : Extract model coefficients from AME model
+- [`vcov(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/vcov.ame.md)
+  [`vcov(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/vcov.ame.md)
+  : Posterior covariance of AME model coefficients
+- [`confint(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/confint.ame.md)
+  [`confint(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/confint.ame.md)
+  : Bayesian credible intervals for AME model coefficients
+- [`predict(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/predict.ame.md)
+  : Predict method for AME models
+- [`predict(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/predict.lame.md)
+  : Predict method for LAME models
+- [`fitted(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/fitted.ame.md)
+  : Extract fitted values from AME model
+- [`fitted(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/fitted.lame.md)
+  : Extract fitted values from LAME model
+- [`residuals(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/residuals.ame.md)
+  : Extract residuals from AME model
+- [`residuals(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/residuals.lame.md)
+  : Extract residuals from LAME model
+- [`simulate(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/simulate.ame.md)
+  : Simulate networks from a fitted AME model
+- [`simulate(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/simulate.lame.md)
+  : Simulate longitudinal networks from a fitted LAME model
+- [`summary(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/summary.ame.md)
+  : Summary of an AME object
+- [`summary(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/summary.lame.md)
+  : Summary of a LAME object
+- [`print(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/print.ame.md)
+  : Print method for AME model objects
+- [`print(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/print.lame.md)
+  : Print method for LAME objects
+- [`print(`*`<summary.ame>`*`)`](https://netify-dev.github.io/lame/reference/print.summary.ame.md)
+  : Print method for summary.ame objects
+- [`print(`*`<summary.lame>`*`)`](https://netify-dev.github.io/lame/reference/print.summary.lame.md)
+  : Print method for summary.lame objects
+- [`plot(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/plot.ame.md)
+  : Simple diagnostic plot for AME model fit
+- [`plot(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/plot.lame.md)
+  : Plot comprehensive diagnostics for a LAME model fit
+
+## Visualization
+
+Plotting functions for diagnostics and model exploration
+
+- [`trace_plot()`](https://netify-dev.github.io/lame/reference/trace_plot.md)
+  : MCMC trace plots and density plots for AME/LAME model parameters
+- [`gof_plot()`](https://netify-dev.github.io/lame/reference/gof_plot.md)
+  : Visualize goodness-of-fit statistics for AME and LAME models
+- [`ab_plot()`](https://netify-dev.github.io/lame/reference/ab_plot.md)
+  : Visualize sender and receiver random effects
+- [`uv_plot()`](https://netify-dev.github.io/lame/reference/uv_plot.md)
+  : Visualize multiplicative effects (latent factors) from AME models
+
+## Goodness of Fit
+
+Posterior predictive checks and GOF statistics
+
+- [`gof()`](https://netify-dev.github.io/lame/reference/gof.md) :
+  Compute GOF statistics from saved posterior samples
+- [`gof_stats()`](https://netify-dev.github.io/lame/reference/gof_stats.md)
+  : Goodness of fit statistics
+- [`gof_stats_unipartite()`](https://netify-dev.github.io/lame/reference/gof_stats_unipartite.md)
+  : Goodness of fit statistics for unipartite networks
+- [`gof_stats_bipartite()`](https://netify-dev.github.io/lame/reference/gof_stats_bipartite.md)
+  : Goodness of fit statistics for bipartite networks
+- [`compute_gof_bipartite()`](https://netify-dev.github.io/lame/reference/compute_gof_bipartite.md)
+  : Compute GOF statistics for bipartite networks
+
+## Posterior Utilities
+
+Tools for working with posterior samples
+
+- [`simulate_posterior()`](https://netify-dev.github.io/lame/reference/simulate_posterior.md)
+  : Simulate posterior distributions from fitted AME model
+- [`posterior_quantiles()`](https://netify-dev.github.io/lame/reference/posterior_quantiles.md)
+  : Extract posterior quantiles for model components
+- [`posterior_options()`](https://netify-dev.github.io/lame/reference/posterior_options.md)
+  : Options for saving posterior samples during MCMC
+- [`reconstruct_EZ()`](https://netify-dev.github.io/lame/reference/reconstruct_EZ.md)
+  [`reconstruct_UVPM()`](https://netify-dev.github.io/lame/reference/reconstruct_EZ.md)
+  : Reconstruct EZ and UVPM matrices from AME model output
+- [`combine_ame_chains()`](https://netify-dev.github.io/lame/reference/combine_ame_chains.md)
+  : Combine multiple AME chains
+- [`compute_mcmc_diagnostics()`](https://netify-dev.github.io/lame/reference/compute_mcmc_diagnostics.md)
+  : Compute MCMC convergence diagnostics for multiple chains
+
+## Simulation
+
+Simulate network data from fitted models
+
+- [`print(`*`<ame.sim>`*`)`](https://netify-dev.github.io/lame/reference/print.ame.sim.md)
+  [`print(`*`<lame.sim>`*`)`](https://netify-dev.github.io/lame/reference/print.ame.sim.md)
+  : Print methods for AME and LAME simulation objects
+- [`summary(`*`<ame.sim>`*`)`](https://netify-dev.github.io/lame/reference/summary.ame.sim.md)
+  : Summary method for AME simulations
+- [`summary(`*`<lame.sim>`*`)`](https://netify-dev.github.io/lame/reference/summary.lame.sim.md)
+  : Summary method for LAME simulations
+- [`simY_nrm()`](https://netify-dev.github.io/lame/reference/simY_nrm.md)
+  : Simulate a normal relational matrix
+- [`simY_bin()`](https://netify-dev.github.io/lame/reference/simY_bin.md)
+  : Simulate a network, i.e. a binary relational matrix
+- [`simY_ord()`](https://netify-dev.github.io/lame/reference/simY_ord.md)
+  : Simulate an ordinal relational matrix
+- [`simY_pois()`](https://netify-dev.github.io/lame/reference/simY_pois.md)
+  : Simulate a Poisson relational matrix
+- [`simY_tob()`](https://netify-dev.github.io/lame/reference/simY_tob.md)
+  : Simulate a tobit relational matrix
+- [`simY_frn()`](https://netify-dev.github.io/lame/reference/simY_frn.md)
+  : Simulate an relational matrix based on a fixed rank nomination
+  scheme
+- [`simY_rrl()`](https://netify-dev.github.io/lame/reference/simY_rrl.md)
+  : Simulate an relational matrix based on a relative rank nomination
+  scheme
+- [`simZ()`](https://netify-dev.github.io/lame/reference/simZ.md) :
+  Simulate Z given its expectation and covariance
+
+## Data Manipulation
+
+Convert between network data formats
+
+- [`el2sm()`](https://netify-dev.github.io/lame/reference/el2sm.md) :
+  Edgelist to sociomatrix
+- [`sm2el()`](https://netify-dev.github.io/lame/reference/sm2el.md) :
+  Sociomatrix to edgelist
+- [`array_to_list()`](https://netify-dev.github.io/lame/reference/array_to_list.md)
+  : Convert array to list.
+- [`list_to_array()`](https://netify-dev.github.io/lame/reference/list_to_array.md)
+  : Convert list to array
+- [`list_to_array_bipartite()`](https://netify-dev.github.io/lame/reference/list_to_array_bipartite.md)
+  : Convert bipartite list data to array format
+- [`check_format()`](https://netify-dev.github.io/lame/reference/check_format.md)
+  : Validate input data format for lame function
+- [`zscores()`](https://netify-dev.github.io/lame/reference/zscores.md)
+  : rank-based z-scores
+
+## Memory and Performance
+
+Manage memory usage in large models
+
+- [`compact_ame()`](https://netify-dev.github.io/lame/reference/compact_ame.md)
+  : Optimize AME model output for memory efficiency
+- [`ame_memory_usage()`](https://netify-dev.github.io/lame/reference/ame_memory_usage.md)
+  : Calculate memory usage of AME model components
+- [`ame_memory_settings()`](https://netify-dev.github.io/lame/reference/ame_memory_settings.md)
+  : Display memory usage information for AME models
+
+## MCMC Samplers
+
+Gibbs sampling functions for latent variables, regression coefficients,
+and variance components
+
+- [`rZ_nrm_fc()`](https://netify-dev.github.io/lame/reference/rZ_nrm_fc.md)
+  : Simulate missing values in a normal AME model
+- [`rZ_bin_fc()`](https://netify-dev.github.io/lame/reference/rZ_bin_fc.md)
+  : Simulate Z based on a probit model
+- [`rZ_ord_fc()`](https://netify-dev.github.io/lame/reference/rZ_ord_fc.md)
+  : Simulate Z given the partial ranks
+- [`rZ_pois_fc()`](https://netify-dev.github.io/lame/reference/rZ_pois_fc.md)
+  : Gibbs update for latent variable in a Poisson AME model
+- [`rZ_tob_fc()`](https://netify-dev.github.io/lame/reference/rZ_tob_fc.md)
+  : Simulate Z based on a tobit model
+- [`rZ_cbin_fc()`](https://netify-dev.github.io/lame/reference/rZ_cbin_fc.md)
+  : Simulate Z given fixed rank nomination data
+- [`rZ_frn_fc()`](https://netify-dev.github.io/lame/reference/rZ_frn_fc.md)
+  : Simulate Z given fixed rank nomination data
+- [`rZ_rrl_fc()`](https://netify-dev.github.io/lame/reference/rZ_rrl_fc.md)
+  : Simulate Z given relative rank nomination data
+- [`rbeta_ab_fc()`](https://netify-dev.github.io/lame/reference/rbeta_ab_fc.md)
+  : Conditional simulation of additive effects and regression
+  coefficients
+- [`rbeta_ab_rep_fc()`](https://netify-dev.github.io/lame/reference/rbeta_ab_rep_fc.md)
+  : Gibbs sampling of additive row and column effects and regression
+  coefficient with independent replicate relational data
+- [`rSab_fc()`](https://netify-dev.github.io/lame/reference/rSab_fc.md)
+  : Gibbs update for additive effects covariance
+- [`rSuv_fc()`](https://netify-dev.github.io/lame/reference/rSuv_fc.md)
+  : Gibbs update for multiplicative effects covariance
+- [`rUV_fc()`](https://netify-dev.github.io/lame/reference/rUV_fc.md) :
+  Gibbs sampling of U and V
+- [`rUV_rep_fc()`](https://netify-dev.github.io/lame/reference/rUV_rep_fc.md)
+  : Gibbs sampling of U and V
+- [`rUV_sym_fc()`](https://netify-dev.github.io/lame/reference/rUV_sym_fc.md)
+  : Gibbs sampling of U and V
+- [`rUV_dynamic_fc()`](https://netify-dev.github.io/lame/reference/rUV_dynamic_fc.md)
+  : Gibbs sampling of dynamic U and V with AR(1) evolution
+- [`rUV_dynamic_fc_cpp()`](https://netify-dev.github.io/lame/reference/rUV_dynamic_fc_cpp.md)
+  : Update dynamic latent positions using AR(1) process
+- [`raSab_bin_fc()`](https://netify-dev.github.io/lame/reference/raSab_bin_fc.md)
+  : Simulate a and Sab from full conditional distributions under bin
+  likelihood
+- [`raSab_cbin_fc()`](https://netify-dev.github.io/lame/reference/raSab_cbin_fc.md)
+  : Simulate a and Sab from full conditional distributions under the
+  cbin likelihood
+- [`raSab_frn_fc()`](https://netify-dev.github.io/lame/reference/raSab_frn_fc.md)
+  : Simulate a and Sab from full conditional distributions under frn
+  likelihood
+- [`rrho_fc()`](https://netify-dev.github.io/lame/reference/rrho_fc.md)
+  : Griddy Gibbs update for dyadic correlation
+- [`rrho_mh()`](https://netify-dev.github.io/lame/reference/rrho_mh.md)
+  : Metropolis update for dyadic correlation
+- [`rrho_mh_rep()`](https://netify-dev.github.io/lame/reference/rrho_mh_rep.md)
+  : Metropolis update for dyadic correlation with independent replicate
+  data
+- [`rs2_fc()`](https://netify-dev.github.io/lame/reference/rs2_fc.md) :
+  Gibbs update for dyadic variance
+- [`rs2_rep_fc()`](https://netify-dev.github.io/lame/reference/rs2_rep_fc.md)
+  : Gibbs update for dyadic variance with independent replicate
+  relational data
+- [`sample_ab_bipartite()`](https://netify-dev.github.io/lame/reference/sample_ab_bipartite.md)
+  : Sample additive effects for bipartite networks
+- [`sample_dynamic_ab_cpp()`](https://netify-dev.github.io/lame/reference/sample_dynamic_ab_cpp.md)
+  : Sample dynamic additive effects with AR(1) evolution
+- [`sample_rho_ab_cpp()`](https://netify-dev.github.io/lame/reference/sample_rho_ab_cpp.md)
+  : Sample AR(1) parameter for dynamic additive effects
+- [`sample_rho_uv()`](https://netify-dev.github.io/lame/reference/sample_rho_uv.md)
+  : Sample AR(1) parameter for dynamic latent factors
+- [`sample_sigma_ab_cpp()`](https://netify-dev.github.io/lame/reference/sample_sigma_ab_cpp.md)
+  : Sample innovation variance for dynamic additive effects
+- [`sample_sigma_uv()`](https://netify-dev.github.io/lame/reference/sample_sigma_uv.md)
+  : Sample innovation variance for dynamic latent factors
+- [`init_dynamic_ab_cpp()`](https://netify-dev.github.io/lame/reference/init_dynamic_ab_cpp.md)
+  : Initialize dynamic additive effects with AR(1) structure
+- [`init_dynamic_positions()`](https://netify-dev.github.io/lame/reference/init_dynamic_positions.md)
+  : Initialize dynamic latent positions with AR(1) structure
+- [`update_variances_bipartite()`](https://netify-dev.github.io/lame/reference/update_variances_bipartite.md)
+  : Update variance parameters for bipartite
+
+## Internal Helpers
+
+Design matrix construction and low-level utilities
+
+- [`init_bipartite_startvals()`](https://netify-dev.github.io/lame/reference/bipartite_helpers.md)
+  : Bipartite network helper functions
+- [`design_array()`](https://netify-dev.github.io/lame/reference/design_array.md)
+  : Computes the design socioarray of covariate values
+- [`design_array_listwisedel()`](https://netify-dev.github.io/lame/reference/design_array_listwisedel.md)
+  : Computes the design socioarray of covariate values
+- [`get_design_rep()`](https://netify-dev.github.io/lame/reference/get_design_rep.md)
+  : Create design array for replicate data
+- [`get_fit_object()`](https://netify-dev.github.io/lame/reference/get_fit_object.md)
+  : Get fitted object from MCMC results
+- [`get_start_vals()`](https://netify-dev.github.io/lame/reference/get_start_vals.md)
+  : Get fitted object from MCMC results
+- [`precomputeX()`](https://netify-dev.github.io/lame/reference/precomputeX.md)
+  : Precompute design matrix statistics
+- [`Xbeta()`](https://netify-dev.github.io/lame/reference/Xbeta.md) :
+  Linear combinations of submatrices of an array
+- [`ldZgbme()`](https://netify-dev.github.io/lame/reference/ldZgbme.md)
+  : log density for GBME models
+- [`llsrmRho()`](https://netify-dev.github.io/lame/reference/llsrmRho.md)
+  : SRM log likelihood evaluated on a grid of rho-values
+- [`mhalf()`](https://netify-dev.github.io/lame/reference/mhalf.md) :
+  Symmetric square root of a matrix
+- [`rmvnorm()`](https://netify-dev.github.io/lame/reference/rmvnorm.md)
+  : Simulation from a multivariate normal distribution
+- [`rwish()`](https://netify-dev.github.io/lame/reference/rwish.md) :
+  Simulation from a Wishart distribution
+
+## Datasets
+
+Example network datasets
+
+- [`YX_nrm`](https://netify-dev.github.io/lame/reference/YX_nrm.md) :
+  normal relational data and covariates
+- [`YX_bin`](https://netify-dev.github.io/lame/reference/YX_bin.md) :
+  binary relational data and covariates
+- [`YX_bin_list`](https://netify-dev.github.io/lame/reference/YX_bin_list.md)
+  : Binary relational data list
+- [`YX_bin_long`](https://netify-dev.github.io/lame/reference/YX_bin_long.md)
+  : binary relational data and covariates
+- [`YX_ord`](https://netify-dev.github.io/lame/reference/YX_ord.md) :
+  ordinal relational data and covariates
+- [`YX_cbin`](https://netify-dev.github.io/lame/reference/YX_cbin.md) :
+  Censored binary nomination data and covariates
+- [`YX_frn`](https://netify-dev.github.io/lame/reference/YX_frn.md) :
+  Fixed rank nomination data and covariates
+- [`YX_rrl`](https://netify-dev.github.io/lame/reference/YX_rrl.md) :
+  row-specific ordinal relational data and covariates
+- [`IR90s`](https://netify-dev.github.io/lame/reference/IR90s.md) :
+  International relations in the 90s
+- [`coldwar`](https://netify-dev.github.io/lame/reference/coldwar.md) :
+  Cold War data
+- [`comtrade`](https://netify-dev.github.io/lame/reference/comtrade.md)
+  : Comtrade data
+- [`lazegalaw`](https://netify-dev.github.io/lame/reference/lazegalaw.md)
+  : Lazega's law firm data
+- [`dutchcollege`](https://netify-dev.github.io/lame/reference/dutchcollege.md)
+  : Dutch college data
+- [`sampsonmonks`](https://netify-dev.github.io/lame/reference/sampsonmonks.md)
+  : Sampson's monastery data
+- [`sheep`](https://netify-dev.github.io/lame/reference/sheep.md) :
+  Sheep dominance data
+- [`addhealthc3`](https://netify-dev.github.io/lame/reference/addhealthc3.md)
+  : AddHealth community 3 data
+- [`addhealthc9`](https://netify-dev.github.io/lame/reference/addhealthc9.md)
+  : AddHealth community 9 data
+- [`Y`](https://netify-dev.github.io/lame/reference/Y.md) : Relational
+  matrix
+- [`Xdyad`](https://netify-dev.github.io/lame/reference/Xdyad.md) :
+  Dyadic covariates
+- [`Xrow`](https://netify-dev.github.io/lame/reference/Xrow.md) : Row
+  covariates
+- [`Xcol`](https://netify-dev.github.io/lame/reference/Xcol.md) : Column
+  covariates
+
+# Articles
+
+### Getting Started
+
+- [lame
+  Overview](https://netify-dev.github.io/lame/articles/lame-overview.md):
+- [Static AME Models: Theory and
+  Application](https://netify-dev.github.io/lame/articles/cross_sec_ame.md):
+
+### Tutorials
+
+- [Introduction to
+  LAME](https://netify-dev.github.io/lame/articles/lame.md):
+- [Bipartite Network
+  Analysis](https://netify-dev.github.io/lame/articles/bipartite.md):
+- [Dynamic Effects in Longitudinal AME
+  Models](https://netify-dev.github.io/lame/articles/dynamic_effects.md):

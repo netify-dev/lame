@@ -43,18 +43,17 @@ Generate predictions from fitted AME models, including point estimates
 and predictive distributions.
 }
 \examples{
-\dontrun{
+\donttest{
 # Fit model
-fit <- ame(Y, X, R = 2)
+data(YX_nrm)
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
+           nscan = 100, burn = 10, odens = 1, print = FALSE)
 
 # Point predictions
 Y_pred <- predict(fit)
 
-# Predictive distribution
-Y_dist <- predict(fit, type = "distribution", n_samples = 100)
-
-# Predictions with new covariates
-Y_new <- predict(fit, newdata = X_new)
+# Predictions on link scale
+Y_link <- predict(fit, type = "link")
 }
 
 }

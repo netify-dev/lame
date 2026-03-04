@@ -51,17 +51,14 @@ Computing GOF post-hoc has several advantages:
 }
 }
 \examples{
-\dontrun{
-# Run model with posterior sampling but no GOF
-opts <- posterior_options(save_UV = TRUE, save_ab = TRUE)
-fit <- ame(Y, R = 2, gof = FALSE, posterior_opts = opts)
+\donttest{
+# Run model without GOF during fitting
+data(YX_nrm)
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2, gof = FALSE,
+           nscan = 100, burn = 10, odens = 1, print = FALSE)
 
 # Compute GOF post-hoc
 gof_result <- gof(fit)
-
-# Add custom statistics
-custom <- function(Y) c(density = mean(Y > 0, na.rm = TRUE))
-gof_custom <- gof(fit, custom_gof = custom)
 }
 
 }

@@ -22,11 +22,11 @@ Helper functions to reconstruct EZ (linear predictor) and
 UVPM (posterior mean of UV) matrices that are no longer stored in the model
 output to save memory.
 
-Note: EZ returns the LINEAR PREDICTOR (η), not the response:
+Note: EZ returns the LINEAR PREDICTOR (\eqn{\eta}), not the response:
 \itemize{
-\item For Gaussian: EZ = η = μ (identity link)
-\item For Poisson: EZ = η = log(λ) (can be negative)
-\item For Binary: EZ = η = probit^-1(p) (can be any real value)
+\item For Gaussian: \eqn{EZ = \eta = \mu} (identity link)
+\item For Poisson: \eqn{EZ = \eta = \log(\lambda)} (can be negative)
+\item For Binary: \eqn{EZ = \eta} = probit inverse of p (can be any real value)
 Use YPM for predictions on the response scale.
 }
 }

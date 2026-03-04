@@ -20,7 +20,8 @@ The categorical nodal attributes in \code{X} are coded as follows:
 a binary indicator.
 }
 \source{
-\url{http://moreno.ss.uci.edu/data.html#lazega}
+Originally available at \code{http://moreno.ss.uci.edu/data.html#lazega}
+(site no longer accessible).
 }
 \description{
 Several nodal and dyadic variables measured on 71 attorneys in a law firm.

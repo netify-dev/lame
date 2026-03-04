@@ -13,6 +13,9 @@ update_variances_bipartite(
   Sab0_bb = 1
 )
 }
+\value{
+List with components \code{sigma2_a} and \code{sigma2_b}
+}
 \description{
 Update variance parameters for bipartite
 }

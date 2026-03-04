@@ -37,12 +37,14 @@ For more accurate posteriors, use posterior_options() during model fitting
 to save the actual MCMC samples.
 }
 \examples{
-\dontrun{
-# Simulate posterior predictive distribution
-Y_post <- simulate_posterior(fit, "Y", n_samples = 100)
+\donttest{
+# Fit a model with multiplicative effects
+data(YX_nrm)
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
+           nscan = 100, burn = 10, odens = 1, print = FALSE)
 
-# Get posterior samples of multiplicative effects
-UV_post <- simulate_posterior(fit, "UV", n_samples = 100)
+# Get posterior samples of regression coefficients
+beta_post <- simulate_posterior(fit, "beta", n_samples = 50)
 }
 
 }

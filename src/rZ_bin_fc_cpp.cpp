@@ -4,17 +4,17 @@
 using namespace arma; 
 using namespace Rcpp; 
 
-// Fast version of rZ_bin_fc_cpp with:
-// 1. Pre-computed index matrices
-// 2. Efficient transpose handling
-// 3. Batch RNG operations
-// 4. Minimized memory allocations
-
 // [[Rcpp::export]]
 arma::cube rZ_bin_fc_cpp(
     arma::cube ZT, arma::cube EZT, double rho, arma::cube YT
 ) {
   
+  // Guard: this function assumes square (unipartite) networks
+  if(ZT.n_rows != ZT.n_cols) {
+    Rcpp::stop("rZ_bin_fc_cpp requires square matrices (unipartite). "
+               "Got %d x %d.", ZT.n_rows, ZT.n_cols);
+  }
+
   double sz = sqrt(1 - rho * rho);
   int n = ZT.n_rows;
   int T = ZT.n_slices;
@@ -155,9 +155,15 @@ arma::mat rZ_bin_fc_single(
     const arma::mat& Z, const arma::mat& EZ, 
     double rho, const arma::mat& Y
 ) {
+  // Guard: this function assumes square (unipartite) networks
+  if(Z.n_rows != Z.n_cols) {
+    Rcpp::stop("rZ_bin_fc_single requires square matrices (unipartite). "
+               "Got %d x %d.", Z.n_rows, Z.n_cols);
+  }
+
   double sz = sqrt(1 - rho * rho);
   int n = Z.n_rows;
-  
+
   // Pre-compute indices
   arma::uvec ut = find(trimatl(arma::ones(n, n)) == 0);
   arma::uvec lt = find(trimatu(arma::ones(n, n)) == 0);

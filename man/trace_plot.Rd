@@ -70,9 +70,11 @@ Parameters displayed include:
 }
 }
 \examples{
-\dontrun{
+\donttest{
 # Fit an AME model
-fit <- ame(Y, X, nscan = 10000, burn = 1000)
+data(YX_nrm)
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X,
+           nscan = 100, burn = 10, odens = 1, print = FALSE)
 
 # Basic trace plots for all parameters
 trace_plot(fit)
@@ -82,12 +84,6 @@ trace_plot(fit, params = "beta")
 
 # Only variance components
 trace_plot(fit, params = "variance")
-
-# Exclude intercept from plot
-trace_plot(fit, exclude = "intercept")
-
-# Thin the display for clearer visualization
-trace_plot(fit, thin = 10)
 }
 }
 \author{

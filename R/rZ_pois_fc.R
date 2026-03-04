@@ -15,6 +15,5 @@
 #' @importFrom stats dpois
 #' @export rZ_pois_fc
 rZ_pois_fc <- function(Z, EZ, rho, s2, Y) {
-  # Use C++ version only
-  suppressWarnings(rZ_pois_fc_cpp(Z, EZ, rho, s2, Y))
+	suppressWarnings(rZ_pois_fc_cpp(Z, EZ, rho, s2, Y))
 }

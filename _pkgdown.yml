@@ -1,30 +1,210 @@
 url: https://netify-dev.github.io/lame/
-
 template:
   bootstrap: 5
-  bootswatch: flatly
 
 navbar:
   structure:
-    left: [intro, reference, articles, news]
+    left: [overview, articles, reference]
     right: [search, github]
   components:
-    intro:
-      text: "Get Started"
-      href: index.html
-    reference:
-      text: "Reference"
-      href: reference/index.html
+    overview:
+      text: "Overview"
+      href: articles/lame-overview.html
     articles:
       text: "Articles"
-      href: articles/index.html
-    github:
-      icon: fab fa-github
-      href: https://github.com/netify-dev/lame
-      aria-label: "GitHub"
+      menu:
+        - text: "Getting Started"
+        - text: "Cross-Sectional AME"
+          href: articles/cross_sec_ame.html
+        - text: "---"
+        - text: "Tutorials"
+        - text: "Longitudinal Models"
+          href: articles/lame.html
+        - text: "Bipartite Networks"
+          href: articles/bipartite.html
+        - text: "Dynamic Effects"
+          href: articles/dynamic_effects.html
 
-home:
-  title: "LAME - Longitudinal AME Models"
-  description: >
-    Fit Additive and Multiplicative Effects (AME) models for 
-    longitudinal network data.
+articles:
+  - title: "Getting Started"
+    contents:
+    - lame-overview
+    - cross_sec_ame
+  - title: "Tutorials"
+    contents:
+    - lame
+    - bipartite
+    - dynamic_effects
+
+reference:
+  - title: "Model Fitting"
+    desc: "Core functions for fitting AME and LAME models"
+    contents:
+    - ame
+    - lame
+    - lame-package
+    - ame_parallel
+    - ame_options
+
+  - title: "S3 Methods"
+    desc: "Standard R methods for model objects"
+    contents:
+    - coef.ame
+    - vcov.ame
+    - confint.ame
+    - predict.ame
+    - predict.lame
+    - fitted.ame
+    - fitted.lame
+    - residuals.ame
+    - residuals.lame
+    - simulate.ame
+    - simulate.lame
+    - summary.ame
+    - summary.lame
+    - print.ame
+    - print.lame
+    - print.summary.ame
+    - print.summary.lame
+    - plot.ame
+    - plot.lame
+
+  - title: "Visualization"
+    desc: "Plotting functions for diagnostics and model exploration"
+    contents:
+    - trace_plot
+    - gof_plot
+    - ab_plot
+    - uv_plot
+
+  - title: "Goodness of Fit"
+    desc: "Posterior predictive checks and GOF statistics"
+    contents:
+    - gof
+    - gof_stats
+    - gof_stats_unipartite
+    - gof_stats_bipartite
+    - compute_gof_bipartite
+
+  - title: "Posterior Utilities"
+    desc: "Tools for working with posterior samples"
+    contents:
+    - simulate_posterior
+    - posterior_quantiles
+    - posterior_options
+    - reconstruct_EZ
+    - combine_ame_chains
+    - compute_mcmc_diagnostics
+
+  - title: "Simulation"
+    desc: "Simulate network data from fitted models"
+    contents:
+    - print.ame.sim
+    - summary.ame.sim
+    - summary.lame.sim
+    - simY_nrm
+    - simY_bin
+    - simY_ord
+    - simY_pois
+    - simY_tob
+    - simY_frn
+    - simY_rrl
+    - simZ
+
+  - title: "Data Manipulation"
+    desc: "Convert between network data formats"
+    contents:
+    - el2sm
+    - sm2el
+    - array_to_list
+    - list_to_array
+    - list_to_array_bipartite
+    - check_format
+    - zscores
+
+  - title: "Memory and Performance"
+    desc: "Manage memory usage in large models"
+    contents:
+    - compact_ame
+    - ame_memory_usage
+    - ame_memory_settings
+
+  - title: "MCMC Samplers"
+    desc: "Gibbs sampling functions for latent variables, regression coefficients, and variance components"
+    contents:
+    - rZ_nrm_fc
+    - rZ_bin_fc
+    - rZ_ord_fc
+    - rZ_pois_fc
+    - rZ_tob_fc
+    - rZ_cbin_fc
+    - rZ_frn_fc
+    - rZ_rrl_fc
+    - rbeta_ab_fc
+    - rbeta_ab_rep_fc
+    - rSab_fc
+    - rSuv_fc
+    - rUV_fc
+    - rUV_rep_fc
+    - rUV_sym_fc
+    - rUV_dynamic_fc
+    - rUV_dynamic_fc_cpp
+    - raSab_bin_fc
+    - raSab_cbin_fc
+    - raSab_frn_fc
+    - rrho_fc
+    - rrho_mh
+    - rrho_mh_rep
+    - rs2_fc
+    - rs2_rep_fc
+    - sample_ab_bipartite
+    - sample_dynamic_ab_cpp
+    - sample_rho_ab_cpp
+    - sample_rho_uv
+    - sample_sigma_ab_cpp
+    - sample_sigma_uv
+    - init_dynamic_ab_cpp
+    - init_dynamic_positions
+    - update_variances_bipartite
+
+  - title: "Internal Helpers"
+    desc: "Design matrix construction and low-level utilities"
+    contents:
+    - bipartite_helpers
+    - design_array
+    - design_array_listwisedel
+    - get_design_rep
+    - get_fit_object
+    - get_start_vals
+    - precomputeX
+    - Xbeta
+    - ldZgbme
+    - llsrmRho
+    - mhalf
+    - rmvnorm
+    - rwish
+
+  - title: "Datasets"
+    desc: "Example network datasets"
+    contents:
+    - YX_nrm
+    - YX_bin
+    - YX_bin_list
+    - YX_bin_long
+    - YX_ord
+    - YX_cbin
+    - YX_frn
+    - YX_rrl
+    - IR90s
+    - coldwar
+    - comtrade
+    - lazegalaw
+    - dutchcollege
+    - sampsonmonks
+    - sheep
+    - addhealthc3
+    - addhealthc9
+    - "Y"
+    - Xdyad
+    - Xrow
+    - Xcol

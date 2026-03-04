@@ -32,9 +32,13 @@ If combine_method = "list": A list of ame objects, one per chain
 Run AME model with multiple parallel chains
 }
 \examples{
-\dontrun{
-# Run 4 parallel chains
-fit_parallel <- ame_parallel(Y, n_chains = 4, R = 2, nscan = 10000)
+\donttest{
+# Run 2 chains sequentially
+data(YX_nrm)
+fit_parallel <- ame_parallel(YX_nrm$Y, Xdyad = YX_nrm$X,
+                             n_chains = 2, cores = 1,
+                             nscan = 100, burn = 10, odens = 1,
+                             print = FALSE)
 }
 
 }

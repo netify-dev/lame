@@ -12,234 +12,184 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5
 )
 ```
 
 ## Introduction
 
-The `lame` package extends the Additive and Multiplicative Effects (AME) model to longitudinal network data through the introduction of dynamic effects. This vignette explains the theoretical foundation, implementation details, and practical usage of the `dynamic_uv` and `dynamic_ab` parameters.
+Networks change. Countries that were close allies a decade ago may have drifted apart. A legislator's co-sponsorship patterns shift as they gain seniority or switch committee assignments. A user's purchasing habits evolve as their tastes change.
 
-## Theoretical Background
+The standard AME model assumes that each actor has a fixed latent position and fixed additive effects across all time periods. This is a reasonable starting point (pooling across time gives you more data and more precise estimates), but it can miss important dynamics. The `lame` package provides two mechanisms for letting the model capture temporal change: `dynamic_uv` for time-varying latent positions and `dynamic_ab` for time-varying additive effects.
 
-### Standard AME Model
+This vignette explains what these options do, when to use them, and how to interpret the results.
 
-The standard AME model decomposes network structure as:
+## What Are Dynamic Effects?
 
-$$y_{ij} = \beta'x_{ij} + a_i + b_j + u_i'v_j + \epsilon_{ij}$$
+### The Static Baseline
 
-where:
+In the standard AME model for longitudinal data, the tie between actors $i$ and $j$ at time $t$ is:
 
-- $\beta'x_{ij}$: Fixed effects of covariates
-- $a_i$: Sender (row) effect for node $i$
-- $b_j$: Receiver (column) effect for node $j$
-- $u_i'v_j$: Multiplicative interaction between latent factors
-- $\epsilon_{ij}$: Dyadic error term
+$$y_{ij,t} = \beta'x_{ij,t} + a_i + b_j + u_i'v_j + \epsilon_{ij,t}$$
 
-### Dynamic Extensions
+The covariates ($x_{ij,t}$) can vary over time, but everything else (the sender effect $a_i$, the receiver effect $b_j$, and the latent positions $u_i$ and $v_j$) is constant. This means the model assumes that a country's tendency to sanction others, or its position in the latent "sanctioning space," is the same in 1993 as in 2000.
 
-For longitudinal data with networks observed at times $t = 1, ..., T$, we extend the model to allow temporal evolution of effects.
+### Dynamic Latent Positions (`dynamic_uv = TRUE`)
 
-#### Dynamic Multiplicative Effects (`dynamic_uv = TRUE`)
+When you set `dynamic_uv = TRUE`, each actor's latent position evolves over time according to an AR(1) process:
 
-The latent factors evolve according to AR(1) processes:
+$$U_{i,k,t} = \rho_{uv} \, U_{i,k,t-1} + \epsilon_{i,k,t}$$
+$$V_{j,k,t} = \rho_{uv} \, V_{j,k,t-1} + \eta_{j,k,t}$$
 
-$$U_{i,k,t} = \rho_{uv} U_{i,k,t-1} + \epsilon_{i,k,t}$$
-$$V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}$$
+The autoregressive parameter $\rho_{uv}$ controls how persistent the positions are. A value close to 1 means positions change slowly, as last year's position is a strong predictor of this year's. A value close to 0 means positions are essentially re-drawn each period. In practice, $\rho_{uv}$ is estimated from the data, so you don't need to choose it yourself.
 
-where:
+This is useful when you believe the underlying community structure is evolving: alliances shift, social groups re-form, trading blocs realign.
 
-- $\epsilon_{i,k,t}, \eta_{j,k,t} \sim N(0, \sigma_{uv}^2)$
-- $\rho_{uv} \in (0,1)$ controls temporal persistence
-- $i,j$ index actors, $k$ indexes latent dimensions, $t$ indexes time
+### Dynamic Additive Effects (`dynamic_ab = TRUE`)
 
-This specification allows actors' positions in latent social space to drift over time, capturing:
+When you set `dynamic_ab = TRUE`, the sender and receiver effects evolve over time:
 
-- Evolving community structure
-- Time-varying homophily patterns
-- Dynamic clustering and transitivity
+$$a_{i,t} = \rho_{ab} \, a_{i,t-1} + \epsilon_{i,t}$$
+$$b_{j,t} = \rho_{ab} \, b_{j,t-1} + \eta_{j,t}$$
 
-#### Dynamic Additive Effects (`dynamic_ab = TRUE`)
+This captures changes in actors' overall activity levels. A country might become a more active sanctioner after a change in government. A student might become more or less socially active across semesters. These are changes in how much an actor participates, not in who they connect with (that's what `dynamic_uv` captures).
 
-The sender and receiver effects evolve as:
-
-$$a_{i,t} = \rho_{ab} a_{i,t-1} + \epsilon_{i,t}$$
-$$b_{j,t} = \rho_{ab} b_{j,t-1} + \eta_{j,t}$$
-
-where:
-
-- $\epsilon_{i,t}, \eta_{j,t} \sim N(0, \sigma_{ab}^2)$
-- $\rho_{ab} \in (0,1)$ controls temporal smoothness
-
-This captures:
-
-- Time-varying activity levels (outdegree heterogeneity)
-- Changing popularity (indegree heterogeneity)
-- Life-cycle effects in social networks
+You can use either option alone or combine them. In practice, `dynamic_ab` is often a good place to start, since changes in overall activity are common and relatively easy to estimate. `dynamic_uv` adds more flexibility but also more parameters.
 
 ## Prior Specifications
 
-### For Dynamic Parameters
+The AR(1) coefficients and innovation variances have sensible default priors:
 
-The package uses the following default priors:
+- $\rho_{uv} \sim \text{TruncNormal}(0.9, 0.1, 0, 1)$, centered on high persistence
+- $\rho_{ab} \sim \text{TruncNormal}(0.8, 0.15, 0, 1)$, slightly less persistent
+- $\sigma_{uv}^2, \sigma_{ab}^2 \sim \text{InverseGamma}(2, 1)$
 
-**AR(1) coefficients:**
-
-- $\rho_{uv} \sim \text{TruncNormal}(0.9, 0.1, 0, 1)$
-- $\rho_{ab} \sim \text{TruncNormal}(0.8, 0.15, 0, 1)$
-
-**Innovation variances:**
-
-- $\sigma_{uv}^2 \sim \text{InverseGamma}(2, 1)$
-- $\sigma_{ab}^2 \sim \text{InverseGamma}(2, 1)$
-
-These can be customized via the `prior` argument:
+These can be customized via the `prior` argument if you have strong beliefs about the rate of change:
 
 ```{r}
 prior_custom <- list(
-  rho_uv_mean = 0.95,    # Higher persistence for UV
-  rho_uv_sd = 0.05,      # Tighter prior
-  sigma_uv_shape = 3,    # Different variance prior
+  rho_uv_mean = 0.95,    # expect very slow change in latent positions
+  rho_uv_sd = 0.05,      # tight prior
+  sigma_uv_shape = 3,
   sigma_uv_scale = 2
 )
 ```
 
-## Implementation Details
+## Practical Example
 
-### Computational Efficiency
-
-The dynamic effects are implemented in C++ via `Rcpp` and `RcppArmadillo`:
-
-1. **Block sampling**: Updates are performed in blocks to improve mixing
-2. **Sparse operations**: Exploits temporal structure for efficiency
-3. **Memory optimization**:  about a 50% reduction compared to R implementation
-
-### Algorithmic Details
-
-The MCMC sampler alternates between:
-
-1. **Forward filtering**: Compute predictive distributions $p(x_t | x_{1:t-1})$
-2. **Backward sampling**: Sample from smoothed distribution $p(x_{1:T} | y_{1:T})$
-3. **Parameter updates**: Sample $\rho$ and $\sigma^2$ given state sequences
-
-This forward-filtering backward-sampling (FFBS) approach explores the posterior distribution.
-
-## Practical Usage
-
-### Basic Example
+We simulate a simple longitudinal network and fit models with and without dynamic effects to see the difference.
 
 ```{r}
 library(lame)
 
-# Simulate longitudinal network data
 set.seed(6886)
-n <- 25  # actors (reduced for faster vignette building)
-T <- 5   # time periods (reduced for faster vignette building)
+n <- 25  # actors
+n_periods <- 5
 
-# Generate networks (example with binary data)
+# Generate sparse binary networks
 Y_list <- list()
-for(t in 1:T) {
+for(t in 1:n_periods) {
   Y_t <- matrix(rbinom(n*n, 1, 0.1), n, n)
   diag(Y_t) <- NA
-  # Add actor labels (required for lame function)
   rownames(Y_t) <- colnames(Y_t) <- paste0("Actor", 1:n)
   Y_list[[t]] <- Y_t
 }
 
-# Fit model with dynamic effects (reduced iterations for vignette)
+# Fit model with both dynamic effects
+# Note: iterations are reduced for vignette speed.
+# Use burn >= 1000 and nscan >= 5000 for real analyses.
 fit_dynamic <- lame(
   Y = Y_list,
-  R = 2,                # 2-dimensional latent space
-  dynamic_uv = TRUE,    # Dynamic latent factors
-  dynamic_ab = TRUE,    # Dynamic additive effects
+  R = 2,
+  dynamic_uv = TRUE,
+  dynamic_ab = TRUE,
   family = "binary",
-  burn = 100,          # Reduced for vignette (use 1000+ in practice)
-  nscan = 500,         # Reduced for vignette (use 5000+ in practice)
+  burn = 100,
+  nscan = 500,
   odens = 25,
-  print = FALSE,       # Suppress output for vignette
-  plot = FALSE         # Suppress plots for vignette
+  print = FALSE,
+  plot = FALSE
 )
 ```
 
-### Visualization
+### Visualizing Dynamic Effects
 
-Plotting functions can illustrate temporal dynamics:
+The trajectory plot shows how each actor's latent position moves through the 2-dimensional space over time. Each line traces one actor's path from the first to the last period. Actors whose lines are short stayed in roughly the same position; actors with long, wandering lines experienced substantial shifts in their network role.
 
-```{r}
-# Plot latent positions (last time point)
-uv_plot(fit_dynamic, plot_type = "snapshot")
+```{r, fig.width=7, fig.height=5}
+uv_plot(fit_dynamic, plot_type = "trajectory")
+```
 
-# Plot sender effects 
-ab_plot(fit_dynamic, effect = "sender")
+The `ab_plot` with `plot_type = "trajectory"` shows how each actor's additive effect changes over time. Rising lines indicate actors who became more active (or more popular) over the observation window; falling lines indicate the opposite. This is particularly useful for identifying actors who experienced a structural break in their network behavior.
 
-# Plot trace of parameters
+```{r, fig.width=7, fig.height=5}
+ab_plot(fit_dynamic, effect = "sender", plot_type = "trajectory")
+```
+
+As always, check convergence. Dynamic models have more parameters, so adequate mixing is harder to achieve and requires longer chains.
+
+```{r, fig.width=7, fig.height=5}
 trace_plot(fit_dynamic)
 ```
 
-### Model Selection
+### Comparing Model Specifications
 
-Choose between static and dynamic specifications based on:
-
-1. **Model fit statistics**: Compare GOF statistics
-2. **Parameter estimates**: Check if $\rho$ significantly differs from 0
-3. **Visual inspection**: Look for temporal patterns in residuals
+A natural workflow is to fit several specifications and compare them:
 
 ```{r}
-# Static model
-fit_static <- lame(Y_list, R = 2, family = "binary", 
-                   burn = 100, nscan = 400, odens = 20, 
+# Static model (no dynamic effects)
+fit_static <- lame(Y_list, R = 2, family = "binary",
+                   burn = 100, nscan = 400, odens = 20,
                    print = FALSE, plot = FALSE)
 
-# Dynamic UV only
+# Dynamic latent positions only
 fit_uv <- lame(Y_list, R = 2, dynamic_uv = TRUE, family = "binary",
                burn = 100, nscan = 400, odens = 20,
                print = FALSE, plot = FALSE)
 
-# Dynamic AB only  
+# Dynamic additive effects only
 fit_ab <- lame(Y_list, R = 2, dynamic_ab = TRUE, family = "binary",
                burn = 100, nscan = 400, odens = 20,
                print = FALSE, plot = FALSE)
 
 # Full dynamic
-fit_full <- lame(Y_list, R = 2, dynamic_uv = TRUE, dynamic_ab = TRUE, family = "binary",
+fit_full <- lame(Y_list, R = 2, dynamic_uv = TRUE, dynamic_ab = TRUE,
+                 family = "binary",
                  burn = 100, nscan = 400, odens = 20,
                  print = FALSE, plot = FALSE)
+```
 
-# Compare GOF statistics
+Compare the GOF statistics across models. The model that best reproduces the observed network statistics (heterogeneity, transitivity, dyadic dependence) without unnecessary complexity is usually the best choice.
+
+```{r}
 if(!is.null(fit_static$GOF) && !is.null(fit_full$GOF)) {
   cat("Static model GOF (sample):\n")
   print(head(fit_static$GOF))
-  cat("\nDynamic model GOF (sample):\n")  
+  cat("\nFull dynamic model GOF (sample):\n")
   print(head(fit_full$GOF))
 }
 ```
 
+### When to Use Dynamic Effects
+
+**Use `dynamic_ab`** when you suspect actors' overall activity levels change over time. This is common in many settings: countries go through isolationist vs. interventionist phases, users churn in and out of platforms, students become more or less engaged across semesters.
+
+**Use `dynamic_uv`** when you suspect the underlying community structure is shifting. This is a stronger claim, not just that actors are more or less active, but that the pattern of *who connects with whom* is changing. Examples include political realignment, market disruption, or generational turnover in a social network.
+
+**Use both** when you believe both types of change are happening. This is the most flexible specification but also the most data-hungry. With short panels (few time periods) or sparse networks, the dynamic parameters may not be well-identified, and you might be better off with the static model.
+
+**Stick with static** when you have few time periods, when the network structure is genuinely stable, or when you primarily care about the covariate effects (which are the same across specifications) rather than the latent structure.
+
+## Implementation Notes
+
+The dynamic effects are implemented in C++ via Rcpp and RcppArmadillo using a forward-filtering backward-sampling (FFBS) algorithm. This is the standard approach for state-space models: the forward pass computes predictive distributions $p(x_t | x_{1:t-1})$, and the backward pass samples from the smoothed distribution $p(x_{1:T} | y_{1:T})$.
 
 ## References
 
-1. **Sewell, D. K., & Chen, Y. (2015)**. Latent space models for dynamic networks. *Journal of the American Statistical Association*, 110(512), 1646-1657.
+1. **Hoff, PD (2021)**. Additive and Multiplicative Effects Network Models. *Statistical Science* 36, 34--50.
 
-2. **Durante, D., & Dunson, D. B. (2014)**. Nonparametric Bayes dynamic modeling of relational data. *Biometrika*, 101(4), 883-898.
+2. **Sewell, D. K., & Chen, Y. (2015)**. Latent space models for dynamic networks. *Journal of the American Statistical Association*, 110(512), 1646-1657.
 
-## Appendix: Mathematical Details
-
-### Posterior Distributions
-
-For the AR(1) parameters, the full conditionals are:
-
-$$p(\rho | \cdot) \propto p(\rho) \prod_{t=2}^T p(x_t | x_{t-1}, \rho, \sigma^2)$$
-
-$$p(\sigma^2 | \cdot) \sim \text{IG}\left(\alpha + \frac{n(T-1)}{2}, \beta + \frac{1}{2}\sum_{t=2}^T ||x_t - \rho x_{t-1}||^2\right)$$
-
-### Identification
-
-The dynamic effects are identified through:
-1. Temporal ordering constraints
-2. Stationarity assumption ($|\rho| < 1$)
-3. Initial state distribution $x_1 \sim N(0, \sigma^2/(1-\rho^2))$
-
-### Computational Complexity
-
-- **Time complexity**: $O(n^2 RT)$ per iteration
-- **Space complexity**: $O(nRT)$ for storage
-- **Mixing time**: Typically $O(\log T)$ with good initialization
+3. **Durante, D., & Dunson, D. B. (2014)**. Nonparametric Bayes dynamic modeling of relational data. *Biometrika*, 101(4), 883-898.

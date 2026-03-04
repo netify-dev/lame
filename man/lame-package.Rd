@@ -22,9 +22,10 @@ by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).
 0.0.0.9000 \cr Date: \tab 2025 \cr License: \tab MIT \cr }
 }
 \examples{
-\dontrun{
+\donttest{
 data(YX_nrm)
-fit<-ame(YX_nrm$Y,YX_nrm$X,burn=10,nscan=20,odens=5,family="normal")
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, burn = 10, nscan = 100, odens = 1,
+           family = "normal", print = FALSE)
 summary(fit)
 }
 

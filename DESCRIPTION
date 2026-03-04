@@ -1,12 +1,12 @@
 Package: lame
 Title: Longitudinal Additive and Multiplicative Effects Models for Networks
-Version: 0.2
+Version: 0.3.0
 Authors@R: c(
+    person("Cassy", "Dorff", role = "aut"),
     person("Shahryar", "Minhas", , "minhassh@msu.edu", role = c("aut", "cre")),
-    person("Tosin", "Salau", role = "aut"),
-    person("Cassy", "Dorff", role = "aut"))
+    person("Tosin", "Salau", role = "aut"))
 Description: Tools for Additive and Multiplicative Effects (AME) models for both cross-sectional and longitudinal network analysis. The package provides two main functions: 'ame()' for cross-sectional networks and 'lame()' for longitudinal networks. Package supports unipartite (square) and bipartite (rectangular) network structures. Key features include: (1) Cross-sectional network analysis via 'ame()' with support for various data types (binary, continuous, ordinal, count); (2) Longitudinal network analysis via 'lame()' with dynamic effects modeling where both additive (sender/receiver) and multiplicative (latent factor) effects can be chosen to evolve over time via AR(1) processes (Sewell & Chen 2015 <doi:10.1080/01621459.2014.988214>, Durante & Dunson 2014 <doi:10.1093/biomet/asu040>); (3) Handling of changing actor compositions across time periods in longitudinal models; (4) Performance improvements through C++ implementations via Rcpp and RcppArmadillo. 
-Author: Shahryar Minhas [aut, cre], Tosin Salau [aut], Cassy Dorff [aut]
+Author: Cassy Dorff [aut], Shahryar Minhas [aut, cre], Tosin Salau [aut]
 Maintainer: Shahryar Minhas <minhassh@msu.edu>
 License: MIT + file LICENSE
 URL: https://netify-dev.github.io/lame/, https://github.com/netify-dev/lame
@@ -19,18 +19,22 @@ RoxygenNote: 7.3.3
 LinkingTo: 
     Rcpp,
     RcppArmadillo
-Imports: 
+Imports:
     Rcpp,
     ggplot2,
     plyr,
     reshape2,
     ggrepel,
+    ggforce,
     network,
     gridExtra,
     coda,
     patchwork,
     cli,
-    msm
+    msm,
+    MASS,
+    Matrix,
+    abind
 Suggests: 
     knitr,
     rmarkdown,

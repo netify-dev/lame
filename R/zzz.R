@@ -1,6 +1,4 @@
-# Package initialization handled automatically by Rcpp
-
 #' @importFrom grDevices devAskNewPage
-#' @importFrom stats aggregate dnorm
-#' @importFrom utils head
+#' @importFrom stats aggregate dnorm rbinom rWishart setNames
+#' @importFrom utils head object.size
 NULL

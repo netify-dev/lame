@@ -10,3 +10,7 @@
 ^\.github$
 ^_pkgdown\.yml$
 ^pkgdown$
+^audit_docs\.R$
+^DIAGNOSTIC_PLAN\.md$
+^README\.md$
+^cran-comments\.md$

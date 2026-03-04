@@ -14,12 +14,9 @@ gof_stats_cpp <- function(Y) {
 }
 
 #' Sample dynamic additive effects with AR(1) evolution
-#' 
-#' Updates row effects (a) and column effects (b) that evolve over time
-#' according to AR(1) processes: \eqn{a_{i,t} = \rho_{ab} a_{i,t-1} + \epsilon_{i,t}}
-#' 
+#'
 #' @param a_current Current 2D array of row effects (n x T)
-#' @param b_current Current 2D array of column effects (n x T) 
+#' @param b_current Current 2D array of column effects (n x T)
 #' @param Z_array 3D array of latent positions (n x n x T)
 #' @param EZ_array 3D array of expected values without additive effects (n x n x T)
 #' @param rho_ab AR(1) parameter for additive effects
@@ -32,9 +29,7 @@ sample_dynamic_ab_cpp <- function(a_current, b_current, Z_array, EZ_array, rho_a
 }
 
 #' Sample AR(1) parameter for dynamic additive effects
-#' 
-#' Uses Metropolis-Hastings to sample rho_ab given the time series of effects
-#' 
+#'
 #' @param a_mat Matrix of row effects (n x T)
 #' @param b_mat Matrix of column effects (n x T)
 #' @param sigma_ab Innovation standard deviation
@@ -46,7 +41,7 @@ sample_rho_ab_cpp <- function(a_mat, b_mat, sigma_ab, rho_current, symmetric) {
 }
 
 #' Sample innovation variance for dynamic additive effects
-#' 
+#'
 #' @param a_mat Matrix of row effects (n x T)
 #' @param b_mat Matrix of column effects (n x T)
 #' @param rho_ab AR(1) parameter
@@ -59,7 +54,7 @@ sample_sigma_ab_cpp <- function(a_mat, b_mat, rho_ab, symmetric, prior_shape = 2
 }
 
 #' Initialize dynamic additive effects with AR(1) structure
-#' 
+#'
 #' @param n Number of actors
 #' @param T Number of time points
 #' @param rho_ab AR(1) parameter
@@ -72,9 +67,9 @@ init_dynamic_ab_cpp <- function(n, T, rho_ab, sigma_ab, mean_a = 0.0, mean_b = 0
 }
 
 #' Update dynamic latent positions using AR(1) process
-#' 
+#'
 #' @param U_current Current 3D array of U positions (n x R x T)
-#' @param V_current Current 3D array of V positions (n x R x T) 
+#' @param V_current Current 3D array of V positions (n x R x T)
 #' @param ET 3D array of residuals (n x n x T)
 #' @param rho_uv AR(1) autoregressive parameter for latent positions
 #' @param sigma_uv Innovation standard deviation for latent positions
@@ -87,7 +82,7 @@ rUV_dynamic_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, s
 }
 
 #' Initialize dynamic latent positions with AR(1) structure
-#' 
+#'
 #' @param n Number of actors
 #' @param R Latent dimension
 #' @param T Number of time points
@@ -99,7 +94,7 @@ init_dynamic_positions <- function(n, R, T, rho_uv, sigma_uv) {
 }
 
 #' Sample AR(1) parameter for dynamic latent factors
-#' 
+#'
 #' @param U_cube 3D array of U positions (n x R x T)
 #' @param V_cube 3D array of V positions (n x R x T)
 #' @param sigma_uv Innovation standard deviation
@@ -111,7 +106,7 @@ sample_rho_uv <- function(U_cube, V_cube, sigma_uv, rho_current, symmetric) {
 }
 
 #' Sample innovation variance for dynamic latent factors
-#' 
+#'
 #' @param U_cube 3D array of U positions (n x R x T)
 #' @param V_cube 3D array of V positions (n x R x T)
 #' @param rho_uv AR(1) parameter

@@ -56,6 +56,12 @@ or a network matrix Y if U and V are provided separately}
 
 \item{label.size}{Size of node labels (default 3)}
 
+\item{show.usernames}{Integer: number of top-degree nodes to label, or NULL for default behavior}
+
+\item{sender.color}{Color for sender/row nodes (default "darkred")}
+
+\item{receiver.color}{Color for receiver/column nodes (default "darkblue")}
+
 \item{colors}{Optional vector of colors for nodes (e.g., for communities)}
 
 \item{title}{Optional title for the plot}
@@ -103,21 +109,17 @@ to the likelihood of a tie
 }
 }
 \examples{
-\dontrun{
+\donttest{
 # Fit an AME model with multiplicative effects
-fit <- ame(Y, X, R = 2)
+data(YX_nrm)
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
+           nscan = 100, burn = 10, odens = 1, print = FALSE)
 
 # Basic visualization
 uv_plot(fit)
 
-# Show network edges
-uv_plot(fit, show.edges = TRUE)
-
 # Use biplot layout
 uv_plot(fit, layout = "biplot")
-
-# Color by known communities
-uv_plot(fit, colors = community_membership)
 }
 }
 \author{

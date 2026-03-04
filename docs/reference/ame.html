@@ -11,11 +11,11 @@ implementation by Peter Hoff."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <nav class="navbar navbar-expand-lg fixed-top bg-primary" data-bs-theme="dark" aria-label="Site navigation"><div class="container">
+    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -23,13 +23,21 @@ implementation by Peter Hoff."></head><body>
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../index.html">Get Started</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/lame-overview.html">Overview</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
+    <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+  </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
-<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/netify-dev/lame" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/netify-dev/lame/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -58,12 +66,14 @@ implementation by Peter Hoff.</p>
 <span>mode <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"unipartite"</span>, <span class="st">"bipartite"</span><span class="op">)</span>, family<span class="op">=</span><span class="st">"normal"</span>,</span>
 <span>intercept<span class="op">=</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>,<span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>,<span class="st">"ordinal"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>symmetric<span class="op">=</span><span class="cn">FALSE</span>,</span>
-<span>odmax<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">Y</span><span class="op">&gt;</span><span class="fl">0</span>,<span class="fl">1</span>,<span class="va">sum</span>,na.rm<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>,<span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span><span class="op">)</span>, </span>
+<span>odmax<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">Y</span><span class="op">&gt;</span><span class="fl">0</span>,<span class="fl">1</span>,<span class="va">sum</span>,na.rm<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>,<span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>prior<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, g<span class="op">=</span><span class="cn">NA</span>,</span>
-<span>seed <span class="op">=</span> <span class="fl">6886</span>, nscan <span class="op">=</span> <span class="fl">10000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>, </span>
-<span>plot<span class="op">=</span><span class="cn">TRUE</span>, print <span class="op">=</span> <span class="cn">TRUE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>, </span>
+<span>seed <span class="op">=</span> <span class="fl">6886</span>, nscan <span class="op">=</span> <span class="fl">10000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>,</span>
+<span>print <span class="op">=</span> <span class="cn">TRUE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>, custom_gof<span class="op">=</span><span class="cn">NULL</span>,</span>
 <span>start_vals<span class="op">=</span><span class="cn">NULL</span>, periodic_save<span class="op">=</span><span class="cn">FALSE</span>, out_file<span class="op">=</span><span class="cn">NULL</span>,</span>
-<span>save_interval<span class="op">=</span><span class="fl">0.25</span>, model.name<span class="op">=</span><span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+<span>save_interval<span class="op">=</span><span class="fl">0.25</span>, model.name<span class="op">=</span><span class="cn">NULL</span>,</span>
+<span>posterior_opts <span class="op">=</span> <span class="cn">NULL</span>, n_chains <span class="op">=</span> <span class="fl">1</span>, cores <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>use_sparse_matrices <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -201,16 +211,24 @@ regression coefficients.</p></dd>
 <dd><p>output density for the Markov chain</p></dd>
 
 
-<dt id="arg-plot">plot<a class="anchor" aria-label="anchor" href="#arg-plot"></a></dt>
-<dd><p>logical: plot results while running?</p></dd>
-
-
 <dt id="arg-print">print<a class="anchor" aria-label="anchor" href="#arg-print"></a></dt>
 <dd><p>logical: print results while running?</p></dd>
 
 
 <dt id="arg-gof">gof<a class="anchor" aria-label="anchor" href="#arg-gof"></a></dt>
-<dd><p>logical: calculate goodness of fit statistics?</p></dd>
+<dd><p>logical: calculate goodness of fit statistics? Setting to TRUE
+adds approximately 2-5% to runtime. For faster sampling without GOF overhead,
+set gof=FALSE and use gof() after model fitting.</p></dd>
+
+
+<dt id="arg-custom-gof">custom_gof<a class="anchor" aria-label="anchor" href="#arg-custom-gof"></a></dt>
+<dd><p>optional function or list of named functions for computing
+custom goodness-of-fit statistics. Each function must accept a single matrix Y
+as input and return a numeric vector. If a single function is provided, it
+should return a named vector. If a list of functions is provided, each function
+should return a single value and will be named according to the list names.
+Custom statistics will be computed in addition to default statistics.
+Example: custom_gof = function(Y) c(density = mean(Y &gt; 0, na.rm = TRUE))</p></dd>
 
 
 <dt id="arg-start-vals">start_vals<a class="anchor" aria-label="anchor" href="#arg-start-vals"></a></dt>
@@ -232,48 +250,94 @@ regression coefficients.</p></dd>
 <dt id="arg-model-name">model.name<a class="anchor" aria-label="anchor" href="#arg-model-name"></a></dt>
 <dd><p>optional string for model selection output</p></dd>
 
+
+<dt id="arg-posterior-opts">posterior_opts<a class="anchor" aria-label="anchor" href="#arg-posterior-opts"></a></dt>
+<dd><p>optional list of posterior sampling options</p></dd>
+
+
+<dt id="arg-n-chains">n_chains<a class="anchor" aria-label="anchor" href="#arg-n-chains"></a></dt>
+<dd><p>integer: number of MCMC chains to run (default: 1)</p></dd>
+
+
+<dt id="arg-cores">cores<a class="anchor" aria-label="anchor" href="#arg-cores"></a></dt>
+<dd><p>integer: number of cores for parallel chains (default: 1)</p></dd>
+
+
+<dt id="arg-use-sparse-matrices">use_sparse_matrices<a class="anchor" aria-label="anchor" href="#arg-use-sparse-matrices"></a></dt>
+<dd><p>logical: use sparse matrix storage for large networks? (default: FALSE).
+Recommended only for truly sparse networks (&lt; 10% non-zero entries).</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-
-
+    <p><strong>Posterior Samples (full MCMC chains):</strong></p>
 <dl><dt>BETA</dt>
-<dd><p>posterior samples of regression coefficients</p></dd>
+<dd><p>Regression coefficients (nscan xp matrix)</p></dd>
 
 <dt>VC</dt>
-<dd><p>posterior samples of the variance parameters</p></dd>
-
-<dt>APM</dt>
-<dd><p>posterior mean of additive row effects a</p></dd>
- <dt>BPM</dt>
-<dd><p>posterior
-mean of additive column effects b</p></dd>
- <dt>U</dt>
-<dd><p>posterior mean of multiplicative
-row effects u</p></dd>
- <dt>V</dt>
-<dd><p>posterior mean of multiplicative column effects v (asymmetric case)</p></dd>
-
-<dt>UVPM</dt>
-<dd><p>posterior mean of UV (asymmetric case)</p></dd>
-
-<dt>ULUPM</dt>
-<dd><p>posterior mean of ULU (symmetric case)</p></dd>
-
-<dt>L</dt>
-<dd><p>posterior mean of L (symmetric case)</p></dd>
-
-<dt>EZ</dt>
-<dd><p>estimate of expectation of Z
-matrix</p></dd>
- <dt>YPM</dt>
-<dd><p>posterior mean of Y (for imputing missing values)</p></dd>
+<dd><p>Variance components (nscan xk matrix)</p></dd>
 
 <dt>GOF</dt>
-<dd><p>observed (first row) and posterior predictive (remaining rows)
-values of four goodness-of-fit statistics</p></dd>
+<dd><p>Goodness-of-fit statistics (nscan x4 matrix)</p></dd>
 
-<dt>model.name</dt>
+
+</dl><p><strong>Posterior Means (averaged over chain):</strong></p>
+<dl><dt>APM</dt>
+<dd><p>Additive row/sender effects (n-vector)</p></dd>
+
+<dt>BPM</dt>
+<dd><p>Additive column/receiver effects (m-vector); NULL for symmetric networks</p></dd>
+
+<dt>U</dt>
+<dd><p>Multiplicative row/sender factors (n xR matrix)</p></dd>
+
+<dt>V</dt>
+<dd><p>Multiplicative column/receiver factors (m xR matrix); NULL for symmetric networks</p></dd>
+
+<dt>L</dt>
+<dd><p>Eigenvalue matrix (R xR diagonal); symmetric networks only</p></dd>
+
+<dt>YPM</dt>
+<dd><p>Posterior mean of Y on response scale (for predictions and imputing missing values)</p></dd>
+
+
+</dl><p><strong>Metadata:</strong></p>
+<dl><dt>family</dt>
+<dd><p>Model family (normal, binary, etc.)</p></dd>
+
+<dt>mode</dt>
+<dd><p>Network mode (unipartite or bipartite)</p></dd>
+
+<dt>symmetric</dt>
+<dd><p>Logical indicating if network is symmetric</p></dd>
+
+<dt>R</dt>
+<dd><p>Dimension of multiplicative effects</p></dd>
+
+
+</dl><p><strong>Optional Posterior Samples (if requested via posterior_options):</strong></p>
+<dl><dt>U_samples</dt>
+<dd><p>Samples of U (n xR xiterations array)</p></dd>
+
+<dt>V_samples</dt>
+<dd><p>Samples of V (m xR xiterations array)</p></dd>
+
+<dt>a_samples</dt>
+<dd><p>Samples of row effects (n xiterations matrix)</p></dd>
+
+<dt>b_samples</dt>
+<dd><p>Samples of column effects (m xiterations matrix)</p></dd>
+
+
+</dl><p><strong>Note on reconstructing removed matrices:</strong>
+To save memory, EZ (expected latent network) and UVPM/ULUPM (multiplicative products)
+are not stored but can be reconstructed using:</p><ul><li><p><code>reconstruct_EZ(fit)</code> - Returns linear predictor (link scale, not response scale)</p></li>
+<li><p><code>reconstruct_UVPM(fit)</code> - Returns U\<!-- %\emph{\\%t(V) or U\\%}\\%L\\%*\\%t(U) --></p></li>
+</ul><p><strong>Generating posterior distributions:</strong>
+Use <code>simulate_posterior(fit, component="UV")</code> to generate posterior samples
+for components where only means are stored, or use <code><a href="posterior_options.html">posterior_options()</a></code>
+during model fitting to save full posterior samples.</p>
+<dl><dt>model.name</dt>
 <dd><p>Name of the model (if provided)</p></dd>
 
 </dl></div>
@@ -317,14 +381,14 @@ sender and receiver effects, capturing reciprocity patterns.</p>
 <li><p>Update variance \(\sigma^2\) (for continuous families)</p></li>
 </ol><p><strong>Standard Model Types:</strong></p>
 <p>The following data types/models are available:</p>
-<p>"normal": A normal AME model.</p>
+<p>"normal": A normal AME model (identity link: \(E[Y] = \eta\)).</p>
 <p>"tobit": A tobit AME model for censored continuous data. Values are censored
-at zero, appropriate for non-negative continuous relational data.</p>
-<p>"binary": A binary probit AME model.</p>
-<p>"ordinal": An ordinal probit AME model. An intercept is not identifiable in this
-model.</p>
-<p>"cbin": An AME model for censored binary data.  The value of 'odmax'
-specifies the maximum number of links each row may have.</p>
+at zero, appropriate for non-negative continuous relational data (identity link with censoring).</p>
+<p>"binary": A binary probit AME model (probit link: \(P(Y=1) = \Phi(\eta)\)).</p>
+<p>"ordinal": An ordinal probit AME model (cumulative probit link). An intercept is not
+identifiable in this model.</p>
+<p>"cbin": An AME model for censored binary data (probit link with censoring). The value of
+'odmax' specifies the maximum number of links each row may have.</p>
 <p>"frn": An AME model for fixed rank nomination networks. A higher value of
 the rank indicates a stronger relationship. The value of 'odmax' specifies
 the maximum number of links each row may have.</p>
@@ -332,8 +396,8 @@ the maximum number of links each row may have.</p>
 relationships across rows are not directly comparable in terms of scale. An
 intercept, row random effects and row regression effects are not estimable
 for this model.</p>
-<p>"poisson": An overdispersed Poisson AME model for count data. The latent
-variable represents the log mean of the Poisson distribution.</p>
+<p>"poisson": An overdispersed Poisson AME model for count data (log link: \(E[Y] = \exp(\eta)\)).
+The linear predictor \(\eta\) represents \(\log(\lambda)\) where \(\lambda\) is the expected count.</p>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
@@ -342,11 +406,43 @@ variable represents the log mean of the Poisson distribution.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin</span><span class="op">)</span> </span></span>
-<span class="r-in"><span><span class="va">fit</span><span class="op">&lt;-</span><span class="fu">ame</span><span class="op">(</span><span class="va">YX_bin</span><span class="op">$</span><span class="va">Y</span>,<span class="va">YX_bin</span><span class="op">$</span><span class="va">X</span>,burn<span class="op">=</span><span class="fl">10</span>,nscan<span class="op">=</span><span class="fl">10</span>,odens<span class="op">=</span><span class="fl">1</span>,family<span class="op">=</span><span class="st">"binary"</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">ame</span><span class="op">(</span><span class="va">YX_bin</span><span class="op">$</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">YX_bin</span><span class="op">$</span><span class="va">X</span>, burn <span class="op">=</span> <span class="fl">10</span>, nscan <span class="op">=</span> <span class="fl">100</span>, odens <span class="op">=</span> <span class="fl">1</span>,</span></span>
+<span class="r-in"><span>           family <span class="op">=</span> <span class="st">"binary"</span>, print <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> === AME Model Summary ===</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Y ~ dyad(intercept, rgpa, rsmoke, cgpa, csmoke, igrade, igpa, ismoke) + a[i] + b[j] + rho*e[ji], family = 'binary'"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Regression coefficients:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                Estimate StdError z_value p_value CI_lower CI_upper    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept_dyad   -2.543    0.114 -22.296       0   -2.767   -2.319 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rgpa_dyad         0.178    0.081   2.193   0.028    0.019    0.337   *</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rsmoke_dyad       0.254    0.112   2.279   0.023    0.036    0.473   *</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cgpa_dyad         0.188    0.042   4.472       0    0.106    0.271 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> csmoke_dyad       0.167    0.052   3.248   0.001    0.066    0.268  **</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> igrade_dyad        1.13    0.052  21.782       0    1.028    1.232 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> igpa_dyad         0.049    0.038   1.284   0.199   -0.026    0.125    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ismoke_dyad       0.038    0.063   0.601   0.548   -0.086    0.161    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Variance components:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     Estimate StdError</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> va     0.377    0.088</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cab    0.045    0.019</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> vb     0.073    0.011</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rho    0.723    0.085</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ve     1.000    0.000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   (va = sender, cab = sender-receiver covariance, vb = receiver,</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    rho = dyadic correlation, ve = residual variance)</span>
 <span class="r-in"><span><span class="co"># Note: you should run the Markov chain much longer in practice</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># } </span></span></span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span> </span></span>
 </code></pre></div>
     </div>
@@ -355,11 +451,11 @@ variable represents the log mean of the Poisson distribution.</p>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Shahryar Minhas, Tosin Salau, Cassy Dorff.</p>
+  <p>Developed by Cassy Dorff, Shahryar Minhas, Tosin Salau.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer></div>

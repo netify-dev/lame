@@ -31,21 +31,45 @@ arma::mat gof_stats_cpp(const arma::mat& Y) {
   // Remove diagonal and NA values for calculations
   arma::mat Y_clean = Y;
   Y_clean.diag().zeros();
-  
-  // Standard deviation of row means
-  arma::vec row_means = arma::mean(Y_clean, 1);
-  stats(0) = arma::stddev(row_means);
-  
-  // Standard deviation of column means  
-  arma::vec col_means = arma::mean(Y_clean.t(), 1);
-  stats(1) = arma::stddev(col_means);
+
+  int n = Y_clean.n_rows;
+  arma::vec row_means(n);
+  int n_valid_rows = 0;
+  for(int i = 0; i < n; i++) {
+    arma::rowvec row_i = Y_clean.row(i);
+    arma::uvec finite_idx = arma::find_finite(row_i);
+    if(finite_idx.n_elem > 0) {
+      row_means(n_valid_rows) = arma::mean(row_i(finite_idx));
+      n_valid_rows++;
+    }
+  }
+  if(n_valid_rows > 1) {
+    stats(0) = arma::stddev(row_means.head(n_valid_rows));
+  } else {
+    stats(0) = 0.0;
+  }
+
+  int m = Y_clean.n_cols;
+  arma::vec col_means(m);
+  int n_valid_cols = 0;
+  for(int j = 0; j < m; j++) {
+    arma::vec col_j = Y_clean.col(j);
+    arma::uvec finite_idx = arma::find_finite(col_j);
+    if(finite_idx.n_elem > 0) {
+      col_means(n_valid_cols) = arma::mean(col_j(finite_idx));
+      n_valid_cols++;
+    }
+  }
+  if(n_valid_cols > 1) {
+    stats(1) = arma::stddev(col_means.head(n_valid_cols));
+  } else {
+    stats(1) = 0.0;
+  }
   
   // Dyadic dependence (correlation between Y and Y')
   arma::vec y_vec = arma::vectorise(Y_clean);
   arma::vec yt_vec = arma::vectorise(Y_clean.t());
   
-  // Remove NAs for correlation
-  // FIX: Use intersect not && for index vectors
   arma::uvec valid = arma::intersect(arma::find_finite(y_vec), arma::find_finite(yt_vec));
   if(valid.n_elem > 0) {
     stats(2) = arma::as_scalar(arma::cor(y_vec(valid), yt_vec(valid)));
@@ -53,8 +77,6 @@ arma::mat gof_stats_cpp(const arma::mat& Y) {
     stats(2) = 0;
   }
   
-  // Triadic statistics
-  // FIX: Guard against empty data
   arma::uvec idx_f = arma::find_finite(y_vec);
   double y_mean = idx_f.n_elem ? arma::mean(y_vec(idx_f)) : 0.0;
   double y_sd = idx_f.n_elem > 1 ? arma::stddev(y_vec(idx_f)) : 1.0;
@@ -62,7 +84,6 @@ arma::mat gof_stats_cpp(const arma::mat& Y) {
   arma::mat E = Y_clean - y_mean;
   E.elem(arma::find_nonfinite(E)).zeros();
   
-  // FIX: Create mask matrix where 1 = finite, 0 = non-finite
   arma::mat D(Y_clean.n_rows, Y_clean.n_cols, fill::ones);
   D.elem(arma::find_nonfinite(Y_clean)).zeros();
   

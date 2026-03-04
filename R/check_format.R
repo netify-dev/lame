@@ -18,8 +18,7 @@
 #' Must have the same length as Y if provided.
 #'
 #' @details
-#' This function performs comprehensive validation of input data for longitudinal
-#' network analysis, including:
+#' Validates input data for longitudinal network analysis:
 #' \itemize{
 #'   \item Verifying Y is a non-empty list of matrices
 #'   \item Checking that all covariates (if provided) are lists of appropriate length
@@ -42,123 +41,128 @@
 #' @export check_format
 
 check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
-  # Check Y is a list
-  if (!is.list(Y)) {
-    cli::cli_abort(c(
-      "Y must be a list of matrices.",
-      "i" = "Received object of class {class(Y)[1]}."
-    ))
-  }
 
-  # Check Y is not empty
-  if (length(Y) == 0) {
-    cli::cli_abort("Y must contain at least one matrix.")
-  }
+	####
+	# validate Y
+	if (!is.list(Y)) {
+		cli::cli_abort(c(
+			"Y must be a list of matrices.",
+			"i" = "Received object of class {class(Y)[1]}."
+		))
+	}
 
-  # Check each element of Y is a matrix
-  for (t in seq_along(Y)) {
-    if (!is.matrix(Y[[t]]) && !is.array(Y[[t]])) {
-      cli::cli_abort(c(
-        "All elements of Y must be matrices.",
-        "i" = "Y[[{t}]] is of class {class(Y[[t]])[1]}."
-      ))
-    }
-  }
+	if (length(Y) == 0) {
+		cli::cli_abort("Y must contain at least one matrix.")
+	}
 
-  # Get the number of time periods
-  N <- length(Y)
+	for (t in seq_along(Y)) {
+		if (!is.matrix(Y[[t]]) && !is.array(Y[[t]])) {
+			cli::cli_abort(c(
+				"All elements of Y must be matrices.",
+				"i" = "Y[[{t}]] is of class {class(Y[[t]])[1]}."
+			))
+		}
+	}
+	####
 
-  # Check Xdyad if provided
-  if (!is.null(Xdyad)) {
-    if (!is.list(Xdyad)) {
-      cli::cli_abort(c(
-        "Xdyad must be NULL or a list of matrices/arrays.",
-        "i" = "Received object of class {class(Xdyad)[1]}."
-      ))
-    }
-    if (length(Xdyad) != N) {
-      cli::cli_abort(c(
-        "Xdyad must have the same length as Y.",
-        "i" = "Y has {N} time periods, but Xdyad has {length(Xdyad)}."
-      ))
-    }
-    # Check each element is a matrix or array
-    for (t in seq_along(Xdyad)) {
-      if (!is.null(Xdyad[[t]]) && !is.matrix(Xdyad[[t]]) && !is.array(Xdyad[[t]])) {
-        cli::cli_abort(c(
-          "All non-NULL elements of Xdyad must be matrices or arrays.",
-          "i" = "Xdyad[[{t}]] is of class {class(Xdyad[[t]])[1]}."
-        ))
-      }
-    }
-  }
+	N <- length(Y)
 
-  # Check Xrow if provided
-  if (!is.null(Xrow)) {
-    if (!is.list(Xrow)) {
-      cli::cli_abort(c(
-        "Xrow must be NULL or a list of matrices.",
-        "i" = "Received object of class {class(Xrow)[1]}."
-      ))
-    }
-    if (length(Xrow) != N) {
-      cli::cli_abort(c(
-        "Xrow must have the same length as Y.",
-        "i" = "Y has {N} time periods, but Xrow has {length(Xrow)}."
-      ))
-    }
-    # Check each element is a matrix
-    for (t in seq_along(Xrow)) {
-      if (!is.null(Xrow[[t]]) && !is.matrix(Xrow[[t]]) && !is.data.frame(Xrow[[t]])) {
-        cli::cli_abort(c(
-          "All non-NULL elements of Xrow must be matrices or data frames.",
-          "i" = "Xrow[[{t}]] is of class {class(Xrow[[t]])[1]}."
-        ))
-      }
-    }
-  }
+	####
+	# validate Xdyad
+	if (!is.null(Xdyad)) {
+		if (!is.list(Xdyad)) {
+			cli::cli_abort(c(
+				"Xdyad must be NULL or a list of matrices/arrays.",
+				"i" = "Received object of class {class(Xdyad)[1]}."
+			))
+		}
+		if (length(Xdyad) != N) {
+			cli::cli_abort(c(
+				"Xdyad must have the same length as Y.",
+				"i" = "Y has {N} time periods, but Xdyad has {length(Xdyad)}."
+			))
+		}
+		for (t in seq_along(Xdyad)) {
+			if (!is.null(Xdyad[[t]]) && !is.matrix(Xdyad[[t]]) && !is.array(Xdyad[[t]])) {
+				cli::cli_abort(c(
+					"All non-NULL elements of Xdyad must be matrices or arrays.",
+					"i" = "Xdyad[[{t}]] is of class {class(Xdyad[[t]])[1]}."
+				))
+			}
+		}
+	}
+	####
 
-  # Check Xcol if provided
-  if (!is.null(Xcol)) {
-    if (!is.list(Xcol)) {
-      cli::cli_abort(c(
-        "Xcol must be NULL or a list of matrices.",
-        "i" = "Received object of class {class(Xcol)[1]}."
-      ))
-    }
-    if (length(Xcol) != N) {
-      cli::cli_abort(c(
-        "Xcol must have the same length as Y.",
-        "i" = "Y has {N} time periods, but Xcol has {length(Xcol)}."
-      ))
-    }
-    # Check each element is a matrix
-    for (t in seq_along(Xcol)) {
-      if (!is.null(Xcol[[t]]) && !is.matrix(Xcol[[t]]) && !is.data.frame(Xcol[[t]])) {
-        cli::cli_abort(c(
-          "All non-NULL elements of Xcol must be matrices or data frames.",
-          "i" = "Xcol[[{t}]] is of class {class(Xcol[[t]])[1]}."
-        ))
-      }
-    }
-  }
+	####
+	# validate Xrow
+	if (!is.null(Xrow)) {
+		if (!is.list(Xrow)) {
+			cli::cli_abort(c(
+				"Xrow must be NULL or a list of matrices.",
+				"i" = "Received object of class {class(Xrow)[1]}."
+			))
+		}
+		if (length(Xrow) != N) {
+			cli::cli_abort(c(
+				"Xrow must have the same length as Y.",
+				"i" = "Y has {N} time periods, but Xrow has {length(Xrow)}."
+			))
+		}
+		for (t in seq_along(Xrow)) {
+			if (!is.null(Xrow[[t]]) && !is.matrix(Xrow[[t]]) && !is.data.frame(Xrow[[t]])) {
+				cli::cli_abort(c(
+					"All non-NULL elements of Xrow must be matrices or data frames.",
+					"i" = "Xrow[[{t}]] is of class {class(Xrow[[t]])[1]}."
+				))
+			}
+		}
+	}
+	####
 
-  # Check dimension consistency within Y
-  if (N > 1) {
-    first_nrow <- nrow(Y[[1]])
-    first_ncol <- ncol(Y[[1]])
-    for (t in 2:N) {
-      if (nrow(Y[[t]]) != first_nrow || ncol(Y[[t]]) != first_ncol) {
-        cli::cli_warn(c(
-          "Network dimensions vary across time periods.",
-          "i" = "Y[[1]] has dimensions {first_nrow} x {first_ncol}.",
-          "i" = "Y[[{t}]] has dimensions {nrow(Y[[t]])} x {ncol(Y[[t]])}.",
-          "i" = "This is allowed but actors will be aligned by names."
-        ))
-        break  # Only warn once
-      }
-    }
-  }
+	####
+	# validate Xcol
+	if (!is.null(Xcol)) {
+		if (!is.list(Xcol)) {
+			cli::cli_abort(c(
+				"Xcol must be NULL or a list of matrices.",
+				"i" = "Received object of class {class(Xcol)[1]}."
+			))
+		}
+		if (length(Xcol) != N) {
+			cli::cli_abort(c(
+				"Xcol must have the same length as Y.",
+				"i" = "Y has {N} time periods, but Xcol has {length(Xcol)}."
+			))
+		}
+		for (t in seq_along(Xcol)) {
+			if (!is.null(Xcol[[t]]) && !is.matrix(Xcol[[t]]) && !is.data.frame(Xcol[[t]])) {
+				cli::cli_abort(c(
+					"All non-NULL elements of Xcol must be matrices or data frames.",
+					"i" = "Xcol[[{t}]] is of class {class(Xcol[[t]])[1]}."
+				))
+			}
+		}
+	}
+	####
 
-  invisible(TRUE)
+	####
+	# check dimension consistency within Y
+	if (N > 1) {
+		first_nrow <- nrow(Y[[1]])
+		first_ncol <- ncol(Y[[1]])
+		for (t in 2:N) {
+			if (nrow(Y[[t]]) != first_nrow || ncol(Y[[t]]) != first_ncol) {
+				cli::cli_warn(c(
+					"Network dimensions vary across time periods.",
+					"i" = "Y[[1]] has dimensions {first_nrow} x {first_ncol}.",
+					"i" = "Y[[{t}]] has dimensions {nrow(Y[[t]])} x {ncol(Y[[t]])}.",
+					"i" = "This is allowed but actors will be aligned by names."
+				))
+				break
+			}
+		}
+	}
+	####
+
+	invisible(TRUE)
 }

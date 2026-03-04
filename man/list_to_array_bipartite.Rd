@@ -13,6 +13,9 @@ list_to_array_bipartite(
   Xcol = NULL
 )
 }
+\value{
+List with components \code{Y}, \code{Xdyad}, \code{Xrow}, \code{Xcol} in array format
+}
 \description{
 Convert bipartite list data to array format
 }

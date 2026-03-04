@@ -68,12 +68,12 @@
 #' 
 #' The following data types/models are available:
 #' 
-#' "normal": A normal AME model (identity link: E[Y] = η).
+#' "normal": A normal AME model (identity link: \eqn{E[Y] = \eta}).
 #' 
 #' "tobit": A tobit AME model for censored continuous data. Values are censored
 #' at zero, appropriate for non-negative continuous relational data (identity link with censoring).
 #' 
-#' "binary": A binary probit AME model (probit link: P(Y=1) = Φ(η)).
+#' "binary": A binary probit AME model (probit link: \eqn{P(Y=1) = \Phi(\eta)}).
 #' 
 #' "ordinal": An ordinal probit AME model (cumulative probit link). An intercept is not 
 #' identifiable in this model.
@@ -90,20 +90,22 @@
 #' intercept, row random effects and row regression effects are not estimable
 #' for this model.
 #' 
-#' "poisson": An overdispersed Poisson AME model for count data (log link: E[Y] = exp(η)).
-#' The linear predictor η represents log(λ) where λ is the expected count.
+#' "poisson": An overdispersed Poisson AME model for count data (log link: \eqn{E[Y] = \exp(\eta)}).
+#' The linear predictor \eqn{\eta} represents \eqn{\log(\lambda)} where \eqn{\lambda} is the expected count.
 #' 
 #' @usage ame(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl") ,
 #' cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, R_row = NULL, R_col = NULL,
 #' mode = c("unipartite", "bipartite"), family="normal",
 #' intercept=!is.element(family,c("rrl","ordinal")),
 #' symmetric=FALSE,
-#' odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)), 
+#' odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
 #' prior=list(), g=NA,
-#' seed = 6886, nscan = 10000, burn = 500, odens = 25, 
-#' print = TRUE, gof=TRUE, 
+#' seed = 6886, nscan = 10000, burn = 500, odens = 25,
+#' print = TRUE, gof=TRUE, custom_gof=NULL,
 #' start_vals=NULL, periodic_save=FALSE, out_file=NULL,
-#' save_interval=0.25, model.name=NULL)
+#' save_interval=0.25, model.name=NULL,
+#' posterior_opts = NULL, n_chains = 1, cores = 1,
+#' use_sparse_matrices = FALSE)
 #' @param Y For unipartite: an n x n square relational matrix. For bipartite: an nA x nB 
 #' rectangular relational matrix where nA is the number of row nodes and nB is the 
 #' number of column nodes. See family below for various data types.
@@ -159,7 +161,6 @@
 #' @param nscan number of iterations of the Markov chain (beyond burn-in)
 #' @param burn burn in for the Markov chain
 #' @param odens output density for the Markov chain
-#' @param plot logical: plot results while running?
 #' @param print logical: print results while running?
 #' @param gof logical: calculate goodness of fit statistics? Setting to TRUE 
 #'   adds approximately 2-5% to runtime. For faster sampling without GOF overhead,
@@ -176,20 +177,23 @@
 #' @param out_file character vector indicating name and path in which file should be stored if periodic_save is selected. For example, on an Apple OS out_file="~/Desktop/ameFit.rda".
 #' @param save_interval quantile interval indicating when to save during post burn-in phase.
 #' @param model.name optional string for model selection output
+#' @param posterior_opts optional list of posterior sampling options
+#' @param n_chains integer: number of MCMC chains to run (default: 1)
+#' @param cores integer: number of cores for parallel chains (default: 1)
 #' @param use_sparse_matrices logical: use sparse matrix storage for large networks? (default: FALSE).
 #'   Recommended only for truly sparse networks (< 10% non-zero entries).
 #' @return 
 #' \strong{Posterior Samples (full MCMC chains):}
-#' \item{BETA}{Regression coefficients (nscan × p matrix)}
-#' \item{VC}{Variance components (nscan × k matrix)}
-#' \item{GOF}{Goodness-of-fit statistics (nscan × 4 matrix)}
+#' \item{BETA}{Regression coefficients (nscan xp matrix)}
+#' \item{VC}{Variance components (nscan xk matrix)}
+#' \item{GOF}{Goodness-of-fit statistics (nscan x4 matrix)}
 #' 
 #' \strong{Posterior Means (averaged over chain):}
 #' \item{APM}{Additive row/sender effects (n-vector)}
 #' \item{BPM}{Additive column/receiver effects (m-vector); NULL for symmetric networks}
-#' \item{U}{Multiplicative row/sender factors (n × R matrix)}
-#' \item{V}{Multiplicative column/receiver factors (m × R matrix); NULL for symmetric networks}
-#' \item{L}{Eigenvalue matrix (R × R diagonal); symmetric networks only}
+#' \item{U}{Multiplicative row/sender factors (n xR matrix)}
+#' \item{V}{Multiplicative column/receiver factors (m xR matrix); NULL for symmetric networks}
+#' \item{L}{Eigenvalue matrix (R xR diagonal); symmetric networks only}
 #' \item{YPM}{Posterior mean of Y on response scale (for predictions and imputing missing values)}
 #' 
 #' \strong{Metadata:}
@@ -199,10 +203,10 @@
 #' \item{R}{Dimension of multiplicative effects}
 #' 
 #' \strong{Optional Posterior Samples (if requested via posterior_options):}
-#' \item{U_samples}{Samples of U (n × R × iterations array)}
-#' \item{V_samples}{Samples of V (m × R × iterations array)}
-#' \item{a_samples}{Samples of row effects (n × iterations matrix)}
-#' \item{b_samples}{Samples of column effects (m × iterations matrix)}
+#' \item{U_samples}{Samples of U (n xR xiterations array)}
+#' \item{V_samples}{Samples of V (m xR xiterations array)}
+#' \item{a_samples}{Samples of row effects (n xiterations matrix)}
+#' \item{b_samples}{Samples of column effects (m xiterations matrix)}
 #' 
 #' \strong{Note on reconstructing removed matrices:}
 #' To save memory, EZ (expected latent network) and UVPM/ULUPM (multiplicative products) 
@@ -219,109 +223,117 @@
 #' \item{model.name}{Name of the model (if provided)}
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
-#' \dontrun{
-#' data(YX_bin) 
-#' fit<-ame(YX_bin$Y,YX_bin$X,burn=10,nscan=10,odens=1,family="binary")
+#' \donttest{
+#' data(YX_bin)
+#' fit <- ame(YX_bin$Y, Xdyad = YX_bin$X, burn = 10, nscan = 100, odens = 1,
+#'            family = "binary", print = FALSE)
+#' summary(fit)
 #' # Note: you should run the Markov chain much longer in practice
-#' } 
+#' }
 #'  
 #' @export ame
 ame<-function (
-  Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
-  rvar = !(family=="rrl") , cvar = TRUE, dcor = !symmetric, 
-  nvar=TRUE, 
-  R = 0, R_row = NULL, R_col = NULL,
-  mode = c("unipartite", "bipartite"),
-  family="normal",
-  intercept=!is.element(family,c("rrl","ordinal")), 
-  symmetric=FALSE,
-  odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
-  prior=list(), g=NA,
-  seed = 6886, nscan = 10000, burn = 500, odens = 25,
-  print = TRUE, gof=TRUE, custom_gof=NULL,
-  start_vals=NULL, periodic_save=FALSE, out_file=NULL,
-  save_interval=0.25, model.name=NULL,
-  posterior_opts = NULL, n_chains = 1, cores = 1,
-  use_sparse_matrices = FALSE
-  ){
-  
-  # Capture the call early
-  mc <- match.call()
-  
-  # Process mode argument
-  mode <- match.arg(mode)
-  
-  # Check if running multiple chains
-  if(n_chains > 1) {
-    # Use parallel chains function
-    return(ame_parallel(Y = Y, n_chains = n_chains, cores = cores,
-                       combine_method = "pool",
-                       Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
-                       rvar = rvar, cvar = cvar, dcor = dcor, nvar = nvar,
-                       R = R, R_row = R_row, R_col = R_col,
-                       mode = mode, family = family, 
-                       intercept = intercept, symmetric = symmetric,
-                       odmax = odmax, prior = prior, g = g,
-                       seed = seed, nscan = nscan, burn = burn, odens = odens,
-                       print = print, gof = gof,
-                       start_vals = start_vals, periodic_save = periodic_save,
-                       out_file = out_file, save_interval = save_interval,
-                       model.name = model.name, posterior_opts = posterior_opts))
-  }
-  
-  # Dispatch to appropriate function based on mode
-  if(mode == "unipartite") {
-    # Check that matrix is square
-    if(nrow(Y) != ncol(Y)) {
-      cli::cli_abort(c(
-        "Matrix Y must be square for unipartite networks.",
-        "i" = "Y has dimensions {nrow(Y)} x {ncol(Y)}.",
-        "i" = "Use mode='bipartite' for rectangular matrices."
-      ))
-    }
-    
-    # Call unipartite-specific function
-    fit <- ame_unipartite(
-      Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol,
-      rvar=rvar, cvar=cvar, dcor=dcor, nvar=nvar, R=R,
-      family=family, intercept=intercept, symmetric=symmetric,
-      odmax=odmax, prior=prior, g=g,
-      seed=seed, nscan=nscan, burn=burn, odens=odens,
-      print=print, gof=gof, custom_gof=custom_gof,
-      start_vals=start_vals, periodic_save=periodic_save,
-      out_file=out_file, save_interval=save_interval,
-      model.name=model.name, posterior_opts=posterior_opts,
-      use_sparse_matrices=use_sparse_matrices
-    )
-    fit$call <- mc
-    
-  } else if(mode == "bipartite") {
-    # Check that matrix is rectangular (or at least not constrained to be square)
-    if(symmetric) {
-      cli::cli_warn("Symmetric option ignored for bipartite networks.")
-      symmetric <- FALSE
-    }
-    
-    # Use R_row and R_col if specified, otherwise use R for both
-    if(is.null(R_row)) R_row <- R
-    if(is.null(R_col)) R_col <- R
-    
-    # Call bipartite-specific function
-    fit <- ame_bipartite(
-      Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol,
-      rvar=rvar, cvar=cvar, R_row=R_row, R_col=R_col,
-      family=family, intercept=intercept,
-      odmax=odmax, prior=prior, g=g,
-      seed=seed, nscan=nscan, burn=burn, odens=odens,
-      print=print, gof=gof, custom_gof=custom_gof,
-      start_vals=start_vals, periodic_save=periodic_save,
-      out_file=out_file, save_interval=save_interval,
-      model.name=model.name, posterior_opts=posterior_opts,
-      use_sparse_matrices=use_sparse_matrices
-    )
-    fit$call <- mc
-  }
-  
-  # Return the fitted model
-  return(fit)
+	Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL,
+	rvar = !(family=="rrl") , cvar = TRUE, dcor = !symmetric,
+	nvar=TRUE,
+	R = 0, R_row = NULL, R_col = NULL,
+	mode = c("unipartite", "bipartite"),
+	family="normal",
+	intercept=!is.element(family,c("rrl","ordinal")),
+	symmetric=FALSE,
+	odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
+	prior=list(), g=NA,
+	seed = 6886, nscan = 10000, burn = 500, odens = 25,
+	print = TRUE, gof=TRUE, custom_gof=NULL,
+	start_vals=NULL, periodic_save=FALSE, out_file=NULL,
+	save_interval=0.25, model.name=NULL,
+	posterior_opts = NULL, n_chains = 1, cores = 1,
+	use_sparse_matrices = FALSE
+	){
+
+	####
+	# match call and mode
+	####
+	mc <- match.call()
+	mode <- match.arg(mode)
+
+	####
+	# parallel chains dispatch
+	####
+	if(n_chains > 1) {
+		return(ame_parallel(Y = Y, n_chains = n_chains, cores = cores,
+											 combine_method = "pool",
+											 Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
+											 rvar = rvar, cvar = cvar, dcor = dcor, nvar = nvar,
+											 R = R, R_row = R_row, R_col = R_col,
+											 mode = mode, family = family, 
+											 intercept = intercept, symmetric = symmetric,
+											 odmax = odmax, prior = prior, g = g,
+											 seed = seed, nscan = nscan, burn = burn, odens = odens,
+											 print = print, gof = gof,
+											 start_vals = start_vals, periodic_save = periodic_save,
+											 out_file = out_file, save_interval = save_interval,
+											 model.name = model.name, posterior_opts = posterior_opts))
+	}
+
+	####
+	# unipartite dispatch
+	####
+	if(mode == "unipartite") {
+		if(nrow(Y) != ncol(Y)) {
+			cli::cli_abort(c(
+				"Matrix Y must be square for unipartite networks.",
+				"i" = "Y has dimensions {nrow(Y)} x {ncol(Y)}.",
+				"i" = "Use mode='bipartite' for rectangular matrices."
+			))
+		}
+		if(symmetric && family == "ordinal") {
+			cli::cli_abort(c(
+				"family={.val ordinal} is not supported with symmetric networks in {.fn ame}.",
+				"i" = "Use {.code symmetric = FALSE} for ordinal models."
+			))
+		}
+		
+		fit <- ame_unipartite(
+			Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol,
+			rvar=rvar, cvar=cvar, dcor=dcor, nvar=nvar, R=R,
+			family=family, intercept=intercept, symmetric=symmetric,
+			odmax=odmax, prior=prior, g=g,
+			seed=seed, nscan=nscan, burn=burn, odens=odens,
+			print=print, gof=gof, custom_gof=custom_gof,
+			start_vals=start_vals, periodic_save=periodic_save,
+			out_file=out_file, save_interval=save_interval,
+			model.name=model.name, posterior_opts=posterior_opts,
+			use_sparse_matrices=use_sparse_matrices
+		)
+		fit$call <- mc
+		
+	####
+	# bipartite dispatch
+	####
+	} else if(mode == "bipartite") {
+		if(symmetric) {
+			cli::cli_warn("Symmetric option ignored for bipartite networks.")
+			symmetric <- FALSE
+		}
+		
+		if(is.null(R_row)) R_row <- R
+		if(is.null(R_col)) R_col <- R
+		
+		fit <- ame_bipartite(
+			Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol,
+			rvar=rvar, cvar=cvar, R_row=R_row, R_col=R_col,
+			family=family, intercept=intercept,
+			odmax=odmax, prior=prior, g=g,
+			seed=seed, nscan=nscan, burn=burn, odens=odens,
+			print=print, gof=gof, custom_gof=custom_gof,
+			start_vals=start_vals, periodic_save=periodic_save,
+			out_file=out_file, save_interval=save_interval,
+			model.name=model.name, posterior_opts=posterior_opts,
+			use_sparse_matrices=use_sparse_matrices
+		)
+		fit$call <- mc
+	}
+	
+	return(fit)
 }

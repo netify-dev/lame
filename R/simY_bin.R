@@ -10,9 +10,9 @@
 #' @author Peter Hoff
 #' @export simY_bin
 simY_bin <-
-  function(EZ,rho)
-  {
-    ZS<-simZ(EZ,rho) 
-    YS<-1*(ZS>0) ; diag(YS)<-NA
-    YS
-  }
+	function(EZ,rho) {
+		ZS<-simZ(EZ,rho)
+		YS<-1*(ZS>0)
+		if(nrow(YS) == ncol(YS)) diag(YS)<-NA
+		YS
+	}

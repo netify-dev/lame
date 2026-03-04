@@ -6,6 +6,9 @@
 \usage{
 compute_gof_bipartite(Y_obs, Y_sim, family)
 }
+\value{
+List of observed and simulated GOF statistics
+}
 \description{
 Compute GOF statistics for bipartite networks
 }

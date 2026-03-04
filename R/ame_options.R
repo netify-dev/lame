@@ -31,31 +31,26 @@
 #' slower and may use MORE memory than dense storage.
 #' 
 #' @examples
-#' \dontrun{
-#' # Standard usage (memory optimization is automatic)
-#' fit <- ame(Y, X)
-#' 
-#' # Run parallel chains for better convergence
-#' fit <- ame(Y, X, parallel_chains = 4)
-#' 
-#' # Reduce output frequency for very long chains
-#' fit <- ame(Y, X, nscan = 100000, odens = 100)
+#' \donttest{
+#' # Configure options
+#' opts <- ame_options(verbose = TRUE, odens = 25)
+#' opts
 #' }
 #' 
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' 
 #' @export
 ame_options <- function(
-  parallel_chains = 1,
-  verbose = TRUE,
-  odens = 25,
-  use_sparse_matrices = FALSE
-  ) {
-  
-  list(
-    parallel_chains = parallel_chains,
-    verbose = verbose,
-    odens = odens,
-    use_sparse_matrices = use_sparse_matrices
-  )
+	parallel_chains = 1,
+	verbose = TRUE,
+	odens = 25,
+	use_sparse_matrices = FALSE
+	) {
+	
+	list(
+		parallel_chains = parallel_chains,
+		verbose = verbose,
+		odens = odens,
+		use_sparse_matrices = use_sparse_matrices
+	)
 }

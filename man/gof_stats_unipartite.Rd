@@ -7,7 +7,7 @@
 gof_stats_unipartite(Y)
 }
 \arguments{
-\item{Y}{a square n x n relational data matrix where Y\link{i,j} represents the
+\item{Y}{a square n x n relational data matrix where \code{Y[i,j]} represents the
 relationship from node i to node j. Missing values (NA) are allowed and will
 be handled appropriately. Diagonal values are typically NA for non-self-loop networks.}
 }
@@ -19,7 +19,7 @@ heterogeneity in out-degree centrality (sender effects).}
 \item{sd.colmean}{Standard deviation of column means. Measures the
 heterogeneity in in-degree centrality (receiver effects).}
 \item{dyad.dep}{Dyadic dependence/reciprocity correlation. Measures the
-correlation between Y\link{i,j} and Y\link{j,i}, capturing reciprocity patterns.}
+correlation between \code{Y[i,j]} and \code{Y[j,i]}, capturing reciprocity patterns.}
 \item{cycle.dep}{Cyclic triadic dependence. Measures the tendency for
 directed cycles (i->j->k->i) in the network.}
 \item{trans.dep}{Transitive triadic dependence. Measures the tendency for

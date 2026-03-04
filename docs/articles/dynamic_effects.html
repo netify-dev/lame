@@ -16,11 +16,11 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <nav class="navbar navbar-expand-lg fixed-top bg-primary" data-bs-theme="dark" aria-label="Site navigation"><div class="container">
+    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,16 +29,26 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
-<li class="nav-item"><a class="nav-link" href="../index.html">Get Started</a></li>
+<li class="nav-item"><a class="nav-link" href="../articles/lame-overview.html">Overview</a></li>
+<li class="active nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
+    <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
-<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/netify-dev/lame" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/netify-dev/lame/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -56,7 +66,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2025-08-11</h4>
+            <h4 data-toc-skip class="date">2026-03-04</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/HEAD/vignettes/dynamic_effects.Rmd" class="external-link"><code>vignettes/dynamic_effects.Rmd</code></a></small>
       <div class="d-none name"><code>dynamic_effects.Rmd</code></div>
@@ -67,563 +77,529 @@ Tosin Salau, Shahryar Minhas</h4>
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
-<p>The <code>lame</code> package extends the Additive and Multiplicative
-Effects (AME) model to longitudinal network data through the
-introduction of dynamic effects. This vignette explains the theoretical
-foundation, implementation details, and practical usage of the
-<code>dynamic_uv</code> and <code>dynamic_ab</code> parameters.</p>
+<p>Networks change. Countries that were close allies a decade ago may
+have drifted apart. A legislator’s co-sponsorship patterns shift as they
+gain seniority or switch committee assignments. A user’s purchasing
+habits evolve as their tastes change.</p>
+<p>The standard AME model assumes that each actor has a fixed latent
+position and fixed additive effects across all time periods. This is a
+reasonable starting point (pooling across time gives you more data and
+more precise estimates), but it can miss important dynamics. The
+<code>lame</code> package provides two mechanisms for letting the model
+capture temporal change: <code>dynamic_uv</code> for time-varying latent
+positions and <code>dynamic_ab</code> for time-varying additive
+effects.</p>
+<p>This vignette explains what these options do, when to use them, and
+how to interpret the results.</p>
 </div>
 <div class="section level2">
-<h2 id="theoretical-background">Theoretical Background<a class="anchor" aria-label="anchor" href="#theoretical-background"></a>
+<h2 id="what-are-dynamic-effects">What Are Dynamic Effects?<a class="anchor" aria-label="anchor" href="#what-are-dynamic-effects"></a>
 </h2>
 <div class="section level3">
-<h3 id="standard-ame-model">Standard AME Model<a class="anchor" aria-label="anchor" href="#standard-ame-model"></a>
+<h3 id="the-static-baseline">The Static Baseline<a class="anchor" aria-label="anchor" href="#the-static-baseline"></a>
 </h3>
-<p>The standard AME model decomposes network structure as:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><msup><mi>β</mi><mo>′</mo></msup><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>a</mi><mi>i</mi></msub><mo>+</mo><msub><mi>b</mi><mi>j</mi></msub><mo>+</mo><msub><mi>u</mi><msup><mi>i</mi><mo>′</mo></msup></msub><msub><mi>v</mi><mi>j</mi></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">y_{ij} = \beta'x_{ij} + a_i + b_j + u_i'v_j + \epsilon_{ij}</annotation></semantics></math></p>
-<p>where:</p>
-<ul>
-<li>
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>β</mi><mo>′</mo></msup><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\beta'x_{ij}</annotation></semantics></math>:
-Fixed effects of covariates</li>
-<li>
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>i</mi></msub><annotation encoding="application/x-tex">a_i</annotation></semantics></math>:
-Sender (row) effect for node
+<p>In the standard AME model for longitudinal data, the tie between
+actors
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
-</li>
-<li>
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mi>j</mi></msub><annotation encoding="application/x-tex">b_j</annotation></semantics></math>:
-Receiver (column) effect for node
+and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
-</li>
-<li>
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><msup><mi>i</mi><mo>′</mo></msup></msub><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i'v_j</annotation></semantics></math>:
-Multiplicative interaction between latent factors</li>
-<li>
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\epsilon_{ij}</annotation></semantics></math>:
-Dyadic error term</li>
-</ul>
+at time
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+is:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><mi>β</mi><mi>′</mi><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>+</mo><msub><mi>a</mi><mi>i</mi></msub><mo>+</mo><msub><mi>b</mi><mi>j</mi></msub><mo>+</mo><msub><mi>u</mi><mi>i</mi></msub><mi>′</mi><msub><mi>v</mi><mi>j</mi></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">y_{ij,t} = \beta'x_{ij,t} + a_i + b_j + u_i'v_j + \epsilon_{ij,t}</annotation></semantics></math></p>
+<p>The covariates
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">x_{ij,t}</annotation></semantics></math>)
+can vary over time, but everything else (the sender effect
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>i</mi></msub><annotation encoding="application/x-tex">a_i</annotation></semantics></math>,
+the receiver effect
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mi>j</mi></msub><annotation encoding="application/x-tex">b_j</annotation></semantics></math>,
+and the latent positions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>j</mi></msub><annotation encoding="application/x-tex">v_j</annotation></semantics></math>)
+is constant. This means the model assumes that a country’s tendency to
+sanction others, or its position in the latent “sanctioning space,” is
+the same in 1993 as in 2000.</p>
 </div>
 <div class="section level3">
-<h3 id="dynamic-extensions">Dynamic Extensions<a class="anchor" aria-label="anchor" href="#dynamic-extensions"></a>
+<h3 id="dynamic-latent-positions-dynamic_uv-true">Dynamic Latent Positions (<code>dynamic_uv = TRUE</code>)<a class="anchor" aria-label="anchor" href="#dynamic-latent-positions-dynamic_uv-true"></a>
 </h3>
-<p>For longitudinal data with networks observed at times
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>.</mi><mi>.</mi><mi>.</mi><mo>,</mo><mi>T</mi></mrow><annotation encoding="application/x-tex">t = 1, ..., T</annotation></semantics></math>,
-we extend the model to allow temporal evolution of effects.</p>
-<div class="section level4">
-<h4 id="dynamic-multiplicative-effects-dynamic_uv-true">Dynamic Multiplicative Effects (<code>dynamic_uv = TRUE</code>)<a class="anchor" aria-label="anchor" href="#dynamic-multiplicative-effects-dynamic_uv-true"></a>
-</h4>
-<p>The latent factors evolve according to AR(1) processes:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><msub><mi>U</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">U_{i,k,t} = \rho_{uv} U_{i,k,t-1} + \epsilon_{i,k,t}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>V</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><msub><mi>V</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>η</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}</annotation></semantics></math></p>
-<p>where:</p>
-<ul>
-<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi>η</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\epsilon_{i,k,t}, \eta_{j,k,t} \sim N(0, \sigma_{uv}^2)</annotation></semantics></math></li>
-<li>
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mo>∈</mo><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\rho_{uv} \in (0,1)</annotation></semantics></math>
-controls temporal persistence</li>
-<li>
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow><annotation encoding="application/x-tex">i,j</annotation></semantics></math>
-index actors,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-indexes latent dimensions,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
-indexes time</li>
-</ul>
-<p>This specification allows actors’ positions in latent social space to
-drift over time, capturing:</p>
-<ul>
-<li>Evolving community structure</li>
-<li>Time-varying homophily patterns</li>
-<li>Dynamic clustering and transitivity</li>
-</ul>
+<p>When you set <code>dynamic_uv = TRUE</code>, each actor’s latent
+position evolves over time according to an AR(1) process:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>U</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">U_{i,k,t} = \rho_{uv} \, U_{i,k,t-1} + \epsilon_{i,k,t}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>V</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>V</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>η</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">V_{j,k,t} = \rho_{uv} \, V_{j,k,t-1} + \eta_{j,k,t}</annotation></semantics></math></p>
+<p>The autoregressive parameter
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><annotation encoding="application/x-tex">\rho_{uv}</annotation></semantics></math>
+controls how persistent the positions are. A value close to 1 means
+positions change slowly, as last year’s position is a strong predictor
+of this year’s. A value close to 0 means positions are essentially
+re-drawn each period. In practice,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><annotation encoding="application/x-tex">\rho_{uv}</annotation></semantics></math>
+is estimated from the data, so you don’t need to choose it yourself.</p>
+<p>This is useful when you believe the underlying community structure is
+evolving: alliances shift, social groups re-form, trading blocs
+realign.</p>
 </div>
-<div class="section level4">
-<h4 id="dynamic-additive-effects-dynamic_ab-true">Dynamic Additive Effects (<code>dynamic_ab = TRUE</code>)<a class="anchor" aria-label="anchor" href="#dynamic-additive-effects-dynamic_ab-true"></a>
-</h4>
-<p>The sender and receiver effects evolve as:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><msub><mi>a</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">a_{i,t} = \rho_{ab} a_{i,t-1} + \epsilon_{i,t}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>b</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><msub><mi>b</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>η</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">b_{j,t} = \rho_{ab} b_{j,t-1} + \eta_{j,t}</annotation></semantics></math></p>
-<p>where:</p>
-<ul>
-<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi>η</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>a</mi><mi>b</mi></mrow><mn>2</mn></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\epsilon_{i,t}, \eta_{j,t} \sim N(0, \sigma_{ab}^2)</annotation></semantics></math></li>
-<li>
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><mo>∈</mo><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\rho_{ab} \in (0,1)</annotation></semantics></math>
-controls temporal smoothness</li>
-</ul>
-<p>This captures:</p>
-<ul>
-<li>Time-varying activity levels (outdegree heterogeneity)</li>
-<li>Changing popularity (indegree heterogeneity)</li>
-<li>Life-cycle effects in social networks</li>
-</ul>
-</div>
+<div class="section level3">
+<h3 id="dynamic-additive-effects-dynamic_ab-true">Dynamic Additive Effects (<code>dynamic_ab = TRUE</code>)<a class="anchor" aria-label="anchor" href="#dynamic-additive-effects-dynamic_ab-true"></a>
+</h3>
+<p>When you set <code>dynamic_ab = TRUE</code>, the sender and receiver
+effects evolve over time:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>a</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">a_{i,t} = \rho_{ab} \, a_{i,t-1} + \epsilon_{i,t}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>b</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>b</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>η</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">b_{j,t} = \rho_{ab} \, b_{j,t-1} + \eta_{j,t}</annotation></semantics></math></p>
+<p>This captures changes in actors’ overall activity levels. A country
+might become a more active sanctioner after a change in government. A
+student might become more or less socially active across semesters.
+These are changes in how much an actor participates, not in who they
+connect with (that’s what <code>dynamic_uv</code> captures).</p>
+<p>You can use either option alone or combine them. In practice,
+<code>dynamic_ab</code> is often a good place to start, since changes in
+overall activity are common and relatively easy to estimate.
+<code>dynamic_uv</code> adds more flexibility but also more
+parameters.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="prior-specifications">Prior Specifications<a class="anchor" aria-label="anchor" href="#prior-specifications"></a>
 </h2>
-<div class="section level3">
-<h3 id="for-dynamic-parameters">For Dynamic Parameters<a class="anchor" aria-label="anchor" href="#for-dynamic-parameters"></a>
-</h3>
-<p>The package uses the following default priors:</p>
-<p><strong>AR(1) coefficients:</strong></p>
+<p>The AR(1) coefficients and innovation variances have sensible default
+priors:</p>
 <ul>
-<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mo>∼</mo><mtext mathvariant="normal">TruncNormal</mtext><mo stretchy="false" form="prefix">(</mo><mn>0.9</mn><mo>,</mo><mn>0.1</mn><mo>,</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\rho_{uv} \sim \text{TruncNormal}(0.9, 0.1, 0, 1)</annotation></semantics></math></li>
-<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><mo>∼</mo><mtext mathvariant="normal">TruncNormal</mtext><mo stretchy="false" form="prefix">(</mo><mn>0.8</mn><mo>,</mo><mn>0.15</mn><mo>,</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\rho_{ab} \sim \text{TruncNormal}(0.8, 0.15, 0, 1)</annotation></semantics></math></li>
+<li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mo>∼</mo><mtext mathvariant="normal">TruncNormal</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.9</mn><mo>,</mo><mn>0.1</mn><mo>,</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\rho_{uv} \sim \text{TruncNormal}(0.9, 0.1, 0, 1)</annotation></semantics></math>,
+centered on high persistence</li>
+<li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><mo>∼</mo><mtext mathvariant="normal">TruncNormal</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.8</mn><mo>,</mo><mn>0.15</mn><mo>,</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\rho_{ab} \sim \text{TruncNormal}(0.8, 0.15, 0, 1)</annotation></semantics></math>,
+slightly less persistent</li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>a</mi><mi>b</mi></mrow><mn>2</mn></msubsup><mo>∼</mo><mtext mathvariant="normal">InverseGamma</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma_{uv}^2, \sigma_{ab}^2 \sim \text{InverseGamma}(2, 1)</annotation></semantics></math></li>
 </ul>
-<p><strong>Innovation variances:</strong></p>
-<ul>
-<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo>∼</mo><mtext mathvariant="normal">InverseGamma</mtext><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\sigma_{uv}^2 \sim \text{InverseGamma}(2, 1)</annotation></semantics></math></li>
-<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>a</mi><mi>b</mi></mrow><mn>2</mn></msubsup><mo>∼</mo><mtext mathvariant="normal">InverseGamma</mtext><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\sigma_{ab}^2 \sim \text{InverseGamma}(2, 1)</annotation></semantics></math></li>
-</ul>
-<p>These can be customized via the <code>prior</code> argument:</p>
+<p>These can be customized via the <code>prior</code> argument if you
+have strong beliefs about the rate of change:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">prior_custom</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  rho_uv_mean <span class="op">=</span> <span class="fl">0.95</span>,    <span class="co"># Higher persistence for UV</span></span>
-<span>  rho_uv_sd <span class="op">=</span> <span class="fl">0.05</span>,      <span class="co"># Tighter prior</span></span>
-<span>  sigma_uv_shape <span class="op">=</span> <span class="fl">3</span>,    <span class="co"># Different variance prior</span></span>
+<span>  rho_uv_mean <span class="op">=</span> <span class="fl">0.95</span>,    <span class="co"># expect very slow change in latent positions</span></span>
+<span>  rho_uv_sd <span class="op">=</span> <span class="fl">0.05</span>,      <span class="co"># tight prior</span></span>
+<span>  sigma_uv_shape <span class="op">=</span> <span class="fl">3</span>,</span>
 <span>  sigma_uv_scale <span class="op">=</span> <span class="fl">2</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-</div>
 <div class="section level2">
-<h2 id="implementation-details">Implementation Details<a class="anchor" aria-label="anchor" href="#implementation-details"></a>
+<h2 id="practical-example">Practical Example<a class="anchor" aria-label="anchor" href="#practical-example"></a>
 </h2>
-<div class="section level3">
-<h3 id="computational-efficiency">Computational Efficiency<a class="anchor" aria-label="anchor" href="#computational-efficiency"></a>
-</h3>
-<p>The dynamic effects are implemented in C++ via <code>Rcpp</code> and
-<code>RcppArmadillo</code>:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Block sampling</strong>: Updates are performed in blocks to
-improve mixing</li>
-<li>
-<strong>Sparse operations</strong>: Exploits temporal structure for
-efficiency</li>
-<li>
-<strong>Memory optimization</strong>: about a 50% reduction compared
-to R implementation</li>
-</ol>
-</div>
-<div class="section level3">
-<h3 id="algorithmic-details">Algorithmic Details<a class="anchor" aria-label="anchor" href="#algorithmic-details"></a>
-</h3>
-<p>The MCMC sampler alternates between:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Forward filtering</strong>: Compute predictive distributions
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="false" form="prefix">|</mo><msub><mi>x</mi><mrow><mn>1</mn><mo>:</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p(x_t | x_{1:t-1})</annotation></semantics></math>
-</li>
-<li>
-<strong>Backward sampling</strong>: Sample from smoothed
-distribution
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>x</mi><mrow><mn>1</mn><mo>:</mo><mi>T</mi></mrow></msub><mo stretchy="false" form="prefix">|</mo><msub><mi>y</mi><mrow><mn>1</mn><mo>:</mo><mi>T</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p(x_{1:T} | y_{1:T})</annotation></semantics></math>
-</li>
-<li>
-<strong>Parameter updates</strong>: Sample
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>σ</mi><mn>2</mn></msup><annotation encoding="application/x-tex">\sigma^2</annotation></semantics></math>
-given state sequences</li>
-</ol>
-<p>This forward-filtering backward-sampling (FFBS) approach explores the
-posterior distribution.</p>
-</div>
-</div>
-<div class="section level2">
-<h2 id="practical-usage">Practical Usage<a class="anchor" aria-label="anchor" href="#practical-usage"></a>
-</h2>
-<div class="section level3">
-<h3 id="basic-example">Basic Example<a class="anchor" aria-label="anchor" href="#basic-example"></a>
-</h3>
+<p>We simulate a simple longitudinal network and fit models with and
+without dynamic effects to see the difference.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/lame/">lame</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Simulate longitudinal network data</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
-<span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">25</span>  <span class="co"># actors (reduced for faster vignette building)</span></span>
-<span><span class="cn">T</span> <span class="op">&lt;-</span> <span class="fl">5</span>   <span class="co"># time periods (reduced for faster vignette building)</span></span>
+<span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">25</span>  <span class="co"># actors</span></span>
+<span><span class="va">n_periods</span> <span class="op">&lt;-</span> <span class="fl">5</span></span>
 <span></span>
-<span><span class="co"># Generate networks (example with binary data)</span></span>
+<span><span class="co"># Generate sparse binary networks</span></span>
 <span><span class="va">Y_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="kw">for</span><span class="op">(</span><span class="va">t</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="cn">T</span><span class="op">)</span> <span class="op">{</span></span>
+<span><span class="kw">for</span><span class="op">(</span><span class="va">t</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="va">n_periods</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">Y_t</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span><span class="op">*</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fl">0.1</span><span class="op">)</span>, <span class="va">n</span>, <span class="va">n</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Y_t</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
-<span>  <span class="co"># Add actor labels (required for lame function)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Y_t</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Y_t</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Actor"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n</span><span class="op">)</span></span>
 <span>  <span class="va">Y_list</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">Y_t</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="co"># Fit model with dynamic effects (reduced iterations for vignette)</span></span>
+<span><span class="co"># Fit model with both dynamic effects</span></span>
+<span><span class="co"># Note: iterations are reduced for vignette speed.</span></span>
+<span><span class="co"># Use burn &gt;= 1000 and nscan &gt;= 5000 for real analyses.</span></span>
 <span><span class="va">fit_dynamic</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>  Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
-<span>  R <span class="op">=</span> <span class="fl">2</span>,                <span class="co"># 2-dimensional latent space</span></span>
-<span>  dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,    <span class="co"># Dynamic latent factors</span></span>
-<span>  dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,    <span class="co"># Dynamic additive effects</span></span>
+<span>  R <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>  burn <span class="op">=</span> <span class="fl">100</span>,          <span class="co"># Reduced for vignette (use 1000+ in practice)</span></span>
-<span>  nscan <span class="op">=</span> <span class="fl">500</span>,         <span class="co"># Reduced for vignette (use 5000+ in practice)</span></span>
+<span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
+<span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  odens <span class="op">=</span> <span class="fl">25</span>,</span>
-<span>  print <span class="op">=</span> <span class="cn">FALSE</span>,       <span class="co"># Suppress output for vignette</span></span>
-<span>  plot <span class="op">=</span> <span class="cn">FALSE</span>         <span class="co"># Suppress plots for vignette</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
+<span>  print <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  plot <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; Note: Square matrix assumed to be unipartite. Use mode='bipartite' for square bipartite networks.</span></span></code></pre></div>
 <div class="section level3">
-<h3 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
+<h3 id="visualizing-dynamic-effects">Visualizing Dynamic Effects<a class="anchor" aria-label="anchor" href="#visualizing-dynamic-effects"></a>
 </h3>
-<p>Plotting functions can illustrate temporal dynamics:</p>
+<p>The trajectory plot shows how each actor’s latent position moves
+through the 2-dimensional space over time. Each line traces one actor’s
+path from the first to the last period. Actors whose lines are short
+stayed in roughly the same position; actors with long, wandering lines
+experienced substantial shifts in their network role.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Plot latent positions (last time point)</span></span>
-<span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"snapshot"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Detected dynamic UV effects</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Using last time point for visualization</span></span></code></pre></div>
-<p><img src="dynamic_effects_files/figure-html/unnamed-chunk-3-1.png" width="700"></p>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="dynamic_effects_files/figure-html/unnamed-chunk-3-1.png" class="r-plt" alt="" width="672"></p>
+<p>The <code>ab_plot</code> with <code>plot_type = "trajectory"</code>
+shows how each actor’s additive effect changes over time. Rising lines
+indicate actors who became more active (or more popular) over the
+observation window; falling lines indicate the opposite. This is
+particularly useful for identifying actors who experienced a structural
+break in their network behavior.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span></span>
-<span><span class="co"># Plot sender effects </span></span>
-<span><span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, effect <span class="op">=</span> <span class="st">"sender"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="dynamic_effects_files/figure-html/unnamed-chunk-3-2.png" width="700"></p>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, effect <span class="op">=</span> <span class="st">"sender"</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Showing top 5 and bottom 5 actors by average effect</span></span>
+<span><span class="co">#&gt; → Use `show_actors` to specify actors to display</span></span></code></pre></div>
+<p><img src="dynamic_effects_files/figure-html/unnamed-chunk-4-1.png" class="r-plt" alt="" width="672"></p>
+<p>As always, check convergence. Dynamic models have more parameters, so
+adequate mixing is harder to achieve and requires longer chains.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span></span>
-<span><span class="co"># Plot trace of parameters</span></span>
-<span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">)</span></span></code></pre></div>
-<p><img src="dynamic_effects_files/figure-html/unnamed-chunk-3-3.png" width="700"></p>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">)</span></span></code></pre></div>
+<p><img src="dynamic_effects_files/figure-html/unnamed-chunk-5-1.png" class="r-plt" alt="" width="672"></p>
 </div>
 <div class="section level3">
-<h3 id="model-selection">Model Selection<a class="anchor" aria-label="anchor" href="#model-selection"></a>
+<h3 id="comparing-model-specifications">Comparing Model Specifications<a class="anchor" aria-label="anchor" href="#comparing-model-specifications"></a>
 </h3>
-<p>Choose between static and dynamic specifications based on:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Model fit statistics</strong>: Compare GOF statistics</li>
-<li>
-<strong>Parameter estimates</strong>: Check if
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
-significantly differs from 0</li>
-<li>
-<strong>Visual inspection</strong>: Look for temporal patterns in
-residuals</li>
-</ol>
+<p>A natural workflow is to fit several specifications and compare
+them:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Static model</span></span>
-<span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, family <span class="op">=</span> <span class="st">"binary"</span>, </span>
-<span>                   burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>, </span>
+<code class="sourceCode R"><span><span class="co"># Static model (no dynamic effects)</span></span>
+<span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span>                   burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
 <span>                   print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Dynamic UV only</span></span>
+<span><span class="co"># Dynamic latent positions only</span></span>
 <span><span class="va">fit_uv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>               burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
 <span>               print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Dynamic AB only  </span></span>
+<span><span class="co"># Dynamic additive effects only</span></span>
 <span><span class="va">fit_ab</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>               burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
 <span>               print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Full dynamic</span></span>
-<span><span class="va">fit_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span><span class="va">fit_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>                 family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>                 burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
-<span>                 print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Compare GOF statistics</span></span>
-<span><span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">$</span><span class="va">GOF</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">fit_full</span><span class="op">$</span><span class="va">GOF</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>                 print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<p>Compare the GOF statistics across models. The model that best
+reproduces the observed network statistics (heterogeneity, transitivity,
+dyadic dependence) without unnecessary complexity is usually the best
+choice.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">$</span><span class="va">GOF</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">fit_full</span><span class="op">$</span><span class="va">GOF</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Static model GOF (sample):\n"</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">$</span><span class="va">GOF</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nDynamic model GOF (sample):\n"</span><span class="op">)</span>  </span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nFull dynamic model GOF (sample):\n"</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit_full</span><span class="op">$</span><span class="va">GOF</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="co">#&gt; Static model GOF (sample):</span></span>
 <span><span class="co">#&gt; $sd.rowmean</span></span>
 <span><span class="co">#&gt;             obs          1          2          3          4          5</span></span>
-<span><span class="co">#&gt; [1,] 0.04853168 0.06396433 0.05281431 0.07701761 0.05281431 0.05000000</span></span>
-<span><span class="co">#&gt; [2,] 0.06918005 0.05600513 0.05641693 0.06804138 0.05469825 0.06328214</span></span>
-<span><span class="co">#&gt; [3,] 0.05242941 0.05926830 0.05574620 0.06468406 0.05553819 0.06095308</span></span>
-<span><span class="co">#&gt; [4,] 0.06596857 0.05000000 0.05170697 0.05626286 0.05858082 0.05443311</span></span>
-<span><span class="co">#&gt; [5,] 0.06189522 0.05308754 0.05308754 0.04677072 0.04670881 0.05005784</span></span>
+<span><span class="co">#&gt; [1,] 0.04659041 0.05576140 0.05874238 0.06140575 0.05450382 0.09871170</span></span>
+<span><span class="co">#&gt; [2,] 0.06641285 0.06997142 0.07756288 0.08380931 0.05331666 0.06733003</span></span>
+<span><span class="co">#&gt; [3,] 0.05033223 0.06997142 0.05033223 0.04369592 0.05964338 0.06974238</span></span>
+<span><span class="co">#&gt; [4,] 0.06332982 0.06294972 0.06031031 0.05416026 0.05656854 0.06140575</span></span>
+<span><span class="co">#&gt; [5,] 0.05941941 0.06248200 0.07240626 0.05656854 0.07578918 0.06665333</span></span>
 <span><span class="co">#&gt;               6          7          8          9         10         11</span></span>
-<span><span class="co">#&gt; [1,] 0.05828371 0.06014065 0.05148265 0.06486275 0.05501473 0.04732424</span></span>
-<span><span class="co">#&gt; [2,] 0.04888810 0.04614791 0.05931710 0.06095308 0.05114431 0.06004435</span></span>
-<span><span class="co">#&gt; [3,] 0.05892557 0.05389891 0.05641693 0.06189522 0.06014065 0.06052433</span></span>
-<span><span class="co">#&gt; [4,] 0.05574620 0.05892557 0.04336804 0.05379144 0.05980292 0.05882727</span></span>
-<span><span class="co">#&gt; [5,] 0.05176290 0.04762897 0.05142641 0.05286907 0.05527708 0.04941791</span></span>
+<span><span class="co">#&gt; [1,] 0.06645299 0.05450382 0.05205126 0.04855238 0.06625204 0.05096404</span></span>
+<span><span class="co">#&gt; [2,] 0.06733003 0.06324555 0.06416645 0.06013319 0.06633250 0.07831560</span></span>
+<span><span class="co">#&gt; [3,] 0.07259017 0.07400901 0.05782733 0.05075431 0.05666274 0.05689757</span></span>
+<span><span class="co">#&gt; [4,] 0.06273755 0.06685307 0.05787343 0.06544209 0.06633250 0.05805744</span></span>
+<span><span class="co">#&gt; [5,] 0.04000000 0.05523284 0.08336266 0.06819580 0.08073000 0.05887841</span></span>
 <span><span class="co">#&gt;              12         13         14         15         16         17</span></span>
-<span><span class="co">#&gt; [1,] 0.06328214 0.05768489 0.05626286 0.06557262 0.05892557 0.05335937</span></span>
-<span><span class="co">#&gt; [2,] 0.05707978 0.06812638 0.06535161 0.06014065 0.06897061 0.07445792</span></span>
-<span><span class="co">#&gt; [3,] 0.06014065 0.04829261 0.05281431 0.07208855 0.07204840 0.07557649</span></span>
-<span><span class="co">#&gt; [4,] 0.07308512 0.07694244 0.06071526 0.05379144 0.05379144 0.05176290</span></span>
-<span><span class="co">#&gt; [5,] 0.05286907 0.05951190 0.05980292 0.07168604 0.06396433 0.05335937</span></span>
+<span><span class="co">#&gt; [1,] 0.05033223 0.05547372 0.07368401 0.06499231 0.05499091 0.07659417</span></span>
+<span><span class="co">#&gt; [2,] 0.06231105 0.07493998 0.05773503 0.07125541 0.05101634 0.07393691</span></span>
+<span><span class="co">#&gt; [3,] 0.05301572 0.07162867 0.06379133 0.07222188 0.05276362 0.06725077</span></span>
+<span><span class="co">#&gt; [4,] 0.05717808 0.05919459 0.05941941 0.06183850 0.05619015 0.06901208</span></span>
+<span><span class="co">#&gt; [5,] 0.05376492 0.06358197 0.05694442 0.07571878 0.05991105 0.05425864</span></span>
 <span><span class="co">#&gt;              18         19         20</span></span>
-<span><span class="co">#&gt; [1,] 0.05641693 0.06423517 0.05028852</span></span>
-<span><span class="co">#&gt; [2,] 0.04187448 0.06250000 0.06400955</span></span>
-<span><span class="co">#&gt; [3,] 0.06240734 0.07503857 0.05335937</span></span>
-<span><span class="co">#&gt; [4,] 0.04551658 0.04959325 0.05501473</span></span>
-<span><span class="co">#&gt; [5,] 0.04738534 0.06959705 0.05148265</span></span>
+<span><span class="co">#&gt; [1,] 0.05878775 0.07072953 0.06531973</span></span>
+<span><span class="co">#&gt; [2,] 0.07454752 0.06166577 0.06920501</span></span>
+<span><span class="co">#&gt; [3,] 0.06162251 0.07404503 0.07211103</span></span>
+<span><span class="co">#&gt; [4,] 0.06118823 0.05619015 0.07302967</span></span>
+<span><span class="co">#&gt; [5,] 0.06780364 0.05833238 0.05946427</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $sd.colmean</span></span>
 <span><span class="co">#&gt;             obs          1          2          3          4          5</span></span>
-<span><span class="co">#&gt; [1,] 0.07244890 0.04039733 0.04383259 0.06250000 0.05000000 0.05142641</span></span>
-<span><span class="co">#&gt; [2,] 0.05778512 0.04912428 0.05768489 0.06133167 0.04110736 0.05057539</span></span>
-<span><span class="co">#&gt; [3,] 0.06696980 0.06047650 0.06419011 0.06355590 0.05808479 0.04110736</span></span>
-<span><span class="co">#&gt; [4,] 0.05253967 0.04214997 0.05574620 0.06351035 0.04455282 0.04416143</span></span>
-<span><span class="co">#&gt; [5,] 0.04577016 0.05170697 0.05443311 0.05259471 0.05114431 0.05005784</span></span>
+<span><span class="co">#&gt; [1,] 0.06955094 0.06035451 0.06311894 0.05919459 0.05070174 0.04332820</span></span>
+<span><span class="co">#&gt; [2,] 0.05547372 0.05741080 0.05901412 0.06601010 0.06764614 0.08246211</span></span>
+<span><span class="co">#&gt; [3,] 0.06429101 0.06503332 0.05773503 0.05205126 0.04855238 0.07525955</span></span>
+<span><span class="co">#&gt; [4,] 0.05043808 0.05503938 0.06140575 0.07023769 0.05656854 0.05200000</span></span>
+<span><span class="co">#&gt; [5,] 0.04393935 0.05919459 0.06358197 0.06110101 0.06740920 0.07773459</span></span>
 <span><span class="co">#&gt;               6          7          8          9         10         11</span></span>
-<span><span class="co">#&gt; [1,] 0.05828371 0.05641693 0.05422006 0.06142596 0.04947643 0.06640574</span></span>
-<span><span class="co">#&gt; [2,] 0.05707978 0.04614791 0.05931710 0.05600513 0.04180532 0.05501473</span></span>
-<span><span class="co">#&gt; [3,] 0.06250000 0.05522471 0.05641693 0.07557649 0.03803629 0.04859127</span></span>
-<span><span class="co">#&gt; [4,] 0.07931273 0.04500514 0.04658475 0.05768489 0.05980292 0.05368374</span></span>
-<span><span class="co">#&gt; [5,] 0.06644930 0.05469825 0.05926830 0.05682576 0.05120086 0.05877807</span></span>
+<span><span class="co">#&gt; [1,] 0.06744875 0.06760671 0.04942334 0.06183850 0.04888081 0.05474791</span></span>
+<span><span class="co">#&gt; [2,] 0.04472136 0.08640988 0.06416645 0.06939741 0.04760952 0.05773503</span></span>
+<span><span class="co">#&gt; [3,] 0.05717808 0.06437391 0.06839103 0.04805552 0.07490438 0.07236942</span></span>
+<span><span class="co">#&gt; [4,] 0.07259017 0.06784296 0.05552177 0.06337192 0.05656854 0.05805744</span></span>
+<span><span class="co">#&gt; [5,] 0.05163978 0.06096994 0.07493998 0.07292005 0.08860399 0.07023769</span></span>
 <span><span class="co">#&gt;              12         13         14         15         16         17</span></span>
-<span><span class="co">#&gt; [1,] 0.06328214 0.04959325 0.04941791 0.07769092 0.04166667 0.05335937</span></span>
-<span><span class="co">#&gt; [2,] 0.05956050 0.04823265 0.05707978 0.06364688 0.05877807 0.05553819</span></span>
-<span><span class="co">#&gt; [3,] 0.05768489 0.06028482 0.06396433 0.05758448 0.06684005 0.05308754</span></span>
-<span><span class="co">#&gt; [4,] 0.06901255 0.05368374 0.05951190 0.04166667 0.05379144 0.04738534</span></span>
-<span><span class="co">#&gt; [5,] 0.06838074 0.05951190 0.06666667 0.08464249 0.06833841 0.06662325</span></span>
+<span><span class="co">#&gt; [1,] 0.04320494 0.07218495 0.08384112 0.06075086 0.06183850 0.07393691</span></span>
+<span><span class="co">#&gt; [2,] 0.07313914 0.05901412 0.06324555 0.06118823 0.05600000 0.06324555</span></span>
+<span><span class="co">#&gt; [3,] 0.05782733 0.07787169 0.07529498 0.07582436 0.04301938 0.06101366</span></span>
+<span><span class="co">#&gt; [4,] 0.06784296 0.08428523 0.06478683 0.05851496 0.06499231 0.05741080</span></span>
+<span><span class="co">#&gt; [5,] 0.06800000 0.06358197 0.05576140 0.06429101 0.05647418 0.07922962</span></span>
 <span><span class="co">#&gt;              18         19         20</span></span>
-<span><span class="co">#&gt; [1,] 0.05641693 0.05034602 0.06419011</span></span>
-<span><span class="co">#&gt; [2,] 0.04356774 0.05103104 0.05422006</span></span>
-<span><span class="co">#&gt; [3,] 0.05882727 0.05501473 0.06980462</span></span>
-<span><span class="co">#&gt; [4,] 0.05422006 0.06477347 0.04799209</span></span>
-<span><span class="co">#&gt; [5,] 0.03901270 0.06305311 0.04859127</span></span>
+<span><span class="co">#&gt; [1,] 0.05022616 0.06482798 0.07023769</span></span>
+<span><span class="co">#&gt; [2,] 0.05619015 0.05101634 0.07295661</span></span>
+<span><span class="co">#&gt; [3,] 0.05713143 0.06013319 0.05291503</span></span>
+<span><span class="co">#&gt; [4,] 0.06332982 0.05964338 0.05887841</span></span>
+<span><span class="co">#&gt; [5,] 0.05828665 0.04548993 0.06482798</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $dyad.dep</span></span>
-<span><span class="co">#&gt;               obs             1            2            3          4</span></span>
-<span><span class="co">#&gt; [1,]  0.015231092 -7.913669e-02 -0.030085023 -0.020850709 0.01896664</span></span>
-<span><span class="co">#&gt; [2,] -0.014458955  1.524094e-01  0.015015015  0.019182652 0.01114425</span></span>
-<span><span class="co">#&gt; [3,]  0.016534867  2.121849e-01 -0.007178828 -0.010668164 0.11006864</span></span>
-<span><span class="co">#&gt; [4,]  0.142309681 -5.448155e-02  0.088855143  0.003728187 0.07834101</span></span>
-<span><span class="co">#&gt; [5,] -0.007178828 -3.703841e-05 -0.007178828 -0.065719361 0.05437352</span></span>
-<span><span class="co">#&gt;                5           6           7            8           9          10</span></span>
-<span><span class="co">#&gt; [1,] 0.117069980  0.08885514  0.01501502 -0.055499983  0.02052239  0.03144301</span></span>
-<span><span class="co">#&gt; [2,] 0.023199023  0.07310759 -0.02406554  0.145858182  0.05823262  0.04017551</span></span>
-<span><span class="co">#&gt; [3,] 0.011144247 -0.01785714 -0.01467160 -0.003636364  0.17774732  0.12010114</span></span>
-<span><span class="co">#&gt; [4,] 0.088855143  0.03567985  0.03571429  0.015015015 -0.03303303 -0.02406554</span></span>
-<span><span class="co">#&gt; [5,] 0.007348698 -0.02709699  0.01114425  0.015231092  0.05351853 -0.06571936</span></span>
-<span><span class="co">#&gt;               11          12            13            14          15</span></span>
-<span><span class="co">#&gt; [1,] 0.044409052  0.01114425 -2.085071e-02  8.372966e-02  0.04231189</span></span>
-<span><span class="co">#&gt; [2,] 0.048913043  0.02300530 -8.442164e-02 -7.719928e-02  0.25525526</span></span>
-<span><span class="co">#&gt; [3,] 0.053518526  0.05921601 -8.112909e-03  1.896664e-02 -0.01066816</span></span>
-<span><span class="co">#&gt; [4,] 0.003623188 -0.09489051 -5.277934e-02 -3.703841e-05 -0.03303303</span></span>
-<span><span class="co">#&gt; [5,] 0.136087962 -0.01410783 -3.703841e-05  1.295443e-01  0.17072092</span></span>
-<span><span class="co">#&gt;                16         17           18         19          20</span></span>
-<span><span class="co">#&gt; [1,]  0.040000000 0.01114425  0.035714286 0.05011147 0.044409052</span></span>
-<span><span class="co">#&gt; [2,]  0.078918512 0.15146080 -0.008112909 0.04000000 0.007348698</span></span>
-<span><span class="co">#&gt; [3,]  0.078918512 0.03567985 -0.052779337 0.07355418 0.058232617</span></span>
-<span><span class="co">#&gt; [4,] -0.003636364 0.07310759 -0.096892139 0.08363636 0.048913043</span></span>
-<span><span class="co">#&gt; [5,]  0.117069980 0.10532099  0.207746479 0.08885514 0.027284330</span></span>
+<span><span class="co">#&gt;               obs           1           2           3             4</span></span>
+<span><span class="co">#&gt; [1,]  0.019269395 -0.08131488 0.008055339  0.13695707  2.206228e-02</span></span>
+<span><span class="co">#&gt; [2,] -0.009636809  0.04974761 0.099728860  0.03073677 -5.142499e-02</span></span>
+<span><span class="co">#&gt; [3,]  0.021291209  0.04974761 0.078171091  0.03103972  1.081274e-01</span></span>
+<span><span class="co">#&gt; [4,]  0.146174863  0.04974761 0.019269395 -0.06932153 -8.187141e-17</span></span>
+<span><span class="co">#&gt; [5,] -0.003450161  0.09772784 0.089561985  0.06692407  3.717591e-02</span></span>
+<span><span class="co">#&gt;                 5          6            7            8            9          10</span></span>
+<span><span class="co">#&gt; [1,] -0.009636809 0.13503361  0.038812428  0.113504420  0.027048064 0.007076834</span></span>
+<span><span class="co">#&gt; [2,] -0.013049451 0.04347826  0.066924067 -0.029376535 -0.006185392 0.089972527</span></span>
+<span><span class="co">#&gt; [3,]  0.110953058 0.05408327  0.037175910  0.073508894  0.031039715 0.129623440</span></span>
+<span><span class="co">#&gt; [4,]  0.136957068 0.05408327 -0.023134421 -0.006185392 -0.002692947 0.115044248</span></span>
+<span><span class="co">#&gt; [5,]  0.058167571 0.01819923  0.008055339 -0.038503409 -0.029376535 0.082919087</span></span>
+<span><span class="co">#&gt;                11          12          13          14          15          16</span></span>
+<span><span class="co">#&gt; [1,]  0.003507653  0.01819923  0.16443850 -0.02627258  0.18963238 -0.05403126</span></span>
+<span><span class="co">#&gt; [2,] -0.032448378  0.03311752  0.03311752  0.01819923 -0.07182304 -0.02393511</span></span>
+<span><span class="co">#&gt; [3,]  0.176186292 -0.03549006  0.04963948 -0.10035211  0.09972886 -0.01800033</span></span>
+<span><span class="co">#&gt; [4,]  0.058498619  0.01547443  0.03881243 -0.04615017  0.06135015  0.10812739</span></span>
+<span><span class="co">#&gt; [5,]  0.055631868  0.06758773 -0.01019264  0.07227207  0.02312600  0.05220971</span></span>
+<span><span class="co">#&gt;                 17          18           19           20</span></span>
+<span><span class="co">#&gt; [1,]  0.0990990991  0.14247545  0.042929560 -0.081730769</span></span>
+<span><span class="co">#&gt; [2,]  0.0347490347  0.02704806  0.015474426  0.035105383</span></span>
+<span><span class="co">#&gt; [3,] -0.0391850308  0.09208475 -0.002692947 -0.016746411</span></span>
+<span><span class="co">#&gt; [4,]  0.0877577084 -0.03549006  0.067587728 -0.069321534</span></span>
+<span><span class="co">#&gt; [5,]  0.0008429252 -0.04078090 -0.023134421  0.009927131</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $cycle.dep</span></span>
-<span><span class="co">#&gt;              obs             1             2           3            4</span></span>
-<span><span class="co">#&gt; [1,] 0.004697636  1.144382e-02 -0.0079786148 0.004915964  0.010546149</span></span>
-<span><span class="co">#&gt; [2,] 0.022057807 -8.683577e-03 -0.0005191933 0.008225308 -0.003425739</span></span>
-<span><span class="co">#&gt; [3,] 0.003409118  3.288189e-03 -0.0065989119 0.025987177  0.007601129</span></span>
-<span><span class="co">#&gt; [4,] 0.012866730 -8.912113e-05  0.0054653473 0.003881961 -0.017290327</span></span>
-<span><span class="co">#&gt; [5,] 0.006597912 -7.028462e-03  0.0116966851 0.007126572 -0.001178605</span></span>
-<span><span class="co">#&gt;                 5             6            7            8            9</span></span>
-<span><span class="co">#&gt; [1,]  0.029315733 -0.0007815572 -0.006749513 -0.020865480  0.002005652</span></span>
-<span><span class="co">#&gt; [2,]  0.008204561  0.0028610008  0.006078508  0.029813474 -0.001660334</span></span>
-<span><span class="co">#&gt; [3,]  0.012539666 -0.0010349121  0.001180299  0.021302693 -0.008964122</span></span>
-<span><span class="co">#&gt; [4,] -0.023833514  0.0297923303 -0.023389014 -0.017726743 -0.003189330</span></span>
-<span><span class="co">#&gt; [5,]  0.011164385 -0.0106810214  0.015187774  0.003288189  0.012915648</span></span>
-<span><span class="co">#&gt;                 10           11           12           13           14</span></span>
-<span><span class="co">#&gt; [1,] -0.0065999362 -0.012413117  0.011695342 -0.006591528 -0.002557819</span></span>
-<span><span class="co">#&gt; [2,] -0.0007012322  0.022050600  0.011011487 -0.006349412 -0.005247364</span></span>
-<span><span class="co">#&gt; [3,] -0.0095252034  0.003488636 -0.006591528  0.014812292 -0.002918988</span></span>
-<span><span class="co">#&gt; [4,]  0.0413275900 -0.025299979  0.017483368  0.016704393  0.017325667</span></span>
-<span><span class="co">#&gt; [5,]  0.0021152752  0.016813879  0.010384531  0.009565428  0.001770287</span></span>
-<span><span class="co">#&gt;                15            16            17           18           19</span></span>
-<span><span class="co">#&gt; [1,]  0.004189500  0.0050403692  0.0001434499  0.003622192 -0.017910564</span></span>
-<span><span class="co">#&gt; [2,]  0.021435267 -0.0001564089 -0.0191891128 -0.015385317 -0.021492895</span></span>
-<span><span class="co">#&gt; [3,] -0.009586006 -0.0225111836 -0.0144470232 -0.005301645  0.013263921</span></span>
-<span><span class="co">#&gt; [4,] -0.001409239 -0.0069423953 -0.0079641927  0.008439313 -0.008654219</span></span>
-<span><span class="co">#&gt; [5,] -0.004544087 -0.0050407668 -0.0175873613 -0.006963890  0.007840931</span></span>
-<span><span class="co">#&gt;                 20</span></span>
-<span><span class="co">#&gt; [1,]  0.0280949785</span></span>
-<span><span class="co">#&gt; [2,] -0.0287047961</span></span>
-<span><span class="co">#&gt; [3,]  0.0081645311</span></span>
-<span><span class="co">#&gt; [4,]  0.0155344652</span></span>
-<span><span class="co">#&gt; [5,] -0.0004802247</span></span>
+<span><span class="co">#&gt;              obs             1            2             3            4</span></span>
+<span><span class="co">#&gt; [1,] 0.004000134  0.0009460156  0.008101547 -0.0051947200 -0.013828250</span></span>
+<span><span class="co">#&gt; [2,] 0.021198238  0.0255683605 -0.018621227  0.0087498469 -0.005484807</span></span>
+<span><span class="co">#&gt; [3,] 0.002352264 -0.0108900015  0.009409970  0.0009646276 -0.008276965</span></span>
+<span><span class="co">#&gt; [4,] 0.006223826  0.0089952373  0.007683338  0.0265516983 -0.001790639</span></span>
+<span><span class="co">#&gt; [5,] 0.006189746 -0.0118244863  0.012019258  0.0028009721  0.009436416</span></span>
+<span><span class="co">#&gt;                 5            6            7            8            9</span></span>
+<span><span class="co">#&gt; [1,]  0.017513991 -0.022978699 -0.013569120 -0.003542890 -0.001878817</span></span>
+<span><span class="co">#&gt; [2,]  0.012264095 -0.019057519  0.015161076 -0.010841243  0.022022301</span></span>
+<span><span class="co">#&gt; [3,] -0.015367160 -0.003294614 -0.037392357 -0.003425668 -0.008645739</span></span>
+<span><span class="co">#&gt; [4,] -0.004458079 -0.016446357 -0.005413791  0.001021086  0.030579654</span></span>
+<span><span class="co">#&gt; [5,] -0.002681326 -0.007363859  0.034413021 -0.006637987  0.031948619</span></span>
+<span><span class="co">#&gt;                10            11           12           13           14</span></span>
+<span><span class="co">#&gt; [1,]  0.012095359 -0.0165950818  0.003815011  0.022649941  0.013925773</span></span>
+<span><span class="co">#&gt; [2,]  0.002352264  0.0003596167 -0.001486717 -0.002966703 -0.021559250</span></span>
+<span><span class="co">#&gt; [3,] -0.042775678 -0.0041029133 -0.007716938  0.021927831 -0.010538347</span></span>
+<span><span class="co">#&gt; [4,] -0.024993359  0.0437524234  0.012053366 -0.010781135 -0.012288669</span></span>
+<span><span class="co">#&gt; [5,]  0.011129941  0.0180819085  0.011235314 -0.013904509 -0.004889475</span></span>
+<span><span class="co">#&gt;                15           16            17           18           19</span></span>
+<span><span class="co">#&gt; [1,] -0.004869438  0.010489094 -0.0006188194 -0.025369866 -0.013196668</span></span>
+<span><span class="co">#&gt; [2,]  0.021595013 -0.020066847 -0.0059927775 -0.010833461 -0.010564034</span></span>
+<span><span class="co">#&gt; [3,] -0.008176773  0.001714339  0.0001090225 -0.008673827  0.002781151</span></span>
+<span><span class="co">#&gt; [4,] -0.003483508  0.006440158 -0.0238248161  0.013739410 -0.017231609</span></span>
+<span><span class="co">#&gt; [5,]  0.007503381 -0.006637254  0.0064114225 -0.005770419 -0.009125562</span></span>
+<span><span class="co">#&gt;                20</span></span>
+<span><span class="co">#&gt; [1,]  0.002352264</span></span>
+<span><span class="co">#&gt; [2,] -0.016546828</span></span>
+<span><span class="co">#&gt; [3,]  0.001302982</span></span>
+<span><span class="co">#&gt; [4,]  0.016482431</span></span>
+<span><span class="co">#&gt; [5,]  0.014218855</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $trans.dep</span></span>
-<span><span class="co">#&gt;                obs            1            2             3            4</span></span>
-<span><span class="co">#&gt; [1,] -0.0096317459  0.010138114 -0.008468256  0.0004533634 -0.004687137</span></span>
-<span><span class="co">#&gt; [2,]  0.0001052847 -0.004871325 -0.001705921  0.0130890407  0.004249936</span></span>
-<span><span class="co">#&gt; [3,] -0.0012054802  0.009160886 -0.006232333  0.0034401835 -0.012304411</span></span>
-<span><span class="co">#&gt; [4,]  0.0003049938  0.004731639  0.001159969  0.0010984519  0.007601617</span></span>
-<span><span class="co">#&gt; [5,] -0.0067322132 -0.019451883  0.005531502 -0.0189079387 -0.005279977</span></span>
-<span><span class="co">#&gt;                  5            6             7            8             9</span></span>
-<span><span class="co">#&gt; [1,] -0.0059928472 -0.004946160 -0.0049694217  0.003700150  1.360445e-02</span></span>
-<span><span class="co">#&gt; [2,] -0.0004305205 -0.004355795 -0.0058452551  0.001532438 -3.988622e-03</span></span>
-<span><span class="co">#&gt; [3,] -0.0048841178  0.001759351 -0.0002670327 -0.010080738 -4.517969e-03</span></span>
-<span><span class="co">#&gt; [4,] -0.0016379403  0.004065188 -0.0069339113  0.010556931 -9.320756e-03</span></span>
-<span><span class="co">#&gt; [5,] -0.0002374555 -0.010695062  0.0081005671 -0.001684029 -1.389004e-05</span></span>
-<span><span class="co">#&gt;                10            11           12           13            14</span></span>
-<span><span class="co">#&gt; [1,]  0.006512806 -0.0012097487 -0.004244478 0.0090526438 -0.0009078874</span></span>
-<span><span class="co">#&gt; [2,] -0.008468579  0.0146656472  0.010379666 0.0022022420 -0.0022707868</span></span>
-<span><span class="co">#&gt; [3,]  0.002078155  0.0005698643  0.001631690 0.0051359016  0.0046432506</span></span>
-<span><span class="co">#&gt; [4,] -0.006280429  0.0217609939 -0.003462399 0.0045870076 -0.0041542990</span></span>
-<span><span class="co">#&gt; [5,] -0.013394646  0.0043193961 -0.012125176 0.0008725528  0.0116922510</span></span>
-<span><span class="co">#&gt;                15           16            17           18           19</span></span>
-<span><span class="co">#&gt; [1,]  0.009557011  0.002757938  0.0089960626  0.012315454 -0.008362392</span></span>
-<span><span class="co">#&gt; [2,] -0.011001954  0.006934695  0.0083391526  0.005317659 -0.011221954</span></span>
-<span><span class="co">#&gt; [3,]  0.006685912 -0.005901390  0.0060480445 -0.010105323  0.007248505</span></span>
-<span><span class="co">#&gt; [4,]  0.009666885 -0.003518748 -0.0007333566 -0.003274170  0.002757938</span></span>
-<span><span class="co">#&gt; [5,] -0.006056832 -0.003843866 -0.0187387127  0.010791311  0.018035409</span></span>
-<span><span class="co">#&gt;                 20</span></span>
-<span><span class="co">#&gt; [1,]  1.734802e-03</span></span>
-<span><span class="co">#&gt; [2,]  1.556117e-02</span></span>
-<span><span class="co">#&gt; [3,] -1.192015e-02</span></span>
-<span><span class="co">#&gt; [4,] -3.938641e-04</span></span>
-<span><span class="co">#&gt; [5,]  7.856433e-05</span></span>
+<span><span class="co">#&gt;              obs           1            2           3           4           5</span></span>
+<span><span class="co">#&gt; [1,] -0.03405087 -0.01725131 -0.015921262 -0.02439561 -0.01790421 -0.01257219</span></span>
+<span><span class="co">#&gt; [2,] -0.02658332 -0.02213112 -0.036695001 -0.01839281 -0.02778143 -0.03720528</span></span>
+<span><span class="co">#&gt; [3,] -0.02865812 -0.02199730 -0.008510928 -0.02102015 -0.04129031 -0.01456443</span></span>
+<span><span class="co">#&gt; [4,] -0.02792264 -0.02067580 -0.020594018 -0.03995741 -0.02622008 -0.02120350</span></span>
+<span><span class="co">#&gt; [5,] -0.03012973 -0.03257758 -0.029288661 -0.04035354 -0.02066110 -0.04610502</span></span>
+<span><span class="co">#&gt;                6            7           8           9          10           11</span></span>
+<span><span class="co">#&gt; [1,] -0.03158134 -0.026314191 -0.02157296 -0.02863680 -0.02480713 -0.007500892</span></span>
+<span><span class="co">#&gt; [2,] -0.03568489 -0.008989166 -0.02768337 -0.02405309 -0.04661433 -0.031965927</span></span>
+<span><span class="co">#&gt; [3,] -0.02673828 -0.029001322 -0.02661338 -0.02522528 -0.05030914 -0.028451519</span></span>
+<span><span class="co">#&gt; [4,] -0.02018381 -0.040099799 -0.02631793 -0.02450490 -0.02870940 -0.017077436</span></span>
+<span><span class="co">#&gt; [5,] -0.01907506 -0.030282635 -0.02101336 -0.04267821 -0.02210883 -0.020505997</span></span>
+<span><span class="co">#&gt;               12           13           14          15          16          17</span></span>
+<span><span class="co">#&gt; [1,] -0.01957781 -0.006002866 -0.033694251 -0.03310867 -0.02412263 -0.04432701</span></span>
+<span><span class="co">#&gt; [2,] -0.02178203 -0.031361790 -0.028656945 -0.02846198 -0.03155093 -0.04177031</span></span>
+<span><span class="co">#&gt; [3,] -0.02625382 -0.017626911 -0.028193876 -0.02670351 -0.01836526 -0.03858842</span></span>
+<span><span class="co">#&gt; [4,] -0.02988494 -0.019324316 -0.007578192 -0.03040507 -0.02746220 -0.01981431</span></span>
+<span><span class="co">#&gt; [5,] -0.02060342 -0.009467865 -0.014717185 -0.03434931 -0.02766951 -0.03495360</span></span>
+<span><span class="co">#&gt;               18           19          20</span></span>
+<span><span class="co">#&gt; [1,] -0.02403337 -0.022243825 -0.03303944</span></span>
+<span><span class="co">#&gt; [2,] -0.02955806 -0.037406946 -0.03163719</span></span>
+<span><span class="co">#&gt; [3,] -0.02039266 -0.015104886 -0.02107237</span></span>
+<span><span class="co">#&gt; [4,] -0.03215138 -0.015591767 -0.03168623</span></span>
+<span><span class="co">#&gt; [5,] -0.00988358 -0.009429525 -0.03764835</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Dynamic model GOF (sample):</span></span>
+<span><span class="co">#&gt; Full dynamic model GOF (sample):</span></span>
 <span><span class="co">#&gt; $sd.rowmean</span></span>
 <span><span class="co">#&gt;             obs          1          2          3          4          5</span></span>
-<span><span class="co">#&gt; [1,] 0.04853168 0.10535434 0.07248882 0.09507551 0.06640574 0.07216878</span></span>
-<span><span class="co">#&gt; [2,] 0.06918005 0.10186343 0.07599647 0.07595838 0.05641693 0.06959705</span></span>
-<span><span class="co">#&gt; [3,] 0.05242941 0.06918005 0.07701761 0.08946213 0.11250000 0.09880654</span></span>
-<span><span class="co">#&gt; [4,] 0.06596857 0.08796174 0.08378351 0.06943055 0.05308754 0.07511565</span></span>
-<span><span class="co">#&gt; [5,] 0.06189522 0.09568225 0.07671647 0.07967672 0.07614861 0.06623122</span></span>
+<span><span class="co">#&gt; [1,] 0.04659041 0.05736433 0.05896892 0.04636090 0.05499091 0.05642694</span></span>
+<span><span class="co">#&gt; [2,] 0.06641285 0.05406169 0.09318083 0.05887841 0.08554141 0.08460102</span></span>
+<span><span class="co">#&gt; [3,] 0.05033223 0.07364781 0.06831301 0.04898979 0.06641285 0.06740920</span></span>
+<span><span class="co">#&gt; [4,] 0.06332982 0.07050296 0.06858571 0.07571878 0.08830251 0.08223543</span></span>
+<span><span class="co">#&gt; [5,] 0.05941941 0.05773503 0.05805744 0.04000000 0.06661331 0.08000000</span></span>
 <span><span class="co">#&gt;               6          7          8          9         10         11</span></span>
-<span><span class="co">#&gt; [1,] 0.06259252 0.08157875 0.07115938 0.07363731 0.05975451 0.07607258</span></span>
-<span><span class="co">#&gt; [2,] 0.05907270 0.06731456 0.07821060 0.07607258 0.08460830 0.09880654</span></span>
-<span><span class="co">#&gt; [3,] 0.07216878 0.06147304 0.07308512 0.06123724 0.08783007 0.07228896</span></span>
-<span><span class="co">#&gt; [4,] 0.07576768 0.09160351 0.06618751 0.05803495 0.08779711 0.07025911</span></span>
-<span><span class="co">#&gt; [5,] 0.06623122 0.08025567 0.06752914 0.07618660 0.06909635 0.07308512</span></span>
+<span><span class="co">#&gt; [1,] 0.07016172 0.04963869 0.02026491 0.09729680 0.05225578 0.08304216</span></span>
+<span><span class="co">#&gt; [2,] 0.06877984 0.06429101 0.03525148 0.07418895 0.03555278 0.07564831</span></span>
+<span><span class="co">#&gt; [3,] 0.07735632 0.07393691 0.04687572 0.09443163 0.04543127 0.05623759</span></span>
+<span><span class="co">#&gt; [4,] 0.07436845 0.04898979 0.05163978 0.07125541 0.04270831 0.05547372</span></span>
+<span><span class="co">#&gt; [5,] 0.06601010 0.04601449 0.02612789 0.08092795 0.03946306 0.03843609</span></span>
 <span><span class="co">#&gt;              12         13         14         15         16         17</span></span>
-<span><span class="co">#&gt; [1,] 0.06530732 0.07128126 0.05753421 0.08157875 0.06463931 0.06004435</span></span>
-<span><span class="co">#&gt; [2,] 0.09007456 0.07324332 0.05833333 0.05833333 0.07124066 0.06579288</span></span>
-<span><span class="co">#&gt; [3,] 0.05522471 0.08115201 0.06259252 0.05828371 0.06423517 0.09182436</span></span>
-<span><span class="co">#&gt; [4,] 0.05768489 0.07709272 0.08920300 0.05005784 0.09026709 0.09601432</span></span>
-<span><span class="co">#&gt; [5,] 0.04811252 0.07843227 0.04608517 0.08733450 0.07607258 0.05902369</span></span>
+<span><span class="co">#&gt; [1,] 0.11530828 0.06862458 0.07635007 0.04543127 0.09572182 0.05656854</span></span>
+<span><span class="co">#&gt; [2,] 0.09965273 0.05782733 0.07635007 0.06337192 0.08349052 0.06166577</span></span>
+<span><span class="co">#&gt; [3,] 0.07110556 0.06075086 0.08009994 0.04163332 0.07292005 0.08320256</span></span>
+<span><span class="co">#&gt; [4,] 0.06661331 0.06916647 0.03448671 0.04749737 0.07236942 0.05600000</span></span>
+<span><span class="co">#&gt; [5,] 0.08979978 0.05075431 0.05887841 0.04543127 0.05986652 0.08082904</span></span>
 <span><span class="co">#&gt;              18         19         20</span></span>
-<span><span class="co">#&gt; [1,] 0.05902369 0.07978559 0.05379144</span></span>
-<span><span class="co">#&gt; [2,] 0.07204840 0.07978559 0.05758448</span></span>
-<span><span class="co">#&gt; [3,] 0.06282324 0.06984606 0.05803495</span></span>
-<span><span class="co">#&gt; [4,] 0.07519265 0.05999614 0.06355590</span></span>
-<span><span class="co">#&gt; [5,] 0.08057950 0.06305311 0.06147304</span></span>
+<span><span class="co">#&gt; [1,] 0.05225578 0.06008882 0.05163978</span></span>
+<span><span class="co">#&gt; [2,] 0.05600000 0.08326664 0.03525148</span></span>
+<span><span class="co">#&gt; [3,] 0.03815757 0.06544209 0.04472136</span></span>
+<span><span class="co">#&gt; [4,] 0.04548993 0.07302967 0.04630335</span></span>
+<span><span class="co">#&gt; [5,] 0.02508652 0.05764258 0.03158058</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $sd.colmean</span></span>
 <span><span class="co">#&gt;             obs          1          2          3          4          5</span></span>
-<span><span class="co">#&gt; [1,] 0.07244890 0.05063257 0.07248882 0.08959141 0.07363731 0.07511565</span></span>
-<span><span class="co">#&gt; [2,] 0.05778512 0.07087417 0.08913811 0.09307628 0.07013545 0.05828371</span></span>
-<span><span class="co">#&gt; [3,] 0.06696980 0.07985809 0.07115938 0.08097353 0.05828371 0.05951190</span></span>
-<span><span class="co">#&gt; [4,] 0.05253967 0.10518942 0.07168604 0.08007520 0.07363731 0.06909635</span></span>
-<span><span class="co">#&gt; [5,] 0.04577016 0.07913011 0.07184732 0.08991380 0.07021791 0.05808479</span></span>
+<span><span class="co">#&gt; [1,] 0.06955094 0.08845338 0.05896892 0.06843001 0.05964338 0.08708616</span></span>
+<span><span class="co">#&gt; [2,] 0.05547372 0.06725077 0.08092795 0.04320494 0.06621178 0.05964338</span></span>
+<span><span class="co">#&gt; [3,] 0.06429101 0.09429033 0.08246211 0.04163332 0.08252676 0.06839103</span></span>
+<span><span class="co">#&gt; [4,] 0.05043808 0.05070174 0.05919459 0.05163978 0.06269503 0.07368401</span></span>
+<span><span class="co">#&gt; [5,] 0.04393935 0.06928203 0.05070174 0.04472136 0.05919459 0.06928203</span></span>
 <span><span class="co">#&gt;               6          7          8          9         10         11</span></span>
-<span><span class="co">#&gt; [1,] 0.05902369 0.06909635 0.10891936 0.07264832 0.07383352 0.09622504</span></span>
-<span><span class="co">#&gt; [2,] 0.07426336 0.06052433 0.08357604 0.06696980 0.06748628 0.09583333</span></span>
-<span><span class="co">#&gt; [3,] 0.08838835 0.06147304 0.08239050 0.05501473 0.07445792 0.07618660</span></span>
-<span><span class="co">#&gt; [4,] 0.06552848 0.07013545 0.05926830 0.05926830 0.06833841 0.07228896</span></span>
-<span><span class="co">#&gt; [5,] 0.06512986 0.06309898 0.07066975 0.06263873 0.07216878 0.05631426</span></span>
+<span><span class="co">#&gt; [1,] 0.08634813 0.06374951 0.03282276 0.08793937 0.04079216 0.07547185</span></span>
+<span><span class="co">#&gt; [2,] 0.07346655 0.06218253 0.03709447 0.09748846 0.03158058 0.07203703</span></span>
+<span><span class="co">#&gt; [3,] 0.08475848 0.06928203 0.03555278 0.07821338 0.03912374 0.06803920</span></span>
+<span><span class="co">#&gt; [4,] 0.06374951 0.06110101 0.04163332 0.08569714 0.04270831 0.05547372</span></span>
+<span><span class="co">#&gt; [5,] 0.06075086 0.07200000 0.02856571 0.08726970 0.04715930 0.07922962</span></span>
 <span><span class="co">#&gt;              12         13         14         15         16         17</span></span>
-<span><span class="co">#&gt; [1,] 0.06640574 0.06490734 0.05086065 0.08838835 0.08147227 0.07208855</span></span>
-<span><span class="co">#&gt; [2,] 0.08596538 0.07422438 0.05314202 0.05707978 0.06142596 0.06123724</span></span>
-<span><span class="co">#&gt; [3,] 0.06373774 0.06644930 0.06142596 0.05828371 0.06859199 0.08696929</span></span>
-<span><span class="co">#&gt; [4,] 0.07013545 0.06812638 0.05768489 0.04859127 0.07046473 0.08733450</span></span>
-<span><span class="co">#&gt; [5,] 0.05103104 0.08025567 0.06212853 0.09138213 0.10063456 0.05778512</span></span>
+<span><span class="co">#&gt; [1,] 0.09360912 0.07943131 0.05968808 0.04393935 0.09846827 0.05291503</span></span>
+<span><span class="co">#&gt; [2,] 0.07346655 0.06226824 0.06079474 0.05787343 0.05070174 0.05600000</span></span>
+<span><span class="co">#&gt; [3,] 0.08787870 0.08460102 0.05552177 0.03651484 0.07012370 0.06823489</span></span>
+<span><span class="co">#&gt; [4,] 0.08428523 0.05986652 0.06725077 0.04150502 0.08662563 0.05600000</span></span>
+<span><span class="co">#&gt; [5,] 0.06053098 0.04519587 0.04898979 0.05351635 0.06205374 0.07302967</span></span>
 <span><span class="co">#&gt;              18         19         20</span></span>
-<span><span class="co">#&gt; [1,] 0.07802540 0.05103104 0.07701761</span></span>
-<span><span class="co">#&gt; [2,] 0.06118997 0.07013545 0.07308512</span></span>
-<span><span class="co">#&gt; [3,] 0.06282324 0.06984606 0.05548607</span></span>
-<span><span class="co">#&gt; [4,] 0.07519265 0.06351035 0.07787692</span></span>
-<span><span class="co">#&gt; [5,] 0.07001157 0.07164567 0.08168509</span></span>
+<span><span class="co">#&gt; [1,] 0.03362539 0.07310267 0.05033223</span></span>
+<span><span class="co">#&gt; [2,] 0.05717808 0.06633250 0.04805552</span></span>
+<span><span class="co">#&gt; [3,] 0.04460194 0.06544209 0.04898979</span></span>
+<span><span class="co">#&gt; [4,] 0.05230679 0.07211103 0.04484046</span></span>
+<span><span class="co">#&gt; [5,] 0.03600000 0.05991105 0.04687572</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $dyad.dep</span></span>
-<span><span class="co">#&gt;               obs          1          2           3           4           5</span></span>
-<span><span class="co">#&gt; [1,]  0.015231092 0.09114213 0.17929293  0.15628767  0.07512075  0.01600000</span></span>
-<span><span class="co">#&gt; [2,] -0.014458955 0.27732611 0.07309537  0.00256914  0.03703704 -0.04819649</span></span>
-<span><span class="co">#&gt; [3,]  0.016534867 0.04985974 0.16390634  0.22526695  0.01346213  0.03575733</span></span>
-<span><span class="co">#&gt; [4,]  0.142309681 0.08331515 0.06770882  0.08635426 -0.02450783 -0.09973046</span></span>
-<span><span class="co">#&gt; [5,] -0.007178828 0.28958827 0.05245511 -0.02436323  0.02052239  0.05351853</span></span>
-<span><span class="co">#&gt;                 6            7           8           9          10           11</span></span>
-<span><span class="co">#&gt; [1,] -0.076675081  0.037037037  0.01653487  0.04429144  0.18599919  0.016534867</span></span>
-<span><span class="co">#&gt; [2,] -0.007315026  0.027284330 -0.03168755  0.01653487  0.09602250 -0.084773001</span></span>
-<span><span class="co">#&gt; [3,] -0.038461538 -0.046377583  0.23578800  0.01744171 -0.04166667 -0.007315026</span></span>
-<span><span class="co">#&gt; [4,]  0.025533161  0.016534867  0.06656841 -0.06355042 -0.03168755 -0.046377583</span></span>
-<span><span class="co">#&gt; [5,] -0.055499983  0.004865104 -0.06620142  0.06003370  0.15456506 -0.086956522</span></span>
-<span><span class="co">#&gt;                 12          13         14           15          16           17</span></span>
-<span><span class="co">#&gt; [1,] -3.703841e-05 -0.04329056 0.07891851 -0.020952381 -0.02145046 -0.052779337</span></span>
-<span><span class="co">#&gt; [2,]  4.985974e-02 -0.11317254 0.05011147 -0.027430455  0.05550373 -0.057833180</span></span>
-<span><span class="co">#&gt; [3,] -3.680161e-03  0.10437859 0.09048507 -0.088929220 -0.06620142 -0.009166597</span></span>
-<span><span class="co">#&gt; [4,] -3.636364e-03  0.02052239 0.15456506 -0.038821130  0.02146465 -0.020717299</span></span>
-<span><span class="co">#&gt; [5,]  1.501502e-02  0.01134051 0.01114425  0.008708801  0.02964960 -0.069518717</span></span>
-<span><span class="co">#&gt;               18          19          20</span></span>
-<span><span class="co">#&gt; [1,] -0.04944030  0.05921601  0.04000000</span></span>
-<span><span class="co">#&gt; [2,] -0.02145046  0.02964960 -0.01066816</span></span>
-<span><span class="co">#&gt; [3,] -0.06443953 -0.12570356  0.16612165</span></span>
-<span><span class="co">#&gt; [4,]  0.02052239  0.04132335  0.01744171</span></span>
-<span><span class="co">#&gt; [5,] -0.02145046  0.01346213 -0.01090716</span></span>
+<span><span class="co">#&gt;               obs           1          2           3          4          5</span></span>
+<span><span class="co">#&gt; [1,]  0.019269395  0.02704806 0.09753216  0.05198566 0.15785326 0.04548721</span></span>
+<span><span class="co">#&gt; [2,] -0.009636809  0.11900926 0.17999831  0.06174334 0.08521711 0.23204433</span></span>
+<span><span class="co">#&gt; [3,]  0.021291209  0.12607413 0.10606061  0.06174334 0.16443850 0.16443850</span></span>
+<span><span class="co">#&gt; [4,]  0.146174863 -0.02683461 0.13695707 -0.04347826 0.16115425 0.20178799</span></span>
+<span><span class="co">#&gt; [5,] -0.003450161  0.18261563 0.11985605 -0.04166667 0.05849862 0.22566372</span></span>
+<span><span class="co">#&gt;              6          7           8         9        10        11        12</span></span>
+<span><span class="co">#&gt; [1,] 0.2089786 0.25274988  0.12321721 0.3102797 0.2776422 0.2352557 0.3982670</span></span>
+<span><span class="co">#&gt; [2,] 0.2678688 0.11504425  0.52887080 0.5001272 0.0368563 0.2149730 0.3360054</span></span>
+<span><span class="co">#&gt; [3,] 0.1125448 0.11123853  0.13338880 0.3680763 0.0368563 0.2358734 0.2501781</span></span>
+<span><span class="co">#&gt; [4,] 0.2029234 0.19299451  0.45833333 0.3580203 0.1683059 0.3733289 0.3989662</span></span>
+<span><span class="co">#&gt; [5,] 0.1451059 0.08640996 -0.01957586 0.3122566 0.2608798 0.1992536 0.3255506</span></span>
+<span><span class="co">#&gt;                13         14          15         16         17          18</span></span>
+<span><span class="co">#&gt; [1,] 0.2779284710 0.18084310  0.03685630 0.10779835 0.10287081 -0.03993344</span></span>
+<span><span class="co">#&gt; [2,] 0.0008429252 0.08775771  0.32753519 0.10397769 0.09269212 -0.02393511</span></span>
+<span><span class="co">#&gt; [3,] 0.1260741343 0.14054890  0.12500000 0.03727665 0.05387632 -0.03820598</span></span>
+<span><span class="co">#&gt; [4,] 0.2546213476 0.03510538 -0.04515050 0.02332011 0.12590905  0.01190978</span></span>
+<span><span class="co">#&gt; [5,] 0.0107119193 0.17391304 -0.04340568 0.01745541 0.19299451 -0.02796053</span></span>
+<span><span class="co">#&gt;              19         20</span></span>
+<span><span class="co">#&gt; [1,] 0.10984188 0.14529915</span></span>
+<span><span class="co">#&gt; [2,] 0.07575758 0.02787748</span></span>
+<span><span class="co">#&gt; [3,] 0.06892798 0.03846154</span></span>
+<span><span class="co">#&gt; [4,] 0.04129794 0.05678174</span></span>
+<span><span class="co">#&gt; [5,] 0.11900926 0.11711827</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $cycle.dep</span></span>
-<span><span class="co">#&gt;              obs            1            2            3           4</span></span>
-<span><span class="co">#&gt; [1,] 0.004697636 -0.001103624  0.005166549 -0.043316381 0.018152911</span></span>
-<span><span class="co">#&gt; [2,] 0.022057807  0.008162098 -0.002012598  0.022176913 0.023291087</span></span>
-<span><span class="co">#&gt; [3,] 0.003409118 -0.012458788  0.017083731 -0.007613892 0.013395423</span></span>
-<span><span class="co">#&gt; [4,] 0.012866730 -0.009894645  0.014593610 -0.010875492 0.001318978</span></span>
-<span><span class="co">#&gt; [5,] 0.006597912 -0.005309164 -0.013706567  0.003762132 0.004954498</span></span>
-<span><span class="co">#&gt;                 5             6             7           8            9</span></span>
-<span><span class="co">#&gt; [1,]  0.023429739  0.0008855049 -0.0008031409  0.01845672  0.007296080</span></span>
-<span><span class="co">#&gt; [2,]  0.021161920 -0.0037596776 -0.0228106981  0.02145241 -0.016333337</span></span>
-<span><span class="co">#&gt; [3,]  0.019589614 -0.0157842088 -0.0205482958 -0.01682673  0.006492367</span></span>
-<span><span class="co">#&gt; [4,] -0.021241868  0.0120933780  0.0071409237 -0.01524721 -0.003876502</span></span>
-<span><span class="co">#&gt; [5,] -0.006814007 -0.0002113734 -0.0114875897  0.01688435  0.019873100</span></span>
-<span><span class="co">#&gt;                 10            11           12            13           14</span></span>
-<span><span class="co">#&gt; [1,]  0.0108876044 -0.0203660950 -0.002717218  0.0097722915  0.020980010</span></span>
-<span><span class="co">#&gt; [2,] -0.0001741058 -0.0076395268  0.012085242  0.0004795836  0.007465208</span></span>
-<span><span class="co">#&gt; [3,] -0.0031747482 -0.0005560865 -0.012300390 -0.0113514425 -0.020405579</span></span>
-<span><span class="co">#&gt; [4,]  0.0099316048 -0.0134350333  0.011887663 -0.0009431939 -0.023917329</span></span>
-<span><span class="co">#&gt; [5,] -0.0003226875 -0.0044483480  0.002744308  0.0234218377 -0.014900875</span></span>
-<span><span class="co">#&gt;                15           16           17            18            19</span></span>
-<span><span class="co">#&gt; [1,] -0.003934121 -0.006617595  0.025143287 -0.0256152072  0.0334966624</span></span>
-<span><span class="co">#&gt; [2,]  0.016110175 -0.016670374  0.016971878 -0.0064052204 -0.0222250628</span></span>
-<span><span class="co">#&gt; [3,] -0.010477457 -0.019157848 -0.016255004  0.0004144152  0.0188460452</span></span>
-<span><span class="co">#&gt; [4,] -0.015570323 -0.010252212  0.016390588  0.0302162810  0.0005143712</span></span>
-<span><span class="co">#&gt; [5,]  0.006584058  0.015354836  0.004002596 -0.0176610786 -0.0024832008</span></span>
+<span><span class="co">#&gt;              obs            1            2            3            4</span></span>
+<span><span class="co">#&gt; [1,] 0.004000134 -0.004863698 -0.010484886 -0.021129984  0.018973901</span></span>
+<span><span class="co">#&gt; [2,] 0.021198238 -0.017274191 -0.005873411  0.010925973  0.009328688</span></span>
+<span><span class="co">#&gt; [3,] 0.002352264 -0.028981326 -0.003795519  0.002227218 -0.005053393</span></span>
+<span><span class="co">#&gt; [4,] 0.006223826 -0.021882546  0.004000134  0.010871739 -0.007014093</span></span>
+<span><span class="co">#&gt; [5,] 0.006189746 -0.026868396 -0.024463582 -0.002375735 -0.003839827</span></span>
+<span><span class="co">#&gt;                 5            6            7            8            9</span></span>
+<span><span class="co">#&gt; [1,] -0.008536230 -0.039303728 -0.008285261 -0.006319956 -0.031421404</span></span>
+<span><span class="co">#&gt; [2,] -0.015537100 -0.016013806 -0.009290098 -0.018414400 -0.001847216</span></span>
+<span><span class="co">#&gt; [3,] -0.012795810  0.005121326 -0.012259145  0.012855259 -0.005000272</span></span>
+<span><span class="co">#&gt; [4,]  0.008669044  0.001299266 -0.018818113 -0.020702835 -0.007237220</span></span>
+<span><span class="co">#&gt; [5,] -0.004375336  0.010796637  0.013911535 -0.004497010 -0.015735101</span></span>
+<span><span class="co">#&gt;                10           11           12           13            14</span></span>
+<span><span class="co">#&gt; [1,] -0.003976914  0.007972305 -0.041457924 -0.016025802 -0.0002344697</span></span>
+<span><span class="co">#&gt; [2,] -0.013985926 -0.037935778 -0.005536017  0.008369461 -0.0172758605</span></span>
+<span><span class="co">#&gt; [3,]  0.007071495 -0.004166583 -0.029591872 -0.037431037  0.0365569627</span></span>
+<span><span class="co">#&gt; [4,]  0.012392833 -0.005757249 -0.049784475  0.018714811  0.0198213194</span></span>
+<span><span class="co">#&gt; [5,]  0.012672939 -0.024970320 -0.008342543  0.002984650 -0.0094648083</span></span>
+<span><span class="co">#&gt;                15           16           17            18           19</span></span>
+<span><span class="co">#&gt; [1,] -0.001975112 -0.018128598 -0.002134195  0.0003731671 -0.002534585</span></span>
+<span><span class="co">#&gt; [2,] -0.011133850 -0.033652564 -0.028814645  0.0084323291 -0.006474708</span></span>
+<span><span class="co">#&gt; [3,] -0.012557457 -0.005626893  0.002051449  0.0001126648 -0.017307656</span></span>
+<span><span class="co">#&gt; [4,]  0.014364305  0.017188891  0.006429071  0.0035152534 -0.009469906</span></span>
+<span><span class="co">#&gt; [5,]  0.004030296  0.007977255 -0.030992427 -0.0015654845 -0.020329116</span></span>
 <span><span class="co">#&gt;                20</span></span>
-<span><span class="co">#&gt; [1,]  0.027294075</span></span>
-<span><span class="co">#&gt; [2,]  0.012874434</span></span>
-<span><span class="co">#&gt; [3,]  0.004833667</span></span>
-<span><span class="co">#&gt; [4,] -0.007174238</span></span>
-<span><span class="co">#&gt; [5,]  0.025782001</span></span>
+<span><span class="co">#&gt; [1,] -0.013969712</span></span>
+<span><span class="co">#&gt; [2,]  0.003129132</span></span>
+<span><span class="co">#&gt; [3,] -0.009789250</span></span>
+<span><span class="co">#&gt; [4,] -0.016958608</span></span>
+<span><span class="co">#&gt; [5,]  0.015078705</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $trans.dep</span></span>
-<span><span class="co">#&gt;                obs             1             2            3            4</span></span>
-<span><span class="co">#&gt; [1,] -0.0096317459  0.0001668722 -0.0006470824  0.013525596  0.003975326</span></span>
-<span><span class="co">#&gt; [2,]  0.0001052847  0.0026044475 -0.0025086253  0.007485888  0.011511687</span></span>
-<span><span class="co">#&gt; [3,] -0.0012054802  0.0024143456  0.0107763290 -0.007058557 -0.006976384</span></span>
-<span><span class="co">#&gt; [4,]  0.0003049938  0.0058686861 -0.0060236255  0.004441567  0.005719648</span></span>
-<span><span class="co">#&gt; [5,] -0.0067322132 -0.0037803306 -0.0196088427  0.011721019  0.009541593</span></span>
-<span><span class="co">#&gt;                  5            6             7            8             9</span></span>
-<span><span class="co">#&gt; [1,] -0.0100856493 -0.009991440  0.0099054049 -0.002248781  0.0156454030</span></span>
-<span><span class="co">#&gt; [2,] -0.0017038403 -0.007723588 -0.0006805453 -0.003481510 -0.0139257208</span></span>
-<span><span class="co">#&gt; [3,] -0.0036448717 -0.005847518 -0.0062966800 -0.020854636 -0.0172129673</span></span>
-<span><span class="co">#&gt; [4,] -0.0004855284 -0.012795181 -0.0098327727 -0.015091369 -0.0009401536</span></span>
-<span><span class="co">#&gt; [5,]  0.0013088725 -0.010638587  0.0187370708  0.003809377  0.0118189302</span></span>
-<span><span class="co">#&gt;                10           11           12            13           14</span></span>
-<span><span class="co">#&gt; [1,]  0.015698579 -0.006000650 -0.006025437  0.0008534936  0.003430211</span></span>
-<span><span class="co">#&gt; [2,]  0.007029371 -0.000697995 -0.007211753  0.0059005969  0.010332527</span></span>
-<span><span class="co">#&gt; [3,] -0.015139033 -0.001256605  0.007629036  0.0280707121 -0.007561715</span></span>
-<span><span class="co">#&gt; [4,] -0.002535357  0.011680930  0.006752193 -0.0213885276  0.011193745</span></span>
-<span><span class="co">#&gt; [5,]  0.004492546  0.001922984 -0.002002603 -0.0169213390  0.002804351</span></span>
-<span><span class="co">#&gt;                15            16           17           18           19</span></span>
-<span><span class="co">#&gt; [1,]  0.007556011  0.0006975328 -0.002337213  0.010917721 -0.001752866</span></span>
-<span><span class="co">#&gt; [2,] -0.008491422 -0.0055958179 -0.016657204 -0.009000911  0.004867422</span></span>
-<span><span class="co">#&gt; [3,]  0.005899404 -0.0054807367  0.003341629  0.001260388  0.004941414</span></span>
-<span><span class="co">#&gt; [4,] -0.001113087 -0.0169926541  0.014628287 -0.016080604  0.003836330</span></span>
-<span><span class="co">#&gt; [5,]  0.006398971  0.0120046899  0.011383988 -0.007419899 -0.008528328</span></span>
-<span><span class="co">#&gt;                20</span></span>
-<span><span class="co">#&gt; [1,]  0.002757938</span></span>
-<span><span class="co">#&gt; [2,]  0.013610132</span></span>
-<span><span class="co">#&gt; [3,] -0.003218213</span></span>
-<span><span class="co">#&gt; [4,] -0.002311782</span></span>
-<span><span class="co">#&gt; [5,] -0.006409589</span></span></code></pre></div>
+<span><span class="co">#&gt;              obs           1            2            3           4            5</span></span>
+<span><span class="co">#&gt; [1,] -0.03405087 -0.01061236 -0.021724260 -0.017865778 -0.03260994 -0.030969234</span></span>
+<span><span class="co">#&gt; [2,] -0.02658332 -0.03694693 -0.044817618 -0.034753000 -0.03164718 -0.038850210</span></span>
+<span><span class="co">#&gt; [3,] -0.02865812 -0.03296481 -0.008037569 -0.027104818 -0.04159892 -0.021102777</span></span>
+<span><span class="co">#&gt; [4,] -0.02792264 -0.03245686 -0.011065922 -0.010488031 -0.02633641 -0.003111548</span></span>
+<span><span class="co">#&gt; [5,] -0.03012973 -0.03095706 -0.026873769 -0.007805987 -0.04010184 -0.024793572</span></span>
+<span><span class="co">#&gt;                6           7           8           9            10          11</span></span>
+<span><span class="co">#&gt; [1,] -0.04255652 -0.02656948 -0.01426403 -0.04868229 -0.0293330781 -0.04475317</span></span>
+<span><span class="co">#&gt; [2,] -0.05054492 -0.01242675 -0.02487811 -0.03806017 -0.0059530524 -0.04797191</span></span>
+<span><span class="co">#&gt; [3,] -0.03308699 -0.02729886 -0.02795989 -0.03181522 -0.0216466701 -0.02575960</span></span>
+<span><span class="co">#&gt; [4,] -0.03805555 -0.01813578 -0.02647248 -0.03324686 -0.0067048086 -0.01712892</span></span>
+<span><span class="co">#&gt; [5,] -0.04215480 -0.01692475 -0.01398437 -0.04468652  0.0009406761 -0.04749371</span></span>
+<span><span class="co">#&gt;               12          13          14           15          16           17</span></span>
+<span><span class="co">#&gt; [1,] -0.07415339 -0.03666564 -0.02796993 -0.026664008 -0.03025114 -0.028845334</span></span>
+<span><span class="co">#&gt; [2,] -0.04006404 -0.02959147 -0.02296751 -0.018021200 -0.04610224 -0.029388322</span></span>
+<span><span class="co">#&gt; [3,] -0.06497210 -0.02797427 -0.01721970 -0.016969537 -0.03071219 -0.029924585</span></span>
+<span><span class="co">#&gt; [4,] -0.08435361 -0.02350339 -0.02408716 -0.005985249 -0.02527722 -0.005199903</span></span>
+<span><span class="co">#&gt; [5,] -0.03329674 -0.02908207 -0.03632440 -0.021313036 -0.01503230 -0.024312715</span></span>
+<span><span class="co">#&gt;                18          19           20</span></span>
+<span><span class="co">#&gt; [1,] -0.025195687 -0.03453933 -0.038286069</span></span>
+<span><span class="co">#&gt; [2,] -0.009011132 -0.03081068 -0.030140114</span></span>
+<span><span class="co">#&gt; [3,] -0.013557125 -0.01512401 -0.003065672</span></span>
+<span><span class="co">#&gt; [4,] -0.011282700 -0.03158633 -0.028775805</span></span>
+<span><span class="co">#&gt; [5,] -0.015283647 -0.03594802 -0.016975798</span></span></code></pre></div>
 </div>
+<div class="section level3">
+<h3 id="when-to-use-dynamic-effects">When to Use Dynamic Effects<a class="anchor" aria-label="anchor" href="#when-to-use-dynamic-effects"></a>
+</h3>
+<p><strong>Use <code>dynamic_ab</code></strong> when you suspect actors’
+overall activity levels change over time. This is common in many
+settings: countries go through isolationist vs. interventionist phases,
+users churn in and out of platforms, students become more or less
+engaged across semesters.</p>
+<p><strong>Use <code>dynamic_uv</code></strong> when you suspect the
+underlying community structure is shifting. This is a stronger claim,
+not just that actors are more or less active, but that the pattern of
+<em>who connects with whom</em> is changing. Examples include political
+realignment, market disruption, or generational turnover in a social
+network.</p>
+<p><strong>Use both</strong> when you believe both types of change are
+happening. This is the most flexible specification but also the most
+data-hungry. With short panels (few time periods) or sparse networks,
+the dynamic parameters may not be well-identified, and you might be
+better off with the static model.</p>
+<p><strong>Stick with static</strong> when you have few time periods,
+when the network structure is genuinely stable, or when you primarily
+care about the covariate effects (which are the same across
+specifications) rather than the latent structure.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="implementation-notes">Implementation Notes<a class="anchor" aria-label="anchor" href="#implementation-notes"></a>
+</h2>
+<p>The dynamic effects are implemented in C++ via Rcpp and RcppArmadillo
+using a forward-filtering backward-sampling (FFBS) algorithm. This is
+the standard approach for state-space models: the forward pass computes
+predictive distributions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="false" form="prefix">|</mo><msub><mi>x</mi><mrow><mn>1</mn><mo>:</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x_t | x_{1:t-1})</annotation></semantics></math>,
+and the backward pass samples from the smoothed distribution
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mrow><mn>1</mn><mo>:</mo><mi>T</mi></mrow></msub><mo stretchy="false" form="prefix">|</mo><msub><mi>y</mi><mrow><mn>1</mn><mo>:</mo><mi>T</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x_{1:T} | y_{1:T})</annotation></semantics></math>.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <ol style="list-style-type: decimal">
+<li><p><strong>Hoff, PD (2021)</strong>. Additive and Multiplicative
+Effects Network Models. <em>Statistical Science</em> 36, 34–50.</p></li>
 <li><p><strong>Sewell, D. K., &amp; Chen, Y. (2015)</strong>. Latent
 space models for dynamic networks. <em>Journal of the American
 Statistical Association</em>, 110(512), 1646-1657.</p></li>
@@ -632,44 +608,6 @@ Nonparametric Bayes dynamic modeling of relational data.
 <em>Biometrika</em>, 101(4), 883-898.</p></li>
 </ol>
 </div>
-<div class="section level2">
-<h2 id="appendix-mathematical-details">Appendix: Mathematical Details<a class="anchor" aria-label="anchor" href="#appendix-mathematical-details"></a>
-</h2>
-<div class="section level3">
-<h3 id="posterior-distributions">Posterior Distributions<a class="anchor" aria-label="anchor" href="#posterior-distributions"></a>
-</h3>
-<p>For the AR(1) parameters, the full conditionals are:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>ρ</mi><mo stretchy="false" form="prefix">|</mo><mi>⋅</mi><mo stretchy="false" form="postfix">)</mo><mo>∝</mo><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>ρ</mi><mo stretchy="false" form="postfix">)</mo><munderover><mo>∏</mo><mrow><mi>t</mi><mo>=</mo><mn>2</mn></mrow><mi>T</mi></munderover><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="false" form="prefix">|</mo><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><mi>ρ</mi><mo>,</mo><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p(\rho | \cdot) \propto p(\rho) \prod_{t=2}^T p(x_t | x_{t-1}, \rho, \sigma^2)</annotation></semantics></math></p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="false" form="prefix">|</mo><mi>⋅</mi><mo stretchy="false" form="postfix">)</mo><mo>∼</mo><mtext mathvariant="normal">IG</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mi>α</mi><mo>+</mo><mfrac><mrow><mi>n</mi><mo stretchy="false" form="prefix">(</mo><mi>T</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><mn>2</mn></mfrac><mo>,</mo><mi>β</mi><mo>+</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><munderover><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>2</mn></mrow><mi>T</mi></munderover><mo stretchy="false" form="prefix">|</mo><mo stretchy="false" form="prefix">|</mo><msub><mi>x</mi><mi>t</mi></msub><mo>−</mo><mi>ρ</mi><msub><mi>x</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false" form="prefix">|</mo><msup><mo stretchy="false" form="prefix">|</mo><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(\sigma^2 | \cdot) \sim \text{IG}\left(\alpha + \frac{n(T-1)}{2}, \beta + \frac{1}{2}\sum_{t=2}^T ||x_t - \rho x_{t-1}||^2\right)</annotation></semantics></math></p>
-</div>
-<div class="section level3">
-<h3 id="identification">Identification<a class="anchor" aria-label="anchor" href="#identification"></a>
-</h3>
-<p>The dynamic effects are identified through: 1. Temporal ordering
-constraints 2. Stationarity assumption
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">|</mo><mi>ρ</mi><mo stretchy="false" form="prefix">|</mo><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">|\rho| &lt; 1</annotation></semantics></math>)
-3. Initial state distribution
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msup><mi>σ</mi><mn>2</mn></msup><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>ρ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">x_1 \sim N(0, \sigma^2/(1-\rho^2))</annotation></semantics></math></p>
-</div>
-<div class="section level3">
-<h3 id="computational-complexity">Computational Complexity<a class="anchor" aria-label="anchor" href="#computational-complexity"></a>
-</h3>
-<ul>
-<li>
-<strong>Time complexity</strong>:
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>n</mi><mn>2</mn></msup><mi>R</mi><mi>T</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">O(n^2 RT)</annotation></semantics></math>
-per iteration</li>
-<li>
-<strong>Space complexity</strong>:
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false" form="prefix">(</mo><mi>n</mi><mi>R</mi><mi>T</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">O(nRT)</annotation></semantics></math>
-for storage</li>
-<li>
-<strong>Mixing time</strong>: Typically
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo stretchy="false" form="prefix">(</mo><mrow><mi>log</mi><mo>⁡</mo></mrow><mi>T</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">O(\log T)</annotation></semantics></math>
-with good initialization</li>
-</ul>
-</div>
-</div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
@@ -677,11 +615,11 @@ with good initialization</li>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Shahryar Minhas, Tosin Salau, Cassy Dorff.</p>
+  <p>Developed by Cassy Dorff, Shahryar Minhas, Tosin Salau.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer>

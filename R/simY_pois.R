@@ -10,6 +10,5 @@
 #' @importFrom stats rpois
 #' @export simY_pois
 simY_pois <- function(EZ) {
-  # Use C++ version only
-  suppressWarnings(.Call(`_lame_simY_pois`, EZ))
+	suppressWarnings(.Call(`_lame_simY_pois`, EZ))
 }

@@ -16,7 +16,5 @@
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @export rUV_dynamic_fc
 rUV_dynamic_fc <- function(U, V, ET, rho_uv, sigma_uv, s2, shrink=TRUE, symmetric=FALSE) {
-  # Use C++ implementation
-  result <- rUV_dynamic_fc_cpp(U, V, ET, rho_uv, sigma_uv, s2, shrink, symmetric)
-  return(result)
+	rUV_dynamic_fc_cpp(U, V, ET, rho_uv, sigma_uv, s2, shrink, symmetric)
 }

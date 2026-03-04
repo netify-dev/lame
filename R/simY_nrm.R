@@ -11,12 +11,11 @@
 #' @author Peter Hoff
 #' @export simY_nrm
 simY_nrm <-
-  function(EY,rho,s2) 
-  {
-    YS<-simZ(EY,rho,s2)
-    # Only set diagonal to NA for square matrices
-    if(nrow(YS) == ncol(YS)) {
-      diag(YS)<-NA 
-    }
-    YS
-  }
+	function(EY,rho,s2)  {
+		YS<-simZ(EY,rho,s2)
+		# diagonal NA only for square matrices
+		if(nrow(YS) == ncol(YS)) {
+			diag(YS)<-NA 
+		}
+		YS
+	}

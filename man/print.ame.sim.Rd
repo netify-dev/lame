@@ -2,9 +2,12 @@
 % Please edit documentation in R/print.sim.R
 \name{print.ame.sim}
 \alias{print.ame.sim}
+\alias{print.lame.sim}
 \title{Print methods for AME and LAME simulation objects}
 \usage{
 \method{print}{ame.sim}(x, ...)
+
+\method{print}{lame.sim}(x, ...)
 }
 \arguments{
 \item{x}{simulation object of class "ame.sim" or "lame.sim"}

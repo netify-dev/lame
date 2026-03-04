@@ -48,7 +48,7 @@ function focuses on:
 }
 }
 \examples{
-\dontrun{
+\donttest{
 # Create a random bipartite network
 Y <- matrix(rnorm(10*12), 10, 12)
 

@@ -38,171 +38,168 @@
 #' @return A ggplot2 object that can be further customized
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Fit an AME model
-#' fit <- ame(Y, X, nscan = 10000, burn = 1000)
-#' 
+#' data(YX_nrm)
+#' fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X,
+#'            nscan = 100, burn = 10, odens = 1, print = FALSE)
+#'
 #' # Basic trace plots for all parameters
 #' trace_plot(fit)
-#' 
+#'
 #' # Only regression coefficients
 #' trace_plot(fit, params = "beta")
-#' 
+#'
 #' # Only variance components
 #' trace_plot(fit, params = "variance")
-#' 
-#' # Exclude intercept from plot
-#' trace_plot(fit, exclude = "intercept")
-#' 
-#' # Thin the display for clearer visualization
-#' trace_plot(fit, thin = 10)
 #' }
 #' @export
 #' @import ggplot2
 #' @import reshape2
 trace_plot <- function(
-  fit,
-  params = c("all", "beta", "variance"),
-  include = NULL,
-  exclude = NULL,
-  ncol = 3,
-  nrow = NULL,
-  burn.in = 0,
-  thin = 1,
-  title = NULL
-  ){
-  
-  # Check input
-  if (!inherits(fit, c("ame", "lame"))) {
-    stop("fit must be an object of class 'ame' or 'lame'")
-  }
-  
-  # Match params argument
-  params <- match.arg(params)
-  
-  # Prepare data based on parameter selection
-  plot_data <- data.frame()
-  
-  # Add regression coefficients if requested
-  if (params %in% c("all", "beta") && !is.null(fit$BETA) && ncol(fit$BETA) > 0) {
-    beta_data <- fit$BETA
-    if (burn.in > 0 && burn.in < nrow(beta_data)) {
-      beta_data <- beta_data[-(1:burn.in), , drop = FALSE]
-    }
-    
-    # Apply thinning
-    if (thin > 1) {
-      keep_idx <- seq(1, nrow(beta_data), by = thin)
-      beta_data <- beta_data[keep_idx, , drop = FALSE]
-    }
-    
-    # Reshape for plotting
-    for (j in 1:ncol(beta_data)) {
-      param_name <- colnames(beta_data)[j]
-      if (is.null(param_name)) param_name <- paste0("beta[", j, "]")
-      
-      plot_data <- rbind(plot_data, data.frame(
-        iteration = 1:nrow(beta_data),
-        value = beta_data[, j],
-        parameter = param_name,
-        type = "Regression",
-        stringsAsFactors = FALSE
-      ))
-    }
-  }
-  
-  # Add variance components if requested
-  if (params %in% c("all", "variance") && !is.null(fit$VC)) {
-    vc_data <- fit$VC
-    if (burn.in > 0 && burn.in < nrow(vc_data)) {
-      vc_data <- vc_data[-(1:burn.in), , drop = FALSE]
-    }
-    
-    # Apply thinning
-    if (thin > 1) {
-      keep_idx <- seq(1, nrow(vc_data), by = thin)
-      vc_data <- vc_data[keep_idx, , drop = FALSE]
-    }
-    
-    # Reshape for plotting
-    for (j in 1:ncol(vc_data)) {
-      param_name <- colnames(vc_data)[j]
-      if (is.null(param_name)) param_name <- paste0("vc[", j, "]")
-      
-      plot_data <- rbind(plot_data, data.frame(
-        iteration = 1:nrow(vc_data),
-        value = vc_data[, j],
-        parameter = param_name,
-        type = "Variance",
-        stringsAsFactors = FALSE
-      ))
-    }
-  }
-  
-  # Apply include/exclude filters
-  if (!is.null(include)) {
-    plot_data <- plot_data[plot_data$parameter %in% include, ]
-  }
-  if (!is.null(exclude)) {
-    plot_data <- plot_data[!(plot_data$parameter %in% exclude), ]
-  }
-  
-  # Check if any data remains
-  if (nrow(plot_data) == 0) {
-    stop("No parameters to plot after filtering")
-  }
-  
-  # Create trace plots
-  trace_plots <- ggplot(plot_data, aes(x = iteration, y = value)) +
-    geom_line(alpha = 0.7, color = "black") +
-    facet_wrap(~ parameter, scales = "free_y", 
-              ncol = ncol, nrow = nrow) +
-    labs(
-      x = "Iteration",
-      y = "Value"
-    ) +
-    theme_minimal() +
-    theme(
-      strip.text = element_text(size = 9, face = "bold"),
-      panel.spacing = unit(0.5, "lines")
-    )
-  
-  # Create density plots
-  density_plots <- ggplot(plot_data, aes(x = value)) +
-    geom_density(fill = "gray50", alpha = 0.5) +
-    facet_wrap(~ parameter, scales = "free", 
-              ncol = ncol, nrow = nrow) +
-    labs(
-      x = "Value",
-      y = "Density"
-    ) +
-    theme_minimal() +
-    theme(
-      strip.text = element_text(size = 9, face = "bold"),
-      panel.spacing = unit(0.5, "lines")
-    )
-  
-  # Combine plots
-  if (requireNamespace("patchwork", quietly = TRUE)) {
-    p <- trace_plots / density_plots
-    
-    # Add title
-    if (!is.null(title)) {
-      p <- p + patchwork::plot_annotation(title = title)
-    } else {
-      p <- p + patchwork::plot_annotation(
-        title = "MCMC Diagnostics: Trace Plots (top) and Posterior Densities (bottom)"
-      )
-    }
-  } else {
-    warning("Install 'patchwork' for combined trace and density plots. Returning trace plots only.")
-    p <- trace_plots
-    if (!is.null(title)) {
-      p <- p + ggtitle(title)
-    } else {
-      p <- p + ggtitle("MCMC Trace Plots")
-    }
-  }
-  
-  return(p)
+	fit,
+	params = c("all", "beta", "variance"),
+	include = NULL,
+	exclude = NULL,
+	ncol = 3,
+	nrow = NULL,
+	burn.in = 0,
+	thin = 1,
+	title = NULL
+	){
+	
+	if (!inherits(fit, c("ame", "lame"))) {
+		stop("fit must be an object of class 'ame' or 'lame'")
+	}
+	
+	params <- match.arg(params)
+	plot_data <- data.frame()
+
+	####
+
+	# regression coefficients
+	if (params %in% c("all", "beta") && !is.null(fit$BETA) && ncol(fit$BETA) > 0) {
+		beta_data <- fit$BETA
+		if (burn.in > 0 && burn.in < nrow(beta_data)) {
+			beta_data <- beta_data[-(1:burn.in), , drop = FALSE]
+		}
+		
+		if (thin > 1) {
+			keep_idx <- seq(1, nrow(beta_data), by = thin)
+			beta_data <- beta_data[keep_idx, , drop = FALSE]
+		}
+		
+		for (j in 1:ncol(beta_data)) {
+			param_name <- colnames(beta_data)[j]
+			if (is.null(param_name)) param_name <- paste0("beta[", j, "]")
+			
+			plot_data <- rbind(plot_data, data.frame(
+				iteration = 1:nrow(beta_data),
+				value = beta_data[, j],
+				parameter = param_name,
+				type = "Regression",
+				stringsAsFactors = FALSE
+			))
+		}
+	}
+
+	####
+
+	# variance components
+	if (params %in% c("all", "variance") && !is.null(fit$VC)) {
+		vc_data <- fit$VC
+		if (burn.in > 0 && burn.in < nrow(vc_data)) {
+			vc_data <- vc_data[-(1:burn.in), , drop = FALSE]
+		}
+		
+		if (thin > 1) {
+			keep_idx <- seq(1, nrow(vc_data), by = thin)
+			vc_data <- vc_data[keep_idx, , drop = FALSE]
+		}
+		
+		for (j in 1:ncol(vc_data)) {
+			param_name <- colnames(vc_data)[j]
+			if (is.null(param_name)) param_name <- paste0("vc[", j, "]")
+			
+			plot_data <- rbind(plot_data, data.frame(
+				iteration = 1:nrow(vc_data),
+				value = vc_data[, j],
+				parameter = param_name,
+				type = "Variance",
+				stringsAsFactors = FALSE
+			))
+		}
+	}
+
+	####
+
+	if (!is.null(include)) {
+		plot_data <- plot_data[plot_data$parameter %in% include, ]
+	}
+	if (!is.null(exclude)) {
+		plot_data <- plot_data[!(plot_data$parameter %in% exclude), ]
+	}
+	
+	if (nrow(plot_data) == 0) {
+		stop("No parameters to plot after filtering")
+	}
+
+	####
+
+	trace_plots <- ggplot(plot_data, aes(x = iteration, y = value)) +
+		geom_line(alpha = 0.7, color = "black") +
+		facet_wrap(~ parameter, scales = "free_y",
+							ncol = ncol, nrow = nrow) +
+		labs(
+			x = "Iteration",
+			y = "Value"
+		) +
+		theme_minimal() +
+		theme(
+			strip.text = element_text(size = 9, face = "bold"),
+			panel.spacing = unit(0.5, "lines"),
+			axis.ticks = element_blank()
+		)
+
+	####
+
+	density_plots <- ggplot(plot_data, aes(x = value)) +
+		geom_density(fill = "gray50", alpha = 0.5) +
+		facet_wrap(~ parameter, scales = "free",
+							ncol = ncol, nrow = nrow) +
+		labs(
+			x = "Value",
+			y = "Density"
+		) +
+		theme_minimal() +
+		theme(
+			strip.text = element_text(size = 9, face = "bold"),
+			panel.spacing = unit(0.5, "lines"),
+			axis.ticks = element_blank()
+		)
+
+	####
+
+	if (requireNamespace("patchwork", quietly = TRUE)) {
+		# trace 60% height, density 40%
+		p <- trace_plots / density_plots + patchwork::plot_layout(heights = c(3, 2))
+
+		if (!is.null(title)) {
+			p <- p + patchwork::plot_annotation(title = title)
+		} else {
+			p <- p + patchwork::plot_annotation(
+				title = "MCMC Diagnostics: Trace Plots (top) and Posterior Densities (bottom)"
+			)
+		}
+	} else {
+		warning("Install 'patchwork' for combined trace and density plots. Returning trace plots only.")
+		p <- trace_plots
+		if (!is.null(title)) {
+			p <- p + ggtitle(title)
+		} else {
+			p <- p + ggtitle("MCMC Trace Plots")
+		}
+	}
+	
+	return(p)
 }
