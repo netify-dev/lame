@@ -13,26 +13,21 @@
 #' @return a square matrix, the new value of Z 
 #' @author Peter Hoff
 #' @export rZ_tob_fc
-rZ_tob_fc<-function(Z,EZ,rho,s2,Y)
-{ 
-  # simulates Z under the contraints
-  # (1)  Y[i,j]>0 => Z[i,j]=Y[i,j]
-  # (2)  Y[i,j]=0 => Z[i,j]<0
-  
-  sz<-sqrt( s2*(1-rho^2) )
-  ut<-upper.tri(EZ)
-  lt<-lower.tri(EZ)
-  
-  for(tri in 1:2)
-  { 
-    if(tri==1){ up<-ut & Y<=0 }
-    if(tri==2){ up<-lt & Y<=0 }
-    
-    ez<- EZ[up] + rho*( t(Z)[up]  - t(EZ)[up] )
-    zup<-ez+sz*qnorm(runif(sum(up),0,pnorm(-ez/sz)))
-    zerr<-which(abs(zup)==Inf)
-    if(length(zerr)>0){ zup[zerr]<-(Z[up])[zerr] }
-    Z[up]<-zup
-  }
-  Z 
+rZ_tob_fc<-function(Z,EZ,rho,s2,Y) {
+
+	sz<-sqrt( s2*(1-rho^2) )
+	ut<-upper.tri(EZ)
+	lt<-lower.tri(EZ)
+	
+	for(tri in 1:2) {
+		if(tri==1){ up<-ut & Y<=0 }
+		if(tri==2){ up<-lt & Y<=0 }
+		
+		ez<- EZ[up] + rho*( t(Z)[up]  - t(EZ)[up] )
+		zup<-ez+sz*qnorm(runif(sum(up),0,pmax(pnorm(-ez/sz), 1e-16)))
+		zerr<-which(abs(zup)==Inf)
+		if(length(zerr)>0){ zup[zerr]<-(Z[up])[zerr] }
+		Z[up]<-zup
+	}
+	Z 
 }

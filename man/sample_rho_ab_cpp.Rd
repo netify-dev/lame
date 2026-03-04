@@ -21,5 +21,5 @@ sample_rho_ab_cpp(a_mat, b_mat, sigma_ab, rho_current, symmetric)
 Updated rho value
 }
 \description{
-Uses Metropolis-Hastings to sample rho_ab given the time series of effects
+Sample AR(1) parameter for dynamic additive effects
 }

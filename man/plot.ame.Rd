@@ -33,18 +33,14 @@ For more detailed visualizations, use the specialized functions:
 }
 }
 \examples{
-\dontrun{
+\donttest{
 # Fit an AME model
-fit <- ame(Y, X, R = 2, gof = TRUE)
+data(YX_nrm)
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2, gof = TRUE,
+           nscan = 100, burn = 10, odens = 1, print = FALSE)
 
 # Quick diagnostic plot (shows trace plots)
 plot(fit)
-
-# For specific visualizations:
-trace_plot(fit)  # MCMC diagnostics
-gof_plot(fit)    # Goodness-of-fit
-ab_plot(fit)     # Additive effects
-uv_plot(fit)     # Latent space
 }
 }
 \seealso{

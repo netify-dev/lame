@@ -134,18 +134,14 @@ For symmetric networks, the model enforces \eqn{a_i = b_i} and \eqn{u_i = v_i},
 and the latent matrix Z is symmetrized before generating observations.
 }
 \examples{
-\dontrun{
+\donttest{
 # Fit a model
 data(YX_bin)
-fit <- ame(YX_bin$Y, YX_bin$X, burn=100, nscan=500, family="binary")
+fit <- ame(YX_bin$Y, Xdyad = YX_bin$X, burn = 10, nscan = 100, odens = 1,
+           family = "binary", print = FALSE)
 
-# Simulate 50 networks from posterior
-sims <- simulate(fit, nsim=50)
-
-# With new covariates
-new_X <- array(rnorm(dim(YX_bin$X)[1] * dim(YX_bin$X)[2] * dim(YX_bin$X)[3]),
-               dim=dim(YX_bin$X))
-sims_new <- simulate(fit, nsim=50, newdata=list(Xdyad=new_X))
+# Simulate 10 networks from posterior
+sims <- simulate(fit, nsim = 10)
 }
 
 }

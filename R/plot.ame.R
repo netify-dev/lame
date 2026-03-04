@@ -24,25 +24,19 @@
 #' @seealso \code{\link{ame}}, \code{\link{trace_plot}}, \code{\link{gof_plot}}, 
 #'          \code{\link{ab_plot}}, \code{\link{uv_plot}}
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Fit an AME model
-#' fit <- ame(Y, X, R = 2, gof = TRUE)
-#' 
+#' data(YX_nrm)
+#' fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2, gof = TRUE,
+#'            nscan = 100, burn = 10, odens = 1, print = FALSE)
+#'
 #' # Quick diagnostic plot (shows trace plots)
 #' plot(fit)
-#' 
-#' # For specific visualizations:
-#' trace_plot(fit)  # MCMC diagnostics
-#' gof_plot(fit)    # Goodness-of-fit
-#' ab_plot(fit)     # Additive effects
-#' uv_plot(fit)     # Latent space
 #' }
 #' @method plot ame
 #' @export
 plot.ame <- function(x, ...) {
-  # Simply call trace_plot for a quick diagnostic view
-  p <- trace_plot(x, ...)
-  
-  # Invisible return
-  invisible(p)
+	p <- trace_plot(x, ...)
+	
+	invisible(p)
 }

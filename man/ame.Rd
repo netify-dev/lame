@@ -9,12 +9,14 @@ cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, R_row = NULL, R_col = NULL,
 mode = c("unipartite", "bipartite"), family="normal",
 intercept=!is.element(family,c("rrl","ordinal")),
 symmetric=FALSE,
-odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)), 
+odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
 prior=list(), g=NA,
-seed = 6886, nscan = 10000, burn = 500, odens = 25, 
-print = TRUE, gof=TRUE, 
+seed = 6886, nscan = 10000, burn = 500, odens = 25,
+print = TRUE, gof=TRUE, custom_gof=NULL,
 start_vals=NULL, periodic_save=FALSE, out_file=NULL,
-save_interval=0.25, model.name=NULL)
+save_interval=0.25, model.name=NULL,
+posterior_opts = NULL, n_chains = 1, cores = 1,
+use_sparse_matrices = FALSE)
 }
 \arguments{
 \item{Y}{For unipartite: an n x n square relational matrix. For bipartite: an nA x nB
@@ -118,23 +120,27 @@ Example: custom_gof = function(Y) c(density = mean(Y > 0, na.rm = TRUE))}
 
 \item{model.name}{optional string for model selection output}
 
+\item{posterior_opts}{optional list of posterior sampling options}
+
+\item{n_chains}{integer: number of MCMC chains to run (default: 1)}
+
+\item{cores}{integer: number of cores for parallel chains (default: 1)}
+
 \item{use_sparse_matrices}{logical: use sparse matrix storage for large networks? (default: FALSE).
 Recommended only for truly sparse networks (< 10\% non-zero entries).}
-
-\item{plot}{logical: plot results while running?}
 }
 \value{
 \strong{Posterior Samples (full MCMC chains):}
-\item{BETA}{Regression coefficients (nscan × p matrix)}
-\item{VC}{Variance components (nscan × k matrix)}
-\item{GOF}{Goodness-of-fit statistics (nscan × 4 matrix)}
+\item{BETA}{Regression coefficients (nscan xp matrix)}
+\item{VC}{Variance components (nscan xk matrix)}
+\item{GOF}{Goodness-of-fit statistics (nscan x4 matrix)}
 
 \strong{Posterior Means (averaged over chain):}
 \item{APM}{Additive row/sender effects (n-vector)}
 \item{BPM}{Additive column/receiver effects (m-vector); NULL for symmetric networks}
-\item{U}{Multiplicative row/sender factors (n × R matrix)}
-\item{V}{Multiplicative column/receiver factors (m × R matrix); NULL for symmetric networks}
-\item{L}{Eigenvalue matrix (R × R diagonal); symmetric networks only}
+\item{U}{Multiplicative row/sender factors (n xR matrix)}
+\item{V}{Multiplicative column/receiver factors (m xR matrix); NULL for symmetric networks}
+\item{L}{Eigenvalue matrix (R xR diagonal); symmetric networks only}
 \item{YPM}{Posterior mean of Y on response scale (for predictions and imputing missing values)}
 
 \strong{Metadata:}
@@ -144,10 +150,10 @@ Recommended only for truly sparse networks (< 10\% non-zero entries).}
 \item{R}{Dimension of multiplicative effects}
 
 \strong{Optional Posterior Samples (if requested via posterior_options):}
-\item{U_samples}{Samples of U (n × R × iterations array)}
-\item{V_samples}{Samples of V (m × R × iterations array)}
-\item{a_samples}{Samples of row effects (n × iterations matrix)}
-\item{b_samples}{Samples of column effects (m × iterations matrix)}
+\item{U_samples}{Samples of U (n xR xiterations array)}
+\item{V_samples}{Samples of V (m xR xiterations array)}
+\item{a_samples}{Samples of row effects (n xiterations matrix)}
+\item{b_samples}{Samples of column effects (m xiterations matrix)}
 
 \strong{Note on reconstructing removed matrices:}
 To save memory, EZ (expected latent network) and UVPM/ULUPM (multiplicative products)
@@ -234,12 +240,12 @@ The model uses a Gibbs sampler with the following updates:
 
 The following data types/models are available:
 
-"normal": A normal AME model (identity link: E\link{Y} = η).
+"normal": A normal AME model (identity link: \eqn{E[Y] = \eta}).
 
 "tobit": A tobit AME model for censored continuous data. Values are censored
 at zero, appropriate for non-negative continuous relational data (identity link with censoring).
 
-"binary": A binary probit AME model (probit link: P(Y=1) = Φ(η)).
+"binary": A binary probit AME model (probit link: \eqn{P(Y=1) = \Phi(\eta)}).
 
 "ordinal": An ordinal probit AME model (cumulative probit link). An intercept is not
 identifiable in this model.
@@ -256,15 +262,17 @@ relationships across rows are not directly comparable in terms of scale. An
 intercept, row random effects and row regression effects are not estimable
 for this model.
 
-"poisson": An overdispersed Poisson AME model for count data (log link: E\link{Y} = exp(η)).
-The linear predictor η represents log(λ) where λ is the expected count.
+"poisson": An overdispersed Poisson AME model for count data (log link: \eqn{E[Y] = \exp(\eta)}).
+The linear predictor \eqn{\eta} represents \eqn{\log(\lambda)} where \eqn{\lambda} is the expected count.
 }
 \examples{
-\dontrun{
-data(YX_bin) 
-fit<-ame(YX_bin$Y,YX_bin$X,burn=10,nscan=10,odens=1,family="binary")
+\donttest{
+data(YX_bin)
+fit <- ame(YX_bin$Y, Xdyad = YX_bin$X, burn = 10, nscan = 100, odens = 1,
+           family = "binary", print = FALSE)
+summary(fit)
 # Note: you should run the Markov chain much longer in practice
-} 
+}
  
 }
 \author{

@@ -226,9 +226,9 @@ fit <- ame(Y,
           rvar = TRUE,      # row variance
           cvar = TRUE,      # column variance
           dcor = TRUE,      # dyadic correlation
-          burn = 10000,     # burn-in for convergence (proper burn-in)
-          nscan = 20000,    # sampling iterations (sufficient for convergence)
-          odens = 50,       # thinning interval
+          burn = 500,       # burn-in (increase for publication-quality results)
+          nscan = 2000,     # sampling iterations
+          odens = 25,       # thinning interval
           print = TRUE,
           gof = TRUE
           # prior = prior_list,     # Custom priors (commented out for default)
@@ -515,12 +515,10 @@ trace_plot(fit, params = "beta", ncol = 3)
 
 # Convergence summary table
 conv_summary <- data.frame(
-  Property = c("Total iterations", "Burn-in", "Post-burn-in", 
-               "Thinning interval", "Stored samples"),
-  Value = c(fit$burn + fit$nscan, fit$burn, fit$nscan, 
-           fit$odens, nrow(fit$BETA))
+  Property = c("Stored MCMC samples", "Number of coefficients"),
+  Value = c(nrow(fit$BETA), ncol(fit$BETA))
 )
-knitr::kable(conv_summary, caption = "MCMC Convergence Summary")
+knitr::kable(conv_summary, caption = "MCMC Summary")
 ```
 
 # Goodness of Fit
@@ -584,7 +582,7 @@ simulated <- gof_custom[-1,]
 cat("Custom Statistics:\n\n")
 for(i in 1:ncol(gof_custom)) {
   stat_name <- colnames(gof_custom)[i]
-  obs_val <- observed[i]  # Fixed: removed incorrect indexing
+  obs_val <- observed[i]
   sim_vals <- simulated[,i]
   
   z_score <- (obs_val - mean(sim_vals)) / sd(sim_vals)
@@ -704,7 +702,7 @@ fit_recovery <- ame(Y_sim,
                     R = R_true,
                     family = "binary",
                     rvar = TRUE, cvar = TRUE,
-                    burn = 5000, nscan = 10000, odens = 25,
+                    burn = 500, nscan = 2000, odens = 25,
                     print = FALSE, gof = TRUE)
 
 # Compare estimates

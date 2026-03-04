@@ -10,10 +10,9 @@
 #' @return a square matrix
 #' @author Peter Hoff
 #' @export simY_tob
-simY_tob <- function(EY,rho,s2)
-{
-  YS<-simZ(EY,rho,s2) 
-  diag(YS)<-NA  
-  YS[YS<=0]<-0 
-  YS
+simY_tob <- function(EY,rho,s2) {
+	YS<-simZ(EY,rho,s2)
+	if(nrow(YS) == ncol(YS)) diag(YS)<-NA
+	YS[YS<=0]<-0
+	YS
 }

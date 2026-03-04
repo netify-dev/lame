@@ -36,6 +36,5 @@ sample_dynamic_ab_cpp(
 List with updated a and b arrays
 }
 \description{
-Updates row effects (a) and column effects (b) that evolve over time
-according to AR(1) processes: \eqn{a_{i,t} = \rho_{ab} a_{i,t-1} + \epsilon_{i,t}}
+Sample dynamic additive effects with AR(1) evolution
 }

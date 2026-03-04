@@ -65,21 +65,21 @@ The plot adapts to the longitudinal structure:
 }
 }
 \examples{
-\dontrun{
-# Fit a LAME model
-fit <- lame(Y_list, X_list, R = 2)
+\donttest{
+# Create simple longitudinal network data
+set.seed(1)
+n <- 10
+nms <- paste0("n", 1:n)
+Y_list <- list(
+  matrix(rnorm(n * n), n, n, dimnames = list(nms, nms)),
+  matrix(rnorm(n * n), n, n, dimnames = list(nms, nms))
+)
+diag(Y_list[[1]]) <- diag(Y_list[[2]]) <- NA
+fit <- lame(Y_list, family = "normal",
+            nscan = 50, burn = 10, odens = 1, print = FALSE, plot = FALSE)
 
 # Default comprehensive plot
 plot(fit)
-
-# Only MCMC diagnostics
-plot(fit, which = c("trace", "density"))
-
-# Include network snapshots at specific times
-plot(fit, which = c(3, 4, 5), time.points = c(1, 5, 10))
-
-# Separate pages for each plot type
-plot(fit, pages = "multiple")
 }
 }
 \seealso{

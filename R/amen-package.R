@@ -36,9 +36,10 @@
 #' @useDynLib lame, .registration = TRUE
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' data(YX_nrm)
-#' fit<-ame(YX_nrm$Y,YX_nrm$X,burn=10,nscan=20,odens=5,family="normal")
+#' fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, burn = 10, nscan = 100, odens = 1,
+#'            family = "normal", print = FALSE)
 #' summary(fit)
 #' }
 #' 
@@ -230,9 +231,10 @@ NULL
 #' are evaluations of likeing at one and two timepoints previous to when the 
 #' other relations were measured. 
 #' 
-#' @source 
-#' \url{http://moreno.ss.uci.edu/data.html#sampson}
-#' 
+#' @source
+#' Originally available at \code{http://moreno.ss.uci.edu/data.html#sampson}
+#' (site no longer accessible).
+#'
 #' @name sampsonmonks
 NULL
 
@@ -251,8 +253,8 @@ NULL
 #' \item \code{gdp}: country gdp in dollars every 5 years; 
 #' \item \code{polity}: country polity every 5 years.  
 #' }
-#' @source 
-#' Xun Cao : \url{http://polisci.la.psu.edu/people/xuc11}
+#' @source
+#' Xun Cao : \url{https://polisci.la.psu.edu/people/xuc11/}
 #' 
 #' @name coldwar
 NULL
@@ -275,7 +277,7 @@ NULL
 #' \code{j}, but in general this is not the same as 
 #' \code{Trade[j,i,t,k,2]}, what \code{j} reports as importing from \code{i}. 
 #' 
-#' @source \url{http://comtrade.un.org/}, \url{http://www.measuringworth.com/}
+#' @source \url{https://comtrade.un.org/}, \url{https://www.measuringworth.com/}
 #' 
 #' @name comtrade
 NULL
@@ -302,9 +304,10 @@ NULL
 #' \code{seniority} and \code{age} are given in years, and \code{female} is 
 #' a binary indicator. 
 #' 
-#' @source 
-#' \url{http://moreno.ss.uci.edu/data.html#lazega}
-#' 
+#' @source
+#' Originally available at \code{http://moreno.ss.uci.edu/data.html#lazega}
+#' (site no longer accessible).
+#'
 #' @name lazegalaw
 NULL
 
@@ -317,11 +320,12 @@ NULL
 #' \item Y: A sociomatrix in which the value of the edge corresponds to an ad-hoc measure of intensity of the relation. Note that students were only allowed to nominate up to 5 male friends and 5 female friends. 
 #' \item X: Matrix of students attributes, including sex, race (1=white, 2=black, 3=hispanic, 4=asian, 5=mixed/other) and grade. 
 #' } 
-#' See \url{http://moreno.ss.uci.edu/data.html#adhealth} for more details. 
+#' Originally available at \code{http://moreno.ss.uci.edu/data.html#adhealth}
+#' (site no longer accessible).
 #' @docType data
 #' @keywords datasets
-#' @format list 
-#' @name addhealthc3 
+#' @format list
+#' @name addhealthc3
 #' @usage data(addhealthc3)
 NULL
 
@@ -333,11 +337,12 @@ NULL
 #' \item Y: A sociomatrix in which the value of the edge corresponds to an ad-hoc measure of intensity of the relation. Note that students were only allowed to nominate up to 5 male friends and 5 female friends. 
 #' \item X: Matrix of students attributes, including sex, race (1=white, 2=black, 3=hispanic, 4=asian, 5=mixed/other) and grade. 
 #' } 
-#' See \url{http://moreno.ss.uci.edu/data.html#adhealth} for more details.
+#' Originally available at \code{http://moreno.ss.uci.edu/data.html#adhealth}
+#' (site no longer accessible).
 #' @docType data
 #' @keywords datasets
-#' @format list 
-#' @name addhealthc9 
+#' @format list
+#' @name addhealthc9
 #' @usage data(addhealthc9)
 NULL
 
@@ -399,8 +404,10 @@ NULL
 #' \item  4 best friends
 #' }
 #' 
-#' @source \url{http://moreno.ss.uci.edu/data.html#vdb}
-#' 
+#' @source
+#' Originally available at \code{http://moreno.ss.uci.edu/data.html#vdb}
+#' (site no longer accessible).
+#'
 #' @name dutchcollege
 NULL
 
@@ -422,8 +429,9 @@ NULL
 #' \item \code{age}: the age of each sheep in years. 
 #' }
 #' 
-#' @source 
-#' \url{http://moreno.ss.uci.edu/data.html#sheep}
+#' @source
+#' Originally available at \code{http://moreno.ss.uci.edu/data.html#sheep}
+#' (site no longer accessible).
 #' @name sheep
 NULL
 

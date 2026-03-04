@@ -17,6 +17,9 @@ init_bipartite_startvals(
   odmax = NULL
 )
 }
+\value{
+List of starting values for bipartite MCMC
+}
 \description{
 Bipartite network helper functions
 }

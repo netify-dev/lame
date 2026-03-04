@@ -22,7 +22,7 @@ Default is 2 + 2R, which is the minimum for a proper prior with a
 }
 \value{
 Updated covariance matrix Suv (2R x 2R matrix) for the stacked
-effects \[U, V\]. The first R x R block contains covariances for U,
+effects [U, V]. The first R x R block contains covariances for U,
 the last R x R block contains covariances for V, and the off-diagonal
 blocks contain cross-covariances between U and V.
 }

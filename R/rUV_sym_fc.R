@@ -21,11 +21,9 @@
 #' rUV_sym_fc 
 #' 
 #' @export rUV_sym_fc
-rUV_sym_fc<-function(E,U,V,s2=1,shrink=TRUE)
-{
-  n<-nrow(U)
-  # Use C++ version only
-  # Generate random loop IDs for the C++ version (C++ uses 0-based indexing)
-  uLoopIDs <- as.integer(rep(sample(1:n),4) - 1)  # Convert to 0-based indexing
-  rUV_sym_fc_cpp(E, U, V, s2, shrink, uLoopIDs)
+rUV_sym_fc<-function(E,U,V,s2=1,shrink=TRUE) {
+	n<-nrow(U)
+	# random loop IDs for c++ (0-based indexing)
+	uLoopIDs <- as.integer(rep(sample(1:n),4) - 1)
+	rUV_sym_fc_cpp(E, U, V, s2, shrink, uLoopIDs)
 }
