@@ -39,7 +39,7 @@
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Create a random bipartite network
 #' Y <- matrix(rnorm(10*12), 10, 12)
 #' 
@@ -48,27 +48,18 @@
 #' }
 #' @export
 gof_stats_bipartite <- function(Y) {
-  
-  # Check that matrix is rectangular (bipartite)
-  if(nrow(Y) == ncol(Y)) {
-    warning("Y appears to be square. Use gof_stats() for unipartite networks.")
-  }
-  
-  # Core bipartite statistics
-  gof <- numeric(3)
-  
-  # 1. Sender heterogeneity (std dev of row means)
-  gof[1] <- sd(rowMeans(Y, na.rm = TRUE), na.rm = TRUE)
-  
-  # 2. Receiver heterogeneity (std dev of column means)  
-  gof[2] <- sd(colMeans(Y, na.rm = TRUE), na.rm = TRUE)
-  
-  # 3. Four-cycles (requires C++ function)
-  # Convert to 3D array for C++ function (nA x nB x 1)
-  Y_arr <- array(Y, dim = c(nrow(Y), ncol(Y), 1))
-  gof[3] <- as.numeric(lame:::count_four_cycles_bip_cpp(Y_arr))
-  
-  names(gof) <- c("sd.rowmean", "sd.colmean", "four.cycles")
-  
-  return(gof)
+	
+	if(nrow(Y) == ncol(Y)) {
+		warning("Y appears to be square. Use gof_stats() for unipartite networks.")
+	}
+	
+	gof <- numeric(3)
+	gof[1] <- sd(rowMeans(Y, na.rm = TRUE), na.rm = TRUE)
+	gof[2] <- sd(colMeans(Y, na.rm = TRUE), na.rm = TRUE)
+	Y_arr <- array(Y, dim = c(nrow(Y), ncol(Y), 1))
+	gof[3] <- as.numeric(count_four_cycles_bip_cpp(Y_arr))
+	
+	names(gof) <- c("sd.rowmean", "sd.colmean", "four.cycles")
+	
+	return(gof)
 }

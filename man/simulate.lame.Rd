@@ -187,22 +187,21 @@ Full uncertainty would require storing complete MCMC chains for
 large networks and long time series.
 }
 \examples{
-\dontrun{
-# Fit a longitudinal model
-data(YX_bin_list)
-fit <- lame(YX_bin_list$Y, YX_bin_list$X, burn=100, nscan=500, family="binary")
+\donttest{
+# Create simple longitudinal network data
+set.seed(1)
+n <- 10
+nms <- paste0("n", 1:n)
+Y_list <- list(
+  matrix(rnorm(n * n), n, n, dimnames = list(nms, nms)),
+  matrix(rnorm(n * n), n, n, dimnames = list(nms, nms))
+)
+diag(Y_list[[1]]) <- diag(Y_list[[2]]) <- NA
+fit <- lame(Y_list, family = "normal",
+            nscan = 50, burn = 10, odens = 1, print = FALSE, plot = FALSE)
 
-# Simulate 50 network trajectories from posterior
-sims <- simulate(fit, nsim=50)
-
-# Simulate longer time series
-sims_long <- simulate(fit, nsim=25, n_time=20)
-
-# With new covariates
-new_X <- lapply(YX_bin_list$X, function(x) {
-  array(rnorm(prod(dim(x))), dim=dim(x))
-})
-sims_new <- simulate(fit, nsim=50, newdata=list(Xdyad=new_X))
+# Simulate 10 network trajectories from posterior
+sims <- simulate(fit, nsim = 10)
 }
 
 }

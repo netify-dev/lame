@@ -15,24 +15,22 @@
 #' el2sm(E) - Y 
 #' 
 #' @export el2sm
-el2sm<-function(el,directed=TRUE,nadiag=all(el[,1]!=el[,2]))
-{ 
-  w<-rep(1,nrow(el))
-  if(ncol(el)>2){ w<-el[,3] }
-  
-  if( is.numeric(el) && all(round(el[,1:2])==el[,1:2])  ) { nodes<-1:max(el) }
-  if(!(is.numeric(el) && all(round(el[,1:2])==el[,1:2])))
-  {
-    nodes<-sort(unique(c(el[,1:2])))
-  }
-  
-  el<-cbind( match(el[,1],nodes) ,  match(el[,2],nodes) )
-  
-  n<-max(el[,1:2])
-  sm <- matrix(0,n,n)            # construct sociomatrix 
-  sm[el[,1:2]]<-w                # fill in 
-  if(nadiag) { diag(sm) <- NA  } # set diagonal to NA 
-  if(!directed){ sm<-sm+t(sm) }
-  dimnames(sm)[[1]]<-dimnames(sm)[[2]]<-nodes
-  sm
+el2sm<-function(el,directed=TRUE,nadiag=all(el[,1]!=el[,2])) {
+	w<-rep(1,nrow(el))
+	if(ncol(el)>2){ w<-el[,3] }
+	
+	if( is.numeric(el) && all(round(el[,1:2])==el[,1:2])  ) { nodes<-1:max(el) }
+	if(!(is.numeric(el) && all(round(el[,1:2])==el[,1:2]))) {
+		nodes<-sort(unique(c(el[,1:2])))
+	}
+	
+	el<-cbind( match(el[,1],nodes) ,  match(el[,2],nodes) )
+	
+	n<-max(el[,1:2])
+	sm <- matrix(0,n,n)            # construct sociomatrix 
+	sm[el[,1:2]]<-w                # fill in 
+	if(nadiag) { diag(sm) <- NA  } # set diagonal to NA 
+	if(!directed){ sm<-sm+t(sm) }
+	dimnames(sm)[[1]]<-dimnames(sm)[[2]]<-nodes
+	sm
 }

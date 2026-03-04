@@ -1,6 +1,6 @@
 #' Get fitted object from MCMC results
-#' 
-#' @param start_vals List object that is null or contains 
+#'
+#' @param start_vals List object that is null or contains
 #' starting values
 #' @param Y dependent variable in array format
 #' @param family character vector (e.g. 'bin', 'nrm') specifying
@@ -17,114 +17,110 @@
 #' @export get_start_vals
 
 get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NULL){
-  
-  # dims
-  N <- dim(Y)[3]
-  
-  if(is.null(start_vals)){
-    # starting Z values
-    Z<-array(dim=dim(Y))
-    for (t in 1:N)
-    {
-      if(family=="normal"){Z[,,t]<-Y[,,t] }
-      if(family=="tobit"){Z[,,t]<-Y[,,t] ; Z[,,t][Y[,,t]==0]<-min(Y[,,t][Y[,,t]>0],na.rm=TRUE)/2 }
-      if(family=="ordinal"){Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),ncol(Y[,,t]))} 
-      if(family=="rrl")
-      {  
-        Z[,,t]<-matrix(t(apply(Y[,,t],1,zscores)),nrow(Y[,,t]),ncol(Y[,,t])) 
-      }  
-      if(family=="binary" ){
-        Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t]))
-        # zyMax <- max(Z[,,t][Y[,,t]==0],na.rm=TRUE)
-        zyMax <- if (sum(Y[,,t] == 0, na.rm = TRUE) > 0) {
-          max(Z[,,t][Y[,,t] == 0], na.rm = TRUE)
-        } else {
-          min(Z[,,t][Y[,,t] == 1], na.rm = TRUE) - 1e-6
-        }
-        # zyMin <- min(Z[,,t][Y[,,t]==1],na.rm=TRUE)  
-        zyMin <- if (sum(Y[,,t] == 1, na.rm = TRUE) > 0) {
-          min(Z[,,t][Y[,,t] == 1], na.rm = TRUE)
-        } else {
-          max(Z[,,t][Y[,,t] == 0], na.rm = TRUE) + 1e-6
-        }
-        z01<-.5*(zyMax+zyMin ) 
-        Z[,,t]<-Z[,,t] - z01
-      } 
-      if(family=="poisson"){
-        Z[,,t]<-log(Y[,,t]+1) 
-        diag(Z[,,t])<-0
-      }
-      
-      if(is.element(family,c("cbin","frn")))
-      {
-        if(is.null(odmax)) {
-          stop("odmax must be provided for family=cbin/frn")
-        }
-        Z[,,t]<-Y[,,t]
-        for(i in 1:nrow(Y[,,t]))
-        {
-          yi<-Y[i,,t]
-          zi<-zscores(yi)
-          rnkd<-which( !is.na(yi) & yi>0 ) 
-          if(length(rnkd)>0 && min(zi[rnkd])<0)
-          { 
-            zi[rnkd]<-zi[rnkd] - min(zi[rnkd]) + 1e-3 
-          }
-          
-          if(length(rnkd)<odmax[i]) 
-          {
-            urnkd<-which( !is.na(yi) & yi==0 ) 
-            if(length(urnkd) > 0 && max(zi[urnkd])>0) { zi[urnkd]<-zi[urnkd] - max(zi[urnkd]) -1e-3 }
-          }
-          
-          Z[i,,t]<-zi
-        } 
-      }
-    }
-    
-    # starting values for missing entries  
-    ZA<-Z
-    for (t in 1:N)
-    { 
-      mu<-mean(Z[,,t],na.rm=TRUE)
-      a<-rowMeans(Z[,,t],na.rm=TRUE) ; b<-colMeans(Z[,,t],na.rm=TRUE)
-      # a[is.na(a)] <- mean(a, na.rm=TRUE) ; b[is.na(b)] <- mean(b, na.rm=TRUE)
-      a[is.na(a)] <- 0 ; b[is.na(b)] <- 0
-      ZA[,,t]<-mu + outer(a,b,"+")
-    }
-    Z[is.na(Z)]<-ZA[is.na(Z)] 
-    
-    # other starting values
-    # FIX: Initialize beta with small random values to avoid getting stuck at zero
-    if(xP > 0) {
-      beta <- rnorm(xP, mean=0, sd=0.1)  # Small random initialization
-      # Set first coefficient (often intercept) to reasonable value
-      z_mean <- mean(Z, na.rm=TRUE)
-      if(!is.finite(z_mean)) {
-        z_mean <- 0  # Default to 0 if mean is not finite
-      }
-      beta[1] <- z_mean
-    } else {
-      beta <- numeric(0)
-    } 
-    s2<-1 
-    rho<-0
-    Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
-    U<-V<-matrix(0, nrow(Y[,,1]), R) 
-  } # close of start_vals condition    
-  
-  
-  # unpack start_vals list if applicable
-  if(!is.null(start_vals)){
-    Z<-start_vals$Z ; beta<-start_vals$beta ; a<-start_vals$a ; b<-start_vals$b
-    U<-start_vals$U ; V<-start_vals$V ; rho<-start_vals$rho ; s2<-start_vals$s2
-    Sab<-start_vals$Sab
-  }
-  
-  return(
-    list(
-      Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab
-    )
-  )
-  
+
+	N <- dim(Y)[3]
+
+	if(is.null(start_vals)){
+
+		####
+		# initialize Z values
+		Z<-array(dim=dim(Y))
+		for (t in 1:N) {
+			if(family=="normal"){Z[,,t]<-Y[,,t] }
+			if(family=="tobit"){Z[,,t]<-Y[,,t] ; Z[,,t][Y[,,t]==0]<-min(Y[,,t][Y[,,t]>0],na.rm=TRUE)/2 }
+			if(family=="ordinal"){Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),ncol(Y[,,t]))}
+			if(family=="rrl") {
+				Z[,,t]<-matrix(t(apply(Y[,,t],1,zscores)),nrow(Y[,,t]),ncol(Y[,,t]))
+			}
+			if(family=="binary" ){
+				Z[,,t]<-matrix(zscores(Y[,,t]),nrow(Y[,,t]),nrow(Y[,,t]))
+				zyMax <- if (sum(Y[,,t] == 0, na.rm = TRUE) > 0) {
+					max(Z[,,t][Y[,,t] == 0], na.rm = TRUE)
+				} else {
+					min(Z[,,t][Y[,,t] == 1], na.rm = TRUE) - 1e-6
+				}
+				zyMin <- if (sum(Y[,,t] == 1, na.rm = TRUE) > 0) {
+					min(Z[,,t][Y[,,t] == 1], na.rm = TRUE)
+				} else {
+					max(Z[,,t][Y[,,t] == 0], na.rm = TRUE) + 1e-6
+				}
+				z01<-.5*(zyMax+zyMin )
+				Z[,,t]<-Z[,,t] - z01
+			}
+			if(family=="poisson"){
+				Z[,,t]<-log(Y[,,t]+1)
+				diag(Z[,,t])<-0
+			}
+
+			if(is.element(family,c("cbin","frn"))) {
+				if(is.null(odmax)) {
+					stop("odmax must be provided for family=cbin/frn")
+				}
+				Z[,,t]<-Y[,,t]
+				for(i in 1:nrow(Y[,,t])) {
+					yi<-Y[i,,t]
+					zi<-zscores(yi)
+					rnkd<-which( !is.na(yi) & yi>0 )
+					if(length(rnkd)>0 && min(zi[rnkd])<0) {
+						zi[rnkd]<-zi[rnkd] - min(zi[rnkd]) + 1e-3
+					}
+
+					if(length(rnkd)<odmax[i])  {
+						urnkd<-which( !is.na(yi) & yi==0 )
+						if(length(urnkd) > 0 && max(zi[urnkd])>0) { zi[urnkd]<-zi[urnkd] - max(zi[urnkd]) -1e-3 }
+					}
+
+					Z[i,,t]<-zi
+				}
+			}
+		}
+		####
+
+		####
+		# fill missing entries with row/col mean imputation
+		ZA<-Z
+		for (t in 1:N) {
+			mu<-mean(Z[,,t],na.rm=TRUE)
+			a<-rowMeans(Z[,,t],na.rm=TRUE) ; b<-colMeans(Z[,,t],na.rm=TRUE)
+			a[is.na(a)] <- 0 ; b[is.na(b)] <- 0
+			ZA[,,t]<-mu + outer(a,b,"+")
+		}
+		Z[is.na(Z)]<-ZA[is.na(Z)]
+		####
+
+		####
+		# initialize other parameters
+		if(xP > 0) {
+			beta <- rnorm(xP, mean=0, sd=0.1)
+			z_mean <- mean(Z, na.rm=TRUE)
+			if(!is.finite(z_mean)) {
+				z_mean <- 0
+			}
+			beta[1] <- z_mean
+		} else {
+			beta <- numeric(0)
+		}
+		s2<-1
+		rho<-0
+		Sab<-cov(cbind(a,b))*tcrossprod(c(rvar,cvar))
+		U<-V<-matrix(0, nrow(Y[,,1]), R)
+		####
+
+	}
+
+	####
+	# unpack start_vals list if provided
+	if(!is.null(start_vals)){
+		Z<-start_vals$Z ; beta<-start_vals$beta ; a<-start_vals$a ; b<-start_vals$b
+		U<-start_vals$U ; V<-start_vals$V ; rho<-start_vals$rho ; s2<-start_vals$s2
+		Sab<-start_vals$Sab
+	}
+	####
+
+	return(
+		list(
+			Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab
+		)
+	)
+
 }

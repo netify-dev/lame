@@ -32,8 +32,7 @@ data for longitudinal AME models. Ensures that network data and covariates
 are properly formatted as lists with consistent dimensions across time periods.
 }
 \details{
-This function performs comprehensive validation of input data for longitudinal
-network analysis, including:
+Validates input data for longitudinal network analysis:
 \itemize{
 \item Verifying Y is a non-empty list of matrices
 \item Checking that all covariates (if provided) are lists of appropriate length
@@ -47,28 +46,6 @@ users identify and correct data formatting issues.
 \note{
 This is an internal function primarily used by \code{lame()} but exported
 for advanced users who want to validate their data before model fitting.
-}
-\examples{
-\dontrun{
-# Create example longitudinal network data
-Y <- list(
-  matrix(rnorm(100), 10, 10),
-  matrix(rnorm(100), 10, 10),
-  matrix(rnorm(100), 10, 10)
-)
-
-# Validate the data
-check_format(Y)
-
-# With covariates
-Xrow <- list(
-  matrix(rnorm(20), 10, 2),
-  matrix(rnorm(20), 10, 2),
-  matrix(rnorm(20), 10, 2)
-)
-check_format(Y, Xrow=Xrow)
-}
-
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

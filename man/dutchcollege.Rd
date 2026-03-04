@@ -17,7 +17,8 @@ measurements range from -1 to 4, indicating the following:
 }
 }
 \source{
-\url{http://moreno.ss.uci.edu/data.html#vdb}
+Originally available at \code{http://moreno.ss.uci.edu/data.html#vdb}
+(site no longer accessible).
 }
 \description{
 Longitudinal relational measurements and nodal characteristics

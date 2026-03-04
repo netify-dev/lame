@@ -6,6 +6,9 @@
 \usage{
 sample_ab_bipartite(Z, EZ_without_ab, sigma2_a, sigma2_b, s2)
 }
+\value{
+List with components \code{a} (row effects) and \code{b} (column effects)
+}
 \description{
 Sample additive effects for bipartite networks
 }

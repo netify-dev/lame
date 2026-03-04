@@ -47,15 +47,10 @@ Note: For dense networks (most edges observed), sparse matrices will be
 slower and may use MORE memory than dense storage.
 }
 \examples{
-\dontrun{
-# Standard usage (memory optimization is automatic)
-fit <- ame(Y, X)
-
-# Run parallel chains for better convergence
-fit <- ame(Y, X, parallel_chains = 4)
-
-# Reduce output frequency for very long chains
-fit <- ame(Y, X, nscan = 100000, odens = 100)
+\donttest{
+# Configure options
+opts <- ame_options(verbose = TRUE, odens = 25)
+opts
 }
 
 }

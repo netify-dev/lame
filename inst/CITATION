@@ -1,0 +1,12 @@
+bibentry(
+  bibtype  = "Manual",
+  title    = "lame: Longitudinal Additive and Multiplicative Effects Models for Networks",
+  author   = c(
+    person("Cassy", "Dorff"),
+    person("Shahryar", "Minhas"),
+    person("Tosin", "Salau")
+  ),
+  year     = "2026",
+  note     = "R package version 0.3.0",
+  url      = "https://github.com/netify-dev/lame"
+)

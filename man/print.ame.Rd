@@ -34,14 +34,14 @@ Unlike \code{simulate}, this method only formats existing results
 for display and does not perform any new computations or data generation.
 }
 \examples{
-\dontrun{
+\donttest{
 # Fit model
-fit <- ame(Y, X, R = 2)
+data(YX_nrm)
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
+           nscan = 100, burn = 10, odens = 1, print = FALSE)
 
 # Display summary
 print(fit)
-# or simply:
-fit
 }
 
 }

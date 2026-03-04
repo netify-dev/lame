@@ -27,7 +27,7 @@ using namespace Rcpp;
    int N = ET.n_slices;
    arma::mat tmp = trimatl(arma::ones(ET.n_rows, ET.n_cols));
    arma::uvec tmpindex = find(tmp==0);
-   arma::mat EM(0, 2);  // FIX: Initialize to 0x2 matrix
+   arma::mat EM(0, 2);
    
    for(int t=0 ; t<N ; ++t){
      arma::mat E = ET.slice(t); arma::mat Et = E.t();
@@ -44,13 +44,11 @@ using namespace Rcpp;
    double sr = 2*( 1 - pow(emCor(0,1), 2) )/pow(m, .5);
    NumericVector x1; x1 = (-1-rho)/sr; NumericVector x2; x2 = (1-rho)/sr;
    
-   // FIX: Use double not int to avoid truncation to 0/1
    double runiflo = Rcpp::pnorm(x1,0.0,1.0,1,0)[0];
    double runifhi = Rcpp::pnorm(x2,0.0,1.0,1,0)[0];
    
-   // Guard against invalid truncation interval
    if (runifhi <= runiflo || !R_finite(runiflo) || !R_finite(runifhi)) {
-     return rho; // No valid interval, keep current value
+     return rho;
    }
    
    double runifdraw = R::runif(runiflo, runifhi);

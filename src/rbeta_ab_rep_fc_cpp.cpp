@@ -22,29 +22,20 @@ arma::vec rmvnorm_cpp(
    arma::vec mu, arma::mat Sigma
 ) {
   int n = 1;
-  // Use R's RNG instead of Armadillo's
   arma::vec E(mu.size());
   for(int i = 0; i < mu.size(); i++) {
     E(i) = R::rnorm(0.0, 1.0);
   }
   
-  // Removed debug output - not needed in production
-  
-  // Ensure Sigma is symmetric before Cholesky
   arma::mat Sigma_sym = 0.5 * (Sigma + Sigma.t());
   
-  // Try Cholesky decomposition with error handling
   arma::mat cholSigma;
   bool chol_success = chol(cholSigma, Sigma_sym);
   
   if(!chol_success) {
-    // If Cholesky fails, add small ridge and try again
     Sigma_sym.diag() += 1e-6;
     chol_success = chol(cholSigma, Sigma_sym);
-    
     if(!chol_success) {
-      // If still fails, return the mean without randomness
-      // Silent fallback - no warning needed for regularization
       return mu;
     }
   }
@@ -113,8 +104,7 @@ arma::vec rmvnorm_cpp(
      
      if(p>0){
        lb = lb + (trans(mXs) * vectorise(Zs));
-       // Add g-prior regularization
-       Qb = Qb + XXs + (XX.slice(t)/g)/N;  // Use g-prior instead of n
+         Qb = Qb + XXs + (XX.slice(t)/g)/N;
      }
      
      arma::mat Xsr = td * Xr.slice(t) + to * Xc.slice(t);
@@ -162,56 +152,47 @@ arma::vec rmvnorm_cpp(
    
    arma::mat Vb; arma::mat Mb; arma::vec beta;
    if(p > 0){
-     // Add larger ridge for numerical stability
      double ridge = 1e-3;
      Qb.diag() += ridge;
-     
-     // Compute inverse with error handling
+
      bool inv_success = false;
      try {
-       Vb = inv_sympd(Qb);  // Try symmetric positive definite inverse
+       Vb = inv_sympd(Qb);
        inv_success = true;
      } catch(...) {
-       // Fall back to regular inverse with more regularization
        Qb.diag() += 0.1;
        try {
          Vb = inv(Qb);
          inv_success = true;
-       } catch(...) {
-         // Silent fallback - matrix inversion failed
-       }
+       } catch(...) {}
      }
-     
+
      if(!inv_success || Vb.has_nan() || Vb.has_inf()) {
        beta = arma::zeros(p);
      } else {
        Mb = Vb * lb;
-       
-       // Check if Mb has NaN values
+
        if(Mb.has_nan() || Mb.has_inf()) {
          beta = arma::zeros(p);
        } else {
-         // Ensure Vb is positive definite before sampling
-         Vb = 0.5 * (Vb + Vb.t());  // Ensure symmetry
+         Vb = 0.5 * (Vb + Vb.t());
          arma::vec eigval = eig_sym(Vb);
          if(eigval.min() < 1e-6) {
            Vb.diag() += (1e-6 - eigval.min() + 1e-6);
          }
-         
+
          beta = rmvnorm_cpp(Mb, Vb);
-         
-         // Check if beta has NaN after sampling
+
          if(beta.has_nan() || beta.has_inf()) {
-           beta = Mb;  // Use mean without randomness
+           beta = Mb;
          }
        }
      }
    }
-   if(p==0){ beta = arma::zeros(0); }  // FIX: Return empty vector when no predictors
+   if(p==0){ beta = arma::zeros(0); }
    
    arma::vec a, b;
    if(k > 0) {
-     // Ensure proper matrix dimensions for multiplication
      arma::vec RrT, RcT;
      if(p > 0 && beta.n_elem > 0 && XrT.n_cols == beta.n_elem) {
        arma::mat beta_col = arma::reshape(beta, beta.n_elem, 1);
@@ -223,17 +204,18 @@ arma::vec rmvnorm_cpp(
      } 
      
      arma::mat RTcrossiA0G = join_rows(RrT, RcT) * (iA0 * G.t()).t();
-     
+
      double sumRrT = arma::sum(arma::vectorise(RrT));
-     
+
+     arma::mat C0Gt = C0 * G.t();
+     arma::rowvec correction = sumRrT * arma::sum(C0Gt, 1).t();
+
      arma::mat m = arma::zeros(n,k);
      for(int r=0 ; r < n ; r++){
-       arma::mat C0Gt = C0 * G.t();
-      m.row(r) = RTcrossiA0G.row(r) + sumRrT * C0Gt.row(0);
+      m.row(r) = RTcrossiA0G.row(r) + correction;
      }
      
      arma::mat hiA0 = mhalf_cpp(iA0);
-     // Use R's RNG for consistency
      arma::mat e(n, k);
      for(int i = 0; i < n; i++) {
        for(int j = 0; j < k; j++) {
@@ -248,7 +230,6 @@ arma::vec rmvnorm_cpp(
      a = abvec.col(0);
      b = abvec.col(1);
    } else {
-     // When k=0, no random effects
      a = arma::zeros(n);
      b = arma::zeros(n);
    }

@@ -39,10 +39,8 @@ longitudinal plots (default 0.95)}
 A ggplot2 object that can be further customized
 }
 \description{
-Creates comprehensive diagnostic plots comparing observed network statistics to their
-posterior predictive distributions. This function is essential for assessing whether
-the fitted AME/LAME model adequately captures the structural properties and dependencies
-present in the observed network data.
+Plots observed network statistics against their posterior predictive
+distributions to assess model fit.
 }
 \details{
 \strong{Overview:}
@@ -72,14 +70,14 @@ in node popularity as receivers. Underestimation suggests missing receiver
 effects or popularity-related covariates.
 }
 \item{\code{dyad.dep} (Reciprocity/Mutuality)}{
-Correlation between Y\link{i,j} and Y\link{j,i}. Positive values indicate reciprocity
+Correlation between \code{Y[i,j]} and \code{Y[j,i]}. Positive values indicate reciprocity
 (mutual ties are more likely). The AME model captures this through the
 dyadic correlation parameter rho. Poor fit here suggests the need to adjust
 the dcor parameter.
 }
 \item{\code{triad.dep} (Transitivity/Clustering)}{
 Measures tendency for triadic closure (friend of a friend is a friend).
-Calculated as correlation between Y\link{i,j} and sum(Y\link{i,k}*Y\link{k,j})/sqrt(n-2).
+Calculated as correlation between \code{Y[i,j]} and \code{sum(Y[i,k]*Y[k,j])/sqrt(n-2)}.
 AME captures this through multiplicative effects (U,V). Poor fit suggests
 increasing the latent dimension R.
 }
@@ -96,7 +94,7 @@ Standard deviation of column means for Type B nodes. Indicates heterogeneity
 in how popular Type B nodes are with Type A nodes.
 }
 \item{\code{four.cycles} (Bipartite clustering)}{
-Count of 4-cycles (rectangular paths A1→B1→A2→B2→A1). High values indicate
+Count of 4-cycles (rectangular paths A1-B1-A2-B2-A1). High values indicate
 that pairs of Type A nodes tend to connect to the same Type B nodes.
 Captured through bipartite multiplicative effects with appropriate R_row, R_col.
 }
@@ -167,21 +165,17 @@ Good model fit is indicated when:
 }
 }
 \examples{
-\dontrun{
+\donttest{
 # Fit an AME model
-fit_ame <- ame(Y, X, gof = TRUE)
+data(YX_nrm)
+fit_ame <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, gof = TRUE,
+               nscan = 100, burn = 10, odens = 1, print = FALSE)
 
 # Basic GOF plot
 gof_plot(fit_ame)
 
 # Plot only degree-related statistics
 gof_plot(fit_ame, statistics = c("sd.row", "sd.col"))
-
-# Fit a LAME model
-fit_lame <- lame(Y_list, X_list)
-
-# Longitudinal GOF plot with 90\% credible intervals
-gof_plot(fit_lame, credible.level = 0.90)
 }
 }
 \author{

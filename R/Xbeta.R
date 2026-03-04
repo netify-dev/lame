@@ -11,10 +11,9 @@
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @export Xbeta
 Xbeta <-
-  function(X,beta)
-  {
-    if(length(beta) == 0) {
-      return(matrix(0, nrow=dim(X)[1], ncol=dim(X)[2]))
-    }
-    Xbeta_cpp(X, beta)
-  }
+	function(X,beta) {
+		if(length(beta) == 0) {
+			return(matrix(0, nrow=dim(X)[1], ncol=dim(X)[2]))
+		}
+		Xbeta_cpp(X, beta)
+	}

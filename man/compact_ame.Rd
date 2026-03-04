@@ -2,7 +2,7 @@
 % Please edit documentation in R/memory_utils.R
 \name{compact_ame}
 \alias{compact_ame}
-\title{Memory optimization utilities for AME models}
+\title{Optimize AME model output for memory efficiency}
 \usage{
 compact_ame(fit, use_sparse_matrices = FALSE)
 }
@@ -15,18 +15,6 @@ compact_ame(fit, use_sparse_matrices = FALSE)
 Memory-optimized AME model object
 }
 \description{
-Functions to manage memory usage in AME models, especially for large networks.
-For a network of size n x n with R latent dimensions:
-\itemize{
-\item YPM: n x n matrix (8n^2 bytes for doubles)
-\item EZ: n x n matrix (8n^2 bytes)
-\item UVPM: n x n matrix (8n^2 bytes)
-\item U: n x R matrix (8nR bytes)
-\item V: n x R matrix (8nR bytes)
-}
-
-For n=1000, each n x n matrix uses ~8MB. For n=10000, each uses ~800MB.
-
 Optimizes AME model storage by optionally removing redundant components
 and/or using sparse matrices based on user preferences.
 }
@@ -42,8 +30,5 @@ For dense networks, sparse storage will be slower and may use more memory.
 }
 }
 \author{
-Cassy Dorff, Shahryar Minhas, Tosin Salau
-Optimize AME model output for memory efficiency
-
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

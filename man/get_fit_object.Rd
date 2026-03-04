@@ -29,7 +29,9 @@ get_fit_object(
   odmax = NULL,
   nA = NULL,
   nB = NULL,
-  n_time = NULL
+  n_time = NULL,
+  Y_obs = NULL,
+  G = NULL
 )
 }
 \arguments{
@@ -82,6 +84,10 @@ get_fit_object(
 \item{nB}{number of actors in second mode (for bipartite networks)}
 
 \item{n_time}{number of time periods (for longitudinal models)}
+
+\item{Y_obs}{original observed network (stored for residuals computation)}
+
+\item{G}{bipartite interaction matrix mapping row to column latent spaces}
 }
 \value{
 Fitted AME object

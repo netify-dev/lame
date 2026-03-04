@@ -14,11 +14,10 @@
 #' el2sm(E) - Y 
 #' 
 #' @export sm2el
-sm2el<-function(sm,directed=TRUE)
-{
-  if(!directed){ sm[lower.tri(sm)]<-0 }
-  el<-which(sm!=0,arr.ind=TRUE)
-  w<-sm[el]
-  if(var(w)>0) { el<-cbind(el,w) }
-  el[order(el[,1]),]
+sm2el<-function(sm,directed=TRUE) {
+	if(!directed){ sm[lower.tri(sm)]<-0 }
+	el<-which(sm!=0,arr.ind=TRUE)
+	w<-sm[el]
+	if(var(w)>0) { el<-cbind(el,w) }
+	el[order(el[,1]),]
 }

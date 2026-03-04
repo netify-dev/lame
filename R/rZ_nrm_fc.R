@@ -12,14 +12,12 @@
 #' @return a square matrix, equal to Y at non-missing values
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @export rZ_nrm_fc
-rZ_nrm_fc<-function(Z,EZ,rho,s2,Y)
-{
-  tryCatch({
-    return(rZ_nrm_fc_cpp(Z, EZ, rho, s2, Y))
-  }, error = function(e) {
-    ZS<-simY_nrm(EZ,rho,s2)
-    diag(ZS)<-rnorm(nrow(Y),diag(EZ),sqrt(s2*(1+rho)))
-    Z[is.na(Y)]<-ZS[is.na(Y)]
-    Z
-  })
+rZ_nrm_fc<-function(Z,EZ,rho,s2,Y) {
+	ZS<-simY_nrm(EZ,rho,s2)
+	# diagonal only applies to square (non-bipartite) cases
+	if(nrow(Y) == ncol(Y)) {
+		diag(ZS)<-rnorm(nrow(Y),diag(EZ),sqrt(s2*(1+rho)))
+	}
+	Z[is.na(Y)]<-ZS[is.na(Y)]
+	Z
 }

@@ -63,19 +63,17 @@ For dynamic effects (when fit contains a_dynamic/b_dynamic), additional options
 are available to visualize how effects evolve over time.
 }
 \examples{
-\dontrun{
+\donttest{
 # Fit an AME model
-fit <- ame(Y, X)
+data(YX_nrm)
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X,
+           nscan = 100, burn = 10, odens = 1, print = FALSE)
 
 # Visualize sender effects
 ab_plot(fit, effect = "sender")
 
 # Visualize receiver effects without sorting
 ab_plot(fit, effect = "receiver", sorted = FALSE)
-
-# Customize the plot
-library(ggplot2)
-ab_plot(fit) + theme_minimal() + ggtitle("Network Sender Effects")
 }
 }
 \author{

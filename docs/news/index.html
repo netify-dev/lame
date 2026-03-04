@@ -3,11 +3,11 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <nav class="navbar navbar-expand-lg fixed-top bg-primary" data-bs-theme="dark" aria-label="Site navigation"><div class="container">
+    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -15,13 +15,21 @@
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../index.html">Get Started</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/lame-overview.html">Overview</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
+    <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+  </ul></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
-<li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/netify-dev/lame" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/netify-dev/lame/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -35,121 +43,33 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.10" id="lame-010">lame 0.10<a class="anchor" aria-label="anchor" href="#lame-010"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.3.0" id="lame-030">lame 0.3.0<a class="anchor" aria-label="anchor" href="#lame-030"></a></h2>
 <div class="section level3">
-<h3 id="major-new-features-0-10">Major New Features<a class="anchor" aria-label="anchor" href="#major-new-features-0-10"></a></h3>
+<h3 id="initial-cran-submission-0-3-0">Initial CRAN Submission<a class="anchor" aria-label="anchor" href="#initial-cran-submission-0-3-0"></a></h3>
 <div class="section level4">
-<h4 id="dynamic-effects-modeling-0-10">Dynamic Effects Modeling<a class="anchor" aria-label="anchor" href="#dynamic-effects-modeling-0-10"></a></h4>
-<ul><li>Added <code>dynamic_uv</code> parameter to <code><a href="../reference/lame.html">lame()</a></code> function for time-varying multiplicative effects (latent factors)
-<ul><li>Latent positions evolve via AR(1) processes: U_{t} = ρ_uv * U_{t-1} + ε_t</li>
-<li>Captures evolving community structure and homophily patterns</li>
-<li>Based on Sewell &amp; Chen (2015, JASA) and Durante &amp; Dunson (2014, Biometrika)</li>
-</ul></li>
-<li>Added <code>dynamic_ab</code> parameter to <code><a href="../reference/lame.html">lame()</a></code> function for time-varying additive effects
-<ul><li>Sender/receiver effects evolve via AR(1) processes: a_{t} = ρ_ab * a_{t-1} + ε_t</li>
-<li>Models changing individual activity levels and popularity over time</li>
-<li>Efficient C++ implementation in <code>src/dynamic_additive_effects.cpp</code>
-</li>
-</ul></li>
-</ul></div>
-<div class="section level4">
-<h4 id="performance-improvements-0-10">Performance Improvements<a class="anchor" aria-label="anchor" href="#performance-improvements-0-10"></a></h4>
-<ul><li>Implemented dynamic effects functions in C++ via Rcpp/RcppArmadillo
-<ul><li>~70% memory efficiency improvement for dynamic effects</li>
-<li>30-50% faster sampling for temporal updates</li>
-<li>Forward-filtering backward-sampling (FFBS) algorithm for inference</li>
-</ul></li>
-</ul></div>
-<div class="section level4">
-<h4 id="visualization-0-10">Visualization<a class="anchor" aria-label="anchor" href="#visualization-0-10"></a></h4>
-<ul><li>Unified <code><a href="../reference/ab_plot.html">ab_plot()</a></code> function handles both static and dynamic effects
-<ul><li>Automatically detects effect type from model output</li>
-<li>New plot types: “trajectory”, “snapshot”, “faceted”, “ribbon”</li>
-<li>Time-point selection and actor filtering options</li>
-</ul></li>
-<li>Unified <code><a href="../reference/uv_plot.html">uv_plot()</a></code> function for static and dynamic latent positions
-<ul><li>Trajectory visualization for temporal evolution</li>
-<li>Faceted plots for multiple time points</li>
-<li>Arrow styling for directed networks</li>
-</ul></li>
-</ul></div>
-<div class="section level4">
-<h4 id="cli-integration-0-10">CLI Integration<a class="anchor" aria-label="anchor" href="#cli-integration-0-10"></a></h4>
-<ul><li>Replaced all <code><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat()</a></code> and <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> calls with CLI functions
-<ul><li>Formatting with <code><a href="https://cli.r-lib.org/reference/cli_text.html" class="external-link">cli::cli_text()</a></code>, <code><a href="https://cli.r-lib.org/reference/cli_alert.html" class="external-link">cli::cli_alert_success()</a></code>
-</li>
-<li>Progress bars with <code><a href="https://cli.r-lib.org/reference/cli_progress_bar.html" class="external-link">cli::cli_progress_bar()</a></code>
-</li>
-<li>Colored output via crayon integration</li>
-<li>Structured tables with pillar package</li>
-</ul></li>
+<h4 id="features-0-3-0">Features<a class="anchor" aria-label="anchor" href="#features-0-3-0"></a></h4>
+<ul><li>Cross-sectional network analysis via <code><a href="../reference/ame.html">ame()</a></code> with support for 8 distributional families: normal, binary, ordinal, tobit, Poisson, censored binary, fixed rank nomination, and row-ranked likelihood.</li>
+<li>Longitudinal network analysis via <code><a href="../reference/lame.html">lame()</a></code> with dynamic additive and multiplicative effects modeled as AR(1) processes.</li>
+<li>Support for both unipartite (square) and bipartite (rectangular) network structures.</li>
+<li>Covariate support: dyadic (<code>Xdyad</code>), row (<code>Xrow</code>), and column (<code>Xcol</code>) covariates with automatic design matrix construction.</li>
+<li>S3 methods: <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>, <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>, <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code>, <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>, <code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code>, <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals()</a></code>, <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code>, <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code>.</li>
+<li>Visualization functions: <code><a href="../reference/trace_plot.html">trace_plot()</a></code>, <code><a href="../reference/gof_plot.html">gof_plot()</a></code>, <code><a href="../reference/ab_plot.html">ab_plot()</a></code>, <code><a href="../reference/uv_plot.html">uv_plot()</a></code> for MCMC diagnostics and model assessment.</li>
+<li>Goodness-of-fit via posterior predictive checks with <code><a href="../reference/gof.html">gof()</a></code>.</li>
+<li>C++ acceleration via Rcpp and RcppArmadillo for core sampling routines.</li>
+<li>Handles changing actor compositions across time periods.</li>
 </ul></div>
 </div>
-<div class="section level3">
-<h3 id="documentation-0-10">Documentation<a class="anchor" aria-label="anchor" href="#documentation-0-10"></a></h3>
-<ul><li>Parameter documentation for dynamic effects</li>
-<li>Added theoretical background and references in function documentation</li>
-<li>New vignette: “Dynamic Effects in Longitudinal AME Models”</li>
-<li>Mathematical details and implementation notes in <code>@details</code> sections</li>
-</ul></div>
-<div class="section level3">
-<h3 id="prior-specification-0-10">Prior Specification<a class="anchor" aria-label="anchor" href="#prior-specification-0-10"></a></h3>
-<ul><li>New prior parameters for dynamic effects:
-<ul><li>
-<code>rho_uv_mean</code>, <code>rho_uv_sd</code>: Control temporal persistence of multiplicative effects</li>
-<li>
-<code>rho_ab_mean</code>, <code>rho_ab_sd</code>: Control temporal persistence of additive effects<br></li>
-<li>
-<code>sigma_uv_shape</code>, <code>sigma_uv_scale</code>: Innovation variance for multiplicative effects</li>
-<li>
-<code>sigma_ab_shape</code>, <code>sigma_ab_scale</code>: Innovation variance for additive effects</li>
-</ul></li>
-</ul></div>
-<div class="section level3">
-<h3 id="bug-fixes-0-10">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-10"></a></h3>
-<ul><li>Fixed UVPS array dimension initialization for proper temporal indexing</li>
-<li>Corrected array_to_list subscript errors in dynamic effect handling</li>
-<li>Resolved CLI progress bar syntax issues with environment parameters</li>
-<li>Fixed dimension checks in plotting functions for 3D effect arrays</li>
-</ul></div>
-<div class="section level3">
-<h3 id="internal-changes-0-10">Internal Changes<a class="anchor" aria-label="anchor" href="#internal-changes-0-10"></a></h3>
-<ul><li>Added <code><a href="../reference/sample_dynamic_ab_cpp.html">sample_dynamic_ab_cpp()</a></code> for efficient C++ sampling</li>
-<li>Implemented <code><a href="../reference/sample_rho_ab_cpp.html">sample_rho_ab_cpp()</a></code> and <code><a href="../reference/sample_sigma_ab_cpp.html">sample_sigma_ab_cpp()</a></code> for parameter updates</li>
-<li>Created unified <code><a href="../reference/rSab_fc.html">rSab_fc()</a></code> function for covariance updates</li>
-<li>Removed deprecated <code>ab_plot_dynamic.R</code> and <code>uv_plot_dynamic.R</code> files</li>
-</ul></div>
-<div class="section level3">
-<h3 id="dependencies-0-10">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies-0-10"></a></h3>
-<ul><li>Added required packages: cli, crayon, progress, pillar</li>
-<li>Updated Rcpp and RcppArmadillo LinkingTo specifications</li>
-<li>Added gganimate to Suggests for trajectory animations</li>
-</ul></div>
-<div class="section level3">
-<h3 id="breaking-changes-0-10">Breaking Changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-10"></a></h3>
-<ul><li>None - package maintains backward compatibility with existing amen/lame code</li>
-</ul></div>
-<div class="section level3">
-<h3 id="deprecated-0-10">Deprecated<a class="anchor" aria-label="anchor" href="#deprecated-0-10"></a></h3>
-<ul><li>Separate <code>ab_plot_dynamic()</code> and <code>uv_plot_dynamic()</code> functions (functionality merged into main plotting functions)</li>
-</ul></div>
-<div class="section level3">
-<h3 id="known-issues-0-10">Known Issues<a class="anchor" aria-label="anchor" href="#known-issues-0-10"></a></h3>
-<ul><li>Dynamic models require longer burn-in (≥1000) and more samples (≥20000) for convergence</li>
-<li>Effective sample sizes typically lower due to temporal correlation</li>
-<li>Memory usage scales as O(n<em>R</em>T) for dynamic_uv, O(n*T) for dynamic_ab</li>
-</ul></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Shahryar Minhas, Tosin Salau, Cassy Dorff.</p>
+  <p>Developed by Cassy Dorff, Shahryar Minhas, Tosin Salau.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer></div>
