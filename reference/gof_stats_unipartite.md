@@ -73,6 +73,6 @@ Cassy Dorff, Shahryar Minhas, Tosin Salau
 Y <- matrix(rnorm(100), 10, 10)
 diag(Y) <- NA
 gof_stats_unipartite(Y)
-#> sd.rowmean sd.colmean   dyad.dep  cycle.dep  trans.dep 
-#> 0.35066992 0.39407206 0.20359228 0.03222888 0.01730091 
+#>  sd.rowmean  sd.colmean    dyad.dep   cycle.dep   trans.dep 
+#>  0.34918446  0.45012473 -0.26811531 -0.06644152  0.01049362 
 ```

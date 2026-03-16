@@ -59,6 +59,6 @@ rUV_sym_fc
 #>     uLoopIDs <- as.integer(rep(sample(1:n), 4) - 1)
 #>     rUV_sym_fc_cpp(E, U, V, s2, shrink, uLoopIDs)
 #> }
-#> <bytecode: 0x5643562b6758>
+#> <bytecode: 0x55ad5edd1768>
 #> <environment: namespace:lame>
 ```

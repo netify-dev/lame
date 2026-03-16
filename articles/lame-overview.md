@@ -98,7 +98,7 @@ fit <- lame(
   burn = 100,              # Burn-in iterations
   nscan = 500,             # Post-burn-in iterations
   odens = 25,              # Output density (thinning)
-  print = FALSE,           # Suppress iteration output
+  verbose = FALSE,           # Suppress iteration output
   plot = FALSE             # Suppress real-time plots
 )
 ```
@@ -240,15 +240,54 @@ center, indicating they play a more distinctive role in the network.
 Countries clustered together (for example, Western allies like the USA
 and Canada) share similar sanctioning profiles.
 
-## Conclusion
+## Extracting Latent Positions
 
-This vignette introduced the core workflow of the `lame` package:
-fitting a longitudinal AME model, checking convergence, evaluating
-goodness of fit, and visualizing the latent structure. For more
-specialized topics, see the companion vignettes on [bipartite
-networks](https://netify-dev.github.io/lame/articles/bipartite.md) and
-[dynamic
-effects](https://netify-dev.github.io/lame/articles/dynamic_effects.md).
+If you need the estimated latent positions in a tidy format (for custom
+plots, merging with external data, or exporting to other tools), the
+[`latent_positions()`](https://netify-dev.github.io/lame/reference/latent_positions.md)
+function returns a data frame:
+
+``` r
+lp <- latent_positions(fit)
+head(lp)
+  actor dimension time      value posterior_sd type
+1   AFG         1 <NA> -0.5253670           NA    U
+2   ALB         1 <NA> -1.0708329           NA    U
+3   ARG         1 <NA>  0.3959614           NA    U
+4   AUS         1 <NA>  1.2064454           NA    U
+5   BEL         1 <NA> -0.3992633           NA    U
+6   BOL         1 <NA> -2.1687274           NA    U
+```
+
+Each row gives one actor’s position on one latent dimension at one time
+point. For dynamic models (`dynamic_uv = TRUE`), the `time` column
+tracks how positions evolve. You can optionally apply Procrustes
+alignment to remove rotational indeterminacy across time periods:
+
+``` r
+aligned <- procrustes_align(fit)
+ [36mℹ [39m Latent positions are static (single time point). No alignment needed.
+str(aligned$U)  # aligned 3D array
+ num [1:35, 1:2] -0.525 -1.071 0.396 1.206 -0.399 ...
+ - attr(*, "dimnames")=List of 2
+  ..$ : chr [1:35] "AFG" "ALB" "ARG" "AUS" ...
+  ..$ : NULL
+```
+
+## What’s Next?
+
+This vignette covered the core workflow: fitting, convergence, GOF, and
+visualization. For more specialized topics:
+
+- **Single networks (no time series)?** See [Your First AME
+  Model](https://netify-dev.github.io/lame/articles/cross_sec_ame.md)
+  for a detailed cross-sectional walkthrough
+- **Two types of nodes?** See [Bipartite
+  Networks](https://netify-dev.github.io/lame/articles/bipartite.md)
+- **Evolving network structure?** See [Dynamic
+  Effects](https://netify-dev.github.io/lame/articles/dynamic_effects.md)
+- **Just want the quick version?** See [Getting
+  Started](https://netify-dev.github.io/lame/articles/lame.md)
 
 **References**:
 

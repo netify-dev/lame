@@ -27,10 +27,11 @@ use the ame function."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
-    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Quick Start</a></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Your First AME Model</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
-    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Topics</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
   </ul></li>
@@ -68,8 +69,9 @@ use the <code>ame</code> function.</p>
 <span>intercept<span class="op">=</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>,<span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>,<span class="st">"ordinal"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>symmetric<span class="op">=</span><span class="cn">FALSE</span>,</span>
 <span>odmax<span class="op">=</span><span class="cn">NULL</span>, prior<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, g<span class="op">=</span><span class="cn">NA</span>,</span>
-<span>seed <span class="op">=</span> <span class="fl">6886</span>, nscan <span class="op">=</span> <span class="fl">10000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>, plot<span class="op">=</span><span class="cn">FALSE</span>, print <span class="op">=</span> <span class="cn">FALSE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>,</span>
-<span>start_vals<span class="op">=</span><span class="cn">NULL</span>, periodic_save<span class="op">=</span><span class="cn">FALSE</span>, out_file<span class="op">=</span><span class="cn">NULL</span>, save_interval<span class="op">=</span><span class="fl">0.25</span>, model.name<span class="op">=</span><span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+<span>seed <span class="op">=</span> <span class="fl">6886</span>, nscan <span class="op">=</span> <span class="fl">10000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>, plot<span class="op">=</span><span class="cn">FALSE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>,</span>
+<span>start_vals<span class="op">=</span><span class="cn">NULL</span>, periodic_save<span class="op">=</span><span class="cn">FALSE</span>, out_file<span class="op">=</span><span class="cn">NULL</span>, save_interval<span class="op">=</span><span class="fl">0.25</span>, model.name<span class="op">=</span><span class="cn">NULL</span>,</span>
+<span><span class="va">print</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -77,9 +79,11 @@ use the <code>ame</code> function.</p>
 
 
 <dl><dt id="arg-y">Y<a class="anchor" aria-label="anchor" href="#arg-y"></a></dt>
-<dd><p>a T length list of n x n relational matrices, where T
-corresponds to the number of replicates (over time, for example).
-See family below for various data types.</p></dd>
+<dd><p>a T length list of n x n relational matrices, or a 3D array
+of dimensions <code>[n, n, T]</code>, where T corresponds to the number of
+replicates (over time, for example). If a 3D array is provided, it is
+automatically converted to list format. See family below for various
+data types.</p></dd>
 
 
 <dt id="arg-xdyad">Xdyad<a class="anchor" aria-label="anchor" href="#arg-xdyad"></a></dt>
@@ -257,8 +261,8 @@ control.</p></dd>
 <dd><p>logical: plot results while running?</p></dd>
 
 
-<dt id="arg-print">print<a class="anchor" aria-label="anchor" href="#arg-print"></a></dt>
-<dd><p>logical: print results while running?</p></dd>
+<dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
+<dd><p>logical: print progress while running? Default FALSE.</p></dd>
 
 
 <dt id="arg-gof">gof<a class="anchor" aria-label="anchor" href="#arg-gof"></a></dt>
@@ -283,6 +287,10 @@ control.</p></dd>
 
 <dt id="arg-model-name">model.name<a class="anchor" aria-label="anchor" href="#arg-model-name"></a></dt>
 <dd><p>optional string for model selection output</p></dd>
+
+
+<dt id="arg-print">print<a class="anchor" aria-label="anchor" href="#arg-print"></a></dt>
+<dd><p>Deprecated. Use <code>verbose</code> instead.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -325,7 +333,8 @@ matrix</p></dd>
 
 <dt>GOF</dt>
 <dd><p>observed (first row) and posterior predictive (remaining rows)
-values of four goodness-of-fit statistics</p></dd>
+values of four goodness-of-fit statistics.
+See <code><a href="gof.html">gof</a></code> for post-hoc computation and <code><a href="gof_plot.html">gof_plot</a></code> for visualization.</p></dd>
 
 <dt>start_vals</dt>
 <dd><p>Final parameter values from MCMC, can be used as the input
@@ -433,6 +442,16 @@ intercept, row random effects and row regression effects are not estimable
 for this model.</p>
 <p>"poisson": An overdispersed Poisson AME model for count data. The latent
 variable represents the log mean of the Poisson distribution.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="ame.html">ame</a></code> for cross-sectional models,
+<code><a href="gof.html">gof</a></code> for post-hoc goodness-of-fit computation,
+<code><a href="gof_plot.html">gof_plot</a></code> for visualizing GOF results,
+<code><a href="latent_positions.html">latent_positions</a></code> for extracting latent positions as a tidy data frame,
+<code><a href="procrustes_align.html">procrustes_align</a></code> for Procrustes alignment of latent positions,
+<code><a href="summary.lame.html">summary.lame</a></code> for model summaries,
+<code><a href="coef.ame.html">coef.lame</a></code> for coefficient extraction</p></div>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
