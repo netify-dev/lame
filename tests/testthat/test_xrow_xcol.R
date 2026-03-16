@@ -38,7 +38,7 @@ test_that("xrow/xcol work correctly for static unipartite Gaussian models", {
 	fit <- ame(Y, Xrow = Xrow, Xcol = Xcol, 
 						R = 0, family = "normal",
 						burn = 200, nscan = 800, odens = 25,
-						print = FALSE)
+						verbose = FALSE)
 	
 	# Check dimensions of BETA
 	# Should have: intercept + 2 row + 2 col = 5 coefficients
@@ -144,7 +144,7 @@ test_that("xrow/xcol work correctly for static bipartite Gaussian models", {
 						mode = "bipartite",
 						R_row = 0, R_col = 0, family = "normal",
 						burn = 200, nscan = 800, odens = 25,
-						print = FALSE)
+						verbose = FALSE)
 	
 	# Check dimensions of BETA
 	# Should have: intercept + 2 row + 3 col = 6 coefficients
@@ -223,7 +223,7 @@ test_that("Mixed dyadic and nodal covariates work together", {
 	fit <- ame(Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
 						R = 0, family = "normal",
 						burn = 200, nscan = 800, odens = 25,
-						print = FALSE)
+						verbose = FALSE)
 	
 	# Should have 4 coefficients
 	expect_equal(ncol(fit$BETA), 4)

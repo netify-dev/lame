@@ -48,7 +48,7 @@ sim_count_ame <- function(seed, n, mu, beta, gamma=NULL,
 	fit <- ame(Y, Xdyad=X, R=R, family="poisson",
 						rvar=rvar, cvar=cvar, dcor=FALSE,
 						burn=burn, nscan=nscan, 
-						print=FALSE)
+						verbose = FALSE)
 	
 	# Extract results
 	beta_hat <- median(fit$BETA[,2])
@@ -125,7 +125,7 @@ test_that("Poisson AME with covariates only recovers true parameters", {
 	# Fit model with no additive or multiplicative effects
 	fit <- ame(Y, Xdyad=X, R=0, family="poisson",
 						rvar=FALSE, cvar=FALSE, dcor=FALSE,
-						burn=500, nscan=2000, print=FALSE)
+						burn=500, nscan=2000, verbose = FALSE)
 	
 	# Check parameter recovery
 	beta_est <- median(fit$BETA[,2])
@@ -203,7 +203,7 @@ test_that("Poisson AME with additive effects recovers true parameters", {
 	# Fit model with additive effects
 	fit <- ame(Y, Xdyad=X, R=0, family="poisson",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
-						burn=500, nscan=2000, print=FALSE)
+						burn=500, nscan=2000, verbose = FALSE)
 	
 	# Check parameter recovery
 	beta_est <- median(fit$BETA[,2])
@@ -264,7 +264,7 @@ test_that("Poisson AME with full model recovers true parameters", {
 	# Fit full AME model
 	fit <- ame(Y, Xdyad=X, R=R_true, family="poisson",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
-						burn=500, nscan=2000, print=FALSE)
+						burn=500, nscan=2000, verbose = FALSE)
 	
 	# Check parameter recovery (more tolerance for complex model)
 	beta_est <- median(fit$BETA[,2])
@@ -314,7 +314,7 @@ test_that("Poisson AME handles overdispersed count data", {
 	# Fit Poisson model (should handle overdispersion via random effects)
 	fit <- ame(Y, Xdyad=X, R=1, family="poisson",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
-						burn=400, nscan=1500, print=FALSE)
+						burn=400, nscan=1500, verbose = FALSE)
 	
 	# Should still recover approximate beta
 	beta_est <- median(fit$BETA[,2])
@@ -346,7 +346,7 @@ test_that("Poisson AME handles sparse count networks", {
 	expect_lt(mean(Y > 0, na.rm=TRUE), 0.15)
 	
 	fit <- ame(Y, R=1, family="poisson",
-						burn=300, nscan=1200, print=FALSE)
+						burn=300, nscan=1200, verbose = FALSE)
 	
 	expect_true(!is.null(fit$BETA))
 	expect_lt(median(fit$BETA[,1]), 1)  # Low intercept for sparse network
@@ -385,7 +385,7 @@ test_that("Poisson AME handles zero-inflated patterns", {
 	# Fit model (should handle via random effects)
 	fit <- ame(Y, Xdyad=X, R=1, family="poisson",
 						rvar=TRUE, cvar=TRUE,
-						burn=300, nscan=1200, print=FALSE)
+						burn=300, nscan=1200, verbose = FALSE)
 	
 	# Should still produce reasonable estimates
 	beta_est <- median(fit$BETA[,2])
@@ -407,7 +407,7 @@ test_that("Poisson AME mean-variance relationship", {
 	diag(Y) <- NA
 	
 	fit <- ame(Y, Xdyad=X, R=0, family="poisson",
-						burn=300, nscan=1200, print=FALSE)
+						burn=300, nscan=1200, verbose = FALSE)
 	
 	# Check that higher predictions have higher uncertainty
 	# (natural property of Poisson)

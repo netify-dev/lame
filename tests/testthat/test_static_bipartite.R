@@ -23,7 +23,7 @@ test_that("Bipartite AME model works for Gaussian case", {
 	# Fit basic model
 	fit <- ame(Y_true, Xdyad = X, mode = "bipartite", 
 						 R_row = 0, R_col = 0,
-						 burn = 500, nscan = 2000, print = FALSE)
+						 burn = 500, nscan = 2000, verbose = FALSE)
 	
 	# Check dimensions
 	expect_equal(fit$mode, "bipartite")
@@ -73,7 +73,7 @@ test_that("Bipartite model with additive effects", {
 	fit <- ame(Y, mode = "bipartite",
 						 rvar = TRUE, cvar = TRUE,
 						 R_row = 0, R_col = 0,
-						 burn = 500, nscan = 2000, print = FALSE)
+						 burn = 500, nscan = 2000, verbose = FALSE)
 	
 	# Check that additive effects were estimated
 	expect_false(is.null(fit$APM))
@@ -113,7 +113,7 @@ test_that("Bipartite model with multiplicative effects", {
 	# Fit model with multiplicative effects
 	fit <- ame(Y, mode = "bipartite",
 						 R_row = R_row, R_col = R_col,
-						 burn = 500, nscan = 2000, print = FALSE)
+						 burn = 500, nscan = 2000, verbose = FALSE)
 	
 	# Check dimensions of latent factors
 	expect_equal(dim(fit$U), c(nA, R_row))
@@ -151,7 +151,7 @@ test_that("Bipartite binary model", {
 	# Fit binary model
 	fit <- ame(Y, Xdyad = X, mode = "bipartite",
 						 family = "binary",
-						 burn = 500, nscan = 2000, print = FALSE)
+						 burn = 500, nscan = 2000, verbose = FALSE)
 	
 	# Check model type
 	expect_equal(fit$family, "binary")
@@ -185,7 +185,7 @@ test_that("Bipartite Poisson model", {
 	suppressWarnings({
 		fit <- ame(Y, Xdyad = X, mode = "bipartite",
 							 family = "poisson",
-							 burn = 300, nscan = 1000, print = FALSE)
+							 burn = 300, nscan = 1000, verbose = FALSE)
 	})
 	
 	# Check model type
@@ -213,12 +213,12 @@ test_that("Bipartite model comparison with different R values", {
 	# Fit with R = 0
 	fit0 <- ame(Y, mode = "bipartite",
 							R_row = 0, R_col = 0,
-							burn = 300, nscan = 1000, print = FALSE)
+							burn = 300, nscan = 1000, verbose = FALSE)
 	
 	# Fit with R = 2
 	fit2 <- ame(Y, mode = "bipartite",
 							R_row = 2, R_col = 2,
-							burn = 300, nscan = 1000, print = FALSE)
+							burn = 300, nscan = 1000, verbose = FALSE)
 	
 	# Model with multiplicative effects should fit better
 	# Use YPM (posterior mean predictions) instead of EZ
@@ -256,7 +256,7 @@ test_that("Bipartite handles missing data correctly", {
 	
 	# Fit model
 	fit <- ame(Y, mode = "bipartite",
-						 burn = 200, nscan = 500, print = FALSE)
+						 burn = 200, nscan = 500, verbose = FALSE)
 	
 	# Check that model ran
 	expect_equal(fit$mode, "bipartite")
@@ -277,7 +277,7 @@ test_that("Bipartite GOF statistics are computed", {
 	# Fit with GOF
 	fit <- ame(Y, mode = "bipartite",
 						 burn = 100, nscan = 300, 
-						 gof = TRUE, print = FALSE)
+						 gof = TRUE, verbose = FALSE)
 	
 	# Check GOF exists
 	expect_false(is.null(fit$GOF))

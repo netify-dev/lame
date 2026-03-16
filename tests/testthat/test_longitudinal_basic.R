@@ -16,7 +16,7 @@ test_that("lame() runs with normal family and returns correct structure", {
 		Y = dat$Y, Xdyad = dat$Xdyad, Xrow = dat$Xrow, Xcol = dat$Xcol,
 		family = "normal", R = 0,
 		burn = 100, nscan = 500, odens = 5,
-		print = FALSE, gof = TRUE
+		verbose = FALSE, gof = TRUE
 	)
 
 	# Structure checks
@@ -65,7 +65,7 @@ test_that("lame() runs with binary family and returns correct structure", {
 		Y = Y_list,
 		family = "binary", R = 0,
 		burn = 100, nscan = 500, odens = 5,
-		print = FALSE, gof = TRUE
+		verbose = FALSE, gof = TRUE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -100,7 +100,7 @@ test_that("lame() with multiplicative effects (R > 0) returns UV", {
 		Y = dat$Y, Xdyad = dat$Xdyad,
 		family = "normal", R = 2,
 		burn = 100, nscan = 500, odens = 5,
-		print = FALSE, gof = TRUE
+		verbose = FALSE, gof = TRUE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -135,7 +135,7 @@ test_that("lame() with symmetric networks works", {
 		Y = dat$Y, Xdyad = dat$Xdyad,
 		family = "normal", R = 0, symmetric = TRUE,
 		burn = 100, nscan = 500, odens = 5,
-		print = FALSE, gof = TRUE
+		verbose = FALSE, gof = TRUE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -172,7 +172,7 @@ test_that("lame() with covariates recovers known effects", {
 		family = "normal", R = 0,
 		rvar = FALSE, cvar = FALSE,
 		burn = 200, nscan = 1000, odens = 5,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	# Check beta recovery
@@ -217,7 +217,7 @@ test_that("lame() additive effects correlate with true values", {
 		family = "normal", R = 0,
 		rvar = TRUE, cvar = TRUE,
 		burn = 500, nscan = 2000, odens = 10,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	# Additive effects should correlate with truth (match by actor name)
@@ -255,7 +255,7 @@ test_that("lame() GOF output has correct structure", {
 		Y = dat$Y,
 		family = "normal", R = 0,
 		burn = 50, nscan = 250, odens = 5,
-		print = FALSE, gof = TRUE
+		verbose = FALSE, gof = TRUE
 	)
 
 	expect_false(is.null(fit$GOF),
@@ -283,7 +283,7 @@ test_that("lame() works with ordinal family", {
 		Y = dat$Y, Xdyad = dat$Xdyad,
 		family = "ordinal", R = 0,
 		burn = 100, nscan = 300, odens = 3,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -302,7 +302,7 @@ test_that("lame() works with tobit family", {
 		Y = dat$Y, Xdyad = dat$Xdyad,
 		family = "tobit", R = 0,
 		burn = 100, nscan = 300, odens = 3,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -344,7 +344,7 @@ test_that("lame() works with poisson family", {
 		Y = Y_list, Xdyad = Xdyad_list,
 		family = "poisson", R = 0,
 		burn = 100, nscan = 300, odens = 3,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -385,7 +385,7 @@ test_that("lame() works with cbin family", {
 		Y = Y_list,
 		family = "cbin", R = 0,
 		burn = 100, nscan = 300, odens = 3,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -418,7 +418,7 @@ test_that("lame() works with frn family", {
 		Y = Y_list,
 		family = "frn", R = 0,
 		burn = 100, nscan = 300, odens = 3,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -451,7 +451,7 @@ test_that("lame() works with rrl family", {
 		Y = Y_list,
 		family = "rrl", R = 0,
 		burn = 100, nscan = 300, odens = 3,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -486,7 +486,7 @@ test_that("lame() works with all families with R > 0", {
 			Y = Y_list,
 			family = fam, R = 2,
 			burn = 100, nscan = 300, odens = 3,
-			print = FALSE, gof = FALSE
+			verbose = FALSE, gof = FALSE
 		)
 
 		expect_s3_class(fit, "lame")

@@ -34,10 +34,11 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
-    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Quick Start</a></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Your First AME Model</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
-    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Topics</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
   </ul>
@@ -66,7 +67,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2026-03-04</h4>
+            <h4 data-toc-skip class="date">2026-03-16</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/HEAD/vignettes/dynamic_effects.Rmd" class="external-link"><code>vignettes/dynamic_effects.Rmd</code></a></small>
       <div class="d-none name"><code>dynamic_effects.Rmd</code></div>
@@ -214,7 +215,7 @@ without dynamic effects to see the difference.</p>
 <span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  odens <span class="op">=</span> <span class="fl">25</span>,</span>
-<span>  print <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Note: Square matrix assumed to be unipartite. Use mode='bipartite' for square bipartite networks.</span></span></code></pre></div>
@@ -255,23 +256,23 @@ them:</p>
 <code class="sourceCode R"><span><span class="co"># Static model (no dynamic effects)</span></span>
 <span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>                   burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
-<span>                   print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span>                   verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Dynamic latent positions only</span></span>
 <span><span class="va">fit_uv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>               burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
-<span>               print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span>               verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Dynamic additive effects only</span></span>
 <span><span class="va">fit_ab</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>               burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
-<span>               print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span>               verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Full dynamic</span></span>
 <span><span class="va">fit_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                 family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>                 burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">400</span>, odens <span class="op">=</span> <span class="fl">20</span>,</span>
-<span>                 print <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<span>                 verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p>Compare the GOF statistics across models. The model that best
 reproduces the observed network statistics (heterogeneity, transitivity,
 dyadic dependence) without unnecessary complexity is usually the best
@@ -286,139 +287,133 @@ choice.</p>
 <span><span class="co">#&gt; Static model GOF (sample):</span></span>
 <span><span class="co">#&gt; $sd.rowmean</span></span>
 <span><span class="co">#&gt;             obs          1          2          3          4          5</span></span>
-<span><span class="co">#&gt; [1,] 0.04659041 0.05576140 0.05874238 0.06140575 0.05450382 0.09871170</span></span>
-<span><span class="co">#&gt; [2,] 0.06641285 0.06997142 0.07756288 0.08380931 0.05331666 0.06733003</span></span>
-<span><span class="co">#&gt; [3,] 0.05033223 0.06997142 0.05033223 0.04369592 0.05964338 0.06974238</span></span>
-<span><span class="co">#&gt; [4,] 0.06332982 0.06294972 0.06031031 0.05416026 0.05656854 0.06140575</span></span>
-<span><span class="co">#&gt; [5,] 0.05941941 0.06248200 0.07240626 0.05656854 0.07578918 0.06665333</span></span>
+<span><span class="co">#&gt; [1,] 0.04659041 0.05828665 0.06226824 0.06584831 0.05600000 0.10066446</span></span>
+<span><span class="co">#&gt; [2,] 0.06641285 0.06458070 0.07752849 0.08349052 0.05406169 0.06379133</span></span>
+<span><span class="co">#&gt; [3,] 0.05033223 0.06839103 0.04969239 0.04424176 0.05694442 0.07739078</span></span>
+<span><span class="co">#&gt; [4,] 0.06332982 0.06273755 0.05919459 0.05537749 0.05828665 0.05759630</span></span>
+<span><span class="co">#&gt; [5,] 0.05941941 0.06248200 0.07346655 0.05479659 0.07404503 0.06780364</span></span>
 <span><span class="co">#&gt;               6          7          8          9         10         11</span></span>
-<span><span class="co">#&gt; [1,] 0.06645299 0.05450382 0.05205126 0.04855238 0.06625204 0.05096404</span></span>
-<span><span class="co">#&gt; [2,] 0.06733003 0.06324555 0.06416645 0.06013319 0.06633250 0.07831560</span></span>
-<span><span class="co">#&gt; [3,] 0.07259017 0.07400901 0.05782733 0.05075431 0.05666274 0.05689757</span></span>
-<span><span class="co">#&gt; [4,] 0.06273755 0.06685307 0.05787343 0.06544209 0.06633250 0.05805744</span></span>
-<span><span class="co">#&gt; [5,] 0.04000000 0.05523284 0.08336266 0.06819580 0.08073000 0.05887841</span></span>
+<span><span class="co">#&gt; [1,] 0.06645299 0.05479659 0.04664762 0.05759630 0.06316117 0.04827698</span></span>
+<span><span class="co">#&gt; [2,] 0.06681317 0.06218253 0.05736433 0.05666274 0.07118052 0.07393691</span></span>
+<span><span class="co">#&gt; [3,] 0.07529498 0.07302967 0.06000000 0.04990658 0.05301572 0.05689757</span></span>
+<span><span class="co">#&gt; [4,] 0.06218253 0.06881860 0.06096994 0.06437391 0.06519714 0.05773503</span></span>
+<span><span class="co">#&gt; [5,] 0.04207929 0.04995998 0.08491564 0.07310267 0.07458329 0.05896892</span></span>
 <span><span class="co">#&gt;              12         13         14         15         16         17</span></span>
-<span><span class="co">#&gt; [1,] 0.05033223 0.05547372 0.07368401 0.06499231 0.05499091 0.07659417</span></span>
-<span><span class="co">#&gt; [2,] 0.06231105 0.07493998 0.05773503 0.07125541 0.05101634 0.07393691</span></span>
-<span><span class="co">#&gt; [3,] 0.05301572 0.07162867 0.06379133 0.07222188 0.05276362 0.06725077</span></span>
-<span><span class="co">#&gt; [4,] 0.05717808 0.05919459 0.05941941 0.06183850 0.05619015 0.06901208</span></span>
-<span><span class="co">#&gt; [5,] 0.05376492 0.06358197 0.05694442 0.07571878 0.05991105 0.05425864</span></span>
+<span><span class="co">#&gt; [1,] 0.04693258 0.05401234 0.06441532 0.06144917 0.05887841 0.07939773</span></span>
+<span><span class="co">#&gt; [2,] 0.06008882 0.07302967 0.05851496 0.06819580 0.05450382 0.07659417</span></span>
+<span><span class="co">#&gt; [3,] 0.05552177 0.07181458 0.06519714 0.07012370 0.05276362 0.05291503</span></span>
+<span><span class="co">#&gt; [4,] 0.06531973 0.06166577 0.05941941 0.06420800 0.05964338 0.06248200</span></span>
+<span><span class="co">#&gt; [5,] 0.05619015 0.06374951 0.05647418 0.07181458 0.06218253 0.04995998</span></span>
 <span><span class="co">#&gt;              18         19         20</span></span>
-<span><span class="co">#&gt; [1,] 0.05878775 0.07072953 0.06531973</span></span>
-<span><span class="co">#&gt; [2,] 0.07454752 0.06166577 0.06920501</span></span>
-<span><span class="co">#&gt; [3,] 0.06162251 0.07404503 0.07211103</span></span>
-<span><span class="co">#&gt; [4,] 0.06118823 0.05619015 0.07302967</span></span>
-<span><span class="co">#&gt; [5,] 0.06780364 0.05833238 0.05946427</span></span>
+<span><span class="co">#&gt; [1,] 0.05200000 0.07106804 0.05670979</span></span>
+<span><span class="co">#&gt; [2,] 0.07631514 0.06000000 0.05878775</span></span>
+<span><span class="co">#&gt; [3,] 0.07023769 0.07313914 0.07564831</span></span>
+<span><span class="co">#&gt; [4,] 0.06013319 0.05033223 0.07277362</span></span>
+<span><span class="co">#&gt; [5,] 0.06531973 0.06166577 0.06416645</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $sd.colmean</span></span>
 <span><span class="co">#&gt;             obs          1          2          3          4          5</span></span>
-<span><span class="co">#&gt; [1,] 0.06955094 0.06035451 0.06311894 0.05919459 0.05070174 0.04332820</span></span>
-<span><span class="co">#&gt; [2,] 0.05547372 0.05741080 0.05901412 0.06601010 0.06764614 0.08246211</span></span>
-<span><span class="co">#&gt; [3,] 0.06429101 0.06503332 0.05773503 0.05205126 0.04855238 0.07525955</span></span>
-<span><span class="co">#&gt; [4,] 0.05043808 0.05503938 0.06140575 0.07023769 0.05656854 0.05200000</span></span>
-<span><span class="co">#&gt; [5,] 0.04393935 0.05919459 0.06358197 0.06110101 0.06740920 0.07773459</span></span>
+<span><span class="co">#&gt; [1,] 0.06955094 0.06053098 0.06118823 0.06166577 0.04969239 0.04472136</span></span>
+<span><span class="co">#&gt; [2,] 0.05547372 0.05326662 0.06118823 0.06031031 0.06420800 0.08125679</span></span>
+<span><span class="co">#&gt; [3,] 0.06429101 0.06540133 0.05833238 0.05851496 0.04805552 0.08320256</span></span>
+<span><span class="co">#&gt; [4,] 0.05043808 0.05356616 0.06955094 0.06531973 0.05474791 0.04744119</span></span>
+<span><span class="co">#&gt; [5,] 0.04393935 0.05689757 0.06974238 0.05479659 0.06744875 0.07872314</span></span>
 <span><span class="co">#&gt;               6          7          8          9         10         11</span></span>
-<span><span class="co">#&gt; [1,] 0.06744875 0.06760671 0.04942334 0.06183850 0.04888081 0.05474791</span></span>
-<span><span class="co">#&gt; [2,] 0.04472136 0.08640988 0.06416645 0.06939741 0.04760952 0.05773503</span></span>
-<span><span class="co">#&gt; [3,] 0.05717808 0.06437391 0.06839103 0.04805552 0.07490438 0.07236942</span></span>
-<span><span class="co">#&gt; [4,] 0.07259017 0.06784296 0.05552177 0.06337192 0.05656854 0.05805744</span></span>
-<span><span class="co">#&gt; [5,] 0.05163978 0.06096994 0.07493998 0.07292005 0.08860399 0.07023769</span></span>
+<span><span class="co">#&gt; [1,] 0.06744875 0.06978061 0.04942334 0.07382863 0.04749737 0.05713143</span></span>
+<span><span class="co">#&gt; [2,] 0.04393935 0.08000000 0.06800000 0.07218495 0.04898979 0.05887841</span></span>
+<span><span class="co">#&gt; [3,] 0.05717808 0.07023769 0.06429101 0.04855238 0.07578918 0.07236942</span></span>
+<span><span class="co">#&gt; [4,] 0.07211103 0.06784296 0.06205374 0.06540133 0.05874238 0.05887841</span></span>
+<span><span class="co">#&gt; [5,] 0.04513683 0.05623759 0.07125541 0.06740920 0.09289421 0.07218495</span></span>
 <span><span class="co">#&gt;              12         13         14         15         16         17</span></span>
-<span><span class="co">#&gt; [1,] 0.04320494 0.07218495 0.08384112 0.06075086 0.06183850 0.07393691</span></span>
-<span><span class="co">#&gt; [2,] 0.07313914 0.05901412 0.06324555 0.06118823 0.05600000 0.06324555</span></span>
-<span><span class="co">#&gt; [3,] 0.05782733 0.07787169 0.07529498 0.07582436 0.04301938 0.06101366</span></span>
-<span><span class="co">#&gt; [4,] 0.06784296 0.08428523 0.06478683 0.05851496 0.06499231 0.05741080</span></span>
-<span><span class="co">#&gt; [5,] 0.06800000 0.06358197 0.05576140 0.06429101 0.05647418 0.07922962</span></span>
+<span><span class="co">#&gt; [1,] 0.04400000 0.07106804 0.08803030 0.06035451 0.06110101 0.07236942</span></span>
+<span><span class="co">#&gt; [2,] 0.07125541 0.06000000 0.06290734 0.05759630 0.06031031 0.07118052</span></span>
+<span><span class="co">#&gt; [3,] 0.06231105 0.07454752 0.08073000 0.07735632 0.04301938 0.05416026</span></span>
+<span><span class="co">#&gt; [4,] 0.06928203 0.08125679 0.06580780 0.05764258 0.06290734 0.05689757</span></span>
+<span><span class="co">#&gt; [5,] 0.06701244 0.06053098 0.06316117 0.06183850 0.05537749 0.07185170</span></span>
 <span><span class="co">#&gt;              18         19         20</span></span>
-<span><span class="co">#&gt; [1,] 0.05022616 0.06482798 0.07023769</span></span>
-<span><span class="co">#&gt; [2,] 0.05619015 0.05101634 0.07295661</span></span>
-<span><span class="co">#&gt; [3,] 0.05713143 0.06013319 0.05291503</span></span>
-<span><span class="co">#&gt; [4,] 0.06332982 0.05964338 0.05887841</span></span>
-<span><span class="co">#&gt; [5,] 0.05828665 0.04548993 0.06482798</span></span>
+<span><span class="co">#&gt; [1,] 0.05070174 0.06519714 0.06441532</span></span>
+<span><span class="co">#&gt; [2,] 0.06075086 0.05291503 0.06823489</span></span>
+<span><span class="co">#&gt; [3,] 0.06429101 0.05306600 0.05153639</span></span>
+<span><span class="co">#&gt; [4,] 0.06337192 0.05887841 0.06294972</span></span>
+<span><span class="co">#&gt; [5,] 0.06324555 0.04400000 0.06621178</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $dyad.dep</span></span>
-<span><span class="co">#&gt;               obs           1           2           3             4</span></span>
-<span><span class="co">#&gt; [1,]  0.019269395 -0.08131488 0.008055339  0.13695707  2.206228e-02</span></span>
-<span><span class="co">#&gt; [2,] -0.009636809  0.04974761 0.099728860  0.03073677 -5.142499e-02</span></span>
-<span><span class="co">#&gt; [3,]  0.021291209  0.04974761 0.078171091  0.03103972  1.081274e-01</span></span>
-<span><span class="co">#&gt; [4,]  0.146174863  0.04974761 0.019269395 -0.06932153 -8.187141e-17</span></span>
-<span><span class="co">#&gt; [5,] -0.003450161  0.09772784 0.089561985  0.06692407  3.717591e-02</span></span>
-<span><span class="co">#&gt;                 5          6            7            8            9          10</span></span>
-<span><span class="co">#&gt; [1,] -0.009636809 0.13503361  0.038812428  0.113504420  0.027048064 0.007076834</span></span>
-<span><span class="co">#&gt; [2,] -0.013049451 0.04347826  0.066924067 -0.029376535 -0.006185392 0.089972527</span></span>
-<span><span class="co">#&gt; [3,]  0.110953058 0.05408327  0.037175910  0.073508894  0.031039715 0.129623440</span></span>
-<span><span class="co">#&gt; [4,]  0.136957068 0.05408327 -0.023134421 -0.006185392 -0.002692947 0.115044248</span></span>
-<span><span class="co">#&gt; [5,]  0.058167571 0.01819923  0.008055339 -0.038503409 -0.029376535 0.082919087</span></span>
-<span><span class="co">#&gt;                11          12          13          14          15          16</span></span>
-<span><span class="co">#&gt; [1,]  0.003507653  0.01819923  0.16443850 -0.02627258  0.18963238 -0.05403126</span></span>
-<span><span class="co">#&gt; [2,] -0.032448378  0.03311752  0.03311752  0.01819923 -0.07182304 -0.02393511</span></span>
-<span><span class="co">#&gt; [3,]  0.176186292 -0.03549006  0.04963948 -0.10035211  0.09972886 -0.01800033</span></span>
-<span><span class="co">#&gt; [4,]  0.058498619  0.01547443  0.03881243 -0.04615017  0.06135015  0.10812739</span></span>
-<span><span class="co">#&gt; [5,]  0.055631868  0.06758773 -0.01019264  0.07227207  0.02312600  0.05220971</span></span>
-<span><span class="co">#&gt;                 17          18           19           20</span></span>
-<span><span class="co">#&gt; [1,]  0.0990990991  0.14247545  0.042929560 -0.081730769</span></span>
-<span><span class="co">#&gt; [2,]  0.0347490347  0.02704806  0.015474426  0.035105383</span></span>
-<span><span class="co">#&gt; [3,] -0.0391850308  0.09208475 -0.002692947 -0.016746411</span></span>
-<span><span class="co">#&gt; [4,]  0.0877577084 -0.03549006  0.067587728 -0.069321534</span></span>
-<span><span class="co">#&gt; [5,]  0.0008429252 -0.04078090 -0.023134421  0.009927131</span></span>
+<span><span class="co">#&gt;               obs           1             2            3            4</span></span>
+<span><span class="co">#&gt; [1,]  0.019269395 -0.08506944  0.0008429252  0.092692118  0.026012947</span></span>
+<span><span class="co">#&gt; [2,] -0.009636809  0.05849862  0.0948083779  0.006229799 -0.090750436</span></span>
+<span><span class="co">#&gt; [3,]  0.021291209  0.03717591  0.0926921176  0.027048064  0.113504420</span></span>
+<span><span class="co">#&gt; [4,]  0.146174863  0.09269212 -0.0199598293 -0.069321534 -0.003450161</span></span>
+<span><span class="co">#&gt; [5,] -0.003450161  0.09772784  0.0802962672  0.042929560  0.033117516</span></span>
+<span><span class="co">#&gt;                5          6          7            8             9          10</span></span>
+<span><span class="co">#&gt; [1,] -0.01304945 0.10473844 0.04292956  0.056725318  0.0080553393 0.007076834</span></span>
+<span><span class="co">#&gt; [2,] -0.02307530 0.04779620 0.06692407 -0.013491600  0.0008429252 0.055631868</span></span>
+<span><span class="co">#&gt; [3,]  0.09647834 0.01547443 0.07817109  0.078171091  0.0270480638 0.094808378</span></span>
+<span><span class="co">#&gt; [4,]  0.12035096 0.02312600 0.01547443  0.017455413  0.0008429252 0.082919087</span></span>
+<span><span class="co">#&gt; [5,]  0.08029627 0.02206228 0.01173752 -0.009636809 -0.0354900593 0.049747613</span></span>
+<span><span class="co">#&gt;                11          12           13           14          15          16</span></span>
+<span><span class="co">#&gt; [1,]  0.003507653  0.02601295  0.119097956 -0.006185392  0.21513964 -0.01674641</span></span>
+<span><span class="co">#&gt; [2,] -0.032448378  0.03717591  0.041297935  0.014417662 -0.10424028  0.02206228</span></span>
+<span><span class="co">#&gt; [3,]  0.176186292 -0.04149014  0.030736767 -0.066808409  0.11909796 -0.07020548</span></span>
+<span><span class="co">#&gt; [4,]  0.062998405  0.04129794  0.009927131 -0.046150167  0.09734258  0.10812739</span></span>
+<span><span class="co">#&gt; [5,]  0.059993316  0.06758773 -0.046150167  0.077057323 -0.01349160  0.13043478</span></span>
+<span><span class="co">#&gt;                17            18          19           20</span></span>
+<span><span class="co">#&gt; [1,]  0.038812428  7.095916e-02  0.05133626 -0.074313872</span></span>
+<span><span class="co">#&gt; [2,]  0.002574003  6.758773e-02  0.02312600  0.077057323</span></span>
+<span><span class="co">#&gt; [3,] -0.047390110  4.349253e-16  0.02911936 -0.038056037</span></span>
+<span><span class="co">#&gt; [4,]  0.097727843 -6.185392e-03  0.06299841 -0.026272578</span></span>
+<span><span class="co">#&gt; [5,]  0.011737517 -5.661882e-02 -0.02313442  0.008055339</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $cycle.dep</span></span>
-<span><span class="co">#&gt;              obs             1            2             3            4</span></span>
-<span><span class="co">#&gt; [1,] 0.004000134  0.0009460156  0.008101547 -0.0051947200 -0.013828250</span></span>
-<span><span class="co">#&gt; [2,] 0.021198238  0.0255683605 -0.018621227  0.0087498469 -0.005484807</span></span>
-<span><span class="co">#&gt; [3,] 0.002352264 -0.0108900015  0.009409970  0.0009646276 -0.008276965</span></span>
-<span><span class="co">#&gt; [4,] 0.006223826  0.0089952373  0.007683338  0.0265516983 -0.001790639</span></span>
-<span><span class="co">#&gt; [5,] 0.006189746 -0.0118244863  0.012019258  0.0028009721  0.009436416</span></span>
-<span><span class="co">#&gt;                 5            6            7            8            9</span></span>
-<span><span class="co">#&gt; [1,]  0.017513991 -0.022978699 -0.013569120 -0.003542890 -0.001878817</span></span>
-<span><span class="co">#&gt; [2,]  0.012264095 -0.019057519  0.015161076 -0.010841243  0.022022301</span></span>
-<span><span class="co">#&gt; [3,] -0.015367160 -0.003294614 -0.037392357 -0.003425668 -0.008645739</span></span>
-<span><span class="co">#&gt; [4,] -0.004458079 -0.016446357 -0.005413791  0.001021086  0.030579654</span></span>
-<span><span class="co">#&gt; [5,] -0.002681326 -0.007363859  0.034413021 -0.006637987  0.031948619</span></span>
-<span><span class="co">#&gt;                10            11           12           13           14</span></span>
-<span><span class="co">#&gt; [1,]  0.012095359 -0.0165950818  0.003815011  0.022649941  0.013925773</span></span>
-<span><span class="co">#&gt; [2,]  0.002352264  0.0003596167 -0.001486717 -0.002966703 -0.021559250</span></span>
-<span><span class="co">#&gt; [3,] -0.042775678 -0.0041029133 -0.007716938  0.021927831 -0.010538347</span></span>
-<span><span class="co">#&gt; [4,] -0.024993359  0.0437524234  0.012053366 -0.010781135 -0.012288669</span></span>
-<span><span class="co">#&gt; [5,]  0.011129941  0.0180819085  0.011235314 -0.013904509 -0.004889475</span></span>
-<span><span class="co">#&gt;                15           16            17           18           19</span></span>
-<span><span class="co">#&gt; [1,] -0.004869438  0.010489094 -0.0006188194 -0.025369866 -0.013196668</span></span>
-<span><span class="co">#&gt; [2,]  0.021595013 -0.020066847 -0.0059927775 -0.010833461 -0.010564034</span></span>
-<span><span class="co">#&gt; [3,] -0.008176773  0.001714339  0.0001090225 -0.008673827  0.002781151</span></span>
-<span><span class="co">#&gt; [4,] -0.003483508  0.006440158 -0.0238248161  0.013739410 -0.017231609</span></span>
-<span><span class="co">#&gt; [5,]  0.007503381 -0.006637254  0.0064114225 -0.005770419 -0.009125562</span></span>
-<span><span class="co">#&gt;                20</span></span>
-<span><span class="co">#&gt; [1,]  0.002352264</span></span>
-<span><span class="co">#&gt; [2,] -0.016546828</span></span>
-<span><span class="co">#&gt; [3,]  0.001302982</span></span>
-<span><span class="co">#&gt; [4,]  0.016482431</span></span>
-<span><span class="co">#&gt; [5,]  0.014218855</span></span>
+<span><span class="co">#&gt;              obs           1            2            3            4           5</span></span>
+<span><span class="co">#&gt; [1,] 0.004000134  0.01046658  0.005156871  0.002587708 -0.015568966  0.02201432</span></span>
+<span><span class="co">#&gt; [2,] 0.021198238  0.02633613 -0.024101497  0.004373551 -0.012779088  0.01027045</span></span>
+<span><span class="co">#&gt; [3,] 0.002352264 -0.01272342  0.015713763  0.007504213 -0.016753600 -0.02124150</span></span>
+<span><span class="co">#&gt; [4,] 0.006223826  0.01783294 -0.002866409  0.011567670 -0.001622874 -0.00245492</span></span>
+<span><span class="co">#&gt; [5,] 0.006189746 -0.01329777  0.013031194 -0.004518300  0.002895878 -0.00774277</span></span>
+<span><span class="co">#&gt;                 6            7            8            9           10</span></span>
+<span><span class="co">#&gt; [1,] -0.025074716 -0.019276601  0.004555402 -0.004625065  0.019903320</span></span>
+<span><span class="co">#&gt; [2,] -0.018725300  0.010373368 -0.018088381  0.036966200 -0.002280439</span></span>
+<span><span class="co">#&gt; [3,] -0.001830455 -0.032485374 -0.002397445 -0.003371258 -0.040664110</span></span>
+<span><span class="co">#&gt; [4,] -0.013524059 -0.001047002 -0.004893032  0.018745891 -0.021262842</span></span>
+<span><span class="co">#&gt; [5,] -0.002387489  0.036320190 -0.003689672  0.024631731 -0.009271581</span></span>
+<span><span class="co">#&gt;                11           12           13           14           15</span></span>
+<span><span class="co">#&gt; [1,] -0.021818061  0.005994402  0.030803801  0.016305928 -0.008350610</span></span>
+<span><span class="co">#&gt; [2,]  0.001798083 -0.002534585 -0.012346839 -0.025791914  0.018363758</span></span>
+<span><span class="co">#&gt; [3,] -0.009377787 -0.019384908  0.006850820 -0.011993749 -0.013582323</span></span>
+<span><span class="co">#&gt; [4,]  0.044234006  0.009709650 -0.004518300 -0.004476049  0.004287398</span></span>
+<span><span class="co">#&gt; [5,]  0.020329415  0.008250433 -0.008479456 -0.002159589  0.015394802</span></span>
+<span><span class="co">#&gt;                 16           17           18           19            20</span></span>
+<span><span class="co">#&gt; [1,]  0.0112101416 -0.001809800 -0.014798426 -0.003129834  0.0006472168</span></span>
+<span><span class="co">#&gt; [2,] -0.0170499683  0.006953576  0.014012912 -0.010086881 -0.0066983339</span></span>
+<span><span class="co">#&gt; [3,]  0.0066820710  0.004884090  0.002046445  0.005210098  0.0159912231</span></span>
+<span><span class="co">#&gt; [4,]  0.0007882298 -0.027412330  0.006029932 -0.001392843  0.0155441929</span></span>
+<span><span class="co">#&gt; [5,] -0.0140693096  0.007301542 -0.017500401 -0.009125562  0.0010025988</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $trans.dep</span></span>
-<span><span class="co">#&gt;              obs           1            2           3           4           5</span></span>
-<span><span class="co">#&gt; [1,] -0.03405087 -0.01725131 -0.015921262 -0.02439561 -0.01790421 -0.01257219</span></span>
-<span><span class="co">#&gt; [2,] -0.02658332 -0.02213112 -0.036695001 -0.01839281 -0.02778143 -0.03720528</span></span>
-<span><span class="co">#&gt; [3,] -0.02865812 -0.02199730 -0.008510928 -0.02102015 -0.04129031 -0.01456443</span></span>
-<span><span class="co">#&gt; [4,] -0.02792264 -0.02067580 -0.020594018 -0.03995741 -0.02622008 -0.02120350</span></span>
-<span><span class="co">#&gt; [5,] -0.03012973 -0.03257758 -0.029288661 -0.04035354 -0.02066110 -0.04610502</span></span>
-<span><span class="co">#&gt;                6            7           8           9          10           11</span></span>
-<span><span class="co">#&gt; [1,] -0.03158134 -0.026314191 -0.02157296 -0.02863680 -0.02480713 -0.007500892</span></span>
-<span><span class="co">#&gt; [2,] -0.03568489 -0.008989166 -0.02768337 -0.02405309 -0.04661433 -0.031965927</span></span>
-<span><span class="co">#&gt; [3,] -0.02673828 -0.029001322 -0.02661338 -0.02522528 -0.05030914 -0.028451519</span></span>
-<span><span class="co">#&gt; [4,] -0.02018381 -0.040099799 -0.02631793 -0.02450490 -0.02870940 -0.017077436</span></span>
-<span><span class="co">#&gt; [5,] -0.01907506 -0.030282635 -0.02101336 -0.04267821 -0.02210883 -0.020505997</span></span>
-<span><span class="co">#&gt;               12           13           14          15          16          17</span></span>
-<span><span class="co">#&gt; [1,] -0.01957781 -0.006002866 -0.033694251 -0.03310867 -0.02412263 -0.04432701</span></span>
-<span><span class="co">#&gt; [2,] -0.02178203 -0.031361790 -0.028656945 -0.02846198 -0.03155093 -0.04177031</span></span>
-<span><span class="co">#&gt; [3,] -0.02625382 -0.017626911 -0.028193876 -0.02670351 -0.01836526 -0.03858842</span></span>
-<span><span class="co">#&gt; [4,] -0.02988494 -0.019324316 -0.007578192 -0.03040507 -0.02746220 -0.01981431</span></span>
-<span><span class="co">#&gt; [5,] -0.02060342 -0.009467865 -0.014717185 -0.03434931 -0.02766951 -0.03495360</span></span>
-<span><span class="co">#&gt;               18           19          20</span></span>
-<span><span class="co">#&gt; [1,] -0.02403337 -0.022243825 -0.03303944</span></span>
-<span><span class="co">#&gt; [2,] -0.02955806 -0.037406946 -0.03163719</span></span>
-<span><span class="co">#&gt; [3,] -0.02039266 -0.015104886 -0.02107237</span></span>
-<span><span class="co">#&gt; [4,] -0.03215138 -0.015591767 -0.03168623</span></span>
-<span><span class="co">#&gt; [5,] -0.00988358 -0.009429525 -0.03764835</span></span>
+<span><span class="co">#&gt;              obs           1           2           3           4           5</span></span>
+<span><span class="co">#&gt; [1,] -0.03405087 -0.02058727 -0.02476477 -0.02331335 -0.01769822 -0.01431110</span></span>
+<span><span class="co">#&gt; [2,] -0.02658332 -0.01838410 -0.03820428 -0.02049593 -0.02484362 -0.03639988</span></span>
+<span><span class="co">#&gt; [3,] -0.02865812 -0.01839430 -0.01331682 -0.01676637 -0.03929119 -0.01128881</span></span>
+<span><span class="co">#&gt; [4,] -0.02792264 -0.02672972 -0.01932682 -0.04053679 -0.02695289 -0.02035146</span></span>
+<span><span class="co">#&gt; [5,] -0.03012973 -0.03208649 -0.03827971 -0.04214148 -0.01838610 -0.04510440</span></span>
+<span><span class="co">#&gt;                6           7           8           9          10           11</span></span>
+<span><span class="co">#&gt; [1,] -0.02869628 -0.02601291 -0.02159594 -0.03009464 -0.02689034 -0.005954512</span></span>
+<span><span class="co">#&gt; [2,] -0.03431534 -0.01055250 -0.03474936 -0.02679316 -0.03973710 -0.037060497</span></span>
+<span><span class="co">#&gt; [3,] -0.03039011 -0.03580184 -0.02914893 -0.02703842 -0.04866681 -0.030209810</span></span>
+<span><span class="co">#&gt; [4,] -0.01873599 -0.03962031 -0.02638574 -0.01821062 -0.03689115 -0.016354676</span></span>
+<span><span class="co">#&gt; [5,] -0.02236458 -0.02501249 -0.02885986 -0.04103486 -0.02159583 -0.021931274</span></span>
+<span><span class="co">#&gt;               12           13          14          15          16          17</span></span>
+<span><span class="co">#&gt; [1,] -0.01636271 -0.009281669 -0.03354295 -0.03367404 -0.02042088 -0.04443277</span></span>
+<span><span class="co">#&gt; [2,] -0.02381506 -0.031786119 -0.03119688 -0.02209248 -0.03471450 -0.03025701</span></span>
+<span><span class="co">#&gt; [3,] -0.02330813 -0.016755940 -0.02701311 -0.03649685 -0.02091644 -0.03352425</span></span>
+<span><span class="co">#&gt; [4,] -0.03240546 -0.019263068 -0.00548188 -0.03338885 -0.02408578 -0.02582943</span></span>
+<span><span class="co">#&gt; [5,] -0.02209586 -0.012532658 -0.01574673 -0.03620495 -0.03875455 -0.02889336</span></span>
+<span><span class="co">#&gt;                18          19          20</span></span>
+<span><span class="co">#&gt; [1,] -0.024780872 -0.03403682 -0.01921213</span></span>
+<span><span class="co">#&gt; [2,] -0.035776567 -0.03859524 -0.03291249</span></span>
+<span><span class="co">#&gt; [3,] -0.028778133 -0.01935496 -0.02636007</span></span>
+<span><span class="co">#&gt; [4,] -0.033572895 -0.01736561 -0.02673965</span></span>
+<span><span class="co">#&gt; [5,] -0.005863421 -0.01575709 -0.04258012</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Full dynamic model GOF (sample):</span></span>
@@ -584,15 +579,50 @@ specifications) rather than the latent structure.</p>
 </div>
 </div>
 <div class="section level2">
+<h2 id="dealing-with-rotational-indeterminacy">Dealing with Rotational Indeterminacy<a class="anchor" aria-label="anchor" href="#dealing-with-rotational-indeterminacy"></a>
+</h2>
+<p>One subtlety of dynamic latent space models: the latent space is only
+identified up to rotation at each time point. This means that even if
+actor positions are evolving smoothly, the raw estimated
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>U</mi><mi>t</mi></msub><annotation encoding="application/x-tex">U_t</annotation></semantics></math>
+matrices might appear to “jump” between time periods due to arbitrary
+rotations.</p>
+<p>The <code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> function solves this by applying
+Procrustes rotation to align each time period’s positions to the
+previous one:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Align latent positions across time</span></span>
+<span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/procrustes_align.html">procrustes_align</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">$</span><span class="va">U</span><span class="op">)</span>  <span class="co"># 3D array: actors x dimensions x time</span></span>
+<span><span class="co">#&gt;  num [1:25, 1:2, 1:5] -0.3423 -0.0519 -0.1383 -0.0499 -0.0464 ...</span></span>
+<span><span class="co">#&gt;  - attr(*, "dimnames")=List of 3</span></span>
+<span><span class="co">#&gt;   ..$ : chr [1:25] "Actor1" "Actor2" "Actor3" "Actor4" ...</span></span>
+<span><span class="co">#&gt;   ..$ : NULL</span></span>
+<span><span class="co">#&gt;   ..$ : NULL</span></span></code></pre></div>
+<p>You can also extract aligned positions as a tidy data frame using
+<code><a href="../reference/latent_positions.html">latent_positions()</a></code> with <code>align = TRUE</code> (the
+default for <code>lame</code> objects):</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, align <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
+<span><span class="co">#&gt;    actor dimension time       value posterior_sd type</span></span>
+<span><span class="co">#&gt; 1 Actor1         1    1 -0.34234484           NA    U</span></span>
+<span><span class="co">#&gt; 2 Actor2         1    1 -0.05188764           NA    U</span></span>
+<span><span class="co">#&gt; 3 Actor3         1    1 -0.13831092           NA    U</span></span>
+<span><span class="co">#&gt; 4 Actor4         1    1 -0.04987621           NA    U</span></span>
+<span><span class="co">#&gt; 5 Actor5         1    1 -0.04644628           NA    U</span></span>
+<span><span class="co">#&gt; 6 Actor6         1    1  0.19183921           NA    U</span></span></code></pre></div>
+<p>This data frame is ready for <code>ggplot2</code> if you want to
+build custom trajectory plots (e.g., highlighting specific actors or
+overlaying external events).</p>
+</div>
+<div class="section level2">
 <h2 id="implementation-notes">Implementation Notes<a class="anchor" aria-label="anchor" href="#implementation-notes"></a>
 </h2>
-<p>The dynamic effects are implemented in C++ via Rcpp and RcppArmadillo
-using a forward-filtering backward-sampling (FFBS) algorithm. This is
-the standard approach for state-space models: the forward pass computes
-predictive distributions
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="false" form="prefix">|</mo><msub><mi>x</mi><mrow><mn>1</mn><mo>:</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x_t | x_{1:t-1})</annotation></semantics></math>,
-and the backward pass samples from the smoothed distribution
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mrow><mn>1</mn><mo>:</mo><mi>T</mi></mrow></msub><mo stretchy="false" form="prefix">|</mo><msub><mi>y</mi><mrow><mn>1</mn><mo>:</mo><mi>T</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(x_{1:T} | y_{1:T})</annotation></semantics></math>.</p>
+<p>The dynamic effects are implemented in C++ via Rcpp and
+RcppArmadillo. The AR(1) updates use Gibbs sampling with block updates
+across all actors at each time point, which is efficient for large
+networks.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

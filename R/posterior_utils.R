@@ -48,7 +48,7 @@ posterior_options <- function(
 #' # Fit a model with multiplicative effects
 #' data(YX_nrm)
 #' fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
-#'            nscan = 100, burn = 10, odens = 1, print = FALSE)
+#'            nscan = 100, burn = 10, odens = 1, verbose = FALSE)
 #'
 #' # Get posterior samples of regression coefficients
 #' beta_post <- simulate_posterior(fit, "beta", n_samples = 50)

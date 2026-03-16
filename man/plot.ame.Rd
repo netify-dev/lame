@@ -37,7 +37,7 @@ For more detailed visualizations, use the specialized functions:
 # Fit an AME model
 data(YX_nrm)
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2, gof = TRUE,
-           nscan = 100, burn = 10, odens = 1, print = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
 
 # Quick diagnostic plot (shows trace plots)
 plot(fit)

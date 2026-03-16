@@ -173,6 +173,23 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rUV_dynamic_bip_fc_cpp
+List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube, const arma::cube& E, const arma::mat& G, double rho_uv, double sigma_uv, double s2);
+RcppExport SEXP _lame_rUV_dynamic_bip_fc_cpp(SEXP U_cubeSEXP, SEXP V_cubeSEXP, SEXP ESEXP, SEXP GSEXP, SEXP rho_uvSEXP, SEXP sigma_uvSEXP, SEXP s2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type U_cube(U_cubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type V_cube(V_cubeSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type E(ESEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< double >::type rho_uv(rho_uvSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma_uv(sigma_uvSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    rcpp_result_gen = Rcpp::wrap(rUV_dynamic_bip_fc_cpp(U_cube, V_cube, E, G, rho_uv, sigma_uv, s2));
+    return rcpp_result_gen;
+END_RCPP
+}
 // count_four_cycles_bip_cpp
 arma::vec count_four_cycles_bip_cpp(const arma::cube& Y);
 RcppExport SEXP _lame_count_four_cycles_bip_cpp(SEXP YSEXP) {
@@ -352,6 +369,48 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rZ_nrm_batch_cpp
+List rZ_nrm_batch_cpp(arma::cube Z, const arma::cube& EZ, double rho, double s2, const arma::cube& Y);
+RcppExport SEXP _lame_rZ_nrm_batch_cpp(SEXP ZSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP YSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type Y(YSEXP);
+    rcpp_result_gen = Rcpp::wrap(rZ_nrm_batch_cpp(Z, EZ, rho, s2, Y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rZ_bin_bip_batch_cpp
+arma::cube rZ_bin_bip_batch_cpp(arma::cube Z, const arma::cube& EZ, const arma::cube& Y);
+RcppExport SEXP _lame_rZ_bin_bip_batch_cpp(SEXP ZSEXP, SEXP EZSEXP, SEXP YSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type Y(YSEXP);
+    rcpp_result_gen = Rcpp::wrap(rZ_bin_bip_batch_cpp(Z, EZ, Y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rZ_tob_bip_batch_cpp
+arma::cube rZ_tob_bip_batch_cpp(arma::cube Z, const arma::cube& EZ, double s2, const arma::cube& Y);
+RcppExport SEXP _lame_rZ_tob_bip_batch_cpp(SEXP ZSEXP, SEXP EZSEXP, SEXP s2SEXP, SEXP YSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type Y(YSEXP);
+    rcpp_result_gen = Rcpp::wrap(rZ_tob_bip_batch_cpp(Z, EZ, s2, Y));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rZ_bin_fc_cpp
 arma::cube rZ_bin_fc_cpp(arma::cube ZT, arma::cube EZT, double rho, arma::cube YT);
 RcppExport SEXP _lame_rZ_bin_fc_cpp(SEXP ZTSEXP, SEXP EZTSEXP, SEXP rhoSEXP, SEXP YTSEXP) {
@@ -405,6 +464,52 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type Y(YSEXP);
     rcpp_result_gen = Rcpp::wrap(rZ_bin_fc_fixed(Z, EZ, rho, Y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_XtX_Xty_bip_cpp
+List compute_XtX_Xty_bip_cpp(Rcpp::List Xlist, const arma::cube& resid, int p);
+RcppExport SEXP _lame_compute_XtX_Xty_bip_cpp(SEXP XlistSEXP, SEXP residSEXP, SEXP pSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type Xlist(XlistSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type resid(residSEXP);
+    Rcpp::traits::input_parameter< int >::type p(pSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_XtX_Xty_bip_cpp(Xlist, resid, p));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Xbeta_bip_cpp
+arma::mat Xbeta_bip_cpp(const arma::cube& X, const arma::vec& beta);
+RcppExport SEXP _lame_Xbeta_bip_cpp(SEXP XSEXP, SEXP betaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type beta(betaSEXP);
+    rcpp_result_gen = Rcpp::wrap(Xbeta_bip_cpp(X, beta));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rbeta_ab_bip_gibbs_cpp
+List rbeta_ab_bip_gibbs_cpp(const arma::cube& Z, Rcpp::List Xlist, const arma::mat& UV_eff, const arma::vec& a_current, const arma::vec& b_current, double s2, double g_prior, double va, double vb, bool rvar, bool cvar);
+RcppExport SEXP _lame_rbeta_ab_bip_gibbs_cpp(SEXP ZSEXP, SEXP XlistSEXP, SEXP UV_effSEXP, SEXP a_currentSEXP, SEXP b_currentSEXP, SEXP s2SEXP, SEXP g_priorSEXP, SEXP vaSEXP, SEXP vbSEXP, SEXP rvarSEXP, SEXP cvarSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type Xlist(XlistSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type UV_eff(UV_effSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type a_current(a_currentSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type b_current(b_currentSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< double >::type g_prior(g_priorSEXP);
+    Rcpp::traits::input_parameter< double >::type va(vaSEXP);
+    Rcpp::traits::input_parameter< double >::type vb(vbSEXP);
+    Rcpp::traits::input_parameter< bool >::type rvar(rvarSEXP);
+    Rcpp::traits::input_parameter< bool >::type cvar(cvarSEXP);
+    rcpp_result_gen = Rcpp::wrap(rbeta_ab_bip_gibbs_cpp(Z, Xlist, UV_eff, a_current, b_current, s2, g_prior, va, vb, rvar, cvar));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -547,6 +652,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_init_dynamic_positions", (DL_FUNC) &_lame_init_dynamic_positions, 5},
     {"_lame_sample_rho_uv", (DL_FUNC) &_lame_sample_rho_uv, 5},
     {"_lame_sample_sigma_uv", (DL_FUNC) &_lame_sample_sigma_uv, 4},
+    {"_lame_rUV_dynamic_bip_fc_cpp", (DL_FUNC) &_lame_rUV_dynamic_bip_fc_cpp, 7},
     {"_lame_count_four_cycles_bip_cpp", (DL_FUNC) &_lame_count_four_cycles_bip_cpp, 1},
     {"_lame_compute_degrees_bip_cpp", (DL_FUNC) &_lame_compute_degrees_bip_cpp, 1},
     {"_lame_clustering_coef_bip_cpp", (DL_FUNC) &_lame_clustering_coef_bip_cpp, 1},
@@ -560,10 +666,16 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_rwish_cpp", (DL_FUNC) &_lame_rwish_cpp, 2},
     {"_lame_rUV_rep_fc_cpp", (DL_FUNC) &_lame_rUV_rep_fc_cpp, 9},
     {"_lame_rUV_sym_fc_cpp", (DL_FUNC) &_lame_rUV_sym_fc_cpp, 6},
+    {"_lame_rZ_nrm_batch_cpp", (DL_FUNC) &_lame_rZ_nrm_batch_cpp, 5},
+    {"_lame_rZ_bin_bip_batch_cpp", (DL_FUNC) &_lame_rZ_bin_bip_batch_cpp, 3},
+    {"_lame_rZ_tob_bip_batch_cpp", (DL_FUNC) &_lame_rZ_tob_bip_batch_cpp, 4},
     {"_lame_rZ_bin_fc_cpp", (DL_FUNC) &_lame_rZ_bin_fc_cpp, 4},
     {"_lame_rZ_bin_fc_single", (DL_FUNC) &_lame_rZ_bin_fc_single, 4},
     {"_lame_rZ_bin_fc_exact", (DL_FUNC) &_lame_rZ_bin_fc_exact, 4},
     {"_lame_rZ_bin_fc_fixed", (DL_FUNC) &_lame_rZ_bin_fc_fixed, 4},
+    {"_lame_compute_XtX_Xty_bip_cpp", (DL_FUNC) &_lame_compute_XtX_Xty_bip_cpp, 3},
+    {"_lame_Xbeta_bip_cpp", (DL_FUNC) &_lame_Xbeta_bip_cpp, 2},
+    {"_lame_rbeta_ab_bip_gibbs_cpp", (DL_FUNC) &_lame_rbeta_ab_bip_gibbs_cpp, 11},
     {"_lame_rbeta_ab_rep_fc_cpp", (DL_FUNC) &_lame_rbeta_ab_rep_fc_cpp, 12},
     {"_lame_test_rbeta_inputs", (DL_FUNC) &_lame_test_rbeta_inputs, 12},
     {"_lame_rrho_mh_rep_cpp", (DL_FUNC) &_lame_rrho_mh_rep_cpp, 3},

@@ -13,7 +13,7 @@ test_that("models handle small networks", {
 	
 	# Should work with small network
 	fit <- ame(Y, R=1, family="binary",
-						 burn=50, nscan=100, print=FALSE)
+						 burn=50, nscan=100, verbose = FALSE)
 	expect_true(!is.null(fit))
 	
 	# Bipartite with small dimensions
@@ -23,7 +23,7 @@ test_that("models handle small networks", {
 	
 	fit_bip <- ame(Y_bip, mode="bipartite", R_row=1, R_col=1,
 								 family="binary", burn=50, nscan=100,
-								 print=FALSE, gof=FALSE)  # Skip GOF for tiny networks
+								 verbose = FALSE, gof=FALSE)  # Skip GOF for tiny networks
 	expect_true(!is.null(fit_bip))
 })
 
@@ -43,7 +43,7 @@ test_that("models handle sparse networks", {
 	
 	expect_no_error({
 		fit_sparse <- ame(Y_sparse, R=1, family="binary", symmetric=TRUE,
-											burn=50, nscan=200, print=FALSE)
+											burn=50, nscan=200, verbose = FALSE)
 	})
 	
 	# Check that model makes predictions (YPM exists)
@@ -67,7 +67,7 @@ test_that("models handle dense networks", {
 	
 	expect_no_error({
 		fit_dense <- ame(Y_dense, R=1, family="binary", symmetric=TRUE,
-										 burn=50, nscan=200, print=FALSE)
+										 burn=50, nscan=200, verbose = FALSE)
 	})
 	
 	# Check that model captures high density (YPM for binary is probability)
@@ -89,7 +89,7 @@ test_that("models handle networks with isolated nodes", {
 	
 	expect_no_error({
 		fit <- ame(Y, R=1, family="binary",
-							 burn=50, nscan=200, print=FALSE)
+							 burn=50, nscan=200, verbose = FALSE)
 	})
 	
 	# Isolated nodes should have low predicted values (YPM for binary is probability)
@@ -125,7 +125,7 @@ test_that("longitudinal models handle varying network sizes", {
 	
 	expect_no_error({
 		fit <- lame(Y_list, R=1, family="binary",
-								burn=50, nscan=200, print=FALSE, plot=FALSE)
+								burn=50, nscan=200, verbose = FALSE, plot=FALSE)
 	})
 })
 
@@ -141,20 +141,20 @@ test_that("models handle extreme parameter values", {
 	# Extreme prior values
 	expect_no_error({
 		fit <- ame(Y, R=1, family="binary",
-							 burn=50, nscan=100, print=FALSE,
+							 burn=50, nscan=100, verbose = FALSE,
 							 prior=list(Sab0=diag(c(100, 100))))  # Large variance prior
 	})
 	
 	# Very large R
 	expect_no_error({
 		fit_large_R <- ame(Y, R=10, family="binary",
-											 burn=50, nscan=100, print=FALSE)
+											 burn=50, nscan=100, verbose = FALSE)
 	})
 	
 	# R larger than n (may fail or adjust R automatically)
 	tryCatch({
 		fit_R_too_large <- ame(Y, R=n+5, family="binary",
-													 burn=50, nscan=100, print=FALSE)
+													 burn=50, nscan=100, verbose = FALSE)
 		expect_true(TRUE)  # If it succeeds (perhaps by adjusting R), that's fine
 	}, error = function(e) {
 		expect_true(TRUE)  # If it fails, that's also acceptable
@@ -175,7 +175,7 @@ test_that("models handle non-standard data types correctly", {
 	
 	expect_no_error({
 		fit_ord <- ame(Y_ord, R=1, family="ordinal", intercept=FALSE,
-									 burn=50, nscan=200, print=FALSE)
+									 burn=50, nscan=200, verbose = FALSE)
 	})
 	
 	# Count data with large values
@@ -185,7 +185,7 @@ test_that("models handle non-standard data types correctly", {
 	
 	expect_no_error({
 		fit_count <- ame(Y_count, R=1, family="poisson",
-										 burn=50, nscan=200, print=FALSE)
+										 burn=50, nscan=200, verbose = FALSE)
 	})
 })
 
@@ -202,13 +202,13 @@ test_that("bipartite models reject square matrices with mode='bipartite'", {
 	# Should work with unipartite
 	expect_no_error({
 		fit_uni <- ame(Y_square, mode="unipartite", R=1, family="binary",
-									 burn=50, nscan=100, print=FALSE)
+									 burn=50, nscan=100, verbose = FALSE)
 	})
 	
 	tryCatch({
 		fit_bip <- ame(Y_square, mode="bipartite", R_row=1, R_col=1,
 									 family="binary", burn=50, nscan=100, 
-									 print=FALSE, gof=FALSE)
+									 verbose = FALSE, gof=FALSE)
 		expect_true(TRUE)
 	}, error = function(e) {
 		expect_true(TRUE)
@@ -228,7 +228,7 @@ test_that("models handle character row/column names", {
 	
 	expect_no_error({
 		fit <- ame(Y, R=1, family="binary",
-							 burn=50, nscan=100, print=FALSE)
+							 burn=50, nscan=100, verbose = FALSE)
 	})
 	
 	# Check that names are preserved

@@ -25,10 +25,11 @@ posterior sampling options."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
-    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Quick Start</a></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Your First AME Model</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
-    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Topics</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
   </ul></li>
@@ -107,6 +108,10 @@ Specifically, it needs:</p><ul><li><p>BETA: regression coefficients</p></li>
 <li><p>Can control number of posterior predictive simulations independently</p></li>
 </ul></div>
     <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="ame.html">ame</a></code>, <code><a href="lame.html">lame</a></code>, <code><a href="gof_plot.html">gof_plot</a></code></p></div>
+    </div>
+    <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
     <p>Cassy Dorff, Shahryar Minhas, Tosin Salau</p>
     </div>
@@ -117,7 +122,7 @@ Specifically, it needs:</p><ul><li><p>BETA: regression coefficients</p></li>
 <span class="r-in"><span><span class="co"># Run model without GOF during fitting</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_nrm</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="ame.html">ame</a></span><span class="op">(</span><span class="va">YX_nrm</span><span class="op">$</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">YX_nrm</span><span class="op">$</span><span class="va">X</span>, R <span class="op">=</span> <span class="fl">2</span>, gof <span class="op">=</span> <span class="cn">FALSE</span>,</span></span>
-<span class="r-in"><span>           nscan <span class="op">=</span> <span class="fl">100</span>, burn <span class="op">=</span> <span class="fl">10</span>, odens <span class="op">=</span> <span class="fl">1</span>, print <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>           nscan <span class="op">=</span> <span class="fl">100</span>, burn <span class="op">=</span> <span class="fl">10</span>, odens <span class="op">=</span> <span class="fl">1</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compute GOF post-hoc</span></span></span>
 <span class="r-in"><span><span class="va">gof_result</span> <span class="op">&lt;-</span> <span class="fu">gof</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>

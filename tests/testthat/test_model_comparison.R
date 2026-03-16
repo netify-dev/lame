@@ -29,12 +29,12 @@ test_that("AME outperforms naive model with latent confounding", {
 	# Fit naive model (no latent factors)
 	fit_naive <- ame(Y, Xdyad=X, R=0, family="binary",
 									 rvar=FALSE, cvar=FALSE, dcor=FALSE,
-									 burn=200, nscan=1000, print=FALSE)
+									 burn=200, nscan=1000, verbose = FALSE)
 	
 	# Fit AME model (with latent factors)
 	fit_ame <- ame(Y, Xdyad=X, R=2, family="binary",
 								 rvar=FALSE, cvar=FALSE, dcor=FALSE,
-								 burn=200, nscan=1000, print=FALSE)
+								 burn=200, nscan=1000, verbose = FALSE)
 	
 	# Tests
 	# 1. AME should have less bias
@@ -85,12 +85,12 @@ test_that("Dynamic models outperform static when temporal correlation exists", {
 	# Fit static model
 	fit_static <- lame(Y_list, R=2, family="binary",
 										 dynamic_uv=FALSE, dynamic_ab=FALSE,
-										 burn=200, nscan=1000, print=FALSE, plot=FALSE)
+										 burn=200, nscan=1000, verbose = FALSE, plot=FALSE)
 
 	# Fit dynamic model
 	fit_dynamic <- lame(Y_list, R=2, family="binary",
 											dynamic_uv=TRUE, dynamic_ab=FALSE,
-											burn=200, nscan=1000, print=FALSE, plot=FALSE)
+											burn=200, nscan=1000, verbose = FALSE, plot=FALSE)
 	
 	# Tests
 	# 1. Dynamic model should detect temporal correlation
@@ -136,7 +136,7 @@ test_that("Model selection: choosing optimal R", {
 	
 	for(i in seq_along(R_values)) {
 		fit <- ame(Y, R=R_values[i], family="binary",
-							 burn=100, nscan=500, print=FALSE, gof=TRUE)
+							 burn=100, nscan=500, verbose = FALSE, gof=TRUE)
 		
 		# Use mean absolute GOF statistics as criterion
 		# GOF is a matrix with columns
@@ -165,7 +165,7 @@ test_that("MCMC chains converge properly", {
 	# Run longer chain for convergence testing
 	fit <- ame(Y, R=2, family="binary",
 						 burn=500, nscan=2000, odens=1,  # Keep all samples
-						 print=FALSE)
+						 verbose = FALSE)
 	
 	# Tests
 	# 1. Check that parameters stabilize after burn-in
@@ -201,10 +201,10 @@ test_that("Burn-in is sufficient", {
 	
 	# Compare short vs long burn-in
 	fit_short <- ame(Y, R=1, family="binary",
-									 burn=50, nscan=500, print=FALSE)
+									 burn=50, nscan=500, verbose = FALSE)
 	
 	fit_long <- ame(Y, R=1, family="binary",
-									burn=500, nscan=500, print=FALSE)
+									burn=500, nscan=500, verbose = FALSE)
 	
 	# Parameters should be similar (indicating convergence)
 	beta_short <- median(fit_short$BETA[,1])
@@ -225,12 +225,12 @@ test_that("Prior sensitivity analysis", {
 	# Fit with different priors
 	# Tight prior
 	fit_tight <- ame(Y, R=1, family="binary",
-									 burn=200, nscan=1000, print=FALSE,
+									 burn=200, nscan=1000, verbose = FALSE,
 									 prior=list(Sab0=diag(c(0.1, 0.1))))
 
 	# Diffuse prior
 	fit_diffuse <- ame(Y, R=1, family="binary",
-										 burn=200, nscan=1000, print=FALSE,
+										 burn=200, nscan=1000, verbose = FALSE,
 										 prior=list(Sab0=diag(c(10, 10))))
 	
 	# With reasonable data, results shouldn't be too sensitive to prior
@@ -259,7 +259,7 @@ test_that("Binary probit vs logit approximation", {
 	
 	# Fit probit model (default for binary)
 	fit_probit <- ame(Y, Xdyad=X, R=1, family="binary",
-										burn=200, nscan=1000, print=FALSE)
+										burn=200, nscan=1000, verbose = FALSE)
 	
 	# Extract coefficient
 	beta_probit <- median(fit_probit$BETA[,2])
@@ -284,11 +284,11 @@ test_that("Gaussian vs Tobit for censored data", {
 	
 	# Fit normal model (ignoring censoring)
 	fit_normal <- ame(Y_censored, R=1, family="normal",
-										burn=200, nscan=1000, print=FALSE)
+										burn=200, nscan=1000, verbose = FALSE)
 	
 	# Fit tobit model (accounting for censoring)
 	fit_tobit <- ame(Y_censored, R=1, family="tobit",
-									 burn=200, nscan=1000, print=FALSE)
+									 burn=200, nscan=1000, verbose = FALSE)
 	
 	# Tobit should better recover the latent mean
 	mu_normal <- median(fit_normal$BETA[,1])
@@ -316,7 +316,7 @@ test_that("Models scale appropriately with network size", {
 		
 		time_start <- Sys.time()
 		fit <- ame(Y, R=1, family="binary",
-							 burn=100, nscan=300, print=FALSE)
+							 burn=100, nscan=300, verbose = FALSE)
 		times[i] <- as.numeric(Sys.time() - time_start, units="secs")
 	}
 	
@@ -341,11 +341,11 @@ test_that("Results are reproducible with same seed", {
 	# Run twice with same seed
 	set.seed(12345)
 	fit1 <- ame(Y, R=1, family="binary",
-							burn=100, nscan=500, print=FALSE)
+							burn=100, nscan=500, verbose = FALSE)
 	
 	set.seed(12345)
 	fit2 <- ame(Y, R=1, family="binary",
-							burn=100, nscan=500, print=FALSE)
+							burn=100, nscan=500, verbose = FALSE)
 	
 	# Results should be identical
 	expect_equal(fit1$BETA, fit2$BETA)

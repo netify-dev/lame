@@ -17,7 +17,7 @@ ame_unipartite <- function(
 	odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
 	prior=list(), g=NA,
 	seed = 6886, nscan = 10000, burn = 500, odens = 25,
-	print = TRUE, gof=TRUE, custom_gof=NULL,
+	verbose = TRUE, gof=TRUE, custom_gof=NULL,
 	start_vals=NULL, periodic_save=FALSE, out_file=NULL,
 	save_interval=0.25, model.name=NULL,
 	posterior_opts = NULL, use_sparse_matrices = FALSE
@@ -465,7 +465,7 @@ ame_unipartite <- function(
 	UV_cache <- U %*% t(V)
 	EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
 	
-	if(print) {
+	if(verbose) {
 		cli::cli_h2("Running MCMC for unipartite network")
 		cli::cli_text("Dimensions: {.val {n}} x {.val {n}} nodes")
 		cli::cli_text("R = {.val {R}}, symmetric = {.val {symmetric}}")
@@ -600,7 +600,7 @@ ame_unipartite <- function(
 		}
 		
 		
-		if(print) {
+		if(verbose) {
 			if(s <= burn) {
 				cli::cli_progress_update(id = NULL)
 				if(s == burn) {
@@ -733,7 +733,7 @@ ame_unipartite <- function(
 	} # end MCMC   
 	
 	#### output assembly ####
-	if(print) {
+	if(verbose) {
 		cli::cli_progress_done()
 
 		if(exists("start_time")) {

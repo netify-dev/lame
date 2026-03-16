@@ -12,11 +12,11 @@ symmetric=FALSE,
 odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
 prior=list(), g=NA,
 seed = 6886, nscan = 10000, burn = 500, odens = 25,
-print = TRUE, gof=TRUE, custom_gof=NULL,
+verbose = TRUE, gof=TRUE, custom_gof=NULL,
 start_vals=NULL, periodic_save=FALSE, out_file=NULL,
 save_interval=0.25, model.name=NULL,
 posterior_opts = NULL, n_chains = 1, cores = 1,
-use_sparse_matrices = FALSE)
+use_sparse_matrices = FALSE, print)
 }
 \arguments{
 \item{Y}{For unipartite: an n x n square relational matrix. For bipartite: an nA x nB
@@ -96,7 +96,7 @@ regression coefficients.}
 
 \item{odens}{output density for the Markov chain}
 
-\item{print}{logical: print results while running?}
+\item{verbose}{logical: print progress while running? Default TRUE.}
 
 \item{gof}{logical: calculate goodness of fit statistics? Setting to TRUE
 adds approximately 2-5\% to runtime. For faster sampling without GOF overhead,
@@ -128,12 +128,16 @@ Example: custom_gof = function(Y) c(density = mean(Y > 0, na.rm = TRUE))}
 
 \item{use_sparse_matrices}{logical: use sparse matrix storage for large networks? (default: FALSE).
 Recommended only for truly sparse networks (< 10\% non-zero entries).}
+
+\item{print}{Deprecated. Use \code{verbose} instead.}
 }
 \value{
 \strong{Posterior Samples (full MCMC chains):}
 \item{BETA}{Regression coefficients (nscan xp matrix)}
 \item{VC}{Variance components (nscan xk matrix)}
-\item{GOF}{Goodness-of-fit statistics (nscan x4 matrix)}
+\item{GOF}{Goodness-of-fit statistics (nscan x4 matrix).
+First row contains observed values, remaining rows contain posterior predictive samples.
+See \code{\link{gof}} for post-hoc computation and \code{\link{gof_plot}} for visualization.}
 
 \strong{Posterior Means (averaged over chain):}
 \item{APM}{Additive row/sender effects (n-vector)}
@@ -269,11 +273,20 @@ The linear predictor \eqn{\eta} represents \eqn{\log(\lambda)} where \eqn{\lambd
 \donttest{
 data(YX_bin)
 fit <- ame(YX_bin$Y, Xdyad = YX_bin$X, burn = 10, nscan = 100, odens = 1,
-           family = "binary", print = FALSE)
+           family = "binary", verbose = FALSE)
 summary(fit)
 # Note: you should run the Markov chain much longer in practice
 }
  
+}
+\seealso{
+\code{\link{lame}} for longitudinal models,
+\code{\link{gof}} for post-hoc goodness-of-fit computation,
+\code{\link{gof_plot}} for visualizing GOF results,
+\code{\link{latent_positions}} for extracting latent positions as a tidy data frame,
+\code{\link{procrustes_align}} for Procrustes alignment of latent positions,
+\code{\link{summary.ame}} for model summaries,
+\code{\link{coef.ame}} for coefficient extraction
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

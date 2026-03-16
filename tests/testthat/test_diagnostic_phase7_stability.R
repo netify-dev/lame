@@ -17,7 +17,7 @@ test_that("ame() handles all-zero binary Y", {
     suppressWarnings(ame(
       Y, R = 0, family = "binary",
       burn = 20, nscan = 50, odens = 1,
-      print = FALSE, gof = FALSE, seed = 42
+      verbose = FALSE, gof = FALSE, seed = 42
     )),
     error = function(e) {
       expect_true(grepl("positive|singular|chol", e$message, ignore.case = TRUE))
@@ -41,7 +41,7 @@ test_that("ame() handles all-one binary Y", {
     suppressWarnings(ame(
       Y, R = 0, family = "binary",
       burn = 20, nscan = 50, odens = 1,
-      print = FALSE, gof = FALSE, seed = 42
+      verbose = FALSE, gof = FALSE, seed = 42
     )),
     error = function(e) {
       expect_true(grepl("positive|singular|chol", e$message, ignore.case = TRUE))
@@ -64,7 +64,7 @@ test_that("ame() handles very large normal Y values", {
   fit <- suppressWarnings(ame(
     Y, R = 0, family = "normal",
     burn = 20, nscan = 50, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   ))
 
   expect_s3_class(fit, "ame")
@@ -82,7 +82,7 @@ test_that("ame() handles very small normal Y values", {
   fit <- suppressWarnings(ame(
     Y, R = 0, family = "normal",
     burn = 20, nscan = 50, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   ))
 
   expect_s3_class(fit, "ame")
@@ -99,7 +99,7 @@ test_that("ame() handles ordinal with all ties equal", {
   fit <- suppressWarnings(ame(
     Y, R = 0, family = "ordinal",
     burn = 20, nscan = 50, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   ))
 
   expect_s3_class(fit, "ame")
@@ -120,7 +120,7 @@ test_that("MCMC chains have no stuck values for well-specified normal model", {
   fit <- ame(
     dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
     burn = 200, nscan = 500, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # BETA chains should have some variation (not stuck)
@@ -147,7 +147,7 @@ test_that("True parameters within 95% CI for well-specified model", {
   fit <- ame(
     dat$Y, Xdyad = dat$Xdyad, R = 0, family = "normal",
     burn = 500, nscan = 2000, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   ci <- confint(fit, level = 0.95)
@@ -176,7 +176,7 @@ test_that("ame() handles small network (n=3)", {
   fit <- suppressWarnings(ame(
     Y, R = 0, family = "normal",
     burn = 20, nscan = 50, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   ))
 
   expect_s3_class(fit, "ame")
@@ -201,7 +201,7 @@ test_that("ame() handles nearly collinear covariates", {
   fit <- suppressWarnings(ame(
     Y, Xdyad = Xdyad, R = 0, family = "normal",
     burn = 20, nscan = 50, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   ))
 
   expect_s3_class(fit, "ame")

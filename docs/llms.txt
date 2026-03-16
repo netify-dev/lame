@@ -297,6 +297,15 @@ Posterior predictive checks and GOF statistics
 - [`compute_gof_bipartite()`](https://netify-dev.github.io/lame/reference/compute_gof_bipartite.md)
   : Compute GOF statistics for bipartite networks
 
+## Latent Space
+
+Extract and align latent positions
+
+- [`latent_positions()`](https://netify-dev.github.io/lame/reference/latent_positions.md)
+  : Extract latent positions as a tidy data frame
+- [`procrustes_align()`](https://netify-dev.github.io/lame/reference/procrustes_align.md)
+  : Procrustes alignment of latent positions across time
+
 ## Posterior Utilities
 
 Tools for working with posterior samples
@@ -455,6 +464,20 @@ and variance components
   : Initialize dynamic latent positions with AR(1) structure
 - [`update_variances_bipartite()`](https://netify-dev.github.io/lame/reference/update_variances_bipartite.md)
   : Update variance parameters for bipartite
+- [`rUV_dynamic_bip_fc_cpp()`](https://netify-dev.github.io/lame/reference/rUV_dynamic_bip_fc_cpp.md)
+  : Bipartite dynamic UV Gibbs update
+- [`rZ_nrm_batch_cpp()`](https://netify-dev.github.io/lame/reference/rZ_nrm_batch_cpp.md)
+  : Batch normal Z sampling across all time periods
+- [`rZ_bin_bip_batch_cpp()`](https://netify-dev.github.io/lame/reference/rZ_bin_bip_batch_cpp.md)
+  : Batch binary Z sampling across all time periods (bipartite, rho=0)
+- [`rZ_tob_bip_batch_cpp()`](https://netify-dev.github.io/lame/reference/rZ_tob_bip_batch_cpp.md)
+  : Batch tobit Z sampling across all time periods (bipartite, rho=0)
+- [`compute_XtX_Xty_bip_cpp()`](https://netify-dev.github.io/lame/reference/compute_XtX_Xty_bip_cpp.md)
+  : Compute X'X and X'y for bipartite covariate regression
+- [`Xbeta_bip_cpp()`](https://netify-dev.github.io/lame/reference/Xbeta_bip_cpp.md)
+  : Compute Xbeta product for bipartite networks
+- [`rbeta_ab_bip_gibbs_cpp()`](https://netify-dev.github.io/lame/reference/rbeta_ab_bip_gibbs_cpp.md)
+  : Full bipartite Gibbs update for beta, a, b
 
 ## Internal Helpers
 
@@ -538,15 +561,15 @@ Example network datasets
 
 ### Getting Started
 
+- [Getting Started with
+  lame](https://netify-dev.github.io/lame/articles/lame.md):
+- [Your First AME
+  Model](https://netify-dev.github.io/lame/articles/cross_sec_ame.md):
 - [lame
   Overview](https://netify-dev.github.io/lame/articles/lame-overview.md):
-- [Static AME Models: Theory and
-  Application](https://netify-dev.github.io/lame/articles/cross_sec_ame.md):
 
-### Tutorials
+### Topics
 
-- [Introduction to
-  LAME](https://netify-dev.github.io/lame/articles/lame.md):
 - [Bipartite Network
   Analysis](https://netify-dev.github.io/lame/articles/bipartite.md):
 - [Dynamic Effects in Longitudinal AME

@@ -68,7 +68,7 @@ Cassy Dorff, Shahryar Minhas, Tosin Salau
 # Fit model
 data(YX_nrm)
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
-           nscan = 100, burn = 10, odens = 1, print = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
 
 # Point predictions
 Y_pred <- predict(fit)

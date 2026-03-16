@@ -53,7 +53,7 @@ test_that("All 8 families work for bipartite networks", {
 								 R_row = 0, R_col = 0,  # Start with no multiplicative effects
 								 odmax = odmax,
 								 burn = 100, nscan = 300, 
-								 print = FALSE)
+								 verbose = FALSE)
 		})
 		
 		# Basic checks
@@ -116,7 +116,7 @@ test_that("Bipartite models with multiplicative effects work for all families", 
 			fit <- ame(Y, mode = "bipartite", family = fam,
 								 R_row = R_row, R_col = R_col,
 								 burn = 100, nscan = 300,
-								 print = FALSE)
+								 verbose = FALSE)
 		})
 		
 		# Check multiplicative effects
@@ -148,7 +148,7 @@ test_that("Bipartite models handle covariates correctly", {
 	fit <- ame(Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
 						 mode = "bipartite",
 						 burn = 100, nscan = 300,
-						 print = FALSE)
+						 verbose = FALSE)
 	
 	# Check coefficient dimensions
 	# Should have: intercept + 2 dyadic + 2 row + 2 col = 7
@@ -179,7 +179,7 @@ test_that("Special families handle their constraints correctly", {
 		fit_frn <- ame(Y_frn, mode = "bipartite", family = "frn",
 									 odmax = odmax,
 									 burn = 100, nscan = 300,
-									 print = FALSE)
+									 verbose = FALSE)
 	})
 	
 	expect_equal(fit_frn$family, "frn")
@@ -195,7 +195,7 @@ test_that("Special families handle their constraints correctly", {
 	suppressWarnings({
 		fit_rrl <- ame(Y_rrl, mode = "bipartite", family = "rrl",
 									 burn = 100, nscan = 300,
-									 print = FALSE)
+									 verbose = FALSE)
 	})
 	
 	expect_equal(fit_rrl$family, "rrl")
@@ -208,7 +208,7 @@ test_that("Special families handle their constraints correctly", {
 	suppressWarnings({
 		fit_ord <- ame(Y_ord, mode = "bipartite", family = "ordinal",
 									 burn = 100, nscan = 300,
-									 print = FALSE)
+									 verbose = FALSE)
 	})
 	
 	expect_equal(fit_ord$family, "ordinal")
@@ -228,7 +228,7 @@ test_that("Bipartite models converge reasonably", {
 	
 	fit <- ame(Y, mode = "bipartite",
 						 burn = 200, nscan = 500,
-						 print = FALSE)
+						 verbose = FALSE)
 	
 	# Check that intercept is recovered approximately
 	intercept_est <- mean(fit$BETA[,1])

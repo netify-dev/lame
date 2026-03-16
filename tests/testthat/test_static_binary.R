@@ -47,7 +47,7 @@ sim_binary_ame <- function(seed, n, mu, beta, gamma=NULL,
 	fit <- ame(Y, Xdyad=X, R=R, family="binary",
 						rvar=rvar, cvar=cvar, dcor=FALSE,
 						burn=burn, nscan=nscan, 
-						print=FALSE)
+						verbose = FALSE)
 	
 	# Extract results
 	beta_hat <- median(fit$BETA[,2])
@@ -123,7 +123,7 @@ test_that("Binary AME with covariates only recovers true parameters", {
 	# Fit model with no additive or multiplicative effects
 	fit <- ame(Y, Xdyad=X, R=0, family="binary",
 						rvar=FALSE, cvar=FALSE, dcor=FALSE,
-						burn=500, nscan=2000, print=FALSE)
+						burn=500, nscan=2000, verbose = FALSE)
 	
 	# Check parameter recovery
 	beta_est <- median(fit$BETA[,2])
@@ -203,7 +203,7 @@ test_that("Binary AME with additive effects recovers true parameters", {
 	# Fit model with additive effects
 	fit <- ame(Y, Xdyad=X, R=0, family="binary",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
-						burn=500, nscan=2000, print=FALSE)
+						burn=500, nscan=2000, verbose = FALSE)
 	
 	# Check parameter recovery
 	beta_est <- median(fit$BETA[,2])
@@ -261,7 +261,7 @@ test_that("Binary AME with full model recovers true parameters", {
 	# Fit full AME model
 	fit <- ame(Y, Xdyad=X, R=R_true, family="binary",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
-						burn=500, nscan=2000, print=FALSE)
+						burn=500, nscan=2000, verbose = FALSE)
 	
 	# Check parameter recovery (more tolerance for complex model)
 	beta_est <- median(fit$BETA[,2])
@@ -305,12 +305,12 @@ test_that("Multiplicative effects reduce bias in binary models", {
 	# Fit model WITHOUT multiplicative effects
 	fit_no_uv <- ame(Y, Xdyad=X, R=0, family="binary",
 									rvar=FALSE, cvar=FALSE, dcor=FALSE,
-									burn=400, nscan=1500, print=FALSE)
+									burn=400, nscan=1500, verbose = FALSE)
 	
 	# Fit model WITH multiplicative effects
 	fit_with_uv <- ame(Y, Xdyad=X, R=2, family="binary",
 										rvar=FALSE, cvar=FALSE, dcor=FALSE,
-										burn=400, nscan=1500, print=FALSE)
+										burn=400, nscan=1500, verbose = FALSE)
 	
 	beta_no_uv <- median(fit_no_uv$BETA[,2])
 	beta_with_uv <- median(fit_with_uv$BETA[,2])
@@ -344,7 +344,7 @@ test_that("Binary AME handles sparse and dense networks", {
 	diag(Y_sparse) <- NA
 	
 	fit_sparse <- ame(Y_sparse, R=1, family="binary",
-									 burn=200, nscan=800, print=FALSE)
+									 burn=200, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit_sparse$BETA))
 	expect_lt(median(fit_sparse$BETA[,1]), 0)  # Intercept should be negative
@@ -355,7 +355,7 @@ test_that("Binary AME handles sparse and dense networks", {
 	diag(Y_dense) <- NA
 	
 	fit_dense <- ame(Y_dense, R=1, family="binary",
-									burn=200, nscan=800, print=FALSE)
+									burn=200, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit_dense$BETA))
 	expect_gt(median(fit_dense$BETA[,1]), 0)  # Intercept should be positive
@@ -373,7 +373,7 @@ test_that("Binary AME predictions are probabilities", {
 	diag(Y) <- NA
 	
 	fit <- ame(Y, Xdyad=X, R=1, family="binary",
-						burn=200, nscan=800, print=FALSE)
+						burn=200, nscan=800, verbose = FALSE)
 	
 	# check GOF if available
 	if(!is.null(fit$GOF)) {

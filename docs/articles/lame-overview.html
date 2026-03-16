@@ -34,10 +34,11 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
-    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Quick Start</a></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Your First AME Model</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
-    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Topics</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
   </ul>
@@ -66,7 +67,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-03-04</h4>
+            <h4 data-toc-skip class="date">2026-03-16</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/HEAD/vignettes/lame-overview.Rmd" class="external-link"><code>vignettes/lame-overview.Rmd</code></a></small>
       <div class="d-none name"><code>lame-overview.Rmd</code></div>
@@ -188,7 +189,7 @@ are targeted by the same senders.</p>
 <span>  burn <span class="op">=</span> <span class="fl">100</span>,              <span class="co"># Burn-in iterations</span></span>
 <span>  nscan <span class="op">=</span> <span class="fl">500</span>,             <span class="co"># Post-burn-in iterations</span></span>
 <span>  odens <span class="op">=</span> <span class="fl">25</span>,              <span class="co"># Output density (thinning)</span></span>
-<span>  print <span class="op">=</span> <span class="cn">FALSE</span>,           <span class="co"># Suppress iteration output</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,           <span class="co"># Suppress iteration output</span></span>
 <span>  plot <span class="op">=</span> <span class="cn">FALSE</span>             <span class="co"># Suppress real-time plots</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -318,12 +319,52 @@ and Canada) share similar sanctioning profiles.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="conclusion">Conclusion<a class="anchor" aria-label="anchor" href="#conclusion"></a>
+<h2 id="extracting-latent-positions">Extracting Latent Positions<a class="anchor" aria-label="anchor" href="#extracting-latent-positions"></a>
 </h2>
-<p>This vignette introduced the core workflow of the <code>lame</code>
-package: fitting a longitudinal AME model, checking convergence,
-evaluating goodness of fit, and visualizing the latent structure. For
-more specialized topics, see the companion vignettes on <a href="bipartite.html">bipartite networks</a> and <a href="dynamic_effects.html">dynamic effects</a>.</p>
+<p>If you need the estimated latent positions in a tidy format (for
+custom plots, merging with external data, or exporting to other tools),
+the <code><a href="../reference/latent_positions.html">latent_positions()</a></code> function returns a data frame:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>lp <span class="ot">&lt;-</span> <span class="fu">latent_positions</span>(fit)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">head</span>(lp)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  actor dimension time      value posterior_sd type</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="dv">1</span>   AFG         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">0.5253670</span>           <span class="cn">NA</span>    U</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="dv">2</span>   ALB         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">1.0708329</span>           <span class="cn">NA</span>    U</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="dv">3</span>   ARG         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span>  <span class="fl">0.3959614</span>           <span class="cn">NA</span>    U</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="dv">4</span>   AUS         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span>  <span class="fl">1.2064454</span>           <span class="cn">NA</span>    U</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="dv">5</span>   BEL         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">0.3992633</span>           <span class="cn">NA</span>    U</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="dv">6</span>   BOL         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">2.1687274</span>           <span class="cn">NA</span>    U</span></code></pre></div>
+<p>Each row gives one actor’s position on one latent dimension at one
+time point. For dynamic models (<code>dynamic_uv = TRUE</code>), the
+<code>time</code> column tracks how positions evolve. You can optionally
+apply Procrustes alignment to remove rotational indeterminacy across
+time periods:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>aligned <span class="ot">&lt;-</span> <span class="fu">procrustes_align</span>(fit)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a> [<span class="dv">36</span>mℹ [<span class="dv">39</span>m Latent positions are <span class="fu">static</span> (single time point). No alignment needed.</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="fu">str</span>(aligned<span class="sc">$</span>U)  <span class="co"># aligned 3D array</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a> num [<span class="dv">1</span><span class="sc">:</span><span class="dv">35</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>] <span class="sc">-</span><span class="fl">0.525</span> <span class="sc">-</span><span class="fl">1.071</span> <span class="fl">0.396</span> <span class="fl">1.206</span> <span class="sc">-</span><span class="fl">0.399</span> ...</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a> <span class="sc">-</span> <span class="fu">attr</span>(<span class="sc">*</span>, <span class="st">"dimnames"</span>)<span class="ot">=</span>List of <span class="dv">2</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  ..<span class="sc">$</span> <span class="er">:</span> chr [<span class="dv">1</span><span class="sc">:</span><span class="dv">35</span>] <span class="st">"AFG"</span> <span class="st">"ALB"</span> <span class="st">"ARG"</span> <span class="st">"AUS"</span> ...</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  ..<span class="sc">$</span> <span class="er">:</span> <span class="cn">NULL</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="whats-next">What’s Next?<a class="anchor" aria-label="anchor" href="#whats-next"></a>
+</h2>
+<p>This vignette covered the core workflow: fitting, convergence, GOF,
+and visualization. For more specialized topics:</p>
+<ul>
+<li>
+<strong>Single networks (no time series)?</strong> See <a href="cross_sec_ame.html">Your First AME Model</a> for a detailed
+cross-sectional walkthrough</li>
+<li>
+<strong>Two types of nodes?</strong> See <a href="bipartite.html">Bipartite Networks</a>
+</li>
+<li>
+<strong>Evolving network structure?</strong> See <a href="dynamic_effects.html">Dynamic Effects</a>
+</li>
+<li>
+<strong>Just want the quick version?</strong> See <a href="lame.html">Getting Started</a>
+</li>
+</ul>
 <p><strong>References</strong>:</p>
 <p>Hoff, PD (2021) Additive and Multiplicative Effects Network Models.
 Statistical Science 36, 34–50.</p>

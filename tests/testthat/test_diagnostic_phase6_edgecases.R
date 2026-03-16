@@ -18,7 +18,7 @@ test_that("ame() handles 10% random NAs in Y", {
   fit <- ame(
     Y, R = 0, family = "normal",
     burn = 50, nscan = 100, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_s3_class(fit, "ame")
@@ -39,7 +39,7 @@ test_that("ame() handles 50% random NAs in Y", {
   fit <- ame(
     Y, R = 0, family = "normal",
     burn = 50, nscan = 100, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_s3_class(fit, "ame")
@@ -61,7 +61,7 @@ test_that("ame() works with R=0 (no latent factors)", {
   fit <- ame(
     dat$Y, Xdyad = dat$Xdyad, R = 0, family = "normal",
     burn = 50, nscan = 100, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_s3_class(fit, "ame")
@@ -80,7 +80,7 @@ test_that("ame() works with R=1", {
   fit <- ame(
     dat$Y, Xdyad = dat$Xdyad, R = 1, family = "normal",
     burn = 50, nscan = 100, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_s3_class(fit, "ame")
@@ -98,7 +98,7 @@ test_that("ame() works with small network (n=5)", {
   fit <- ame(
     dat$Y, Xdyad = dat$Xdyad, R = 1, family = "normal",
     burn = 50, nscan = 100, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_s3_class(fit, "ame")
@@ -119,7 +119,7 @@ test_that("lame() works with N=1 (single time period)", {
   fit <- lame(
     Y_list, R = 0, family = "normal",
     burn = 50, nscan = 100, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_s3_class(fit, "lame")
@@ -136,7 +136,7 @@ test_that("ame() works with extreme bipartite imbalance (nA=4, nB=20)", {
   fit <- ame(
     Y, R = 1, family = "normal", mode = "bipartite",
     burn = 50, nscan = 100, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_s3_class(fit, "ame")
@@ -170,7 +170,7 @@ test_that("lame() handles actors entering/leaving across time", {
   fit <- lame(
     Y_list, R = 0, family = "normal",
     burn = 50, nscan = 100, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_s3_class(fit, "lame")
@@ -184,12 +184,12 @@ test_that("lame() handles actors entering/leaving across time", {
 
 test_that("ame() errors on non-square Y for unipartite", {
   Y <- matrix(rnorm(12), 3, 4)
-  expect_error(ame(Y, family = "normal", print = FALSE))
+  expect_error(ame(Y, family = "normal", verbose = FALSE))
 })
 
 test_that("lame() errors on non-list Y", {
   Y <- matrix(rnorm(25), 5, 5)
-  expect_error(lame(Y, family = "normal", print = FALSE))
+  expect_error(lame(Y, family = "normal", verbose = FALSE))
 })
 
 test_that("ame() errors on unsupported family", {
@@ -197,5 +197,5 @@ test_that("ame() errors on unsupported family", {
   Y <- matrix(rnorm(n * n), n, n)
   diag(Y) <- NA
   rownames(Y) <- colnames(Y) <- paste0("a", 1:n)
-  expect_error(ame(Y, family = "unknown", print = FALSE))
+  expect_error(ame(Y, family = "unknown", verbose = FALSE))
 })

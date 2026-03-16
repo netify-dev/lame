@@ -14,12 +14,14 @@ navbar:
       text: "Articles"
       menu:
         - text: "Getting Started"
-        - text: "Cross-Sectional AME"
+        - text: "Quick Start"
+          href: articles/lame.html
+        - text: "Your First AME Model"
           href: articles/cross_sec_ame.html
         - text: "---"
-        - text: "Tutorials"
-        - text: "Longitudinal Models"
-          href: articles/lame.html
+        - text: "Topics"
+        - text: "Longitudinal Models (Overview)"
+          href: articles/lame-overview.html
         - text: "Bipartite Networks"
           href: articles/bipartite.html
         - text: "Dynamic Effects"
@@ -28,11 +30,11 @@ navbar:
 articles:
   - title: "Getting Started"
     contents:
-    - lame-overview
-    - cross_sec_ame
-  - title: "Tutorials"
-    contents:
     - lame
+    - cross_sec_ame
+    - lame-overview
+  - title: "Topics"
+    contents:
     - bipartite
     - dynamic_effects
 
@@ -86,6 +88,12 @@ reference:
     - gof_stats_bipartite
     - compute_gof_bipartite
 
+  - title: "Latent Space"
+    desc: "Extract and align latent positions"
+    contents:
+    - latent_positions
+    - procrustes_align
+
   - title: "Posterior Utilities"
     desc: "Tools for working with posterior samples"
     contents:
@@ -93,6 +101,7 @@ reference:
     - posterior_quantiles
     - posterior_options
     - reconstruct_EZ
+    - reconstruct_UVPM
     - combine_ame_chains
     - compute_mcmc_diagnostics
 
@@ -166,6 +175,13 @@ reference:
     - init_dynamic_ab_cpp
     - init_dynamic_positions
     - update_variances_bipartite
+    - rUV_dynamic_bip_fc_cpp
+    - rZ_nrm_batch_cpp
+    - rZ_bin_bip_batch_cpp
+    - rZ_tob_bip_batch_cpp
+    - compute_XtX_Xty_bip_cpp
+    - Xbeta_bip_cpp
+    - rbeta_ab_bip_gibbs_cpp
 
   - title: "Internal Helpers"
     desc: "Design matrix construction and low-level utilities"

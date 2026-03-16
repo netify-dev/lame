@@ -14,7 +14,7 @@ fit_ame_uni <- local({
   ame(
     dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
     burn = 100, nscan = 200, odens = 1,
-    print = FALSE, gof = TRUE, seed = 42
+    verbose = FALSE, gof = TRUE, seed = 42
   )
 })
 
@@ -28,7 +28,7 @@ fit_ame_bip <- local({
   ame(
     dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
     mode = "bipartite", burn = 100, nscan = 200, odens = 1,
-    print = FALSE, gof = TRUE, seed = 42
+    verbose = FALSE, gof = TRUE, seed = 42
   )
 })
 
@@ -42,7 +42,7 @@ fit_lame_uni <- local({
   lame(
     dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
     burn = 100, nscan = 200, odens = 1,
-    print = FALSE, gof = TRUE, seed = 42
+    verbose = FALSE, gof = TRUE, seed = 42
   )
 })
 
@@ -57,7 +57,7 @@ fit_lame_bip <- local({
   lame(
     dat$Y, Xdyad = Xdyad_list, R = 2, family = "normal",
     mode = "bipartite", burn = 100, nscan = 200, odens = 1,
-    print = FALSE, gof = TRUE, seed = 42
+    verbose = FALSE, gof = TRUE, seed = 42
   )
 })
 

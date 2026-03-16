@@ -27,10 +27,11 @@ implementation by Peter Hoff."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
-    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Quick Start</a></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Your First AME Model</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
-    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Topics</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
   </ul></li>
@@ -69,11 +70,11 @@ implementation by Peter Hoff.</p>
 <span>odmax<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">Y</span><span class="op">&gt;</span><span class="fl">0</span>,<span class="fl">1</span>,<span class="va">sum</span>,na.rm<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>,<span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>prior<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, g<span class="op">=</span><span class="cn">NA</span>,</span>
 <span>seed <span class="op">=</span> <span class="fl">6886</span>, nscan <span class="op">=</span> <span class="fl">10000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>,</span>
-<span>print <span class="op">=</span> <span class="cn">TRUE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>, custom_gof<span class="op">=</span><span class="cn">NULL</span>,</span>
+<span>verbose <span class="op">=</span> <span class="cn">TRUE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>, custom_gof<span class="op">=</span><span class="cn">NULL</span>,</span>
 <span>start_vals<span class="op">=</span><span class="cn">NULL</span>, periodic_save<span class="op">=</span><span class="cn">FALSE</span>, out_file<span class="op">=</span><span class="cn">NULL</span>,</span>
 <span>save_interval<span class="op">=</span><span class="fl">0.25</span>, model.name<span class="op">=</span><span class="cn">NULL</span>,</span>
 <span>posterior_opts <span class="op">=</span> <span class="cn">NULL</span>, n_chains <span class="op">=</span> <span class="fl">1</span>, cores <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>use_sparse_matrices <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<span>use_sparse_matrices <span class="op">=</span> <span class="cn">FALSE</span>, <span class="va">print</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -211,8 +212,8 @@ regression coefficients.</p></dd>
 <dd><p>output density for the Markov chain</p></dd>
 
 
-<dt id="arg-print">print<a class="anchor" aria-label="anchor" href="#arg-print"></a></dt>
-<dd><p>logical: print results while running?</p></dd>
+<dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
+<dd><p>logical: print progress while running? Default TRUE.</p></dd>
 
 
 <dt id="arg-gof">gof<a class="anchor" aria-label="anchor" href="#arg-gof"></a></dt>
@@ -267,6 +268,10 @@ Example: custom_gof = function(Y) c(density = mean(Y &gt; 0, na.rm = TRUE))</p><
 <dd><p>logical: use sparse matrix storage for large networks? (default: FALSE).
 Recommended only for truly sparse networks (&lt; 10% non-zero entries).</p></dd>
 
+
+<dt id="arg-print">print<a class="anchor" aria-label="anchor" href="#arg-print"></a></dt>
+<dd><p>Deprecated. Use <code>verbose</code> instead.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -278,7 +283,9 @@ Recommended only for truly sparse networks (&lt; 10% non-zero entries).</p></dd>
 <dd><p>Variance components (nscan xk matrix)</p></dd>
 
 <dt>GOF</dt>
-<dd><p>Goodness-of-fit statistics (nscan x4 matrix)</p></dd>
+<dd><p>Goodness-of-fit statistics (nscan x4 matrix).
+First row contains observed values, remaining rows contain posterior predictive samples.
+See <code><a href="gof.html">gof</a></code> for post-hoc computation and <code><a href="gof_plot.html">gof_plot</a></code> for visualization.</p></dd>
 
 
 </dl><p><strong>Posterior Means (averaged over chain):</strong></p>
@@ -400,6 +407,16 @@ for this model.</p>
 The linear predictor \(\eta\) represents \(\log(\lambda)\) where \(\lambda\) is the expected count.</p>
     </div>
     <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="lame.html">lame</a></code> for longitudinal models,
+<code><a href="gof.html">gof</a></code> for post-hoc goodness-of-fit computation,
+<code><a href="gof_plot.html">gof_plot</a></code> for visualizing GOF results,
+<code><a href="latent_positions.html">latent_positions</a></code> for extracting latent positions as a tidy data frame,
+<code><a href="procrustes_align.html">procrustes_align</a></code> for Procrustes alignment of latent positions,
+<code><a href="summary.ame.html">summary.ame</a></code> for model summaries,
+<code><a href="coef.ame.html">coef.ame</a></code> for coefficient extraction</p></div>
+    </div>
+    <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
     <p>Cassy Dorff, Shahryar Minhas, Tosin Salau</p>
     </div>
@@ -409,7 +426,7 @@ The linear predictor \(\eta\) represents \(\log(\lambda)\) where \(\lambda\) is 
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">ame</span><span class="op">(</span><span class="va">YX_bin</span><span class="op">$</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">YX_bin</span><span class="op">$</span><span class="va">X</span>, burn <span class="op">=</span> <span class="fl">10</span>, nscan <span class="op">=</span> <span class="fl">100</span>, odens <span class="op">=</span> <span class="fl">1</span>,</span></span>
-<span class="r-in"><span>           family <span class="op">=</span> <span class="st">"binary"</span>, print <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>           family <span class="op">=</span> <span class="st">"binary"</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> === AME Model Summary ===</span>

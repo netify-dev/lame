@@ -28,10 +28,10 @@ test_that("ame recovers known parameters in simulated data", {
 	
 	# Fit models
 	fit_naive <- ame(Y, Xdyad=X, R=0, rvar=FALSE, cvar=FALSE, dcor=FALSE, 
-									 family="binary", burn=100, nscan=500, print=FALSE)
+									 family="binary", burn=100, nscan=500, verbose = FALSE)
 	
 	fit_ame <- ame(Y, Xdyad=X, R=2, rvar=FALSE, cvar=FALSE, dcor=FALSE,
-								 family="binary", burn=100, nscan=500, print=FALSE)
+								 family="binary", burn=100, nscan=500, verbose = FALSE)
 	
 	# Check bias
 	beta_naive <- median(fit_naive$BETA[,2])
@@ -82,12 +82,12 @@ test_that("lame handles longitudinal data correctly", {
 	# Fit static model
 	fit_static <- lame(Y_list, R=2, family="binary", 
 										 dynamic_uv=FALSE, dynamic_ab=FALSE,
-										 burn=100, nscan=300, print=FALSE)
+										 burn=100, nscan=300, verbose = FALSE)
 	
 	# Fit dynamic model
 	fit_dynamic <- lame(Y_list, R=2, family="binary",
 											dynamic_uv=TRUE, dynamic_ab=FALSE,
-											burn=100, nscan=300, print=FALSE,
+											burn=100, nscan=300, verbose = FALSE,
 											prior=list(rho_uv_mean=0.5))
 	
 	# Dynamic model should capture temporal correlation
@@ -128,7 +128,7 @@ test_that("bipartite ame works correctly", {
 	# Fit bipartite model
 	fit_bip <- ame(Y_bip, mode="bipartite", R_row=2, R_col=2,
 								 family="binary", burn=100, nscan=500,
-								 print=FALSE)
+								 verbose = FALSE)
 	
 	# Check dimensions - U and V are posterior means (2D matrices)
 	expect_equal(dim(fit_bip$U), c(nA, R_row_true))
@@ -184,7 +184,7 @@ test_that("bipartite lame handles longitudinal bipartite data", {
 											 family="binary",
 											 dynamic_uv=FALSE,
 											 burn=100, nscan=300,
-											 print=FALSE)
+											 verbose = FALSE)
 	
 	# Check output structure
 	expect_true(!is.null(fit_bip_long$U))
@@ -219,7 +219,7 @@ test_that("confidence intervals have correct coverage", {
 		
 		# Fit model
 		fit <- ame(Y, Xdyad=X, R=1, family="binary",
-							 burn=100, nscan=500, print=FALSE)
+							 burn=100, nscan=500, verbose = FALSE)
 		
 		# Check coverage
 		mu_ci <- quantile(fit$BETA[,1], c(0.025, 0.975))
@@ -247,7 +247,7 @@ test_that("different families produce appropriate outputs", {
 	diag(Y_bin) <- NA
 	
 	fit_bin <- ame(Y_bin, R=0, family="binary", 
-								 burn=50, nscan=200, print=FALSE)
+								 burn=50, nscan=200, verbose = FALSE)
 	expect_true(all(fit_bin$Z >= 0 | fit_bin$Z <= 1, na.rm=TRUE))
 	
 	# Test normal family
@@ -255,7 +255,7 @@ test_that("different families produce appropriate outputs", {
 	diag(Y_norm) <- NA
 	
 	fit_norm <- ame(Y_norm, R=0, family="normal",
-									burn=50, nscan=200, print=FALSE)
+									burn=50, nscan=200, verbose = FALSE)
 	expect_true(is.numeric(fit_norm$BETA))
 	
 	# Test ordinal family with proper ordinal data
@@ -263,7 +263,7 @@ test_that("different families produce appropriate outputs", {
 	diag(Y_ord) <- NA
 	
 	fit_ord <- ame(Y_ord, R=0, family="ordinal", intercept=FALSE,
-								 burn=50, nscan=200, print=FALSE)
+								 burn=50, nscan=200, verbose = FALSE)
 	expect_true(!is.null(fit_ord$BETA))
 })
 
@@ -286,7 +286,7 @@ test_that("GOF statistics are computed correctly", {
 	diag(Y) <- NA
 	
 	fit <- ame(Y, R=1, family="binary", symmetric=TRUE,
-						 burn=100, nscan=300, print=FALSE, gof=TRUE)
+						 burn=100, nscan=300, verbose = FALSE, gof=TRUE)
 	
 	# Check GOF statistics exist
 	expect_true(!is.null(fit$GOF))
@@ -326,7 +326,7 @@ test_that("dynamic effects capture temporal persistence", {
 	# Fit dynamic model with good priors
 	fit_dyn <- lame(Y_list, R=2, family="binary",
 									dynamic_uv=TRUE, dynamic_ab=FALSE,
-									burn=300, nscan=800, print=FALSE,
+									burn=300, nscan=800, verbose = FALSE,
 									prior=list(rho_uv_mean=0.7, rho_uv_sd=0.2))
 	
 	# Should recover temporal correlation
@@ -357,7 +357,7 @@ test_that("model handles missing data appropriately", {
 	# Model should handle missing data
 	expect_no_error({
 		fit <- ame(Y, R=1, family="binary",
-							 burn=50, nscan=200, print=FALSE)
+							 burn=50, nscan=200, verbose = FALSE)
 	})
 	
 	# Check that predictions are made for missing values
@@ -377,7 +377,7 @@ test_that("symmetric networks maintain symmetry", {
 	diag(Y) <- NA
 	
 	fit_sym <- ame(Y, R=2, family="binary", symmetric=TRUE,
-								 burn=100, nscan=300, print=FALSE)
+								 burn=100, nscan=300, verbose = FALSE)
 	
 	# Check U = V for symmetric model
 	# For symmetric models, V might not exist or U=V

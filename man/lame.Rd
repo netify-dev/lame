@@ -11,13 +11,16 @@ lame(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl"),
 intercept=!is.element(family,c("rrl","ordinal")),
 symmetric=FALSE,
 odmax=NULL, prior=list(), g=NA,
-seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
-start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.name=NULL)
+seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, verbose = FALSE, gof=TRUE,
+start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.name=NULL,
+print)
 }
 \arguments{
-\item{Y}{a T length list of n x n relational matrices, where T
-corresponds to the number of replicates (over time, for example).
-See family below for various data types.}
+\item{Y}{a T length list of n x n relational matrices, or a 3D array
+of dimensions \code{[n, n, T]}, where T corresponds to the number of
+replicates (over time, for example). If a 3D array is provided, it is
+automatically converted to list format. See family below for various
+data types.}
 
 \item{Xdyad}{a T length list of n x n x pd arrays of covariates}
 
@@ -124,7 +127,7 @@ control.}
 
 \item{plot}{logical: plot results while running?}
 
-\item{print}{logical: print results while running?}
+\item{verbose}{logical: print progress while running? Default FALSE.}
 
 \item{gof}{logical: calculate goodness of fit statistics?}
 
@@ -137,6 +140,8 @@ control.}
 \item{save_interval}{quantile interval indicating when to save during post burn-in phase.}
 
 \item{model.name}{optional string for model selection output}
+
+\item{print}{Deprecated. Use \code{verbose} instead.}
 }
 \value{
 \item{BETA}{posterior samples of regression coefficients}
@@ -152,7 +157,8 @@ For dynamic_uv=TRUE, this is a 3D array (n x R x T)}
 \item{EZ}{estimate of expectation of Z
 matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 \item{GOF}{observed (first row) and posterior predictive (remaining rows)
-values of four goodness-of-fit statistics}
+values of four goodness-of-fit statistics.
+See \code{\link{gof}} for post-hoc computation and \code{\link{gof_plot}} for visualization.}
 \item{start_vals}{Final parameter values from MCMC, can be used as the input
 for a future model run.}
 \item{model.name}{Name of the model (if provided)}
@@ -322,6 +328,15 @@ data(YX_bin_list)
 fit<-lame(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,family="binary")
 # you should run the Markov chain much longer than this
 
+}
+\seealso{
+\code{\link{ame}} for cross-sectional models,
+\code{\link{gof}} for post-hoc goodness-of-fit computation,
+\code{\link{gof_plot}} for visualizing GOF results,
+\code{\link{latent_positions}} for extracting latent positions as a tidy data frame,
+\code{\link{procrustes_align}} for Procrustes alignment of latent positions,
+\code{\link{summary.lame}} for model summaries,
+\code{\link{coef.lame}} for coefficient extraction
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

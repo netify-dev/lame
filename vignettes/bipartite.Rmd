@@ -87,7 +87,7 @@ fit_cross <- ame(
   burn = 100,
   nscan = 500,
   odens = 5,
-  print = FALSE
+  verbose = FALSE
 )
 
 summary(fit_cross)
@@ -167,7 +167,7 @@ fit_static <- lame(
   burn = 100,
   nscan = 500,
   odens = 5,
-  print = FALSE,
+  verbose = FALSE,
   plot = FALSE
 )
 
@@ -191,7 +191,7 @@ fit_dynamic <- lame(
   burn = 100,
   nscan = 500,
   odens = 5,
-  print = FALSE,
+  verbose = FALSE,
   plot = FALSE
 )
 
@@ -272,7 +272,7 @@ for(i in seq_along(dims_to_test)) {
     burn = 100,
     nscan = 500,
     odens = 5,
-    print = FALSE
+    verbose = FALSE
   )
   gof_results[[i]] <- c(
     R_row = dims_to_test[[i]][1],
@@ -302,3 +302,18 @@ trace_plot(fit_cross)
 ```
 
 Look for traces that mix well (no long flat stretches or slow drifts) and densities that are smooth and unimodal. With the short chains used in this vignette, convergence is not guaranteed. In practice, run longer chains and consider multiple starting values.
+
+## Extracting Positions for Custom Analysis
+
+If you need the latent positions in a tidy format (e.g., for merging with external data or building custom plots), the `latent_positions()` function returns a data frame with one row per actor-dimension-time combination:
+
+```{r}
+lp <- latent_positions(fit_cross)
+head(lp)
+
+# Filter to just the row nodes (students)
+lp_students <- lp[lp$type == "U", ]
+cat("Student positions:", nrow(lp_students), "rows\n")
+```
+
+This is especially useful for bipartite networks where U (row nodes) and V (column nodes) have different numbers of actors.

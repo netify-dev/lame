@@ -24,7 +24,7 @@ test_that("ame() unipartite: Xdyad only", {
   fit <- ame(
     dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # intercept + 1 Xdyad = 2 columns
@@ -45,7 +45,7 @@ test_that("ame() bipartite: Xdyad only", {
   fit <- ame(
     dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
     mode = "bipartite", burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 2)
@@ -70,7 +70,7 @@ test_that("ame() unipartite: Xrow only", {
   fit <- ame(
     Y, Xrow = Xrow, R = 0, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # intercept + 1 Xrow = 2 columns
@@ -92,7 +92,7 @@ test_that("ame() bipartite: Xrow only", {
   fit <- ame(
     Y, Xrow = Xrow, R = 0, family = "normal",
     mode = "bipartite", burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 2)
@@ -118,7 +118,7 @@ test_that("ame() unipartite: Xcol only", {
   fit <- ame(
     Y, Xcol = Xcol, R = 0, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 2)
@@ -139,7 +139,7 @@ test_that("ame() bipartite: Xcol only", {
   fit <- ame(
     Y, Xcol = Xcol, R = 0, family = "normal",
     mode = "bipartite", burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 2)
@@ -172,7 +172,7 @@ test_that("ame() unipartite: Xdyad + Xrow + Xcol", {
     Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
     R = 0, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # intercept + 1 Xrow + 1 Xcol + 1 Xdyad = 4 columns
@@ -204,7 +204,7 @@ test_that("ame() bipartite: Xdyad + Xrow + Xcol", {
     Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
     R = 0, family = "normal", mode = "bipartite",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 4)
@@ -226,7 +226,7 @@ test_that("ame() unipartite: no covariates (intercept only)", {
   fit <- ame(
     Y, R = 0, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # intercept only = 1 column
@@ -244,7 +244,7 @@ test_that("ame() bipartite: no covariates (intercept only)", {
   fit <- ame(
     Y, R = 0, family = "normal", mode = "bipartite",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 1)
@@ -267,7 +267,7 @@ test_that("ame() unipartite: intercept=FALSE with Xdyad", {
     dat$Y, Xdyad = dat$Xdyad, R = 0, family = "normal",
     intercept = FALSE,
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # No intercept, 1 Xdyad = 1 column
@@ -291,7 +291,7 @@ test_that("ame() recovers strong Xdyad signal", {
   fit <- ame(
     dat$Y, Xdyad = dat$Xdyad, R = 0, family = "normal",
     burn = 200, nscan = 500, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   beta_mean <- colMeans(fit$BETA)
@@ -325,7 +325,7 @@ test_that("lame() unipartite: Xdyad only", {
   fit <- lame(
     dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 2)
@@ -348,7 +348,7 @@ test_that("lame() bipartite: Xdyad only", {
   fit <- lame(
     dat$Y, Xdyad = Xdyad_list, R = 2, family = "normal",
     mode = "bipartite", burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 2)
@@ -384,7 +384,7 @@ test_that("lame() unipartite: Xrow only", {
   fit <- lame(
     Y_list, Xrow = Xrow_list, R = 0, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 2)
@@ -421,7 +421,7 @@ test_that("lame() unipartite: Xcol only", {
   fit <- lame(
     Y_list, Xcol = Xcol_list, R = 0, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 2)
@@ -475,7 +475,7 @@ test_that("lame() unipartite: Xdyad + Xrow + Xcol", {
     Y_list, Xdyad = Xdyad_list, Xrow = Xrow_list, Xcol = Xcol_list,
     R = 0, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # intercept + 1 Xrow + 1 Xcol + 1 Xdyad = 4
@@ -507,7 +507,7 @@ test_that("lame() unipartite: no covariates (intercept only)", {
   fit <- lame(
     Y_list, R = 0, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 1)
@@ -530,7 +530,7 @@ test_that("lame() unipartite: intercept=FALSE with Xdyad", {
     dat$Y, Xdyad = dat$Xdyad, R = 0, family = "normal",
     intercept = FALSE,
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 1)
@@ -562,7 +562,7 @@ test_that("ame() unipartite: multiple Xdyad covariates", {
   fit <- ame(
     Y, Xdyad = Xdyad, R = 0, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # intercept + 3 Xdyad = 4 columns
@@ -592,7 +592,7 @@ test_that("ame() unipartite: multiple Xrow and Xcol", {
   fit <- ame(
     Y, Xrow = Xrow, Xcol = Xcol, R = 0, family = "normal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # intercept + 2 Xrow + 2 Xcol = 5 columns
@@ -626,7 +626,7 @@ test_that("ame() handles NAs in Xdyad covariates", {
     fit <- suppressWarnings(ame(
       Y, Xdyad = Xdyad, R = 0, family = "normal",
       burn = burn, nscan = nscan, odens = odens,
-      print = FALSE, gof = FALSE, seed = 42
+      verbose = FALSE, gof = FALSE, seed = 42
     ))
   )
 
@@ -657,7 +657,7 @@ test_that("ame() handles constant covariate column", {
     fit <- suppressWarnings(ame(
       Y, Xdyad = Xdyad, R = 0, family = "normal",
       burn = burn, nscan = nscan, odens = odens,
-      print = FALSE, gof = FALSE, seed = 42
+      verbose = FALSE, gof = FALSE, seed = 42
     ))
   )
 
@@ -691,7 +691,7 @@ test_that("ame() binary with Xdyad + Xrow", {
   fit <- ame(
     Y, Xdyad = Xdyad, Xrow = Xrow, R = 0, family = "binary",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   expect_equal(ncol(fit$BETA), 3)  # intercept + Xrow + Xdyad
@@ -723,7 +723,7 @@ test_that("ame() ordinal has no intercept by default", {
   fit <- ame(
     Y, Xdyad = Xdyad, R = 0, family = "ordinal",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # ordinal: intercept=FALSE by default, so only 1 Xdyad col
@@ -758,7 +758,7 @@ test_that("ame() rrl has no intercept by default", {
   fit <- ame(
     Y, Xdyad = Xdyad, R = 0, family = "rrl",
     burn = burn, nscan = nscan, odens = odens,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   # rrl: intercept=FALSE, rvar=FALSE by default
@@ -781,7 +781,7 @@ test_that("lame() recovers strong Xdyad signal", {
   fit <- lame(
     dat$Y, Xdyad = dat$Xdyad, R = 0, family = "normal",
     burn = 200, nscan = 500, odens = 1,
-    print = FALSE, gof = FALSE, seed = 42
+    verbose = FALSE, gof = FALSE, seed = 42
   )
 
   beta_mean <- colMeans(fit$BETA)

@@ -55,12 +55,15 @@ Computing GOF post-hoc has several advantages:
 # Run model without GOF during fitting
 data(YX_nrm)
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2, gof = FALSE,
-           nscan = 100, burn = 10, odens = 1, print = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
 
 # Compute GOF post-hoc
 gof_result <- gof(fit)
 }
 
+}
+\seealso{
+\code{\link{ame}}, \code{\link{lame}}, \code{\link{gof_plot}}
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

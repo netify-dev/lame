@@ -101,11 +101,11 @@
 #' odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
 #' prior=list(), g=NA,
 #' seed = 6886, nscan = 10000, burn = 500, odens = 25,
-#' print = TRUE, gof=TRUE, custom_gof=NULL,
+#' verbose = TRUE, gof=TRUE, custom_gof=NULL,
 #' start_vals=NULL, periodic_save=FALSE, out_file=NULL,
 #' save_interval=0.25, model.name=NULL,
 #' posterior_opts = NULL, n_chains = 1, cores = 1,
-#' use_sparse_matrices = FALSE)
+#' use_sparse_matrices = FALSE, print)
 #' @param Y For unipartite: an n x n square relational matrix. For bipartite: an nA x nB 
 #' rectangular relational matrix where nA is the number of row nodes and nB is the 
 #' number of column nodes. See family below for various data types.
@@ -161,7 +161,8 @@
 #' @param nscan number of iterations of the Markov chain (beyond burn-in)
 #' @param burn burn in for the Markov chain
 #' @param odens output density for the Markov chain
-#' @param print logical: print results while running?
+#' @param verbose logical: print progress while running? Default TRUE.
+#' @param print Deprecated. Use \code{verbose} instead.
 #' @param gof logical: calculate goodness of fit statistics? Setting to TRUE 
 #'   adds approximately 2-5% to runtime. For faster sampling without GOF overhead,
 #'   set gof=FALSE and use gof() after model fitting.
@@ -186,7 +187,9 @@
 #' \strong{Posterior Samples (full MCMC chains):}
 #' \item{BETA}{Regression coefficients (nscan xp matrix)}
 #' \item{VC}{Variance components (nscan xk matrix)}
-#' \item{GOF}{Goodness-of-fit statistics (nscan x4 matrix)}
+#' \item{GOF}{Goodness-of-fit statistics (nscan x4 matrix).
+#' First row contains observed values, remaining rows contain posterior predictive samples.
+#' See \code{\link{gof}} for post-hoc computation and \code{\link{gof_plot}} for visualization.}
 #' 
 #' \strong{Posterior Means (averaged over chain):}
 #' \item{APM}{Additive row/sender effects (n-vector)}
@@ -221,12 +224,19 @@
 #' for components where only means are stored, or use \code{posterior_options()}
 #' during model fitting to save full posterior samples.
 #' \item{model.name}{Name of the model (if provided)}
+#' @seealso \code{\link{lame}} for longitudinal models,
+#'   \code{\link{gof}} for post-hoc goodness-of-fit computation,
+#'   \code{\link{gof_plot}} for visualizing GOF results,
+#'   \code{\link{latent_positions}} for extracting latent positions as a tidy data frame,
+#'   \code{\link{procrustes_align}} for Procrustes alignment of latent positions,
+#'   \code{\link{summary.ame}} for model summaries,
+#'   \code{\link{coef.ame}} for coefficient extraction
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
 #' \donttest{
 #' data(YX_bin)
 #' fit <- ame(YX_bin$Y, Xdyad = YX_bin$X, burn = 10, nscan = 100, odens = 1,
-#'            family = "binary", print = FALSE)
+#'            family = "binary", verbose = FALSE)
 #' summary(fit)
 #' # Note: you should run the Markov chain much longer in practice
 #' }
@@ -244,12 +254,24 @@ ame<-function (
 	odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
 	prior=list(), g=NA,
 	seed = 6886, nscan = 10000, burn = 500, odens = 25,
-	print = TRUE, gof=TRUE, custom_gof=NULL,
+	verbose = TRUE, gof=TRUE, custom_gof=NULL,
 	start_vals=NULL, periodic_save=FALSE, out_file=NULL,
 	save_interval=0.25, model.name=NULL,
 	posterior_opts = NULL, n_chains = 1, cores = 1,
-	use_sparse_matrices = FALSE
+	use_sparse_matrices = FALSE,
+	print
 	){
+
+	# handle deprecated print argument
+	if (!missing(print)) {
+		cli::cli_warn(c(
+			"The {.arg print} argument is deprecated.",
+			"i" = "Use {.arg verbose} instead."
+		))
+		if (missing(verbose) || identical(verbose, TRUE)) {
+			verbose <- print
+		}
+	}
 
 	####
 	# match call and mode
@@ -270,7 +292,7 @@ ame<-function (
 											 intercept = intercept, symmetric = symmetric,
 											 odmax = odmax, prior = prior, g = g,
 											 seed = seed, nscan = nscan, burn = burn, odens = odens,
-											 print = print, gof = gof,
+											 verbose = verbose, gof = gof,
 											 start_vals = start_vals, periodic_save = periodic_save,
 											 out_file = out_file, save_interval = save_interval,
 											 model.name = model.name, posterior_opts = posterior_opts))
@@ -300,14 +322,14 @@ ame<-function (
 			family=family, intercept=intercept, symmetric=symmetric,
 			odmax=odmax, prior=prior, g=g,
 			seed=seed, nscan=nscan, burn=burn, odens=odens,
-			print=print, gof=gof, custom_gof=custom_gof,
+			verbose=verbose, gof=gof, custom_gof=custom_gof,
 			start_vals=start_vals, periodic_save=periodic_save,
 			out_file=out_file, save_interval=save_interval,
 			model.name=model.name, posterior_opts=posterior_opts,
 			use_sparse_matrices=use_sparse_matrices
 		)
 		fit$call <- mc
-		
+
 	####
 	# bipartite dispatch
 	####
@@ -326,7 +348,7 @@ ame<-function (
 			family=family, intercept=intercept,
 			odmax=odmax, prior=prior, g=g,
 			seed=seed, nscan=nscan, burn=burn, odens=odens,
-			print=print, gof=gof, custom_gof=custom_gof,
+			verbose=verbose, gof=gof, custom_gof=custom_gof,
 			start_vals=start_vals, periodic_save=periodic_save,
 			out_file=out_file, save_interval=save_interval,
 			model.name=model.name, posterior_opts=posterior_opts,

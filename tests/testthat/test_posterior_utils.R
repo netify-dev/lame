@@ -29,7 +29,7 @@ test_that("simulate_posterior works for beta coefficients", {
 	
 	# Fit model
 	fit <- ame(Y, Xdyad = X, R = 0, 
-						burn = 100, nscan = 500, print = FALSE)
+						burn = 100, nscan = 500, verbose = FALSE)
 	
 	# Simulate posterior for beta (may warn about fewer samples than requested)
 	beta_post <- suppressWarnings(
@@ -59,7 +59,7 @@ test_that("simulate_posterior works for additive effects", {
 	
 	# Fit model with additive effects
 	fit <- ame(Y, R = 0, rvar = TRUE, cvar = TRUE,
-						burn = 100, nscan = 500, print = FALSE)
+						burn = 100, nscan = 500, verbose = FALSE)
 	
 	# Simulate posterior for additive effects
 	ab_post <- simulate_posterior(fit, "ab", n_samples = 50)
@@ -90,7 +90,7 @@ test_that("simulate_posterior works for multiplicative effects", {
 	diag(Y) <- NA
 	
 	# Fit model with multiplicative effects
-	fit <- ame(Y, R = R, burn = 100, nscan = 500, print = FALSE)
+	fit <- ame(Y, R = R, burn = 100, nscan = 500, verbose = FALSE)
 	
 	# Simulate posterior for UV
 	UV_post <- simulate_posterior(fit, "UV", n_samples = 10)
@@ -115,7 +115,7 @@ test_that("posterior_quantiles computes correct intervals", {
 	
 	# Fit model
 	fit <- ame(Y, Xdyad = X, R = 0,
-						burn = 100, nscan = 500, print = FALSE)
+						burn = 100, nscan = 500, verbose = FALSE)
 	
 	# Get quantiles for beta
 	beta_quants <- posterior_quantiles(fit, "beta", probs = c(0.025, 0.5, 0.975))
@@ -148,7 +148,7 @@ test_that("posterior samples are saved when requested", {
 	
 	fit <- ame(Y, R = R, rvar = TRUE, cvar = TRUE,
 						burn = 50, nscan = 200, odens = 5,
-						posterior_opts = opts, print = FALSE)
+						posterior_opts = opts, verbose = FALSE)
 	
 	# Check that samples were saved
 	if(!is.null(opts) && opts$save_UV) {
@@ -184,7 +184,7 @@ test_that("simulate_posterior works with saved samples", {
 	opts <- posterior_options(save_UV = TRUE, thin_UV = 10)
 	
 	fit <- ame(Y, R = R, burn = 50, nscan = 200, odens = 5,
-						posterior_opts = opts, print = FALSE)
+						posterior_opts = opts, verbose = FALSE)
 	
 	# Simulate from saved samples
 	if(!is.null(fit$U_samples) && !is.null(fit$V_samples)) {
@@ -207,7 +207,7 @@ test_that("posterior functions work for bipartite networks", {
 	
 	# Fit bipartite model
 	fit <- ame(Y, mode = "bipartite", R_row = 1, R_col = 1,
-						burn = 50, nscan = 200, print = FALSE)
+						burn = 50, nscan = 200, verbose = FALSE)
 	
 	# Check we can simulate posteriors
 	beta_post <- suppressWarnings(
@@ -229,7 +229,7 @@ test_that("simulate_Y_posterior generates reasonable predictions", {
 	Y <- matrix(rnorm(n * n), n, n)
 	diag(Y) <- NA
 	
-	fit <- ame(Y, R = 0, burn = 100, nscan = 300, print = FALSE)
+	fit <- ame(Y, R = 0, burn = 100, nscan = 300, verbose = FALSE)
 	
 	# Simulate posterior predictive
 	Y_post <- simulate_posterior(fit, "Y", n_samples = 10)

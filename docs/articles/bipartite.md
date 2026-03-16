@@ -108,7 +108,7 @@ fit_cross <- ame(
   burn = 100,
   nscan = 500,
   odens = 5,
-  print = FALSE
+  verbose = FALSE
 )
 
 summary(fit_cross)
@@ -242,7 +242,7 @@ fit_static <- lame(
   burn = 100,
   nscan = 500,
   odens = 5,
-  print = FALSE,
+  verbose = FALSE,
   plot = FALSE
 )
 
@@ -260,16 +260,16 @@ summary(fit_static)
 #> Regression coefficients:
 #> ------------------------
 #>           Estimate StdError z_value p_value CI_lower CI_upper  
-#> intercept    0.059    0.172   0.344   0.731   -0.278    0.396  
+#> intercept    0.023    0.159   0.147   0.883   -0.289    0.336  
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.231    0.084
+#> va     0.235    0.075
 #> cab    0.000    0.000
-#> vb     0.270    0.094
+#> vb     0.268    0.101
 #> rho    0.000    0.000
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
@@ -297,7 +297,7 @@ fit_dynamic <- lame(
   burn = 100,
   nscan = 500,
   odens = 5,
-  print = FALSE,
+  verbose = FALSE,
   plot = FALSE
 )
 
@@ -312,21 +312,21 @@ summary(fit_dynamic)
 #> Family: binary 
 #> Mode: bipartite 
 #> Dynamic latent positions: enabled (rho_uv = 0.391 )
-#> Dynamic additive effects: enabled (rho_ab = 0.258 )
+#> Dynamic additive effects: enabled (rho_ab = 0.485 )
 #> 
 #> Regression coefficients:
 #> ------------------------
 #>           Estimate StdError z_value p_value CI_lower CI_upper  
-#> intercept   -0.005    0.037  -0.146   0.884   -0.077    0.066  
+#> intercept   -0.003    0.038  -0.084   0.933   -0.078    0.072  
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.223    0.070
+#> va     0.241    0.075
 #> cab    0.000    0.000
-#> vb     0.278    0.114
+#> vb     0.268    0.086
 #> rho    0.000    0.000
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
@@ -437,7 +437,7 @@ for(i in seq_along(dims_to_test)) {
     burn = 100,
     nscan = 500,
     odens = 5,
-    print = FALSE
+    verbose = FALSE
   )
   gof_results[[i]] <- c(
     R_row = dims_to_test[[i]][1],
@@ -490,3 +490,31 @@ Look for traces that mix well (no long flat stretches or slow drifts)
 and densities that are smooth and unimodal. With the short chains used
 in this vignette, convergence is not guaranteed. In practice, run longer
 chains and consider multiple starting values.
+
+## Extracting Positions for Custom Analysis
+
+If you need the latent positions in a tidy format (e.g., for merging
+with external data or building custom plots), the
+[`latent_positions()`](https://netify-dev.github.io/lame/reference/latent_positions.md)
+function returns a data frame with one row per actor-dimension-time
+combination:
+
+``` r
+lp <- latent_positions(fit_cross)
+head(lp)
+#>   actor dimension time      value posterior_sd type
+#> 1 node1         1 <NA> -1.9086611           NA    U
+#> 2 node2         1 <NA>  0.8718661           NA    U
+#> 3 node3         1 <NA>  2.0128221           NA    U
+#> 4 node4         1 <NA> -0.7177380           NA    U
+#> 5 node5         1 <NA>  0.3638942           NA    U
+#> 6 node6         1 <NA>  3.0011548           NA    U
+
+# Filter to just the row nodes (students)
+lp_students <- lp[lp$type == "U", ]
+cat("Student positions:", nrow(lp_students), "rows\n")
+#> Student positions: 60 rows
+```
+
+This is especially useful for bipartite networks where U (row nodes) and
+V (column nodes) have different numbers of actors.

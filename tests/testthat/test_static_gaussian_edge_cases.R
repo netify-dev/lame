@@ -21,7 +21,7 @@ test_that("Gaussian AME handles missing data correctly", {
 	# Fit model
 	fit <- ame(Y_missing, Xdyad = X, R = 1, family = "normal",
 						rvar = TRUE, cvar = TRUE,
-						burn = 200, nscan = 800, print = FALSE)
+						burn = 200, nscan = 800, verbose = FALSE)
 	
 	# Check that predictions exist for missing values
 	pred_corr <- cor(c(Y_complete[missing_idx]), c(reconstruct_EZ(fit)[missing_idx]))
@@ -38,7 +38,7 @@ test_that("Gaussian AME works across different network sizes", {
 		diag(Y) <- NA
 		
 		fit <- ame(Y, Xdyad = X, R = 0, family = "normal",
-							burn = 100, nscan = 400, print = FALSE)
+							burn = 100, nscan = 400, verbose = FALSE)
 		
 		beta_est <- median(fit$BETA[,2])
 		expect_lt(abs(beta_est - 1), 0.5)
@@ -69,7 +69,7 @@ test_that("Gaussian AME handles multiple covariates correctly", {
 	
 	# Fit model
 	fit <- ame(Y, Xdyad = X_array, R = 0, family = "normal",
-						burn = 300, nscan = 1200, print = FALSE)
+						burn = 300, nscan = 1200, verbose = FALSE)
 	
 	# Check all coefficients are recovered (skip intercept)
 	for(k in 1:p) {
@@ -98,7 +98,7 @@ test_that("Gaussian AME handles symmetric networks", {
 	# Fit symmetric model
 	fit <- ame(Y, Xdyad = X, R = 1, family = "normal",
 						symmetric = TRUE, nvar = TRUE,
-						burn = 200, nscan = 800, print = FALSE)
+						burn = 200, nscan = 800, verbose = FALSE)
 	
 	# Check symmetry is preserved in predictions
 	# for symmetric model, U and L should exist (not V)
@@ -125,7 +125,7 @@ test_that("Gaussian AME handles higher dimensional latent space", {
 	
 	# Fit with R=3
 	fit <- ame(Y, Xdyad = X, R = 3, family = "normal",
-						burn = 300, nscan = 1200, print = FALSE)
+						burn = 300, nscan = 1200, verbose = FALSE)
 	
 	# Check dimensions
 	expect_equal(ncol(fit$U), 3)
@@ -156,7 +156,7 @@ test_that("Gaussian AME estimates variance components correctly", {
 	# Fit model
 	fit <- ame(Y, R = 0, family = "normal",
 						rvar = TRUE, cvar = TRUE,
-						burn = 500, nscan = 2000, print = FALSE)
+						burn = 500, nscan = 2000, verbose = FALSE)
 	
 	# Extract variance estimates
 	if(!is.null(fit$VC) && ncol(fit$VC) >= 3) {
@@ -187,7 +187,7 @@ test_that("Gaussian AME handles extreme values gracefully", {
 	# Should not crash
 	expect_error(
 		fit <- ame(Y, Xdyad = X, R = 1, family = "normal",
-							burn = 100, nscan = 400, print = FALSE),
+							burn = 100, nscan = 400, verbose = FALSE),
 		NA  # Expect no error
 	)
 	
@@ -210,7 +210,7 @@ test_that("Gaussian AME handles low variance networks", {
 	# Should not crash
 	expect_error(
 		fit <- ame(Y, R = 0, family = "normal",
-							burn = 100, nscan = 400, print = FALSE),
+							burn = 100, nscan = 400, verbose = FALSE),
 		NA  # Expect no error
 	)
 })
@@ -227,7 +227,7 @@ test_that("Gaussian AME provides convergence diagnostics", {
 	diag(Y) <- NA
 	
 	fit <- ame(Y, Xdyad = X, R = 0, family = "normal",
-						burn = 200, nscan = 1000, print = FALSE)
+						burn = 200, nscan = 1000, verbose = FALSE)
 	
 	# Check MCMC output
 	expect_true(nrow(fit$BETA) > 0)
@@ -257,7 +257,7 @@ test_that("Gaussian AME predictions are accurate", {
 	# Fit model
 	fit <- ame(Y, Xdyad = X, R = 0, family = "normal",
 						rvar = TRUE, cvar = TRUE,
-						burn = 300, nscan = 1200, print = FALSE)
+						burn = 300, nscan = 1200, verbose = FALSE)
 	
 	# Check prediction accuracy
 	# EZ should be close to true linear predictor

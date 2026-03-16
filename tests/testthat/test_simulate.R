@@ -12,7 +12,7 @@ test_that("simulate.ame works for binary networks", {
 	# Fit a simple binary AME model
 	fit <- ame(YX_bin$Y, YX_bin$X[,,1:2], 
 						 burn = 20, nscan = 30, odens = 10,
-						 family = "binary", print = FALSE)
+						 family = "binary", verbose = FALSE)
 
 	# Test 1: Basic simulation works
 	sims <- simulate(fit, nsim = 5, seed = 456,
@@ -42,7 +42,7 @@ test_that("simulate.ame captures uncertainty", {
 	
 	fit <- ame(YX_bin$Y, YX_bin$X[,,1:2],
 						 burn = 20, nscan = 30, odens = 10,
-						 family = "binary", print = FALSE)
+						 family = "binary", verbose = FALSE)
 	
 	# Simulate multiple networks
 	sims <- simulate(fit, nsim = 20, seed = 789,
@@ -77,7 +77,7 @@ test_that("simulate.lame works for longitudinal binary networks", {
 	# Fit longitudinal model
 	fit <- lame(Y_sub, X_sub,
 							burn = 20, nscan = 30, odens = 10,
-							family = "binary", print = FALSE, plot = FALSE)
+							family = "binary", verbose = FALSE, plot = FALSE)
 	
 	# Test 1: Basic simulation works
 	sims <- simulate(fit, nsim = 5, n_time = 4, seed = 456,
@@ -114,7 +114,7 @@ test_that("simulate.lame captures temporal dynamics", {
 	# Fit model with dynamic effects (if supported)
 	fit <- lame(Y_sub, X_sub,
 							burn = 20, nscan = 30, odens = 10,
-							family = "binary", print = FALSE, plot = FALSE)
+							family = "binary", verbose = FALSE, plot = FALSE)
 	
 	# Simulate longer time series
 	sims <- simulate(fit, nsim = 10, n_time = 10, seed = 333)

@@ -28,7 +28,7 @@ test_that("ame() bipartite normal recovers beta and additive effects", {
 		dat$Y, Xdyad = dat$Xdyad,
 		R = R, family = "normal", mode = "bipartite",
 		burn = 2000, nscan = 8000, odens = 2,
-		print = FALSE, gof = FALSE, seed = 42
+		verbose = FALSE, gof = FALSE, seed = 42
 	)
 
 	# beta recovery
@@ -90,7 +90,7 @@ test_that("ame() bipartite binary recovers beta and additive effects", {
 		dat$Y, Xdyad = dat$Xdyad,
 		R = R, family = "binary", mode = "bipartite",
 		burn = 2000, nscan = 8000, odens = 2,
-		print = FALSE, gof = FALSE, seed = 42
+		verbose = FALSE, gof = FALSE, seed = 42
 	)
 
 	# beta_dyad should be positive
@@ -147,7 +147,7 @@ test_that("lame() bipartite normal recovers beta and additive effects", {
 		dat$Y, Xdyad = Xdyad_list,
 		R = 0, family = "normal", mode = "bipartite",
 		burn = 1000, nscan = 5000, odens = 2,
-		print = FALSE, gof = FALSE, seed = 42
+		verbose = FALSE, gof = FALSE, seed = 42
 	)
 
 	# beta recovery
@@ -203,7 +203,7 @@ test_that("lame() bipartite binary recovers beta and effects", {
 		dat$Y, Xdyad = Xdyad_list,
 		R = 0, family = "binary", mode = "bipartite",
 		burn = 1000, nscan = 5000, odens = 2,
-		print = FALSE, gof = FALSE, seed = 42
+		verbose = FALSE, gof = FALSE, seed = 42
 	)
 
 	# beta_dyad should be positive
@@ -243,7 +243,7 @@ test_that("lame() rejects unsupported bipartite families", {
 		expect_error(
 			lame(dat$Y, Xdyad = Xdyad_list, R = 0, family = fam,
 				mode = "bipartite", burn = 10, nscan = 10, odens = 1,
-				print = FALSE, gof = FALSE, seed = 42),
+				verbose = FALSE, gof = FALSE, seed = 42),
 			"not supported for bipartite",
 			info = paste("Family:", fam, "should be rejected for bipartite")
 		)
@@ -266,7 +266,7 @@ test_that("ame() bipartite dimensions are correct", {
 		dat$Y, Xdyad = dat$Xdyad,
 		R = R, family = "normal", mode = "bipartite",
 		burn = 100, nscan = 200, odens = 2,
-		print = FALSE, gof = FALSE, seed = 42
+		verbose = FALSE, gof = FALSE, seed = 42
 	)
 
 	# Check output dimensions

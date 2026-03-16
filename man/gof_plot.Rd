@@ -169,7 +169,7 @@ Good model fit is indicated when:
 # Fit an AME model
 data(YX_nrm)
 fit_ame <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, gof = TRUE,
-               nscan = 100, burn = 10, odens = 1, print = FALSE)
+               nscan = 100, burn = 10, odens = 1, verbose = FALSE)
 
 # Basic GOF plot
 gof_plot(fit_ame)
