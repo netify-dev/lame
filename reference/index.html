@@ -19,10 +19,11 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
-    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Quick Start</a></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Your First AME Model</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
-    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Topics</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
   </ul></li>
@@ -308,6 +309,29 @@
 
         </dt>
         <dd>Compute GOF statistics for bipartite networks</dd>
+      </dl></div><div class="section level2">
+      <h2 id="latent-space">Latent Space<a class="anchor" aria-label="anchor" href="#latent-space"></a></h2>
+
+      <div class="section-desc"><p>Extract and align latent positions</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="latent_positions.html">latent_positions()</a></code>
+
+        </dt>
+        <dd>Extract latent positions as a tidy data frame</dd>
+
+        <dt>
+
+          <code><a href="procrustes_align.html">procrustes_align()</a></code>
+
+        </dt>
+        <dd>Procrustes alignment of latent positions across time</dd>
       </dl></div><div class="section level2">
       <h2 id="posterior-utilities">Posterior Utilities<a class="anchor" aria-label="anchor" href="#posterior-utilities"></a></h2>
 
@@ -780,6 +804,55 @@
 
         </dt>
         <dd>Update variance parameters for bipartite</dd>
+
+        <dt>
+
+          <code><a href="rUV_dynamic_bip_fc_cpp.html">rUV_dynamic_bip_fc_cpp()</a></code>
+
+        </dt>
+        <dd>Bipartite dynamic UV Gibbs update</dd>
+
+        <dt>
+
+          <code><a href="rZ_nrm_batch_cpp.html">rZ_nrm_batch_cpp()</a></code>
+
+        </dt>
+        <dd>Batch normal Z sampling across all time periods</dd>
+
+        <dt>
+
+          <code><a href="rZ_bin_bip_batch_cpp.html">rZ_bin_bip_batch_cpp()</a></code>
+
+        </dt>
+        <dd>Batch binary Z sampling across all time periods (bipartite, rho=0)</dd>
+
+        <dt>
+
+          <code><a href="rZ_tob_bip_batch_cpp.html">rZ_tob_bip_batch_cpp()</a></code>
+
+        </dt>
+        <dd>Batch tobit Z sampling across all time periods (bipartite, rho=0)</dd>
+
+        <dt>
+
+          <code><a href="compute_XtX_Xty_bip_cpp.html">compute_XtX_Xty_bip_cpp()</a></code>
+
+        </dt>
+        <dd>Compute X'X and X'y for bipartite covariate regression</dd>
+
+        <dt>
+
+          <code><a href="Xbeta_bip_cpp.html">Xbeta_bip_cpp()</a></code>
+
+        </dt>
+        <dd>Compute Xbeta product for bipartite networks</dd>
+
+        <dt>
+
+          <code><a href="rbeta_ab_bip_gibbs_cpp.html">rbeta_ab_bip_gibbs_cpp()</a></code>
+
+        </dt>
+        <dd>Full bipartite Gibbs update for beta, a, b</dd>
       </dl></div><div class="section level2">
       <h2 id="internal-helpers">Internal Helpers<a class="anchor" aria-label="anchor" href="#internal-helpers"></a></h2>
 

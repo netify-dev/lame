@@ -34,10 +34,11 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
-    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Quick Start</a></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Your First AME Model</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
-    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Topics</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
   </ul>
@@ -198,7 +199,7 @@ each node type separately via <code>R_row</code> and
 <span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>  print <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">)</span></span>
@@ -323,7 +324,7 @@ want more data to estimate it precisely.</p>
 <span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>  print <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -341,16 +342,16 @@ want more data to estimate it precisely.</p>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper  </span></span>
-<span><span class="co">#&gt; intercept    0.059    0.172   0.344   0.731   -0.278    0.396  </span></span>
+<span><span class="co">#&gt; intercept    0.023    0.159   0.147   0.883   -0.289    0.336  </span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.231    0.084</span></span>
+<span><span class="co">#&gt; va     0.235    0.075</span></span>
 <span><span class="co">#&gt; cab    0.000    0.000</span></span>
-<span><span class="co">#&gt; vb     0.270    0.094</span></span>
+<span><span class="co">#&gt; vb     0.268    0.101</span></span>
 <span><span class="co">#&gt; rho    0.000    0.000</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
@@ -379,7 +380,7 @@ more volatile from period to period.</p>
 <span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>  print <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -394,21 +395,21 @@ more volatile from period to period.</p>
 <span><span class="co">#&gt; Family: binary </span></span>
 <span><span class="co">#&gt; Mode: bipartite </span></span>
 <span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.391 )</span></span>
-<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.258 )</span></span>
+<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.485 )</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper  </span></span>
-<span><span class="co">#&gt; intercept   -0.005    0.037  -0.146   0.884   -0.077    0.066  </span></span>
+<span><span class="co">#&gt; intercept   -0.003    0.038  -0.084   0.933   -0.078    0.072  </span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.223    0.070</span></span>
+<span><span class="co">#&gt; va     0.241    0.075</span></span>
 <span><span class="co">#&gt; cab    0.000    0.000</span></span>
-<span><span class="co">#&gt; vb     0.278    0.114</span></span>
+<span><span class="co">#&gt; vb     0.268    0.086</span></span>
 <span><span class="co">#&gt; rho    0.000    0.000</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
@@ -506,7 +507,7 @@ GOF statistics.</p>
 <span>    burn <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>    nscan <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>    odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>    print <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span>  <span class="op">)</span></span>
 <span>  <span class="va">gof_results</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>    R_row <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
@@ -558,6 +559,31 @@ variance components.</p>
 and densities that are smooth and unimodal. With the short chains used
 in this vignette, convergence is not guaranteed. In practice, run longer
 chains and consider multiple starting values.</p>
+</div>
+<div class="section level2">
+<h2 id="extracting-positions-for-custom-analysis">Extracting Positions for Custom Analysis<a class="anchor" aria-label="anchor" href="#extracting-positions-for-custom-analysis"></a>
+</h2>
+<p>If you need the latent positions in a tidy format (e.g., for merging
+with external data or building custom plots), the
+<code><a href="../reference/latent_positions.html">latent_positions()</a></code> function returns a data frame with one
+row per actor-dimension-time combination:</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   actor dimension time      value posterior_sd type</span></span>
+<span><span class="co">#&gt; 1 node1         1 &lt;NA&gt; -1.9086611           NA    U</span></span>
+<span><span class="co">#&gt; 2 node2         1 &lt;NA&gt;  0.8718661           NA    U</span></span>
+<span><span class="co">#&gt; 3 node3         1 &lt;NA&gt;  2.0128221           NA    U</span></span>
+<span><span class="co">#&gt; 4 node4         1 &lt;NA&gt; -0.7177380           NA    U</span></span>
+<span><span class="co">#&gt; 5 node5         1 &lt;NA&gt;  0.3638942           NA    U</span></span>
+<span><span class="co">#&gt; 6 node6         1 &lt;NA&gt;  3.0011548           NA    U</span></span>
+<span></span>
+<span><span class="co"># Filter to just the row nodes (students)</span></span>
+<span><span class="va">lp_students</span> <span class="op">&lt;-</span> <span class="va">lp</span><span class="op">[</span><span class="va">lp</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"U"</span>, <span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Student positions:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">lp_students</span><span class="op">)</span>, <span class="st">"rows\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Student positions: 60 rows</span></span></code></pre></div>
+<p>This is especially useful for bipartite networks where U (row nodes)
+and V (column nodes) have different numbers of actors.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

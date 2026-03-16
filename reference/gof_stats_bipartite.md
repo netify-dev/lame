@@ -73,6 +73,6 @@ Y <- matrix(rnorm(10*12), 10, 12)
 # Calculate GOF statistics
 gof_stats_bipartite(Y)
 #>   sd.rowmean   sd.colmean  four.cycles 
-#>    0.2801100    0.4537885 2970.0000000 
+#>    0.2850925    0.4371888 2970.0000000 
 # }
 ```

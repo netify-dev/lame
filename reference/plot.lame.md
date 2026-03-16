@@ -116,7 +116,7 @@ Y_list <- list(
 )
 diag(Y_list[[1]]) <- diag(Y_list[[2]]) <- NA
 fit <- lame(Y_list, family = "normal",
-            nscan = 50, burn = 10, odens = 1, print = FALSE, plot = FALSE)
+            nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE)
 
 # Default comprehensive plot
 plot(fit)

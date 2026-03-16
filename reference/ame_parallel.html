@@ -19,10 +19,11 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
-    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Quick Start</a></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Your First AME Model</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
-    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Topics</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
   </ul></li>
@@ -101,7 +102,7 @@ If combine_method = "list": A list of ame objects, one per chain</p>
 <span class="r-in"><span><span class="va">fit_parallel</span> <span class="op">&lt;-</span> <span class="fu">ame_parallel</span><span class="op">(</span><span class="va">YX_nrm</span><span class="op">$</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">YX_nrm</span><span class="op">$</span><span class="va">X</span>,</span></span>
 <span class="r-in"><span>                             n_chains <span class="op">=</span> <span class="fl">2</span>, cores <span class="op">=</span> <span class="fl">1</span>,</span></span>
 <span class="r-in"><span>                             nscan <span class="op">=</span> <span class="fl">100</span>, burn <span class="op">=</span> <span class="fl">10</span>, odens <span class="op">=</span> <span class="fl">1</span>,</span></span>
-<span class="r-in"><span>                             print <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>                             verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── <span style="font-weight: bold;">Running </span><span style="color: #0000BB; font-weight: bold;">2</span><span style="font-weight: bold;"> chains sequentially</span> ──</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>

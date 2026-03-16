@@ -37,7 +37,7 @@ Maintainer: Shahryar Minhas <sminhas@example.com>
 # \donttest{
 data(YX_nrm)
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, burn = 10, nscan = 100, odens = 1,
-           family = "normal", print = FALSE)
+           family = "normal", verbose = FALSE)
 summary(fit)
 #> 
 #> === AME Model Summary ===
