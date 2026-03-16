@@ -47,7 +47,7 @@ sim_gaussian_ame <- function(seed, n, mu, beta, gamma=NULL,
 	fit <- ame(Y, Xdyad=X, R=R, family="normal",
 						rvar=rvar, cvar=cvar, dcor=FALSE,
 						burn=burn, nscan=nscan, 
-						print=FALSE)
+						verbose = FALSE)
 	
 	# Extract results
 	beta_hat <- median(fit$BETA[,2])
@@ -119,7 +119,7 @@ test_that("Gaussian AME with covariates only recovers true parameters", {
 	# Fit model with no additive or multiplicative effects
 	fit <- ame(Y, Xdyad=X, R=0, family="normal",
 						rvar=FALSE, cvar=FALSE, dcor=FALSE,
-						burn=500, nscan=2000, print=FALSE)
+						burn=500, nscan=2000, verbose = FALSE)
 	
 	# Check parameter recovery
 	beta_est <- median(fit$BETA[,2])
@@ -205,7 +205,7 @@ test_that("Gaussian AME with additive effects recovers true parameters", {
 	# Fit model with additive effects
 	fit <- ame(Y, Xdyad=X, R=0, family="normal",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
-						burn=500, nscan=2000, print=FALSE)
+						burn=500, nscan=2000, verbose = FALSE)
 	
 	# Check parameter recovery
 	beta_est <- median(fit$BETA[,2])
@@ -298,7 +298,7 @@ test_that("Gaussian AME with full model recovers true parameters", {
 	# Fit full AME model
 	fit <- ame(Y, Xdyad=X, R=R_true, family="normal",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
-						burn=500, nscan=2000, print=FALSE)
+						burn=500, nscan=2000, verbose = FALSE)
 	
 	# Check parameter recovery
 	beta_est <- median(fit$BETA[,2])
@@ -378,12 +378,12 @@ test_that("Multiplicative effects reduce bias from unobserved confounding", {
 	# Fit model WITHOUT multiplicative effects
 	fit_no_uv <- ame(Y, Xdyad=X, R=0, family="normal",
 									rvar=FALSE, cvar=FALSE, dcor=FALSE,
-									burn=400, nscan=1500, print=FALSE)
+									burn=400, nscan=1500, verbose = FALSE)
 	
 	# Fit model WITH multiplicative effects
 	fit_with_uv <- ame(Y, Xdyad=X, R=2, family="normal",
 										rvar=FALSE, cvar=FALSE, dcor=FALSE,
-										burn=400, nscan=1500, print=FALSE)
+										burn=400, nscan=1500, verbose = FALSE)
 	
 	beta_no_uv <- median(fit_no_uv$BETA[,2])
 	beta_with_uv <- median(fit_with_uv$BETA[,2])
@@ -417,7 +417,7 @@ test_that("Gaussian AME produces valid diagnostics", {
 	
 	fit <- ame(Y, Xdyad=X, R=1, family="normal",
 						rvar=TRUE, cvar=TRUE,
-						burn=200, nscan=500, print=FALSE)
+						burn=200, nscan=500, verbose = FALSE)
 	
 	# Check that key outputs exist
 	expect_true(!is.null(fit$BETA))

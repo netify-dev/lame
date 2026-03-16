@@ -161,7 +161,7 @@ test_that("plotting functions run without error", {
 	rownames(Y) <- colnames(Y) <- paste0("Actor", 1:n)
 	
 	fit <- ame(Y, R=2, family="binary",
-						 burn=50, nscan=200, print=FALSE, gof=TRUE)
+						 burn=50, nscan=200, verbose = FALSE, gof=TRUE)
 	
 	# Test that plotting functions don't error
 	expect_no_error({
@@ -238,7 +238,7 @@ test_that("summary and print methods work", {
 	diag(Y) <- NA
 	
 	fit <- ame(Y, R=1, family="binary",
-						 burn=50, nscan=200, print=FALSE)
+						 burn=50, nscan=200, verbose = FALSE)
 	
 	# Summary should work
 	expect_no_error({

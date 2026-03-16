@@ -78,7 +78,7 @@ fit <- lame(
   burn = 100,              # Burn-in iterations
   nscan = 500,             # Post-burn-in iterations
   odens = 25,              # Output density (thinning)
-  print = FALSE,           # Suppress iteration output
+  verbose = FALSE,           # Suppress iteration output
   plot = FALSE             # Suppress real-time plots
 )
 
@@ -135,9 +135,30 @@ uv_plot(fit) +
 The circular layout places sender positions (triangles) on the outer ring and receiver positions (circles) on an inner ring, scaled by magnitude. Countries with larger effects are placed further from the center, indicating they play a more distinctive role in the network. Countries clustered together (for example, Western allies like the USA and Canada) share similar sanctioning profiles.
 
 
-## Conclusion
+## Extracting Latent Positions
 
-This vignette introduced the core workflow of the `lame` package: fitting a longitudinal AME model, checking convergence, evaluating goodness of fit, and visualizing the latent structure. For more specialized topics, see the companion vignettes on [bipartite networks](bipartite.html) and [dynamic effects](dynamic_effects.html).
+If you need the estimated latent positions in a tidy format (for custom plots, merging with external data, or exporting to other tools), the `latent_positions()` function returns a data frame:
+
+```{r}
+lp <- latent_positions(fit)
+head(lp)
+```
+
+Each row gives one actor's position on one latent dimension at one time point. For dynamic models (`dynamic_uv = TRUE`), the `time` column tracks how positions evolve. You can optionally apply Procrustes alignment to remove rotational indeterminacy across time periods:
+
+```{r}
+aligned <- procrustes_align(fit)
+str(aligned$U)  # aligned 3D array
+```
+
+## What's Next?
+
+This vignette covered the core workflow: fitting, convergence, GOF, and visualization. For more specialized topics:
+
+- **Single networks (no time series)?** See [Your First AME Model](cross_sec_ame.html) for a detailed cross-sectional walkthrough
+- **Two types of nodes?** See [Bipartite Networks](bipartite.html)
+- **Evolving network structure?** See [Dynamic Effects](dynamic_effects.html)
+- **Just want the quick version?** See [Getting Started](lame.html)
 
 **References**:
 

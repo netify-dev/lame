@@ -19,7 +19,7 @@ test_that("Binary AME correctly handles covariates in all functions", {
 	
 	# Fit model with covariates
 	fit <- ame(Y, Xdyad = X, R = 0, family = "binary",
-						burn = 200, nscan = 500, print = FALSE, seed = 456)
+						burn = 200, nscan = 500, verbose = FALSE, seed = 456)
 	
 	# Test 1: X is stored in fit object
 	expect_false(is.null(fit$X), label = "X should be stored in fit object")
@@ -68,7 +68,7 @@ test_that("Poisson AME correctly handles covariates in all functions", {
 	
 	# Fit model with covariates
 	fit <- ame(Y, Xdyad = X, R = 0, family = "poisson",
-						burn = 200, nscan = 500, odens = 1, print = FALSE, seed = 567)
+						burn = 200, nscan = 500, odens = 1, verbose = FALSE, seed = 567)
 	
 	# Test 1: X is stored in fit object
 	expect_false(is.null(fit$X), label = "X should be stored in fit object")
@@ -113,7 +113,7 @@ test_that("Gaussian AME correctly handles covariates in all functions", {
 	
 	# Fit model with covariates
 	fit <- ame(Y, Xdyad = X_array, R = 0, family = "normal",
-						burn = 200, nscan = 500, print = FALSE, seed = 678)
+						burn = 200, nscan = 500, verbose = FALSE, seed = 678)
 	
 	# Test 1: X is stored in fit object
 	expect_false(is.null(fit$X), label = "X should be stored in fit object")
@@ -160,7 +160,7 @@ test_that("Tobit AME correctly handles covariates in all functions", {
 	
 	# Fit model with covariates
 	fit <- ame(Y, Xdyad = X, R = 0, family = "tobit",
-						burn = 200, nscan = 500, print = FALSE, seed = 789)
+						burn = 200, nscan = 500, verbose = FALSE, seed = 789)
 	
 	# Test 1: X is stored in fit object
 	expect_false(is.null(fit$X), label = "X should be stored in fit object for tobit")
@@ -193,7 +193,7 @@ test_that("Bipartite models correctly handle covariates across families", {
 	Y_bin <- matrix(rbinom(nA * nB, 1, c(p_true)), nA, nB)
 	
 	fit_bin <- ame(Y_bin, Xdyad = Xdyad, mode = "bipartite", family = "binary",
-								burn = 200, nscan = 400, print = FALSE, seed = 890)
+								burn = 200, nscan = 400, verbose = FALSE, seed = 890)
 	
 	# Test 1: X is stored (bipartite already stores X, but verify)
 	expect_false(is.null(fit_bin$X), label = "Bipartite should store X")
@@ -211,7 +211,7 @@ test_that("Bipartite models correctly handle covariates across families", {
 	Y_norm <- eta_true + matrix(rnorm(nA * nB, 0, 0.5), nA, nB)
 	
 	fit_norm <- ame(Y_norm, Xdyad = Xdyad, mode = "bipartite", family = "normal",
-								 burn = 200, nscan = 400, print = FALSE, seed = 901)
+								 burn = 200, nscan = 400, verbose = FALSE, seed = 901)
 	
 	EZ_norm <- reconstruct_EZ(fit_norm)
 	corr_norm <- cor(c(eta_true), c(EZ_norm))
@@ -229,7 +229,7 @@ test_that("predict() function works correctly with covariates", {
 	diag(Y) <- NA
 	
 	fit <- ame(Y, Xdyad = X, R = 1, family = "normal",
-						burn = 200, nscan = 400, print = FALSE)
+						burn = 200, nscan = 400, verbose = FALSE)
 	
 	# Test 1: predict with original data (no newdata)
 	pred_link <- predict(fit, type = "link")
@@ -264,7 +264,7 @@ test_that("simulate() function uses stored X correctly", {
 	diag(Y) <- NA
 	
 	fit <- ame(Y, Xdyad = X, R = 0, family = "normal",
-						burn = 200, nscan = 400, print = FALSE)
+						burn = 200, nscan = 400, verbose = FALSE)
 	
 	# Test 1: simulate without warning about missing covariates
 	warnings_caught <- character()
@@ -295,14 +295,14 @@ test_that("Y is available in fit object for gof()", {
 	
 	# Test unipartite
 	fit_uni <- ame(Y, R = 0, family = "normal",
-								burn = 100, nscan = 200, print = FALSE)
+								burn = 100, nscan = 200, verbose = FALSE)
 	
 	expect_false(is.null(fit_uni$Y), label = "Unipartite should store Y")
 	
 	# Test bipartite
 	Y_bip <- matrix(rnorm(8*10), 8, 10)
 	fit_bip <- ame(Y_bip, mode = "bipartite", family = "normal",
-								burn = 100, nscan = 200, print = FALSE)
+								burn = 100, nscan = 200, verbose = FALSE)
 	
 	expect_false(is.null(fit_bip$Y), label = "Bipartite should store Y")
 	

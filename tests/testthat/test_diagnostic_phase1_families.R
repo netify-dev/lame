@@ -124,7 +124,7 @@ for (fam in families) {
     fit <- ame(
       dat$Y, Xdyad = dat$Xdyad, R = 2, family = fam,
       symmetric = FALSE, burn = 50, nscan = 100, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     verify_ame_fit(fit, n = n, family = fam, mode = "unipartite",
@@ -156,7 +156,7 @@ for (fam in sym_families) {
     fit <- ame(
       Y, Xdyad = dat$Xdyad, R = 2, family = fam,
       symmetric = TRUE, burn = 50, nscan = 100, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     verify_ame_fit(fit, n = n, family = fam, mode = "unipartite",
@@ -184,7 +184,7 @@ for (fam in bip_families) {
     fit <- ame(
       dat$Y, Xdyad = dat$Xdyad, R = 2, family = fam,
       mode = "bipartite", burn = 50, nscan = 100, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     verify_ame_fit(fit, n = nA, family = fam, mode = "bipartite",
@@ -216,7 +216,7 @@ for (fam in lame_families) {
     fit <- lame(
       dat$Y, Xdyad = dat$Xdyad, R = 2, family = fam,
       burn = 50, nscan = 100, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     verify_lame_fit(fit, n = n, family = fam, mode = "unipartite",
@@ -249,7 +249,7 @@ for (fam in lame_bip_families) {
     fit <- lame(
       dat$Y, Xdyad = Xdyad_list, R = 2, family = fam,
       mode = "bipartite", burn = 50, nscan = 100, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     verify_lame_fit(fit, n = nA, family = fam, mode = "bipartite",

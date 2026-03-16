@@ -1,48 +1,30 @@
-# Introduction to LAME
+# Getting Started with lame
 
-## Overview
+## What Is lame?
 
-The `lame` package implements Additive and Multiplicative Effects (AME)
-models for both cross-sectional and longitudinal network data. It
-extends the AME framework (Hoff 2021) to handle temporal dependencies
-through dynamic latent factors and additive effects, with a C++ backend
-for efficient computation.
+The `lame` package fits **L**ongitudinal **A**dditive and
+**M**ultiplicative **E**ffects models to network data. If you have a
+network (who trades with whom, who is friends with whom, who sanctions
+whom) observed at one or more time points, `lame` lets you estimate
+covariate effects while properly accounting for the dependencies that
+make network data special.
 
-### Key Features
+The core idea: every actor has a tendency to send ties ($a_{i}$),
+receive ties ($b_{j}$), and a latent position ($u_{i}$, $v_{j}$) that
+captures who connects with whom. Covariates shift the baseline
+probability of ties. And all of this can optionally evolve over time.
 
-- **Cross-sectional and longitudinal** network analysis via
-  [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) and
-  [`lame()`](https://netify-dev.github.io/lame/reference/lame.md)
-- **Dynamic effects**: time-varying additive and multiplicative effects
-  with AR(1) processes
-- **Bipartite networks**: two-mode networks with separate row and column
-  latent spaces
-- **Multiple families**: normal, binary, ordinal, poisson, tobit,
-  censored binary, fixed rank nomination, and row-ranked likelihood
-- **S3 methods**: [`coef()`](https://rdrr.io/r/stats/coef.html),
-  [`vcov()`](https://rdrr.io/r/stats/vcov.html),
-  [`confint()`](https://rdrr.io/r/stats/confint.html),
-  [`residuals()`](https://rdrr.io/r/stats/residuals.html),
-  [`predict()`](https://rdrr.io/r/stats/predict.html),
-  [`summary()`](https://rdrr.io/r/base/summary.html),
-  [`print()`](https://rdrr.io/r/base/print.html)
+## A 5-Minute Example
 
-## Quick Start
+Let’s fit a model to a small longitudinal binary network in under 20
+lines of code.
 
 ``` r
 library(lame)
 set.seed(6886)
-```
 
-### Simulating Network Data
-
-We begin by generating a small directed binary network observed over 3
-time periods.
-
-``` r
-n <- 15
-T_periods <- 3
-
+# Simulate 3 time periods of a 15-node directed network
+n <- 15; T_periods <- 3
 Y_list <- lapply(1:T_periods, function(t) {
   Y <- matrix(rbinom(n * n, 1, 0.15), n, n)
   diag(Y) <- NA
@@ -50,37 +32,18 @@ Y_list <- lapply(1:T_periods, function(t) {
   Y
 })
 
-cat("Network dimensions:", n, "x", n, "\n")
-#> Network dimensions: 15 x 15
-cat("Time periods:", T_periods, "\n")
-#> Time periods: 3
-cat("Densities:", round(sapply(Y_list, mean, na.rm = TRUE), 3), "\n")
-#> Densities: 0.133 0.171 0.081
-```
-
-### Fitting a Longitudinal Model
-
-The [`lame()`](https://netify-dev.github.io/lame/reference/lame.md)
-function fits the longitudinal AME model using MCMC:
-
-``` r
+# Fit a longitudinal AME model
 fit <- lame(
   Y = Y_list,
-  R = 2,               # 2-dimensional latent space
-  family = "binary",   # binary (probit) networks
-  rvar = TRUE,         # sender random effects
-  cvar = TRUE,         # receiver random effects
-  burn = 100,          # burn-in (use 1000+ in practice)
-  nscan = 500,         # post-burn-in iterations (use 5000+ in practice)
-  odens = 25,          # thinning interval
-  print = FALSE,
+  R = 2,                # 2D latent space
+  family = "binary",    # probit for 0/1 networks
+  burn = 100,           # burn-in (use 1000+ for real work)
+  nscan = 500,          # post-burn-in samples (use 5000+)
+  odens = 25,           # thinning
+  verbose = FALSE,
   plot = FALSE
 )
-```
 
-### Inspecting the Fit
-
-``` r
 summary(fit)
 #> 
 #> === Longitudinal AME Model Summary ===
@@ -95,128 +58,138 @@ summary(fit)
 #> Regression coefficients:
 #> ------------------------
 #>           Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept   -1.323    0.171   -7.76       0   -1.657   -0.989 ***
+#> intercept   -1.301    0.173   -7.51       0   -1.641   -0.962 ***
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.117    0.049
-#> cab    0.003    0.039
-#> vb     0.096    0.031
-#> rho    0.262    0.178
+#> va     0.120    0.049
+#> cab    0.003    0.041
+#> vb     0.097    0.033
+#> rho    0.342    0.171
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
 ```
 
-## S3 Methods
+That’s it. You now have posterior estimates for regression coefficients,
+variance components, and latent positions pooled across all time
+periods.
 
-The package provides standard R methods for extracting results from
-fitted models.
+## What Can You Do with a Fitted Model?
 
-### Regression Coefficients
+`lame` objects work with all the standard R methods you’d expect:
 
 ``` r
-# posterior means
+# Regression coefficients (posterior means)
 coef(fit)
 #> intercept 
-#> -1.323077
+#> -1.301233
 
-# posterior covariance matrix of regression coefficients
-vcov(fit)
-#>           intercept
-#> intercept 0.0290731
-
-# 95% Bayesian credible intervals (not confidence intervals)
+# 95% credible intervals
 confint(fit)
-#>               2.5%     97.5%
-#> intercept -1.62034 -1.031958
+#>                2.5%      97.5%
+#> intercept -1.605381 -0.9894666
 
-# narrower 90% intervals
-confint(fit, level = 0.90)
-#>                  5%       95%
-#> intercept -1.556317 -1.045561
-```
-
-### Predictions and Residuals
-
-``` r
-# predicted probabilities (response scale) -- returns list for lame objects
+# Predicted probabilities for every dyad at every time point
 Y_hat <- predict(fit, type = "response")
-cat("Predicted probability range:", round(range(unlist(Y_hat), na.rm = TRUE), 3), "\n")
-#> Predicted probability range: 0.022 0.574
+cat("Predicted probability range:",
+    round(range(unlist(Y_hat), na.rm = TRUE), 3), "\n")
+#> Predicted probability range: 0.035 0.525
 
-# residuals (observed - fitted) -- returns list for lame objects
+# Residuals
 resid_list <- residuals(fit)
 cat("Residual SD:", round(sd(unlist(resid_list), na.rm = TRUE), 3), "\n")
-#> Residual SD: 0.351
+#> Residual SD: 0.349
 ```
 
-## Cross-Sectional Analysis
+## Checking Your Model
 
-For a single network observed at one time point, use
-[`ame()`](https://netify-dev.github.io/lame/reference/ame.md):
+Two essential diagnostics:
+
+**1. Did the MCMC converge?** The trace plots should look like fuzzy
+caterpillars, not random walks with trends.
+
+``` r
+trace_plot(fit, params = "beta")
+```
+
+![](lame_files/figure-html/trace-plot-1.png)
+
+**2. Does the model fit the data?** The GOF plots compare observed
+network statistics to what the model predicts. Observed values should
+fall within the simulated distributions.
+
+``` r
+gof_plot(fit)
+```
+
+![](lame_files/figure-html/gof-plot-1.png)
+
+## Visualizing Network Structure
+
+The latent space shows which actors play similar roles in the network:
+
+``` r
+uv_plot(fit)
+```
+
+![](lame_files/figure-html/uv-plot-1.png)
+
+And the additive effects show who’s unusually active or popular:
+
+``` r
+ab_plot(fit, effect = "sender")
+```
+
+![](lame_files/figure-html/ab-plot-1.png)
+
+## Cross-Sectional Models
+
+If you have a single network (not a time series), use
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) instead of
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md):
 
 ``` r
 fit_cs <- ame(
-  Y = Y_list[[1]],
+  Y = Y_list[[1]],     # just one time period
   R = 2,
   family = "binary",
   burn = 100,
   nscan = 500,
   odens = 25,
-  print = FALSE
+  verbose = FALSE
 )
 
-summary(fit_cs)
-#> 
-#> === AME Model Summary ===
-#> 
-#> Call:
-#> [1] "Y ~ intercept + a[i] + b[j] + rho*e[ji] + U[i,1:2] %*% V[j,1:2], family = 'binary'"
-#> 
-#> Regression coefficients:
-#> ------------------------
-#>           Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept   -1.198    0.132  -9.054       0   -1.458   -0.939 ***
-#> ---
-#> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#> Variance components:
-#> -------------------
-#>     Estimate StdError
-#> va     0.113    0.049
-#> cab    0.005    0.034
-#> vb     0.135    0.054
-#> rho    0.326    0.137
-#> ve     1.000    0.000
-#>   (va = sender, cab = sender-receiver covariance, vb = receiver,
-#>    rho = dyadic correlation, ve = residual variance)
 coef(fit_cs)
 #> intercept 
 #> -1.198251
 ```
 
+The output and methods are the same. The difference is that
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) pools
+information across time periods, giving you more precise estimates when
+the structure is stable.
+
 ## Dynamic Effects
 
-The [`lame()`](https://netify-dev.github.io/lame/reference/lame.md)
-function supports time-varying sender/receiver effects and latent
-positions via AR(1) processes.
+When you believe the network structure is changing over time (alliances
+shifting, friendships evolving), you can let the latent positions and
+additive effects drift via AR(1) processes:
 
 ``` r
 fit_dyn <- lame(
   Y = Y_list,
   R = 2,
-  dynamic_ab = TRUE,   # time-varying sender/receiver effects
-  dynamic_uv = TRUE,   # time-varying latent positions
-
+  dynamic_ab = TRUE,    # time-varying sociality/popularity
+  dynamic_uv = TRUE,    # time-varying latent positions
   family = "binary",
   burn = 100,
   nscan = 500,
   odens = 25,
-  print = FALSE,
+  verbose = FALSE,
   plot = FALSE
 )
 
@@ -252,75 +225,18 @@ summary(fit_dyn)
 #>    rho = dyadic correlation, ve = residual variance)
 ```
 
-## Visualizing Results
-
-### MCMC Diagnostics
-
-Trace plots help assess convergence of the MCMC sampler:
-
-``` r
-trace_plot(fit, params = "beta")
-```
-
-![](lame_files/figure-html/trace-plot-1.png)
-
-### Goodness of Fit
-
-GOF plots compare observed network statistics to their posterior
-predictive distributions:
-
-``` r
-gof_plot(fit)
-```
-
-![](lame_files/figure-html/gof-plot-1.png)
-
-### Latent Space
-
-The
-[`uv_plot()`](https://netify-dev.github.io/lame/reference/uv_plot.md)
-function visualizes the estimated latent positions:
-
-``` r
-uv_plot(fit)
-```
-
-![](lame_files/figure-html/uv-plot-1.png)
-
-### Additive Effects
-
-The
-[`ab_plot()`](https://netify-dev.github.io/lame/reference/ab_plot.md)
-function shows sender and receiver random effects:
-
-``` r
-ab_plot(fit, effect = "sender")
-```
-
-![](lame_files/figure-html/ab-plot-1.png)
-
-## Model Families
-
-The package supports 8 distributional families:
-
-| Family      | Description           | Use case                    |
-|-------------|-----------------------|-----------------------------|
-| `"normal"`  | Gaussian              | Continuous valued networks  |
-| `"binary"`  | Probit                | Binary networks (0/1)       |
-| `"ordinal"` | Ordinal probit        | Ordered categorical ties    |
-| `"poisson"` | Poisson               | Count networks              |
-| `"tobit"`   | Censored normal       | Non-negative continuous     |
-| `"cbin"`    | Censored binary       | Binary with censoring       |
-| `"frn"`     | Fixed rank nomination | Fixed number of nominations |
-| `"rrl"`     | Row-ranked likelihood | Ranked preferences          |
+The model estimates how persistent the latent positions are
+($\rho_{uv}$): values near 1 mean slow evolution, values near 0 mean
+rapid change. See the [dynamic effects
+vignette](https://netify-dev.github.io/lame/articles/dynamic_effects.md)
+for a deeper dive.
 
 ## Bipartite Networks
 
-For two-mode networks with different row and column node sets, set
-`mode = "bipartite"`:
+For two-mode networks (students and courses, countries and treaties),
+pass a rectangular matrix and set `mode = "bipartite"`:
 
 ``` r
-# simulate a small bipartite network
 nA <- 10; nB <- 8
 Y_bip <- lapply(1:3, function(t) {
   Y <- matrix(rbinom(nA * nB, 1, 0.2), nA, nB)
@@ -334,11 +250,8 @@ fit_bip <- lame(
   mode = "bipartite",
   R = 2,
   family = "binary",
-  burn = 100,
-  nscan = 500,
-  odens = 25,
-  print = FALSE,
-  plot = FALSE
+  burn = 100, nscan = 500, odens = 25,
+  verbose = FALSE, plot = FALSE
 )
 
 summary(fit_bip)
@@ -354,22 +267,48 @@ summary(fit_bip)
 #> 
 #> Regression coefficients:
 #> ------------------------
-#>           Estimate StdError z_value p_value CI_lower CI_upper   
-#> intercept   -0.926    0.291  -3.183   0.001   -1.496   -0.356 **
+#>           Estimate StdError z_value p_value CI_lower CI_upper  
+#> intercept   -0.895    0.438  -2.045   0.041   -1.753   -0.037 *
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.785    0.413
+#> va     0.589    0.224
 #> cab    0.000    0.000
-#> vb     0.715    0.297
+#> vb     0.770    0.322
 #> rho    0.000    0.000
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
 ```
+
+See the [bipartite
+vignette](https://netify-dev.github.io/lame/articles/bipartite.md) for a
+full walkthrough.
+
+## Supported Data Types
+
+| Family      | Data                    | Example                                 |
+|-------------|-------------------------|-----------------------------------------|
+| `"normal"`  | Continuous              | Trade volumes, survey ratings           |
+| `"binary"`  | 0/1                     | Friendships, alliances, sanctions       |
+| `"ordinal"` | Ordered categories      | Conflict intensity (none/threat/action) |
+| `"poisson"` | Counts                  | Number of co-sponsored bills            |
+| `"tobit"`   | Non-negative continuous | Trade with zeros                        |
+| `"cbin"`    | Censored binary         | Friendships with nomination limits      |
+| `"frn"`     | Fixed rank nomination   | “Name your top 5 friends”               |
+| `"rrl"`     | Row-ranked likelihood   | Ranked preferences                      |
+
+## Where to Go Next
+
+| I want to…                                  | Read this                                                                           |
+|---------------------------------------------|-------------------------------------------------------------------------------------|
+| Understand the full workflow with real data | [lame overview](https://netify-dev.github.io/lame/articles/lame-overview.md)        |
+| Learn about cross-sectional models in depth | [Your first AME model](https://netify-dev.github.io/lame/articles/cross_sec_ame.md) |
+| Model two-mode networks                     | [Bipartite networks](https://netify-dev.github.io/lame/articles/bipartite.md)       |
+| Let the network structure evolve over time  | [Dynamic effects](https://netify-dev.github.io/lame/articles/dynamic_effects.md)    |
 
 ## References
 

@@ -23,7 +23,7 @@ test_that("ame() unipartite normal recovers beta and additive effects", {
 		dat$Y, Xdyad = dat$Xdyad,
 		R = R, family = "normal",
 		burn = 2000, nscan = 8000, odens = 2,
-		print = FALSE, gof = FALSE, seed = 42
+		verbose = FALSE, gof = FALSE, seed = 42
 	)
 
 	# beta recovery
@@ -82,7 +82,7 @@ test_that("ame() unipartite binary recovers beta and additive effects", {
 		dat$Y, Xdyad = dat$Xdyad,
 		R = R, family = "binary",
 		burn = 2000, nscan = 8000, odens = 2,
-		print = FALSE, gof = FALSE, seed = 42
+		verbose = FALSE, gof = FALSE, seed = 42
 	)
 
 	# beta_dyad should be positive
@@ -129,7 +129,7 @@ test_that("lame() unipartite normal recovers beta and additive effects", {
 		dat$Y, Xdyad = Xdyad_list,
 		R = 0, family = "normal",
 		burn = 1000, nscan = 5000, odens = 2,
-		print = FALSE, gof = FALSE, seed = 42
+		verbose = FALSE, gof = FALSE, seed = 42
 	)
 
 	# beta recovery
@@ -180,7 +180,7 @@ test_that("lame() unipartite binary recovers beta", {
 		dat$Y, Xdyad = Xdyad_list,
 		R = 0, family = "binary",
 		burn = 1000, nscan = 5000, odens = 2,
-		print = FALSE, gof = FALSE, seed = 42
+		verbose = FALSE, gof = FALSE, seed = 42
 	)
 
 	# beta_dyad should be positive

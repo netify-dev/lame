@@ -36,7 +36,7 @@ test_that("lame() with dynamic_ab=TRUE runs and produces output", {
 		family = "normal", R = 0,
 		dynamic_ab = TRUE,
 		burn = 200, nscan = 500, odens = 5,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -77,7 +77,7 @@ test_that("dynamic_ab estimates positive temporal persistence", {
 		family = "normal", R = 0,
 		dynamic_ab = TRUE,
 		burn = 300, nscan = 1000, odens = 5,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	has_rho_ab <- !is.null(fit$RHO_AB) || !is.null(fit$rho_ab)
@@ -113,7 +113,7 @@ test_that("dynamic_ab start_vals include rho_ab and sigma_ab", {
 		family = "normal", R = 0,
 		dynamic_ab = TRUE,
 		burn = 100, nscan = 300, odens = 3,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_false(is.null(fit$start_vals))
@@ -155,7 +155,7 @@ test_that("dynamic_ab works with binary family", {
 		family = "binary", R = 0,
 		dynamic_ab = TRUE,
 		burn = 200, nscan = 500, odens = 5,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -201,7 +201,7 @@ test_that("lame() bipartite with dynamic_ab=TRUE produces correct dimensions", {
 		family = "normal", R = 0, mode = "bipartite",
 		dynamic_ab = TRUE,
 		burn = 200, nscan = 500, odens = 5,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -252,7 +252,7 @@ test_that("lame() with dynamic_uv=TRUE runs and returns 3D U/V arrays", {
 		family = "normal", R = R,
 		dynamic_uv = TRUE,
 		burn = 200, nscan = 500, odens = 5,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -304,7 +304,7 @@ test_that("dynamic_uv model estimates positive temporal autocorrelation", {
 		family = "normal", R = R,
 		dynamic_uv = TRUE,
 		burn = 300, nscan = 1000, odens = 5,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	has_rho <- !is.null(fit$RHO_UV) || !is.null(fit$rho_uv)
@@ -354,7 +354,7 @@ test_that("dynamic_uv latent positions show temporal continuity", {
 		family = "normal", R = R,
 		dynamic_uv = TRUE,
 		burn = 200, nscan = 800, odens = 4,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	if (!is.null(fit$U) && length(dim(fit$U)) == 3) {
@@ -392,7 +392,7 @@ test_that("dynamic_uv=FALSE gives 2D U/V (baseline comparison)", {
 		family = "normal", R = 2,
 		dynamic_uv = FALSE,
 		burn = 100, nscan = 300, odens = 3,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_false(is.null(fit_static$U))
@@ -431,7 +431,7 @@ test_that("dynamic_uv works with binary family", {
 		family = "binary", R = R,
 		dynamic_uv = TRUE,
 		burn = 200, nscan = 500, odens = 5,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -472,7 +472,7 @@ test_that("lame() bipartite with dynamic_uv=TRUE produces correct dimensions", {
 		family = "normal", R = R, mode = "bipartite",
 		dynamic_uv = TRUE,
 		burn = 200, nscan = 500, odens = 5,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -529,7 +529,7 @@ test_that("combined dynamic_ab + dynamic_uv runs", {
 		family = "normal", R = R,
 		dynamic_ab = TRUE, dynamic_uv = TRUE,
 		burn = 200, nscan = 500, odens = 5,
-		print = FALSE, gof = FALSE
+		verbose = FALSE, gof = FALSE
 	)
 
 	expect_s3_class(fit, "lame")
@@ -564,7 +564,7 @@ test_that("rho parameters are properly bounded", {
 
 	fit_all_dyn <- lame(Y_list, R = 0, family = "binary",
 		dynamic_uv = FALSE, dynamic_ab = TRUE,
-		burn = 50, nscan = 100, print = FALSE, plot = FALSE)
+		burn = 50, nscan = 100, verbose = FALSE, plot = FALSE)
 
 	expect_true(all(fit_all_dyn$rho_ab >= -1 & fit_all_dyn$rho_ab <= 1))
 })
@@ -590,12 +590,12 @@ test_that("prior specifications affect rho estimates", {
 
 	fit_low <- lame(Y_list, R = 2, family = "binary",
 		dynamic_uv = TRUE,
-		burn = 50, nscan = 100, print = FALSE, plot = FALSE,
+		burn = 50, nscan = 100, verbose = FALSE, plot = FALSE,
 		prior = list(rho_uv_mean = 0.2, rho_uv_sd = 0.1))
 
 	fit_high <- lame(Y_list, R = 2, family = "binary",
 		dynamic_uv = TRUE,
-		burn = 50, nscan = 100, print = FALSE, plot = FALSE,
+		burn = 50, nscan = 100, verbose = FALSE, plot = FALSE,
 		prior = list(rho_uv_mean = 0.8, rho_uv_sd = 0.1))
 
 	if (!is.null(fit_low$rho_uv) && length(fit_low$rho_uv) > 0 &&
@@ -632,7 +632,7 @@ test_that("FFBS algorithm maintains proper variance", {
 
 	fit <- lame(Y_list, R = 2, family = "binary",
 		dynamic_uv = TRUE,
-		burn = 50, nscan = 100, print = FALSE, plot = FALSE)
+		burn = 50, nscan = 100, verbose = FALSE, plot = FALSE)
 
 	if (!is.null(fit$U)) {
 		if (length(dim(fit$U)) == 4) {
@@ -677,11 +677,11 @@ test_that("static and dynamic models converge to similar estimates when rho=0", 
 
 	fit_static <- lame(Y_list, R = 2, family = "binary",
 		dynamic_uv = FALSE,
-		burn = 50, nscan = 100, print = FALSE, plot = FALSE)
+		burn = 50, nscan = 100, verbose = FALSE, plot = FALSE)
 
 	fit_dynamic <- lame(Y_list, R = 2, family = "binary",
 		dynamic_uv = TRUE,
-		burn = 50, nscan = 100, print = FALSE, plot = FALSE,
+		burn = 50, nscan = 100, verbose = FALSE, plot = FALSE,
 		prior = list(rho_uv_mean = 0, rho_uv_sd = 0.2))
 
 	if (!is.null(fit_dynamic$rho_uv) && length(fit_dynamic$rho_uv) > 0) {

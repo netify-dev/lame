@@ -17,11 +17,11 @@ symmetric=FALSE,
 odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
 prior=list(), g=NA,
 seed = 6886, nscan = 10000, burn = 500, odens = 25,
-print = TRUE, gof=TRUE, custom_gof=NULL,
+verbose = TRUE, gof=TRUE, custom_gof=NULL,
 start_vals=NULL, periodic_save=FALSE, out_file=NULL,
 save_interval=0.25, model.name=NULL,
 posterior_opts = NULL, n_chains = 1, cores = 1,
-use_sparse_matrices = FALSE)
+use_sparse_matrices = FALSE, print)
 ```
 
 ## Arguments
@@ -174,9 +174,9 @@ use_sparse_matrices = FALSE)
 
   output density for the Markov chain
 
-- print:
+- verbose:
 
-  logical: print results while running?
+  logical: print progress while running? Default TRUE.
 
 - gof:
 
@@ -236,6 +236,10 @@ use_sparse_matrices = FALSE)
   FALSE). Recommended only for truly sparse networks (\< 10% non-zero
   entries).
 
+- print:
+
+  Deprecated. Use `verbose` instead.
+
 ## Value
 
 **Posterior Samples (full MCMC chains):**
@@ -250,7 +254,12 @@ use_sparse_matrices = FALSE)
 
 - GOF:
 
-  Goodness-of-fit statistics (nscan x4 matrix)
+  Goodness-of-fit statistics (nscan x4 matrix). First row contains
+  observed values, remaining rows contain posterior predictive samples.
+  See [`gof`](https://netify-dev.github.io/lame/reference/gof.md) for
+  post-hoc computation and
+  [`gof_plot`](https://netify-dev.github.io/lame/reference/gof_plot.md)
+  for visualization.
 
 **Posterior Means (averaged over chain):**
 
@@ -452,6 +461,23 @@ estimable for this model.
 \\E\[Y\] = \exp(\eta)\\). The linear predictor \\\eta\\ represents
 \\\log(\lambda)\\ where \\\lambda\\ is the expected count.
 
+## See also
+
+[`lame`](https://netify-dev.github.io/lame/reference/lame.md) for
+longitudinal models,
+[`gof`](https://netify-dev.github.io/lame/reference/gof.md) for post-hoc
+goodness-of-fit computation,
+[`gof_plot`](https://netify-dev.github.io/lame/reference/gof_plot.md)
+for visualizing GOF results,
+[`latent_positions`](https://netify-dev.github.io/lame/reference/latent_positions.md)
+for extracting latent positions as a tidy data frame,
+[`procrustes_align`](https://netify-dev.github.io/lame/reference/procrustes_align.md)
+for Procrustes alignment of latent positions,
+[`summary.ame`](https://netify-dev.github.io/lame/reference/summary.ame.md)
+for model summaries,
+[`coef.ame`](https://netify-dev.github.io/lame/reference/coef.ame.md)
+for coefficient extraction
+
 ## Author
 
 Cassy Dorff, Shahryar Minhas, Tosin Salau
@@ -462,7 +488,7 @@ Cassy Dorff, Shahryar Minhas, Tosin Salau
 # \donttest{
 data(YX_bin)
 fit <- ame(YX_bin$Y, Xdyad = YX_bin$X, burn = 10, nscan = 100, odens = 1,
-           family = "binary", print = FALSE)
+           family = "binary", verbose = FALSE)
 summary(fit)
 #> 
 #> === AME Model Summary ===

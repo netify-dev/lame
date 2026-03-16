@@ -1,5 +1,8 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 #include <RcppArmadillo.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 using namespace Rcpp;
 using namespace arma;
 
@@ -34,15 +37,7 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
 
   arma::mat VtV(R, R);
   arma::mat UtU(R, R);
-  arma::mat iVtV(R, R);
-  arma::mat iUtU(R, R);
-  arma::vec ei(R);
-  arma::vec ej(R);
-  arma::vec mu(R);
-  arma::vec u_new(R);
-  arma::vec v_new(R);
   arma::mat cholDecomp(R, R);
-  arma::vec randVec(R);
 
   for(int t = 0; t < T; t++) {
     const arma::mat& E_t = ET.slice(t);
@@ -51,8 +46,12 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
 
     VtV = V_t.t() * V_t;
 
+    // Phase 1C: Batch compute all ei = V_t^T * E_t^T as a single BLAS call
+    // E_all_U = E_t * V_t gives n x R, each row i = E_t.row(i) * V_t
+    arma::mat E_all_U = E_t * V_t;  // n x R (one BLAS gemm instead of n gemv calls)
+
     for(int i = 0; i < n; i++) {
-      ei = V_t.t() * E_t.row(i).t();
+      arma::vec ei = E_all_U.row(i).t();  // Extract row (O(R) not O(nR))
       arma::mat VtV_mod = VtV;
 
       if(t > 0) {
@@ -66,19 +65,22 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
 
       VtV_mod.diag() += s2_inv;
 
-      iVtV = inv_sympd(VtV_mod);
-      mu = iVtV * ei;
+      arma::mat iVtV = inv_sympd(VtV_mod);
+      arma::vec mu = iVtV * ei;
 
       cholDecomp = chol(s2 * iVtV, "lower");
-      randVec.randn();
+      arma::vec randVec(R, fill::randn);
       U_t.row(i) = (mu + cholDecomp * randVec).t();
     }
 
     if(!symmetric) {
       UtU = U_t.t() * U_t;
 
+      // Phase 1C: Batch compute all ej = U_t^T * E_t as single BLAS call
+      arma::mat E_all_V = E_t.t() * U_t;  // n x R
+
       for(int j = 0; j < n; j++) {
-        ej = U_t.t() * E_t.col(j);
+        arma::vec ej = E_all_V.row(j).t();  // Extract row
         arma::mat UtU_mod = UtU;
 
         if(t > 0) {
@@ -92,11 +94,11 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
 
         UtU_mod.diag() += s2_inv;
 
-        iUtU = inv_sympd(UtU_mod);
-        mu = iUtU * ej;
+        arma::mat iUtU = inv_sympd(UtU_mod);
+        arma::vec mu = iUtU * ej;
 
         cholDecomp = chol(s2 * iUtU, "lower");
-        randVec.randn();
+        arma::vec randVec(R, fill::randn);
         V_t.row(j) = (mu + cholDecomp * randVec).t();
       }
     } else {

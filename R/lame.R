@@ -165,11 +165,14 @@
 #' intercept=!is.element(family,c("rrl","ordinal")),
 #' symmetric=FALSE,
 #' odmax=NULL, prior=list(), g=NA,
-#' seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
-#' start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.name=NULL)
-#' @param Y a T length list of n x n relational matrices, where T 
-#' corresponds to the number of replicates (over time, for example). 
-#' See family below for various data types.
+#' seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, verbose = FALSE, gof=TRUE,
+#' start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.name=NULL,
+#' print)
+#' @param Y a T length list of n x n relational matrices, or a 3D array
+#' of dimensions \code{[n, n, T]}, where T corresponds to the number of
+#' replicates (over time, for example). If a 3D array is provided, it is
+#' automatically converted to list format. See family below for various
+#' data types.
 #' @param Xdyad a T length list of n x n x pd arrays of covariates
 #' @param Xrow a T length list of n x pr matrices of nodal row covariates
 #' @param Xcol a T length list of n x pc matrices of nodal column covariates
@@ -250,7 +253,8 @@
 #' @param burn burn in for the Markov chain
 #' @param odens output density for the Markov chain
 #' @param plot logical: plot results while running?
-#' @param print logical: print results while running?
+#' @param verbose logical: print progress while running? Default FALSE.
+#' @param print Deprecated. Use \code{verbose} instead.
 #' @param gof logical: calculate goodness of fit statistics?
 #' @param start_vals List from previous model run containing parameter starting values for new MCMC
 #' @param periodic_save logical: indicating whether to periodically save MCMC results
@@ -270,10 +274,18 @@
 #'  \item{EZ}{estimate of expectation of Z
 #' matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
 #' \item{GOF}{observed (first row) and posterior predictive (remaining rows)
-#' values of four goodness-of-fit statistics}
+#' values of four goodness-of-fit statistics.
+#' See \code{\link{gof}} for post-hoc computation and \code{\link{gof_plot}} for visualization.}
 #' \item{start_vals}{Final parameter values from MCMC, can be used as the input
 #' for a future model run.}
 #' \item{model.name}{Name of the model (if provided)}
+#' @seealso \code{\link{ame}} for cross-sectional models,
+#'   \code{\link{gof}} for post-hoc goodness-of-fit computation,
+#'   \code{\link{gof_plot}} for visualizing GOF results,
+#'   \code{\link{latent_positions}} for extracting latent positions as a tidy data frame,
+#'   \code{\link{procrustes_align}} for Procrustes alignment of latent positions,
+#'   \code{\link{summary.lame}} for model summaries,
+#'   \code{\link{coef.lame}} for coefficient extraction
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
 #' 
@@ -295,16 +307,44 @@ lame <- function(
 		odmax = NULL,
 		prior = list(), g = NA,
 		seed = 6886, nscan = 10000, burn = 500, odens = 25,
-		plot = FALSE, print = FALSE, gof = TRUE, 
+		plot = FALSE, verbose = FALSE, gof = TRUE,
 		start_vals = NULL, periodic_save=FALSE, out_file=NULL,
-		save_interval=0.25, model.name = NULL
+		save_interval=0.25, model.name = NULL,
+		print
 ) {
 	# helper function
 	`%||%` <- function(x, y) if (is.null(x)) y else x
 
+	# handle deprecated print argument
+	if (!missing(print)) {
+		cli::cli_warn(c(
+			"The {.arg print} argument is deprecated.",
+			"i" = "Use {.arg verbose} instead."
+		))
+		if (missing(verbose) || identical(verbose, FALSE)) {
+			verbose <- print
+		}
+	}
+
 	# process mode argument
 	mode <- match.arg(mode)
 	bip <- identical(mode, "bipartite")
+
+	# convert 3D array Y to list format if needed
+	if (is.array(Y) && length(dim(Y)) == 3L) {
+		dn <- dimnames(Y)
+		Y <- lapply(seq_len(dim(Y)[3]), function(t) {
+			mat <- Y[,,t]
+			if (!is.null(dn)) {
+				rownames(mat) <- dn[[1]]
+				colnames(mat) <- dn[[2]]
+			}
+			mat
+		})
+		if (!is.null(dn) && !is.null(dn[[3]])) {
+			names(Y) <- dn[[3]]
+		}
+	}
 
 	#
 	if( nscan %% odens !=0  ){ stop('"odens" must be a multiple of "nscan"')}
@@ -732,7 +772,7 @@ lame <- function(
 	# helpful mcmc params
 	symLoopIDs <- lapply(1:(nscan + burn), function(x){ rep(sample(1:nrow(U)),4) })  
 	asymLoopIDs <- lapply(1:(nscan + burn), function(x){ sample(1:R) })  
-	tryErrorChecks<-list(s2=0,betaAB=0,rho=0,UV=0)
+	tryErrorChecks<-list(s2=0,betaAB=0,rho=0,UV=0,Z=0)
 
 	# bipartite MH proposal tracking
 	if(bip && RA > 0 && RB > 0) {
@@ -875,7 +915,7 @@ lame <- function(
 		try(requireNamespace("coda",quietly = TRUE),silent=TRUE)) 
 	
 	# show numerical stability message once at the beginning
-	if(print && symmetric) {
+	if(verbose && symmetric) {
 		cli::cli_div(theme = list(span.note = list(color = "grey60", "font-style" = "italic")))
 		cli::cli_inform(c(
 			"i" = "Numerical adjustments may be applied for matrix stability.",
@@ -895,8 +935,8 @@ lame <- function(
 	# pre-allocate residual array once
 	E.nrm <- array(dim = dim(Z))
 
-	if(burn!=0 && print){
-		# only show progress if print=TRUE
+	if(burn!=0 && verbose){
+		# only show progress if verbose=TRUE
 		cli::cli_h3("Starting burn-in period...")
 		cli::cli_progress_bar("Burn-in", total = burn, .envir = environment())
 	}
@@ -961,56 +1001,48 @@ lame <- function(
 				EZ <- get_EZ_cpp( Xlist_tmp, beta, ab_mat, U, V )
 			}
 		}
-		for(t in 1:N ){
-			if(family=="normal") {
-				Z[,,t]<-rZ_nrm_fc(Z[,,t],EZ[,,t],rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ[,,t]
+		# Phase 2A: Use batch C++ Z sampling where possible
+		if(family == "normal") {
+			# Single C++ call for all T time periods
+			Z_batch <- try(rZ_nrm_batch_cpp(Z, EZ, rho, s2, Y), silent = TRUE)
+			if(!inherits(Z_batch, 'try-error')) {
+				Z <- Z_batch$Z
+				E.nrm <- Z_batch$E_nrm
+			} else {
+				# fallback: per-t R sampling
+				for(t in 1:N) { Z[,,t] <- rZ_nrm_fc(Z[,,t], EZ[,,t], rho, s2, Y[,,t]); E.nrm[,,t] <- Z[,,t] - EZ[,,t] }
+				tryErrorChecks$Z <- tryErrorChecks$Z + 1
 			}
-			if(family=="tobit") {
-				if(bip && rho == 0) {
-					# bipartite tobit Z update (rZ_tob_fc requires square)
-					Z_t <- EZ[,,t] + rnorm(nA * nB, 0, sqrt(s2))
-					dim(Z_t) <- c(nA, nB)
-					Y_t <- Y[,,t]
-					idx_pos <- which(Y_t > 0)
-					idx_zero <- which(Y_t == 0)
-					idx_na <- which(is.na(Y_t))
-					if(length(idx_pos) > 0) Z_t[idx_pos] <- Y_t[idx_pos]
-					if(length(idx_zero) > 0) Z_t[idx_zero] <- pmin(Z_t[idx_zero], 0)
-					if(length(idx_na) > 0) Z_t[idx_na] <- rnorm(length(idx_na), EZ[,,t][idx_na], sqrt(s2))
-					Z[,,t] <- Z_t
-				} else {
-					Z[,,t]<-rZ_tob_fc(Z[,,t],EZ[,,t],rho,s2,Y[,,t])
+		} else if(family == "tobit" && bip && rho == 0) {
+			# Batch bipartite tobit Z sampling in C++
+			Z_new <- try(rZ_tob_bip_batch_cpp(Z, EZ, s2, Y), silent = TRUE)
+			if(!inherits(Z_new, 'try-error')) { Z <- Z_new }
+			E.nrm <- Z - EZ
+		} else if(family == "binary" && bip && rho == 0) {
+			# Batch bipartite binary Z sampling in C++
+			Z_new <- try(rZ_bin_bip_batch_cpp(Z, EZ, Y), silent = TRUE)
+			if(!inherits(Z_new, 'try-error')) { Z <- Z_new }
+			E.nrm <- Z - EZ
+		} else {
+			# Fallback: per-t R loop for families needing it
+			for(t in 1:N) {
+				if(family == "tobit") {
+					Z[,,t] <- rZ_tob_fc(Z[,,t], EZ[,,t], rho, s2, Y[,,t])
+					E.nrm[,,t] <- Z[,,t] - EZ[,,t]
 				}
-				E.nrm[,,t]<-Z[,,t]-EZ[,,t]
-			}
-			if(family=="binary"){
-				if(bip && rho == 0) {
-					# vectorized probit update for bipartite (no dyadic correlation)
-					Z_t <- Z[,,t]
-					EZ_t <- EZ[,,t]
-					Y_t <- Y[,,t]
-					idx_1 <- which(Y_t == 1)
-					idx_0 <- which(Y_t == 0)
-					idx_na <- which(is.na(Y_t))
-					if(length(idx_1) > 0)
-						Z_t[idx_1] <- msm::rtnorm(length(idx_1), EZ_t[idx_1], 1, lower=0)
-					if(length(idx_0) > 0)
-						Z_t[idx_0] <- msm::rtnorm(length(idx_0), EZ_t[idx_0], 1, upper=0)
-					if(length(idx_na) > 0)
-						Z_t[idx_na] <- rnorm(length(idx_na), EZ_t[idx_na], 1)
-					Z[,,t] <- Z_t
-				} else {
-					Z[,,t]<-rZ_bin_fc(Z[,,t],EZ[,,t],rho,Y[,,t])
+				if(family == "binary") {
+					Z[,,t] <- rZ_bin_fc(Z[,,t], EZ[,,t], rho, Y[,,t])
 				}
-			}
-			if(family=="ordinal"){ Z[,,t]<-rZ_ord_fc(Z[,,t],EZ[,,t],rho,Y[,,t]) }
-			if(family=="cbin"){Z[,,t]<-rZ_cbin_fc(Z[,,t],EZ[,,t],rho,Y[,,t],odmax,odobs)}
-			if(family=="frn") {
-				Z[,,t]<-rZ_frn_fc(Z[,,t],EZ[,,t],rho,Y[,,t],YL[[t]],odmax,odobs)
-			}
-			if(family=="rrl"){ Z[,,t]<-rZ_rrl_fc(Z[,,t],EZ[,,t],rho,Y[,,t],YL[[t]]) }
-			if(family=="poisson") {
-				Z[,,t]<-rZ_pois_fc(Z[,,t],EZ[,,t],rho,s2,Y[,,t]) ; E.nrm[,,t]<-Z[,,t]-EZ[,,t]
+				if(family == "ordinal") { Z[,,t] <- rZ_ord_fc(Z[,,t], EZ[,,t], rho, Y[,,t]) }
+				if(family == "cbin") { Z[,,t] <- rZ_cbin_fc(Z[,,t], EZ[,,t], rho, Y[,,t], odmax, odobs) }
+				if(family == "frn") {
+					Z[,,t] <- rZ_frn_fc(Z[,,t], EZ[,,t], rho, Y[,,t], YL[[t]], odmax, odobs)
+				}
+				if(family == "rrl") { Z[,,t] <- rZ_rrl_fc(Z[,,t], EZ[,,t], rho, Y[,,t], YL[[t]]) }
+				if(family == "poisson") {
+					Z[,,t] <- rZ_pois_fc(Z[,,t], EZ[,,t], rho, s2, Y[,,t])
+					E.nrm[,,t] <- Z[,,t] - EZ[,,t]
+				}
 			}
 		}
 		
@@ -1041,27 +1073,17 @@ lame <- function(
 				EZ_no_ab <- get_EZ_dynamic_ab(Xlist, beta, zero_a, zero_b, U, V, N,
 				                              bip = TRUE, G = G, nA = nA, nB = nB)
 
-				# update beta (bipartite conjugate update)
+				# Phase 2B: update beta via C++ (bipartite conjugate update)
 				p_bip <- length(beta)
 				if(p_bip > 0) {
 					resid_b <- Z - EZ_no_ab
-					# subtract current a/b from residuals
 					for(t in 1:N) {
 						resid_b[,,t] <- resid_b[,,t] - a_mat[,t]
 						for(j in 1:nB) resid_b[,j,t] <- resid_b[,j,t] - b_mat[j,t]
 					}
-					XtX <- matrix(0, p_bip, p_bip)
-					Xty <- rep(0, p_bip)
-					for(t in 1:N) {
-						for(k1 in 1:p_bip) {
-							for(k2 in k1:p_bip) {
-								val <- sum(Xlist[[t]][,,k1] * Xlist[[t]][,,k2], na.rm=TRUE)
-								XtX[k1,k2] <- XtX[k1,k2] + val
-								if(k1 != k2) XtX[k2,k1] <- XtX[k2,k1] + val
-							}
-							Xty[k1] <- Xty[k1] + sum(Xlist[[t]][,,k1] * resid_b[,,t], na.rm=TRUE)
-						}
-					}
+					xtx_xty <- compute_XtX_Xty_bip_cpp(Xlist, resid_b, p_bip)
+					XtX <- xtx_xty$XtX
+					Xty <- xtx_xty$Xty
 					V_post <- tryCatch(
 						solve(XtX / s2 + diag(p_bip) / (g[1] * s2)),
 						error = function(e) diag(s2, p_bip)
@@ -1106,6 +1128,8 @@ lame <- function(
 					silent = FALSE)
 				if(!inherits(betaABCalc, 'try-error')){
 					beta <- c(betaABCalc$beta)
+				} else {
+					tryErrorChecks$betaAB <- tryErrorChecks$betaAB + 1
 				}
 				EZ_no_ab <- get_EZ_cpp(Xlist, beta, outer(rep(0,n), rep(0,n), "+"), U, V)
 			} else {
@@ -1203,89 +1227,25 @@ lame <- function(
 		} else {
 			# standard static update
 			if(bip) {
-				# bipartite gibbs update for beta, a, b
+				# Phase 2B: bipartite gibbs update via C++
 				U_2d <- if(length(dim(U)) == 3) U[,,1] else U
 				V_2d <- if(length(dim(V)) == 3) V[,,1] else V
 				UV_eff <- if(RA > 0 && RB > 0) U_2d %*% G %*% t(V_2d) else matrix(0, nA, nB)
 
-				# update beta
-				p_bip <- length(beta)
-				if(p_bip > 0) {
-					resid_b <- Z
-					for(t in 1:N) {
-						resid_b[,,t] <- resid_b[,,t] - UV_eff
-						if(rvar) resid_b[,,t] <- resid_b[,,t] - a
-						if(cvar) for(j in 1:nB) resid_b[,j,t] <- resid_b[,j,t] - b[j]
+				betaABCalc <- tryCatch(
+					rbeta_ab_bip_gibbs_cpp(
+						Z, Xlist_tmp, UV_eff,
+						if(length(a) == nA) a else rep(0, nA),
+						if(length(b) == nB) b else rep(0, nB),
+						s2, as.numeric(g[1]),
+						Sab[1,1], Sab[2,2],
+						rvar, cvar
+					),
+					error = function(e) {
+						list(beta = beta, a = if(length(a) == nA) a else rep(0, nA),
+						     b = if(length(b) == nB) b else rep(0, nB))
 					}
-					XtX <- matrix(0, p_bip, p_bip)
-					Xty <- rep(0, p_bip)
-					for(t in 1:N) {
-						for(k1 in 1:p_bip) {
-							for(k2 in k1:p_bip) {
-								val <- sum(Xlist_tmp[[t]][,,k1] * Xlist_tmp[[t]][,,k2], na.rm=TRUE)
-								XtX[k1,k2] <- XtX[k1,k2] + val
-								if(k1 != k2) XtX[k2,k1] <- XtX[k2,k1] + val
-							}
-							Xty[k1] <- Xty[k1] + sum(Xlist_tmp[[t]][,,k1] * resid_b[,,t], na.rm=TRUE)
-						}
-					}
-					V_post <- tryCatch(
-						solve(XtX / s2 + diag(p_bip) / (g[1] * s2)),
-						error = function(e) diag(s2, p_bip)
-					)
-					m_post <- V_post %*% (Xty / s2)
-					beta_new <- c(m_post + t(chol(V_post)) %*% rnorm(p_bip))
-				} else {
-					beta_new <- beta
-				}
-
-				# update row effects (a)
-				if(rvar) {
-					resid_a <- Z
-					for(t in 1:N) {
-						resid_a[,,t] <- resid_a[,,t] - UV_eff
-						if(p_bip > 0) {
-							xb <- matrix(0, nA, nB)
-							for(k in 1:p_bip) xb <- xb + beta_new[k] * Xlist_tmp[[t]][,,k]
-							resid_a[,,t] <- resid_a[,,t] - xb
-						}
-						if(cvar) for(j in 1:nB) resid_a[,j,t] <- resid_a[,j,t] - b[j]
-					}
-					a_new <- rep(0, nA)
-					for(i in 1:nA) {
-						n_obs_i <- sum(!is.na(resid_a[i,,]))
-						prec_a <- n_obs_i / s2 + 1 / Sab[1,1]
-						mean_a <- sum(resid_a[i,,], na.rm=TRUE) / s2 / prec_a
-						a_new[i] <- rnorm(1, mean_a, sqrt(1/prec_a))
-					}
-				} else {
-					a_new <- a
-				}
-
-				# update column effects (b)
-				if(cvar) {
-					resid_c <- Z
-					for(t in 1:N) {
-						resid_c[,,t] <- resid_c[,,t] - UV_eff
-						if(p_bip > 0) {
-							xb <- matrix(0, nA, nB)
-							for(k in 1:p_bip) xb <- xb + beta_new[k] * Xlist_tmp[[t]][,,k]
-							resid_c[,,t] <- resid_c[,,t] - xb
-						}
-						if(rvar) resid_c[,,t] <- resid_c[,,t] - a_new
-					}
-					b_new <- rep(0, nB)
-					for(j in 1:nB) {
-						n_obs_j <- sum(!is.na(resid_c[,j,]))
-						prec_b <- n_obs_j / s2 + 1 / Sab[2,2]
-						mean_b <- sum(resid_c[,j,], na.rm=TRUE) / s2 / prec_b
-						b_new[j] <- rnorm(1, mean_b, sqrt(1/prec_b))
-					}
-				} else {
-					b_new <- b
-				}
-
-				betaABCalc <- list(beta=beta_new, a=a_new, b=b_new)
+				)
 			} else if( (pr+pc+pd+intercept)>0 ){
 				iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
 				tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
@@ -1393,61 +1353,27 @@ lame <- function(
 			
 			if(dynamic_uv) {
 				if(bip) {
-					# bipartite dynamic UV Gibbs update (separate nA/nB dims)
-					sigma2_inv <- 1 / (sigma_uv^2)
-					rho_s2 <- rho_uv * sigma2_inv
-					rho2_s2 <- rho_uv^2 * sigma2_inv
-					s2_inv_uv <- 1 / s2
+					# Phase 2C: bipartite dynamic UV via C++ (replaces nested R loops)
+					UV_try <- tryCatch(
+						rUV_dynamic_bip_fc_cpp(U_cube, V_cube, E, G,
+						                       rho_uv, sigma_uv, s2),
+						error = function(e) NULL
+					)
 
-					uv_ok <- TRUE
-					UV_try <- tryCatch({
-						for(tt in 1:N) {
-							E_t <- E[,,tt]; E_t[is.na(E_t)] <- 0
-							V_t <- V_cube[,,tt]
-							W_t <- V_t %*% t(G)  # nB x RA
-							WtW <- crossprod(W_t)  # RA x RA
-
-							for(i in 1:nA) {
-								ei <- crossprod(W_t, E_t[i,])
-								prec <- WtW
-								if(tt > 1) { prec <- prec + diag(sigma2_inv, RA); ei <- ei + rho_s2 * U_cube[i,,tt-1] }
-								if(tt < N) { prec <- prec + diag(rho2_s2, RA); ei <- ei + rho_s2 * U_cube[i,,tt+1] }
-								diag(prec) <- diag(prec) + s2_inv_uv
-								iprec <- solve(prec)
-								mu_i <- iprec %*% ei
-								ch <- chol(s2 * iprec)
-								U_cube[i,,tt] <- as.vector(mu_i + t(ch) %*% rnorm(RA))
-							}
-
-							U_t <- U_cube[,,tt]
-							Q_t <- U_t %*% G  # nA x RB
-							QtQ <- crossprod(Q_t)  # RB x RB
-
-							for(j in 1:nB) {
-								ej <- crossprod(Q_t, E_t[,j])
-								prec <- QtQ
-								if(tt > 1) { prec <- prec + diag(sigma2_inv, RB); ej <- ej + rho_s2 * V_cube[j,,tt-1] }
-								if(tt < N) { prec <- prec + diag(rho2_s2, RB); ej <- ej + rho_s2 * V_cube[j,,tt+1] }
-								diag(prec) <- diag(prec) + s2_inv_uv
-								iprec <- solve(prec)
-								mu_j <- iprec %*% ej
-								ch <- chol(s2 * iprec)
-								V_cube[j,,tt] <- as.vector(mu_j + t(ch) %*% rnorm(RB))
-							}
-						}
-						list(U=U_cube, V=V_cube)
-					}, error=function(e) NULL)
-
-					if(!is.null(UV_try)) {
+					if(!is.null(UV_try) &&
+						   all(is.finite(UV_try$U)) && all(is.finite(UV_try$V))) {
 						U_cube <- UV_try$U; V_cube <- UV_try$V
 						U <- apply(U_cube, c(1,2), mean)
 						V <- apply(V_cube, c(1,2), mean)
 					} else {
 						tryErrorChecks$UV <- tryErrorChecks$UV + 1
+						UV_try <- NULL  # ensure AR(1) guard treats this as failure
 					}
 
 					# ar(1) parameter updates for bipartite
-					if(s %% 10 == 0) {
+					# only update if UV sampling succeeded (avoid inconsistent MCMC state)
+					if(!is.null(UV_try) && s %% 10 == 0) {
+						sigma2_inv <- 1 / (sigma_uv^2)
 						sp <- 0; ssl <- 0; ss <- 0
 						for(tt in 2:N) {
 							sp <- sp + sum(U_cube[,,tt] * U_cube[,,tt-1]) + sum(V_cube[,,tt] * V_cube[,,tt-1])
@@ -1481,8 +1407,8 @@ lame <- function(
 						V <- apply(V_cube, c(1,2), mean)
 					}
 
-					# update AR(1) parameters
-					if(s %% 10 == 0) {
+					# update AR(1) parameters (only if UV sampling succeeded)
+					if(!inherits(UV, 'try-error') && s %% 10 == 0) {
 						rho_uv <- sample_rho_uv(U_cube, V_cube, sigma_uv, rho_uv, symmetric)
 						sigma_uv <- sample_sigma_uv(U_cube, V_cube, rho_uv, symmetric)
 					}
@@ -1589,14 +1515,14 @@ lame <- function(
 		}
 
 		# burn-in countdown
-		if(burn!=0 && s <= burn && print){
-			# only update progress if print=TRUE
+		if(burn!=0 && s <= burn && verbose){
+			# only update progress if verbose=TRUE
 			cli::cli_progress_update()
 		}
 		
 		# store parameter values and monitor the MC
-		if(s==burn+1 && print && burn!=0){
-			# only show messages if print=TRUE
+		if(s==burn+1 && verbose && burn!=0){
+			# only show messages if verbose=TRUE
 			cli::cli_progress_done()
 			cli::cli_alert_success("Burn-in period complete")
 			cli::cli_progress_bar("Sampling", total = nscan, .envir = environment())
@@ -1771,7 +1697,7 @@ lame <- function(
 			}
 			
 			# print MC progress 
-			if(print) {
+			if(verbose) {
 				beta_means <- round(apply(BETA[1:iter,,drop=FALSE],2,mean),2)
 				vc_means <- round(apply(VC[1:iter,,drop=FALSE],2,mean),2)
 				cli::cli_text("Iteration {.val {s}}: beta = [{.field {paste(beta_means, collapse=', ')}}], VC = [{.field {paste(vc_means, collapse=', ')}}]")
@@ -1841,13 +1767,13 @@ lame <- function(
 			}
 			iter<-iter+1
 		} # post burn-in
-		if(print && s > burn){
-			# only update sampling progress if print=TRUE
+		if(verbose && s > burn){
+			# only update sampling progress if verbose=TRUE
 			cli::cli_progress_update()
 		}
 	} # end MCMC  
-	if(print){
-		# only show completion message if print=TRUE
+	if(verbose){
+		# only show completion message if verbose=TRUE
 		cli::cli_progress_done()
 		cli::cli_alert_success("MCMC sampling complete")
 	}

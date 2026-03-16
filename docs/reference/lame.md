@@ -16,17 +16,20 @@ lame(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl"),
 intercept=!is.element(family,c("rrl","ordinal")),
 symmetric=FALSE,
 odmax=NULL, prior=list(), g=NA,
-seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, print = FALSE, gof=TRUE,
-start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.name=NULL)
+seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, verbose = FALSE, gof=TRUE,
+start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.name=NULL,
+print)
 ```
 
 ## Arguments
 
 - Y:
 
-  a T length list of n x n relational matrices, where T corresponds to
-  the number of replicates (over time, for example). See family below
-  for various data types.
+  a T length list of n x n relational matrices, or a 3D array of
+  dimensions `[n, n, T]`, where T corresponds to the number of
+  replicates (over time, for example). If a 3D array is provided, it is
+  automatically converted to list format. See family below for various
+  data types.
 
 - Xdyad:
 
@@ -229,9 +232,9 @@ start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.n
 
   logical: plot results while running?
 
-- print:
+- verbose:
 
-  logical: print results while running?
+  logical: print progress while running? Default FALSE.
 
 - gof:
 
@@ -259,6 +262,10 @@ start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.n
 - model.name:
 
   optional string for model selection output
+
+- print:
+
+  Deprecated. Use `verbose` instead.
 
 ## Value
 
@@ -311,7 +318,11 @@ start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.n
 - GOF:
 
   observed (first row) and posterior predictive (remaining rows) values
-  of four goodness-of-fit statistics
+  of four goodness-of-fit statistics. See
+  [`gof`](https://netify-dev.github.io/lame/reference/gof.md) for
+  post-hoc computation and
+  [`gof_plot`](https://netify-dev.github.io/lame/reference/gof_plot.md)
+  for visualization.
 
 - start_vals:
 
@@ -492,6 +503,23 @@ estimable for this model.
 
 "poisson": An overdispersed Poisson AME model for count data. The latent
 variable represents the log mean of the Poisson distribution.
+
+## See also
+
+[`ame`](https://netify-dev.github.io/lame/reference/ame.md) for
+cross-sectional models,
+[`gof`](https://netify-dev.github.io/lame/reference/gof.md) for post-hoc
+goodness-of-fit computation,
+[`gof_plot`](https://netify-dev.github.io/lame/reference/gof_plot.md)
+for visualizing GOF results,
+[`latent_positions`](https://netify-dev.github.io/lame/reference/latent_positions.md)
+for extracting latent positions as a tidy data frame,
+[`procrustes_align`](https://netify-dev.github.io/lame/reference/procrustes_align.md)
+for Procrustes alignment of latent positions,
+[`summary.lame`](https://netify-dev.github.io/lame/reference/summary.lame.md)
+for model summaries,
+[`coef.lame`](https://netify-dev.github.io/lame/reference/coef.ame.md)
+for coefficient extraction
 
 ## Author
 
