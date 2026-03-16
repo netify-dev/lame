@@ -5,12 +5,12 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Introduction to LAME • lame</title>
+<title>Getting Started with lame • lame</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Introduction to LAME">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Getting Started with lame">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -34,10 +34,11 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><h6 class="dropdown-header" data-toc-skip>Getting Started</h6></li>
-    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Cross-Sectional AME</a></li>
+    <li><a class="dropdown-item" href="../articles/lame.html">Quick Start</a></li>
+    <li><a class="dropdown-item" href="../articles/cross_sec_ame.html">Your First AME Model</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Tutorials</h6></li>
-    <li><a class="dropdown-item" href="../articles/lame.html">Longitudinal Models</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Topics</h6></li>
+    <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
   </ul>
@@ -62,11 +63,11 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Introduction to LAME</h1>
+      <h1>Getting Started with lame</h1>
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-03-04</h4>
+            <h4 data-toc-skip class="date">2026-03-16</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/HEAD/vignettes/lame.Rmd" class="external-link"><code>vignettes/lame.Rmd</code></a></small>
       <div class="d-none name"><code>lame.Rmd</code></div>
@@ -75,55 +76,37 @@ Shahryar Minhas, and Tosin Salau</h4>
     
     
 <div class="section level2">
-<h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
+<h2 id="what-is-lame">What Is lame?<a class="anchor" aria-label="anchor" href="#what-is-lame"></a>
 </h2>
-<p>The <code>lame</code> package implements Additive and Multiplicative
-Effects (AME) models for both cross-sectional and longitudinal network
-data. It extends the AME framework (Hoff 2021) to handle temporal
-dependencies through dynamic latent factors and additive effects, with a
-C++ backend for efficient computation.</p>
-<div class="section level3">
-<h3 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
-</h3>
-<ul>
-<li>
-<strong>Cross-sectional and longitudinal</strong> network analysis
-via <code><a href="../reference/ame.html">ame()</a></code> and <code><a href="../reference/lame.html">lame()</a></code>
-</li>
-<li>
-<strong>Dynamic effects</strong>: time-varying additive and
-multiplicative effects with AR(1) processes</li>
-<li>
-<strong>Bipartite networks</strong>: two-mode networks with separate
-row and column latent spaces</li>
-<li>
-<strong>Multiple families</strong>: normal, binary, ordinal,
-poisson, tobit, censored binary, fixed rank nomination, and row-ranked
-likelihood</li>
-<li>
-<strong>S3 methods</strong>: <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>,
-<code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>, <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code>, <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals()</a></code>,
-<code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>,
-<code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>
-</li>
-</ul>
-</div>
+<p>The <code>lame</code> package fits <strong>L</strong>ongitudinal
+<strong>A</strong>dditive and <strong>M</strong>ultiplicative
+<strong>E</strong>ffects models to network data. If you have a network
+(who trades with whom, who is friends with whom, who sanctions whom)
+observed at one or more time points, <code>lame</code> lets you estimate
+covariate effects while properly accounting for the dependencies that
+make network data special.</p>
+<p>The core idea: every actor has a tendency to send ties
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>i</mi></msub><annotation encoding="application/x-tex">a_i</annotation></semantics></math>),
+receive ties
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mi>j</mi></msub><annotation encoding="application/x-tex">b_j</annotation></semantics></math>),
+and a latent position
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>j</mi></msub><annotation encoding="application/x-tex">v_j</annotation></semantics></math>)
+that captures who connects with whom. Covariates shift the baseline
+probability of ties. And all of this can optionally evolve over
+time.</p>
 </div>
 <div class="section level2">
-<h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+<h2 id="a-5-minute-example">A 5-Minute Example<a class="anchor" aria-label="anchor" href="#a-5-minute-example"></a>
 </h2>
+<p>Let’s fit a model to a small longitudinal binary network in under 20
+lines of code.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/lame/">lame</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="simulating-network-data">Simulating Network Data<a class="anchor" aria-label="anchor" href="#simulating-network-data"></a>
-</h3>
-<p>We begin by generating a small directed binary network observed over
-3 time periods.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">15</span></span>
-<span><span class="va">T_periods</span> <span class="op">&lt;-</span> <span class="fl">3</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># Simulate 3 time periods of a 15-node directed network</span></span>
+<span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">15</span>; <span class="va">T_periods</span> <span class="op">&lt;-</span> <span class="fl">3</span></span>
 <span><span class="va">Y_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="va">T_periods</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">Y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span> <span class="op">*</span> <span class="va">n</span>, <span class="fl">1</span>, <span class="fl">0.15</span><span class="op">)</span>, <span class="va">n</span>, <span class="va">n</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
@@ -131,37 +114,19 @@ likelihood</li>
 <span>  <span class="va">Y</span></span>
 <span><span class="op">}</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Network dimensions:"</span>, <span class="va">n</span>, <span class="st">"x"</span>, <span class="va">n</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Network dimensions: 15 x 15</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Time periods:"</span>, <span class="va">T_periods</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Time periods: 3</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Densities:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">Y_list</span>, <span class="va">mean</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Densities: 0.133 0.171 0.081</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="fitting-a-longitudinal-model">Fitting a Longitudinal Model<a class="anchor" aria-label="anchor" href="#fitting-a-longitudinal-model"></a>
-</h3>
-<p>The <code><a href="../reference/lame.html">lame()</a></code> function fits the longitudinal AME model
-using MCMC:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
+<span><span class="co"># Fit a longitudinal AME model</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>  Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
-<span>  R <span class="op">=</span> <span class="fl">2</span>,               <span class="co"># 2-dimensional latent space</span></span>
-<span>  family <span class="op">=</span> <span class="st">"binary"</span>,   <span class="co"># binary (probit) networks</span></span>
-<span>  rvar <span class="op">=</span> <span class="cn">TRUE</span>,         <span class="co"># sender random effects</span></span>
-<span>  cvar <span class="op">=</span> <span class="cn">TRUE</span>,         <span class="co"># receiver random effects</span></span>
-<span>  burn <span class="op">=</span> <span class="fl">100</span>,          <span class="co"># burn-in (use 1000+ in practice)</span></span>
-<span>  nscan <span class="op">=</span> <span class="fl">500</span>,         <span class="co"># post-burn-in iterations (use 5000+ in practice)</span></span>
-<span>  odens <span class="op">=</span> <span class="fl">25</span>,          <span class="co"># thinning interval</span></span>
-<span>  print <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  R <span class="op">=</span> <span class="fl">2</span>,                <span class="co"># 2D latent space</span></span>
+<span>  family <span class="op">=</span> <span class="st">"binary"</span>,    <span class="co"># probit for 0/1 networks</span></span>
+<span>  burn <span class="op">=</span> <span class="fl">100</span>,           <span class="co"># burn-in (use 1000+ for real work)</span></span>
+<span>  nscan <span class="op">=</span> <span class="fl">500</span>,          <span class="co"># post-burn-in samples (use 5000+)</span></span>
+<span>  odens <span class="op">=</span> <span class="fl">25</span>,           <span class="co"># thinning</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  plot <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="inspecting-the-fit">Inspecting the Fit<a class="anchor" aria-label="anchor" href="#inspecting-the-fit"></a>
-</h3>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; === Longitudinal AME Model Summary ===</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -175,127 +140,120 @@ using MCMC:</p>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept   -1.323    0.171   -7.76       0   -1.657   -0.989 ***</span></span>
+<span><span class="co">#&gt; intercept   -1.301    0.173   -7.51       0   -1.641   -0.962 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.117    0.049</span></span>
-<span><span class="co">#&gt; cab    0.003    0.039</span></span>
-<span><span class="co">#&gt; vb     0.096    0.031</span></span>
-<span><span class="co">#&gt; rho    0.262    0.178</span></span>
+<span><span class="co">#&gt; va     0.120    0.049</span></span>
+<span><span class="co">#&gt; cab    0.003    0.041</span></span>
+<span><span class="co">#&gt; vb     0.097    0.033</span></span>
+<span><span class="co">#&gt; rho    0.342    0.171</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
-</div>
+<p>That’s it. You now have posterior estimates for regression
+coefficients, variance components, and latent positions pooled across
+all time periods.</p>
 </div>
 <div class="section level2">
-<h2 id="s3-methods">S3 Methods<a class="anchor" aria-label="anchor" href="#s3-methods"></a>
+<h2 id="what-can-you-do-with-a-fitted-model">What Can You Do with a Fitted Model?<a class="anchor" aria-label="anchor" href="#what-can-you-do-with-a-fitted-model"></a>
 </h2>
-<p>The package provides standard R methods for extracting results from
-fitted models.</p>
-<div class="section level3">
-<h3 id="regression-coefficients">Regression Coefficients<a class="anchor" aria-label="anchor" href="#regression-coefficients"></a>
-</h3>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># posterior means</span></span>
+<p><code>lame</code> objects work with all the standard R methods you’d
+expect:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Regression coefficients (posterior means)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; intercept </span></span>
-<span><span class="co">#&gt; -1.323077</span></span>
+<span><span class="co">#&gt; -1.301233</span></span>
 <span></span>
-<span><span class="co"># posterior covariance matrix of regression coefficients</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt;           intercept</span></span>
-<span><span class="co">#&gt; intercept 0.0290731</span></span>
-<span></span>
-<span><span class="co"># 95% Bayesian credible intervals (not confidence intervals)</span></span>
+<span><span class="co"># 95% credible intervals</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt;               2.5%     97.5%</span></span>
-<span><span class="co">#&gt; intercept -1.62034 -1.031958</span></span>
+<span><span class="co">#&gt;                2.5%      97.5%</span></span>
+<span><span class="co">#&gt; intercept -1.605381 -0.9894666</span></span>
 <span></span>
-<span><span class="co"># narrower 90% intervals</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit</span>, level <span class="op">=</span> <span class="fl">0.90</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                  5%       95%</span></span>
-<span><span class="co">#&gt; intercept -1.556317 -1.045561</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="predictions-and-residuals">Predictions and Residuals<a class="anchor" aria-label="anchor" href="#predictions-and-residuals"></a>
-</h3>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># predicted probabilities (response scale) -- returns list for lame objects</span></span>
+<span><span class="co"># Predicted probabilities for every dyad at every time point</span></span>
 <span><span class="va">Y_hat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Predicted probability range:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">Y_hat</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Predicted probability range: 0.022 0.574</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Predicted probability range:"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">Y_hat</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Predicted probability range: 0.035 0.525</span></span>
 <span></span>
-<span><span class="co"># residuals (observed - fitted) -- returns list for lame objects</span></span>
+<span><span class="co"># Residuals</span></span>
 <span><span class="va">resid_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Residual SD:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">resid_list</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Residual SD: 0.351</span></span></code></pre></div>
-</div>
+<span><span class="co">#&gt; Residual SD: 0.349</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="cross-sectional-analysis">Cross-Sectional Analysis<a class="anchor" aria-label="anchor" href="#cross-sectional-analysis"></a>
+<h2 id="checking-your-model">Checking Your Model<a class="anchor" aria-label="anchor" href="#checking-your-model"></a>
 </h2>
-<p>For a single network observed at one time point, use
-<code><a href="../reference/ame.html">ame()</a></code>:</p>
+<p>Two essential diagnostics:</p>
+<p><strong>1. Did the MCMC converge?</strong> The trace plots should
+look like fuzzy caterpillars, not random walks with trends.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"beta"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="lame_files/figure-html/trace-plot-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+<p><strong>2. Does the model fit the data?</strong> The GOF plots
+compare observed network statistics to what the model predicts. Observed
+values should fall within the simulated distributions.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<p><img src="lame_files/figure-html/gof-plot-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+</div>
+<div class="section level2">
+<h2 id="visualizing-network-structure">Visualizing Network Structure<a class="anchor" aria-label="anchor" href="#visualizing-network-structure"></a>
+</h2>
+<p>The latent space shows which actors play similar roles in the
+network:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<p><img src="lame_files/figure-html/uv-plot-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+<p>And the additive effects show who’s unusually active or popular:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"sender"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="lame_files/figure-html/ab-plot-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+</div>
+<div class="section level2">
+<h2 id="cross-sectional-models">Cross-Sectional Models<a class="anchor" aria-label="anchor" href="#cross-sectional-models"></a>
+</h2>
+<p>If you have a single network (not a time series), use
+<code><a href="../reference/ame.html">ame()</a></code> instead of <code><a href="../reference/lame.html">lame()</a></code>:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_cs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span></span>
-<span>  Y <span class="op">=</span> <span class="va">Y_list</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>,</span>
+<span>  Y <span class="op">=</span> <span class="va">Y_list</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>,     <span class="co"># just one time period</span></span>
 <span>  R <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  odens <span class="op">=</span> <span class="fl">25</span>,</span>
-<span>  print <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_cs</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; === AME Model Summary ===</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; [1] "Y ~ intercept + a[i] + b[j] + rho*e[ji] + U[i,1:2] %*% V[j,1:2], family = 'binary'"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Regression coefficients:</span></span>
-<span><span class="co">#&gt; ------------------------</span></span>
-<span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept   -1.198    0.132  -9.054       0   -1.458   -0.939 ***</span></span>
-<span><span class="co">#&gt; ---</span></span>
-<span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Variance components:</span></span>
-<span><span class="co">#&gt; -------------------</span></span>
-<span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.113    0.049</span></span>
-<span><span class="co">#&gt; cab    0.005    0.034</span></span>
-<span><span class="co">#&gt; vb     0.135    0.054</span></span>
-<span><span class="co">#&gt; rho    0.326    0.137</span></span>
-<span><span class="co">#&gt; ve     1.000    0.000</span></span>
-<span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
-<span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_cs</span><span class="op">)</span></span>
 <span><span class="co">#&gt; intercept </span></span>
 <span><span class="co">#&gt; -1.198251</span></span></code></pre></div>
+<p>The output and methods are the same. The difference is that
+<code><a href="../reference/lame.html">lame()</a></code> pools information across time periods, giving you
+more precise estimates when the structure is stable.</p>
 </div>
 <div class="section level2">
 <h2 id="dynamic-effects">Dynamic Effects<a class="anchor" aria-label="anchor" href="#dynamic-effects"></a>
 </h2>
-<p>The <code><a href="../reference/lame.html">lame()</a></code> function supports time-varying
-sender/receiver effects and latent positions via AR(1) processes.</p>
+<p>When you believe the network structure is changing over time
+(alliances shifting, friendships evolving), you can let the latent
+positions and additive effects drift via AR(1) processes:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_dyn</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>  Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
 <span>  R <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,   <span class="co"># time-varying sender/receiver effects</span></span>
-<span>  dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,   <span class="co"># time-varying latent positions</span></span>
-<span></span>
+<span>  dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,    <span class="co"># time-varying sociality/popularity</span></span>
+<span>  dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,    <span class="co"># time-varying latent positions</span></span>
 <span>  family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  odens <span class="op">=</span> <span class="fl">25</span>,</span>
-<span>  print <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -329,108 +287,19 @@ sender/receiver effects and latent positions via AR(1) processes.</p>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="visualizing-results">Visualizing Results<a class="anchor" aria-label="anchor" href="#visualizing-results"></a>
-</h2>
-<div class="section level3">
-<h3 id="mcmc-diagnostics">MCMC Diagnostics<a class="anchor" aria-label="anchor" href="#mcmc-diagnostics"></a>
-</h3>
-<p>Trace plots help assess convergence of the MCMC sampler:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"beta"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="lame_files/figure-html/trace-plot-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
-</div>
-<div class="section level3">
-<h3 id="goodness-of-fit">Goodness of Fit<a class="anchor" aria-label="anchor" href="#goodness-of-fit"></a>
-</h3>
-<p>GOF plots compare observed network statistics to their posterior
-predictive distributions:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
-<p><img src="lame_files/figure-html/gof-plot-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
-</div>
-<div class="section level3">
-<h3 id="latent-space">Latent Space<a class="anchor" aria-label="anchor" href="#latent-space"></a>
-</h3>
-<p>The <code><a href="../reference/uv_plot.html">uv_plot()</a></code> function visualizes the estimated latent
-positions:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
-<p><img src="lame_files/figure-html/uv-plot-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
-</div>
-<div class="section level3">
-<h3 id="additive-effects">Additive Effects<a class="anchor" aria-label="anchor" href="#additive-effects"></a>
-</h3>
-<p>The <code><a href="../reference/ab_plot.html">ab_plot()</a></code> function shows sender and receiver random
-effects:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"sender"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="lame_files/figure-html/ab-plot-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
-</div>
-</div>
-<div class="section level2">
-<h2 id="model-families">Model Families<a class="anchor" aria-label="anchor" href="#model-families"></a>
-</h2>
-<p>The package supports 8 distributional families:</p>
-<table class="table">
-<thead><tr class="header">
-<th>Family</th>
-<th>Description</th>
-<th>Use case</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td><code>"normal"</code></td>
-<td>Gaussian</td>
-<td>Continuous valued networks</td>
-</tr>
-<tr class="even">
-<td><code>"binary"</code></td>
-<td>Probit</td>
-<td>Binary networks (0/1)</td>
-</tr>
-<tr class="odd">
-<td><code>"ordinal"</code></td>
-<td>Ordinal probit</td>
-<td>Ordered categorical ties</td>
-</tr>
-<tr class="even">
-<td><code>"poisson"</code></td>
-<td>Poisson</td>
-<td>Count networks</td>
-</tr>
-<tr class="odd">
-<td><code>"tobit"</code></td>
-<td>Censored normal</td>
-<td>Non-negative continuous</td>
-</tr>
-<tr class="even">
-<td><code>"cbin"</code></td>
-<td>Censored binary</td>
-<td>Binary with censoring</td>
-</tr>
-<tr class="odd">
-<td><code>"frn"</code></td>
-<td>Fixed rank nomination</td>
-<td>Fixed number of nominations</td>
-</tr>
-<tr class="even">
-<td><code>"rrl"</code></td>
-<td>Row-ranked likelihood</td>
-<td>Ranked preferences</td>
-</tr>
-</tbody>
-</table>
+<p>The model estimates how persistent the latent positions are
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><annotation encoding="application/x-tex">\rho_{uv}</annotation></semantics></math>):
+values near 1 mean slow evolution, values near 0 mean rapid change. See
+the <a href="dynamic_effects.html">dynamic effects vignette</a> for a
+deeper dive.</p>
 </div>
 <div class="section level2">
 <h2 id="bipartite-networks">Bipartite Networks<a class="anchor" aria-label="anchor" href="#bipartite-networks"></a>
 </h2>
-<p>For two-mode networks with different row and column node sets, set
-<code>mode = "bipartite"</code>:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># simulate a small bipartite network</span></span>
-<span><span class="va">nA</span> <span class="op">&lt;-</span> <span class="fl">10</span>; <span class="va">nB</span> <span class="op">&lt;-</span> <span class="fl">8</span></span>
+<p>For two-mode networks (students and courses, countries and treaties),
+pass a rectangular matrix and set <code>mode = "bipartite"</code>:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">nA</span> <span class="op">&lt;-</span> <span class="fl">10</span>; <span class="va">nB</span> <span class="op">&lt;-</span> <span class="fl">8</span></span>
 <span><span class="va">Y_bip</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">Y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">nA</span> <span class="op">*</span> <span class="va">nB</span>, <span class="fl">1</span>, <span class="fl">0.2</span><span class="op">)</span>, <span class="va">nA</span>, <span class="va">nB</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"R"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">nA</span><span class="op">)</span></span>
@@ -443,11 +312,8 @@ effects:</p>
 <span>  mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
 <span>  R <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
-<span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
-<span>  odens <span class="op">=</span> <span class="fl">25</span>,</span>
-<span>  print <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  plot <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_bip</span><span class="op">)</span></span>
@@ -463,21 +329,113 @@ effects:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
-<span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper   </span></span>
-<span><span class="co">#&gt; intercept   -0.926    0.291  -3.183   0.001   -1.496   -0.356 **</span></span>
+<span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper  </span></span>
+<span><span class="co">#&gt; intercept   -0.895    0.438  -2.045   0.041   -1.753   -0.037 *</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.785    0.413</span></span>
+<span><span class="co">#&gt; va     0.589    0.224</span></span>
 <span><span class="co">#&gt; cab    0.000    0.000</span></span>
-<span><span class="co">#&gt; vb     0.715    0.297</span></span>
+<span><span class="co">#&gt; vb     0.770    0.322</span></span>
 <span><span class="co">#&gt; rho    0.000    0.000</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
+<p>See the <a href="bipartite.html">bipartite vignette</a> for a full
+walkthrough.</p>
+</div>
+<div class="section level2">
+<h2 id="supported-data-types">Supported Data Types<a class="anchor" aria-label="anchor" href="#supported-data-types"></a>
+</h2>
+<table class="table">
+<colgroup>
+<col width="34%">
+<col width="26%">
+<col width="39%">
+</colgroup>
+<thead><tr class="header">
+<th>Family</th>
+<th>Data</th>
+<th>Example</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>"normal"</code></td>
+<td>Continuous</td>
+<td>Trade volumes, survey ratings</td>
+</tr>
+<tr class="even">
+<td><code>"binary"</code></td>
+<td>0/1</td>
+<td>Friendships, alliances, sanctions</td>
+</tr>
+<tr class="odd">
+<td><code>"ordinal"</code></td>
+<td>Ordered categories</td>
+<td>Conflict intensity (none/threat/action)</td>
+</tr>
+<tr class="even">
+<td><code>"poisson"</code></td>
+<td>Counts</td>
+<td>Number of co-sponsored bills</td>
+</tr>
+<tr class="odd">
+<td><code>"tobit"</code></td>
+<td>Non-negative continuous</td>
+<td>Trade with zeros</td>
+</tr>
+<tr class="even">
+<td><code>"cbin"</code></td>
+<td>Censored binary</td>
+<td>Friendships with nomination limits</td>
+</tr>
+<tr class="odd">
+<td><code>"frn"</code></td>
+<td>Fixed rank nomination</td>
+<td>“Name your top 5 friends”</td>
+</tr>
+<tr class="even">
+<td><code>"rrl"</code></td>
+<td>Row-ranked likelihood</td>
+<td>Ranked preferences</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level2">
+<h2 id="where-to-go-next">Where to Go Next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
+</h2>
+<table class="table">
+<colgroup>
+<col width="56%">
+<col width="44%">
+</colgroup>
+<thead><tr class="header">
+<th>I want to…</th>
+<th>Read this</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Understand the full workflow with real data</td>
+<td><a href="lame-overview.html">lame overview</a></td>
+</tr>
+<tr class="even">
+<td>Learn about cross-sectional models in depth</td>
+<td><a href="cross_sec_ame.html">Your first AME model</a></td>
+</tr>
+<tr class="odd">
+<td>Model two-mode networks</td>
+<td><a href="bipartite.html">Bipartite networks</a></td>
+</tr>
+<tr class="even">
+<td>Let the network structure evolve over time</td>
+<td><a href="dynamic_effects.html">Dynamic effects</a></td>
+</tr>
+</tbody>
+</table>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

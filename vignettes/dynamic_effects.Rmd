@@ -109,7 +109,7 @@ fit_dynamic <- lame(
   burn = 100,
   nscan = 500,
   odens = 25,
-  print = FALSE,
+  verbose = FALSE,
   plot = FALSE
 )
 ```
@@ -142,23 +142,23 @@ A natural workflow is to fit several specifications and compare them:
 # Static model (no dynamic effects)
 fit_static <- lame(Y_list, R = 2, family = "binary",
                    burn = 100, nscan = 400, odens = 20,
-                   print = FALSE, plot = FALSE)
+                   verbose = FALSE, plot = FALSE)
 
 # Dynamic latent positions only
 fit_uv <- lame(Y_list, R = 2, dynamic_uv = TRUE, family = "binary",
                burn = 100, nscan = 400, odens = 20,
-               print = FALSE, plot = FALSE)
+               verbose = FALSE, plot = FALSE)
 
 # Dynamic additive effects only
 fit_ab <- lame(Y_list, R = 2, dynamic_ab = TRUE, family = "binary",
                burn = 100, nscan = 400, odens = 20,
-               print = FALSE, plot = FALSE)
+               verbose = FALSE, plot = FALSE)
 
 # Full dynamic
 fit_full <- lame(Y_list, R = 2, dynamic_uv = TRUE, dynamic_ab = TRUE,
                  family = "binary",
                  burn = 100, nscan = 400, odens = 20,
-                 print = FALSE, plot = FALSE)
+                 verbose = FALSE, plot = FALSE)
 ```
 
 Compare the GOF statistics across models. The model that best reproduces the observed network statistics (heterogeneity, transitivity, dyadic dependence) without unnecessary complexity is usually the best choice.
@@ -182,9 +182,30 @@ if(!is.null(fit_static$GOF) && !is.null(fit_full$GOF)) {
 
 **Stick with static** when you have few time periods, when the network structure is genuinely stable, or when you primarily care about the covariate effects (which are the same across specifications) rather than the latent structure.
 
+## Dealing with Rotational Indeterminacy
+
+One subtlety of dynamic latent space models: the latent space is only identified up to rotation at each time point. This means that even if actor positions are evolving smoothly, the raw estimated $U_t$ matrices might appear to "jump" between time periods due to arbitrary rotations.
+
+The `procrustes_align()` function solves this by applying Procrustes rotation to align each time period's positions to the previous one:
+
+```{r}
+# Align latent positions across time
+aligned <- procrustes_align(fit_dynamic)
+str(aligned$U)  # 3D array: actors x dimensions x time
+```
+
+You can also extract aligned positions as a tidy data frame using `latent_positions()` with `align = TRUE` (the default for `lame` objects):
+
+```{r}
+lp <- latent_positions(fit_dynamic, align = TRUE)
+head(lp)
+```
+
+This data frame is ready for `ggplot2` if you want to build custom trajectory plots (e.g., highlighting specific actors or overlaying external events).
+
 ## Implementation Notes
 
-The dynamic effects are implemented in C++ via Rcpp and RcppArmadillo using a forward-filtering backward-sampling (FFBS) algorithm. This is the standard approach for state-space models: the forward pass computes predictive distributions $p(x_t | x_{1:t-1})$, and the backward pass samples from the smoothed distribution $p(x_{1:T} | y_{1:T})$.
+The dynamic effects are implemented in C++ via Rcpp and RcppArmadillo. The AR(1) updates use Gibbs sampling with block updates across all actors at each time point, which is efficient for large networks.
 
 ## References
 

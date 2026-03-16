@@ -17,7 +17,7 @@
 #' fit_parallel <- ame_parallel(YX_nrm$Y, Xdyad = YX_nrm$X,
 #'                              n_chains = 2, cores = 1,
 #'                              nscan = 100, burn = 10, odens = 1,
-#'                              print = FALSE)
+#'                              verbose = FALSE)
 #' }
 #'
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau

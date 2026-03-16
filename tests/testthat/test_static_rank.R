@@ -30,7 +30,7 @@ test_that("Censored binary (cbin) AME runs without errors", {
 	
 	# Test basic model
 	fit <- ame(Y, R=1, family="cbin", odmax=odmax,
-						burn=200, nscan=600, print=FALSE)
+						burn=200, nscan=600, verbose = FALSE)
 	
 	expect_true(!is.null(fit$BETA))
 	expect_true(!is.null(fit$U))
@@ -67,7 +67,7 @@ test_that("Censored binary (cbin) with covariates works", {
 	
 	# Fit model
 	fit <- ame(Y, Xdyad=X, R=0, family="cbin", odmax=odmax,
-						burn=300, nscan=800, print=FALSE)
+						burn=300, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit$BETA))
 	if(ncol(fit$BETA) >= 2) {
@@ -97,7 +97,7 @@ test_that("Fixed rank nomination (frn) AME runs without errors", {
 	
 	# Test basic model
 	fit <- ame(Y, R=1, family="frn", odmax=odmax,
-						burn=200, nscan=600, print=FALSE)
+						burn=200, nscan=600, verbose = FALSE)
 	
 	expect_true(!is.null(fit$BETA))
 	expect_true(!is.null(fit$U))
@@ -131,7 +131,7 @@ test_that("Fixed rank nomination (frn) with covariates works", {
 	
 	# Fit model
 	fit <- ame(Y, Xdyad=X, R=0, family="frn", odmax=odmax,
-						burn=300, nscan=800, print=FALSE)
+						burn=300, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit$BETA))
 	# For frn, positive X should lead to better (lower) ranks
@@ -160,7 +160,7 @@ test_that("Row rank likelihood (rrl) AME runs without errors", {
 	# Note: rrl doesn't allow row effects (rvar must be FALSE)
 	fit <- ame(Y, R=1, family="rrl", 
 						rvar=FALSE, cvar=TRUE,
-						burn=200, nscan=600, print=FALSE)
+						burn=200, nscan=600, verbose = FALSE)
 	
 	expect_true(!is.null(fit$BETA))
 	expect_true(!is.null(fit$U))
@@ -185,7 +185,7 @@ test_that("Row rank likelihood (rrl) with covariates works", {
 	# Fit model (rvar must be FALSE for rrl)
 	fit <- ame(Y, Xdyad=X, R=0, family="rrl",
 						rvar=FALSE, cvar=TRUE,
-						burn=300, nscan=800, print=FALSE)
+						burn=300, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit$BETA))
 	if(ncol(fit$BETA) >= 1) {
@@ -215,7 +215,7 @@ test_that("Rank models handle varying outdegrees", {
 	diag(Y_cbin) <- NA
 	
 	fit_cbin <- ame(Y_cbin, R=1, family="cbin", odmax=odmax_vec,
-								 burn=200, nscan=600, print=FALSE)
+								 burn=200, nscan=600, verbose = FALSE)
 	
 	expect_true(!is.null(fit_cbin$BETA))
 	
@@ -242,7 +242,7 @@ test_that("FRN handles incomplete rankings", {
 	diag(Y) <- NA
 	
 	fit <- ame(Y, R=1, family="frn", odmax=odmax,
-						burn=200, nscan=600, print=FALSE)
+						burn=200, nscan=600, verbose = FALSE)
 	
 	expect_true(!is.null(fit$BETA))
 })
@@ -275,7 +275,7 @@ test_that("Rank models with multiplicative effects work", {
 	diag(Y_cbin) <- NA
 	
 	fit_cbin <- ame(Y_cbin, R=2, family="cbin", odmax=odmax,
-								 burn=300, nscan=800, print=FALSE)
+								 burn=300, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit_cbin$U))
 	expect_true(!is.null(fit_cbin$V))
@@ -293,7 +293,7 @@ test_that("Rank models with multiplicative effects work", {
 	diag(Y_frn) <- NA
 	
 	fit_frn <- ame(Y_frn, R=2, family="frn", odmax=odmax,
-								burn=300, nscan=800, print=FALSE)
+								burn=300, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit_frn$U))
 	expect_true(!is.null(fit_frn$V))
@@ -304,7 +304,7 @@ test_that("Rank models with multiplicative effects work", {
 	
 	fit_rrl <- ame(Y_rrl, R=2, family="rrl",
 								rvar=FALSE, cvar=TRUE,
-								burn=300, nscan=800, print=FALSE)
+								burn=300, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit_rrl$U))
 	expect_true(!is.null(fit_rrl$V))

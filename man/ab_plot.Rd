@@ -67,7 +67,7 @@ are available to visualize how effects evolve over time.
 # Fit an AME model
 data(YX_nrm)
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X,
-           nscan = 100, burn = 10, odens = 1, print = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
 
 # Visualize sender effects
 ab_plot(fit, effect = "sender")

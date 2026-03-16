@@ -116,6 +116,23 @@ sample_sigma_uv <- function(U_cube, V_cube, rho_uv, symmetric) {
     .Call(`_lame_sample_sigma_uv`, U_cube, V_cube, rho_uv, symmetric)
 }
 
+#' Bipartite dynamic UV Gibbs update
+#'
+#' Replaces the nested R loops for bipartite dynamic_uv in lame.R.
+#' Uses direct 2x2 inverse formula for common R=2 case.
+#'
+#' @param U_cube 3D array (nA x RA x T)
+#' @param V_cube 3D array (nB x RB x T)
+#' @param E 3D array of residuals (nA x nB x T)
+#' @param G Interaction matrix (RA x RB)
+#' @param rho_uv AR(1) persistence parameter
+#' @param sigma_uv Innovation standard deviation
+#' @param s2 Dyadic variance
+#' @return List with updated U_cube, V_cube
+rUV_dynamic_bip_fc_cpp <- function(U_cube, V_cube, E, G, rho_uv, sigma_uv, s2) {
+    .Call(`_lame_rUV_dynamic_bip_fc_cpp`, U_cube, V_cube, E, G, rho_uv, sigma_uv, s2)
+}
+
 count_four_cycles_bip_cpp <- function(Y) {
     .Call(`_lame_count_four_cycles_bip_cpp`, Y)
 }
@@ -168,6 +185,44 @@ rUV_sym_fc_cpp <- function(E, U, V, s2, shrink, uLoopIDs) {
     .Call(`_lame_rUV_sym_fc_cpp`, E, U, V, s2, shrink, uLoopIDs)
 }
 
+#' Batch normal Z sampling across all time periods
+#'
+#' Replaces the per-time-period R loop with a single C++ call that loops
+#' internally, reducing R-to-C++ transition overhead.
+#'
+#' @param Z 3D array of latent values (n x n x T)
+#' @param EZ 3D array of expected values (n x n x T)
+#' @param rho Dyadic correlation parameter
+#' @param s2 Dyadic variance
+#' @param Y 3D array of observed values (n x n x T)
+#' @return List with updated Z and E_nrm (residuals)
+rZ_nrm_batch_cpp <- function(Z, EZ, rho, s2, Y) {
+    .Call(`_lame_rZ_nrm_batch_cpp`, Z, EZ, rho, s2, Y)
+}
+
+#' Batch binary Z sampling across all time periods (bipartite, rho=0)
+#'
+#' Vectorized probit update for bipartite binary networks without dyadic correlation.
+#'
+#' @param Z 3D array of latent values (nA x nB x T)
+#' @param EZ 3D array of expected values (nA x nB x T)
+#' @param Y 3D array of observed values (nA x nB x T)
+#' @return Updated Z array
+rZ_bin_bip_batch_cpp <- function(Z, EZ, Y) {
+    .Call(`_lame_rZ_bin_bip_batch_cpp`, Z, EZ, Y)
+}
+
+#' Batch tobit Z sampling across all time periods (bipartite, rho=0)
+#'
+#' @param Z 3D array of latent values (nA x nB x T)
+#' @param EZ 3D array of expected values (nA x nB x T)
+#' @param s2 Dyadic variance
+#' @param Y 3D array of observed values (nA x nB x T)
+#' @return Updated Z array
+rZ_tob_bip_batch_cpp <- function(Z, EZ, s2, Y) {
+    .Call(`_lame_rZ_tob_bip_batch_cpp`, Z, EZ, s2, Y)
+}
+
 rZ_bin_fc_cpp <- function(ZT, EZT, rho, YT) {
     .Call(`_lame_rZ_bin_fc_cpp`, ZT, EZT, rho, YT)
 }
@@ -182,6 +237,50 @@ rZ_bin_fc_exact <- function(Z, EZ, rho, Y) {
 
 rZ_bin_fc_fixed <- function(Z, EZ, rho, Y) {
     .Call(`_lame_rZ_bin_fc_fixed`, Z, EZ, rho, Y)
+}
+
+#' Compute X'X and X'y for bipartite covariate regression
+#'
+#' Replaces the O(T x p^2 x n^2) nested R loop for bipartite XtX and Xty
+#' computation with a single C++ call.
+#'
+#' @param Xlist List of T arrays, each nA x nB x p
+#' @param resid 3D array of residuals nA x nB x T
+#' @param p Number of covariates
+#' @return List with XtX (p x p) and Xty (p vector)
+compute_XtX_Xty_bip_cpp <- function(Xlist, resid, p) {
+    .Call(`_lame_compute_XtX_Xty_bip_cpp`, Xlist, resid, p)
+}
+
+#' Compute Xbeta product for bipartite networks
+#'
+#' Computes sum_k beta_k * X_k for a single time slice
+#'
+#' @param X 3D array (nA x nB x p) of covariates for one time period
+#' @param beta Coefficient vector of length p
+#' @return nA x nB matrix
+Xbeta_bip_cpp <- function(X, beta) {
+    .Call(`_lame_Xbeta_bip_cpp`, X, beta)
+}
+
+#' Full bipartite Gibbs update for beta, a, b
+#'
+#' Single C++ function replacing the bipartite beta/a/b update block in lame.R
+#'
+#' @param Z 3D array (nA x nB x T)
+#' @param Xlist List of T arrays (nA x nB x p)
+#' @param UV_eff nA x nB matrix (U*G*V' or U*V')
+#' @param a_current Current row effects (length nA)
+#' @param b_current Current column effects (length nB)
+#' @param s2 Dyadic variance
+#' @param g_prior G-prior parameter
+#' @param va Row effect variance (diagonal element of Sab)
+#' @param vb Column effect variance (diagonal element of Sab)
+#' @param rvar Whether to update row effects
+#' @param cvar Whether to update column effects
+#' @return List with beta, a, b
+rbeta_ab_bip_gibbs_cpp <- function(Z, Xlist, UV_eff, a_current, b_current, s2, g_prior, va, vb, rvar, cvar) {
+    .Call(`_lame_rbeta_ab_bip_gibbs_cpp`, Z, Xlist, UV_eff, a_current, b_current, s2, g_prior, va, vb, rvar, cvar)
 }
 
 rbeta_ab_rep_fc_cpp <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g = 100.0) {

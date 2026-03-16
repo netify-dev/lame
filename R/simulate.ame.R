@@ -117,7 +117,7 @@
 #' # Fit a model
 #' data(YX_bin)
 #' fit <- ame(YX_bin$Y, Xdyad = YX_bin$X, burn = 10, nscan = 100, odens = 1,
-#'            family = "binary", print = FALSE)
+#'            family = "binary", verbose = FALSE)
 #'
 #' # Simulate 10 networks from posterior
 #' sims <- simulate(fit, nsim = 10)

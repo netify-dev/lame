@@ -21,7 +21,7 @@ for (fam in c("normal", "binary")) {
       dat$Y, Xdyad = dat$Xdyad, R = 2, family = fam,
       dynamic_ab = TRUE, dynamic_uv = FALSE,
       burn = 5, nscan = 10, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     expect_s3_class(fit, "lame")
@@ -55,7 +55,7 @@ for (fam in c("normal", "binary")) {
       dat$Y, Xdyad = dat$Xdyad, R = 2, family = fam,
       dynamic_ab = FALSE, dynamic_uv = TRUE,
       burn = 5, nscan = 10, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     expect_s3_class(fit, "lame")
@@ -87,7 +87,7 @@ for (fam in c("normal", "binary")) {
       dat$Y, Xdyad = dat$Xdyad, R = 2, family = fam,
       dynamic_ab = TRUE, dynamic_uv = TRUE,
       burn = 5, nscan = 10, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     expect_s3_class(fit, "lame")
@@ -120,7 +120,7 @@ test_that("lame() unipartite symmetric dynamic_ab: normal", {
     Y_sym, Xdyad = dat$Xdyad, R = 2, family = "normal",
     symmetric = TRUE, dynamic_ab = TRUE,
     burn = 5, nscan = 10, odens = 1,
-    print = FALSE, gof = TRUE, seed = 42
+    verbose = FALSE, gof = TRUE, seed = 42
   )
 
   expect_s3_class(fit, "lame")
@@ -146,7 +146,7 @@ for (fam in c("normal", "binary")) {
       dat$Y, Xdyad = dat$Xdyad, R = 2, family = fam,
       mode = "bipartite", dynamic_ab = TRUE, dynamic_uv = FALSE,
       burn = 5, nscan = 10, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     expect_s3_class(fit, "lame")
@@ -180,7 +180,7 @@ for (fam in c("normal", "binary")) {
       dat$Y, Xdyad = dat$Xdyad, R = 2, family = fam,
       mode = "bipartite", dynamic_ab = FALSE, dynamic_uv = TRUE,
       burn = 5, nscan = 10, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     expect_s3_class(fit, "lame")
@@ -213,7 +213,7 @@ for (fam in c("normal", "binary")) {
       dat$Y, Xdyad = dat$Xdyad, R = 2, family = fam,
       mode = "bipartite", dynamic_ab = TRUE, dynamic_uv = TRUE,
       burn = 5, nscan = 10, odens = 1,
-      print = FALSE, gof = TRUE, seed = 42
+      verbose = FALSE, gof = TRUE, seed = 42
     )
 
     expect_s3_class(fit, "lame")
@@ -238,7 +238,7 @@ test_that("lame() warns about dynamic_G=TRUE not implemented", {
       dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
       mode = "bipartite", dynamic_G = TRUE,
       burn = 5, nscan = 10, odens = 1,
-      print = FALSE, gof = FALSE, seed = 42
+      verbose = FALSE, gof = FALSE, seed = 42
     ),
     "dynamic_G.*not yet implemented"
   )

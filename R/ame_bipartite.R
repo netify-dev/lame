@@ -16,7 +16,7 @@ ame_bipartite <- function(
 	family="normal", intercept=!is.element(family,c("rrl","ordinal")),
 	odmax=NULL, prior=list(), g=NA,
 	seed = 6886, nscan = 10000, burn = 500, odens = 25,
-	print = TRUE, gof=TRUE, custom_gof=NULL,
+	verbose = TRUE, gof=TRUE, custom_gof=NULL,
 	start_vals=NULL, periodic_save=FALSE, out_file=NULL,
 	save_interval=0.25, model.name=NULL,
 	posterior_opts = NULL, use_sparse_matrices = FALSE
@@ -295,7 +295,7 @@ ame_bipartite <- function(
 		X <- NULL
 	}
 	
-	if(print) {
+	if(verbose) {
 		cli::cli_h2("Running MCMC for bipartite network")
 		cli::cli_text("Dimensions: {.val {nA}} x {.val {nB}}")
 		cli::cli_text("R_row = {.val {R_row}}, R_col = {.val {R_col}}")
@@ -677,7 +677,7 @@ ame_bipartite <- function(
 			}
 		}
 		
-		if(print) {
+		if(verbose) {
 			if(iter <= burn) {
 				cli::cli_progress_update(id = NULL)
 				if(iter == burn) {
@@ -691,7 +691,7 @@ ame_bipartite <- function(
 	}
 	
 	#### output assembly ####
-	if(print) {
+	if(verbose) {
 		cli::cli_progress_done()
 
 		end_time <- Sys.time()
