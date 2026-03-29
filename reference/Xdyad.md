@@ -1,7 +1,13 @@
 # Dyadic covariates
 
-Sample dyadic covariates for AME model examples
+Dyadic covariates loaded by `data(vignette_data)`. See
+[`vignette_data`](https://netify-dev.github.io/lame/reference/vignette_data.md)
+for full details.
 
 ## Format
 
-An array of dyadic covariates
+A list of arrays of dyadic covariates
+
+## See also
+
+[`vignette_data`](https://netify-dev.github.io/lame/reference/vignette_data.md)

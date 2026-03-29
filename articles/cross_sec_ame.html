@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,7 +67,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-03-16</h4>
+            <h4 data-toc-skip class="date">2026-03-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/cross_sec_ame.Rmd" class="external-link"><code>vignettes/cross_sec_ame.Rmd</code></a></small>
       <div class="d-none name"><code>cross_sec_ame.Rmd</code></div>
@@ -97,7 +97,12 @@ how popular they are), and a position in a latent space
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>j</mi></msub><annotation encoding="application/x-tex">v_j</annotation></semantics></math>)
 that captures who tends to connect with whom beyond what the covariates
-explain. Think of it as a regression that takes network structure
+explain. The name reflects the two kinds of actor-level terms: the
+sender and receiver effects enter the model <em>additively</em>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>i</mi></msub><mo>+</mo><msub><mi>b</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">a_i + b_j</annotation></semantics></math>),
+while the latent positions enter <em>multiplicatively</em>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>i</mi></msub><mi>′</mi><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i'v_j</annotation></semantics></math>,
+a dot product). Think of it as a regression that takes network structure
 seriously.</p>
 </div>
 <div class="section level2">
@@ -111,12 +116,12 @@ characteristics.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/lame/">lame</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Load the Add Health friendship network</span></span>
+<span><span class="co"># load the Add Health friendship network</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">addhealthc3</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Convert valued network to binary (any nomination = friendship)</span></span>
+<span><span class="co"># convert valued network to binary (any nomination = friendship)</span></span>
 <span><span class="va">Y</span> <span class="op">&lt;-</span> <span class="op">(</span><span class="va">addhealthc3</span><span class="op">$</span><span class="va">Y</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1</span></span>
 <span><span class="va">X_nodes</span> <span class="op">&lt;-</span> <span class="va">addhealthc3</span><span class="op">$</span><span class="va">X</span></span>
 <span></span>
@@ -127,6 +132,12 @@ characteristics.</p>
 <span><span class="co">#&gt; Friendships: 127</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Network density:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Network density: 0.128</span></span></code></pre></div>
+<p>Notice the <code>na.rm = TRUE</code> calls: network data often has
+missing entries (the diagonal is <code>NA</code> because self-ties are
+undefined, and some dyads may be unobserved). The model handles missing
+values internally via data augmentation, so you do not need to impute
+them yourself. Just leave <code>NA</code>s in the matrix and pass it
+directly.</p>
 <p>Before modeling, let’s look at the basic structure. How much do
 students vary in their number of friends?</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -134,16 +145,21 @@ students vary in their number of friends?</p>
 <span><span class="va">in_degree</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colSums</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">degree_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  Degree <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">out_degree</span>, <span class="va">in_degree</span><span class="op">)</span>,</span>
-<span>  Type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Nominations sent"</span>, <span class="st">"Nominations received"</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">n</span><span class="op">)</span></span>
+<span>    Degree <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">out_degree</span>, <span class="va">in_degree</span><span class="op">)</span>,</span>
+<span>    Type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Nominations sent"</span>, <span class="st">"Nominations received"</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">n</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">degree_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">Degree</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_histogram.html" class="external-link">geom_histogram</a></span><span class="op">(</span>binwidth <span class="op">=</span> <span class="fl">1</span>, alpha <span class="op">=</span> <span class="fl">0.7</span>, fill <span class="op">=</span> <span class="st">"steelblue"</span>, color <span class="op">=</span> <span class="st">"grey40"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/facet_wrap.html" class="external-link">facet_wrap</a></span><span class="op">(</span><span class="op">~</span><span class="va">Type</span>, ncol <span class="op">=</span> <span class="fl">2</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Number of ties"</span>, y <span class="op">=</span> <span class="st">"Count"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p><img src="static-ame-viz-network-1.png" class="r-plt" alt="" width="960" style="display: block; margin: auto;"></p>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_histogram.html" class="external-link">geom_histogram</a></span><span class="op">(</span>binwidth <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/facet_wrap.html" class="external-link">facet_wrap</a></span><span class="op">(</span><span class="op">~</span><span class="va">Type</span>, ncol <span class="op">=</span> <span class="fl">2</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Number of Ties"</span>, y <span class="op">=</span> <span class="st">"Count"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
+<span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        strip.background <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_rect</a></span><span class="op">(</span>fill <span class="op">=</span> <span class="st">"black"</span>, color <span class="op">=</span> <span class="st">"black"</span><span class="op">)</span>,</span>
+<span>        strip.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"white"</span>, hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+<span>    <span class="op">)</span></span></code></pre></div>
+<p><img src="cross_sec_ame_files/figure-html/viz-network-1.png" class="r-plt" alt="" width="960" style="display: block; margin: auto;"></p>
 <p>There’s real variation here: some students are much more social than
 others, and some are much more popular. This is exactly what the sender
 and receiver random effects will capture.</p>
@@ -155,14 +171,20 @@ and receiver random effects will capture.</p>
 <strong>homophily</strong>: do birds of a feather flock together? We’ll
 test whether students are more likely to be friends with others of the
 same gender, race, and grade.</p>
+<p>We deliberately include both <code>same_grade</code> (binary: same
+grade or not) and <code>grade_diff</code> (continuous: how many grades
+apart) to illustrate a common modeling pitfall: collinearity. These two
+covariates measure nearly the same thing, and the model cannot cleanly
+separate their effects. We’ll see the consequences in the results
+below.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Homophily indicators: 1 if same, 0 if different</span></span>
+<code class="sourceCode R"><span><span class="co"># homophily indicators: 1 if same, 0 if different</span></span>
 <span><span class="va">same_female</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">X_nodes</span><span class="op">[</span>,<span class="st">"female"</span><span class="op">]</span>, <span class="va">X_nodes</span><span class="op">[</span>,<span class="st">"female"</span><span class="op">]</span>, <span class="st">"=="</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1</span></span>
 <span><span class="va">same_race</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">X_nodes</span><span class="op">[</span>,<span class="st">"race"</span><span class="op">]</span>, <span class="va">X_nodes</span><span class="op">[</span>,<span class="st">"race"</span><span class="op">]</span>, <span class="st">"=="</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1</span></span>
 <span><span class="va">same_grade</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">X_nodes</span><span class="op">[</span>,<span class="st">"grade"</span><span class="op">]</span>, <span class="va">X_nodes</span><span class="op">[</span>,<span class="st">"grade"</span><span class="op">]</span>, <span class="st">"=="</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1</span></span>
 <span><span class="va">grade_diff</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">X_nodes</span><span class="op">[</span>,<span class="st">"grade"</span><span class="op">]</span>, <span class="va">X_nodes</span><span class="op">[</span>,<span class="st">"grade"</span><span class="op">]</span>, <span class="st">"-"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Pack into a 3D array (n x n x p)</span></span>
+<span><span class="co"># pack into a 3D array (n x n x p)</span></span>
 <span><span class="va">Xdyad</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/array.html" class="external-link">array</a></span><span class="op">(</span><span class="cn">NA</span>, dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">n</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">Xdyad</span><span class="op">[</span>,,<span class="fl">1</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">same_female</span></span>
 <span><span class="va">Xdyad</span><span class="op">[</span>,,<span class="fl">2</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">same_race</span></span>
@@ -171,7 +193,7 @@ same gender, race, and grade.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dimnames.html" class="external-link">dimnames</a></span><span class="op">(</span><span class="va">Xdyad</span><span class="op">)</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'same_female'</span>, <span class="st">'same_race'</span>, <span class="st">'same_grade'</span>, <span class="st">'grade_diff'</span><span class="op">)</span></span>
 <span><span class="kw">for</span><span class="op">(</span><span class="va">k</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Xdyad</span><span class="op">[</span>,,<span class="va">k</span><span class="op">]</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
 <span></span>
-<span><span class="co"># Nodal covariates (sender and receiver characteristics)</span></span>
+<span><span class="co"># nodal covariates (sender and receiver characteristics)</span></span>
 <span><span class="va">Xrow</span> <span class="op">&lt;-</span> <span class="va">X_nodes</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"female"</span>, <span class="st">"grade"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">Xcol</span> <span class="op">&lt;-</span> <span class="va">X_nodes</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"female"</span>, <span class="st">"grade"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
 </div>
@@ -195,19 +217,19 @@ beyond what covariates explain)</li>
 </ul>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span><span class="va">Y</span>,</span>
-<span>          Xdyad <span class="op">=</span> <span class="va">Xdyad</span>,</span>
-<span>          Xrow <span class="op">=</span> <span class="va">Xrow</span>,</span>
-<span>          Xcol <span class="op">=</span> <span class="va">Xcol</span>,</span>
-<span>          R <span class="op">=</span> <span class="fl">2</span>,              <span class="co"># 2D latent space</span></span>
-<span>          family <span class="op">=</span> <span class="st">"binary"</span>,  <span class="co"># probit model for 0/1 data</span></span>
-<span>          rvar <span class="op">=</span> <span class="cn">TRUE</span>,        <span class="co"># sender random effects</span></span>
-<span>          cvar <span class="op">=</span> <span class="cn">TRUE</span>,        <span class="co"># receiver random effects</span></span>
-<span>          dcor <span class="op">=</span> <span class="cn">TRUE</span>,        <span class="co"># dyadic correlation (reciprocity)</span></span>
-<span>          burn <span class="op">=</span> <span class="fl">500</span>,         <span class="co"># burn-in (increase for publication)</span></span>
-<span>          nscan <span class="op">=</span> <span class="fl">2000</span>,       <span class="co"># sampling iterations</span></span>
-<span>          odens <span class="op">=</span> <span class="fl">25</span>,         <span class="co"># thinning</span></span>
-<span>          verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>          gof <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span>                    Xdyad <span class="op">=</span> <span class="va">Xdyad</span>,</span>
+<span>                    Xrow <span class="op">=</span> <span class="va">Xrow</span>,</span>
+<span>                    Xcol <span class="op">=</span> <span class="va">Xcol</span>,</span>
+<span>                    R <span class="op">=</span> <span class="fl">2</span>,              <span class="co"># 2D latent space</span></span>
+<span>                    family <span class="op">=</span> <span class="st">"binary"</span>,  <span class="co"># probit model for 0/1 data</span></span>
+<span>                    rvar <span class="op">=</span> <span class="cn">TRUE</span>,        <span class="co"># sender random effects</span></span>
+<span>                    cvar <span class="op">=</span> <span class="cn">TRUE</span>,        <span class="co"># receiver random effects</span></span>
+<span>                    dcor <span class="op">=</span> <span class="cn">TRUE</span>,        <span class="co"># dyadic correlation (reciprocity)</span></span>
+<span>                    burn <span class="op">=</span> <span class="fl">500</span>,         <span class="co"># burn-in (increase for publication)</span></span>
+<span>                    nscan <span class="op">=</span> <span class="fl">2000</span>,       <span class="co"># post-burn-in iterations</span></span>
+<span>                    odens <span class="op">=</span> <span class="fl">25</span>,         <span class="co"># thinning</span></span>
+<span>                    verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>                    gof <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="what-did-we-find">What Did We Find?<a class="anchor" aria-label="anchor" href="#what-did-we-find"></a>
@@ -223,17 +245,18 @@ beyond what covariates explain)</li>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;                  Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept          -2.523    0.677  -3.725       0   -3.851   -1.196 ***</span></span>
-<span><span class="co">#&gt; female_row         -0.347    0.254  -1.362   0.173   -0.845    0.152    </span></span>
-<span><span class="co">#&gt; grade_row           0.088    0.045   1.972   0.049    0.001    0.176   *</span></span>
-<span><span class="co">#&gt; female_col         -0.289    0.248  -1.165   0.244   -0.776    0.197    </span></span>
-<span><span class="co">#&gt; grade_col           0.135    0.039   3.424   0.001    0.058    0.212 ***</span></span>
-<span><span class="co">#&gt; same_female_dyad    0.305    0.167   1.826   0.068   -0.022    0.633   .</span></span>
-<span><span class="co">#&gt; same_race_dyad     -0.026    0.222  -0.115   0.908   -0.461     0.41    </span></span>
-<span><span class="co">#&gt; same_grade_dyad     0.074    0.231   0.322   0.747   -0.378    0.527    </span></span>
-<span><span class="co">#&gt; grade_diff_dyad    -0.563    0.089  -6.313       0   -0.738   -0.388 ***</span></span>
+<span><span class="co">#&gt; intercept          -2.523    0.677  -3.725       0   -3.809   -1.443 ***</span></span>
+<span><span class="co">#&gt; female_row         -0.347    0.254  -1.362   0.173   -0.752    0.122    </span></span>
+<span><span class="co">#&gt; grade_row           0.088    0.045   1.972   0.049    0.009    0.196   *</span></span>
+<span><span class="co">#&gt; female_col         -0.289    0.248  -1.165   0.244   -0.745    0.134    </span></span>
+<span><span class="co">#&gt; grade_col           0.135    0.039   3.424   0.001    0.051    0.207 ***</span></span>
+<span><span class="co">#&gt; same_female_dyad    0.305    0.167   1.826   0.068   -0.048    0.643   .</span></span>
+<span><span class="co">#&gt; same_race_dyad     -0.026    0.222  -0.115   0.908   -0.426    0.395    </span></span>
+<span><span class="co">#&gt; same_grade_dyad     0.074    0.231   0.322   0.747   -0.351    0.493    </span></span>
+<span><span class="co">#&gt; grade_diff_dyad    -0.563    0.089  -6.313       0   -0.721   -0.382 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
+<span><span class="co">#&gt; Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
@@ -247,37 +270,50 @@ beyond what covariates explain)</li>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
 <p>Let’s unpack the key results:</p>
 <p><strong>Homophily effects.</strong> Look at the regression
-coefficients. Positive values mean the covariate increases the
-probability of a tie. Same-race and same-grade effects tell us whether
-students preferentially befriend others like themselves. The grade
-difference effect tells us whether friendships cross grade
-boundaries.</p>
+coefficients and their credible intervals. The <code>grade_diff</code>
+coefficient is strongly negative and its credible interval excludes
+zero, telling us that students further apart in grade are much less
+likely to be friends. The <code>same_female</code> coefficient is
+positive (gender homophily), though its credible interval may include
+zero depending on the run. The <code>same_race</code> coefficient
+captures race homophily after controlling for grade and gender.</p>
+<p><strong>The collinearity pitfall.</strong> Notice that the
+<code>same_grade</code> coefficient is difficult to interpret: its sign
+and magnitude are unstable because <code>same_grade</code> and
+<code>grade_diff</code> are nearly redundant (grade difference of 0 is
+equivalent to same grade). This is exactly why we included both — to
+show that the model runs without error but the coefficients become
+unreliable when covariates are collinear. In practice, include one or
+the other, not both.</p>
 <p><strong>Variance components.</strong> The sender variance
 (<code>va</code>) and receiver variance (<code>vb</code>) quantify how
 much students differ in their sociality and popularity. Larger values
 mean more heterogeneity. The dyadic correlation (<code>rho</code>)
-captures reciprocity: positive values mean if A nominates B, B is more
-likely to nominate A back.</p>
-<p>For binary networks with a probit link, a rough rule of thumb is that
-a coefficient of
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
-changes the probability of a tie by about
+captures reciprocity: values near 1 mean that if A nominates B, B almost
+always nominates A back. In this network, reciprocity is strong.</p>
+<p>For binary networks with a probit link, the coefficients are on the
+latent scale. A rough rule of thumb is that
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.4</mn><mo>×</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">0.4 \times \beta</annotation></semantics></math>
-at the mean.</p>
+approximates the marginal probability change, but this only holds when
+the baseline probability is near 0.5. For sparse networks (density below
+0.1, common in international relations and many social networks), the
+marginal effect is considerably smaller. To get predicted probabilities
+for specific dyads, use
+<code>predict(fit, type = "response")</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="did-the-sampler-converge">Did the Sampler Converge?<a class="anchor" aria-label="anchor" href="#did-the-sampler-converge"></a>
 </h2>
-<p>Since <code>lame</code> uses MCMC (Markov chain Monte Carlo), we need
-to verify that the sampler explored the posterior distribution
+<p>Since the model is estimated via MCMC (Markov chain Monte Carlo), we
+need to verify that the sampler explored the posterior distribution
 thoroughly. The <code>trace_plot</code> function is the first tool to
 reach for.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"beta"</span>, ncol <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></code></pre></div>
-<p><img src="static-ame-trace-plots-1.png" class="r-plt" alt="" width="960" style="display: block; margin: auto;"></p>
-<p><strong>What to look for:</strong> The trace plots (left) should look
+<p><img src="cross_sec_ame_files/figure-html/trace-plots-1.png" class="r-plt" alt="" width="960" style="display: block; margin: auto;"></p>
+<p><strong>What to look for:</strong> The trace plots (top) should look
 like “fuzzy caterpillars” bouncing around a stable mean. If you see long
-trends, the chain hasn’t converged. The density plots (right) should be
+trends, the chain hasn’t converged. The density plots (bottom) should be
 smooth and unimodal. With 80 post-burn-in samples, convergence should be
 reasonable, but for a publication you’d want longer chains.</p>
 </div>
@@ -290,21 +326,24 @@ prediction: it tests whether the model captures emergent properties like
 degree heterogeneity, reciprocity patterns, and clustering.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
-<p><img src="static-ame-gof-plot-1.png" class="r-plt" alt="" width="960" style="display: block; margin: auto;"></p>
+<p><img src="cross_sec_ame_files/figure-html/gof-plot-1.png" class="r-plt" alt="" width="960" style="display: block; margin: auto;"></p>
 <p>Each panel shows a different network statistic. The histogram is the
 distribution from simulated networks drawn from the fitted model; the
 vertical line is the observed value. When the observed value falls well
 within the simulated distribution, the model is capturing that aspect of
-the data. When it falls in the tails, the model is missing
-something.</p>
+the data. When it falls in the tails, the model is missing something. It
+is common for AME models to fit degree heterogeneity and reciprocity
+well (those are explicitly modeled) but to under-predict transitivity
+and cyclicity (which require higher-order dependencies that the model
+does not directly capture).</p>
 <p>You can also compute GOF after the fact using the <code><a href="../reference/gof.html">gof()</a></code>
 function, which is useful if you want to test custom statistics:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Define a custom statistic: degree correlation</span></span>
+<code class="sourceCode R"><span><span class="co"># define a custom statistic: degree correlation</span></span>
 <span><span class="va">custom_stats</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">Y</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">out_deg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowSums</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span>  <span class="va">in_deg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colSums</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>deg_cor <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="va">out_deg</span>, <span class="va">in_deg</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="va">out_deg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowSums</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>    <span class="va">in_deg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colSums</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>deg_cor <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="va">out_deg</span>, <span class="va">in_deg</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">gof_custom</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gof.html">gof</a></span><span class="op">(</span><span class="va">fit</span>, custom_gof <span class="op">=</span> <span class="va">custom_stats</span>, nsim <span class="op">=</span> <span class="fl">50</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
@@ -312,6 +351,17 @@ function, which is useful if you want to test custom statistics:</p>
 <span><span class="co">#&gt; Observed degree correlation: 0.47</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Model expected:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">gof_custom</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span>, <span class="st">"deg_cor"</span><span class="op">]</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Model expected: 0.264</span></span></code></pre></div>
+<p>If the model-expected value is close to the observed value, the model
+is reproducing that aspect of the network structure well. A large gap
+suggests the model is missing something important. Here, the observed
+degree correlation is likely higher than the model expects, meaning
+students who nominate many friends also tend to receive many
+nominations. The AME model captures some of this through the
+sender-receiver covariance (<code>cab</code>), but the degree
+correlation also reflects higher-order structure. This is a useful
+diagnostic: it tells you what the model does well and where it has
+limitations, guiding decisions about whether to add covariates or
+increase the latent dimension.</p>
 </div>
 <div class="section level2">
 <h2 id="visualizing-the-latent-space">Visualizing the Latent Space<a class="anchor" aria-label="anchor" href="#visualizing-the-latent-space"></a>
@@ -325,10 +375,15 @@ students. This captures clustering that the covariates alone can’t
 explain.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span>, layout <span class="op">=</span> <span class="st">"circle"</span>, show.edges <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>        label.nodes <span class="op">=</span> <span class="cn">TRUE</span>, label.size <span class="op">=</span> <span class="fl">2.5</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>axis.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>, axis.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="static-ame-latent-space-1.png" class="r-plt" alt="" width="768" style="display: block; margin: auto;"></p>
+<span>                label.nodes <span class="op">=</span> <span class="cn">TRUE</span>, label.size <span class="op">=</span> <span class="fl">2.5</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
+<span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        axis.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        axis.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        panel.grid <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>    <span class="op">)</span></span></code></pre></div>
+<p><img src="cross_sec_ame_files/figure-html/latent-space-1.png" class="r-plt" alt="" width="768" style="display: block; margin: auto;"></p>
 <p>Students on opposite sides of the plot have dissimilar friendship
 patterns. Clusters of students placed near each other likely share some
 unobserved characteristic (same social group, same extracurricular
@@ -342,13 +397,13 @@ and grade.</p>
 effects (sociality) and receiver effects (popularity):</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">p1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"sender"</span>, sorted <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>              title <span class="op">=</span> <span class="st">"Sender Effects (Sociality)"</span><span class="op">)</span></span>
+<span>                            title <span class="op">=</span> <span class="st">"Sender Effects (Sociality)"</span><span class="op">)</span></span>
 <span><span class="va">p2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"receiver"</span>, sorted <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>              title <span class="op">=</span> <span class="st">"Receiver Effects (Popularity)"</span><span class="op">)</span></span>
+<span>                            title <span class="op">=</span> <span class="st">"Receiver Effects (Popularity)"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://patchwork.data-imaginist.com" class="external-link">patchwork</a></span><span class="op">)</span></span>
 <span><span class="va">p1</span> <span class="op">/</span> <span class="va">p2</span></span></code></pre></div>
-<p><img src="static-ame-individual-effects-1.png" class="r-plt" alt="" width="960" style="display: block; margin: auto;"></p>
+<p><img src="cross_sec_ame_files/figure-html/individual-effects-1.png" class="r-plt" alt="" width="960" style="display: block; margin: auto;"></p>
 <p>Students with large positive sender effects nominate more friends
 than expected given their covariates; those with large positive receiver
 effects receive more nominations.</p>
@@ -359,16 +414,20 @@ effects receive more nominations.</p>
 <p>The model gives you predicted probabilities for every possible tie,
 including unobserved ones. This is useful for link prediction (who is
 likely to become friends?) and for understanding the model’s fit at the
-dyad level.</p>
+dyad level. A caveat: for sparse networks (density below 0.1), raw
+accuracy can be misleadingly high because predicting “no tie” for every
+dyad already gets most predictions right. Focus on the off-diagonal
+cells of the confusion matrix to see how well the model distinguishes
+true ties from non-ties.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pred_resp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># How well does the model classify?</span></span>
+<span><span class="co"># how well does the model classify?</span></span>
 <span><span class="va">Y_vec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span></span>
 <span><span class="va">pred_vec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">pred_resp</span><span class="op">)</span></span>
 <span><span class="va">keep</span> <span class="op">&lt;-</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">Y_vec</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Simple classification at threshold 0.5</span></span>
+<span><span class="co"># simple classification at threshold 0.5</span></span>
 <span><span class="va">pred_binary</span> <span class="op">&lt;-</span> <span class="op">(</span><span class="va">pred_vec</span><span class="op">[</span><span class="va">keep</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0.5</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1</span></span>
 <span><span class="va">confusion</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span>Actual <span class="op">=</span> <span class="va">Y_vec</span><span class="op">[</span><span class="va">keep</span><span class="op">]</span>, Predicted <span class="op">=</span> <span class="va">pred_binary</span><span class="op">)</span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">confusion</span>, caption <span class="op">=</span> <span class="st">"Confusion Matrix (threshold = 0.5)"</span><span class="op">)</span></span></code></pre></div>
@@ -382,8 +441,8 @@ dyad level.</p>
 <tbody>
 <tr class="odd">
 <td align="left">0</td>
-<td align="right">852</td>
-<td align="right">13</td>
+<td align="right">856</td>
+<td align="right">9</td>
 </tr>
 <tr class="even">
 <td align="left">1</td>
@@ -397,7 +456,11 @@ dyad level.</p>
 <span><span class="va">accuracy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">confusion</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">confusion</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nAccuracy:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">accuracy</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Accuracy: 0.898</span></span></code></pre></div>
+<span><span class="co">#&gt; Accuracy: 0.902</span></span></code></pre></div>
+<p>For serious link prediction, consider the area under the ROC curve
+(AUC), which evaluates the model’s ability to rank true ties above
+non-ties across all thresholds rather than relying on a single
+cutpoint.</p>
 </div>
 <div class="section level2">
 <h2 id="simulating-from-the-model">Simulating from the Model<a class="anchor" aria-label="anchor" href="#simulating-from-the-model"></a>
@@ -408,18 +471,19 @@ of networks the model implies.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sims</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate</a></span><span class="op">(</span><span class="va">fit</span>, nsim <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Compare simulated vs observed density</span></span>
+<span><span class="co"># compare simulated vs observed density</span></span>
 <span><span class="va">sim_densities</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">sims</span><span class="op">$</span><span class="va">Y</span>, <span class="kw">function</span><span class="op">(</span><span class="va">y</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">obs_density</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>density <span class="op">=</span> <span class="va">sim_densities</span><span class="op">)</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">density</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_histogram.html" class="external-link">geom_histogram</a></span><span class="op">(</span>bins <span class="op">=</span> <span class="fl">20</span>, fill <span class="op">=</span> <span class="st">"grey70"</span>, alpha <span class="op">=</span> <span class="fl">0.7</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_vline</a></span><span class="op">(</span>xintercept <span class="op">=</span> <span class="va">obs_density</span>, color <span class="op">=</span> <span class="st">"red"</span>, linewidth <span class="op">=</span> <span class="fl">1</span>, linetype <span class="op">=</span> <span class="fl">2</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Posterior predictive check: network density"</span>,</span>
-<span>       subtitle <span class="op">=</span> <span class="st">"Red line = observed, histogram = simulated from model"</span>,</span>
-<span>       x <span class="op">=</span> <span class="st">"Density"</span>, y <span class="op">=</span> <span class="st">"Count"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p><img src="static-ame-simulation-1.png" class="r-plt" alt="" width="768" style="display: block; margin: auto;"></p>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_histogram.html" class="external-link">geom_histogram</a></span><span class="op">(</span>bins <span class="op">=</span> <span class="fl">20</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_vline</a></span><span class="op">(</span>xintercept <span class="op">=</span> <span class="va">obs_density</span>, color <span class="op">=</span> <span class="st">"red"</span>, linewidth <span class="op">=</span> <span class="fl">1</span>, linetype <span class="op">=</span> <span class="fl">2</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Posterior Predictive Check: Network Density"</span>,</span>
+<span>            subtitle <span class="op">=</span> <span class="st">"Red Line = Observed, Histogram = Simulated from Model"</span>,</span>
+<span>            x <span class="op">=</span> <span class="st">"Density"</span>, y <span class="op">=</span> <span class="st">"Count"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><img src="cross_sec_ame_files/figure-html/simulation-1.png" class="r-plt" alt="" width="768" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level2">
 <h2 id="practical-tips">Practical Tips<a class="anchor" aria-label="anchor" href="#practical-tips"></a>
@@ -438,8 +502,9 @@ convergence with <code><a href="../reference/trace_plot.html">trace_plot()</a></
 specific reason not to. Include <code>dcor = TRUE</code> for directed
 networks where reciprocity is plausible.</p>
 <p><strong>Interpreting coefficients.</strong> For binary networks, the
-coefficients are on the probit scale. Multiply by ~0.4 for an
-approximate probability change at the mean.</p>
+coefficients are on the probit scale. Use
+<code>predict(fit, type = "response")</code> to get predicted
+probabilities.</p>
 </div>
 <div class="section level2">
 <h2 id="whats-next">What’s Next?<a class="anchor" aria-label="anchor" href="#whats-next"></a>

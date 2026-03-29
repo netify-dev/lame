@@ -8,28 +8,27 @@ longitudinal/replicated relational data with several key enhancements:
 allowing for networks with different sets of actors at each time point;
 (2) significant performance improvements through C++ implementations via
 Rcpp and RcppArmadillo; (3) specialized functions for temporal network
-dynamics. The package supports various data types including
-binary/network data (bin), normal relational data (nrm), ordinal
-relational data (ord), censored binary data (cbin), fixed-rank
-nomination schemes (frn), and row-ranked data (rrl). Based on the AME
-framework originally developed by Hoff (2009) and Hoff, Fosdick,
-Volfovsky and Stovel (2013).
+dynamics. The package supports eight data types: normal (nrm), binary
+(bin), ordinal (ord), Poisson count (poisson), tobit/censored continuous
+(tobit), censored binary (cbin), fixed-rank nomination (frn), and
+row-ranked (rrl). Based on the AME framework originally developed by
+Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).
 
 ## Details
 
-|          |            |
-|----------|------------|
-| Package: | lame       |
-| Type:    | Package    |
-| Version: | 0.0.0.9000 |
-| Date:    | 2025       |
-| License: | MIT        |
+|          |         |
+|----------|---------|
+| Package: | lame    |
+| Type:    | Package |
+| Version: | 1.0.0   |
+| Date:    | 2026    |
+| License: | MIT     |
 
 ## Author
 
 Shahryar Minhas, Tosin Salau, Cassy Dorff
 
-Maintainer: Shahryar Minhas <sminhas@example.com>
+Maintainer: Shahryar Minhas <minhassh@msu.edu>
 
 ## Examples
 
@@ -48,16 +47,17 @@ summary(fit)
 #> Regression coefficients:
 #> ------------------------
 #>                Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept_dyad   -2.709    0.115 -23.527       0   -2.934   -2.483 ***
-#> rgpa_dyad         0.219    0.101   2.165    0.03    0.021    0.418   *
-#> rsmoke_dyad       0.263     0.12   2.186   0.029    0.027    0.499   *
-#> cgpa_dyad         0.164    0.039   4.165       0    0.087    0.242 ***
-#> csmoke_dyad       0.112    0.056   1.995   0.046    0.002    0.222   *
-#> igrade_dyad       1.129    0.037  30.452       0    1.056    1.202 ***
-#> igpa_dyad         0.055    0.016   3.413   0.001    0.023    0.086 ***
-#> ismoke_dyad       0.029    0.025   1.166   0.243    -0.02    0.079    
+#> intercept_dyad   -2.709    0.115 -23.527       0   -2.901   -2.515 ***
+#> rgpa_dyad         0.219    0.101   2.165    0.03    0.025    0.444   *
+#> rsmoke_dyad       0.263     0.12   2.186   0.029    0.051    0.515   *
+#> cgpa_dyad         0.164    0.039   4.165       0    0.091    0.241 ***
+#> csmoke_dyad       0.112    0.056   1.995   0.046        0    0.205   *
+#> igrade_dyad       1.129    0.037  30.452       0    1.059    1.197 ***
+#> igpa_dyad         0.055    0.016   3.413   0.001     0.02    0.081 ***
+#> ismoke_dyad       0.029    0.025   1.166   0.243   -0.018    0.075    
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.
 #> 
 #> Variance components:
 #> -------------------

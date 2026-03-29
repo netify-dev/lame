@@ -340,6 +340,8 @@ Example network datasets
   : AddHealth community 3 data
 - [`addhealthc9`](https://netify-dev.github.io/lame/reference/addhealthc9.md)
   : AddHealth community 9 data
+- [`vignette_data`](https://netify-dev.github.io/lame/reference/vignette_data.md)
+  : TIES sanctions data for vignettes
 - [`Y`](https://netify-dev.github.io/lame/reference/Y.md) : Relational
   matrix
 - [`Xdyad`](https://netify-dev.github.io/lame/reference/Xdyad.md) :

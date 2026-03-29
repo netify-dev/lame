@@ -110,10 +110,9 @@ print)
 
 - dynamic_G:
 
-  logical: for bipartite networks, fit dynamic interaction matrix G that
-  evolves over time. When TRUE, the rectangular interaction matrix G
-  becomes time-varying, allowing the mapping between row and column
-  latent spaces to change over time. Default FALSE.
+  logical: reserved for future use. Dynamic interaction matrix G is not
+  yet implemented. Setting this to TRUE will produce a warning; the
+  parameter is accepted for forward compatibility only. Default FALSE.
 
 - family:
 
@@ -458,9 +457,7 @@ row and column nodes respectively.
 \$\$V\_{j,k,t} = \rho\_{uv} V\_{j,k,t-1} + \eta\_{j,k,t}\$\$ where i
 indexes row nodes, j indexes column nodes, k indexes latent dimensions.
 
-When dynamic_G=TRUE, the interaction matrix also evolves: \$\$G\_{k,l,t}
-= \rho_G G\_{k,l,t-1} + \xi\_{k,l,t}\$\$ allowing the mapping between
-row and column latent spaces to change over time.
+Note: dynamic_G is reserved for future use and not yet implemented.
 
 *Key Differences from Unipartite Models:*
 

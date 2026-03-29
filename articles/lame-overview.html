@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,7 +67,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-03-16</h4>
+            <h4 data-toc-skip class="date">2026-03-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/lame-overview.Rmd" class="external-link"><code>vignettes/lame-overview.Rmd</code></a></small>
       <div class="d-none name"><code>lame-overview.Rmd</code></div>
@@ -155,11 +155,18 @@ in year
 the number of shared intergovernmental organizations (IGOs)) that
 capture relationship-level predictors.</li>
 <li>
-<strong>Xrow / Xcol</strong>: Sender and receiver covariates (GDP
-and population) capturing country-level characteristics. We use the same
-variables for both senders and receivers here, but different covariates
-can be specified for each role.</li>
+<strong>Xrow / Xcol</strong>: Sender and receiver covariates (log
+GDP and log population) capturing country-level characteristics. We use
+the same variables for both senders and receivers here, but different
+covariates can be specified for each role.</li>
 </ul>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/lame/">lame</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># load the TIES data</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"vignette_data"</span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="fitting-the-model">Fitting the Model<a class="anchor" aria-label="anchor" href="#fitting-the-model"></a>
 </h3>
@@ -171,99 +178,107 @@ countries are simply more active sanctioners (sender effects) or more
 frequent targets (receiver effects), while the latent space picks up
 residual patterns, groups of countries that sanction similar targets or
 are targeted by the same senders.</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Fit the AME model for binary data</span></span>
-<span><span class="co"># Note: burn and nscan are kept small for fast vignette building.</span></span>
-<span><span class="co"># For real analyses, use burn &gt;= 1000 and nscan &gt;= 5000.</span></span>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># fit the AME model for binary data</span></span>
+<span><span class="co"># note: for real analyses, use burn &gt;= 2000 and nscan &gt;= 10000.</span></span>
+<span><span class="co"># sparse networks like this one require long chains.</span></span>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
-<span>  Y <span class="op">=</span> <span class="va">Y</span>,</span>
-<span>  Xdyad <span class="op">=</span> <span class="va">Xdyad</span>,           <span class="co"># dyadic covariates</span></span>
-<span>  Xrow <span class="op">=</span> <span class="va">Xrow</span>,             <span class="co"># sender covariates</span></span>
-<span>  Xcol <span class="op">=</span> <span class="va">Xcol</span>,             <span class="co"># receiver covariates</span></span>
-<span>  family <span class="op">=</span> <span class="st">"binary"</span>,       <span class="co"># Binary probit model</span></span>
-<span>  rvar <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># sender random effects</span></span>
-<span>  cvar <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># receiver random effects</span></span>
-<span>  dcor <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># Dyadic correlation</span></span>
-<span>  R <span class="op">=</span> <span class="fl">2</span>,                   <span class="co"># Multiplicative effects dimension</span></span>
-<span>  symmetric <span class="op">=</span> <span class="cn">FALSE</span>,       <span class="co"># Directed network</span></span>
-<span>  burn <span class="op">=</span> <span class="fl">100</span>,              <span class="co"># Burn-in iterations</span></span>
-<span>  nscan <span class="op">=</span> <span class="fl">500</span>,             <span class="co"># Post-burn-in iterations</span></span>
-<span>  odens <span class="op">=</span> <span class="fl">25</span>,              <span class="co"># Output density (thinning)</span></span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,           <span class="co"># Suppress iteration output</span></span>
-<span>  plot <span class="op">=</span> <span class="cn">FALSE</span>             <span class="co"># Suppress real-time plots</span></span>
+<span>    Y <span class="op">=</span> <span class="va">Y</span>,</span>
+<span>    Xdyad <span class="op">=</span> <span class="va">Xdyad</span>,           <span class="co"># dyadic covariates</span></span>
+<span>    Xrow <span class="op">=</span> <span class="va">Xrow</span>,             <span class="co"># sender covariates</span></span>
+<span>    Xcol <span class="op">=</span> <span class="va">Xcol</span>,             <span class="co"># receiver covariates</span></span>
+<span>    family <span class="op">=</span> <span class="st">"binary"</span>,       <span class="co"># Binary probit model</span></span>
+<span>    rvar <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># sender random effects</span></span>
+<span>    cvar <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># receiver random effects</span></span>
+<span>    dcor <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># Dyadic correlation</span></span>
+<span>    R <span class="op">=</span> <span class="fl">2</span>,                   <span class="co"># Multiplicative effects dimension</span></span>
+<span>    symmetric <span class="op">=</span> <span class="cn">FALSE</span>,       <span class="co"># Directed network</span></span>
+<span>    burn <span class="op">=</span> <span class="fl">500</span>,              <span class="co"># Burn-in iterations</span></span>
+<span>    nscan <span class="op">=</span> <span class="fl">2500</span>,            <span class="co"># Post-burn-in iterations</span></span>
+<span>    odens <span class="op">=</span> <span class="fl">5</span>,               <span class="co"># Thinning (keep every 5th sample)</span></span>
+<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>,         <span class="co"># Suppress iteration output</span></span>
+<span>    plot <span class="op">=</span> <span class="cn">FALSE</span>             <span class="co"># Suppress real-time plots</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="interpreting-the-results">Interpreting the Results<a class="anchor" aria-label="anchor" href="#interpreting-the-results"></a>
 </h3>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">summary</span>(fit)</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="sc">==</span><span class="er">=</span> Longitudinal AME Model Summary <span class="sc">==</span><span class="er">=</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>Call<span class="sc">:</span></span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="cn">NULL</span></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>Time periods<span class="sc">:</span> <span class="dv">4</span> </span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>Family<span class="sc">:</span> binary </span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>Mode<span class="sc">:</span> unipartite </span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>Regression coefficients<span class="sc">:</span></span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="sc">------------------------</span></span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>                 Estimate StdError z_value p_value CI_lower CI_upper  </span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>intercept          <span class="sc">-</span><span class="fl">5.534</span>    <span class="fl">2.328</span>  <span class="sc">-</span><span class="fl">2.377</span>   <span class="fl">0.017</span>  <span class="sc">-</span><span class="fl">10.097</span>    <span class="sc">-</span><span class="fl">0.97</span> <span class="sc">*</span></span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>log_gdp.row        <span class="sc">-</span><span class="fl">0.152</span>    <span class="fl">0.226</span>  <span class="sc">-</span><span class="fl">0.672</span>   <span class="fl">0.502</span>   <span class="sc">-</span><span class="fl">0.595</span>    <span class="fl">0.291</span>  </span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>log_pop.row         <span class="fl">0.161</span>    <span class="fl">0.291</span>   <span class="fl">0.552</span>   <span class="fl">0.581</span>    <span class="sc">-</span><span class="fl">0.41</span>    <span class="fl">0.732</span>  </span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>log_gdp.col        <span class="sc">-</span><span class="fl">0.029</span>     <span class="fl">0.11</span>  <span class="sc">-</span><span class="fl">0.262</span>   <span class="fl">0.793</span>   <span class="sc">-</span><span class="fl">0.245</span>    <span class="fl">0.187</span>  </span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>log_pop.col         <span class="sc">-</span><span class="fl">0.06</span>    <span class="fl">0.151</span>  <span class="sc">-</span><span class="fl">0.399</span>    <span class="fl">0.69</span>   <span class="sc">-</span><span class="fl">0.357</span>    <span class="fl">0.236</span>  </span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>distance.dyad        <span class="fl">0.04</span>     <span class="fl">0.04</span>   <span class="fl">0.986</span>   <span class="fl">0.324</span>   <span class="sc">-</span><span class="fl">0.039</span>    <span class="fl">0.118</span>  </span>
-<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>shared_igos.dyad    <span class="fl">0.017</span>    <span class="fl">0.008</span>   <span class="fl">2.249</span>   <span class="fl">0.024</span>    <span class="fl">0.002</span>    <span class="fl">0.032</span> <span class="sc">*</span></span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="sc">---</span></span>
-<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>Signif. codes<span class="sc">:</span> <span class="dv">0</span> <span class="st">'***'</span> <span class="fl">0.001</span> <span class="st">'**'</span> <span class="fl">0.01</span> <span class="st">'*'</span> <span class="fl">0.05</span> <span class="st">'.'</span> <span class="fl">0.1</span> <span class="st">' '</span> <span class="dv">1</span></span>
-<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a></span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>Variance components<span class="sc">:</span></span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="sc">-------------------</span></span>
-<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>    Estimate StdError</span>
-<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>va     <span class="fl">6.170</span>    <span class="fl">2.126</span></span>
-<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>cab    <span class="fl">2.414</span>    <span class="fl">1.066</span></span>
-<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>vb     <span class="fl">1.002</span>    <span class="fl">0.550</span></span>
-<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>rho    <span class="fl">0.417</span>    <span class="fl">0.138</span></span>
-<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>ve     <span class="fl">1.000</span>    <span class="fl">0.000</span></span>
-<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a>  (<span class="at">va =</span> sender, <span class="at">cab =</span> sender<span class="sc">-</span>receiver covariance, <span class="at">vb =</span> receiver,</span>
-<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a>   <span class="at">rho =</span> dyadic correlation, <span class="at">ve =</span> residual variance)</span></code></pre></div>
-<p>The regression coefficients tell us about the structural drivers of
-sanctions. Shared IGO membership is positively associated with
-sanctions, as countries embedded in the same international institutions
-are more likely to sanction each other, probably because these
-institutions provide both the information and the institutional
-mechanisms to coordinate economic pressure. Distance has a negative
-coefficient, meaning geographically closer countries are more likely to
-sanction one another.</p>
-<p>The variance components at the bottom of the summary capture
-network-level heterogeneity. Sender variance (<code>va</code>) and
-receiver variance (<code>vb</code>) indicate how much countries differ
-in their baseline propensity to impose or receive sanctions. The dyadic
-correlation (<code>rho</code>) captures reciprocity, the tendency for
-sanctions to be mutual.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">summary</span>(fit)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="sc">==</span><span class="er">=</span> Longitudinal AME Model Summary <span class="sc">==</span><span class="er">=</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>Call<span class="sc">:</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="cn">NULL</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>Time periods<span class="sc">:</span> <span class="dv">4</span> </span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>Family<span class="sc">:</span> binary </span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>Mode<span class="sc">:</span> unipartite </span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>Regression coefficients<span class="sc">:</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="sc">------------------------</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>                 Estimate StdError z_value p_value CI_lower CI_upper    </span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>intercept         <span class="sc">-</span><span class="fl">20.088</span>    <span class="fl">2.983</span>  <span class="sc">-</span><span class="fl">6.733</span>       <span class="dv">0</span>  <span class="sc">-</span><span class="fl">25.315</span>  <span class="sc">-</span><span class="fl">14.378</span> <span class="sc">**</span><span class="er">*</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>log_gdp.row         <span class="fl">0.069</span>    <span class="fl">0.227</span>   <span class="fl">0.301</span>   <span class="fl">0.763</span>   <span class="sc">-</span><span class="fl">0.373</span>    <span class="fl">0.413</span>    </span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>log_pop.row         <span class="fl">0.454</span>    <span class="fl">0.219</span>   <span class="fl">2.071</span>   <span class="fl">0.038</span>    <span class="fl">0.089</span>    <span class="fl">0.864</span>   <span class="sc">*</span></span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>log_gdp.col         <span class="fl">0.115</span>     <span class="fl">0.11</span>   <span class="fl">1.041</span>   <span class="fl">0.298</span>   <span class="sc">-</span><span class="fl">0.094</span>    <span class="fl">0.328</span>    </span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>log_pop.col         <span class="fl">0.131</span>    <span class="fl">0.121</span>   <span class="fl">1.088</span>   <span class="fl">0.277</span>   <span class="sc">-</span><span class="fl">0.084</span>    <span class="fl">0.366</span>    </span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a>distance.dyad       <span class="fl">0.012</span>    <span class="fl">0.029</span>   <span class="fl">0.403</span>   <span class="fl">0.687</span>   <span class="sc">-</span><span class="fl">0.046</span>    <span class="fl">0.067</span>    </span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a>shared_igos.dyad    <span class="fl">0.006</span>    <span class="fl">0.016</span>   <span class="fl">0.372</span>    <span class="fl">0.71</span>   <span class="sc">-</span><span class="fl">0.021</span>    <span class="fl">0.038</span>    </span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a><span class="sc">---</span></span>
+<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a>Signif. codes<span class="sc">:</span> <span class="dv">0</span> <span class="st">'***'</span> <span class="fl">0.001</span> <span class="st">'**'</span> <span class="fl">0.01</span> <span class="st">'*'</span> <span class="fl">0.05</span> <span class="st">'.'</span> <span class="fl">0.1</span> <span class="st">' '</span> <span class="dv">1</span></span>
+<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a>Note<span class="sc">:</span> p<span class="sc">-</span>values are <span class="fu">approximate</span> (posterior mean <span class="sc">/</span> SD); use credible intervals <span class="cf">for</span> inference.</span>
+<span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a></span>
+<span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a>Variance components<span class="sc">:</span></span>
+<span id="cb3-27"><a href="#cb3-27" tabindex="-1"></a><span class="sc">-------------------</span></span>
+<span id="cb3-28"><a href="#cb3-28" tabindex="-1"></a>    Estimate StdError</span>
+<span id="cb3-29"><a href="#cb3-29" tabindex="-1"></a>va     <span class="fl">1.632</span>    <span class="fl">1.989</span></span>
+<span id="cb3-30"><a href="#cb3-30" tabindex="-1"></a>cab    <span class="fl">0.176</span>    <span class="fl">0.255</span></span>
+<span id="cb3-31"><a href="#cb3-31" tabindex="-1"></a>vb     <span class="fl">0.061</span>    <span class="fl">0.040</span></span>
+<span id="cb3-32"><a href="#cb3-32" tabindex="-1"></a>rho    <span class="fl">0.819</span>    <span class="fl">0.078</span></span>
+<span id="cb3-33"><a href="#cb3-33" tabindex="-1"></a>ve     <span class="fl">1.000</span>    <span class="fl">0.000</span></span>
+<span id="cb3-34"><a href="#cb3-34" tabindex="-1"></a>  (<span class="at">va =</span> sender, <span class="at">cab =</span> sender<span class="sc">-</span>receiver covariance, <span class="at">vb =</span> receiver,</span>
+<span id="cb3-35"><a href="#cb3-35" tabindex="-1"></a>   <span class="at">rho =</span> dyadic correlation, <span class="at">ve =</span> residual variance)</span></code></pre></div>
+<p>The coefficients table reports posterior means, standard errors, and
+95% credible intervals for each covariate. With a binary probit model,
+the coefficients are on the latent scale: positive values increase the
+probability of a sanction, negative values decrease it.</p>
+<p>The variance components reveal where heterogeneity lies. The sender
+variance (<code>va</code>) is much larger than the receiver variance
+(<code>vb</code>), meaning the main source of heterogeneity is in how
+actively countries impose sanctions, not in who gets targeted. A few
+countries are prolific sanctioners while most rarely sanction at all.
+The dyadic correlation (<code>rho</code>) captures reciprocity: high
+values indicate that if country A sanctions country B, B is more likely
+to sanction A.</p>
+<p>The intercept is large and negative, reflecting the sparsity of the
+network (density around 1–2%). On the probability scale, this
+corresponds to a near-zero baseline probability of a sanction. The
+sender random effects and latent positions then shift individual dyads
+away from this baseline.</p>
 </div>
 <div class="section level3">
 <h3 id="checking-convergence">Checking Convergence<a class="anchor" aria-label="anchor" href="#checking-convergence"></a>
 </h3>
-<p>Because <code>lame</code> uses MCMC, we need to verify that the
+<p>Because the model is estimated via MCMC, we need to verify that the
 sampler has converged before trusting the results. The
 <code>trace_plot</code> function shows the sampled values over
-iterations (left panels) and the corresponding posterior densities
-(right panels) for each parameter.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+iterations (top panels) and the corresponding posterior densities
+(bottom panels) for each parameter.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"beta"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/unnamed-chunk-4-1.png" class="r-plt" alt="MCMC trace plots and density plots showing convergence and posterior distributions of regression coefficients" width="100%" style="display: block; margin: auto;"></p>
-<p>What to look for: the trace plots should look like “fuzzy
+<p>What to look for: the trace plots (top) should look like “fuzzy
 caterpillars,” bouncing around a stable mean without long-term trends or
-getting stuck in one region. The density plots should be smooth and
-unimodal. With only 20 post-burn-in samples (due to the small
-<code>nscan</code> we used here), the chains have not fully converged.
-In a real analysis, you would run much longer chains and check that
-increasing the run length doesn’t substantially change the posterior
-summaries.</p>
+getting stuck in one region. The density plots (bottom) should be smooth
+and unimodal.</p>
+<p>With 500 stored samples, you may notice slow mixing in some
+parameters, particularly the intercept and row covariates. This is
+typical for very sparse binary networks: with only about 20 ties per
+year, the likelihood surface is flat and the sampler moves slowly. For a
+publication, you would run much longer chains
+(<code>burn &gt;= 2000, nscan &gt;= 10000</code>) and verify that
+effective sample sizes (available via
+<code><a href="https://rdrr.io/pkg/coda/man/effectiveSize.html" class="external-link">coda::effectiveSize()</a></code>) are adequate for all parameters.</p>
 </div>
 <div class="section level3">
 <h3 id="goodness-of-fit">Goodness of Fit<a class="anchor" aria-label="anchor" href="#goodness-of-fit"></a>
@@ -275,7 +290,7 @@ just the dyad-level relationships, but emergent properties like how much
 actors vary in their degree (heterogeneity), whether friends-of-friends
 tend to be friends (transitivity), and whether ties tend to be
 reciprocated (dyadic dependence).</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/unnamed-chunk-5-1.png" class="r-plt" alt="Goodness of fit plots comparing observed network statistics to posterior predictive distributions across time periods" width="100%" style="display: block; margin: auto;"></p>
 <p>For a longitudinal model, <code>gof_plot</code> shows these
@@ -298,24 +313,26 @@ tend to sanction similar targets; countries near each other in the
 receiver space (circles) tend to be sanctioned by the same senders.
 Countries placed on opposite sides of the plot tend to have dissimilar
 sanctioning patterns.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
-<span><span class="co"># Network plot showing multiplicative effects</span></span>
+<span><span class="co"># network plot showing multiplicative effects</span></span>
 <span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Sanctions Network - Multiplicative Effects"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
-<span>    legend.position<span class="op">=</span><span class="st">'none'</span>,</span>
-<span>    axis.text<span class="op">=</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    axis.title<span class="op">=</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span></code></pre></div>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Sanctions Network - Multiplicative Effects"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
+<span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        legend.position <span class="op">=</span> <span class="st">'none'</span>,</span>
+<span>        axis.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        axis.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        panel.grid <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>    <span class="op">)</span></span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/unnamed-chunk-6-1.png" class="r-plt" alt="Network visualization showing multiplicative effects latent space positions of countries in the sanctions network" width="100%" style="display: block; margin: auto;"></p>
 <p>The circular layout places sender positions (triangles) on the outer
 ring and receiver positions (circles) on an inner ring, scaled by
 magnitude. Countries with larger effects are placed further from the
 center, indicating they play a more distinctive role in the network.
-Countries clustered together (for example, Western allies like the USA
-and Canada) share similar sanctioning profiles.</p>
+Countries clustered together share similar sanctioning profiles, while
+countries on opposite sides have dissimilar patterns.</p>
 </div>
 </div>
 <div class="section level2">
@@ -324,27 +341,35 @@ and Canada) share similar sanctioning profiles.</p>
 <p>If you need the estimated latent positions in a tidy format (for
 custom plots, merging with external data, or exporting to other tools),
 the <code><a href="../reference/latent_positions.html">latent_positions()</a></code> function returns a data frame:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>lp <span class="ot">&lt;-</span> <span class="fu">latent_positions</span>(fit)</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">head</span>(lp)</span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  actor dimension time      value posterior_sd type</span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="dv">1</span>   AFG         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">0.5253670</span>           <span class="cn">NA</span>    U</span>
-<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="dv">2</span>   ALB         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">1.0708329</span>           <span class="cn">NA</span>    U</span>
-<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="dv">3</span>   ARG         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span>  <span class="fl">0.3959614</span>           <span class="cn">NA</span>    U</span>
-<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="dv">4</span>   AUS         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span>  <span class="fl">1.2064454</span>           <span class="cn">NA</span>    U</span>
-<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="dv">5</span>   BEL         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">0.3992633</span>           <span class="cn">NA</span>    U</span>
-<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="dv">6</span>   BOL         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">2.1687274</span>           <span class="cn">NA</span>    U</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>lp <span class="ot">&lt;-</span> <span class="fu">latent_positions</span>(fit)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">head</span>(lp)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  actor dimension time      value posterior_sd type</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="dv">1</span>   AFG         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">1.6612284</span>           <span class="cn">NA</span>    U</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="dv">2</span>   ALB         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span>  <span class="fl">0.2034016</span>           <span class="cn">NA</span>    U</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="dv">3</span>   ARG         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span>  <span class="fl">1.0805660</span>           <span class="cn">NA</span>    U</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="dv">4</span>   AUS         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">1.2405099</span>           <span class="cn">NA</span>    U</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="dv">5</span>   BEL         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span>  <span class="fl">0.4519149</span>           <span class="cn">NA</span>    U</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="dv">6</span>   BOL         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">0.7265165</span>           <span class="cn">NA</span>    U</span></code></pre></div>
 <p>Each row gives one actor’s position on one latent dimension at one
-time point. For dynamic models (<code>dynamic_uv = TRUE</code>), the
-<code>time</code> column tracks how positions evolve. You can optionally
-apply Procrustes alignment to remove rotational indeterminacy across
-time periods:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>aligned <span class="ot">&lt;-</span> <span class="fu">procrustes_align</span>(fit)</span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a> [<span class="dv">36</span>mℹ [<span class="dv">39</span>m Latent positions are <span class="fu">static</span> (single time point). No alignment needed.</span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="fu">str</span>(aligned<span class="sc">$</span>U)  <span class="co"># aligned 3D array</span></span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a> num [<span class="dv">1</span><span class="sc">:</span><span class="dv">35</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>] <span class="sc">-</span><span class="fl">0.525</span> <span class="sc">-</span><span class="fl">1.071</span> <span class="fl">0.396</span> <span class="fl">1.206</span> <span class="sc">-</span><span class="fl">0.399</span> ...</span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a> <span class="sc">-</span> <span class="fu">attr</span>(<span class="sc">*</span>, <span class="st">"dimnames"</span>)<span class="ot">=</span>List of <span class="dv">2</span></span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  ..<span class="sc">$</span> <span class="er">:</span> chr [<span class="dv">1</span><span class="sc">:</span><span class="dv">35</span>] <span class="st">"AFG"</span> <span class="st">"ALB"</span> <span class="st">"ARG"</span> <span class="st">"AUS"</span> ...</span>
-<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  ..<span class="sc">$</span> <span class="er">:</span> <span class="cn">NULL</span></span></code></pre></div>
+time point. For static models like this one, the positions are the same
+across all time periods. For dynamic models
+(<code>dynamic_uv = TRUE</code>), positions evolve over time and
+<code><a href="../reference/latent_positions.html">latent_positions()</a></code> returns each time point separately (see
+the <a href="dynamic_effects.html">dynamic effects vignette</a>).</p>
+<p>When using dynamic latent positions, the latent space is only
+identified up to rotation at each time point. The
+<code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> function aligns each time period’s
+positions to the previous one, removing arbitrary rotations so that
+trajectories across time are interpretable:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># procrustes alignment is useful for dynamic models.</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co"># for a static model, positions are already aligned.</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>aligned <span class="ot">&lt;-</span> <span class="fu">procrustes_align</span>(fit)</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a> [<span class="dv">36</span>mℹ [<span class="dv">39</span>m Latent positions are <span class="fu">static</span> (single time point). No alignment needed.</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="fu">str</span>(aligned<span class="sc">$</span>U)</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a> num [<span class="dv">1</span><span class="sc">:</span><span class="dv">35</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>] <span class="sc">-</span><span class="fl">1.661</span> <span class="fl">0.203</span> <span class="fl">1.081</span> <span class="sc">-</span><span class="fl">1.241</span> <span class="fl">0.452</span> ...</span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a> <span class="sc">-</span> <span class="fu">attr</span>(<span class="sc">*</span>, <span class="st">"dimnames"</span>)<span class="ot">=</span>List of <span class="dv">2</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>  ..<span class="sc">$</span> <span class="er">:</span> chr [<span class="dv">1</span><span class="sc">:</span><span class="dv">35</span>] <span class="st">"AFG"</span> <span class="st">"ALB"</span> <span class="st">"ARG"</span> <span class="st">"AUS"</span> ...</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>  ..<span class="sc">$</span> <span class="er">:</span> <span class="cn">NULL</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="whats-next">What’s Next?<a class="anchor" aria-label="anchor" href="#whats-next"></a>
