@@ -7,17 +7,26 @@
 \method{residuals}{ame}(object, type = c("response", "pearson"), ...)
 }
 \arguments{
-\item{object}{Fitted AME model}
+\item{object}{Fitted AME model object (class "ame").}
 
-\item{type}{Type of residuals ("response" or "pearson")}
+\item{type}{Character; \code{"response"} (default) for raw residuals or
+\code{"pearson"} for standardized residuals.}
 
-\item{...}{Additional arguments}
+\item{...}{Additional arguments (not used).}
 }
 \value{
-Matrix of residuals
+An n x n matrix (unipartite) or nA x nB matrix (bipartite) of
+residuals. Entries where the original data was \code{NA} remain \code{NA}.
 }
 \description{
-Extract residuals from AME model
+Computes residuals as the difference between observed values and fitted
+values. For \code{type = "response"}, returns \code{Y - fitted(object)}.
+For \code{type = "pearson"}, returns response residuals scaled by the
+standard deviation implied by the family (e.g., \code{sqrt(p*(1-p))} for
+binary).
+}
+\seealso{
+\code{\link{fitted.ame}}, \code{\link{predict.ame}}
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

@@ -1,4 +1,4 @@
-# lame 0.3.0
+# lame 1.0.0
 
 ## Initial CRAN Submission
 

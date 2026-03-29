@@ -226,9 +226,38 @@ gof_plot <- function(
 
 ####
 
-# static GOF plots
+# label mapping for GOF statistics
+gof_stat_labels <- c(
+	"sd.row" = "Sender Degree Heterogeneity",
+	"sd.col" = "Receiver Degree Heterogeneity",
+	"sd.rowmean" = "Sender Degree Heterogeneity",
+	"sd.colmean" = "Receiver Degree Heterogeneity",
+	"dyad.dep" = "Dyadic Dependence",
+	"triad.dep" = "Triadic Dependence",
+	"cycle.dep" = "Triadic Dependence",
+	"four.cycles" = "Four Cycles",
+	"trans.dep" = "Transitivity"
+)
+
+# apply display label to a stat name
+gof_label <- function(x) {
+	ifelse(x %in% names(gof_stat_labels), gof_stat_labels[x], x)
+}
+
+# standard theme for GOF plots
+gof_theme <- function() {
+	theme_bw() +
+	theme(
+		panel.border = element_blank(),
+		strip.background = element_rect(fill = "black", color = "black"),
+		strip.text = element_text(color = "white", hjust = 0, size = 9),
+		panel.spacing = unit(0.5, "lines")
+	)
+}
+
+# static gof plots
 gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title) {
-	
+
 	gof_data <- fit$GOF
 
 	if (is.list(gof_data) && !is.data.frame(gof_data)) {
@@ -282,20 +311,17 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 		)
 		
 		p_stat <- ggplot(df, aes(x = value)) +
-			geom_histogram(aes(y = after_stat(density)),
-										bins = 30, fill = "lightblue",
-										color = "white", alpha = 0.7) +
+			geom_histogram(aes(y = after_stat(density)), bins = 30) +
 			geom_vline(xintercept = obs_vals[stat_col],
 								color = "red", linewidth = line.size) +
 			labs(
 				x = "",
 				y = "Density",
-				title = stat
+				title = gof_label(stat)
 			) +
-			theme_minimal() +
+			gof_theme() +
 			theme(
-				plot.title = element_text(size = 10, hjust = 0.5),
-				axis.ticks = element_blank()
+				plot.title = element_text(size = 10, hjust = 0.5)
 			)
 		
 		plot_list[[stat]] <- p_stat
@@ -333,7 +359,7 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 
 ####
 
-# longitudinal GOF plots
+# longitudinal gof plots
 gof_plot_longitudinal <- function(
 	fit, statistics, stat.names, credible.level,
 	ncol, point.size, line.size, title) {
@@ -343,7 +369,7 @@ gof_plot_longitudinal <- function(
 	} else if (!is.null(fit$GOF) && is.list(fit$GOF) && !is.data.frame(fit$GOF)) {
 		stat_names_full <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
 
-		# gof list: matrices with rows = time periods, cols = MCMC iterations
+		# gof list: rows = time periods, cols = mcmc iterations
 		# first col = observed, rest = simulated
 		if (ncol(fit$GOF[[1]]) > 1) {
 			gof_data <- list()
@@ -408,11 +434,12 @@ gof_plot_longitudinal <- function(
 
 	####
 
+	# apply display labels
+	plot_data$statistic <- gof_label(plot_data$statistic)
+
 	p <- ggplot(plot_data, aes(x = time)) +
-		geom_ribbon(aes(ymin = lower, ymax = upper),
-							 alpha = 0.3, fill = "blue") +
-		geom_line(aes(y = median), color = "blue",
-						 linewidth = line.size, linetype = "dashed") +
+		geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
+		geom_line(aes(y = median), linewidth = line.size, linetype = "dashed") +
 		geom_line(aes(y = observed), color = "red",
 						 linewidth = line.size) +
 		geom_point(aes(y = observed), color = "red",
@@ -422,11 +449,9 @@ gof_plot_longitudinal <- function(
 			x = "Time Period",
 			y = "Value"
 		) +
-		theme_minimal() +
+		gof_theme() +
 		theme(
-			strip.text = element_text(size = 10, face = "bold"),
-			panel.spacing = unit(1, "lines"),
-			axis.ticks = element_blank()
+			panel.spacing = unit(1, "lines")
 		)
 	
 	if (!is.null(title)) {

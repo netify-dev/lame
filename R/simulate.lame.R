@@ -293,9 +293,21 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 						". This may cause issues.")
 	}
 	
-	# temporal correlation parameters
-	rho_ab <- if (!is.null(fit$rho_ab)) mean(fit$rho_ab) else 0
-	rho_uv <- if (!is.null(fit$rho_uv)) mean(fit$rho_uv) else 0
+	# temporal correlation parameters — sample per-iteration to propagate uncertainty
+	rho_ab_samples <- if (!is.null(fit$rho_ab)) fit$rho_ab else rep(0, n_mcmc)
+	rho_uv_samples <- if (!is.null(fit$rho_uv)) fit$rho_uv else rep(0, n_mcmc)
+
+	# estimate innovation sd for dynamic uv from the fitted latent factors
+	sigma_uv_innov <- 0.1
+	if(dynamic_uv && !is.null(fit$U) && length(dim(fit$U)) == 3) {
+		marginal_sd <- sd(as.vector(fit$U), na.rm = TRUE)
+		rho_uv_mean <- mean(rho_uv_samples)
+		if(abs(rho_uv_mean) < 1) {
+			sigma_uv_innov <- marginal_sd * sqrt(1 - rho_uv_mean^2)
+		} else {
+			sigma_uv_innov <- marginal_sd * 0.1
+		}
+	}
 	
 	####
 	Y_sims <- vector("list", nsim)
@@ -307,6 +319,10 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 	for (i in 1:nsim) {
 		s <- sample(1:n_mcmc, 1)
 		beta <- BETA[s, ]
+
+		# per-iteration temporal parameters
+		rho_ab <- rho_ab_samples[min(s, length(rho_ab_samples))]
+		rho_uv <- rho_uv_samples[min(s, length(rho_uv_samples))]
 
 		# extract variance components
 		vc_names <- colnames(VC)
@@ -379,12 +395,15 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 			
 			if (!is.null(fit$U)) {
 				R <- ncol(fit$U)
+				# scale random init to match the fitted latent factor scale
+				u_scale <- sd(as.vector(fit$U), na.rm = TRUE)
+				if(is.na(u_scale) || u_scale < 0.01) u_scale <- 0.1
 				if (bip) {
-					U_t <- matrix(rnorm(nA * R, 0, 0.1), nA, R)
-					V_t <- matrix(rnorm(nB * R, 0, 0.1), nB, R)
+					U_t <- matrix(rnorm(nA * R, 0, u_scale), nA, R)
+					V_t <- matrix(rnorm(nB * R, 0, u_scale), nB, R)
 				} else {
-					U_t <- matrix(rnorm(n * R, 0, 0.1), n, R)
-					V_t <- if (symmetric) U_t else matrix(rnorm(n * R, 0, 0.1), n, R)
+					U_t <- matrix(rnorm(n * R, 0, u_scale), n, R)
+					V_t <- if (symmetric) U_t else matrix(rnorm(n * R, 0, u_scale), n, R)
 				}
 			}
 		}
@@ -409,12 +428,12 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 			
 			# dynamic multiplicative effects AR(1)
 			if (dynamic_uv && t > 1 && !is.null(U_t)) {
-				U_t <- rho_uv * U_t + matrix(rnorm(prod(dim(U_t)), 0, 
-																					sqrt(1 - rho_uv^2) * 0.1), 
+				U_t <- rho_uv * U_t + matrix(rnorm(prod(dim(U_t)), 0,
+																					sigma_uv_innov),
 																		nrow(U_t), ncol(U_t))
 				if (!symmetric) {
-					V_t <- rho_uv * V_t + matrix(rnorm(prod(dim(V_t)), 0, 
-																						sqrt(1 - rho_uv^2) * 0.1), 
+					V_t <- rho_uv * V_t + matrix(rnorm(prod(dim(V_t)), 0,
+																						sigma_uv_innov),
 																			nrow(V_t), ncol(V_t))
 				} else {
 					V_t <- U_t

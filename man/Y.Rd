@@ -5,9 +5,13 @@
 \alias{Y}
 \title{Relational matrix}
 \format{
-A square matrix representing relational data
+A list of square binary adjacency matrices
 }
 \description{
-Sample relational matrix for AME model examples
+Relational matrix loaded by \code{data(vignette_data)}.
+See \code{\link{vignette_data}} for full details.
+}
+\seealso{
+\code{\link{vignette_data}}
 }
 \keyword{datasets}
