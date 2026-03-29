@@ -106,19 +106,11 @@ predict.ame <- function(
 				EZ <- reconstruct_EZ(object)
 				return(EZ)
 			} else {
-				# apply inverse link for response scale
-				EZ <- reconstruct_EZ(object)
-				if(object$family == "binary") {
-					return(pnorm(EZ))  # probit link
-				} else if(object$family == "normal") {
-					return(EZ)  # identity link
-				} else if(object$family == "poisson") {
-					return(exp(EZ))  # log link
-				} else if(object$family == "tobit") {
-					return(pmax(0, EZ))  # censored at 0
-				} else {
-					return(object$YPM)
-				}
+				# YPM is the posterior mean on the response scale, computed
+				# during MCMC by averaging simulated outcomes. returning it
+				# directly avoids Jensen's inequality bias that would arise
+				# from transforming the posterior mean of the linear predictor.
+				return(object$YPM)
 			}
 		}
 	}
@@ -180,12 +172,8 @@ predict_distribution <- function(object, X, n_samples, include_uncertainty) {
 					idx <- min(i, dim(object$U_samples)[3])
 					UV <- object$U_samples[,,idx] %*% t(object$V_samples[,,idx])
 				} else {
-					# jitter posterior means
-					s2 <- object$VC[sample_idx[i], ncol(object$VC)]
-					R <- ncol(object$U)
-					U_sim <- object$U + matrix(rnorm(n * R, 0, sqrt(s2/R/10)), n, R)
-					V_sim <- object$V + matrix(rnorm(m * R, 0, sqrt(s2/R/10)), m, R)
-					UV <- U_sim %*% t(V_sim)
+					# no UV samples stored, use posterior means
+					UV <- object$U %*% t(object$V)
 				}
 				XB <- XB + UV
 			}
@@ -246,14 +234,24 @@ transform_to_response <- function(Z, family) {
 
 ####
 #' Extract fitted values from AME model
-#' 
-#' @param object Fitted AME model
-#' @param ... Additional arguments
-#' 
-#' @return Matrix of fitted values
-#' 
+#'
+#' Returns the posterior mean of the network on the response scale (YPM).
+#' For binary models, these are predicted probabilities between 0 and 1.
+#' For normal models, these are predicted continuous values.
+#' For Poisson models, these are predicted counts.
+#'
+#' @param object Fitted AME model object (class "ame").
+#' @param ... Additional arguments (not used).
+#'
+#' @return An n x n matrix (unipartite) or nA x nB matrix (bipartite) of
+#'   fitted values on the response scale. Diagonal entries are \code{NA} for
+#'   unipartite networks.
+#'
+#' @seealso \code{\link{predict.ame}} for predictions with type control,
+#'   \code{\link{residuals.ame}} for residuals
+#'
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
-#' 
+#'
 #' @export
 fitted.ame <- function(object, ...) {
 	return(object$YPM)
@@ -261,13 +259,23 @@ fitted.ame <- function(object, ...) {
 
 ####
 #' Extract residuals from AME model
-#' 
-#' @param object Fitted AME model
-#' @param type Type of residuals ("response" or "pearson")
-#' @param ... Additional arguments
-#' 
-#' @return Matrix of residuals
-#' 
+#'
+#' Computes residuals as the difference between observed values and fitted
+#' values. For \code{type = "response"}, returns \code{Y - fitted(object)}.
+#' For \code{type = "pearson"}, returns response residuals scaled by the
+#' standard deviation implied by the family (e.g., \code{sqrt(p*(1-p))} for
+#' binary).
+#'
+#' @param object Fitted AME model object (class "ame").
+#' @param type Character; \code{"response"} (default) for raw residuals or
+#'   \code{"pearson"} for standardized residuals.
+#' @param ... Additional arguments (not used).
+#'
+#' @return An n x n matrix (unipartite) or nA x nB matrix (bipartite) of
+#'   residuals. Entries where the original data was \code{NA} remain \code{NA}.
+#'
+#' @seealso \code{\link{fitted.ame}}, \code{\link{predict.ame}}
+#'
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' 
 #' @export
@@ -367,13 +375,13 @@ residuals.lame <- function(object, type = c("response", "pearson"), ...) {
 		Y <- object$YPM
 	}
 
-	# Y may be 3D array; convert to list of matrices
+	# convert 3D array to list of matrices if needed
 	if(is.array(Y) && length(dim(Y)) == 3) {
 		n_time <- dim(Y)[3]
 		Y <- lapply(seq_len(n_time), function(t) Y[,,t])
 	}
 
-	# Y and YPM are lists for lame
+	# lame stores Y and YPM as lists
 	s2 <- mean(object$VC[, ncol(object$VC)])
 
 	mapply(function(y, ypm) {

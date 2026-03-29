@@ -15,19 +15,13 @@ compact_ame(fit, use_sparse_matrices = FALSE)
 Memory-optimized AME model object
 }
 \description{
-Optimizes AME model storage by optionally removing redundant components
-and/or using sparse matrices based on user preferences.
+Optimizes AME model storage by converting matrices to sparse format.
 }
 \details{
-This function provides two optimization strategies:
-\enumerate{
-\item remove_redundant = TRUE: Removes redundant matrices (EZ, UVPM) that can be
-reconstructed if needed, keeping only essential components (BETA, VC, YPM).
-Recommended for networks with > 100 nodes.
-\item use_sparse_matrices = TRUE: Converts matrices to sparse format.
-Only recommended when your network is actually sparse (< 10\\% non-zero entries).
-For dense networks, sparse storage will be slower and may use more memory.
-}
+When \code{use_sparse_matrices = TRUE}, converts YPM, APM, and BPM to
+sparse matrices via the \pkg{Matrix} package. This is only beneficial
+when your network is actually sparse (< 10\\% non-zero entries). For dense
+networks, sparse storage will be slower and may use more memory.
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

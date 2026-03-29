@@ -32,7 +32,7 @@ for n <= 50 actors)}
 Can be numeric index, "all" for faceted plot, or "average" for time-averaged}
 
 \item{plot_type}{For dynamic effects: "snapshot" (single time), "trajectory" (evolution over time),
-"faceted" (grid of time points), or "ribbon" (confidence bands over time).
+"faceted" (grid of time points), or "ribbon" (posterior credible bands over time).
 For static effects, this parameter is ignored.}
 
 \item{show_actors}{Character vector of specific actors to highlight (for dynamic trajectory/ribbon plots)}

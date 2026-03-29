@@ -156,8 +156,7 @@ latent_positions.lame <- function(object, align = TRUE, ...) {
 		idx <- 1L
 		for (r in seq_len(R)) {
 			for (t in seq_len(TT)) {
-				# For dynamic models, posterior_sd from samples is per-actor per-dim
-				# (not per-time), so use the same SD for all time points
+				# posterior_sd is per-actor per-dim, same across time points
 				sd_vals <- if (!is.null(sd_array) && ncol(sd_array) >= r) {
 					sd_array[, r]
 				} else {

@@ -22,14 +22,19 @@ A list of class "summary.lame" containing:
 \description{
 Provides a comprehensive summary of a fitted LAME (Longitudinal Additive and
 Multiplicative Effects) model, including parameter estimates, standard errors,
-confidence intervals, and model diagnostics.
+credible intervals, and model diagnostics.
 }
 \details{
 The summary includes:
 \describe{
-\item{Regression coefficients}{Point estimates, standard errors, z-values,
-p-values, and 95\% confidence intervals for dyadic, sender, and
-receiver covariates}
+\item{Regression coefficients}{Posterior means, posterior standard deviations,
+z-values, approximate p-values, and 95\% credible intervals for dyadic,
+sender, and receiver covariates. Note: the z-values are computed as
+posterior mean / posterior SD, and the p-values are derived from a
+normal approximation. These are convenient screening statistics but
+are not formal frequentist test statistics. For rigorous inference,
+use the credible intervals or examine the full posterior via the
+BETA matrix directly.}
 \item{Variance components}{Estimates and standard errors for:
 \describe{
 \item{va}{Variance of additive sender/row effects}

@@ -117,10 +117,8 @@
 #' \deqn{V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}}
 #' where i indexes row nodes, j indexes column nodes, k indexes latent dimensions.
 #' 
-#' When dynamic_G=TRUE, the interaction matrix also evolves:
-#' \deqn{G_{k,l,t} = \rho_G G_{k,l,t-1} + \xi_{k,l,t}}
-#' allowing the mapping between row and column latent spaces to change over time.
-#' 
+#' Note: dynamic_G is reserved for future use and not yet implemented.
+#'
 #' \emph{Key Differences from Unipartite Models:}
 #' \itemize{
 #'   \item No dyadic correlation (rho): Bipartite edges are inherently directed
@@ -202,9 +200,9 @@
 #' decrease across observation periods. The AR(1) specification ensures temporal smoothness
 #' while allowing for actor-specific evolution patterns. Implementation uses conjugate 
 #' updates where possible and C++ for computational efficiency. Default FALSE.
-#' @param dynamic_G logical: for bipartite networks, fit dynamic interaction matrix G that
-#' evolves over time. When TRUE, the rectangular interaction matrix G becomes time-varying,
-#' allowing the mapping between row and column latent spaces to change over time. Default FALSE.
+#' @param dynamic_G logical: reserved for future use. Dynamic interaction matrix G
+#' is not yet implemented. Setting this to TRUE will produce a warning; the
+#' parameter is accepted for forward compatibility only. Default FALSE.
 #' @param family character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 #' the details below
 #' @param intercept logical: fit model with an intercept?
@@ -1001,9 +999,9 @@ lame <- function(
 				EZ <- get_EZ_cpp( Xlist_tmp, beta, ab_mat, U, V )
 			}
 		}
-		# Phase 2A: Use batch C++ Z sampling where possible
+		# batch C++ Z sampling where possible
 		if(family == "normal") {
-			# Single C++ call for all T time periods
+			# single C++ call for all T time periods
 			Z_batch <- try(rZ_nrm_batch_cpp(Z, EZ, rho, s2, Y), silent = TRUE)
 			if(!inherits(Z_batch, 'try-error')) {
 				Z <- Z_batch$Z
@@ -1014,17 +1012,17 @@ lame <- function(
 				tryErrorChecks$Z <- tryErrorChecks$Z + 1
 			}
 		} else if(family == "tobit" && bip && rho == 0) {
-			# Batch bipartite tobit Z sampling in C++
+			# batch bipartite tobit Z sampling in C++
 			Z_new <- try(rZ_tob_bip_batch_cpp(Z, EZ, s2, Y), silent = TRUE)
 			if(!inherits(Z_new, 'try-error')) { Z <- Z_new }
 			E.nrm <- Z - EZ
 		} else if(family == "binary" && bip && rho == 0) {
-			# Batch bipartite binary Z sampling in C++
+			# batch bipartite binary Z sampling in C++
 			Z_new <- try(rZ_bin_bip_batch_cpp(Z, EZ, Y), silent = TRUE)
 			if(!inherits(Z_new, 'try-error')) { Z <- Z_new }
 			E.nrm <- Z - EZ
 		} else {
-			# Fallback: per-t R loop for families needing it
+			# fallback: per-t R loop for remaining families
 			for(t in 1:N) {
 				if(family == "tobit") {
 					Z[,,t] <- rZ_tob_fc(Z[,,t], EZ[,,t], rho, s2, Y[,,t])
@@ -1073,7 +1071,7 @@ lame <- function(
 				EZ_no_ab <- get_EZ_dynamic_ab(Xlist, beta, zero_a, zero_b, U, V, N,
 				                              bip = TRUE, G = G, nA = nA, nB = nB)
 
-				# Phase 2B: update beta via C++ (bipartite conjugate update)
+				# update beta via C++ (bipartite conjugate update)
 				p_bip <- length(beta)
 				if(p_bip > 0) {
 					resid_b <- Z - EZ_no_ab
@@ -1227,7 +1225,7 @@ lame <- function(
 		} else {
 			# standard static update
 			if(bip) {
-				# Phase 2B: bipartite gibbs update via C++
+				# bipartite gibbs update via C++
 				U_2d <- if(length(dim(U)) == 3) U[,,1] else U
 				V_2d <- if(length(dim(V)) == 3) V[,,1] else V
 				UV_eff <- if(RA > 0 && RB > 0) U_2d %*% G %*% t(V_2d) else matrix(0, nA, nB)
@@ -1353,7 +1351,7 @@ lame <- function(
 			
 			if(dynamic_uv) {
 				if(bip) {
-					# Phase 2C: bipartite dynamic UV via C++ (replaces nested R loops)
+					# bipartite dynamic UV via C++
 					UV_try <- tryCatch(
 						rUV_dynamic_bip_fc_cpp(U_cube, V_cube, E, G,
 						                       rho_uv, sigma_uv, s2),
@@ -1881,7 +1879,7 @@ lame <- function(
 			}
 		}
 		rho_hat <- estimate_rho_from_U(fit$U)
-		if (is.finite(rho_hat)) fit$rho_uv <- as.numeric(rho_hat)
+		if (is.finite(rho_hat)) fit$rho_uv_aligned <- as.numeric(rho_hat)
 	}
 	####
 

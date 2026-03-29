@@ -67,7 +67,7 @@ The plot adapts to the longitudinal structure:
 \examples{
 \donttest{
 # Create simple longitudinal network data
-set.seed(1)
+set.seed(6886)
 n <- 10
 nms <- paste0("n", 1:n)
 Y_list <- list(

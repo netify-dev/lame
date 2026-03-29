@@ -4,8 +4,10 @@
 #' @param save_ab Logical; whether to save samples of additive effects a and b (default FALSE)
 #' @param thin_UV Integer; thinning interval for U/V samples (default 10)
 #' @param thin_ab Integer; thinning interval for a/b samples (default 10)
-#' 
-#' @return List of posterior saving options
+#'
+#' @return List of posterior saving options, to be passed to the
+#'   \code{posterior_opts} argument of \code{\link{ame}}:
+#'   \code{ame(Y, ..., posterior_opts = posterior_options(save_UV = TRUE))}
 #' 
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' 
@@ -88,12 +90,10 @@ simulate_posterior <- function(
 		}
 		
 	} else {
-		cli::cli_text("Simulating from approximate posterior for {.field {component}}")
-		
 		if(component == "UV") {
-			return(simulate_UV_posterior(fit, n_samples, use_full_cov))
+			simulate_UV_posterior(fit, n_samples, use_full_cov)
 		} else if(component == "ab") {
-			return(simulate_ab_posterior(fit, n_samples))
+			simulate_ab_posterior(fit, n_samples)
 		} else if(component == "beta") {
 			return(simulate_beta_posterior(fit, n_samples))
 		} else if(component == "Y") {
@@ -134,49 +134,15 @@ sample_from_saved_UV <- function(fit, n_samples) {
 # simulate_UV_posterior
 ####
 
-#' Simulate U/V from approximate posterior
+#' Simulate U/V from posterior — requires saved MCMC samples
 #' @noRd
 simulate_UV_posterior <- function(fit, n_samples, use_full_cov = FALSE) {
 
-	if(is.null(fit$U) || is.null(fit$V)) {
-		cli::cli_abort("No multiplicative effects in model")
-	}
-
-	n_row <- nrow(fit$U)
-	n_col <- nrow(fit$V)
-	R_u <- ncol(fit$U)
-	R_v <- ncol(fit$V)
-
-	if(!is.null(fit$VC)) {
-		s2 <- mean(fit$VC[, ncol(fit$VC)])
-	} else {
-		s2 <- 1
-	}
-
-	UV_samples <- array(NA, dim = c(n_row, n_col, n_samples))
-
-	if(use_full_cov && !is.null(fit$BETA) && nrow(fit$BETA) >= 100) {
-		n_mcmc <- nrow(fit$BETA)
-		sd_scale <- sqrt(s2 / R_u) * sqrt(1 + 50/n_mcmc)
-		cli::cli_inform("Using empirical variance scaling based on {.val {n_mcmc}} MCMC samples")
-	} else {
-		sd_scale <- sqrt(s2 / R_u)
-	}
-
-	bip <- !is.null(fit$mode) && fit$mode == "bipartite"
-
-	for(s in 1:n_samples) {
-		U_sim <- fit$U + matrix(rnorm(n_row * R_u, 0, sd_scale), n_row, R_u)
-		V_sim <- fit$V + matrix(rnorm(n_col * R_v, 0, sd_scale), n_col, R_v)
-
-		if(bip && !is.null(fit$G)) {
-			UV_samples[,,s] <- U_sim %*% fit$G %*% t(V_sim)
-		} else {
-			UV_samples[,,s] <- U_sim %*% t(V_sim)
-		}
-	}
-
-	return(UV_samples)
+	cli::cli_abort(c(
+		"Cannot simulate UV posterior without saved MCMC samples.",
+		"i" = "Re-fit the model with {.code posterior_opts = posterior_options(save_UV = TRUE)}",
+		"i" = "Then call {.fn simulate_posterior} again."
+	))
 }
 
 ####
@@ -207,41 +173,15 @@ sample_from_saved_ab <- function(fit, n_samples) {
 # simulate_ab_posterior
 ####
 
-#' Simulate a/b from approximate posterior
+#' Simulate a/b from posterior — requires saved MCMC samples
 #' @noRd
 simulate_ab_posterior <- function(fit, n_samples) {
 
-	if(is.null(fit$APM) || is.null(fit$BPM)) {
-		cli::cli_abort("No additive effects in model")
-	}
-
-	nA <- length(fit$APM)
-	nB <- length(fit$BPM)
-
-	if(!is.null(fit$VC) && ncol(fit$VC) >= 2) {
-		va <- mean(fit$VC[, 1])
-		# separate variance for b if available (col 3 for asymmetric)
-		if(ncol(fit$VC) >= 3) {
-			vb <- mean(fit$VC[, 3])
-		} else {
-			vb <- va
-		}
-	} else {
-		va <- 1
-		vb <- 1
-	}
-
-	ab_samples <- list(
-		a = matrix(NA, nA, n_samples),
-		b = matrix(NA, nB, n_samples)
-	)
-
-	for(s in 1:n_samples) {
-		ab_samples$a[, s] <- fit$APM + rnorm(nA, 0, sqrt(va))
-		ab_samples$b[, s] <- fit$BPM + rnorm(nB, 0, sqrt(vb))
-	}
-
-	return(ab_samples)
+	cli::cli_abort(c(
+		"Cannot simulate ab posterior without saved MCMC samples.",
+		"i" = "Re-fit the model with {.code posterior_opts = posterior_options(save_ab = TRUE)}",
+		"i" = "Then call {.fn simulate_posterior} again."
+	))
 }
 
 ####
@@ -319,14 +259,24 @@ simulate_Y_posterior <- function(fit, n_samples) {
 			}
 		}
 		
-		if(!is.null(fit$APM) && !is.null(fit$BPM)) {
-			ab_sim <- simulate_posterior(fit, "ab", 1)
+		# use saved samples if available, otherwise posterior means
+		if(!is.null(fit$a_samples) && !is.null(fit$b_samples)) {
+			ab_sim <- sample_from_saved_ab(fit, 1)
 			EZ <- EZ + outer(ab_sim$a[,1], ab_sim$b[,1], "+")
+		} else if(!is.null(fit$APM) && !is.null(fit$BPM)) {
+			EZ <- EZ + outer(as.vector(fit$APM), as.vector(fit$BPM), "+")
 		}
-		
-		if(!is.null(fit$U_postmean) && !is.null(fit$V_postmean)) {
-			UV_sim <- simulate_posterior(fit, "UV", 1)
+
+		if(!is.null(fit$U_samples) && !is.null(fit$V_samples)) {
+			UV_sim <- sample_from_saved_UV(fit, 1)
 			EZ <- EZ + UV_sim[,,1]
+		} else if(!is.null(fit$U) && !is.null(fit$V)) {
+			bip <- !is.null(fit$mode) && fit$mode == "bipartite"
+			if(bip && !is.null(fit$G)) {
+				EZ <- EZ + fit$U %*% fit$G %*% t(fit$V)
+			} else {
+				EZ <- EZ + fit$U %*% t(fit$V)
+			}
 		}
 		
 		Y_samples[,,s] <- generate_Y_from_EZ(EZ, family, fit)
@@ -342,12 +292,23 @@ simulate_Y_posterior <- function(fit, n_samples) {
 #' Generate Y from linear predictor EZ
 #' @noRd
 generate_Y_from_EZ <- function(EZ, family, fit) {
-	
+
 	n <- nrow(EZ)
 	m <- ncol(EZ)
-	
+
+	# use actual error variance from model
+	s2 <- 1
+	if(!is.null(fit$VC)) {
+		vc_names <- colnames(fit$VC)
+		if(!is.null(vc_names) && "ve" %in% vc_names) {
+			s2 <- mean(fit$VC[, "ve"])
+		} else {
+			s2 <- mean(fit$VC[, ncol(fit$VC)])
+		}
+	}
+
 	Y <- switch(family,
-		normal = EZ + matrix(rnorm(n * m), n, m),
+		normal = EZ + matrix(rnorm(n * m, 0, sqrt(s2)), n, m),
 		binary = matrix(rbinom(n * m, 1, pnorm(EZ)), n, m),
 		poisson = matrix(rpois(n * m, exp(pmin(EZ, 10))), n, m),
 		EZ

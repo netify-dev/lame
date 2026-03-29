@@ -5,9 +5,13 @@
 \alias{Xrow}
 \title{Row covariates}
 \format{
-A matrix of row covariates
+A list of matrices of row covariates
 }
 \description{
-Sample row covariates for AME model examples
+Row covariates loaded by \code{data(vignette_data)}.
+See \code{\link{vignette_data}} for full details.
+}
+\seealso{
+\code{\link{vignette_data}}
 }
 \keyword{datasets}

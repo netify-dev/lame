@@ -11,10 +11,10 @@ vignette: >
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.width = 7,
-  fig.height = 5
+	collapse = TRUE,
+	comment = "#>",
+	fig.width = 7,
+	fig.height = 5
 )
 ```
 
@@ -58,7 +58,7 @@ This captures changes in actors' overall activity levels. A country might become
 
 You can use either option alone or combine them. In practice, `dynamic_ab` is often a good place to start, since changes in overall activity are common and relatively easy to estimate. `dynamic_uv` adds more flexibility but also more parameters.
 
-## Prior Specifications
+### Prior Specifications
 
 The AR(1) coefficients and innovation variances have sensible default priors:
 
@@ -66,113 +66,177 @@ The AR(1) coefficients and innovation variances have sensible default priors:
 - $\rho_{ab} \sim \text{TruncNormal}(0.8, 0.15, 0, 1)$, slightly less persistent
 - $\sigma_{uv}^2, \sigma_{ab}^2 \sim \text{InverseGamma}(2, 1)$
 
-These can be customized via the `prior` argument if you have strong beliefs about the rate of change:
+These can be customized via the `prior` argument if you have strong beliefs about the rate of change.
 
-```{r}
-prior_custom <- list(
-  rho_uv_mean = 0.95,    # expect very slow change in latent positions
-  rho_uv_sd = 0.05,      # tight prior
-  sigma_uv_shape = 3,
-  sigma_uv_scale = 2
-)
+## Genuine Dynamics: What They Look Like
+
+We start with an example where dynamics are truly present, so you can see what the model recovers when there is a real signal. We simulate 25 actors over 5 periods where each actor's latent position evolves via an AR(1) process with $\rho = 0.85$. We use stronger latent positions (SD = 1.5) and a negative intercept to produce a network with realistic density (roughly 30%).
+
+```{r, message=FALSE}
+library(lame)
+set.seed(6886)
+
+n_dyn <- 25
+n_per <- 5
+R_dyn <- 2
+
+# evolving latent positions with AR(1) dynamics
+U <- matrix(rnorm(n_dyn * R_dyn, 0, 1.5), n_dyn, R_dyn)
+V <- matrix(rnorm(n_dyn * R_dyn, 0, 1.5), n_dyn, R_dyn)
+
+Y_dyn <- list()
+for(t in 1:n_per) {
+	if(t > 1) {
+		U <- 0.85 * U + matrix(rnorm(n_dyn * R_dyn, 0, 0.3), n_dyn, R_dyn)
+		V <- 0.85 * V + matrix(rnorm(n_dyn * R_dyn, 0, 0.3), n_dyn, R_dyn)
+	}
+	eta <- -1 + U %*% t(V)
+	Y_t <- matrix(rbinom(n_dyn * n_dyn, 1, pnorm(eta)), n_dyn, n_dyn)
+	diag(Y_t) <- NA
+	rownames(Y_t) <- colnames(Y_t) <- paste0("A", 1:n_dyn)
+	Y_dyn[[t]] <- Y_t
+}
+
+# note: iterations are reduced for vignette speed.
+# use burn >= 1000 and nscan >= 5000 for real analyses.
+fit_dyn_real <- lame(Y_dyn, R = 2,
+	dynamic_uv = TRUE, dynamic_ab = TRUE,
+	family = "binary",
+	burn = 100, nscan = 2500, odens = 25,
+	verbose = FALSE, plot = FALSE)
+
+summary(fit_dyn_real)
 ```
 
-## Practical Example
+The trajectory plot shows how actors move through the latent space over time. With genuine temporal structure, the paths should show coherent movement rather than random jumping:
 
-We simulate a simple longitudinal network and fit models with and without dynamic effects to see the difference.
+```{r, fig.width=7, fig.height=5}
+uv_plot(fit_dyn_real, plot_type = "trajectory")
+```
+
+Always check convergence. Dynamic models have more parameters than static models, so adequate mixing is harder to achieve and requires longer chains:
+
+```{r, fig.width=7, fig.height=5}
+trace_plot(fit_dyn_real)
+```
+
+## What Happens Without Temporal Structure?
+
+To understand how the dynamic model behaves when there is no signal, we fit the same model to independent networks (no temporal correlation). This is a useful null baseline: the estimated `rho` values tell you what the prior alone produces when the data are uninformative.
 
 ```{r}
-library(lame)
-
 set.seed(6886)
-n <- 25  # actors
+n <- 30
 n_periods <- 5
 
-# Generate sparse binary networks
+# independent binary networks with no temporal structure
 Y_list <- list()
 for(t in 1:n_periods) {
-  Y_t <- matrix(rbinom(n*n, 1, 0.1), n, n)
-  diag(Y_t) <- NA
-  rownames(Y_t) <- colnames(Y_t) <- paste0("Actor", 1:n)
-  Y_list[[t]] <- Y_t
+	Y_t <- matrix(rbinom(n*n, 1, 0.2), n, n)
+	diag(Y_t) <- NA
+	rownames(Y_t) <- colnames(Y_t) <- paste0("Actor", 1:n)
+	Y_list[[t]] <- Y_t
 }
 
-# Fit model with both dynamic effects
-# Note: iterations are reduced for vignette speed.
-# Use burn >= 1000 and nscan >= 5000 for real analyses.
-fit_dynamic <- lame(
-  Y = Y_list,
-  R = 2,
-  dynamic_uv = TRUE,
-  dynamic_ab = TRUE,
-  family = "binary",
-  burn = 100,
-  nscan = 500,
-  odens = 25,
-  verbose = FALSE,
-  plot = FALSE
+# fit with a custom prior on rho_uv to illustrate prior sensitivity
+prior_custom <- list(
+	rho_uv_mean = 0.95,    # expect very slow change in latent positions
+	rho_uv_sd = 0.05       # tight prior
 )
+
+fit_null <- lame(
+	Y = Y_list,
+	R = 2,
+	dynamic_uv = TRUE,
+	dynamic_ab = TRUE,
+	family = "binary",
+	prior = prior_custom,
+	burn = 100,
+	nscan = 2500,
+	odens = 25,
+	verbose = FALSE,
+	plot = FALSE
+)
+
+summary(fit_null)
 ```
 
-### Visualizing Dynamic Effects
-
-The trajectory plot shows how each actor's latent position moves through the 2-dimensional space over time. Each line traces one actor's path from the first to the last period. Actors whose lines are short stayed in roughly the same position; actors with long, wandering lines experienced substantial shifts in their network role.
-
-```{r, fig.width=7, fig.height=5}
-uv_plot(fit_dynamic, plot_type = "trajectory")
-```
-
-The `ab_plot` with `plot_type = "trajectory"` shows how each actor's additive effect changes over time. Rising lines indicate actors who became more active (or more popular) over the observation window; falling lines indicate the opposite. This is particularly useful for identifying actors who experienced a structural break in their network behavior.
-
-```{r, fig.width=7, fig.height=5}
-ab_plot(fit_dynamic, effect = "sender", plot_type = "trajectory")
-```
-
-As always, check convergence. Dynamic models have more parameters, so adequate mixing is harder to achieve and requires longer chains.
-
-```{r, fig.width=7, fig.height=5}
-trace_plot(fit_dynamic)
-```
-
-### Comparing Model Specifications
-
-A natural workflow is to fit several specifications and compare them:
+We can compare the estimated persistence parameters across the two settings:
 
 ```{r}
-# Static model (no dynamic effects)
+cat("Independent data rho_uv:", round(mean(fit_null$rho_uv), 3), "\n")
+cat("Correlated data rho_uv:", round(mean(fit_dyn_real$rho_uv), 3), "\n")
+```
+
+With only 5 time periods, the `rho_uv` estimates may be similar in both cases. This is expected: the AR(1) parameter is identified from the correlation of latent positions across adjacent time periods, and 5 time points provide very little information to update the prior. In real applications with 10 or more time periods, the difference between genuine dynamics and independent data becomes much clearer. The key diagnostic here is the trajectory plot (compare the coherent paths above with the erratic paths below) rather than the point estimate of `rho`.
+
+### Visualizing the Null Case
+
+The trajectory plot for independent data looks different: paths are more erratic, without the smooth coherence of genuinely correlated positions.
+
+```{r, fig.width=7, fig.height=5}
+uv_plot(fit_null, plot_type = "trajectory")
+```
+
+The additive effects show similar behavior. Without genuine temporal structure, the trajectories reflect noise rather than real shifts in actor activity.
+
+```{r, fig.width=7, fig.height=5}
+ab_plot(fit_null, effect = "sender", plot_type = "trajectory")
+```
+
+## Comparing Model Specifications
+
+A natural workflow is to fit several specifications and compare their goodness-of-fit. We use the independent data from above to show that dynamic effects add nothing when there is no signal.
+
+```{r}
+# static model (no dynamic effects)
 fit_static <- lame(Y_list, R = 2, family = "binary",
-                   burn = 100, nscan = 400, odens = 20,
-                   verbose = FALSE, plot = FALSE)
+									burn = 100, nscan = 2500, odens = 25,
+									verbose = FALSE, plot = FALSE)
 
-# Dynamic latent positions only
+# dynamic latent positions only
 fit_uv <- lame(Y_list, R = 2, dynamic_uv = TRUE, family = "binary",
-               burn = 100, nscan = 400, odens = 20,
-               verbose = FALSE, plot = FALSE)
+							burn = 100, nscan = 2500, odens = 25,
+							verbose = FALSE, plot = FALSE)
 
-# Dynamic additive effects only
+# dynamic additive effects only
 fit_ab <- lame(Y_list, R = 2, dynamic_ab = TRUE, family = "binary",
-               burn = 100, nscan = 400, odens = 20,
-               verbose = FALSE, plot = FALSE)
+							burn = 100, nscan = 2500, odens = 25,
+							verbose = FALSE, plot = FALSE)
 
-# Full dynamic
+# full dynamic
 fit_full <- lame(Y_list, R = 2, dynamic_uv = TRUE, dynamic_ab = TRUE,
-                 family = "binary",
-                 burn = 100, nscan = 400, odens = 20,
-                 verbose = FALSE, plot = FALSE)
+								family = "binary",
+								burn = 100, nscan = 2500, odens = 25,
+								verbose = FALSE, plot = FALSE)
 ```
 
-Compare the GOF statistics across models. The model that best reproduces the observed network statistics (heterogeneity, transitivity, dyadic dependence) without unnecessary complexity is usually the best choice.
+Compare the GOF statistics across models. For each specification, we compute posterior predictive p-values: how often do the simulated network statistics exceed the observed ones? Values near 0.5 indicate good fit.
 
 ```{r}
-if(!is.null(fit_static$GOF) && !is.null(fit_full$GOF)) {
-  cat("Static model GOF (sample):\n")
-  print(head(fit_static$GOF))
-  cat("\nFull dynamic model GOF (sample):\n")
-  print(head(fit_full$GOF))
+# compute p-values for each model and each GOF statistic
+compute_pvals <- function(fit) {
+	gof <- fit$GOF
+	sapply(names(gof), function(stat) {
+		mat <- gof[[stat]]
+		obs <- mat[, 1]           # first column = observed
+		sims <- mat[, -1]         # remaining = posterior predictive
+		mean(colMeans(sims) >= mean(obs))
+	})
 }
+
+gof_comparison <- rbind(
+	Static     = compute_pvals(fit_static),
+	Dynamic_UV = compute_pvals(fit_uv),
+	Dynamic_AB = compute_pvals(fit_ab),
+	Full       = compute_pvals(fit_full)
+)
+round(gof_comparison, 3)
 ```
 
-### When to Use Dynamic Effects
+Since the data were generated without temporal structure, the static model should fit as well as or better than the dynamic models. If you see similar p-values across specifications, that confirms the dynamic parameters are not needed here.
+
+## When to Use Dynamic Effects
 
 **Use `dynamic_ab`** when you suspect actors' overall activity levels change over time. This is common in many settings: countries go through isolationist vs. interventionist phases, users churn in and out of platforms, students become more or less engaged across semesters.
 
@@ -189,15 +253,15 @@ One subtlety of dynamic latent space models: the latent space is only identified
 The `procrustes_align()` function solves this by applying Procrustes rotation to align each time period's positions to the previous one:
 
 ```{r}
-# Align latent positions across time
-aligned <- procrustes_align(fit_dynamic)
+# align latent positions across time
+aligned <- procrustes_align(fit_null)
 str(aligned$U)  # 3D array: actors x dimensions x time
 ```
 
 You can also extract aligned positions as a tidy data frame using `latent_positions()` with `align = TRUE` (the default for `lame` objects):
 
 ```{r}
-lp <- latent_positions(fit_dynamic, align = TRUE)
+lp <- latent_positions(fit_null, align = TRUE)
 head(lp)
 ```
 

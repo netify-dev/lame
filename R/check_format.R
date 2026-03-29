@@ -146,6 +146,45 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 	####
 
 	####
+	# validate covariate dimensions match Y
+	for (t in seq_along(Y)) {
+		nr = nrow(Y[[t]])
+		nc = ncol(Y[[t]])
+		if (!is.null(Xdyad) && !is.null(Xdyad[[t]])) {
+			xd = Xdyad[[t]]
+			if (nrow(xd) != nr || ncol(xd) != nc) {
+				cli::cli_abort(c(
+					"Xdyad dimensions must match Y at each time period.",
+					"i" = "Y[[{t}]] is {nr} x {nc}, but Xdyad[[{t}]] is {nrow(xd)} x {ncol(xd)}."
+				))
+			}
+		}
+		if (!is.null(Xrow) && !is.null(Xrow[[t]])) {
+			xr = Xrow[[t]]
+			if (is.matrix(xr) || is.data.frame(xr)) {
+				if (nrow(xr) != nr) {
+					cli::cli_abort(c(
+						"Xrow row count must match Y row count at each time period.",
+						"i" = "Y[[{t}]] has {nr} rows, but Xrow[[{t}]] has {nrow(xr)} rows."
+					))
+				}
+			}
+		}
+		if (!is.null(Xcol) && !is.null(Xcol[[t]])) {
+			xc = Xcol[[t]]
+			if (is.matrix(xc) || is.data.frame(xc)) {
+				if (nrow(xc) != nc) {
+					cli::cli_abort(c(
+						"Xcol row count must match Y column count at each time period.",
+						"i" = "Y[[{t}]] has {nc} columns, but Xcol[[{t}]] has {nrow(xc)} rows."
+					))
+				}
+			}
+		}
+	}
+	####
+
+	####
 	# check dimension consistency within Y
 	if (N > 1) {
 		first_nrow <- nrow(Y[[1]])

@@ -1,11 +1,22 @@
 #' Extract model coefficients from AME model
 #'
-#' Returns posterior means of regression coefficients.
+#' Returns posterior means of regression coefficients from a fitted AME or
+#' LAME model. The coefficients correspond to the columns of the \code{BETA}
+#' matrix stored in the model object, which records one draw per post-burn-in
+#' MCMC iteration. The posterior mean is computed as \code{colMeans(BETA)}.
 #'
-#' @param object fitted AME model (class "ame")
-#' @param ... additional arguments (ignored)
+#' For binary models, these are on the probit (latent) scale. Use
+#' \code{\link{predict.ame}} with \code{type = "response"} to get predicted
+#' probabilities.
 #'
-#' @return named numeric vector of posterior mean coefficients
+#' @param object Fitted AME model (class \code{"ame"} or \code{"lame"}).
+#' @param ... Additional arguments (ignored).
+#'
+#' @return Named numeric vector of posterior mean coefficients.
+#'
+#' @seealso \code{\link{vcov.ame}} for the posterior covariance matrix,
+#'   \code{\link{confint.ame}} for credible intervals,
+#'   \code{\link{summary.ame}} for a full summary table
 #'
 #' @method coef ame
 #' @export

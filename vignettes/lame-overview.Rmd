@@ -11,14 +11,14 @@ vignette: >
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "",
-  fig.width = 6,
-  fig.height = 4,
-  dpi = 200,
-  out.width = "100%",
-  fig.align = "center",
-  dev = "png"
+	collapse = TRUE,
+	comment = "",
+	fig.width = 6,
+	fig.height = 4,
+	dpi = 200,
+	out.width = "100%",
+	fig.align = "center",
+	dev = "png"
 )
 ```
 
@@ -45,15 +45,15 @@ The dataset includes:
 
 - **Y**: A list of directed binary adjacency matrices (one per year). Entry $y_{ij,t} = 1$ means country $i$ imposed sanctions on country $j$ in year $t$.
 - **Xdyad**: Dyadic covariates (geographic distance and the number of shared intergovernmental organizations (IGOs)) that capture relationship-level predictors.
-- **Xrow / Xcol**: Sender and receiver covariates (GDP and population) capturing country-level characteristics. We use the same variables for both senders and receivers here, but different covariates can be specified for each role.
+- **Xrow / Xcol**: Sender and receiver covariates (log GDP and log population) capturing country-level characteristics. We use the same variables for both senders and receivers here, but different covariates can be specified for each role.
 
-```{r setup, include=FALSE}
+```{r setup}
 library(lame)
 library(ggplot2)
+set.seed(6886)
 
-# Load the TIES data
+# load the TIES data
 data("vignette_data")
-
 ```
 
 ### Fitting the Model
@@ -61,25 +61,25 @@ data("vignette_data")
 We fit a binary probit AME model with sender random effects (`rvar`), receiver random effects (`cvar`), dyadic correlation (`dcor`), and a 2-dimensional latent space (`R = 2`). The random effects capture the fact that some countries are simply more active sanctioners (sender effects) or more frequent targets (receiver effects), while the latent space picks up residual patterns, groups of countries that sanction similar targets or are targeted by the same senders.
 
 ```{r, message=FALSE, warning=FALSE}
-# Fit the AME model for binary data
-# Note: burn and nscan are kept small for fast vignette building.
-# For real analyses, use burn >= 1000 and nscan >= 5000.
+# fit the AME model for binary data
+# note: for real analyses, use burn >= 2000 and nscan >= 10000.
+# sparse networks like this one require long chains.
 fit <- lame(
-  Y = Y,
-  Xdyad = Xdyad,           # dyadic covariates
-  Xrow = Xrow,             # sender covariates
-  Xcol = Xcol,             # receiver covariates
-  family = "binary",       # Binary probit model
-  rvar = TRUE,             # sender random effects
-  cvar = TRUE,             # receiver random effects
-  dcor = TRUE,             # Dyadic correlation
-  R = 2,                   # Multiplicative effects dimension
-  symmetric = FALSE,       # Directed network
-  burn = 100,              # Burn-in iterations
-  nscan = 500,             # Post-burn-in iterations
-  odens = 25,              # Output density (thinning)
-  verbose = FALSE,           # Suppress iteration output
-  plot = FALSE             # Suppress real-time plots
+	Y = Y,
+	Xdyad = Xdyad,           # dyadic covariates
+	Xrow = Xrow,             # sender covariates
+	Xcol = Xcol,             # receiver covariates
+	family = "binary",       # Binary probit model
+	rvar = TRUE,             # sender random effects
+	cvar = TRUE,             # receiver random effects
+	dcor = TRUE,             # Dyadic correlation
+	R = 2,                   # Multiplicative effects dimension
+	symmetric = FALSE,       # Directed network
+	burn = 500,              # Burn-in iterations
+	nscan = 2500,            # Post-burn-in iterations
+	odens = 5,               # Thinning (keep every 5th sample)
+	verbose = FALSE,         # Suppress iteration output
+	plot = FALSE             # Suppress real-time plots
 )
 
 ```
@@ -90,19 +90,23 @@ fit <- lame(
 summary(fit)
 ```
 
-The regression coefficients tell us about the structural drivers of sanctions. Shared IGO membership is positively associated with sanctions, as countries embedded in the same international institutions are more likely to sanction each other, probably because these institutions provide both the information and the institutional mechanisms to coordinate economic pressure. Distance has a negative coefficient, meaning geographically closer countries are more likely to sanction one another.
+The coefficients table reports posterior means, standard errors, and 95% credible intervals for each covariate. With a binary probit model, the coefficients are on the latent scale: positive values increase the probability of a sanction, negative values decrease it.
 
-The variance components at the bottom of the summary capture network-level heterogeneity. Sender variance (`va`) and receiver variance (`vb`) indicate how much countries differ in their baseline propensity to impose or receive sanctions. The dyadic correlation (`rho`) captures reciprocity, the tendency for sanctions to be mutual.
+The variance components reveal where heterogeneity lies. The sender variance (`va`) is much larger than the receiver variance (`vb`), meaning the main source of heterogeneity is in how actively countries impose sanctions, not in who gets targeted. A few countries are prolific sanctioners while most rarely sanction at all. The dyadic correlation (`rho`) captures reciprocity: high values indicate that if country A sanctions country B, B is more likely to sanction A.
+
+The intercept is large and negative, reflecting the sparsity of the network (density around 1--2%). On the probability scale, this corresponds to a near-zero baseline probability of a sanction. The sender random effects and latent positions then shift individual dyads away from this baseline.
 
 ### Checking Convergence
 
-Because `lame` uses MCMC, we need to verify that the sampler has converged before trusting the results. The `trace_plot` function shows the sampled values over iterations (left panels) and the corresponding posterior densities (right panels) for each parameter.
+Because the model is estimated via MCMC, we need to verify that the sampler has converged before trusting the results. The `trace_plot` function shows the sampled values over iterations (top panels) and the corresponding posterior densities (bottom panels) for each parameter.
 
 ```{r, fig.width=8, fig.height=8, dpi=100, dev="png", fig.alt="MCMC trace plots and density plots showing convergence and posterior distributions of regression coefficients"}
 trace_plot(fit, params = "beta")
 ```
 
-What to look for: the trace plots should look like "fuzzy caterpillars," bouncing around a stable mean without long-term trends or getting stuck in one region. The density plots should be smooth and unimodal. With only `r nrow(fit$BETA)` post-burn-in samples (due to the small `nscan` we used here), the chains have not fully converged. In a real analysis, you would run much longer chains and check that increasing the run length doesn't substantially change the posterior summaries.
+What to look for: the trace plots (top) should look like "fuzzy caterpillars," bouncing around a stable mean without long-term trends or getting stuck in one region. The density plots (bottom) should be smooth and unimodal.
+
+With `r nrow(fit$BETA)` stored samples, you may notice slow mixing in some parameters, particularly the intercept and row covariates. This is typical for very sparse binary networks: with only about 20 ties per year, the likelihood surface is flat and the sampler moves slowly. For a publication, you would run much longer chains (`burn >= 2000, nscan >= 10000`) and verify that effective sample sizes (available via `coda::effectiveSize()`) are adequate for all parameters.
 
 ### Goodness of Fit
 
@@ -120,19 +124,21 @@ The multiplicative effects capture patterns of association that go beyond what t
 
 ```{r, fig.width=8, fig.height=6, dpi=100, dev="png", fig.alt="Network visualization showing multiplicative effects latent space positions of countries in the sanctions network"}
 
-# Network plot showing multiplicative effects
+# network plot showing multiplicative effects
 uv_plot(fit) +
-  ggtitle("Sanctions Network - Multiplicative Effects") +
-  theme_minimal() +
-  theme(
-    legend.position='none',
-    axis.text=element_blank(),
-    axis.title=element_blank()
-  )
+	ggtitle("Sanctions Network - Multiplicative Effects") +
+	theme_bw() +
+	theme(
+		panel.border = element_blank(),
+		legend.position = 'none',
+		axis.text = element_blank(),
+		axis.title = element_blank(),
+		panel.grid = element_blank()
+	)
 
 ```
 
-The circular layout places sender positions (triangles) on the outer ring and receiver positions (circles) on an inner ring, scaled by magnitude. Countries with larger effects are placed further from the center, indicating they play a more distinctive role in the network. Countries clustered together (for example, Western allies like the USA and Canada) share similar sanctioning profiles.
+The circular layout places sender positions (triangles) on the outer ring and receiver positions (circles) on an inner ring, scaled by magnitude. Countries with larger effects are placed further from the center, indicating they play a more distinctive role in the network. Countries clustered together share similar sanctioning profiles, while countries on opposite sides have dissimilar patterns.
 
 
 ## Extracting Latent Positions
@@ -144,11 +150,15 @@ lp <- latent_positions(fit)
 head(lp)
 ```
 
-Each row gives one actor's position on one latent dimension at one time point. For dynamic models (`dynamic_uv = TRUE`), the `time` column tracks how positions evolve. You can optionally apply Procrustes alignment to remove rotational indeterminacy across time periods:
+Each row gives one actor's position on one latent dimension at one time point. For static models like this one, the positions are the same across all time periods. For dynamic models (`dynamic_uv = TRUE`), positions evolve over time and `latent_positions()` returns each time point separately (see the [dynamic effects vignette](dynamic_effects.html)).
+
+When using dynamic latent positions, the latent space is only identified up to rotation at each time point. The `procrustes_align()` function aligns each time period's positions to the previous one, removing arbitrary rotations so that trajectories across time are interpretable:
 
 ```{r}
+# procrustes alignment is useful for dynamic models.
+# for a static model, positions are already aligned.
 aligned <- procrustes_align(fit)
-str(aligned$U)  # aligned 3D array
+str(aligned$U)
 ```
 
 ## What's Next?

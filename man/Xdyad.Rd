@@ -5,9 +5,13 @@
 \alias{Xdyad}
 \title{Dyadic covariates}
 \format{
-An array of dyadic covariates
+A list of arrays of dyadic covariates
 }
 \description{
-Sample dyadic covariates for AME model examples
+Dyadic covariates loaded by \code{data(vignette_data)}.
+See \code{\link{vignette_data}} for full details.
+}
+\seealso{
+\code{\link{vignette_data}}
 }
 \keyword{datasets}

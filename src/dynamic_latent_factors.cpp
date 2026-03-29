@@ -27,10 +27,12 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
   const int R = U_current.n_cols;
   const int T = U_current.n_slices;
 
+  // ar(1) prior terms need s2 scaling to match the s2-parameterized
+  // posterior: VtV_mod = V'V + s2*(ar terms), var = s2 * inv(VtV_mod)
   const double sigma2_inv = 1.0 / (sigma_uv * sigma_uv);
-  const double rho_sigma2 = rho_uv * sigma2_inv;
-  const double rho2_sigma2 = rho_uv * rho_uv * sigma2_inv;
-  const double s2_inv = 1.0 / s2;
+  const double s2_sigma2_inv = s2 * sigma2_inv;
+  const double s2_rho_sigma2 = s2 * rho_uv * sigma2_inv;
+  const double s2_rho2_sigma2 = s2 * rho_uv * rho_uv * sigma2_inv;
 
   arma::cube& U_new = U_current;
   arma::cube& V_new = V_current;
@@ -55,15 +57,16 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
       arma::mat VtV_mod = VtV;
 
       if(t > 0) {
-        VtV_mod.diag() += sigma2_inv;
-        ei += rho_sigma2 * U_current.slice(t-1).row(i).t();
+        VtV_mod.diag() += s2_sigma2_inv;
+        ei += s2_rho_sigma2 * U_current.slice(t-1).row(i).t();
       }
       if(t < T-1) {
-        VtV_mod.diag() += rho2_sigma2;
-        ei += rho_sigma2 * U_current.slice(t+1).row(i).t();
+        VtV_mod.diag() += s2_rho2_sigma2;
+        ei += s2_rho_sigma2 * U_current.slice(t+1).row(i).t();
       }
 
-      VtV_mod.diag() += s2_inv;
+      // regularization prior: N(0, s2*I) => scaled precision = 1
+      VtV_mod.diag() += 1.0;
 
       arma::mat iVtV = inv_sympd(VtV_mod);
       arma::vec mu = iVtV * ei;
@@ -84,15 +87,16 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
         arma::mat UtU_mod = UtU;
 
         if(t > 0) {
-          UtU_mod.diag() += sigma2_inv;
-          ej += rho_sigma2 * V_current.slice(t-1).row(j).t();
+          UtU_mod.diag() += s2_sigma2_inv;
+          ej += s2_rho_sigma2 * V_current.slice(t-1).row(j).t();
         }
         if(t < T-1) {
-          UtU_mod.diag() += rho2_sigma2;
-          ej += rho_sigma2 * V_current.slice(t+1).row(j).t();
+          UtU_mod.diag() += s2_rho2_sigma2;
+          ej += s2_rho_sigma2 * V_current.slice(t+1).row(j).t();
         }
 
-        UtU_mod.diag() += s2_inv;
+        // regularization prior: N(0, s2*I) => scaled precision = 1
+        UtU_mod.diag() += 1.0;
 
         arma::mat iUtU = inv_sympd(UtU_mod);
         arma::vec mu = iUtU * ej;
@@ -110,17 +114,35 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
     arma::vec s_vals;
     arma::mat U_svd, V_svd;
 
+    // normalize using the time-averaged product to preserve temporal alignment
+    arma::mat avg_prod(n, n, fill::zeros);
     for(int t = 0; t < T; t++) {
-      arma::mat& U_t = U_new.slice(t);
-      arma::mat& V_t = V_new.slice(t);
+      avg_prod += U_new.slice(t) * V_new.slice(t).t();
+    }
+    avg_prod /= T;
 
-      svd_econ(U_svd, s_vals, V_svd, U_t * V_t.t());
+    svd_econ(U_svd, s_vals, V_svd, avg_prod);
+    const int rank = std::min(R, (int)s_vals.n_elem);
 
-      const int rank = std::min(R, (int)s_vals.n_elem);
-      if(rank > 0) {
-        arma::mat S_sqrt = diagmat(sqrt(s_vals.head(rank)));
-        U_t = U_svd.head_cols(rank) * S_sqrt;
-        V_t = V_svd.head_cols(rank) * S_sqrt;
+    if(rank > 0) {
+      arma::mat S_sqrt = diagmat(sqrt(s_vals.head(rank)));
+      // compute rotation from average to align all time slices consistently
+      arma::mat U_ref = U_svd.head_cols(rank) * S_sqrt;
+      arma::mat V_ref = V_svd.head_cols(rank) * S_sqrt;
+
+      for(int t = 0; t < T; t++) {
+        arma::mat& U_t = U_new.slice(t);
+        arma::mat& V_t = V_new.slice(t);
+
+        // procrustes rotation of U_t toward U_ref
+        arma::mat M = U_ref.t() * U_t;
+        arma::mat Mu, Mv;
+        arma::vec Ms;
+        svd_econ(Mu, Ms, Mv, M);
+        arma::mat rot = Mv * Mu.t();
+
+        U_t = U_t * rot;
+        V_t = V_t * rot;
       }
     }
   }

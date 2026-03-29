@@ -78,10 +78,12 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
   const int RB = V_cube.n_cols;
   const int T = U_cube.n_slices;
 
+  // ar(1) prior terms need s2 scaling to match the s2-parameterized
+  // posterior: prec = W'W + s2*(ar terms), var = s2 * inv(prec)
   const double sigma2_inv = 1.0 / (sigma_uv * sigma_uv);
-  const double rho_s2 = rho_uv * sigma2_inv;
-  const double rho2_s2 = rho_uv * rho_uv * sigma2_inv;
-  const double s2_inv = 1.0 / s2;
+  const double s2_sigma2_inv = s2 * sigma2_inv;
+  const double s2_rho_s2 = s2 * rho_uv * sigma2_inv;
+  const double s2_rho2_s2 = s2 * rho_uv * rho_uv * sigma2_inv;
 
   for(int t = 0; t < T; t++) {
     // Get slices
@@ -103,14 +105,14 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
       arma::mat prec = WtW;
 
       if(t > 0) {
-        prec.diag() += sigma2_inv;
-        ei += rho_s2 * U_cube.slice(t-1).row(i).t();
+        prec.diag() += s2_sigma2_inv;
+        ei += s2_rho_s2 * U_cube.slice(t-1).row(i).t();
       }
       if(t < T-1) {
-        prec.diag() += rho2_s2;
-        ei += rho_s2 * U_cube.slice(t+1).row(i).t();
+        prec.diag() += s2_rho2_s2;
+        ei += s2_rho_s2 * U_cube.slice(t+1).row(i).t();
       }
-      prec.diag() += s2_inv;
+      prec.diag() += 1.0;
 
       arma::mat iprec = inv_sympd_small(prec);
       arma::vec mu_i = iprec * ei;
@@ -132,14 +134,14 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
       arma::mat prec = QtQ;
 
       if(t > 0) {
-        prec.diag() += sigma2_inv;
-        ej += rho_s2 * V_cube.slice(t-1).row(j).t();
+        prec.diag() += s2_sigma2_inv;
+        ej += s2_rho_s2 * V_cube.slice(t-1).row(j).t();
       }
       if(t < T-1) {
-        prec.diag() += rho2_s2;
-        ej += rho_s2 * V_cube.slice(t+1).row(j).t();
+        prec.diag() += s2_rho2_s2;
+        ej += s2_rho_s2 * V_cube.slice(t+1).row(j).t();
       }
-      prec.diag() += s2_inv;
+      prec.diag() += 1.0;
 
       arma::mat iprec = inv_sympd_small(prec);
       arma::vec mu_j = iprec * ej;

@@ -1,13 +1,15 @@
 #' Compute GOF statistics from saved posterior samples
 #' 
 #' @description
-#' Computes goodness-of-fit statistics after model estimation using saved 
-#' posterior samples. This avoids the computational overhead of GOF calculation
-#' during MCMC sampling. Requires that the model was run with appropriate
-#' posterior sampling options.
+#' Computes goodness-of-fit statistics after model estimation by generating
+#' posterior predictive networks from the saved MCMC samples. This is useful
+#' when the model was fitted with \code{gof = FALSE} to speed up MCMC sampling,
+#' or when you want to evaluate custom GOF statistics without re-running the model.
 #' 
 #' @param fit An ame model object that was run with posterior sampling enabled
-#' @param Y Original data matrix (if not stored in fit)
+#' @param Y Original data. For ame objects, an n x n matrix (or nA x nB for
+#'   bipartite). For lame objects, a list of matrices (one per time period).
+#'   If NULL, extracted from the fit object.
 #' @param custom_gof Optional custom GOF function(s) - same format as for ame()
 #' @param nsim Number of posterior predictive simulations to generate (default 100).
 #'   If NULL, uses all available posterior samples.
@@ -59,11 +61,21 @@ gof <- function(
 			stop("Y must be provided either as argument or stored in fit object")
 		}
 	}
-	
+
+	# lame stores Y as a 3D array; average across time for GOF baseline
+	is_lame <- inherits(fit, "lame")
+	if (is.array(Y) && length(dim(Y)) == 3) {
+		Y_list <- lapply(seq_len(dim(Y)[3]), function(t) Y[, , t])
+	} else if (is.list(Y)) {
+		Y_list <- Y
+	} else {
+		Y_list <- list(Y)
+	}
+
 	if (is.null(fit$BETA) || is.null(fit$VC)) {
 		stop("Model must have BETA and VC posterior samples. Re-run with appropriate posterior_opts.")
 	}
-	
+
 	is_bipartite <- fit$mode == "bipartite"
 	n_mcmc <- nrow(fit$BETA)
 	if (n_mcmc < 2) {
@@ -74,14 +86,17 @@ gof <- function(
 	} else {
 		nsim <- min(nsim, n_mcmc - 1)
 	}
-	
+
 	if (verbose) {
 		cli::cli_alert_info("Computing GOF statistics post-hoc")
 		cli::cli_alert_info("Using {nsim} posterior predictive simulations")
 	}
-	
+
 	network_mode <- if (is_bipartite) "bipartite" else "unipartite"
-	obs_gof <- gof_stats(Y, mode = network_mode)
+
+	# compute observed GOF per time point, then average
+	obs_gof_list <- lapply(Y_list, function(y) gof_stats(y, mode = network_mode))
+	obs_gof <- Reduce("+", obs_gof_list) / length(obs_gof_list)
 	
 	n_base_stats <- length(obs_gof)
 	
@@ -126,33 +141,46 @@ gof <- function(
 	GOF <- matrix(NA, nsim + 1, n_total_stats)
 	GOF[1, ] <- obs_gof
 	
-	base_names <- names(gof_stats(Y, mode = network_mode))
+	base_names <- names(gof_stats(Y_list[[1]], mode = network_mode))
 	all_names <- c(base_names, custom_gof_names)
 	colnames(GOF) <- all_names
 	rownames(GOF) <- c("obs", rep("", nsim))
-	
+
 	if (verbose) {
 		cli::cli_progress_bar("Computing posterior predictive GOF", total = nsim)
 	}
-	
+
 	sims <- simulate(fit, nsim = nsim, seed = 6886)
+
+	# helper: compute average GOF across time periods for a simulated dataset
+	avg_gof <- function(y_sim) {
+		if (is.list(y_sim)) {
+			gof_list <- lapply(y_sim, function(y) gof_stats(y, mode = network_mode))
+			Reduce("+", gof_list) / length(gof_list)
+		} else {
+			gof_stats(y_sim, mode = network_mode)
+		}
+	}
+
 	for (i in seq_len(nsim)) {
 		Y_sim <- sims$Y[[i]]
-		
-		GOF[i + 1, 1:n_base_stats] <- gof_stats(Y_sim, mode = network_mode)
+
+		GOF[i + 1, 1:n_base_stats] <- avg_gof(Y_sim)
 
 		# custom GOF
 		if (!is.null(custom_gof)) {
+			# for lame sims, pass first time period to custom functions
+			Y_for_custom <- if (is.list(Y_sim)) Y_sim[[1]] else Y_sim
 			if (is.function(custom_gof)) {
 				tryCatch({
-					custom_vals <- custom_gof(Y_sim)
+					custom_vals <- custom_gof(Y_for_custom)
 					GOF[i + 1, (n_base_stats + 1):(n_base_stats + length(custom_vals))] <- custom_vals
 				}, error = function(e) {})
 			} else if (is.list(custom_gof)) {
 				for (j in seq_along(custom_gof)) {
 					if (is.function(custom_gof[[j]])) {
 						tryCatch({
-							GOF[i + 1, n_base_stats + j] <- custom_gof[[j]](Y_sim)
+							GOF[i + 1, n_base_stats + j] <- custom_gof[[j]](Y_for_custom)
 						}, error = function(e) {})
 					}
 				}

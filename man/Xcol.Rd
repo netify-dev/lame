@@ -5,9 +5,13 @@
 \alias{Xcol}
 \title{Column covariates}
 \format{
-A matrix of column covariates
+A list of matrices of column covariates
 }
 \description{
-Sample column covariates for AME model examples
+Column covariates loaded by \code{data(vignette_data)}.
+See \code{\link{vignette_data}} for full details.
+}
+\seealso{
+\code{\link{vignette_data}}
 }
 \keyword{datasets}

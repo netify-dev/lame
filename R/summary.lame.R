@@ -2,14 +2,19 @@
 #' 
 #' Provides a comprehensive summary of a fitted LAME (Longitudinal Additive and
 #' Multiplicative Effects) model, including parameter estimates, standard errors,
-#' confidence intervals, and model diagnostics.
+#' credible intervals, and model diagnostics.
 #' 
 #' @details
 #' The summary includes:
 #' \describe{
-#'   \item{Regression coefficients}{Point estimates, standard errors, z-values,
-#'         p-values, and 95% confidence intervals for dyadic, sender, and 
-#'         receiver covariates}
+#'   \item{Regression coefficients}{Posterior means, posterior standard deviations,
+#'         z-values, approximate p-values, and 95% credible intervals for dyadic,
+#'         sender, and receiver covariates. Note: the z-values are computed as
+#'         posterior mean / posterior SD, and the p-values are derived from a
+#'         normal approximation. These are convenient screening statistics but
+#'         are not formal frequentist test statistics. For rigorous inference,
+#'         use the credible intervals or examine the full posterior via the
+#'         BETA matrix directly.}
 #'   \item{Variance components}{Estimates and standard errors for:
 #'     \describe{
 #'       \item{va}{Variance of additive sender/row effects}
@@ -41,11 +46,10 @@ summary.lame <- function(object, ...) {
 	beta_z <- ifelse(beta_sd > 0, beta_mean / beta_sd, NA_real_)
 	beta_p <- 2 * (1 - pnorm(abs(beta_z)))
 	
-	# 95% credible interval
-	z_val <- 1.96 
-	beta_lower <- beta_mean - z_val * beta_sd
-	beta_upper <- beta_mean + z_val * beta_sd
-	
+	# 95% quantile-based credible interval
+	beta_lower <- apply(fit$BETA, 2, quantile, probs = 0.025, na.rm = TRUE)
+	beta_upper <- apply(fit$BETA, 2, quantile, probs = 0.975, na.rm = TRUE)
+
 	# coefficient table
 	beta_table <- cbind(
 		Estimate = beta_mean,
@@ -132,7 +136,8 @@ print.summary.lame <- function(x, digits = 3, ...) {
 	coef_table <- cbind(coef_table, " " = stars)
 	print(coef_table, quote = FALSE, right = TRUE)
 	cat("---\nSignif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
-	
+	cat("Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.\n")
+
 	cat("\nVariance components:\n")
 	cat("-------------------\n")
 	var_table <- round(x$variance, digits)
@@ -143,6 +148,9 @@ print.summary.lame <- function(x, digits = 3, ...) {
 	} else {
 		cat("  (va = sender, cab = sender-receiver covariance, vb = receiver,\n")
 		cat("   rho = dyadic correlation, ve = residual variance)\n")
+	}
+	if(!is.null(x$mode) && x$mode == "bipartite") {
+		cat("  Note: bipartite model (rho fixed to 0, cab fixed to 0)\n")
 	}
 
 	invisible(x)

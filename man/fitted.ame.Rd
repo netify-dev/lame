@@ -7,15 +7,24 @@
 \method{fitted}{ame}(object, ...)
 }
 \arguments{
-\item{object}{Fitted AME model}
+\item{object}{Fitted AME model object (class "ame").}
 
-\item{...}{Additional arguments}
+\item{...}{Additional arguments (not used).}
 }
 \value{
-Matrix of fitted values
+An n x n matrix (unipartite) or nA x nB matrix (bipartite) of
+fitted values on the response scale. Diagonal entries are \code{NA} for
+unipartite networks.
 }
 \description{
-Extract fitted values from AME model
+Returns the posterior mean of the network on the response scale (YPM).
+For binary models, these are predicted probabilities between 0 and 1.
+For normal models, these are predicted continuous values.
+For Poisson models, these are predicted counts.
+}
+\seealso{
+\code{\link{predict.ame}} for predictions with type control,
+\code{\link{residuals.ame}} for residuals
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

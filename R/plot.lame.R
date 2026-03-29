@@ -45,7 +45,7 @@
 #' @examples
 #' \donttest{
 #' # Create simple longitudinal network data
-#' set.seed(1)
+#' set.seed(6886)
 #' n <- 10
 #' nms <- paste0("n", 1:n)
 #' Y_list <- list(
@@ -90,13 +90,42 @@ plot.lame <- function(x,
 		pages <- "multiple"
 	}
 	
+	# label mappings
+	vc_labels <- c(
+		"va" = "Sender Variance",
+		"vb" = "Receiver Variance",
+		"cab" = "Sender-Receiver Covariance",
+		"rho" = "Dyadic Correlation",
+		"ve" = "Error Variance"
+	)
+	gof_stat_labels <- c(
+		"sd.rowmean" = "Sender Degree Heterogeneity",
+		"sd.colmean" = "Receiver Degree Heterogeneity",
+		"dyad.dep" = "Dyadic Dependence",
+		"cycle.dep" = "Triadic Dependence",
+		"four.cycles" = "Four Cycles",
+		"trans.dep" = "Transitivity"
+	)
+	relabel <- function(x, mapping) {
+		ifelse(x %in% names(mapping), mapping[x], x)
+	}
+
+	# standard theme
+	lame_theme <- theme_bw() +
+		theme(
+			panel.border = element_blank(),
+			strip.background = element_rect(fill = "black", color = "black"),
+			strip.text = element_text(color = "white", hjust = 0, size = 8),
+			panel.spacing = unit(0.5, "lines")
+		)
+
 	plot_list <- list()
 
 	####
-	# trace plots
+	# mcmc trace plots
 	if ("trace" %in% plot_types) {
 		trace_data <- data.frame()
-		
+
 		if (!is.null(fit$VC)) {
 			vc_names <- colnames(fit$VC)
 			for (i in 1:ncol(fit$VC)) {
@@ -109,7 +138,7 @@ plot.lame <- function(x,
 				))
 			}
 		}
-		
+
 		if (!is.null(fit$BETA) && ncol(fit$BETA) > 0) {
 			n_beta <- min(6, ncol(fit$BETA))
 			beta_names <- colnames(fit$BETA)[1:n_beta]
@@ -123,22 +152,23 @@ plot.lame <- function(x,
 				))
 			}
 		}
-		
+
 		if (nrow(trace_data) > 0) {
+			trace_data$parameter <- relabel(trace_data$parameter, vc_labels)
+
 			p_trace <- ggplot(trace_data, aes(x = iteration, y = value)) +
-				geom_line(alpha = 0.7, color = "steelblue") +
+				geom_line(alpha = 0.7) +
 				facet_wrap(~ parameter, scales = "free_y", ncol = 3) +
 				labs(title = "MCMC Trace Plots", x = "Iteration", y = "Value") +
-				theme_minimal() +
-				theme(strip.text = element_text(size = 8))
-			
+				lame_theme
+
 			plot_list[["trace"]] <- p_trace
 		}
 	}
 	####
 
 	####
-	# density plots
+	# posterior density plots
 	if ("density" %in% plot_types) {
 		density_data <- data.frame()
 		
@@ -168,21 +198,22 @@ plot.lame <- function(x,
 		}
 		
 		if (nrow(density_data) > 0) {
+			density_data$parameter <- relabel(density_data$parameter, vc_labels)
+
 			p_density <- ggplot(density_data, aes(x = value)) +
-				geom_density(fill = "steelblue", alpha = 0.5) +
-				geom_vline(xintercept = 0, linetype = "dashed", color = "red", alpha = 0.5) +
+				geom_density() +
+				geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
 				facet_wrap(~ parameter, scales = "free", ncol = 3) +
 				labs(title = "Posterior Distributions", x = "Value", y = "Density") +
-				theme_minimal() +
-				theme(strip.text = element_text(size = 8))
-			
+				lame_theme
+
 			plot_list[["density"]] <- p_density
 		}
 	}
 	####
 
 	####
-	# gof plots
+	# goodness-of-fit plots
 	if ("gof" %in% plot_types) {
 		if (!is.null(fit$GOF_T)) {
 			gof_data_list <- fit$GOF_T
@@ -216,19 +247,18 @@ plot.lame <- function(x,
 			}
 			
 			if (nrow(gof_long_data) > 0) {
+				gof_long_data$statistic <- relabel(gof_long_data$statistic, gof_stat_labels)
+
 				p_gof <- ggplot(gof_long_data, aes(x = time)) +
-					geom_ribbon(aes(ymin = lower, ymax = upper), 
-										 alpha = 0.3, fill = "blue") +
-					geom_line(aes(y = median), color = "blue", 
-									 linewidth = 1, linetype = "dashed") +
+					geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
+					geom_line(aes(y = median), linewidth = 1, linetype = "dashed") +
 					geom_line(aes(y = observed), color = "red", linewidth = 1) +
 					geom_point(aes(y = observed), color = "red", size = 2) +
 					facet_wrap(~ statistic, scales = "free_y", ncol = 2) +
-					labs(title = "Longitudinal GOF: Observed (red) vs 95% Credible Intervals",
+					labs(title = "Longitudinal GOF: Observed (Red) vs 95% Credible Intervals",
 							 x = "Time Period", y = "Value") +
-					theme_minimal() +
-					theme(strip.text = element_text(size = 9))
-				
+					lame_theme
+
 				plot_list[["gof"]] <- p_gof
 			}
 		} else if (!is.null(fit$GOF) && is.array(fit$GOF) && length(dim(fit$GOF)) == 3) {
@@ -266,28 +296,27 @@ plot.lame <- function(x,
 			}
 			
 			if (nrow(gof_long_data) > 0) {
+				gof_long_data$statistic <- relabel(gof_long_data$statistic, gof_stat_labels)
+
 				p_gof <- ggplot(gof_long_data, aes(x = as.numeric(factor(time)))) +
-					geom_ribbon(aes(ymin = lower, ymax = upper), 
-										 alpha = 0.3, fill = "blue") +
-					geom_line(aes(y = median), color = "blue", 
-									 linewidth = 1, linetype = "dashed") +
+					geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
+					geom_line(aes(y = median), linewidth = 1, linetype = "dashed") +
 					geom_line(aes(y = observed), color = "red", linewidth = 1) +
 					geom_point(aes(y = observed), color = "red", size = 2) +
 					facet_wrap(~ statistic, scales = "free_y", ncol = 2) +
-					labs(title = "Longitudinal GOF: Observed (red) vs 95% Credible Intervals",
+					labs(title = "Longitudinal GOF: Observed (Red) vs 95% Credible Intervals",
 							 x = "Time Period", y = "Value") +
 					scale_x_continuous(breaks = 1:n_time, labels = time_names) +
-					theme_minimal() +
-					theme(strip.text = element_text(size = 9))
-				
+					lame_theme
+
 				plot_list[["gof"]] <- p_gof
 			}
 		} else if (!is.null(fit$GOF) && is.list(fit$GOF) && !is.data.frame(fit$GOF)) {
-			# gof as named list
+			# gof stored as named list
 			gof_long_data <- data.frame()
 			stat_names <- names(fit$GOF)
 			
-			# check for time-indexed data
+			# check for time-indexed gof data
 			if (ncol(fit$GOF[[1]]) > 1) {
 				n_time <- ncol(fit$GOF[[1]])
 				
@@ -315,23 +344,22 @@ plot.lame <- function(x,
 				}
 				
 				if (nrow(gof_long_data) > 0) {
+					gof_long_data$statistic <- relabel(gof_long_data$statistic, gof_stat_labels)
+
 					p_gof <- ggplot(gof_long_data, aes(x = time)) +
-						geom_ribbon(aes(ymin = lower, ymax = upper), 
-											 alpha = 0.3, fill = "blue") +
-						geom_line(aes(y = median), color = "blue", 
-										 linewidth = 1, linetype = "dashed") +
+						geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
+						geom_line(aes(y = median), linewidth = 1, linetype = "dashed") +
 						geom_line(aes(y = observed), color = "red", linewidth = 1) +
 						geom_point(aes(y = observed), color = "red", size = 2) +
 						facet_wrap(~ statistic, scales = "free_y", ncol = 2) +
-						labs(title = "Longitudinal GOF: Observed (red) vs 95% Credible Intervals",
+						labs(title = "Longitudinal GOF: Observed (Red) vs 95% Credible Intervals",
 								 x = "Time Period", y = "Value") +
-						theme_minimal() +
-						theme(strip.text = element_text(size = 9))
-					
+						lame_theme
+
 					plot_list[["gof"]] <- p_gof
 				}
 			} else {
-				# single time point, static gof
+				# single time point, use static gof display
 				gof_plot_data <- data.frame()
 				for (stat_name in stat_names) {
 					vals <- fit$GOF[[stat_name]][, 1]
@@ -349,23 +377,22 @@ plot.lame <- function(x,
 				}
 				
 				if (nrow(gof_plot_data) > 0) {
+					gof_plot_data$statistic <- relabel(gof_plot_data$statistic, gof_stat_labels)
+
 					p_gof <- ggplot(gof_plot_data, aes(x = value)) +
-						geom_histogram(aes(y = after_stat(density)), 
-													bins = 30, fill = "lightblue", 
-													color = "white", alpha = 0.7) +
-						geom_vline(aes(xintercept = observed), 
+						geom_histogram(aes(y = after_stat(density)), bins = 30) +
+						geom_vline(aes(xintercept = observed),
 											color = "red", linewidth = 1) +
 						facet_wrap(~ statistic, scales = "free", ncol = 2) +
-						labs(title = "GOF: Observed (red) vs Posterior Predictive",
+						labs(title = "GOF: Observed (Red) vs Posterior Predictive",
 								 x = "Value", y = "Density") +
-						theme_minimal() +
-						theme(strip.text = element_text(size = 9))
-					
+						lame_theme
+
 					plot_list[["gof"]] <- p_gof
 				}
 			}
 		} else if (!is.null(fit$GOF) && is.matrix(fit$GOF) && nrow(fit$GOF) > 1) {
-			# fallback to static gof (2D array)
+			# fallback: static gof from 2D matrix
 			gof_data <- fit$GOF
 			obs_vals <- gof_data[1, ]
 			pred_vals <- gof_data[-1, , drop = FALSE]
@@ -381,18 +408,17 @@ plot.lame <- function(x,
 				))
 			}
 			
+			gof_plot_data$statistic <- relabel(gof_plot_data$statistic, gof_stat_labels)
+
 			p_gof <- ggplot(gof_plot_data, aes(x = value)) +
-				geom_histogram(aes(y = after_stat(density)), 
-											bins = 30, fill = "lightblue", 
-											color = "white", alpha = 0.7) +
-				geom_vline(aes(xintercept = observed), 
+				geom_histogram(aes(y = after_stat(density)), bins = 30) +
+				geom_vline(aes(xintercept = observed),
 									color = "red", linewidth = 1) +
 				facet_wrap(~ statistic, scales = "free", ncol = 2) +
-				labs(title = "Goodness-of-Fit: Observed (red) vs Posterior Predictive",
+				labs(title = "Goodness-of-Fit: Observed (Red) vs Posterior Predictive",
 						 x = "Value", y = "Density") +
-				theme_minimal() +
-				theme(strip.text = element_text(size = 9))
-			
+				lame_theme
+
 			plot_list[["gof"]] <- p_gof
 		} else if ("gof" %in% plot_types) {
 			cli::cli_alert_info("No goodness-of-fit data available - consider setting {.arg gof=TRUE} in model fitting")
@@ -401,17 +427,17 @@ plot.lame <- function(x,
 	####
 
 	####
-	# effects plots
+	# additive and multiplicative effects
 	if ("effects" %in% plot_types) {
 		effects_plots <- list()
 		
 		if (!is.null(fit$APM) && !is.null(fit$BPM)) {
 			if (!is.null(fit$a_dynamic) && !is.null(fit$b_dynamic)) {
-				# time-varying effects from a_dynamic/b_dynamic
+				# time-varying effects from dynamic parameters
 				A <- fit$a_dynamic
 				B <- fit$b_dynamic
 				
-				# long format via as.table
+				# reshape to long format
 				df_a <- as.data.frame(as.table(A))
 				names(df_a) <- c("actor", "time", "effect")
 				df_a$type <- "Sender"
@@ -460,15 +486,15 @@ plot.lame <- function(x,
 						effects_time_data$name %in% top_actors$name, 
 					]
 					
-					p_effects_time <- ggplot(effects_time_data, 
-																	 aes(x = time, y = effect, 
+					p_effects_time <- ggplot(effects_time_data,
+																	 aes(x = time, y = effect,
 																			 color = name, linetype = type)) +
 						geom_line(alpha = 0.7) +
 						geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
 						labs(title = "Top 20 Actors: Effects Over Time",
 								 x = "Time Period", y = "Effect",
 								 color = "Actor", linetype = "Type") +
-						theme_minimal() +
+						lame_theme +
 						theme(legend.position = "right")
 					
 					effects_plots[["time_varying"]] <- p_effects_time
@@ -496,12 +522,10 @@ plot.lame <- function(x,
 					geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
 					geom_point(size = 1.5, alpha = 0.7) +
 					geom_segment(aes(xend = index, yend = 0), alpha = 0.5) +
-					scale_color_manual(values = c("Sender" = "steelblue", "Receiver" = "darkred")) +
-					labs(title = "Additive Effects (Time-Averaged)", 
-							 x = "Actor (sorted)", y = "Effect", color = "Type") +
-					theme_minimal() +
+					labs(title = "Additive Effects (Time-Averaged)",
+							 x = "Actor (Sorted)", y = "Effect", color = "Type") +
+					lame_theme +
 					theme(axis.text.x = element_blank(),
-								axis.ticks.x = element_blank(),
 								legend.position = "bottom")
 				
 				effects_plots[["additive"]] <- p_additive
@@ -510,7 +534,7 @@ plot.lame <- function(x,
 			cli::cli_alert_info("No additive effects available to plot")
 		}
 		
-		# multiplicative effects
+		# latent multiplicative effects
 		if (!is.null(fit$U) && !is.null(fit$V)) {
 			if (length(dim(fit$U)) == 3) {
 				U_2d <- apply(fit$U, c(1,2), mean)
@@ -521,7 +545,7 @@ plot.lame <- function(x,
 			}
 			
 			if (is.matrix(U_2d) && is.matrix(V_2d) && ncol(U_2d) > 0 && ncol(V_2d) > 0) {
-				# separate data frames for U and V (may differ in nrow for bipartite)
+				# separate data frames for U and V (nrow may differ for bipartite)
 				u_names <- rownames(U_2d)
 				if (is.null(u_names)) u_names <- paste0("U", seq_len(nrow(U_2d)))
 				v_names <- rownames(V_2d)
@@ -562,10 +586,9 @@ plot.lame <- function(x,
 					geom_point(size = 2, alpha = 0.7) +
 					geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
 					geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
-					scale_color_manual(values = c("U (Sender)" = "steelblue", "V (Receiver)" = "darkred")) +
 					labs(title = "Multiplicative Effects",
 							 x = "Dimension 1", y = "Dimension 2", color = "Type") +
-					theme_minimal() +
+					lame_theme +
 					coord_fixed()
 
 				effects_plots[["multiplicative"]] <- p_mult
@@ -583,7 +606,7 @@ plot.lame <- function(x,
 	####
 
 	####
-	# network snapshots
+	# network snapshots at selected time points
 	if ("network" %in% plot_types && !is.null(fit$Y_T)) {
 		n_time <- length(fit$Y_T)
 		
@@ -627,14 +650,19 @@ plot.lame <- function(x,
 					names(net_data)[names(net_data) %in% c("x", "y")] <- c("x_to", "y_to")
 					
 					p_net <- ggplot() +
-						geom_segment(data = net_data, 
+						geom_segment(data = net_data,
 												aes(x = x_from, y = y_from, xend = x_to, yend = y_to),
 												alpha = 0.3, color = "gray50") +
-						geom_point(data = node_positions, 
-											aes(x = x, y = y), 
-											size = 3, color = "steelblue") +
+						geom_point(data = node_positions,
+											aes(x = x, y = y), size = 3) +
 						labs(title = paste("Network at Time", t)) +
-						theme_void() +
+						theme_bw() +
+						theme(
+							panel.border = element_blank(),
+							axis.text = element_blank(),
+							axis.title = element_blank(),
+							panel.grid = element_blank()
+						) +
 						coord_fixed()
 					
 					network_plots[[paste0("t", t)]] <- p_net
@@ -653,7 +681,7 @@ plot.lame <- function(x,
 	####
 
 	####
-	# inform user about what's being plotted
+	# report which plots are generated
 	if (length(plot_list) > 0) {
 		plot_names <- names(plot_list)
 		cli::cli_alert_info("Generating LAME diagnostic plots: {.field {paste(plot_names, collapse=', ')}}")
@@ -662,9 +690,9 @@ plot.lame <- function(x,
 		return(invisible(NULL))
 	}
 	
-	# display plots
+	# render plots
 	if (pages == "single" && has_patchwork) {
-		# combine into one page
+		# single page layout
 		if (length(plot_list) > 0) {
 			cli::cli_alert_info("Combining plots into single page layout")
 			combined_plot <- patchwork::wrap_plots(plot_list, ncol = 1) +
@@ -675,7 +703,7 @@ plot.lame <- function(x,
 			print(combined_plot)
 		}
 	} else {
-		# separate pages
+		# multi-page layout
 		if (ask && length(plot_list) > 1) {
 			cli::cli_alert_info("Interactive mode: Press {.kbd Enter} to view each plot")
 			oask <- devAskNewPage(TRUE)
