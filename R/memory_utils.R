@@ -1,36 +1,23 @@
-# Memory optimization utilities for AME models
+# memory optimization utilities for AME models
 #
-# Functions to manage memory usage in AME models, especially for large networks.
-# For a network of size n x n with R latent dimensions:
-# - YPM: n x n matrix (8n^2 bytes for doubles)
-# - EZ: n x n matrix (8n^2 bytes)
-# - UVPM: n x n matrix (8n^2 bytes)
-# - U: n x R matrix (8nR bytes)
-# - V: n x R matrix (8nR bytes)
-#
-# For n=1000, each n x n matrix uses ~8MB. For n=10000, each uses ~800MB.
+# manages memory usage for large networks
+# each n x n matrix uses 8n^2 bytes (e.g., ~8MB for n=1000)
 
 #' Optimize AME model output for memory efficiency
 #' 
 #' @description
-#' Optimizes AME model storage by optionally removing redundant components
-#' and/or using sparse matrices based on user preferences.
-#' 
+#' Optimizes AME model storage by converting matrices to sparse format.
+#'
 #' @param fit Fitted AME model
 #' @param use_sparse_matrices Logical; whether to use sparse matrix storage (default: FALSE)
-#' 
+#'
 #' @return Memory-optimized AME model object
-#' 
+#'
 #' @details
-#' This function provides two optimization strategies:
-#' 
-#' 1. remove_redundant = TRUE: Removes redundant matrices (EZ, UVPM) that can be 
-#'    reconstructed if needed, keeping only essential components (BETA, VC, YPM).
-#'    Recommended for networks with > 100 nodes.
-#' 
-#' 2. use_sparse_matrices = TRUE: Converts matrices to sparse format. 
-#'    Only recommended when your network is actually sparse (< 10\% non-zero entries).
-#'    For dense networks, sparse storage will be slower and may use more memory.
+#' When \code{use_sparse_matrices = TRUE}, converts YPM, APM, and BPM to
+#' sparse matrices via the \pkg{Matrix} package. This is only beneficial
+#' when your network is actually sparse (< 10\% non-zero entries). For dense
+#' networks, sparse storage will be slower and may use more memory.
 #' 
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' 

@@ -236,31 +236,14 @@ simulate.ame <- function(
 			s2 <- max(s2, 0.01)
 		}
 		
-		# sample random effects
+		# sample fresh random effects from the generative model
 		if (bip) {
-			if (!is.null(fit$APM) && length(fit$APM) == nA) {
-				a <- rnorm(nA, mean = fit$APM, sd = sqrt(a_var))
-			} else {
-				a <- rnorm(nA, mean = 0, sd = sqrt(a_var))
-			}
-			if (!is.null(fit$BPM) && length(fit$BPM) == nB) {
-				b <- rnorm(nB, mean = fit$BPM, sd = sqrt(b_var))
-			} else {
-				b <- rnorm(nB, mean = 0, sd = sqrt(b_var))
-			}
+			a <- rnorm(nA, mean = 0, sd = sqrt(a_var))
+			b <- rnorm(nB, mean = 0, sd = sqrt(b_var))
 		} else {
-			if (!is.null(fit$APM) && length(fit$APM) > 0) {
-				a <- rnorm(n, mean = 0, sd = sqrt(a_var))
-			} else {
-				a <- rnorm(n, mean = 0, sd = sqrt(a_var))
-			}
-			
+			a <- rnorm(n, mean = 0, sd = sqrt(a_var))
 			if (!isTRUE(symmetric)) {
-				if (!is.null(fit$BPM) && length(fit$BPM) > 0) {
-					b <- rnorm(n, mean = 0, sd = sqrt(b_var))
-				} else {
-					b <- rnorm(n, mean = 0, sd = sqrt(b_var))
-				}
+				b <- rnorm(n, mean = 0, sd = sqrt(b_var))
 			} else {
 				b <- a
 			}

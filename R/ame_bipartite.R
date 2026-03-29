@@ -37,7 +37,7 @@ ame_bipartite <- function(
 		colnames(Y) <- paste0("colNode", 1:nB)
 	}
 	
-	n_eff <- floor((nscan - burn) / odens)
+	n_eff <- floor(nscan / odens)
 	
 	Sab0 <- prior$Sab0
 	if(is.null(Sab0)) Sab0 <- diag(2)
@@ -148,12 +148,14 @@ ame_bipartite <- function(
 		
 		if(R_row > 0) {
 			U <- matrix(rnorm(nA * R_row, 0, 0.1), nA, R_row)
+			rownames(U) <- rownames(Y)
 		} else {
 			U <- NULL
 		}
-		
+
 		if(R_col > 0) {
 			V <- matrix(rnorm(nB * R_col, 0, 0.1), nB, R_col)
+			rownames(V) <- colnames(Y)
 		} else {
 			V <- NULL
 		}
@@ -250,11 +252,30 @@ ame_bipartite <- function(
 		}
 		
 		n_total_stats <- n_base_stats + n_custom_stats
-		GOF <- matrix(NA, n_eff, n_total_stats)
-		
+		GOF <- matrix(NA, n_eff + 1, n_total_stats)
+
 		base_names <- c("sd.rowmean", "sd.colmean", "four.cycles")
 		all_names <- c(base_names, custom_gof_names)
 		colnames(GOF) <- all_names
+
+		# first row stores observed GOF statistics
+		GOF[1, 1:n_base_stats] <- gof_stats_bipartite(Y)
+		if(!is.null(custom_gof)) {
+			if(is.function(custom_gof)) {
+				tryCatch({
+					custom_vals <- custom_gof(Y)
+					GOF[1, (n_base_stats + 1):(n_base_stats + length(custom_vals))] <- custom_vals
+				}, error = function(e) {})
+			} else if(is.list(custom_gof)) {
+				for(i in seq_along(custom_gof)) {
+					if(is.function(custom_gof[[i]])) {
+						tryCatch({
+							GOF[1, n_base_stats + i] <- custom_gof[[i]](Y)
+						}, error = function(e) {})
+					}
+				}
+			}
+		}
 	} else {
 		GOF <- NULL
 		custom_gof <- NULL
@@ -656,19 +677,19 @@ ame_bipartite <- function(
 			
 			if(gof && iter_save <= n_eff) {
 				gof_vals <- gof_stats_bipartite(Y_sim)
-				GOF[iter_save, 1:3] <- gof_vals
+				GOF[iter_save + 1, 1:3] <- gof_vals
 
 				if(!is.null(custom_gof)) {
 					if(is.function(custom_gof)) {
 						tryCatch({
 							custom_vals <- custom_gof(Y_sim)
-							GOF[iter_save, (4):(3 + length(custom_vals))] <- custom_vals
+							GOF[iter_save + 1, (4):(3 + length(custom_vals))] <- custom_vals
 						}, error = function(e) {})
 					} else if(is.list(custom_gof)) {
 						for(i in seq_along(custom_gof)) {
 							if(is.function(custom_gof[[i]])) {
 								tryCatch({
-									GOF[iter_save, 3 + i] <- custom_gof[[i]](Y)
+									GOF[iter_save + 1, 3 + i] <- custom_gof[[i]](Y)
 								}, error = function(e) {})
 							}
 						}

@@ -71,9 +71,18 @@ trace_plot <- function(
 	if (!inherits(fit, c("ame", "lame"))) {
 		stop("fit must be an object of class 'ame' or 'lame'")
 	}
-	
+
 	params <- match.arg(params)
 	plot_data <- data.frame()
+
+	# label mapping for variance components
+	vc_labels <- c(
+		"va" = "Sender Variance",
+		"vb" = "Receiver Variance",
+		"cab" = "Sender-Receiver Covariance",
+		"rho" = "Dyadic Correlation",
+		"ve" = "Error Variance"
+	)
 
 	####
 
@@ -133,6 +142,13 @@ trace_plot <- function(
 
 	####
 
+	# apply display labels
+	plot_data$parameter <- ifelse(
+		plot_data$parameter %in% names(vc_labels),
+		vc_labels[plot_data$parameter],
+		plot_data$parameter
+	)
+
 	if (!is.null(include)) {
 		plot_data <- plot_data[plot_data$parameter %in% include, ]
 	}
@@ -147,35 +163,37 @@ trace_plot <- function(
 	####
 
 	trace_plots <- ggplot(plot_data, aes(x = iteration, y = value)) +
-		geom_line(alpha = 0.7, color = "black") +
+		geom_line(alpha = 0.7) +
 		facet_wrap(~ parameter, scales = "free_y",
 							ncol = ncol, nrow = nrow) +
 		labs(
 			x = "Iteration",
 			y = "Value"
 		) +
-		theme_minimal() +
+		theme_bw() +
 		theme(
-			strip.text = element_text(size = 9, face = "bold"),
-			panel.spacing = unit(0.5, "lines"),
-			axis.ticks = element_blank()
+			panel.border = element_blank(),
+			strip.background = element_rect(fill = "black", color = "black"),
+			strip.text = element_text(color = "white", hjust = 0, size = 9),
+			panel.spacing = unit(0.5, "lines")
 		)
 
 	####
 
 	density_plots <- ggplot(plot_data, aes(x = value)) +
-		geom_density(fill = "gray50", alpha = 0.5) +
+		geom_density() +
 		facet_wrap(~ parameter, scales = "free",
 							ncol = ncol, nrow = nrow) +
 		labs(
 			x = "Value",
 			y = "Density"
 		) +
-		theme_minimal() +
+		theme_bw() +
 		theme(
-			strip.text = element_text(size = 9, face = "bold"),
-			panel.spacing = unit(0.5, "lines"),
-			axis.ticks = element_blank()
+			panel.border = element_blank(),
+			strip.background = element_rect(fill = "black", color = "black"),
+			strip.text = element_text(color = "white", hjust = 0, size = 9),
+			panel.spacing = unit(0.5, "lines")
 		)
 
 	####

@@ -114,7 +114,7 @@ summary.ame.sim <- function(object, ...) {
 	
 	cli::cli_h2("Summary of AME Network Simulations")
 	
-	# Basic info
+	# basic info
 	cli::cli_alert_info("Simulations: {.val {length(x$Y)}}, Family: {.emph {x$family}}, Mode: {.emph {x$mode}}")
 	
 	# summary stats
@@ -207,7 +207,7 @@ summary.lame.sim <- function(object, ...) {
 	n_sims <- length(x$Y)
 	n_time <- x$n_time
 	
-	# Basic info
+	# basic info
 	cli::cli_alert_info("Trajectories: {.val {n_sims}}, Time periods: {.val {n_time}}, Family: {.emph {x$family}}, Mode: {.emph {x$mode}}")
 	
 	# binary: density over time

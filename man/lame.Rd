@@ -64,9 +64,9 @@ decrease across observation periods. The AR(1) specification ensures temporal sm
 while allowing for actor-specific evolution patterns. Implementation uses conjugate
 updates where possible and C++ for computational efficiency. Default FALSE.}
 
-\item{dynamic_G}{logical: for bipartite networks, fit dynamic interaction matrix G that
-evolves over time. When TRUE, the rectangular interaction matrix G becomes time-varying,
-allowing the mapping between row and column latent spaces to change over time. Default FALSE.}
+\item{dynamic_G}{logical: reserved for future use. Dynamic interaction matrix G
+is not yet implemented. Setting this to TRUE will produce a warning; the
+parameter is accepted for forward compatibility only. Default FALSE.}
 
 \item{family}{character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 the details below}
@@ -281,9 +281,7 @@ When dynamic_uv=TRUE for bipartite networks:
 \deqn{V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}}
 where i indexes row nodes, j indexes column nodes, k indexes latent dimensions.
 
-When dynamic_G=TRUE, the interaction matrix also evolves:
-\deqn{G_{k,l,t} = \rho_G G_{k,l,t-1} + \xi_{k,l,t}}
-allowing the mapping between row and column latent spaces to change over time.
+Note: dynamic_G is reserved for future use and not yet implemented.
 
 \emph{Key Differences from Unipartite Models:}
 \itemize{

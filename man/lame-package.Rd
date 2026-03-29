@@ -11,15 +11,15 @@ data with several key enhancements: (1) robust handling of changing actor
 compositions across time periods, allowing for networks with different sets
 of actors at each time point; (2) significant performance improvements through
 C++ implementations via Rcpp and RcppArmadillo; (3) specialized functions for
-temporal network dynamics. The package supports various data types including
-binary/network data (bin), normal relational data (nrm), ordinal relational
-data (ord), censored binary data (cbin), fixed-rank nomination schemes (frn),
-and row-ranked data (rrl). Based on the AME framework originally developed
+temporal network dynamics. The package supports eight data types:
+normal (nrm), binary (bin), ordinal (ord), Poisson count (poisson),
+tobit/censored continuous (tobit), censored binary (cbin),
+fixed-rank nomination (frn), and row-ranked (rrl). Based on the AME framework originally developed
 by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).
 }
 \details{
 \tabular{ll}{ Package: \tab lame\cr Type: \tab Package\cr Version: \tab
-0.0.0.9000 \cr Date: \tab 2025 \cr License: \tab MIT \cr }
+1.0.0 \cr Date: \tab 2026 \cr License: \tab MIT \cr }
 }
 \examples{
 \donttest{
@@ -35,6 +35,6 @@ summary(fit)
 \author{
 Shahryar Minhas, Tosin Salau, Cassy Dorff
 
-Maintainer: Shahryar Minhas \href{mailto:sminhas@example.com}{sminhas@example.com}
+Maintainer: Shahryar Minhas \href{mailto:minhassh@msu.edu}{minhassh@msu.edu}
 }
 \keyword{internal}

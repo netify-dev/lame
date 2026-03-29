@@ -10,13 +10,26 @@
 \method{coef}{lame}(object, ...)
 }
 \arguments{
-\item{object}{fitted AME model (class "ame")}
+\item{object}{Fitted AME model (class \code{"ame"} or \code{"lame"}).}
 
-\item{...}{additional arguments (ignored)}
+\item{...}{Additional arguments (ignored).}
 }
 \value{
-named numeric vector of posterior mean coefficients
+Named numeric vector of posterior mean coefficients.
 }
 \description{
-Returns posterior means of regression coefficients.
+Returns posterior means of regression coefficients from a fitted AME or
+LAME model. The coefficients correspond to the columns of the \code{BETA}
+matrix stored in the model object, which records one draw per post-burn-in
+MCMC iteration. The posterior mean is computed as \code{colMeans(BETA)}.
+}
+\details{
+For binary models, these are on the probit (latent) scale. Use
+\code{\link{predict.ame}} with \code{type = "response"} to get predicted
+probabilities.
+}
+\seealso{
+\code{\link{vcov.ame}} for the posterior covariance matrix,
+\code{\link{confint.ame}} for credible intervals,
+\code{\link{summary.ame}} for a full summary table
 }

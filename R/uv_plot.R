@@ -389,11 +389,11 @@ uv_plot <- function(
 	
 	p <- p +
 		scale_size_continuous(range = c(2, 6), guide = "none") +
-		theme_minimal() +
+		theme_bw() +
 		theme(
+			panel.border = element_blank(),
 			axis.text = element_blank(),
 			axis.title = element_blank(),
-			axis.ticks = element_blank(),
 			panel.grid = element_blank(),
 			legend.position = "bottom"
 		) +
@@ -467,8 +467,8 @@ uv_plot_dynamic_internal <- function(fit, U, V, time_point, plot_type,
 		
 		p <- ggplot(positions, aes(x = x, y = y)) +
 			geom_point(aes(color = if (!is.null(colors)) colors else type), size = 3) +
-			theme_minimal() +
-			theme(axis.ticks = element_blank()) +
+			theme_bw() +
+			theme(panel.border = element_blank()) +
 			coord_fixed() +
 			labs(x = "Dimension 1", y = "Dimension 2")
 		
@@ -517,8 +517,8 @@ uv_plot_dynamic_internal <- function(fit, U, V, time_point, plot_type,
 		
 		p <- ggplot(traj_data, aes(x = x, y = y, group = interaction(node, type))) +
 			geom_path(aes(color = node, linetype = type), alpha = 0.5) +
-			theme_minimal() +
-			theme(axis.ticks = element_blank()) +
+			theme_bw() +
+			theme(panel.border = element_blank()) +
 			coord_fixed() +
 			labs(x = "Dimension 1", y = "Dimension 2")
 		
@@ -595,8 +595,12 @@ uv_plot_dynamic_internal <- function(fit, U, V, time_point, plot_type,
 			geom_point(aes(color = if (!is.null(colors)) colors else type,
 										shape = type), size = 2) +
 			facet_wrap(~ time, scales = "free") +
-			theme_minimal() +
-			theme(axis.ticks = element_blank()) +
+			theme_bw() +
+			theme(
+				panel.border = element_blank(),
+				strip.background = element_rect(fill = "black", color = "black"),
+				strip.text = element_text(color = "white", hjust = 0)
+			) +
 			coord_fixed() +
 			labs(x = "Dimension 1", y = "Dimension 2")
 		

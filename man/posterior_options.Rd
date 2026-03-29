@@ -16,7 +16,9 @@ posterior_options(save_UV = FALSE, save_ab = FALSE, thin_UV = 10, thin_ab = 10)
 \item{thin_ab}{Integer; thinning interval for a/b samples (default 10)}
 }
 \value{
-List of posterior saving options
+List of posterior saving options, to be passed to the
+\code{posterior_opts} argument of \code{\link{ame}}:
+\code{ame(Y, ..., posterior_opts = posterior_options(save_UV = TRUE))}
 }
 \description{
 Options for saving posterior samples during MCMC
