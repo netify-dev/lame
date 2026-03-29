@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,7 +64,10 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Bipartite Network Analysis</h1>
+                        <h4 data-toc-skip class="author">Cassy Dorff,
+Shahryar Minhas, and Tosin Salau</h4>
             
+            <h4 data-toc-skip class="date">2026-03-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/bipartite.Rmd" class="external-link"><code>vignettes/bipartite.Rmd</code></a></small>
       <div class="d-none name"><code>bipartite.Rmd</code></div>
@@ -154,23 +157,24 @@ attracts. The interaction matrix
 determines how these latent dimensions combine to predict
 enrollment.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Simulate a student-course enrollment network</span></span>
+<code class="sourceCode R"><span><span class="co"># simulate a student-course enrollment network</span></span>
 <span><span class="va">n_students</span> <span class="op">&lt;-</span> <span class="fl">30</span></span>
 <span><span class="va">n_courses</span> <span class="op">&lt;-</span> <span class="fl">20</span></span>
 <span></span>
-<span><span class="co"># True latent positions (unobserved in practice)</span></span>
-<span><span class="va">U_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_students</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span>, <span class="va">n_students</span>, <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="va">V_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_courses</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span>, <span class="va">n_courses</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="co"># true latent positions (unobserved in practice)</span></span>
+<span><span class="va">U_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_students</span> <span class="op">*</span> <span class="fl">2</span>, <span class="fl">0</span>, <span class="fl">0.8</span><span class="op">)</span>, <span class="va">n_students</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="va">V_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_courses</span> <span class="op">*</span> <span class="fl">2</span>, <span class="fl">0</span>, <span class="fl">0.8</span><span class="op">)</span>, <span class="va">n_courses</span>, <span class="fl">2</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Interaction matrix: dimension 1 has positive affinity,</span></span>
+<span><span class="co"># interaction matrix: dimension 1 has positive affinity,</span></span>
 <span><span class="co"># dimension 2 has negative (students high on dim 2 avoid courses high on dim 2)</span></span>
 <span><span class="va">G_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0.5</span>, <span class="fl">0.5</span>, <span class="op">-</span><span class="fl">1</span><span class="op">)</span>, <span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Generate enrollment probabilities and binary outcomes</span></span>
-<span><span class="va">eta</span> <span class="op">&lt;-</span> <span class="va">U_true</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">G_true</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">V_true</span><span class="op">)</span></span>
-<span><span class="va">prob</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="va">eta</span><span class="op">)</span></span>
+<span><span class="co"># generate enrollment probabilities and binary outcomes</span></span>
+<span><span class="co"># negative intercept keeps enrollment rate realistic (~25-30%)</span></span>
+<span><span class="va">eta</span> <span class="op">&lt;-</span> <span class="op">-</span><span class="fl">0.8</span> <span class="op">+</span> <span class="va">U_true</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">G_true</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">V_true</span><span class="op">)</span></span>
+<span><span class="va">prob</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">pnorm</a></span><span class="op">(</span><span class="va">eta</span><span class="op">)</span></span>
 <span><span class="va">Y_bipartite</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_students</span> <span class="op">*</span> <span class="va">n_courses</span>, <span class="fl">1</span>, <span class="va">prob</span><span class="op">)</span>,</span>
-<span>                      <span class="va">n_students</span>, <span class="va">n_courses</span><span class="op">)</span></span>
+<span>                                            <span class="va">n_students</span>, <span class="va">n_courses</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Y_bipartite</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Student"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n_students</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Y_bipartite</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Course"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n_courses</span><span class="op">)</span></span>
@@ -178,7 +182,7 @@ enrollment.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Network dimensions:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">Y_bipartite</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Network dimensions: 30 20</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Enrollment rate:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Y_bipartite</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Enrollment rate: 0.54</span></span></code></pre></div>
+<span><span class="co">#&gt; Enrollment rate: 0.29</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="fitting-the-model">Fitting the Model<a class="anchor" aria-label="anchor" href="#fitting-the-model"></a>
@@ -188,18 +192,18 @@ enrollment.</p>
 each node type separately via <code>R_row</code> and
 <code>R_col</code>.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Note: burn/nscan are kept small here for fast vignette building.</span></span>
-<span><span class="co"># For real analyses, use burn &gt;= 1000 and nscan &gt;= 5000.</span></span>
+<code class="sourceCode R"><span><span class="co"># note: burn/nscan are kept small here for fast vignette building.</span></span>
+<span><span class="co"># for real analyses, use burn &gt;= 1000 and nscan &gt;= 5000.</span></span>
 <span><span class="va">fit_cross</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span></span>
-<span>  Y <span class="op">=</span> <span class="va">Y_bipartite</span>,</span>
-<span>  mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
-<span>  R_row <span class="op">=</span> <span class="fl">2</span>,              <span class="co"># latent dimensions for students</span></span>
-<span>  R_col <span class="op">=</span> <span class="fl">2</span>,              <span class="co"># latent dimensions for courses</span></span>
-<span>  family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
-<span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
-<span>  odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>    Y <span class="op">=</span> <span class="va">Y_bipartite</span>,</span>
+<span>    mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
+<span>    R_row <span class="op">=</span> <span class="fl">2</span>,              <span class="co"># latent dimensions for students</span></span>
+<span>    R_col <span class="op">=</span> <span class="fl">2</span>,              <span class="co"># latent dimensions for courses</span></span>
+<span>    family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span>    burn <span class="op">=</span> <span class="fl">100</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">500</span>,</span>
+<span>    odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">)</span></span>
@@ -211,27 +215,30 @@ each node type separately via <code>R_row</code> and
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
-<span><span class="co">#&gt;       Estimate StdError z_value p_value CI_lower CI_upper  </span></span>
-<span><span class="co">#&gt; beta0    0.136    0.167   0.815   0.415   -0.192    0.464  </span></span>
+<span><span class="co">#&gt;       Estimate StdError z_value p_value CI_lower CI_upper   </span></span>
+<span><span class="co">#&gt; beta0   -0.597    0.195  -3.062   0.002   -0.963   -0.221 **</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
+<span><span class="co">#&gt; Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.248    0.093</span></span>
+<span><span class="co">#&gt; va     0.309    0.120</span></span>
 <span><span class="co">#&gt; cab    0.000    0.000</span></span>
-<span><span class="co">#&gt; vb     0.334    0.112</span></span>
+<span><span class="co">#&gt; vb     0.401    0.135</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt; rho    0.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span>
 <span><span class="co">#&gt;   Note: bipartite model (rho fixed to 0, cab fixed to 0)</span></span></code></pre></div>
-<p>The output includes posterior means for the student latent positions
-(<code>U</code>), course latent positions (<code>V</code>), and the
-interaction matrix (<code>G</code>), along with additive effects:
-<code>APM</code> for student activity levels and <code>BPM</code> for
-course popularity.</p>
+<p>The summary shows the regression coefficient (just an intercept here,
+since we included no covariates) and the variance components. The fitted
+object also stores the student latent positions (<code>U</code>), course
+latent positions (<code>V</code>), the interaction matrix
+(<code>G</code>), and additive effects (<code>APM</code> for student
+activity, <code>BPM</code> for course popularity), which we’ll visualize
+next.</p>
 </div>
 <div class="section level3">
 <h3 id="visualizing-the-latent-space">Visualizing the Latent Space<a class="anchor" aria-label="anchor" href="#visualizing-the-latent-space"></a>
@@ -243,23 +250,43 @@ courses that appear close together in this plot have a higher predicted
 probability of a tie.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_cross</span>, layout <span class="op">=</span> <span class="st">"biplot"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Bipartite Latent Space: Students and Courses"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/visualize_cross_sectional-1.png" class="r-plt" alt="" width="672"></p>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Bipartite Latent Space: Students and Courses"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="bipartite_files/figure-html/visualize_cross_sectional-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
 <p>The interaction matrix
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
-tells us how the latent dimensions relate to each other. Positive
-entries mean that students and courses that score similarly on a
-dimension are more likely to be connected; negative entries mean the
-opposite.</p>
+mediates how the latent dimensions of students and courses combine to
+predict ties. Keep in mind that
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>,
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>
+are only identified up to rotation and scaling: the model can absorb
+rotations of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>
+into
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>,
+so the individual entries of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+do not have a stable interpretation across runs. What is identified is
+the overall product
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>G</mi><mi>V</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">UGV'</annotation></semantics></math>,
+which captures the latent structure of the network. The diagonal entries
+of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+indicate the overall strength of the latent factor association, while
+off-diagonal entries indicate cross-dimension interactions.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">G_melt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/reshape2/man/melt.html" class="external-link">melt</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">$</span><span class="va">G</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">G_melt</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">Var2</span>, y <span class="op">=</span> <span class="va">Var1</span>, fill <span class="op">=</span> <span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_tile</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_gradient.html" class="external-link">scale_fill_gradient2</a></span><span class="op">(</span>low <span class="op">=</span> <span class="st">"blue"</span>, mid <span class="op">=</span> <span class="st">"white"</span>, high <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Estimated Interaction Matrix G"</span>,</span>
-<span>       x <span class="op">=</span> <span class="st">"Column Dimension"</span>, y <span class="op">=</span> <span class="st">"Row Dimension"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/interaction_heatmap-1.png" class="r-plt" alt="" width="672"></p>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_tile</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_gradient.html" class="external-link">scale_fill_gradient2</a></span><span class="op">(</span>low <span class="op">=</span> <span class="st">"blue"</span>, mid <span class="op">=</span> <span class="st">"white"</span>, high <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Estimated Interaction Matrix G"</span>,</span>
+<span>            x <span class="op">=</span> <span class="st">"Column Dimension"</span>, y <span class="op">=</span> <span class="st">"Row Dimension"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><img src="bipartite_files/figure-html/interaction_heatmap-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
 </div>
 </div>
 <div class="section level2">
@@ -286,12 +313,12 @@ random shocks to the overall baseline at each period.</p>
 <span></span>
 <span><span class="va">Y_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="kw">for</span><span class="op">(</span><span class="va">t</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="va">n_periods</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">eta_t</span> <span class="op">&lt;-</span> <span class="va">U_long</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">G_long</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">V_long</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">0.2</span><span class="op">)</span></span>
-<span>  <span class="va">prob_t</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="va">eta_t</span><span class="op">)</span></span>
-<span>  <span class="va">Y_list</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_users</span> <span class="op">*</span> <span class="va">n_items</span>, <span class="fl">1</span>, <span class="va">prob_t</span><span class="op">)</span>,</span>
-<span>                        <span class="va">n_users</span>, <span class="va">n_items</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Y_list</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"User"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n_users</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Y_list</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Item"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n_items</span><span class="op">)</span></span>
+<span>    <span class="va">eta_t</span> <span class="op">&lt;-</span> <span class="va">U_long</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">G_long</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">V_long</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">0.2</span><span class="op">)</span></span>
+<span>    <span class="va">prob_t</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">pnorm</a></span><span class="op">(</span><span class="va">eta_t</span><span class="op">)</span></span>
+<span>    <span class="va">Y_list</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_users</span> <span class="op">*</span> <span class="va">n_items</span>, <span class="fl">1</span>, <span class="va">prob_t</span><span class="op">)</span>,</span>
+<span>                                                <span class="va">n_users</span>, <span class="va">n_items</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Y_list</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"User"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n_users</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Y_list</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Item"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n_items</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">Y_list</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"T"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n_periods</span><span class="op">)</span></span>
 <span></span>
@@ -300,7 +327,7 @@ random shocks to the overall baseline at each period.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Dimensions per period:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">Y_list</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Dimensions per period: 20 15</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Average density:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">Y_list</span>, <span class="va">mean</span><span class="op">)</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Average density: 0.51</span></span></code></pre></div>
+<span><span class="co">#&gt; Average density: 0.52</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="static-model">Static Model<a class="anchor" aria-label="anchor" href="#static-model"></a>
@@ -311,21 +338,21 @@ together to get a single estimate of each actor’s latent position,
 useful when you believe the underlying structure is stable and you just
 want more data to estimate it precisely.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Note: iterations are kept small for vignette speed; use burn &gt;= 1000</span></span>
+<code class="sourceCode R"><span><span class="co"># note: iterations are kept small for vignette speed; use burn &gt;= 1000</span></span>
 <span><span class="co"># and nscan &gt;= 5000 for real analyses.</span></span>
 <span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
-<span>  Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
-<span>  mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
-<span>  R_row <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  R_col <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>  dynamic_uv <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  dynamic_ab <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
-<span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
-<span>  odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  plot <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>    Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
+<span>    mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
+<span>    R_row <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>    R_col <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>    family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span>    dynamic_uv <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>    dynamic_ab <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>    burn <span class="op">=</span> <span class="fl">100</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">500</span>,</span>
+<span>    odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>    plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">)</span></span>
@@ -342,20 +369,22 @@ want more data to estimate it precisely.</p>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper  </span></span>
-<span><span class="co">#&gt; intercept    0.023    0.159   0.147   0.883   -0.289    0.336  </span></span>
+<span><span class="co">#&gt; intercept    0.056    0.159   0.354   0.723   -0.227    0.313  </span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
+<span><span class="co">#&gt; Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.235    0.075</span></span>
+<span><span class="co">#&gt; va     0.234    0.075</span></span>
 <span><span class="co">#&gt; cab    0.000    0.000</span></span>
-<span><span class="co">#&gt; vb     0.268    0.101</span></span>
+<span><span class="co">#&gt; vb     0.267    0.100</span></span>
 <span><span class="co">#&gt; rho    0.000    0.000</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
-<span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
+<span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span>
+<span><span class="co">#&gt;   Note: bipartite model (rho fixed to 0, cab fixed to 0)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="dynamic-model">Dynamic Model<a class="anchor" aria-label="anchor" href="#dynamic-model"></a>
@@ -368,20 +397,20 @@ autoregressive parameter
 close to 1) means slow, gradual change; a low one means the structure is
 more volatile from period to period.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Same reduced iterations as above for vignette speed.</span></span>
+<code class="sourceCode R"><span><span class="co"># same reduced iterations as above for vignette speed.</span></span>
 <span><span class="va">fit_dynamic</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
-<span>  Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
-<span>  mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
-<span>  R_row <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  R_col <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>  dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  burn <span class="op">=</span> <span class="fl">100</span>,</span>
-<span>  nscan <span class="op">=</span> <span class="fl">500</span>,</span>
-<span>  odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  plot <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>    Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
+<span>    mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
+<span>    R_row <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>    R_col <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>    family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span>    dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    burn <span class="op">=</span> <span class="fl">100</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">500</span>,</span>
+<span>    odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>    plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">)</span></span>
@@ -394,26 +423,36 @@ more volatile from period to period.</p>
 <span><span class="co">#&gt; Time periods: 5 </span></span>
 <span><span class="co">#&gt; Family: binary </span></span>
 <span><span class="co">#&gt; Mode: bipartite </span></span>
-<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.391 )</span></span>
+<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0 )</span></span>
 <span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.485 )</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper  </span></span>
-<span><span class="co">#&gt; intercept   -0.003    0.038  -0.084   0.933   -0.078    0.072  </span></span>
+<span><span class="co">#&gt; intercept   -0.003    0.038   -0.07   0.944   -0.085    0.067  </span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
+<span><span class="co">#&gt; Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.241    0.075</span></span>
+<span><span class="co">#&gt; va     0.236    0.074</span></span>
 <span><span class="co">#&gt; cab    0.000    0.000</span></span>
-<span><span class="co">#&gt; vb     0.268    0.086</span></span>
+<span><span class="co">#&gt; vb     0.272    0.088</span></span>
 <span><span class="co">#&gt; rho    0.000    0.000</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
-<span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
+<span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span>
+<span><span class="co">#&gt;   Note: bipartite model (rho fixed to 0, cab fixed to 0)</span></span></code></pre></div>
+<p>The dynamic model reports estimated AR(1) persistence parameters for
+the latent positions (<code>rho_uv</code>) and additive effects
+(<code>rho_ab</code>). Since our simulated data uses the same latent
+structure across all time periods, these parameters reflect the
+interplay between the prior (which favors persistence) and the lack of
+temporal variation in the data. In real applications where user
+preferences or item popularity genuinely shift over time, you would see
+these parameters more clearly informed by the data.</p>
 </div>
 <div class="section level3">
 <h3 id="visualizing-temporal-evolution">Visualizing Temporal Evolution<a class="anchor" aria-label="anchor" href="#visualizing-temporal-evolution"></a>
@@ -425,15 +464,15 @@ period, revealing which actors’ roles are stable and which are
 shifting.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Dynamic Latent Positions: Trajectories Over Time"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/visualize_longitudinal-1.png" class="r-plt" alt="" width="672"></p>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Dynamic Latent Positions: Trajectories Over Time"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="bipartite_files/figure-html/visualize_longitudinal-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
 <p>Convergence diagnostics are especially important for dynamic models,
 since the additional parameters
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>,
 innovation variances) need adequate samples to be well-estimated.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/trace_dynamic-1.png" class="r-plt" alt="" width="672"></p>
+<p><img src="bipartite_files/figure-html/trace_dynamic-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
 </div>
 </div>
 <div class="section level2">
@@ -446,10 +485,10 @@ observed statistics, the extra flexibility is paying off.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># GOF plots for each model</span></span>
 <span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/model_comparison-1.png" class="r-plt" alt="" width="672"></p>
+<p><img src="bipartite_files/figure-html/model_comparison-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/model_comparison-2.png" class="r-plt" alt="" width="672"></p>
+<p><img src="bipartite_files/figure-html/model_comparison-2.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
 <p>We can also compare the GOF statistics directly. For bipartite
 networks, the key statistics are the standard deviation of row means
 (how much users vary in activity), the standard deviation of column
@@ -460,27 +499,62 @@ in unipartite networks).</p>
 <code class="sourceCode R"><span><span class="va">gof_static</span> <span class="op">&lt;-</span> <span class="va">fit_static</span><span class="op">$</span><span class="va">GOF</span></span>
 <span><span class="va">gof_dynamic</span> <span class="op">&lt;-</span> <span class="va">fit_dynamic</span><span class="op">$</span><span class="va">GOF</span></span>
 <span></span>
-<span><span class="va">gof_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  value <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">gof_static</span><span class="op">$</span><span class="va">sd.rowmean</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">gof_dynamic</span><span class="op">$</span><span class="va">sd.rowmean</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">gof_static</span><span class="op">$</span><span class="va">sd.colmean</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">gof_dynamic</span><span class="op">$</span><span class="va">sd.colmean</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">gof_static</span><span class="op">$</span><span class="va">four.cycles</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">gof_dynamic</span><span class="op">$</span><span class="va">four.cycles</span><span class="op">)</span></span>
-<span>  <span class="op">)</span>,</span>
-<span>  model <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Static"</span>, <span class="st">"Dynamic"</span><span class="op">)</span>, <span class="fl">3</span>,</span>
-<span>              each <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">gof_static</span><span class="op">$</span><span class="va">sd.rowmean</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  statistic <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Row Mean SD"</span>, <span class="st">"Column Mean SD"</span>, <span class="st">"Four-Cycles"</span><span class="op">)</span>,</span>
-<span>                  each <span class="op">=</span> <span class="fl">2</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">gof_static</span><span class="op">$</span><span class="va">sd.rowmean</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># extract posterior predictive samples (exclude column 1, which is observed)</span></span>
+<span><span class="co"># each element is a matrix [n_time x n_mcmc], so colMeans averages across time</span></span>
+<span><span class="va">extract_ppc</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">gof</span>, <span class="va">stat</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">mat</span> <span class="op">&lt;-</span> <span class="va">gof</span><span class="op">[[</span><span class="va">stat</span><span class="op">]</span><span class="op">]</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">mat</span><span class="op">[</span>, <span class="op">-</span><span class="fl">1</span>, drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># observed values (column 1, averaged across time periods)</span></span>
+<span><span class="va">obs_vals</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">gof_static</span><span class="op">$</span><span class="va">sd.rowmean</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">gof_static</span><span class="op">$</span><span class="va">sd.colmean</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">gof_static</span><span class="op">$</span><span class="va">four.cycles</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">gof_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">model</span>, y <span class="op">=</span> <span class="va">value</span>, fill <span class="op">=</span> <span class="va">model</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_boxplot.html" class="external-link">geom_boxplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_fill_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>Dynamic <span class="op">=</span> <span class="st">"#D94A4A"</span>, Static <span class="op">=</span> <span class="st">"#4A90D9"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/facet_wrap.html" class="external-link">facet_wrap</a></span><span class="op">(</span><span class="op">~</span><span class="va">statistic</span>, scales <span class="op">=</span> <span class="st">"free_y"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"GOF Comparison: Static vs Dynamic"</span>,</span>
-<span>       x <span class="op">=</span> <span class="st">"Model"</span>, y <span class="op">=</span> <span class="st">"GOF Statistic"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>legend.position <span class="op">=</span> <span class="st">"none"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/model_comparison_boxplot-1.png" class="r-plt" alt="" width="672"></p>
+<span><span class="va">gof_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>    value <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>        <span class="fu">extract_ppc</span><span class="op">(</span><span class="va">gof_static</span>, <span class="st">"sd.rowmean"</span><span class="op">)</span>,</span>
+<span>        <span class="fu">extract_ppc</span><span class="op">(</span><span class="va">gof_dynamic</span>, <span class="st">"sd.rowmean"</span><span class="op">)</span>,</span>
+<span>        <span class="fu">extract_ppc</span><span class="op">(</span><span class="va">gof_static</span>, <span class="st">"sd.colmean"</span><span class="op">)</span>,</span>
+<span>        <span class="fu">extract_ppc</span><span class="op">(</span><span class="va">gof_dynamic</span>, <span class="st">"sd.colmean"</span><span class="op">)</span>,</span>
+<span>        <span class="fu">extract_ppc</span><span class="op">(</span><span class="va">gof_static</span>, <span class="st">"four.cycles"</span><span class="op">)</span>,</span>
+<span>        <span class="fu">extract_ppc</span><span class="op">(</span><span class="va">gof_dynamic</span>, <span class="st">"four.cycles"</span><span class="op">)</span></span>
+<span>    <span class="op">)</span>,</span>
+<span>    model <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Static"</span>, <span class="st">"Dynamic"</span><span class="op">)</span>,</span>
+<span>                            each <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">gof_static</span><span class="op">$</span><span class="va">sd.rowmean</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>,</span>
+<span>    statistic <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Row Mean SD"</span>, <span class="st">"Column Mean SD"</span>, <span class="st">"Four-Cycles"</span><span class="op">)</span>,</span>
+<span>                                    each <span class="op">=</span> <span class="fl">2</span> <span class="op">*</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">gof_static</span><span class="op">$</span><span class="va">sd.rowmean</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">obs_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>    statistic <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Row Mean SD"</span>, <span class="st">"Column Mean SD"</span>, <span class="st">"Four-Cycles"</span><span class="op">)</span>,</span>
+<span>    observed <span class="op">=</span> <span class="va">obs_vals</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">gof_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">model</span>, y <span class="op">=</span> <span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_boxplot.html" class="external-link">geom_boxplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_hline</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">obs_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>yintercept <span class="op">=</span> <span class="va">observed</span><span class="op">)</span>,</span>
+<span>                        linetype <span class="op">=</span> <span class="fl">2</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/facet_wrap.html" class="external-link">facet_wrap</a></span><span class="op">(</span><span class="op">~</span><span class="va">statistic</span>, scales <span class="op">=</span> <span class="st">"free_y"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"GOF Comparison: Static vs Dynamic"</span>,</span>
+<span>            subtitle <span class="op">=</span> <span class="st">"Dashed Line = Observed Value"</span>,</span>
+<span>            x <span class="op">=</span> <span class="st">"Model"</span>, y <span class="op">=</span> <span class="st">"Simulated Statistic"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
+<span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        strip.background <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_rect</a></span><span class="op">(</span>fill <span class="op">=</span> <span class="st">"black"</span>, color <span class="op">=</span> <span class="st">"black"</span><span class="op">)</span>,</span>
+<span>        strip.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"white"</span>, hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+<span>    <span class="op">)</span></span></code></pre></div>
+<p><img src="bipartite_files/figure-html/model_comparison_boxplot-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+<p>Since we simulated data with fixed latent structure across all time
+periods, the static and dynamic models should fit similarly. If the
+boxplots overlap substantially and both cover the dashed line, the
+dynamic model’s extra flexibility is not paying off here. In real
+applications where user preferences or item popularity genuinely shift
+over time, the dynamic model would show tighter coverage of the observed
+statistics.</p>
 <div class="section level3">
 <h3 id="choosing-latent-dimensions">Choosing Latent Dimensions<a class="anchor" aria-label="anchor" href="#choosing-latent-dimensions"></a>
 </h3>
@@ -491,39 +565,50 @@ too many and you risk overfitting (and slower computation). A practical
 approach is to fit models with different dimensions and compare their
 GOF statistics.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dims_to_test</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># include R=0 as a no-latent-space baseline</span></span>
+<span><span class="va">dims_to_test</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># compute observed GOF statistics from the data</span></span>
+<span><span class="va">obs_gof</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gof_stats.html">gof_stats</a></span><span class="op">(</span><span class="va">Y_bipartite</span>, mode <span class="op">=</span> <span class="st">"bipartite"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">gof_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="kw">for</span><span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">dims_to_test</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">fit_temp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span></span>
-<span>    Y <span class="op">=</span> <span class="va">Y_bipartite</span>,</span>
-<span>    mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
-<span>    R_row <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
-<span>    R_col <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>,</span>
-<span>    family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>    burn <span class="op">=</span> <span class="fl">100</span>,</span>
-<span>    nscan <span class="op">=</span> <span class="fl">500</span>,</span>
-<span>    odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span>  <span class="op">)</span></span>
-<span>  <span class="va">gof_results</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>    R_row <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
-<span>    R_col <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>,</span>
-<span>    gof_rowmean <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">fit_temp</span><span class="op">$</span><span class="va">GOF</span><span class="op">[</span>, <span class="st">"sd.rowmean"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>    gof_fourcycles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">fit_temp</span><span class="op">$</span><span class="va">GOF</span><span class="op">[</span>, <span class="st">"four.cycles"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
+<span>    <span class="va">fit_temp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span></span>
+<span>        Y <span class="op">=</span> <span class="va">Y_bipartite</span>,</span>
+<span>        mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
+<span>        R_row <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>        R_col <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>,</span>
+<span>        family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span>        burn <span class="op">=</span> <span class="fl">200</span>,</span>
+<span>        nscan <span class="op">=</span> <span class="fl">2500</span>,</span>
+<span>        odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>        verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>    <span class="op">)</span></span>
+<span>    <span class="co"># posterior predictive p-values: proportion of simulated</span></span>
+<span>    <span class="co"># statistics as or more extreme than the observed value</span></span>
+<span>    <span class="va">gof_results</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>        R_row <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>        R_col <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>,</span>
+<span>        pval_rowmean <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_temp</span><span class="op">$</span><span class="va">GOF</span><span class="op">[</span>, <span class="st">"sd.rowmean"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">obs_gof</span><span class="op">[</span><span class="st">"sd.rowmean"</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>        pval_fourcycles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_temp</span><span class="op">$</span><span class="va">GOF</span><span class="op">[</span>, <span class="st">"four.cycles"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">obs_gof</span><span class="op">[</span><span class="st">"four.cycles"</span><span class="op">]</span><span class="op">)</span></span>
+<span>    <span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="va">gof_results</span><span class="op">)</span></span>
-<span><span class="co">#&gt;      R_row R_col gof_rowmean gof_fourcycles</span></span>
-<span><span class="co">#&gt; [1,]     1     1   0.1422260       7239.300</span></span>
-<span><span class="co">#&gt; [2,]     2     2   0.1409541       7266.175</span></span></code></pre></div>
-<p>Smaller GOF values (closer to zero) indicate better fit. Look for the
-point where adding more dimensions stops improving the GOF
-appreciably.</p>
+<span><span class="co">#&gt;      R_row R_col pval_rowmean pval_fourcycles</span></span>
+<span><span class="co">#&gt; [1,]     0     0     1.000000       0.9920160</span></span>
+<span><span class="co">#&gt; [2,]     1     1     0.998004       0.9820359</span></span>
+<span><span class="co">#&gt; [3,]     2     2     0.988024       0.9700599</span></span></code></pre></div>
+<p>The posterior predictive p-values tell you how well each model
+reproduces the observed network structure. Values near 0.5 indicate good
+fit (the observed statistic falls in the middle of the simulated
+distribution). Values near 0 or 1 indicate the model consistently over-
+or under-predicts that feature. Look for the point where adding more
+dimensions stops improving the p-values.</p>
 </div>
 </div>
 <div class="section level2">
@@ -554,7 +639,7 @@ traces and posterior densities for the regression coefficients and
 variance components.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/convergence-1.png" class="r-plt" alt="" width="672"></p>
+<p><img src="bipartite_files/figure-html/convergence-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
 <p>Look for traces that mix well (no long flat stretches or slow drifts)
 and densities that are smooth and unimodal. With the short chains used
 in this vignette, convergence is not guaranteed. In practice, run longer
@@ -570,15 +655,15 @@ row per actor-dimension-time combination:</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   actor dimension time      value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1 node1         1 &lt;NA&gt; -1.9086611           NA    U</span></span>
-<span><span class="co">#&gt; 2 node2         1 &lt;NA&gt;  0.8718661           NA    U</span></span>
-<span><span class="co">#&gt; 3 node3         1 &lt;NA&gt;  2.0128221           NA    U</span></span>
-<span><span class="co">#&gt; 4 node4         1 &lt;NA&gt; -0.7177380           NA    U</span></span>
-<span><span class="co">#&gt; 5 node5         1 &lt;NA&gt;  0.3638942           NA    U</span></span>
-<span><span class="co">#&gt; 6 node6         1 &lt;NA&gt;  3.0011548           NA    U</span></span>
+<span><span class="co">#&gt;      actor dimension time       value posterior_sd type</span></span>
+<span><span class="co">#&gt; 1 Student1         1 &lt;NA&gt; -2.12110916           NA    U</span></span>
+<span><span class="co">#&gt; 2 Student2         1 &lt;NA&gt;  0.49495598           NA    U</span></span>
+<span><span class="co">#&gt; 3 Student3         1 &lt;NA&gt;  1.74106967           NA    U</span></span>
+<span><span class="co">#&gt; 4 Student4         1 &lt;NA&gt; -1.90187944           NA    U</span></span>
+<span><span class="co">#&gt; 5 Student5         1 &lt;NA&gt; -0.03972852           NA    U</span></span>
+<span><span class="co">#&gt; 6 Student6         1 &lt;NA&gt;  4.32579340           NA    U</span></span>
 <span></span>
-<span><span class="co"># Filter to just the row nodes (students)</span></span>
+<span><span class="co"># filter to just the row nodes (students)</span></span>
 <span><span class="va">lp_students</span> <span class="op">&lt;-</span> <span class="va">lp</span><span class="op">[</span><span class="va">lp</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"U"</span>, <span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Student positions:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">lp_students</span><span class="op">)</span>, <span class="st">"rows\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Student positions: 60 rows</span></span></code></pre></div>

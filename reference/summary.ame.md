@@ -2,7 +2,7 @@
 
 Provides a comprehensive summary of a fitted AME (Additive and
 Multiplicative Effects) model, including parameter estimates, standard
-errors, confidence intervals, and model diagnostics.
+errors, credible intervals, and model diagnostics.
 
 ## Usage
 
@@ -44,8 +44,14 @@ The summary includes:
 
 - Regression coefficients:
 
-  Point estimates, standard errors, z-values, p-values, and 95%
-  confidence intervals for dyadic, sender, and receiver covariates
+  Posterior means, posterior standard deviations, z-values, approximate
+  p-values, and 95% credible intervals for dyadic, sender, and receiver
+  covariates. Note: the z-values are computed as posterior mean /
+  posterior SD, and the p-values are derived from a normal
+  approximation. These are convenient screening statistics but are not
+  formal frequentist test statistics. For rigorous inference, use the
+  credible intervals or examine the full posterior via the BETA matrix
+  directly.
 
 - Variance components:
 

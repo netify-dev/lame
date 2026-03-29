@@ -29,7 +29,9 @@ posterior_options(save_UV = FALSE, save_ab = FALSE, thin_UV = 10, thin_ab = 10)
 
 ## Value
 
-List of posterior saving options
+List of posterior saving options, to be passed to the `posterior_opts`
+argument of [`ame`](https://netify-dev.github.io/lame/reference/ame.md):
+`ame(Y, ..., posterior_opts = posterior_options(save_UV = TRUE))`
 
 ## Author
 

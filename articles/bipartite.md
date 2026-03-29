@@ -63,23 +63,24 @@ attracts. The interaction matrix $G$ determines how these latent
 dimensions combine to predict enrollment.
 
 ``` r
-# Simulate a student-course enrollment network
+# simulate a student-course enrollment network
 n_students <- 30
 n_courses <- 20
 
-# True latent positions (unobserved in practice)
-U_true <- matrix(rnorm(n_students * 2), n_students, 2)
-V_true <- matrix(rnorm(n_courses * 2), n_courses, 2)
+# true latent positions (unobserved in practice)
+U_true <- matrix(rnorm(n_students * 2, 0, 0.8), n_students, 2)
+V_true <- matrix(rnorm(n_courses * 2, 0, 0.8), n_courses, 2)
 
-# Interaction matrix: dimension 1 has positive affinity,
+# interaction matrix: dimension 1 has positive affinity,
 # dimension 2 has negative (students high on dim 2 avoid courses high on dim 2)
 G_true <- matrix(c(1, 0.5, 0.5, -1), 2, 2)
 
-# Generate enrollment probabilities and binary outcomes
-eta <- U_true %*% G_true %*% t(V_true)
-prob <- plogis(eta)
+# generate enrollment probabilities and binary outcomes
+# negative intercept keeps enrollment rate realistic (~25-30%)
+eta <- -0.8 + U_true %*% G_true %*% t(V_true)
+prob <- pnorm(eta)
 Y_bipartite <- matrix(rbinom(n_students * n_courses, 1, prob),
-                      n_students, n_courses)
+                                            n_students, n_courses)
 
 rownames(Y_bipartite) <- paste0("Student", 1:n_students)
 colnames(Y_bipartite) <- paste0("Course", 1:n_courses)
@@ -87,7 +88,7 @@ colnames(Y_bipartite) <- paste0("Course", 1:n_courses)
 cat("Network dimensions:", dim(Y_bipartite), "\n")
 #> Network dimensions: 30 20
 cat("Enrollment rate:", round(mean(Y_bipartite), 2), "\n")
-#> Enrollment rate: 0.54
+#> Enrollment rate: 0.29
 ```
 
 ### Fitting the Model
@@ -97,18 +98,18 @@ specifying the latent dimensions for each node type separately via
 `R_row` and `R_col`.
 
 ``` r
-# Note: burn/nscan are kept small here for fast vignette building.
-# For real analyses, use burn >= 1000 and nscan >= 5000.
+# note: burn/nscan are kept small here for fast vignette building.
+# for real analyses, use burn >= 1000 and nscan >= 5000.
 fit_cross <- ame(
-  Y = Y_bipartite,
-  mode = "bipartite",
-  R_row = 2,              # latent dimensions for students
-  R_col = 2,              # latent dimensions for courses
-  family = "binary",
-  burn = 100,
-  nscan = 500,
-  odens = 5,
-  verbose = FALSE
+    Y = Y_bipartite,
+    mode = "bipartite",
+    R_row = 2,              # latent dimensions for students
+    R_col = 2,              # latent dimensions for courses
+    family = "binary",
+    burn = 100,
+    nscan = 500,
+    odens = 5,
+    verbose = FALSE
 )
 
 summary(fit_cross)
@@ -120,17 +121,18 @@ summary(fit_cross)
 #> 
 #> Regression coefficients:
 #> ------------------------
-#>       Estimate StdError z_value p_value CI_lower CI_upper  
-#> beta0    0.136    0.167   0.815   0.415   -0.192    0.464  
+#>       Estimate StdError z_value p_value CI_lower CI_upper   
+#> beta0   -0.597    0.195  -3.062   0.002   -0.963   -0.221 **
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.248    0.093
+#> va     0.309    0.120
 #> cab    0.000    0.000
-#> vb     0.334    0.112
+#> vb     0.401    0.135
 #> ve     1.000    0.000
 #> rho    0.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
@@ -138,10 +140,12 @@ summary(fit_cross)
 #>   Note: bipartite model (rho fixed to 0, cab fixed to 0)
 ```
 
-The output includes posterior means for the student latent positions
-(`U`), course latent positions (`V`), and the interaction matrix (`G`),
-along with additive effects: `APM` for student activity levels and `BPM`
-for course popularity.
+The summary shows the regression coefficient (just an intercept here,
+since we included no covariates) and the variance components. The fitted
+object also stores the student latent positions (`U`), course latent
+positions (`V`), the interaction matrix (`G`), and additive effects
+(`APM` for student activity, `BPM` for course popularity), which we’ll
+visualize next.
 
 ### Visualizing the Latent Space
 
@@ -153,24 +157,30 @@ tie.
 
 ``` r
 uv_plot(fit_cross, layout = "biplot") +
-  ggtitle("Bipartite Latent Space: Students and Courses")
+    ggtitle("Bipartite Latent Space: Students and Courses")
 ```
 
 ![](bipartite_files/figure-html/visualize_cross_sectional-1.png)
 
-The interaction matrix $G$ tells us how the latent dimensions relate to
-each other. Positive entries mean that students and courses that score
-similarly on a dimension are more likely to be connected; negative
-entries mean the opposite.
+The interaction matrix $G$ mediates how the latent dimensions of
+students and courses combine to predict ties. Keep in mind that $G$,
+$U$, and $V$ are only identified up to rotation and scaling: the model
+can absorb rotations of $U$ and $V$ into $G$, so the individual entries
+of $G$ do not have a stable interpretation across runs. What is
+identified is the overall product $UGV\prime$, which captures the latent
+structure of the network. The diagonal entries of $G$ indicate the
+overall strength of the latent factor association, while off-diagonal
+entries indicate cross-dimension interactions.
 
 ``` r
 G_melt <- melt(fit_cross$G)
 ggplot(G_melt, aes(x = Var2, y = Var1, fill = value)) +
-  geom_tile() +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
-  labs(title = "Estimated Interaction Matrix G",
-       x = "Column Dimension", y = "Row Dimension") +
-  theme_minimal()
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
+    labs(title = "Estimated Interaction Matrix G",
+            x = "Column Dimension", y = "Row Dimension") +
+    theme_bw() +
+    theme(panel.border = element_blank())
 ```
 
 ![](bipartite_files/figure-html/interaction_heatmap-1.png)
@@ -201,12 +211,12 @@ G_long <- matrix(c(1, 0.3, 0.3, -0.8), 2, 2)
 
 Y_list <- list()
 for(t in 1:n_periods) {
-  eta_t <- U_long %*% G_long %*% t(V_long) + rnorm(1, 0, 0.2)
-  prob_t <- plogis(eta_t)
-  Y_list[[t]] <- matrix(rbinom(n_users * n_items, 1, prob_t),
-                        n_users, n_items)
-  rownames(Y_list[[t]]) <- paste0("User", 1:n_users)
-  colnames(Y_list[[t]]) <- paste0("Item", 1:n_items)
+    eta_t <- U_long %*% G_long %*% t(V_long) + rnorm(1, 0, 0.2)
+    prob_t <- pnorm(eta_t)
+    Y_list[[t]] <- matrix(rbinom(n_users * n_items, 1, prob_t),
+                                                n_users, n_items)
+    rownames(Y_list[[t]]) <- paste0("User", 1:n_users)
+    colnames(Y_list[[t]]) <- paste0("Item", 1:n_items)
 }
 names(Y_list) <- paste0("T", 1:n_periods)
 
@@ -215,7 +225,7 @@ cat("Time periods:", length(Y_list), "\n")
 cat("Dimensions per period:", dim(Y_list[[1]]), "\n")
 #> Dimensions per period: 20 15
 cat("Average density:", round(mean(sapply(Y_list, mean)), 2), "\n")
-#> Average density: 0.51
+#> Average density: 0.52
 ```
 
 ### Static Model
@@ -227,21 +237,21 @@ useful when you believe the underlying structure is stable and you just
 want more data to estimate it precisely.
 
 ``` r
-# Note: iterations are kept small for vignette speed; use burn >= 1000
+# note: iterations are kept small for vignette speed; use burn >= 1000
 # and nscan >= 5000 for real analyses.
 fit_static <- lame(
-  Y = Y_list,
-  mode = "bipartite",
-  R_row = 2,
-  R_col = 2,
-  family = "binary",
-  dynamic_uv = FALSE,
-  dynamic_ab = FALSE,
-  burn = 100,
-  nscan = 500,
-  odens = 5,
-  verbose = FALSE,
-  plot = FALSE
+    Y = Y_list,
+    mode = "bipartite",
+    R_row = 2,
+    R_col = 2,
+    family = "binary",
+    dynamic_uv = FALSE,
+    dynamic_ab = FALSE,
+    burn = 100,
+    nscan = 500,
+    odens = 5,
+    verbose = FALSE,
+    plot = FALSE
 )
 
 summary(fit_static)
@@ -258,20 +268,22 @@ summary(fit_static)
 #> Regression coefficients:
 #> ------------------------
 #>           Estimate StdError z_value p_value CI_lower CI_upper  
-#> intercept    0.023    0.159   0.147   0.883   -0.289    0.336  
+#> intercept    0.056    0.159   0.354   0.723   -0.227    0.313  
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.235    0.075
+#> va     0.234    0.075
 #> cab    0.000    0.000
-#> vb     0.268    0.101
+#> vb     0.267    0.100
 #> rho    0.000    0.000
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
+#>   Note: bipartite model (rho fixed to 0, cab fixed to 0)
 ```
 
 ### Dynamic Model
@@ -283,20 +295,20 @@ autoregressive parameter ($\rho$ close to 1) means slow, gradual change;
 a low one means the structure is more volatile from period to period.
 
 ``` r
-# Same reduced iterations as above for vignette speed.
+# same reduced iterations as above for vignette speed.
 fit_dynamic <- lame(
-  Y = Y_list,
-  mode = "bipartite",
-  R_row = 2,
-  R_col = 2,
-  family = "binary",
-  dynamic_uv = TRUE,
-  dynamic_ab = TRUE,
-  burn = 100,
-  nscan = 500,
-  odens = 5,
-  verbose = FALSE,
-  plot = FALSE
+    Y = Y_list,
+    mode = "bipartite",
+    R_row = 2,
+    R_col = 2,
+    family = "binary",
+    dynamic_uv = TRUE,
+    dynamic_ab = TRUE,
+    burn = 100,
+    nscan = 500,
+    odens = 5,
+    verbose = FALSE,
+    plot = FALSE
 )
 
 summary(fit_dynamic)
@@ -309,27 +321,38 @@ summary(fit_dynamic)
 #> Time periods: 5 
 #> Family: binary 
 #> Mode: bipartite 
-#> Dynamic latent positions: enabled (rho_uv = 0.391 )
+#> Dynamic latent positions: enabled (rho_uv = 0 )
 #> Dynamic additive effects: enabled (rho_ab = 0.485 )
 #> 
 #> Regression coefficients:
 #> ------------------------
 #>           Estimate StdError z_value p_value CI_lower CI_upper  
-#> intercept   -0.003    0.038  -0.084   0.933   -0.078    0.072  
+#> intercept   -0.003    0.038   -0.07   0.944   -0.085    0.067  
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.241    0.075
+#> va     0.236    0.074
 #> cab    0.000    0.000
-#> vb     0.268    0.086
+#> vb     0.272    0.088
 #> rho    0.000    0.000
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
+#>   Note: bipartite model (rho fixed to 0, cab fixed to 0)
 ```
+
+The dynamic model reports estimated AR(1) persistence parameters for the
+latent positions (`rho_uv`) and additive effects (`rho_ab`). Since our
+simulated data uses the same latent structure across all time periods,
+these parameters reflect the interplay between the prior (which favors
+persistence) and the lack of temporal variation in the data. In real
+applications where user preferences or item popularity genuinely shift
+over time, you would see these parameters more clearly informed by the
+data.
 
 ### Visualizing Temporal Evolution
 
@@ -340,7 +363,7 @@ revealing which actors’ roles are stable and which are shifting.
 
 ``` r
 uv_plot(fit_dynamic, plot_type = "trajectory") +
-  ggtitle("Dynamic Latent Positions: Trajectories Over Time")
+    ggtitle("Dynamic Latent Positions: Trajectories Over Time")
 ```
 
 ![](bipartite_files/figure-html/visualize_longitudinal-1.png)
@@ -386,29 +409,65 @@ unipartite networks).
 gof_static <- fit_static$GOF
 gof_dynamic <- fit_dynamic$GOF
 
-gof_df <- data.frame(
-  value = c(
-    colMeans(gof_static$sd.rowmean), colMeans(gof_dynamic$sd.rowmean),
-    colMeans(gof_static$sd.colmean), colMeans(gof_dynamic$sd.colmean),
-    colMeans(gof_static$four.cycles), colMeans(gof_dynamic$four.cycles)
-  ),
-  model = rep(c("Static", "Dynamic"), 3,
-              each = ncol(gof_static$sd.rowmean)),
-  statistic = rep(c("Row Mean SD", "Column Mean SD", "Four-Cycles"),
-                  each = 2 * ncol(gof_static$sd.rowmean))
+# extract posterior predictive samples (exclude column 1, which is observed)
+# each element is a matrix [n_time x n_mcmc], so colMeans averages across time
+extract_ppc <- function(gof, stat) {
+    mat <- gof[[stat]]
+    colMeans(mat[, -1, drop = FALSE])
+}
+
+# observed values (column 1, averaged across time periods)
+obs_vals <- c(
+    mean(gof_static$sd.rowmean[, 1]),
+    mean(gof_static$sd.colmean[, 1]),
+    mean(gof_static$four.cycles[, 1])
 )
 
-ggplot(gof_df, aes(x = model, y = value, fill = model)) +
-  geom_boxplot() +
-  scale_fill_manual(values = c(Dynamic = "#D94A4A", Static = "#4A90D9")) +
-  facet_wrap(~statistic, scales = "free_y") +
-  labs(title = "GOF Comparison: Static vs Dynamic",
-       x = "Model", y = "GOF Statistic") +
-  theme_minimal() +
-  theme(legend.position = "none")
+gof_df <- data.frame(
+    value = c(
+        extract_ppc(gof_static, "sd.rowmean"),
+        extract_ppc(gof_dynamic, "sd.rowmean"),
+        extract_ppc(gof_static, "sd.colmean"),
+        extract_ppc(gof_dynamic, "sd.colmean"),
+        extract_ppc(gof_static, "four.cycles"),
+        extract_ppc(gof_dynamic, "four.cycles")
+    ),
+    model = rep(rep(c("Static", "Dynamic"),
+                            each = ncol(gof_static$sd.rowmean) - 1), 3),
+    statistic = rep(c("Row Mean SD", "Column Mean SD", "Four-Cycles"),
+                                    each = 2 * (ncol(gof_static$sd.rowmean) - 1))
+)
+
+obs_df <- data.frame(
+    statistic = c("Row Mean SD", "Column Mean SD", "Four-Cycles"),
+    observed = obs_vals
+)
+
+ggplot(gof_df, aes(x = model, y = value)) +
+    geom_boxplot() +
+    geom_hline(data = obs_df, aes(yintercept = observed),
+                        linetype = 2) +
+    facet_wrap(~statistic, scales = "free_y") +
+    labs(title = "GOF Comparison: Static vs Dynamic",
+            subtitle = "Dashed Line = Observed Value",
+            x = "Model", y = "Simulated Statistic") +
+    theme_bw() +
+    theme(
+        panel.border = element_blank(),
+        strip.background = element_rect(fill = "black", color = "black"),
+        strip.text = element_text(color = "white", hjust = 0)
+    )
 ```
 
 ![](bipartite_files/figure-html/model_comparison_boxplot-1.png)
+
+Since we simulated data with fixed latent structure across all time
+periods, the static and dynamic models should fit similarly. If the
+boxplots overlap substantially and both cover the dashed line, the
+dynamic model’s extra flexibility is not paying off here. In real
+applications where user preferences or item popularity genuinely shift
+over time, the dynamic model would show tighter coverage of the observed
+statistics.
 
 ### Choosing Latent Dimensions
 
@@ -419,40 +478,52 @@ slower computation). A practical approach is to fit models with
 different dimensions and compare their GOF statistics.
 
 ``` r
+# include R=0 as a no-latent-space baseline
 dims_to_test <- list(
-  c(1, 1),
-  c(2, 2)
+    c(0, 0),
+    c(1, 1),
+    c(2, 2)
 )
+
+# compute observed GOF statistics from the data
+obs_gof <- gof_stats(Y_bipartite, mode = "bipartite")
 
 gof_results <- list()
 for(i in seq_along(dims_to_test)) {
-  fit_temp <- ame(
-    Y = Y_bipartite,
-    mode = "bipartite",
-    R_row = dims_to_test[[i]][1],
-    R_col = dims_to_test[[i]][2],
-    family = "binary",
-    burn = 100,
-    nscan = 500,
-    odens = 5,
-    verbose = FALSE
-  )
-  gof_results[[i]] <- c(
-    R_row = dims_to_test[[i]][1],
-    R_col = dims_to_test[[i]][2],
-    gof_rowmean = mean(abs(fit_temp$GOF[, "sd.rowmean"])),
-    gof_fourcycles = mean(abs(fit_temp$GOF[, "four.cycles"]))
-  )
+    fit_temp <- ame(
+        Y = Y_bipartite,
+        mode = "bipartite",
+        R_row = dims_to_test[[i]][1],
+        R_col = dims_to_test[[i]][2],
+        family = "binary",
+        burn = 200,
+        nscan = 2500,
+        odens = 5,
+        verbose = FALSE
+    )
+    # posterior predictive p-values: proportion of simulated
+    # statistics as or more extreme than the observed value
+    gof_results[[i]] <- c(
+        R_row = dims_to_test[[i]][1],
+        R_col = dims_to_test[[i]][2],
+        pval_rowmean = mean(fit_temp$GOF[, "sd.rowmean"] >= obs_gof["sd.rowmean"]),
+        pval_fourcycles = mean(fit_temp$GOF[, "four.cycles"] >= obs_gof["four.cycles"])
+    )
 }
 
 do.call(rbind, gof_results)
-#>      R_row R_col gof_rowmean gof_fourcycles
-#> [1,]     1     1   0.1422260       7239.300
-#> [2,]     2     2   0.1409541       7266.175
+#>      R_row R_col pval_rowmean pval_fourcycles
+#> [1,]     0     0     1.000000       0.9920160
+#> [2,]     1     1     0.998004       0.9820359
+#> [3,]     2     2     0.988024       0.9700599
 ```
 
-Smaller GOF values (closer to zero) indicate better fit. Look for the
-point where adding more dimensions stops improving the GOF appreciably.
+The posterior predictive p-values tell you how well each model
+reproduces the observed network structure. Values near 0.5 indicate good
+fit (the observed statistic falls in the middle of the simulated
+distribution). Values near 0 or 1 indicate the model consistently over-
+or under-predicts that feature. Look for the point where adding more
+dimensions stops improving the p-values.
 
 ## Practical Guidance
 
@@ -500,15 +571,15 @@ combination:
 ``` r
 lp <- latent_positions(fit_cross)
 head(lp)
-#>   actor dimension time      value posterior_sd type
-#> 1 node1         1 <NA> -1.9086611           NA    U
-#> 2 node2         1 <NA>  0.8718661           NA    U
-#> 3 node3         1 <NA>  2.0128221           NA    U
-#> 4 node4         1 <NA> -0.7177380           NA    U
-#> 5 node5         1 <NA>  0.3638942           NA    U
-#> 6 node6         1 <NA>  3.0011548           NA    U
+#>      actor dimension time       value posterior_sd type
+#> 1 Student1         1 <NA> -2.12110916           NA    U
+#> 2 Student2         1 <NA>  0.49495598           NA    U
+#> 3 Student3         1 <NA>  1.74106967           NA    U
+#> 4 Student4         1 <NA> -1.90187944           NA    U
+#> 5 Student5         1 <NA> -0.03972852           NA    U
+#> 6 Student6         1 <NA>  4.32579340           NA    U
 
-# Filter to just the row nodes (students)
+# filter to just the row nodes (students)
 lp_students <- lp[lp$type == "U", ]
 cat("Student positions:", nrow(lp_students), "rows\n")
 #> Student positions: 60 rows

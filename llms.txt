@@ -172,7 +172,7 @@ If you use `lame` in your research, please cite:
   title = {lame: Longitudinal Additive and Multiplicative Effects Models for Networks},
   author = {Cassy Dorff and Shahryar Minhas and Tosin Salau},
   year = {2026},
-  note = {R package version 0.3.0},
+  note = {R package version 1.0.0},
   url = {https://github.com/netify-dev/lame},
 }
 ```
@@ -548,6 +548,8 @@ Example network datasets
   : AddHealth community 3 data
 - [`addhealthc9`](https://netify-dev.github.io/lame/reference/addhealthc9.md)
   : AddHealth community 9 data
+- [`vignette_data`](https://netify-dev.github.io/lame/reference/vignette_data.md)
+  : TIES sanctions data for vignettes
 - [`Y`](https://netify-dev.github.io/lame/reference/Y.md) : Relational
   matrix
 - [`Xdyad`](https://netify-dev.github.io/lame/reference/Xdyad.md) :

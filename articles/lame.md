@@ -23,25 +23,25 @@ lines of code.
 library(lame)
 set.seed(6886)
 
-# Simulate 3 time periods of a 15-node directed network
+# simulate 3 time periods of a 15-node directed network
 n <- 15; T_periods <- 3
 Y_list <- lapply(1:T_periods, function(t) {
-  Y <- matrix(rbinom(n * n, 1, 0.15), n, n)
-  diag(Y) <- NA
-  rownames(Y) <- colnames(Y) <- paste0("N", 1:n)
-  Y
+    Y <- matrix(rbinom(n * n, 1, 0.15), n, n)
+    diag(Y) <- NA
+    rownames(Y) <- colnames(Y) <- paste0("N", 1:n)
+    Y
 })
 
-# Fit a longitudinal AME model
+# fit a longitudinal AME model
 fit <- lame(
-  Y = Y_list,
-  R = 2,                # 2D latent space
-  family = "binary",    # probit for 0/1 networks
-  burn = 100,           # burn-in (use 1000+ for real work)
-  nscan = 500,          # post-burn-in samples (use 5000+)
-  odens = 25,           # thinning
-  verbose = FALSE,
-  plot = FALSE
+    Y = Y_list,
+    R = 2,                # 2D latent space
+    family = "binary",    # probit for 0/1 networks
+    burn = 100,           # burn-in (use 1000+ for real work)
+    nscan = 2500,         # post-burn-in samples (use 5000+)
+    odens = 25,           # thinning
+    verbose = FALSE,
+    plot = FALSE
 )
 
 summary(fit)
@@ -58,17 +58,18 @@ summary(fit)
 #> Regression coefficients:
 #> ------------------------
 #>           Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept   -1.314    0.183  -7.199       0   -1.672   -0.956 ***
+#> intercept   -1.274    0.143  -8.888       0   -1.528   -1.055 ***
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.117    0.050
-#> cab    0.001    0.041
-#> vb     0.099    0.033
-#> rho    0.313    0.183
+#> va     0.096    0.034
+#> cab   -0.005    0.023
+#> vb     0.099    0.047
+#> rho    0.284    0.144
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
@@ -78,32 +79,47 @@ That’s it. You now have posterior estimates for regression coefficients,
 variance components, and latent positions pooled across all time
 periods.
 
+**A note on MCMC settings.** The three key parameters are `burn`
+(iterations discarded as burn-in), `nscan` (post-burn-in iterations kept
+for inference), and `odens` (thinning: keep every `odens`-th sample to
+reduce autocorrelation). With the settings above, we store
+`nscan / odens` = 2500 / 25 = 100 posterior samples. For a publication,
+aim for at least 200 stored samples with adequate effective sample
+sizes.
+
 ## What Can You Do with a Fitted Model?
 
 `lame` objects work with all the standard R methods you’d expect:
 
 ``` r
-# Regression coefficients (posterior means)
+# regression coefficients (posterior means)
 coef(fit)
 #> intercept 
-#>  -1.31421
+#> -1.273676
 
 # 95% credible intervals
 confint(fit)
 #>                2.5%     97.5%
-#> intercept -1.632783 -1.026529
+#> intercept -1.528127 -1.055093
 
-# Predicted probabilities for every dyad at every time point
+# predicted probabilities for every dyad at every time point
 Y_hat <- predict(fit, type = "response")
 cat("Predicted probability range:",
-    round(range(unlist(Y_hat), na.rm = TRUE), 3), "\n")
-#> Predicted probability range: 0.014 0.625
+        round(range(unlist(Y_hat), na.rm = TRUE), 3), "\n")
+#> Predicted probability range: 0.021 0.511
 
-# Residuals
+# residuals
 resid_list <- residuals(fit)
 cat("Residual SD:", round(sd(unlist(resid_list), na.rm = TRUE), 3), "\n")
-#> Residual SD: 0.35
+#> Residual SD: 0.342
 ```
+
+The intercept-only model estimates a single coefficient. Since we
+simulated ties with probability 0.15, the intercept should be near
+`qnorm(0.15)` $\approx$ -1.04 on the probit scale. The predicted
+probabilities range from near zero (for dyads where both the sender and
+receiver random effects are strongly negative) to higher values (where
+the random effects reinforce a tie).
 
 ## Checking Your Model
 
@@ -118,6 +134,10 @@ trace_plot(fit, params = "beta")
 
 ![](lame_files/figure-html/trace-plot-1.png)
 
+With an intercept-only model, there is just one regression parameter to
+check. The trace should show stable mixing around a value near -1.04
+(since `qnorm(0.15)` corresponds to the 15% density we simulated).
+
 **2. Does the model fit the data?** The GOF plots compare observed
 network statistics to what the model predicts. Observed values should
 fall within the simulated distributions.
@@ -127,6 +147,10 @@ gof_plot(fit)
 ```
 
 ![](lame_files/figure-html/gof-plot-1.png)
+
+If the observed statistics (points or vertical lines) fall within the
+posterior predictive bands or histograms, the model is reproducing the
+network’s structural features.
 
 ## Visualizing Network Structure
 
@@ -154,18 +178,18 @@ If you have a single network (not a time series), use
 
 ``` r
 fit_cs <- ame(
-  Y = Y_list[[1]],     # just one time period
-  R = 2,
-  family = "binary",
-  burn = 100,
-  nscan = 500,
-  odens = 25,
-  verbose = FALSE
+    Y = Y_list[[1]],     # just one time period
+    R = 2,
+    family = "binary",
+    burn = 100,
+    nscan = 2500,
+    odens = 25,
+    verbose = FALSE
 )
 
 coef(fit_cs)
 #> intercept 
-#>  -1.21051
+#> -1.223992
 ```
 
 The output and methods are the same. The difference is that
@@ -181,16 +205,16 @@ additive effects drift via AR(1) processes:
 
 ``` r
 fit_dyn <- lame(
-  Y = Y_list,
-  R = 2,
-  dynamic_ab = TRUE,    # time-varying sociality/popularity
-  dynamic_uv = TRUE,    # time-varying latent positions
-  family = "binary",
-  burn = 100,
-  nscan = 500,
-  odens = 25,
-  verbose = FALSE,
-  plot = FALSE
+    Y = Y_list,
+    R = 2,
+    dynamic_ab = TRUE,    # time-varying sociality/popularity
+    dynamic_uv = TRUE,    # time-varying latent positions
+    family = "binary",
+    burn = 100,
+    nscan = 2500,
+    odens = 25,
+    verbose = FALSE,
+    plot = FALSE
 )
 
 summary(fit_dyn)
@@ -203,33 +227,39 @@ summary(fit_dyn)
 #> Time periods: 3 
 #> Family: binary 
 #> Mode: unipartite 
-#> Dynamic latent positions: enabled (rho_uv = 0.322 )
-#> Dynamic additive effects: enabled (rho_ab = 0.294 )
+#> Dynamic latent positions: enabled (rho_uv = 0.292 )
+#> Dynamic additive effects: enabled (rho_ab = 0.301 )
 #> 
 #> Regression coefficients:
 #> ------------------------
 #>           Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept   -1.199    0.158  -7.572       0   -1.509   -0.889 ***
+#> intercept   -1.203    0.249   -4.84       0   -1.661   -0.687 ***
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.114    0.058
-#> cab    0.042    0.050
-#> vb     0.123    0.051
-#> rho    0.378    0.120
+#> va     0.132    0.074
+#> cab    0.056    0.067
+#> vb     0.130    0.078
+#> rho    0.421    0.124
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
 ```
 
 The model estimates how persistent the latent positions are
-($\rho_{uv}$): values near 1 mean slow evolution, values near 0 mean
-rapid change. See the [dynamic effects
+($\rho_{uv}$) and how persistent the additive effects are ($\rho_{ab}$).
+Values near 1 mean slow evolution; values near 0 mean rapid change.
+Since we simulated independent networks, the data carry no temporal
+signal. The estimated persistence parameters reflect the prior rather
+than genuine dynamics. With only 3 time periods, there is little
+information to update the prior. See the [dynamic effects
 vignette](https://netify-dev.github.io/lame/articles/dynamic_effects.md)
-for a deeper dive.
+for a more thorough treatment with 5 time periods and discussion of when
+dynamic effects add value.
 
 ## Bipartite Networks
 
@@ -239,19 +269,19 @@ pass a rectangular matrix and set `mode = "bipartite"`:
 ``` r
 nA <- 10; nB <- 8
 Y_bip <- lapply(1:3, function(t) {
-  Y <- matrix(rbinom(nA * nB, 1, 0.2), nA, nB)
-  rownames(Y) <- paste0("R", 1:nA)
-  colnames(Y) <- paste0("C", 1:nB)
-  Y
+    Y <- matrix(rbinom(nA * nB, 1, 0.2), nA, nB)
+    rownames(Y) <- paste0("R", 1:nA)
+    colnames(Y) <- paste0("C", 1:nB)
+    Y
 })
 
 fit_bip <- lame(
-  Y = Y_bip,
-  mode = "bipartite",
-  R = 2,
-  family = "binary",
-  burn = 100, nscan = 500, odens = 25,
-  verbose = FALSE, plot = FALSE
+    Y = Y_bip,
+    mode = "bipartite",
+    R = 2,
+    family = "binary",
+    burn = 100, nscan = 2500, odens = 25,
+    verbose = FALSE, plot = FALSE
 )
 
 summary(fit_bip)
@@ -267,24 +297,29 @@ summary(fit_bip)
 #> 
 #> Regression coefficients:
 #> ------------------------
-#>           Estimate StdError z_value p_value CI_lower CI_upper  
-#> intercept   -0.895    0.438  -2.045   0.041   -1.753   -0.037 *
+#>           Estimate StdError z_value p_value CI_lower CI_upper   
+#> intercept   -1.176    0.428  -2.745   0.006   -1.894   -0.375 **
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.589    0.224
+#> va     0.682    0.264
 #> cab    0.000    0.000
-#> vb     0.770    0.322
+#> vb     0.666    0.270
 #> rho    0.000    0.000
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
+#>   Note: bipartite model (rho fixed to 0, cab fixed to 0)
 ```
 
-See the [bipartite
+Notice that the bipartite summary reports `cab = 0.000` and
+`rho = 0.000` — these parameters (sender-receiver covariance and dyadic
+correlation) are not estimated in bipartite models because the two node
+types are structurally different. See the [bipartite
 vignette](https://netify-dev.github.io/lame/articles/bipartite.md) for a
 full walkthrough.
 

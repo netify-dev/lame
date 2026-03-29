@@ -65,10 +65,19 @@ The dataset includes:
 - **Xdyad**: Dyadic covariates (geographic distance and the number of
   shared intergovernmental organizations (IGOs)) that capture
   relationship-level predictors.
-- **Xrow / Xcol**: Sender and receiver covariates (GDP and population)
-  capturing country-level characteristics. We use the same variables for
-  both senders and receivers here, but different covariates can be
-  specified for each role.
+- **Xrow / Xcol**: Sender and receiver covariates (log GDP and log
+  population) capturing country-level characteristics. We use the same
+  variables for both senders and receivers here, but different
+  covariates can be specified for each role.
+
+``` r
+library(lame)
+library(ggplot2)
+set.seed(6886)
+
+# load the TIES data
+data("vignette_data")
+```
 
 ### Fitting the Model
 
@@ -81,25 +90,25 @@ space picks up residual patterns, groups of countries that sanction
 similar targets or are targeted by the same senders.
 
 ``` r
-# Fit the AME model for binary data
-# Note: burn and nscan are kept small for fast vignette building.
-# For real analyses, use burn >= 1000 and nscan >= 5000.
+# fit the AME model for binary data
+# note: for real analyses, use burn >= 2000 and nscan >= 10000.
+# sparse networks like this one require long chains.
 fit <- lame(
-  Y = Y,
-  Xdyad = Xdyad,           # dyadic covariates
-  Xrow = Xrow,             # sender covariates
-  Xcol = Xcol,             # receiver covariates
-  family = "binary",       # Binary probit model
-  rvar = TRUE,             # sender random effects
-  cvar = TRUE,             # receiver random effects
-  dcor = TRUE,             # Dyadic correlation
-  R = 2,                   # Multiplicative effects dimension
-  symmetric = FALSE,       # Directed network
-  burn = 100,              # Burn-in iterations
-  nscan = 500,             # Post-burn-in iterations
-  odens = 25,              # Output density (thinning)
-  verbose = FALSE,           # Suppress iteration output
-  plot = FALSE             # Suppress real-time plots
+    Y = Y,
+    Xdyad = Xdyad,           # dyadic covariates
+    Xrow = Xrow,             # sender covariates
+    Xcol = Xcol,             # receiver covariates
+    family = "binary",       # Binary probit model
+    rvar = TRUE,             # sender random effects
+    cvar = TRUE,             # receiver random effects
+    dcor = TRUE,             # Dyadic correlation
+    R = 2,                   # Multiplicative effects dimension
+    symmetric = FALSE,       # Directed network
+    burn = 500,              # Burn-in iterations
+    nscan = 2500,            # Post-burn-in iterations
+    odens = 5,               # Thinning (keep every 5th sample)
+    verbose = FALSE,         # Suppress iteration output
+    plot = FALSE             # Suppress real-time plots
 )
 ```
 
@@ -119,50 +128,55 @@ Mode: unipartite
 
 Regression coefficients:
 ------------------------
-                 Estimate StdError z_value p_value CI_lower CI_upper  
-intercept          -5.534    2.328  -2.377   0.017  -10.097    -0.97 *
-log_gdp.row        -0.152    0.226  -0.672   0.502   -0.595    0.291  
-log_pop.row         0.161    0.291   0.552   0.581    -0.41    0.732  
-log_gdp.col        -0.029     0.11  -0.262   0.793   -0.245    0.187  
-log_pop.col         -0.06    0.151  -0.399    0.69   -0.357    0.236  
-distance.dyad        0.04     0.04   0.986   0.324   -0.039    0.118  
-shared_igos.dyad    0.017    0.008   2.249   0.024    0.002    0.032 *
+                 Estimate StdError z_value p_value CI_lower CI_upper    
+intercept         -20.088    2.983  -6.733       0  -25.315  -14.378 ***
+log_gdp.row         0.069    0.227   0.301   0.763   -0.373    0.413    
+log_pop.row         0.454    0.219   2.071   0.038    0.089    0.864   *
+log_gdp.col         0.115     0.11   1.041   0.298   -0.094    0.328    
+log_pop.col         0.131    0.121   1.088   0.277   -0.084    0.366    
+distance.dyad       0.012    0.029   0.403   0.687   -0.046    0.067    
+shared_igos.dyad    0.006    0.016   0.372    0.71   -0.021    0.038    
 ---
 Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.
 
 Variance components:
 -------------------
     Estimate StdError
-va     6.170    2.126
-cab    2.414    1.066
-vb     1.002    0.550
-rho    0.417    0.138
+va     1.632    1.989
+cab    0.176    0.255
+vb     0.061    0.040
+rho    0.819    0.078
 ve     1.000    0.000
   (va = sender, cab = sender-receiver covariance, vb = receiver,
    rho = dyadic correlation, ve = residual variance)
 ```
 
-The regression coefficients tell us about the structural drivers of
-sanctions. Shared IGO membership is positively associated with
-sanctions, as countries embedded in the same international institutions
-are more likely to sanction each other, probably because these
-institutions provide both the information and the institutional
-mechanisms to coordinate economic pressure. Distance has a negative
-coefficient, meaning geographically closer countries are more likely to
-sanction one another.
+The coefficients table reports posterior means, standard errors, and 95%
+credible intervals for each covariate. With a binary probit model, the
+coefficients are on the latent scale: positive values increase the
+probability of a sanction, negative values decrease it.
 
-The variance components at the bottom of the summary capture
-network-level heterogeneity. Sender variance (`va`) and receiver
-variance (`vb`) indicate how much countries differ in their baseline
-propensity to impose or receive sanctions. The dyadic correlation
-(`rho`) captures reciprocity, the tendency for sanctions to be mutual.
+The variance components reveal where heterogeneity lies. The sender
+variance (`va`) is much larger than the receiver variance (`vb`),
+meaning the main source of heterogeneity is in how actively countries
+impose sanctions, not in who gets targeted. A few countries are prolific
+sanctioners while most rarely sanction at all. The dyadic correlation
+(`rho`) captures reciprocity: high values indicate that if country A
+sanctions country B, B is more likely to sanction A.
+
+The intercept is large and negative, reflecting the sparsity of the
+network (density around 1–2%). On the probability scale, this
+corresponds to a near-zero baseline probability of a sanction. The
+sender random effects and latent positions then shift individual dyads
+away from this baseline.
 
 ### Checking Convergence
 
-Because `lame` uses MCMC, we need to verify that the sampler has
-converged before trusting the results. The `trace_plot` function shows
-the sampled values over iterations (left panels) and the corresponding
-posterior densities (right panels) for each parameter.
+Because the model is estimated via MCMC, we need to verify that the
+sampler has converged before trusting the results. The `trace_plot`
+function shows the sampled values over iterations (top panels) and the
+corresponding posterior densities (bottom panels) for each parameter.
 
 ``` r
 trace_plot(fit, params = "beta")
@@ -172,13 +186,19 @@ trace_plot(fit, params = "beta")
 distributions of regression
 coefficients](lame-overview_files/figure-html/unnamed-chunk-4-1.png)
 
-What to look for: the trace plots should look like “fuzzy caterpillars,”
-bouncing around a stable mean without long-term trends or getting stuck
-in one region. The density plots should be smooth and unimodal. With
-only 20 post-burn-in samples (due to the small `nscan` we used here),
-the chains have not fully converged. In a real analysis, you would run
-much longer chains and check that increasing the run length doesn’t
-substantially change the posterior summaries.
+What to look for: the trace plots (top) should look like “fuzzy
+caterpillars,” bouncing around a stable mean without long-term trends or
+getting stuck in one region. The density plots (bottom) should be smooth
+and unimodal.
+
+With 500 stored samples, you may notice slow mixing in some parameters,
+particularly the intercept and row covariates. This is typical for very
+sparse binary networks: with only about 20 ties per year, the likelihood
+surface is flat and the sampler moves slowly. For a publication, you
+would run much longer chains (`burn >= 2000, nscan >= 10000`) and verify
+that effective sample sizes (available via
+[`coda::effectiveSize()`](https://rdrr.io/pkg/coda/man/effectiveSize.html))
+are adequate for all parameters.
 
 ### Goodness of Fit
 
@@ -218,15 +238,17 @@ of the plot tend to have dissimilar sanctioning patterns.
 
 ``` r
 
-# Network plot showing multiplicative effects
+# network plot showing multiplicative effects
 uv_plot(fit) +
-  ggtitle("Sanctions Network - Multiplicative Effects") +
-  theme_minimal() +
-  theme(
-    legend.position='none',
-    axis.text=element_blank(),
-    axis.title=element_blank()
-  )
+    ggtitle("Sanctions Network - Multiplicative Effects") +
+    theme_bw() +
+    theme(
+        panel.border = element_blank(),
+        legend.position = 'none',
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank()
+    )
 ```
 
 ![Network visualization showing multiplicative effects latent space
@@ -237,8 +259,8 @@ The circular layout places sender positions (triangles) on the outer
 ring and receiver positions (circles) on an inner ring, scaled by
 magnitude. Countries with larger effects are placed further from the
 center, indicating they play a more distinctive role in the network.
-Countries clustered together (for example, Western allies like the USA
-and Canada) share similar sanctioning profiles.
+Countries clustered together share similar sanctioning profiles, while
+countries on opposite sides have dissimilar patterns.
 
 ## Extracting Latent Positions
 
@@ -251,24 +273,36 @@ function returns a data frame:
 lp <- latent_positions(fit)
 head(lp)
   actor dimension time      value posterior_sd type
-1   AFG         1 <NA> -0.5253670           NA    U
-2   ALB         1 <NA> -1.0708329           NA    U
-3   ARG         1 <NA>  0.3959614           NA    U
-4   AUS         1 <NA>  1.2064454           NA    U
-5   BEL         1 <NA> -0.3992633           NA    U
-6   BOL         1 <NA> -2.1687274           NA    U
+1   AFG         1 <NA> -1.6612284           NA    U
+2   ALB         1 <NA>  0.2034016           NA    U
+3   ARG         1 <NA>  1.0805660           NA    U
+4   AUS         1 <NA> -1.2405099           NA    U
+5   BEL         1 <NA>  0.4519149           NA    U
+6   BOL         1 <NA> -0.7265165           NA    U
 ```
 
 Each row gives one actor’s position on one latent dimension at one time
-point. For dynamic models (`dynamic_uv = TRUE`), the `time` column
-tracks how positions evolve. You can optionally apply Procrustes
-alignment to remove rotational indeterminacy across time periods:
+point. For static models like this one, the positions are the same
+across all time periods. For dynamic models (`dynamic_uv = TRUE`),
+positions evolve over time and
+[`latent_positions()`](https://netify-dev.github.io/lame/reference/latent_positions.md)
+returns each time point separately (see the [dynamic effects
+vignette](https://netify-dev.github.io/lame/articles/dynamic_effects.md)).
+
+When using dynamic latent positions, the latent space is only identified
+up to rotation at each time point. The
+[`procrustes_align()`](https://netify-dev.github.io/lame/reference/procrustes_align.md)
+function aligns each time period’s positions to the previous one,
+removing arbitrary rotations so that trajectories across time are
+interpretable:
 
 ``` r
+# procrustes alignment is useful for dynamic models.
+# for a static model, positions are already aligned.
 aligned <- procrustes_align(fit)
  [36mℹ [39m Latent positions are static (single time point). No alignment needed.
-str(aligned$U)  # aligned 3D array
- num [1:35, 1:2] -0.525 -1.071 0.396 1.206 -0.399 ...
+str(aligned$U)
+ num [1:35, 1:2] -1.661 0.203 1.081 -1.241 0.452 ...
  - attr(*, "dimnames")=List of 2
   ..$ : chr [1:35] "AFG" "ALB" "ARG" "AUS" ...
   ..$ : NULL

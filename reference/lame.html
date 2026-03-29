@@ -15,7 +15,7 @@ use the ame function."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -155,9 +155,9 @@ updates where possible and C++ for computational efficiency. Default FALSE.</p><
 
 
 <dt id="arg-dynamic-g">dynamic_G<a class="anchor" aria-label="anchor" href="#arg-dynamic-g"></a></dt>
-<dd><p>logical: for bipartite networks, fit dynamic interaction matrix G that
-evolves over time. When TRUE, the rectangular interaction matrix G becomes time-varying,
-allowing the mapping between row and column latent spaces to change over time. Default FALSE.</p></dd>
+<dd><p>logical: reserved for future use. Dynamic interaction matrix G
+is not yet implemented. Setting this to TRUE will produce a warning; the
+parameter is accepted for forward compatibility only. Default FALSE.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
@@ -416,9 +416,7 @@ When dynamic_uv=TRUE for bipartite networks:
 $$U_{i,k,t} = \rho_{uv} U_{i,k,t-1} + \epsilon_{i,k,t}$$
 $$V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}$$
 where i indexes row nodes, j indexes column nodes, k indexes latent dimensions.</p>
-<p>When dynamic_G=TRUE, the interaction matrix also evolves:
-$$G_{k,l,t} = \rho_G G_{k,l,t-1} + \xi_{k,l,t}$$
-allowing the mapping between row and column latent spaces to change over time.</p>
+<p>Note: dynamic_G is reserved for future use and not yet implemented.</p>
 <p><em>Key Differences from Unipartite Models:</em></p><ul><li><p>No dyadic correlation (rho): Bipartite edges are inherently directed</p></li>
 <li><p>Separate dimensions: R_row and R_col can differ for row/column spaces</p></li>
 <li><p>Rectangular structure: Network density patterns differ from square matrices</p></li>

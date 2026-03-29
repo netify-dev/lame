@@ -1,9 +1,10 @@
 # Compute GOF statistics from saved posterior samples
 
-Computes goodness-of-fit statistics after model estimation using saved
-posterior samples. This avoids the computational overhead of GOF
-calculation during MCMC sampling. Requires that the model was run with
-appropriate posterior sampling options.
+Computes goodness-of-fit statistics after model estimation by generating
+posterior predictive networks from the saved MCMC samples. This is
+useful when the model was fitted with `gof = FALSE` to speed up MCMC
+sampling, or when you want to evaluate custom GOF statistics without
+re-running the model.
 
 ## Usage
 
@@ -19,7 +20,9 @@ gof(fit, Y = NULL, custom_gof = NULL, nsim = 100, verbose = TRUE)
 
 - Y:
 
-  Original data matrix (if not stored in fit)
+  Original data. For ame objects, an n x n matrix (or nA x nB for
+  bipartite). For lame objects, a list of matrices (one per time
+  period). If NULL, extracted from the fit object.
 
 - custom_gof:
 

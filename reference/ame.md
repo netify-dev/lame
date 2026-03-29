@@ -499,16 +499,17 @@ summary(fit)
 #> Regression coefficients:
 #> ------------------------
 #>                Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept_dyad   -2.543    0.114 -22.296       0   -2.767   -2.319 ***
-#> rgpa_dyad         0.178    0.081   2.193   0.028    0.019    0.337   *
-#> rsmoke_dyad       0.254    0.112   2.279   0.023    0.036    0.473   *
-#> cgpa_dyad         0.188    0.042   4.472       0    0.106    0.271 ***
-#> csmoke_dyad       0.167    0.052   3.248   0.001    0.066    0.268  **
-#> igrade_dyad        1.13    0.052  21.782       0    1.028    1.232 ***
-#> igpa_dyad         0.049    0.038   1.284   0.199   -0.026    0.125    
-#> ismoke_dyad       0.038    0.063   0.601   0.548   -0.086    0.161    
+#> intercept_dyad   -2.543    0.114 -22.296       0   -2.772   -2.319 ***
+#> rgpa_dyad         0.178    0.081   2.193   0.028    0.047     0.32   *
+#> rsmoke_dyad       0.254    0.112   2.279   0.023    0.054    0.474   *
+#> cgpa_dyad         0.188    0.042   4.472       0    0.107    0.273 ***
+#> csmoke_dyad       0.167    0.052   3.248   0.001    0.067     0.27  **
+#> igrade_dyad        1.13    0.052  21.782       0    1.032    1.229 ***
+#> igpa_dyad         0.049    0.038   1.284   0.199   -0.045    0.123    
+#> ismoke_dyad       0.038    0.063   0.601   0.548   -0.084     0.15    
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.
 #> 
 #> Variance components:
 #> -------------------
