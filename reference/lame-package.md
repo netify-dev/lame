@@ -16,6 +16,21 @@ Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).
 
 ## Details
 
+**Estimators.** The package offers two estimation routes:
+
+- [`ame`](https://netify-dev.github.io/lame/reference/ame.md) /
+  [`lame`](https://netify-dev.github.io/lame/reference/lame.md) — the
+  Bayesian MCMC estimators, for calibrated posterior inference
+  (cross-sectional and longitudinal respectively).
+
+- [`ame_als`](https://netify-dev.github.io/lame/reference/ame_als.md) /
+  [`lame_als`](https://netify-dev.github.io/lame/reference/lame_als.md)
+  — a fast, MCMC-free point estimator by iterative block coordinate
+  descent, with bootstrap uncertainty via
+  [`ame_als_bootstrap`](https://netify-dev.github.io/lame/reference/ame_als_bootstrap.md).
+  Use it for rapid model exploration, rank selection and starting
+  values; use the MCMC estimators for final inference.
+
 |          |         |
 |----------|---------|
 | Package: | lame    |
@@ -57,7 +72,7 @@ summary(fit)
 #> ismoke_dyad       0.029    0.025   1.166   0.243   -0.018    0.075    
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.
+#> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
 #> 
 #> Variance components:
 #> -------------------

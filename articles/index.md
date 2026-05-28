@@ -15,3 +15,7 @@
   Analysis](https://netify-dev.github.io/lame/articles/bipartite.md):
 - [Dynamic Effects in Longitudinal AME
   Models](https://netify-dev.github.io/lame/articles/dynamic_effects.md):
+- [Fast (MCMC-free) AME
+  Estimation](https://netify-dev.github.io/lame/articles/fast_estimation.md):
+- [Forecasting Longitudinal Networks with
+  lame](https://netify-dev.github.io/lame/articles/forecasting.md):

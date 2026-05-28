@@ -18,6 +18,7 @@ procrustes_align(
   V = NULL,
   G = NULL,
   return_fit = FALSE,
+  per_draw = FALSE,
   ...
 )
 ```
@@ -49,6 +50,17 @@ procrustes_align(
 
   Logical. If TRUE and `object` is provided, returns a modified copy of
   the fit object with aligned latent positions. Default FALSE.
+
+- per_draw:
+
+  Logical. When TRUE, run Procrustes alignment per posterior draw rather
+  than on the posterior-mean trajectory. This uses `object$U_full` /
+  `object$V_full` (the per-draw posterior cubes — populated when
+  `posterior_opts` includes storing U/V) when present; otherwise falls
+  back to mean-trajectory alignment and emits an informational note.
+  Per-draw alignment is the methodologically correct treatment —
+  rotation indeterminacy is a per-draw property, not a per-mean one —
+  but is more memory-hungry. Default FALSE.
 
 - ...:
 
@@ -97,6 +109,9 @@ fit <- lame(YX_bin_list$Y, Xdyad = YX_bin_list$X, R = 2,
             family = "binary", dynamic_uv = TRUE,
             burn = 5, nscan = 5, odens = 1,
             verbose = FALSE)
+#> Warning: `family` = "binary" but `Y` contains values other than 0/1.
+#> ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+#>   or "ordinal"/"normal" as appropriate.
 aligned <- procrustes_align(fit)
 str(aligned$U)  # aligned 3D array [n, R, T]
 #>  num [1:50, 1:2, 1:4] 0.00291 0.23663 -0.10317 -0.09938 -0.11498 ...

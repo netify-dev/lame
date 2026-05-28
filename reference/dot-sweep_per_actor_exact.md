@@ -1,0 +1,34 @@
+# Per-actor sweep: unconstrained per-actor FFBS + exact projection
+
+One full sweep over actors: each actor's path is sampled from its
+conditional AR(1) posterior via .actor_ffbs_path(), and the joint sample
+is then projected to satisfy sum_i theta_i(t) = 0 per period using the
+variance-weighted Lagrangian.
+
+## Usage
+
+``` r
+.sweep_per_actor_exact(H_mat, h_mat, rho_actor, sigma_actor2)
+```
+
+## Arguments
+
+- H_mat:
+
+  n_actors x T precision sufficient statistics
+
+- h_mat:
+
+  n_actors x T cross-product sufficient statistics
+
+- rho_actor:
+
+  AR(1) coefficient
+
+- sigma_actor2:
+
+  AR(1) innovation variance
+
+## Value
+
+n_actors x T matrix of centered draws.

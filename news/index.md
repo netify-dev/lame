@@ -1,5 +1,24 @@
 # Changelog
 
+## lame 1.1.0
+
+### New features
+
+- Fast, MCMC-free estimation via
+  [`ame_als()`](https://netify-dev.github.io/lame/reference/ame_als.md)
+  and
+  [`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md):
+  an alternating least squares / IRLS point estimator for the normal,
+  binary, and Poisson families. Supports parametric-bootstrap and
+  sandwich standard errors and the full S3 method set
+  ([`coef()`](https://rdrr.io/r/stats/coef.html),
+  [`vcov()`](https://rdrr.io/r/stats/vcov.html),
+  [`confint()`](https://rdrr.io/r/stats/confint.html),
+  [`predict()`](https://rdrr.io/r/stats/predict.html),
+  [`tidy()`](https://netify-dev.github.io/lame/reference/tidy.md),
+  [`glance()`](https://netify-dev.github.io/lame/reference/glance.md),
+  and the diagnostic plots).
+
 ## lame 1.0.0
 
 ### Initial CRAN Submission

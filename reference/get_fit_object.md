@@ -15,6 +15,7 @@ get_fit_object(
   GOF,
   Xlist,
   actorByYr,
+  colActorByYr = NULL,
   start_vals,
   symmetric,
   tryErrorChecks,
@@ -32,7 +33,14 @@ get_fit_object(
   nB = NULL,
   n_time = NULL,
   Y_obs = NULL,
-  G = NULL
+  G = NULL,
+  dynamic_beta = FALSE,
+  beta_dynamic_mask = NULL,
+  beta_dynamic_groups = NULL,
+  rho_beta = NULL,
+  sigma_beta = NULL,
+  RHO_BETA = NULL,
+  SIGMA_BETA = NULL
 )
 ```
 
@@ -72,7 +80,13 @@ get_fit_object(
 
 - actorByYr:
 
-  List of actors by time point
+  List of actors by time point. In bipartite mode this is the per-year
+  list of row actors.
+
+- colActorByYr:
+
+  Bipartite only. List of column actors by time point; defaults to
+  `NULL` (unipartite).
 
 - start_vals:
 
@@ -146,6 +160,39 @@ get_fit_object(
 - G:
 
   bipartite interaction matrix mapping row to column latent spaces
+
+- dynamic_beta:
+
+  logical or scalar; whether the BETA storage is 3-D (dynamic_beta
+  path). Default `FALSE`.
+
+- beta_dynamic_mask:
+
+  logical vector marking which coefficients are dynamic.
+
+- beta_dynamic_groups:
+
+  character vector of per-coefficient block labels ("intercept", "dyad",
+  "row", "col"); `""` for static coefficients.
+
+- rho_beta:
+
+  named numeric vector of per-block AR(1) rho values (one per dynamic
+  block).
+
+- sigma_beta:
+
+  named numeric vector of per-block AR(1) innovation standard
+  deviations.
+
+- RHO_BETA:
+
+  matrix of per-iteration rho_beta draws (rows = MCMC draw, cols =
+  dynamic block).
+
+- SIGMA_BETA:
+
+  matrix of per-iteration sigma_beta draws.
 
 ## Value
 

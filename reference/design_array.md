@@ -5,7 +5,7 @@ Computes the design socioarray of covariate values for an AME fit
 ## Usage
 
 ``` r
-design_array(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n)
+design_array(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n,warn=TRUE)
 ```
 
 ## Arguments
@@ -29,6 +29,12 @@ design_array(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n)
 - n:
 
   number of rows/columns
+
+- warn:
+
+  logical; warn when missing covariate values are zero-filled (default
+  `TRUE`). Set `FALSE` when the caller has already propagated the
+  missingness into the response.
 
 ## Value
 

@@ -30,6 +30,7 @@ Peter Hoff
 ## Examples
 
 ``` r
+
 Y<-matrix(rpois(10*10,.5),10,10) ; diag(Y)<-NA
 E<-sm2el(Y) 
 el2sm(E) - Y 
