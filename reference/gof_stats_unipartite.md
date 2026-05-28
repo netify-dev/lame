@@ -69,10 +69,11 @@ Cassy Dorff, Shahryar Minhas, Tosin Salau
 ## Examples
 
 ``` r
+
 # Create a random unipartite network
 Y <- matrix(rnorm(100), 10, 10)
 diag(Y) <- NA
 gof_stats_unipartite(Y)
 #>  sd.rowmean  sd.colmean    dyad.dep   cycle.dep   trans.dep 
-#>  0.34918446  0.45012473 -0.26811531 -0.06644152  0.01049362 
+#>  0.32845961  0.22928950 -0.13519888 -0.06194189  0.05897162 
 ```

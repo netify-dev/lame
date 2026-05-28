@@ -5,7 +5,7 @@ Calculate memory usage of AME model components
 ## Usage
 
 ``` r
-ame_memory_usage(fit, detailed = TRUE)
+ame_memory_usage(fit = NULL, detailed = TRUE)
 ```
 
 ## Arguments

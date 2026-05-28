@@ -19,6 +19,7 @@ The format is: List of 2 \$ Y: num \[1:100, 1:100\] NA 0 0 0 0 0 0 0 0 1
 ## Examples
 
 ``` r
+
 data(YX_bin)
 gof_stats(YX_bin$Y) 
 #> Note: Square matrix assumed to be unipartite. Use mode='bipartite' for square bipartite networks.

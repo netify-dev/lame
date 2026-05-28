@@ -7,7 +7,7 @@ dependencies.
 ## Usage
 
 ``` r
-gof_stats_bipartite(Y)
+gof_stats_bipartite(Y, warn_square = TRUE)
 ```
 
 ## Arguments
@@ -18,6 +18,12 @@ gof_stats_bipartite(Y)
   Y\\i,j\\ represents the relationship from node i in set A to node j in
   set B. Missing values (NA) are allowed and will be handled
   appropriately.
+
+- warn_square:
+
+  logical; if `TRUE` (default) a warning is issued when `Y` is square (a
+  possible unipartite matrix passed by mistake). Set `FALSE` for a
+  genuinely square bipartite network.
 
 ## Value
 
@@ -73,6 +79,6 @@ Y <- matrix(rnorm(10*12), 10, 12)
 # Calculate GOF statistics
 gof_stats_bipartite(Y)
 #>   sd.rowmean   sd.colmean  four.cycles 
-#>    0.2850925    0.4371888 2970.0000000 
+#>    0.3136781    0.4161703 2970.0000000 
 # }
 ```

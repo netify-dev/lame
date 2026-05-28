@@ -20,6 +20,7 @@ The format is: List of 2 \$ Y: num \[1:100, 1:100\] NA 0 0 0 1 0 0 0 0 3
 ## Examples
 
 ``` r
+
 data(YX_cbin)
 gof_stats(YX_cbin$Y) 
 #>  sd.rowmean  sd.colmean    dyad.dep   cycle.dep   trans.dep 

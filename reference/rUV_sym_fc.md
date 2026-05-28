@@ -50,6 +50,7 @@ Peter Hoff
 ## Examples
 
 ``` r
+
 U0<-matrix(rnorm(30,2),30,2) ; V0<-U0%*%diag(c(3,-2)) 
 E<- U0%*%t(V0) + matrix(rnorm(30^2),30,30) 
 rUV_sym_fc 
@@ -59,6 +60,6 @@ rUV_sym_fc
 #>     uLoopIDs <- as.integer(rep(sample(1:n), 4) - 1)
 #>     rUV_sym_fc_cpp(E, U, V, s2, shrink, uLoopIDs)
 #> }
-#> <bytecode: 0x5580e44943d8>
+#> <bytecode: 0x558bb2a0c840>
 #> <environment: namespace:lame>
 ```

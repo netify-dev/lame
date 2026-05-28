@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Bipartite Network Analysis • lame</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Bipartite Network Analysis">
 </head>
@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,6 +41,8 @@
     <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+    <li><a class="dropdown-item" href="../articles/fast_estimation.html">Fast (MCMC-free) Estimation</a></li>
+    <li><a class="dropdown-item" href="../articles/forecasting.html">Forecasting</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -67,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-03-29</h4>
+            <h4 data-toc-skip class="date">2026-05-28</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/bipartite.Rmd" class="external-link"><code>vignettes/bipartite.Rmd</code></a></small>
       <div class="d-none name"><code>bipartite.Rmd</code></div>
@@ -78,7 +80,6 @@ Shahryar Minhas, and Tosin Salau</h4>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/lame/">lame</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/hadley/reshape" class="external-link">reshape2</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
@@ -107,7 +108,7 @@ each other.</p>
 and column node
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
 is modeled as:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mi>β</mi><mi>′</mi><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>a</mi><mi>i</mi></msub><mo>+</mo><msub><mi>b</mi><mi>j</mi></msub><mo>+</mo><msub><mi>u</mi><mi>i</mi></msub><mi>′</mi><mi>G</mi><msub><mi>v</mi><mi>j</mi></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">y_{ij} = \beta'x_{ij} + a_i + b_j + u_i'Gv_j + \epsilon_{ij}</annotation></semantics></math></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><msup><mi>β</mi><mo>′</mo></msup><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>a</mi><mi>i</mi></msub><mo>+</mo><msub><mi>b</mi><mi>j</mi></msub><mo>+</mo><msubsup><mi>u</mi><mi>i</mi><mo>′</mo></msubsup><mi>G</mi><msub><mi>v</mi><mi>j</mi></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">y_{ij} = \beta'x_{ij} + a_i + b_j + u_i'Gv_j + \epsilon_{ij}</annotation></semantics></math></p>
 <p>The additive effects work just as in the unipartite case:
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>i</mi></msub><annotation encoding="application/x-tex">a_i</annotation></semantics></math>
 captures how “active” row node
@@ -117,19 +118,60 @@ is (e.g., a student who takes many courses), and
 captures how “popular” column node
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
 is (e.g., a course with high enrollment). But the multiplicative term
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>i</mi></msub><mi>′</mi><mi>G</mi><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i'Gv_j</annotation></semantics></math>
-is different. Instead of
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>i</mi></msub><mi>′</mi><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i'v_j</annotation></semantics></math>
-with shared latent dimensions, the row and column nodes live in
-potentially different-dimensional latent spaces
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mo>′</mo></msubsup><mi>G</mi><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i'Gv_j</annotation></semantics></math>
+is different from the unipartite
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mo>′</mo></msubsup><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i'v_j</annotation></semantics></math>.
+Row and column nodes live in potentially different-dimensional latent
+spaces
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>R</mi><mtext mathvariant="normal">row</mtext></msub><annotation encoding="application/x-tex">R_\text{row}</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>R</mi><mtext mathvariant="normal">col</mtext></msub><annotation encoding="application/x-tex">R_\text{col}</annotation></semantics></math>),
-and the interaction matrix
+and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
-maps between them. This is more flexible, letting the model discover
-that, say, two dimensions of student preferences map onto three
-dimensions of course characteristics.</p>
+is a
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>R</mi><mtext mathvariant="normal">row</mtext></msub><mo>×</mo><msub><mi>R</mi><mtext mathvariant="normal">col</mtext></msub></mrow><annotation encoding="application/x-tex">R_\text{row} \times R_\text{col}</annotation></semantics></math>
+interaction matrix.</p>
+<p>How
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+is handled differs between the cross-sectional and longitudinal entry
+points:</p>
+<ul>
+<li>In <strong><code><a href="../reference/ame.html">ame()</a></code></strong> (cross-sectional bipartite),
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+is initialised to a rank-truncated scaled identity and <strong>held
+fixed</strong> during MCMC. The rotation and scaling of the interaction
+are absorbed into
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>,
+so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+itself is not estimated; what is identified is the overall
+multiplicative term
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>G</mi><msup><mi>V</mi><mo>′</mo></msup></mrow><annotation encoding="application/x-tex">U G V'</annotation></semantics></math>.</li>
+<li>In <strong><code><a href="../reference/lame.html">lame()</a></code></strong> (longitudinal bipartite),
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+is <strong>sampled</strong> each iteration from its conditional Gaussian
+via the bipartite
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>-sampler.
+With <code>dynamic_G = FALSE</code> a single
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+is shared across periods; with <code>dynamic_G = TRUE</code> a separate
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>t</mi></msub><annotation encoding="application/x-tex">G_t</annotation></semantics></math>
+is drawn per period and returned as <code>fit$G_cube</code> (see the
+section on <code>dynamic_G</code> below).</li>
+</ul>
+<p>In either case, the bipartite parameterisation lets row-side latent
+positions
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>,
+shape
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mtext mathvariant="normal">row</mtext></msub><mo>×</mo><msub><mi>R</mi><mtext mathvariant="normal">row</mtext></msub></mrow><annotation encoding="application/x-tex">n_\text{row} \times R_\text{row}</annotation></semantics></math>)
+and column-side latent positions
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>,
+shape
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mtext mathvariant="normal">col</mtext></msub><mo>×</mo><msub><mi>R</mi><mtext mathvariant="normal">col</mtext></msub></mrow><annotation encoding="application/x-tex">n_\text{col} \times R_\text{col}</annotation></semantics></math>)
+be chosen at different ranks, which is the substantive flexibility users
+get.</p>
 <p>A few things drop away in the bipartite setting. There is no dyadic
 correlation parameter
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>,
@@ -141,10 +183,128 @@ and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
 also have independent variances rather than a joint covariance, since
 they describe fundamentally different types of actors.</p>
+<div class="section level3">
+<h3 id="supported-families-in-bipartite-mode">Supported families in bipartite mode<a class="anchor" aria-label="anchor" href="#supported-families-in-bipartite-mode"></a>
+</h3>
+<p>Every family that works for a square network also works for a
+rectangular one. The rectangular Z-samplers live in
+<code>R/rZ_bipartite.R</code> and treat each cell as independent given
+the linear predictor (there is no reciprocal-cell coupling in a
+bipartite graph). The supported set:</p>
+<table class="table">
+<colgroup>
+<col width="27%">
+<col width="55%">
+<col width="17%">
+</colgroup>
+<thead><tr class="header">
+<th>Family</th>
+<th>Bipartite supported?</th>
+<th>Notes</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>normal</code></td>
+<td>yes</td>
+<td>the unrestricted-Gaussian baseline.</td>
+</tr>
+<tr class="even">
+<td><code>binary</code></td>
+<td>yes</td>
+<td>probit link on tie / no-tie.</td>
+</tr>
+<tr class="odd">
+<td><code>tobit</code></td>
+<td>yes</td>
+<td>left-censored continuous outcome.</td>
+</tr>
+<tr class="even">
+<td><code>ordinal</code></td>
+<td>yes</td>
+<td>rectangular ordinal-probit sampler (<code>rZ_ord_bip_fc</code>); use
+data-induced cutpoints (default) or pass
+<code>ordinal_cutpoints = "explicit"</code> for the Cowles MH variant on
+the unipartite path.</td>
+</tr>
+<tr class="odd">
+<td><code>cbin</code></td>
+<td>yes</td>
+<td>constrained-binary with <code>odmax</code> interpreted as the
+per-row outdegree cap.</td>
+</tr>
+<tr class="even">
+<td><code>frn</code></td>
+<td>yes</td>
+<td>fixed-rank-nominations; each row’s top-<code>odmax</code> ranks are
+observed.</td>
+</tr>
+<tr class="odd">
+<td><code>rrl</code></td>
+<td>yes</td>
+<td>row-ranked likelihood ranks each row over column nodes; scales
+linearly in the row length, so long rows (<code>nB = 50</code> or
+larger) are routine.</td>
+</tr>
+<tr class="even">
+<td><code>poisson</code></td>
+<td>yes</td>
+<td>rectangular MH on Z; supports the <code>period_exposure</code>
+offset on the longitudinal path.</td>
+</tr>
+</tbody>
+</table>
+<p>The same table applies to <code><a href="../reference/lame.html">lame()</a></code> in bipartite mode.
+<code>dynamic_G = TRUE</code> is supported in <code><a href="../reference/lame.html">lame()</a></code>; it
+runs a Carter-Kohn FFBS on <code>vec(G_t)</code> under an AR(1)
+state-space prior and returns the posterior-mean per-period
+<code>G_t</code> plus a rotation-drift diagnostic that flags when
+apparent time variation is dominated by latent-rotation drift rather
+than real change. We demonstrate <code>dynamic_G</code> later in this
+vignette.</p>
+</div>
+<div class="section level3">
+<h3 id="tobit-and-rrl-in-practice">Tobit and rrl in practice<a class="anchor" aria-label="anchor" href="#tobit-and-rrl-in-practice"></a>
+</h3>
+<p>Bipartite <strong>tobit</strong> is the right choice when your
+outcome is a continuous quantity that is censored at a known boundary,
+such as trade volume between a country and an IGO that records “no
+exchange” as zero rather than as missing, or a patient’s reported dose
+of a drug they were not prescribed (also zero). The Z-sampler treats
+observed zeros as left-censored draws from the underlying latent
+intensity and propagates that censoring into the additive /
+multiplicative updates. Set <code>family = "tobit"</code> and supply the
+matrix of recorded values (zeros allowed).</p>
+<p>Bipartite <strong>rrl</strong> (row-ranked likelihood) is first-class
+in both <code><a href="../reference/ame.html">ame()</a></code> and <code><a href="../reference/lame.html">lame()</a></code>: the rectangular
+Z-sampler <code>rZ_rrl_bip_fc</code> in <code>R/rZ_bipartite.R</code>
+enforces the per-row rank cone (<code>Y_ij &gt; Y_ik</code> implies
+<code>Z_ij &gt; Z_ik</code> within row <code>i</code>) without a zero
+threshold and without <code>odmax</code>. The sampler scales linearly in
+the row length, so long rows (<code>nB = 50</code> or larger) are
+routine.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="cross-sectional-analysis-with-ame">Cross-Sectional Analysis with <code>ame()</code><a class="anchor" aria-label="anchor" href="#cross-sectional-analysis-with-ame"></a>
 </h2>
+<div class="section level3">
+<h3 id="coming-from-a-long-format-tibble">Coming from a long-format tibble?<a class="anchor" aria-label="anchor" href="#coming-from-a-long-format-tibble"></a>
+</h3>
+<p>If your data lives in a long-format tibble (<code>patient_id</code>,
+<code>drug</code>, <code>prescribed</code>), pivot it to a matrix once
+before calling <code><a href="../reference/ame.html">ame()</a></code>:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tidyr.tidyverse.org" class="external-link">tidyr</a></span><span class="op">)</span>; <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tibble.tidyverse.org/" class="external-link">tibble</a></span><span class="op">)</span></span>
+<span><span class="va">Y_df</span> <span class="op">&lt;-</span> <span class="va">rx</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span>                                        <span class="co"># long tibble</span></span>
+<span>    <span class="fu"><a href="https://tidyr.tidyverse.org/reference/pivot_wider.html" class="external-link">pivot_wider</a></span><span class="op">(</span>names_from <span class="op">=</span> <span class="va">drug</span>, values_from <span class="op">=</span> <span class="va">prescribed</span><span class="op">)</span></span>
+<span><span class="va">Y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">Y_df</span><span class="op">[</span>, <span class="op">-</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span>                            <span class="co"># numeric matrix</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="va">Y_df</span><span class="op">$</span><span class="va">patient_id</span>                        <span class="co"># row actor names</span></span>
+<span><span class="co"># colnames(Y) are already the drug names from pivot_wider</span></span></code></pre></div>
+<p>The matrix is what <code>ame(..., mode = "bipartite")</code>
+consumes. Rownames / colnames carry through to <code>fit$APM</code> (one
+number per patient) and <code>fit$BPM</code> (one number per drug)
+downstream.</p>
+</div>
 <div class="section level3">
 <h3 id="simulating-data">Simulating Data<a class="anchor" aria-label="anchor" href="#simulating-data"></a>
 </h3>
@@ -156,7 +316,7 @@ attracts. The interaction matrix
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
 determines how these latent dimensions combine to predict
 enrollment.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># simulate a student-course enrollment network</span></span>
 <span><span class="va">n_students</span> <span class="op">&lt;-</span> <span class="fl">30</span></span>
 <span><span class="va">n_courses</span> <span class="op">&lt;-</span> <span class="fl">20</span></span>
@@ -191,7 +351,7 @@ enrollment.</p>
 <code>mode = "bipartite"</code> and specifying the latent dimensions for
 each node type separately via <code>R_row</code> and
 <code>R_col</code>.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># note: burn/nscan are kept small here for fast vignette building.</span></span>
 <span><span class="co"># for real analyses, use burn &gt;= 1000 and nscan &gt;= 5000.</span></span>
 <span><span class="va">fit_cross</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span></span>
@@ -211,15 +371,15 @@ each node type separately via <code>R_row</code> and
 <span><span class="co">#&gt; === AME Model Summary ===</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; [1] "Y ~ a[i] + b[j], family = 'binary'"</span></span>
+<span><span class="co">#&gt; [1] "Y ~ a[i] + b[j] + U[i,1:2] %*% G %*% V[j,1:2]', family = 'binary'"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
-<span><span class="co">#&gt;       Estimate StdError z_value p_value CI_lower CI_upper   </span></span>
-<span><span class="co">#&gt; beta0   -0.597    0.195  -3.062   0.002   -0.963   -0.221 **</span></span>
+<span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper   </span></span>
+<span><span class="co">#&gt; intercept   -0.597    0.195  -3.062   0.002   -0.963   -0.221 **</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
-<span><span class="co">#&gt; Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.</span></span>
+<span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
@@ -235,7 +395,7 @@ each node type separately via <code>R_row</code> and
 <p>The summary shows the regression coefficient (just an intercept here,
 since we included no covariates) and the variance components. The fitted
 object also stores the student latent positions (<code>U</code>), course
-latent positions (<code>V</code>), the interaction matrix
+latent positions (<code>V</code>), the (fixed) interaction matrix
 (<code>G</code>), and additive effects (<code>APM</code> for student
 activity, <code>BPM</code> for course popularity), which we’ll visualize
 next.</p>
@@ -248,45 +408,57 @@ places both row and column nodes in the same latent space, making it
 easy to see which students cluster near which courses. Students and
 courses that appear close together in this plot have a higher predicted
 probability of a tie.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_cross</span>, layout <span class="op">=</span> <span class="st">"biplot"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Bipartite Latent Space: Students and Courses"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/visualize_cross_sectional-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+<p><img src="bipartite_files/figure-html/visualize_cross_sectional-1.png" class="r-plt" alt="Bipartite latent-space biplot placing students and courses in the same 2D coordinate system, with proximity indicating a higher predicted enrollment probability." width="100%" style="display: block; margin: auto;"></p>
 <p>The interaction matrix
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
 mediates how the latent dimensions of students and courses combine to
-predict ties. Keep in mind that
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>,
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>
-are only identified up to rotation and scaling: the model can absorb
-rotations of
+predict ties. In <strong><code><a href="../reference/ame.html">ame()</a></code></strong> (the
+cross-sectional path used in this fit)
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+is held <strong>fixed</strong> at a rank-truncated scaled identity: the
+rotation and scaling of the interaction are absorbed into
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
 and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>
-into
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>,
-so the individual entries of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>,
+so
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
-do not have a stable interpretation across runs. What is identified is
-the overall product
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>G</mi><mi>V</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">UGV'</annotation></semantics></math>,
-which captures the latent structure of the network. The diagonal entries
-of
+itself is not estimated and its entries carry no information. What
+<em>is</em> estimated is the overall multiplicative term
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>G</mi><msup><mi>V</mi><mo>′</mo></msup></mrow><annotation encoding="application/x-tex">U G V'</annotation></semantics></math>,
+which captures the latent structure of the network. (In
+<code><a href="../reference/lame.html">lame()</a></code>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
-indicate the overall strength of the latent factor association, while
-off-diagonal entries indicate cross-dimension interactions.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">G_melt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/reshape2/man/melt.html" class="external-link">melt</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">$</span><span class="va">G</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">G_melt</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">Var2</span>, y <span class="op">=</span> <span class="va">Var1</span>, fill <span class="op">=</span> <span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+is sampled rather than fixed; see the next section.) We visualise the
+fitted latent structure
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>G</mi><msup><mi>V</mi><mo>′</mo></msup></mrow><annotation encoding="application/x-tex">U G V'</annotation></semantics></math>
+directly:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">G_mult</span> <span class="op">&lt;-</span> <span class="va">fit_cross</span><span class="op">$</span><span class="va">U</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">fit_cross</span><span class="op">$</span><span class="va">G</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">$</span><span class="va">V</span><span class="op">)</span></span>
+<span><span class="va">G_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>    Student <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/row.html" class="external-link">row</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span><span class="op">]</span>,</span>
+<span>    Course <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/col.html" class="external-link">col</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span><span class="op">]</span>,</span>
+<span>    Fitted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co"># RdBu reversed (direction = -1): positive =&gt; red, negative =&gt; blue,</span></span>
+<span><span class="co"># zero =&gt; white. By default scale_fill_distiller() centres white at the</span></span>
+<span><span class="co"># midpoint of the DATA range, not at zero -- so we pass symmetric limits</span></span>
+<span><span class="co"># c(-mx, mx) to force the white midpoint onto zero, which is the right</span></span>
+<span><span class="co"># choice for a signed effect. RdBu is colour-blind-safe per ColorBrewer's</span></span>
+<span><span class="co"># protanopia / deuteranopia checks.</span></span>
+<span><span class="va">mx</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">G_df</span><span class="op">$</span><span class="va">Fitted</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">G_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">Course</span>, y <span class="op">=</span> <span class="va">Student</span>, fill <span class="op">=</span> <span class="va">Fitted</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_tile</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_gradient.html" class="external-link">scale_fill_gradient2</a></span><span class="op">(</span>low <span class="op">=</span> <span class="st">"blue"</span>, mid <span class="op">=</span> <span class="st">"white"</span>, high <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Estimated Interaction Matrix G"</span>,</span>
-<span>            x <span class="op">=</span> <span class="st">"Column Dimension"</span>, y <span class="op">=</span> <span class="st">"Row Dimension"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_brewer.html" class="external-link">scale_fill_distiller</a></span><span class="op">(</span>palette <span class="op">=</span> <span class="st">"RdBu"</span>, direction <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>, limits <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="va">mx</span>, <span class="va">mx</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Fitted Multiplicative Structure (UGV')"</span>,</span>
+<span>            subtitle <span class="op">=</span> <span class="st">"Red = positive latent affinity, Blue = negative, near-white = ~0"</span>,</span>
+<span>            x <span class="op">=</span> <span class="st">"Course"</span>, y <span class="op">=</span> <span class="st">"Student"</span>,</span>
+<span>            fill <span class="op">=</span> <span class="st">"U G V'"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/interaction_heatmap-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+<p><img src="bipartite_files/figure-html/interaction_heatmap-1.png" class="r-plt" alt="Heatmap of the fitted multiplicative structure U G V' across student-course pairs using a diverging colour-blind-safe ColorBrewer RdBu palette: red tiles mark positive latent affinity (predicted enrollment above baseline), blue tiles mark negative latent affinity (predicted below baseline), and near-white tiles mark a posterior estimate near zero." width="100%" style="display: block; margin: auto;"></p>
 </div>
 </div>
 <div class="section level2">
@@ -299,21 +471,61 @@ time while optionally allowing the latent structure to evolve.</p>
 <div class="section level3">
 <h3 id="simulating-longitudinal-data">Simulating Longitudinal Data<a class="anchor" aria-label="anchor" href="#simulating-longitudinal-data"></a>
 </h3>
-<p>We simulate a panel of user–item interaction networks over 5 periods.
-The underlying latent structure is held fixed (for now), with small
-random shocks to the overall baseline at each period.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<p>We simulate a panel of user–item interaction networks over 5 periods
+in which the latent positions drift via an AR(1) process with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ρ</mi><mo>=</mo><mn>0.9</mn></mrow><annotation encoding="application/x-tex">\rho = 0.9</annotation></semantics></math>.
+This is a smooth, mean-reverting evolution: each period’s latent
+position is mostly the previous one plus a small innovation. The
+simulation chunk below uses the <strong>stationary-variance
+parameterisation</strong>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><mi>t</mi></msub><mo>=</mo><mi>ρ</mi><mspace width="0.167em"></mspace><msub><mi>U</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msqrt><mrow><mn>1</mn><mo>−</mo><msup><mi>ρ</mi><mn>2</mn></msup></mrow></msqrt><mspace width="0.167em"></mspace><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">U_t = \rho\,U_{t-1} + \sqrt{1 - \rho^2}\,\epsilon</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi>I</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\epsilon \sim N(0, I)</annotation></semantics></math>,
+so the marginal variance of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>U</mi><mi>t</mi></msub><annotation encoding="application/x-tex">U_t</annotation></semantics></math>
+stays equal to 1 for every
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>).
+The MCMC sampler internally uses the <strong>innovation-variance
+parameterisation</strong>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><mi>t</mi></msub><mo>=</mo><mi>ρ</mi><mspace width="0.167em"></mspace><msub><mi>U</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>ϵ</mi></mrow><annotation encoding="application/x-tex">U_t = \rho\,U_{t-1} + \epsilon</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\epsilon \sim N(0, \sigma_{uv}^2)</annotation></semantics></math>);
+the two are the same process when
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo>=</mo><mn>1</mn><mo>−</mo><msup><mi>ρ</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\sigma_{uv}^2 = 1 - \rho^2</annotation></semantics></math>,
+but the variance lives on different objects, so don’t mix them when
+writing your own simulations. The data-generating interaction matrix
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+that combines
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>
+is held constant across periods, so when we fit <code><a href="../reference/lame.html">lame()</a></code> with
+<code>dynamic_G = FALSE</code> the model’s static
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+is matched to the truth; we show the time-varying alternative
+(<code>dynamic_G = TRUE</code>) further down.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">n_periods</span> <span class="op">&lt;-</span> <span class="fl">5</span></span>
 <span><span class="va">n_users</span> <span class="op">&lt;-</span> <span class="fl">20</span></span>
 <span><span class="va">n_items</span> <span class="op">&lt;-</span> <span class="fl">15</span></span>
 <span></span>
-<span><span class="va">U_long</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_users</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span>, <span class="va">n_users</span>, <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="va">V_long</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_items</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span>, <span class="va">n_items</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="va">true_rho</span> <span class="op">&lt;-</span> <span class="fl">0.9</span></span>
 <span><span class="va">G_long</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0.3</span>, <span class="fl">0.3</span>, <span class="op">-</span><span class="fl">0.8</span><span class="op">)</span>, <span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">U_t</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">vector</a></span><span class="op">(</span><span class="st">"list"</span>, <span class="va">n_periods</span><span class="op">)</span></span>
+<span><span class="va">V_t</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">vector</a></span><span class="op">(</span><span class="st">"list"</span>, <span class="va">n_periods</span><span class="op">)</span></span>
+<span><span class="va">U_t</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_users</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span>, <span class="va">n_users</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="va">V_t</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_items</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span>, <span class="va">n_items</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="kw">for</span><span class="op">(</span><span class="va">t</span> <span class="kw">in</span> <span class="fl">2</span><span class="op">:</span><span class="va">n_periods</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">U_t</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">true_rho</span> <span class="op">*</span> <span class="va">U_t</span><span class="op">[[</span><span class="va">t</span><span class="op">-</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span> <span class="op">+</span></span>
+<span>        <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">true_rho</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_users</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span>, <span class="va">n_users</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span>    <span class="va">V_t</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">true_rho</span> <span class="op">*</span> <span class="va">V_t</span><span class="op">[[</span><span class="va">t</span><span class="op">-</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span> <span class="op">+</span></span>
+<span>        <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">true_rho</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_items</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span>, <span class="va">n_items</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">Y_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="kw">for</span><span class="op">(</span><span class="va">t</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="va">n_periods</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">eta_t</span> <span class="op">&lt;-</span> <span class="va">U_long</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">G_long</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">V_long</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">0.2</span><span class="op">)</span></span>
+<span>    <span class="va">eta_t</span> <span class="op">&lt;-</span> <span class="va">U_t</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">G_long</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">V_t</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
 <span>    <span class="va">prob_t</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">pnorm</a></span><span class="op">(</span><span class="va">eta_t</span><span class="op">)</span></span>
 <span>    <span class="va">Y_list</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_users</span> <span class="op">*</span> <span class="va">n_items</span>, <span class="fl">1</span>, <span class="va">prob_t</span><span class="op">)</span>,</span>
 <span>                                                <span class="va">n_users</span>, <span class="va">n_items</span><span class="op">)</span></span>
@@ -327,7 +539,9 @@ random shocks to the overall baseline at each period.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Dimensions per period:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">Y_list</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Dimensions per period: 20 15</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Average density:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">Y_list</span>, <span class="va">mean</span><span class="op">)</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Average density: 0.52</span></span></code></pre></div>
+<span><span class="co">#&gt; Average density: 0.51</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"True latent AR(1) coefficient:"</span>, <span class="va">true_rho</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; True latent AR(1) coefficient: 0.9</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="static-model">Static Model<a class="anchor" aria-label="anchor" href="#static-model"></a>
@@ -337,7 +551,7 @@ additive effects are constant over time. This pools all time periods
 together to get a single estimate of each actor’s latent position,
 useful when you believe the underlying structure is stable and you just
 want more data to estimate it precisely.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># note: iterations are kept small for vignette speed; use burn &gt;= 1000</span></span>
 <span><span class="co"># and nscan &gt;= 5000 for real analyses.</span></span>
 <span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
@@ -360,26 +574,31 @@ want more data to estimate it precisely.</p>
 <span><span class="co">#&gt; === Longitudinal AME Model Summary ===</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; NULL</span></span>
+<span><span class="co">#&gt; [1] "Y ~ a[i] + b[j] + U[i,1:2] %*% G %*% V[j,1:2]', family = 'binary'"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Time periods: 5 </span></span>
 <span><span class="co">#&gt; Family: binary </span></span>
 <span><span class="co">#&gt; Mode: bipartite </span></span>
 <span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Note: STATIC fit pooled across 5 time periods --</span></span>
+<span><span class="co">#&gt;   U, V, a, b are time-invariant; per-period predictions vary</span></span>
+<span><span class="co">#&gt;   only through per-period covariates. For time-varying effects,</span></span>
+<span><span class="co">#&gt;   refit with dynamic_uv = TRUE and/or dynamic_ab = TRUE.</span></span>
+<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper  </span></span>
-<span><span class="co">#&gt; intercept    0.056    0.159   0.354   0.723   -0.227    0.313  </span></span>
+<span><span class="co">#&gt; intercept    0.008    0.236   0.034   0.973   -0.461    0.421  </span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
-<span><span class="co">#&gt; Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.</span></span>
+<span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.234    0.075</span></span>
+<span><span class="co">#&gt; va     0.254    0.088</span></span>
 <span><span class="co">#&gt; cab    0.000    0.000</span></span>
-<span><span class="co">#&gt; vb     0.267    0.100</span></span>
+<span><span class="co">#&gt; vb     0.303    0.128</span></span>
 <span><span class="co">#&gt; rho    0.000    0.000</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
@@ -396,7 +615,7 @@ autoregressive parameter
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
 close to 1) means slow, gradual change; a low one means the structure is
 more volatile from period to period.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># same reduced iterations as above for vignette speed.</span></span>
 <span><span class="va">fit_dynamic</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
@@ -418,28 +637,28 @@ more volatile from period to period.</p>
 <span><span class="co">#&gt; === Longitudinal AME Model Summary ===</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; NULL</span></span>
+<span><span class="co">#&gt; [1] "Y ~ a[i] + b[j] + U[i,1:2] %*% G %*% V[j,1:2]', family = 'binary'"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Time periods: 5 </span></span>
 <span><span class="co">#&gt; Family: binary </span></span>
 <span><span class="co">#&gt; Mode: bipartite </span></span>
-<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0 )</span></span>
-<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.485 )</span></span>
+<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.905 )</span></span>
+<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.402 )</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper  </span></span>
-<span><span class="co">#&gt; intercept   -0.003    0.038   -0.07   0.944   -0.085    0.067  </span></span>
+<span><span class="co">#&gt; intercept    0.005    0.036   0.139   0.889   -0.065    0.078  </span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
-<span><span class="co">#&gt; Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.</span></span>
+<span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.236    0.074</span></span>
+<span><span class="co">#&gt; va     0.289    0.089</span></span>
 <span><span class="co">#&gt; cab    0.000    0.000</span></span>
-<span><span class="co">#&gt; vb     0.272    0.088</span></span>
+<span><span class="co">#&gt; vb     0.324    0.158</span></span>
 <span><span class="co">#&gt; rho    0.000    0.000</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
@@ -447,12 +666,95 @@ more volatile from period to period.</p>
 <span><span class="co">#&gt;   Note: bipartite model (rho fixed to 0, cab fixed to 0)</span></span></code></pre></div>
 <p>The dynamic model reports estimated AR(1) persistence parameters for
 the latent positions (<code>rho_uv</code>) and additive effects
-(<code>rho_ab</code>). Since our simulated data uses the same latent
-structure across all time periods, these parameters reflect the
-interplay between the prior (which favors persistence) and the lack of
-temporal variation in the data. In real applications where user
-preferences or item popularity genuinely shift over time, you would see
-these parameters more clearly informed by the data.</p>
+(<code>rho_ab</code>). Values close to 1 indicate strong
+period-to-period persistence; values close to 0 indicate
+near-independent latent positions across periods.</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"True rho_uv = %.2f | posterior mean = %.3f | 95%% CI = [%.3f, %.3f]\n"</span>,</span>
+<span>                        <span class="va">true_rho</span>,</span>
+<span>                        <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">rho_uv</span><span class="op">)</span>,</span>
+<span>                        <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">rho_uv</span>, <span class="fl">0.025</span><span class="op">)</span>,</span>
+<span>                        <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">rho_uv</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; True rho_uv = 0.90 | posterior mean = 0.905 | 95% CI = [0.865, 0.947]</span></span></code></pre></div>
+<p>The posterior recovers the true <code>rho_uv = 0.9</code> within the
+95% credible interval, indicating that <code><a href="../reference/lame.html">lame()</a></code> correctly
+identifies that the latent positions drift smoothly rather than
+refreshing each period.</p>
+</div>
+<div class="section level3">
+<h3 id="time-varying-interaction-matrix-dynamic_g">Time-varying Interaction Matrix (<code>dynamic_G</code>)<a class="anchor" aria-label="anchor" href="#time-varying-interaction-matrix-dynamic_g"></a>
+</h3>
+<p>When you suspect that the way the row and column latent spaces
+interact is itself shifting over time, not just the actor positions, set
+<code>dynamic_G = TRUE</code>. <code><a href="../reference/lame.html">lame()</a></code> then runs a
+Carter-Kohn FFBS on <code>vec(G_t)</code> under an AR(1) state-space
+prior (the persistence and innovation variance are sampled jointly
+inside the loop) and attaches three outputs:</p>
+<ul>
+<li>
+<code>fit$G_cube</code> – the final draw’s per-period
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>t</mi></msub><annotation encoding="application/x-tex">G_t</annotation></semantics></math>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>R</mi><mtext mathvariant="normal">row</mtext></msub><mo>×</mo><msub><mi>R</mi><mtext mathvariant="normal">col</mtext></msub><mo>×</mo><mi>T</mi></mrow><annotation encoding="application/x-tex">R_\text{row} \times R_\text{col} \times T</annotation></semantics></math>).</li>
+<li>
+<code>fit$G_cube_post_mean</code> – the posterior-mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>t</mi></msub><annotation encoding="application/x-tex">G_t</annotation></semantics></math>
+averaged across all stored draws, same shape; this is the recommended
+summary.</li>
+<li>
+<code>fit$G_cube_post_sd</code> – the elementwise posterior SD
+across draws, same shape.</li>
+</ul>
+<p>The hyperparameter chains live at <code>fit$RHO_G</code> and
+<code>fit$SIGMA_G2</code>. A rotation-drift diagnostic
+(<code>fit$G_rotation_drift</code>) compares the variance of the raw
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>t</mi></msub><annotation encoding="application/x-tex">G_t</annotation></semantics></math>
+entries to their SVD-canonicalised counterparts; when the ratio is large
+the apparent time variation is dominated by latent-rotation drift rather
+than real change in the interaction matrix.</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit_dynG</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
+<span>    Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
+<span>    mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
+<span>    R_row <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>    R_col <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>    family <span class="op">=</span> <span class="st">"binary"</span>,</span>
+<span>    dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    dynamic_G <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    burn <span class="op">=</span> <span class="fl">100</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">500</span>,</span>
+<span>    odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>    plot <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># fit$G_cube_post_mean has dimensions R_row x R_col x n_periods</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">fit_dynG</span><span class="op">$</span><span class="va">G_cube_post_mean</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"G_cube_post_mean dimensions:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fit_dynG</span><span class="op">$</span><span class="va">G_cube_post_mean</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Frobenius norm of posterior-mean G_t per period:\n"</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">fit_dynG</span><span class="op">$</span><span class="va">G_cube_post_mean</span>, <span class="fl">3</span>,</span>
+<span>                      <span class="kw">function</span><span class="op">(</span><span class="va">g</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">g</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Rotation-drift ratio (&gt;= 5 flags latent-rotation domination):"</span>,</span>
+<span>        <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">fit_dynG</span><span class="op">$</span><span class="va">G_rotation_drift</span><span class="op">$</span><span class="va">ratio</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"G_cube was not attached (no bipartite + RA&gt;0 + RB&gt;0 case).\n"</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="co">#&gt; G_cube_post_mean dimensions: 2 2 5 </span></span>
+<span><span class="co">#&gt; Frobenius norm of posterior-mean G_t per period:</span></span>
+<span><span class="co">#&gt; [1] 8.645 8.696 8.498 8.185 8.057</span></span>
+<span><span class="co">#&gt; Rotation-drift ratio (&gt;= 5 flags latent-rotation domination): 1.08</span></span></code></pre></div>
+<p>If the Frobenius norms across periods are nearly identical (and the
+static-G fit GOF is comparable), there is no real evidence of
+time-varying interaction structure and you should stick with
+<code>dynamic_G = FALSE</code>. If they drift substantially and the
+static-G fit shows worse GOF coverage, the time-varying
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>t</mi></msub><annotation encoding="application/x-tex">G_t</annotation></semantics></math>
+is doing meaningful work. The rotation-drift diagnostic is the second
+sanity check: if the ratio is above ~5, the apparent variation across
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>t</mi></msub><annotation encoding="application/x-tex">G_t</annotation></semantics></math>
+slices is mostly U/V rotation rather than real temporal change, and the
+canonical reporting in <code>G_cube_post_mean</code> is the honest
+summary.</p>
 </div>
 <div class="section level3">
 <h3 id="visualizing-temporal-evolution">Visualizing Temporal Evolution<a class="anchor" aria-label="anchor" href="#visualizing-temporal-evolution"></a>
@@ -462,17 +764,17 @@ illustrating how each actor’s latent position moves through the space
 over time. Each line traces one actor’s path from the first to the last
 period, revealing which actors’ roles are stable and which are
 shifting.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Dynamic Latent Positions: Trajectories Over Time"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/visualize_longitudinal-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+<p><img src="bipartite_files/figure-html/visualize_longitudinal-1.png" class="r-plt" alt="Trajectory plot showing the path of each actor's latent position from the first to the last period; coherent curved paths indicate smooth temporal evolution." width="100%" style="display: block; margin: auto;"></p>
 <p>Convergence diagnostics are especially important for dynamic models,
 since the additional parameters
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>,
 innovation variances) need adequate samples to be well-estimated.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/trace_dynamic-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+<p><img src="bipartite_files/figure-html/trace_dynamic-1.png" class="r-plt" alt="MCMC trace plots and posterior densities for the dynamic bipartite model parameters; well-mixed caterpillar traces indicate adequate sampling." width="100%" style="display: block; margin: auto;"></p>
 </div>
 </div>
 <div class="section level2">
@@ -480,22 +782,32 @@ innovation variances) need adequate samples to be well-estimated.</p>
 </h2>
 <p>A natural question is whether the dynamic model is worth the added
 complexity. The goodness-of-fit plots provide one way to compare: if the
-dynamic model’s posterior predictive distributions better cover the
-observed statistics, the extra flexibility is paying off.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+dynamic model’s posterior-predictive distributions better cover the
+observed statistics, the extra flexibility is paying off. In each panel
+below the <strong>observed bipartite statistic at each period appears as
+a solid Okabe-Ito orange (<code>#D55E00</code>) line with filled
+points</strong>, the <strong>posterior-predictive median is a dashed
+dark grey line</strong>, and the <strong>grey ribbon is the 95%
+posterior-predictive credible interval</strong>; the three series are
+dual-encoded on colour and linetype so the comparison stays legible in
+greyscale and for colour-blind readers. For bipartite fits the three
+panels are labelled “Sender Degree Heterogeneity” (row-mean SD),
+“Receiver Degree Heterogeneity” (column-mean SD), and “Four Cycles”, the
+bipartite analogue of transitivity.</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># GOF plots for each model</span></span>
 <span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/model_comparison-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<p><img src="bipartite_files/figure-html/model_comparison-1.png" class="r-plt" alt="Side-by-side goodness-of-fit panels comparing posterior predictive coverage of bipartite degree heterogeneity and four-cycle counts for the static versus dynamic model." width="100%" style="display: block; margin: auto;"></p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/model_comparison-2.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+<p><img src="bipartite_files/figure-html/model_comparison-2.png" class="r-plt" alt="Side-by-side goodness-of-fit panels comparing posterior predictive coverage of bipartite degree heterogeneity and four-cycle counts for the static versus dynamic model." width="100%" style="display: block; margin: auto;"></p>
 <p>We can also compare the GOF statistics directly. For bipartite
 networks, the key statistics are the standard deviation of row means
 (how much users vary in activity), the standard deviation of column
 means (how much items vary in popularity), and the four-cycle count (a
 measure of clustering in bipartite networks, analogous to transitivity
 in unipartite networks).</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gof_static</span> <span class="op">&lt;-</span> <span class="va">fit_static</span><span class="op">$</span><span class="va">GOF</span></span>
 <span><span class="va">gof_dynamic</span> <span class="op">&lt;-</span> <span class="va">fit_dynamic</span><span class="op">$</span><span class="va">GOF</span></span>
 <span></span>
@@ -547,14 +859,23 @@ in unipartite networks).</p>
 <span>        strip.background <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_rect</a></span><span class="op">(</span>fill <span class="op">=</span> <span class="st">"black"</span>, color <span class="op">=</span> <span class="st">"black"</span><span class="op">)</span>,</span>
 <span>        strip.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"white"</span>, hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span>    <span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/model_comparison_boxplot-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
-<p>Since we simulated data with fixed latent structure across all time
-periods, the static and dynamic models should fit similarly. If the
-boxplots overlap substantially and both cover the dashed line, the
-dynamic model’s extra flexibility is not paying off here. In real
-applications where user preferences or item popularity genuinely shift
-over time, the dynamic model would show tighter coverage of the observed
-statistics.</p>
+<p><img src="bipartite_files/figure-html/model_comparison_boxplot-1.png" class="r-plt" alt="Boxplots of posterior predictive bipartite statistics (row-mean SD, column-mean SD, four cycles) faceted by static and dynamic models, with horizontal reference lines at observed values." width="100%" style="display: block; margin: auto;"></p>
+<p>We simulated a constant interaction matrix
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+with actor positions that drift via an AR(1) with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ρ</mi><mo>=</mo><mn>0.9</mn></mrow><annotation encoding="application/x-tex">\rho = 0.9</annotation></semantics></math>
+– moderate persistence (the lag-4 autocorrelation is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>0.9</mn><mn>4</mn></msup><mo>≈</mo><mn>0.66</mn></mrow><annotation encoding="application/x-tex">0.9^4 \approx 0.66</annotation></semantics></math>,
+so the positions at the first and last period correlate only about
+0.6-0.8 and do move). What is genuinely fixed is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>,
+not the positions; combined with the short panel and short chains, that
+is why the static and dynamic models fit similarly here rather than the
+dynamic one clearly winning. If the boxplots overlap substantially and
+both cover the dashed line, the dynamic model’s extra flexibility is not
+paying off here. In real applications where user preferences or item
+popularity genuinely shift over time, the dynamic model would show
+tighter coverage of the observed statistics.</p>
 <div class="section level3">
 <h3 id="choosing-latent-dimensions">Choosing Latent Dimensions<a class="anchor" aria-label="anchor" href="#choosing-latent-dimensions"></a>
 </h3>
@@ -564,7 +885,7 @@ Too few dimensions and the model can’t capture the latent clustering;
 too many and you risk overfitting (and slower computation). A practical
 approach is to fit models with different dimensions and compare their
 GOF statistics.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># include R=0 as a no-latent-space baseline</span></span>
 <span><span class="va">dims_to_test</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>,</span>
@@ -588,27 +909,44 @@ GOF statistics.</p>
 <span>        odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>        verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span>    <span class="op">)</span></span>
-<span>    <span class="co"># posterior predictive p-values: proportion of simulated</span></span>
-<span>    <span class="co"># statistics as or more extreme than the observed value</span></span>
+<span>    <span class="co"># posterior predictive tail probability: proportion of simulated</span></span>
+<span>    <span class="co"># statistics at or above the observed value (one-sided)</span></span>
 <span>    <span class="va">gof_results</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>        R_row <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>        R_col <span class="op">=</span> <span class="va">dims_to_test</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>,</span>
 <span>        pval_rowmean <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_temp</span><span class="op">$</span><span class="va">GOF</span><span class="op">[</span>, <span class="st">"sd.rowmean"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">obs_gof</span><span class="op">[</span><span class="st">"sd.rowmean"</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>        pval_colmean <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_temp</span><span class="op">$</span><span class="va">GOF</span><span class="op">[</span>, <span class="st">"sd.colmean"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">obs_gof</span><span class="op">[</span><span class="st">"sd.colmean"</span><span class="op">]</span><span class="op">)</span>,</span>
 <span>        pval_fourcycles <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_temp</span><span class="op">$</span><span class="va">GOF</span><span class="op">[</span>, <span class="st">"four.cycles"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">obs_gof</span><span class="op">[</span><span class="st">"four.cycles"</span><span class="op">]</span><span class="op">)</span></span>
 <span>    <span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="va">gof_results</span><span class="op">)</span></span>
-<span><span class="co">#&gt;      R_row R_col pval_rowmean pval_fourcycles</span></span>
-<span><span class="co">#&gt; [1,]     0     0     1.000000       0.9920160</span></span>
-<span><span class="co">#&gt; [2,]     1     1     0.998004       0.9820359</span></span>
-<span><span class="co">#&gt; [3,]     2     2     0.988024       0.9700599</span></span></code></pre></div>
-<p>The posterior predictive p-values tell you how well each model
-reproduces the observed network structure. Values near 0.5 indicate good
-fit (the observed statistic falls in the middle of the simulated
-distribution). Values near 0 or 1 indicate the model consistently over-
-or under-predicts that feature. Look for the point where adding more
-dimensions stops improving the p-values.</p>
+<span><span class="co">#&gt;      R_row R_col pval_rowmean pval_colmean pval_fourcycles</span></span>
+<span><span class="co">#&gt; [1,]     0     0     1.000000    0.9900200       0.9920160</span></span>
+<span><span class="co">#&gt; [2,]     1     1     0.998004    0.9221557       0.9820359</span></span>
+<span><span class="co">#&gt; [3,]     2     2     0.988024    0.8742515       0.9700599</span></span></code></pre></div>
+<p>These are one-sided posterior predictive tail probabilities, not
+formal test p-values. Values near 0.5 indicate the observed statistic
+lies in the bulk of the model’s posterior predictive distribution;
+values near 0 or 1 indicate the model systematically over- or
+under-predicts that feature. (Note that for <code><a href="../reference/ame.html">ame()</a></code>,
+<code>fit$GOF</code> stores the observed statistic in row 1 alongside
+the posterior-predictive draws, so the tail probability here includes
+the observed point itself — a one-row bias that is negligible for the
+chain lengths we use, but worth knowing.) The relationship to
+<code>R</code> is not monotonic; adding latent dimensions can move some
+tail probabilities away from 0.5 (e.g. by making the predictive
+distribution more dispersed), so use this together with the trajectory
+and GOF plots rather than as a single number to optimise. A sensible
+heuristic is to pick the smallest <code>R</code> at which all three tail
+probabilities sit comfortably away from 0 and 1. On this particular
+simulated network the three tail probabilities all stay high (near 1) at
+every <code>R</code> – the fit over-predicts both row-degree
+heterogeneity and four-cycles (the simulated networks carry more of each
+than the observed network) regardless of rank – which is itself a useful
+verdict: no value of <code>R</code> rescues these statistics, so the
+limitation is structural rather than a matter of adding latent
+dimensions. That is exactly the kind of read this diagnostic is for.</p>
 </div>
 </div>
 <div class="section level2">
@@ -637,13 +975,35 @@ to which column nodes?”</p>
 interpreting results. The <code>trace_plot</code> function shows MCMC
 traces and posterior densities for the regression coefficients and
 variance components.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/convergence-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
+<p><img src="bipartite_files/figure-html/convergence-1.png" class="r-plt" alt="MCMC trace and density plots for the cross-sectional bipartite fit; well-mixed traces and smooth unimodal densities support convergence." width="100%" style="display: block; margin: auto;"></p>
 <p>Look for traces that mix well (no long flat stretches or slow drifts)
 and densities that are smooth and unimodal. With the short chains used
 in this vignette, convergence is not guaranteed. In practice, run longer
 chains and consider multiple starting values.</p>
+<p>For numerical diagnostics use the same Stan-era stack the
+cross-sectional vignette demonstrates.
+<code>posterior::as_draws(fit_cross)</code> returns a
+<code>draws_array</code> keyed by chain, and
+<code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">posterior::summarise_draws()</a></code> reports
+split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>,
+<code>ess_bulk</code>, and <code>ess_tail</code> per coefficient and
+variance component. For honest between-chain
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+run
+<code>ame_parallel(..., n_chains = 4, fitter = "ame", combine_method = "pool")</code>
+so the pooled fit carries a <code>chain_indicator</code> column;
+<code>summarise_draws()</code> then computes Rhat across chains.
+<code>prior_summary(fit_cross)</code> prints the hyperparameters
+actually in effect (g-prior on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>,
+variance-component priors), and <code>loo::loo(fit_cross)</code> works
+after refitting with <code>save_log_lik = TRUE</code> (Gaussian density
+for <code>normal</code>, probit Bernoulli for <code>binary</code>,
+log-Poisson for <code>poisson</code>; pair with
+<code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo::loo_compare()</a></code> for model selection). See the <a href="cross_sec_ame.html">cross-sectional vignette</a> for the worked
+end-to-end stack.</p>
 </div>
 <div class="section level2">
 <h2 id="extracting-positions-for-custom-analysis">Extracting Positions for Custom Analysis<a class="anchor" aria-label="anchor" href="#extracting-positions-for-custom-analysis"></a>
@@ -652,16 +1012,20 @@ chains and consider multiple starting values.</p>
 with external data or building custom plots), the
 <code><a href="../reference/latent_positions.html">latent_positions()</a></code> function returns a data frame with one
 row per actor-dimension-time combination:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `posterior_sd` is <span style="color: #0000BB;">"NA"</span> because U/V samples were not saved.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> To get posterior SDs, refit with `posterior_opts = posterior_options(save_UV</span></span>
+<span><span class="co">#&gt;   = TRUE)`.</span></span>
+<span><span class="co">#&gt; <span style="color: #555555;">This message is displayed once per session.</span></span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
 <span><span class="co">#&gt;      actor dimension time       value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1 Student1         1 &lt;NA&gt; -2.12110916           NA    U</span></span>
-<span><span class="co">#&gt; 2 Student2         1 &lt;NA&gt;  0.49495598           NA    U</span></span>
-<span><span class="co">#&gt; 3 Student3         1 &lt;NA&gt;  1.74106967           NA    U</span></span>
-<span><span class="co">#&gt; 4 Student4         1 &lt;NA&gt; -1.90187944           NA    U</span></span>
-<span><span class="co">#&gt; 5 Student5         1 &lt;NA&gt; -0.03972852           NA    U</span></span>
-<span><span class="co">#&gt; 6 Student6         1 &lt;NA&gt;  4.32579340           NA    U</span></span>
+<span><span class="co">#&gt; 1 Student1         1    1 -2.12110916           NA    U</span></span>
+<span><span class="co">#&gt; 2 Student2         1    1  0.49495598           NA    U</span></span>
+<span><span class="co">#&gt; 3 Student3         1    1  1.74106967           NA    U</span></span>
+<span><span class="co">#&gt; 4 Student4         1    1 -1.90187944           NA    U</span></span>
+<span><span class="co">#&gt; 5 Student5         1    1 -0.03972852           NA    U</span></span>
+<span><span class="co">#&gt; 6 Student6         1    1  4.32579340           NA    U</span></span>
 <span></span>
 <span><span class="co"># filter to just the row nodes (students)</span></span>
 <span><span class="va">lp_students</span> <span class="op">&lt;-</span> <span class="va">lp</span><span class="op">[</span><span class="va">lp</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"U"</span>, <span class="op">]</span></span>

@@ -1,7 +1,12 @@
-# binary relational data and covariates
+# synthetic longitudinal binary relational data (latent-scale)
 
-a synthetic dataset that includes longitudinal binary relational data as
-well as information on covariates
+a synthetic 50-actor, 4-period dataset used by the vignettes. The
+shipped `Y` array holds the *latent probit-scale predictor* (range
+roughly -24 to 20), not 0/1 ties. To recover the binary tie indicator
+the dataset name implies, threshold at zero:
+`Y_bin <- (YX_bin_long$Y > 0) * 1`. If passed unthresholded to
+`lame(..., family = "binary")` the fit will warn and silently apply the
+same `Y > 0` threshold.
 
 ## Usage
 
@@ -11,13 +16,26 @@ data(YX_bin_long)
 
 ## Format
 
-a list
+A list with two elements:
+
+- Y:
+
+  Numeric array `[50, 50, 4]`. Latent probit-scale predictor; threshold
+  at 0 to get the binary tie indicator.
+
+- X:
+
+  Numeric array `[50, 50, 3, 4]` of dyadic covariates.
 
 ## Examples
 
 ``` r
+
 data(YX_bin_long)
-gof_stats(YX_bin_long$Y[,,1]) 
+# threshold latent z to 0/1 before computing binary GOF stats
+Yt <- 1 * (YX_bin_long$Y[, , 1] > 0)
+diag(Yt) <- NA
+gof_stats(Yt)
 #>   sd.rowmean   sd.colmean     dyad.dep    cycle.dep    trans.dep 
-#>  1.261836080  1.007759298  0.060561322 -0.001188745 -0.001308371 
+#>  0.096876947  0.082198366  0.059190366 -0.001044981 -0.036284477 
 ```

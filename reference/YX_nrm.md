@@ -19,6 +19,7 @@ The format is: List of 2 \$ Y: num \[1:100, 1:100\] NA -4.05 -0.181
 ## Examples
 
 ``` r
+
 data(YX_nrm)
 gof_stats(YX_nrm$Y)
 #> sd.rowmean sd.colmean   dyad.dep  cycle.dep  trans.dep 

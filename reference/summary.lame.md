@@ -81,6 +81,33 @@ The summary includes:
 
   :   Residual variance
 
+- Dynamic coefficients per period:
+
+  Only printed when the fit was produced with `dynamic_beta` on at least
+  one coefficient. The table has one row per coefficient with columns:
+
+  Mean
+
+  :   average of the per-period posterior means across t
+
+  Min, Max
+
+  :   smallest and largest per-period posterior mean
+
+  Drift_pct
+
+  :   `100 * (Max - Min) / |Mean|`; a coarse measure of how much the
+      coefficient moves across periods relative to its average level
+
+  Dynamic
+
+  :   `"Y"` if the coefficient was flagged as dynamic, `"N"` if it was
+      held static
+
+  The block also prints the per-block AR(1) hyperparameters
+  (`rho_beta = ...`). For per-period credible intervals use
+  [`confint.lame`](https://netify-dev.github.io/lame/reference/confint.ame.md).
+
 ## See also
 
 [`lame`](https://netify-dev.github.io/lame/reference/lame.md),
