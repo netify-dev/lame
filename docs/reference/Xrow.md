@@ -1,7 +1,13 @@
 # Row covariates
 
-Sample row covariates for AME model examples
+Row covariates loaded by `data(vignette_data)`. See
+[`vignette_data`](https://netify-dev.github.io/lame/reference/vignette_data.md)
+for full details.
 
 ## Format
 
-A matrix of row covariates
+A list of matrices of row covariates
+
+## See also
+
+[`vignette_data`](https://netify-dev.github.io/lame/reference/vignette_data.md)

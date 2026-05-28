@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,6 +41,8 @@
     <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+    <li><a class="dropdown-item" href="../articles/fast_estimation.html">Fast (MCMC-free) Estimation</a></li>
+    <li><a class="dropdown-item" href="../articles/forecasting.html">Forecasting</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -67,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-03-16</h4>
+            <h4 data-toc-skip class="date">2026-05-28</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/HEAD/vignettes/lame-overview.Rmd" class="external-link"><code>vignettes/lame-overview.Rmd</code></a></small>
       <div class="d-none name"><code>lame-overview.Rmd</code></div>
@@ -116,8 +118,8 @@ separate latent spaces for row and column nodes.</li>
 <li>
 <strong>ggplot2-based diagnostics</strong>: Built-in visualization
 functions (<code>trace_plot</code>, <code>gof_plot</code>,
-<code>ab_plot</code>, <code>uv_plot</code>) produce publication-ready
-ggplot2 figures.</li>
+<code>ab_plot</code>, <code>uv_plot</code>) return standard ggplot2
+figures you can theme and extend.</li>
 <li>
 <strong>Standard S3 methods</strong>: <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>,
 <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code>, <code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code>, <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals()</a></code>,
@@ -127,143 +129,485 @@ expect from any R model object.</li>
 <p>The package is part of the <code>netify-verse</code>, so it works
 seamlessly with the <a href="https://netify-dev.github.io/netify/" class="external-link"><code>netify</code></a>
 package for data preparation.</p>
+<div class="section level3">
+<h3 id="migrating-from-amen">Migrating from <code>amen</code><a class="anchor" aria-label="anchor" href="#migrating-from-amen"></a>
+</h3>
+<p>Both <code>amen</code> and <code>lame</code> export an
+<code><a href="../reference/ame.html">ame()</a></code> function. If you load both packages in the same
+session, <code>lame</code> prints a <code>.onAttach</code> startup
+message so you know unqualified <code>ame(...)</code> calls dispatch to
+whichever package was attached last; use <code>lame::ame(...)</code> or
+<code>amen::ame(...)</code> to be explicit. The table below maps the
+breaking differences for old <code>amen</code> scripts:</p>
+<table class="table">
+<colgroup>
+<col width="25%">
+<col width="25%">
+<col width="25%">
+<col width="25%">
+</colgroup>
+<thead><tr class="header">
+<th>Topic</th>
+<th><code><a href="https://rdrr.io/pkg/amen/man/ame.html" class="external-link">amen::ame()</a></code></th>
+<th>
+<code><a href="../reference/ame.html">lame::ame()</a></code> / <code><a href="../reference/lame.html">lame::lame()</a></code>
+</th>
+<th>Old code breaks?</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Family strings</td>
+<td>
+<code>"nrm"</code>, <code>"bin"</code>, <code>"ord"</code>,
+<code>"cbin"</code>, <code>"frn"</code>, <code>"rrl"</code>,
+<code>"tobit"</code>
+</td>
+<td>
+<code>"normal"</code>, <code>"binary"</code>,
+<code>"ordinal"</code>, <code>"cbin"</code>, <code>"frn"</code>,
+<code>"rrl"</code>, <code>"tobit"</code>, <code>"poisson"</code>
+</td>
+<td>No for <code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> (short forms
+<code>"nrm"</code>, <code>"bin"</code>, <code>"ord"</code>,
+<code>"pois"</code>, <code>"tob"</code> are accepted as aliases via
+<code><a href="https://cli.r-lib.org/reference/cli_abort.html" class="external-link">cli::cli_inform()</a></code> – two informational lines per call,
+recommending the full name; old scripts run unchanged). For
+<code><a href="../reference/ame_als.html">ame_als()</a></code> / <code><a href="../reference/lame_als.html">lame_als()</a></code> (MCMC-free estimator)
+the same short aliases (<code>"nrm"</code>, <code>"bin"</code>,
+<code>"ord"</code>, <code>"pois"</code>, <code>"tob"</code>) are
+accepted with an informational message, but the estimator
+<em>supports</em> only <code>"normal"</code>, <code>"binary"</code>, and
+<code>"poisson"</code>. The censoring / rank families
+<code>"ordinal"</code>, <code>"tobit"</code>, <code>"cbin"</code>,
+<code>"frn"</code>, and <code>"rrl"</code> are rejected with a clear
+error directing you to <code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> (MCMC),
+which is the calibrated path for those families.</td>
+</tr>
+<tr class="even">
+<td>Bipartite rank</td>
+<td>single <code>R</code>
+</td>
+<td>
+<code>R</code> (square) or separate <code>R_row</code> /
+<code>R_col</code> (bipartite); single <code>R</code> still
+accepted</td>
+<td>No (old <code>R</code> calls work; <code>R_row</code> /
+<code>R_col</code> is new)</td>
+</tr>
+<tr class="odd">
+<td>Verbosity flag</td>
+<td><code>print = TRUE/FALSE</code></td>
+<td><code>verbose = TRUE/FALSE</code></td>
+<td>No (deprecation warning)</td>
+</tr>
+<tr class="even">
+<td>
+<code>fit$BETA</code> shape (static)</td>
+<td>
+<code>[n_stored, p]</code> matrix</td>
+<td>
+<code>[n_stored, p]</code> matrix</td>
+<td>No (identical)</td>
+</tr>
+<tr class="odd">
+<td>
+<code>fit$BETA</code> shape (<code>dynamic_beta</code>)</td>
+<td>not available</td>
+<td>
+<code>[n_stored, p, T]</code> 3-D array</td>
+<td>New feature, but watch out: under the new shape
+<code>apply(fit$BETA, 2, mean)</code> still returns a
+length-<code>p</code> vector that <em>looks</em> like the old amen
+result, while silently averaging across both iterations and time. Use
+<code>coef(fit)</code> (returns <code>[p, T]</code> for dynamic,
+length-<code>p</code> for static) or branch on
+<code>length(dim(fit$BETA))</code>. See <a href="dynamic_effects.html">Dynamic Effects</a>.</td>
+</tr>
+<tr class="even">
+<td>Longitudinal data</td>
+<td>
+<code>ame_rep()</code> for replicates</td>
+<td>
+<code><a href="../reference/lame.html">lame()</a></code> with a list of <code>T</code> matrices and
+optional <code>dynamic_uv</code> / <code>dynamic_ab</code> /
+<code>dynamic_beta</code>
+</td>
+<td>Refit via <code><a href="../reference/lame.html">lame()</a></code>
+</td>
+</tr>
+<tr class="odd">
+<td>GOF output</td>
+<td>
+<code>fit$GOF</code> matrix</td>
+<td>
+<code>fit$GOF</code> (cross-sectional) or list-of-matrices per
+period (longitudinal)</td>
+<td>Yes for longitudinal scripts</td>
+</tr>
+<tr class="even">
+<td>S3 methods</td>
+<td>
+<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code>
+</td>
+<td>adds <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>, <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code>,
+<code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code>, <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals()</a></code>, <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>,
+<code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot()</a></code>,
+<code><a href="../reference/tidy.html">tidy()</a></code>
+</td>
+<td>No (additive)</td>
+</tr>
+<tr class="odd">
+<td>
+<code>loo</code> / <code>waic</code>
+</td>
+<td>not available</td>
+<td>
+<code>save_log_lik = TRUE</code> plus <code>loo::loo(fit)</code> /
+<code>loo::waic(fit)</code> S3 methods; see <a href="dynamic_effects.html">Dynamic Effects</a>
+</td>
+<td>N/A (new feature)</td>
+</tr>
+<tr class="even">
+<td><code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">broom::tidy()</a></code></td>
+<td>not available</td>
+<td>
+<code><a href="../reference/tidy.ame.html">tidy.ame()</a></code> / <code><a href="../reference/tidy.ame.html">tidy.lame()</a></code> registered
+against <code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">generics::tidy</a></code>
+</td>
+<td>N/A (new feature)</td>
+</tr>
+<tr class="odd">
+<td><code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">broom::glance()</a></code></td>
+<td>not available</td>
+<td>
+<code><a href="../reference/glance.ame.html">glance.ame()</a></code> / <code><a href="../reference/glance.ame.html">glance.lame()</a></code> registered
+against <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">generics::glance</a></code>; returns <code>nobs</code>,
+<code>n_actors</code>, <code>n_periods</code>, <code>n_stored</code>,
+<code>family</code>, <code>mode</code>, <code>R</code>,
+<code>dynamic_uv</code>, <code>dynamic_ab</code>,
+<code>dynamic_beta</code>, <code>elpd_loo</code>. Pairs with
+<code><a href="../reference/tidy.html">tidy()</a></code> for
+<code>modelsummary::modelsummary(fit)</code>.</td>
+<td>N/A (new feature)</td>
+</tr>
+</tbody>
+</table>
+<p>The most common porting fix is <code>family = "nrm"</code> →
+<code>family = "normal"</code> and <code>family = "bin"</code> →
+<code>family = "binary"</code>. Everything else either still works
+unchanged or surfaces a deprecation warning rather than an error.</p>
+</div>
 </div>
 <div class="section level2">
-<h2 id="application-international-sanctions">Application: International Sanctions<a class="anchor" aria-label="anchor" href="#application-international-sanctions"></a>
+<h2 id="application-dutch-college-friendships">Application: Dutch College Friendships<a class="anchor" aria-label="anchor" href="#application-dutch-college-friendships"></a>
 </h2>
-<p>To see how <code>lame</code> works in practice, we analyze data from
-the Threat and Imposition of Sanctions (TIES) dataset (Morgan et
-al. 2014). The data cover 35 countries across four years (1993–1995 and
-2000). The core question is straightforward: <em>which country-level and
-dyad-level factors predict whether one country sanctions another, and
-are there latent patterns of sanctioning behavior beyond what these
-covariates explain?</em></p>
+<p>To see how <code>lame</code> works in practice, we analyze the
+<strong>Dutch college friendship network</strong> (van de Bunt, van
+Duijn, and Snijders 1999), a panel of 32 students who arrived as
+strangers and rated each other’s friendship at seven time points. (We
+drop the cold-start first wave, when the students barely knew each other
+and almost no ties exist; six waves remain.) The substantive question is
+whether students sort by gender, smoking status, and academic program,
+and whether residual clustering remains once those covariates are
+absorbed.</p>
 <p>The dataset includes:</p>
 <ul>
 <li>
-<strong>Y</strong>: A list of directed binary adjacency matrices
-(one per year). Entry
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">y_{ij,t} = 1</annotation></semantics></math>
-means country
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
-imposed sanctions on country
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
-in year
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>.</li>
+<strong>Y</strong>: directed friendship ratings on a -1 to 4 scale
+(-1 a negative/troubled relationship, 0 no or uncertain tie, 1-4
+increasing friendship). We binarize any positive rating to a tie
+(<code>(Y &gt; 0) * 1</code>), so the rare -1 ratings fold in with 0 as
+“no tie”.</li>
 <li>
-<strong>Xdyad</strong>: Dyadic covariates (geographic distance and
-the number of shared intergovernmental organizations (IGOs)) that
-capture relationship-level predictors.</li>
-<li>
-<strong>Xrow / Xcol</strong>: Sender and receiver covariates (GDP
-and population) capturing country-level characteristics. We use the same
-variables for both senders and receivers here, but different covariates
-can be specified for each role.</li>
+<strong>X</strong>: three node-level attributes: <code>male</code>,
+<code>smoker</code>, <code>program</code>.</li>
+<li>We construct three dyadic <strong>homophily indicators</strong> from
+the node attributes: <code>same_male</code>, <code>same_smoker</code>,
+<code>same_program</code>.</li>
 </ul>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/lame/">lame</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"dutchcollege"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">dutchcollege</span><span class="op">$</span><span class="va">Y</span><span class="op">)</span></span>
+<span><span class="va">T_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">dutchcollege</span><span class="op">$</span><span class="va">Y</span><span class="op">)</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span></span>
+<span><span class="va">actor_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"S%02d"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># binarize and drop the cold-start wave (T = 1 has almost no ties)</span></span>
+<span><span class="va">Y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fl">2</span><span class="op">:</span><span class="va">T_all</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">Yt</span> <span class="op">&lt;-</span> <span class="op">(</span><span class="va">dutchcollege</span><span class="op">$</span><span class="va">Y</span><span class="op">[</span>, , <span class="va">t</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="va">actor_names</span></span>
+<span>    <span class="va">Yt</span></span>
+<span><span class="op">}</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"t"</span>, <span class="fl">2</span><span class="op">:</span><span class="va">T_all</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># nodal covariates passed identically as sender and receiver</span></span>
+<span><span class="va">X_node</span> <span class="op">&lt;-</span> <span class="va">dutchcollege</span><span class="op">$</span><span class="va">X</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">X_node</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="va">actor_names</span></span>
+<span><span class="va">Xrow</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="va">X_node</span><span class="op">)</span></span>
+<span><span class="va">Xcol</span> <span class="op">&lt;-</span> <span class="va">Xrow</span></span>
+<span></span>
+<span><span class="co"># dyadic homophily indicators</span></span>
+<span><span class="va">same_male</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">X_node</span><span class="op">[</span>, <span class="st">"male"</span><span class="op">]</span>,    <span class="va">X_node</span><span class="op">[</span>, <span class="st">"male"</span><span class="op">]</span>,    <span class="st">"=="</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1</span></span>
+<span><span class="va">same_smoker</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">X_node</span><span class="op">[</span>, <span class="st">"smoker"</span><span class="op">]</span>,  <span class="va">X_node</span><span class="op">[</span>, <span class="st">"smoker"</span><span class="op">]</span>,  <span class="st">"=="</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1</span></span>
+<span><span class="va">same_program</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">X_node</span><span class="op">[</span>, <span class="st">"program"</span><span class="op">]</span>, <span class="va">X_node</span><span class="op">[</span>, <span class="st">"program"</span><span class="op">]</span>, <span class="st">"=="</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1</span></span>
+<span><span class="va">Xdyad_one</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/array.html" class="external-link">array</a></span><span class="op">(</span><span class="fl">0</span>, dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">n</span>, <span class="fl">3</span><span class="op">)</span>,</span>
+<span>                   dimnames <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">actor_names</span>, <span class="va">actor_names</span>,</span>
+<span>                                   <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"same_male"</span>, <span class="st">"same_smoker"</span>, <span class="st">"same_program"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">Xdyad_one</span><span class="op">[</span>, , <span class="fl">1</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">same_male</span></span>
+<span><span class="va">Xdyad_one</span><span class="op">[</span>, , <span class="fl">2</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">same_smoker</span></span>
+<span><span class="va">Xdyad_one</span><span class="op">[</span>, , <span class="fl">3</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">same_program</span></span>
+<span><span class="va">Xdyad</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="va">Xdyad_one</span><span class="op">)</span></span></code></pre></div>
+<p>The friendship network’s average density rises across the panel as
+students settle in, though the trajectory is not monotone (density
+bounces between roughly 0.40 and 0.63 across the six waves):</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">Y</span>, <span class="kw">function</span><span class="op">(</span><span class="va">y</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   t2   t3   t4   t5   t6   t7 </span></span>
+<span><span class="co">#&gt; 0.40 0.52 0.47 0.49 0.63 0.51</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="fitting-the-model">Fitting the Model<a class="anchor" aria-label="anchor" href="#fitting-the-model"></a>
 </h3>
 <p>We fit a binary probit AME model with sender random effects
 (<code>rvar</code>), receiver random effects (<code>cvar</code>), dyadic
-correlation (<code>dcor</code>), and a 2-dimensional latent space
-(<code>R = 2</code>). The random effects capture the fact that some
-countries are simply more active sanctioners (sender effects) or more
-frequent targets (receiver effects), while the latent space picks up
-residual patterns, groups of countries that sanction similar targets or
-are targeted by the same senders.</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Fit the AME model for binary data</span></span>
-<span><span class="co"># Note: burn and nscan are kept small for fast vignette building.</span></span>
-<span><span class="co"># For real analyses, use burn &gt;= 1000 and nscan &gt;= 5000.</span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
-<span>  Y <span class="op">=</span> <span class="va">Y</span>,</span>
-<span>  Xdyad <span class="op">=</span> <span class="va">Xdyad</span>,           <span class="co"># dyadic covariates</span></span>
-<span>  Xrow <span class="op">=</span> <span class="va">Xrow</span>,             <span class="co"># sender covariates</span></span>
-<span>  Xcol <span class="op">=</span> <span class="va">Xcol</span>,             <span class="co"># receiver covariates</span></span>
-<span>  family <span class="op">=</span> <span class="st">"binary"</span>,       <span class="co"># Binary probit model</span></span>
-<span>  rvar <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># sender random effects</span></span>
-<span>  cvar <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># receiver random effects</span></span>
-<span>  dcor <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># Dyadic correlation</span></span>
-<span>  R <span class="op">=</span> <span class="fl">2</span>,                   <span class="co"># Multiplicative effects dimension</span></span>
-<span>  symmetric <span class="op">=</span> <span class="cn">FALSE</span>,       <span class="co"># Directed network</span></span>
-<span>  burn <span class="op">=</span> <span class="fl">100</span>,              <span class="co"># Burn-in iterations</span></span>
-<span>  nscan <span class="op">=</span> <span class="fl">500</span>,             <span class="co"># Post-burn-in iterations</span></span>
-<span>  odens <span class="op">=</span> <span class="fl">25</span>,              <span class="co"># Output density (thinning)</span></span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,           <span class="co"># Suppress iteration output</span></span>
-<span>  plot <span class="op">=</span> <span class="cn">FALSE</span>             <span class="co"># Suppress real-time plots</span></span>
+correlation (<code>dcor</code>), and a one-dimensional latent space
+(<code>R = 1</code>). The random effects capture sender heterogeneity
+(some students simply nominate more friends) and receiver heterogeneity
+(some students are nominated more often), while the latent space picks
+up residual clustering: students who befriend similar people for reasons
+that the observed covariates do not capture. We use <code>R = 1</code>
+because with only 32 students a two-dimensional latent space competes
+with the three dyadic homophily indicators for the same signal and the
+chain mixes poorly on the dyadic coefficients; <code>R = 1</code>
+resolves that cleanly and the substantive results are nearly
+identical.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
+<span>    Y <span class="op">=</span> <span class="va">Y</span>,</span>
+<span>    Xdyad <span class="op">=</span> <span class="va">Xdyad</span>,           <span class="co"># dyadic homophily indicators</span></span>
+<span>    Xrow <span class="op">=</span> <span class="va">Xrow</span>,             <span class="co"># sender covariates</span></span>
+<span>    Xcol <span class="op">=</span> <span class="va">Xcol</span>,             <span class="co"># receiver covariates</span></span>
+<span>    family <span class="op">=</span> <span class="st">"binary"</span>,       <span class="co"># binary probit model</span></span>
+<span>    rvar <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># sender random effects</span></span>
+<span>    cvar <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># receiver random effects</span></span>
+<span>    dcor <span class="op">=</span> <span class="cn">TRUE</span>,             <span class="co"># dyadic correlation (reciprocity)</span></span>
+<span>    R <span class="op">=</span> <span class="fl">1</span>,                   <span class="co"># 1-D multiplicative latent space</span></span>
+<span>    symmetric <span class="op">=</span> <span class="cn">FALSE</span>,       <span class="co"># friendships are directed</span></span>
+<span>    burn <span class="op">=</span> <span class="fl">500</span>,              <span class="co"># burn-in</span></span>
+<span>    nscan <span class="op">=</span> <span class="fl">4000</span>,            <span class="co"># post-burn-in iterations</span></span>
+<span>    odens <span class="op">=</span> <span class="fl">10</span>,              <span class="co"># thinning -&gt; 400 stored draws</span></span>
+<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>    plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="interpreting-the-results">Interpreting the Results<a class="anchor" aria-label="anchor" href="#interpreting-the-results"></a>
 </h3>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">summary</span>(fit)</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="sc">==</span><span class="er">=</span> Longitudinal AME Model Summary <span class="sc">==</span><span class="er">=</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>Call<span class="sc">:</span></span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="cn">NULL</span></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>Time periods<span class="sc">:</span> <span class="dv">4</span> </span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>Family<span class="sc">:</span> binary </span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>Mode<span class="sc">:</span> unipartite </span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>Regression coefficients<span class="sc">:</span></span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="sc">------------------------</span></span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>                 Estimate StdError z_value p_value CI_lower CI_upper  </span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>intercept          <span class="sc">-</span><span class="fl">5.534</span>    <span class="fl">2.328</span>  <span class="sc">-</span><span class="fl">2.377</span>   <span class="fl">0.017</span>  <span class="sc">-</span><span class="fl">10.097</span>    <span class="sc">-</span><span class="fl">0.97</span> <span class="sc">*</span></span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>log_gdp.row        <span class="sc">-</span><span class="fl">0.152</span>    <span class="fl">0.226</span>  <span class="sc">-</span><span class="fl">0.672</span>   <span class="fl">0.502</span>   <span class="sc">-</span><span class="fl">0.595</span>    <span class="fl">0.291</span>  </span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>log_pop.row         <span class="fl">0.161</span>    <span class="fl">0.291</span>   <span class="fl">0.552</span>   <span class="fl">0.581</span>    <span class="sc">-</span><span class="fl">0.41</span>    <span class="fl">0.732</span>  </span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>log_gdp.col        <span class="sc">-</span><span class="fl">0.029</span>     <span class="fl">0.11</span>  <span class="sc">-</span><span class="fl">0.262</span>   <span class="fl">0.793</span>   <span class="sc">-</span><span class="fl">0.245</span>    <span class="fl">0.187</span>  </span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>log_pop.col         <span class="sc">-</span><span class="fl">0.06</span>    <span class="fl">0.151</span>  <span class="sc">-</span><span class="fl">0.399</span>    <span class="fl">0.69</span>   <span class="sc">-</span><span class="fl">0.357</span>    <span class="fl">0.236</span>  </span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>distance.dyad        <span class="fl">0.04</span>     <span class="fl">0.04</span>   <span class="fl">0.986</span>   <span class="fl">0.324</span>   <span class="sc">-</span><span class="fl">0.039</span>    <span class="fl">0.118</span>  </span>
-<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>shared_igos.dyad    <span class="fl">0.017</span>    <span class="fl">0.008</span>   <span class="fl">2.249</span>   <span class="fl">0.024</span>    <span class="fl">0.002</span>    <span class="fl">0.032</span> <span class="sc">*</span></span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="sc">---</span></span>
-<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>Signif. codes<span class="sc">:</span> <span class="dv">0</span> <span class="st">'***'</span> <span class="fl">0.001</span> <span class="st">'**'</span> <span class="fl">0.01</span> <span class="st">'*'</span> <span class="fl">0.05</span> <span class="st">'.'</span> <span class="fl">0.1</span> <span class="st">' '</span> <span class="dv">1</span></span>
-<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a></span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>Variance components<span class="sc">:</span></span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="sc">-------------------</span></span>
-<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>    Estimate StdError</span>
-<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>va     <span class="fl">6.170</span>    <span class="fl">2.126</span></span>
-<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>cab    <span class="fl">2.414</span>    <span class="fl">1.066</span></span>
-<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>vb     <span class="fl">1.002</span>    <span class="fl">0.550</span></span>
-<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>rho    <span class="fl">0.417</span>    <span class="fl">0.138</span></span>
-<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>ve     <span class="fl">1.000</span>    <span class="fl">0.000</span></span>
-<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a>  (<span class="at">va =</span> sender, <span class="at">cab =</span> sender<span class="sc">-</span>receiver covariance, <span class="at">vb =</span> receiver,</span>
-<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a>   <span class="at">rho =</span> dyadic correlation, <span class="at">ve =</span> residual variance)</span></code></pre></div>
-<p>The regression coefficients tell us about the structural drivers of
-sanctions. Shared IGO membership is positively associated with
-sanctions, as countries embedded in the same international institutions
-are more likely to sanction each other, probably because these
-institutions provide both the information and the institutional
-mechanisms to coordinate economic pressure. Distance has a negative
-coefficient, meaning geographically closer countries are more likely to
-sanction one another.</p>
-<p>The variance components at the bottom of the summary capture
-network-level heterogeneity. Sender variance (<code>va</code>) and
-receiver variance (<code>vb</code>) indicate how much countries differ
-in their baseline propensity to impose or receive sanctions. The dyadic
-correlation (<code>rho</code>) captures reciprocity, the tendency for
-sanctions to be mutual.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; === Longitudinal AME Model Summary ===</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Call:</span></span>
+<span><span class="co">#&gt; [1] "Y ~ dyad(same_male, same_smoker, same_program) + row(male, smoker, program) + col(male, smoker, program) + a[i] + b[j] + rho*e[ji] + U[i,1:1] %*% V[j,1:1], family = 'binary'"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Time periods: 6 </span></span>
+<span><span class="co">#&gt; Family: binary </span></span>
+<span><span class="co">#&gt; Mode: unipartite </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Note: STATIC fit pooled across 6 time periods --</span></span>
+<span><span class="co">#&gt;   U, V, a, b are time-invariant; per-period predictions vary</span></span>
+<span><span class="co">#&gt;   only through per-period covariates. For time-varying effects,</span></span>
+<span><span class="co">#&gt;   refit with dynamic_uv = TRUE and/or dynamic_ab = TRUE.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Regression coefficients:</span></span>
+<span><span class="co">#&gt; ------------------------</span></span>
+<span><span class="co">#&gt;                   Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
+<span><span class="co">#&gt; intercept           -2.878    1.211  -2.377   0.017   -5.252   -0.598   *</span></span>
+<span><span class="co">#&gt; male_row             0.942    0.418   2.251   0.024    0.211    1.762   *</span></span>
+<span><span class="co">#&gt; smoker_row          -0.951    0.341  -2.789   0.005   -1.589   -0.307  **</span></span>
+<span><span class="co">#&gt; program_row          0.499    0.232   2.154   0.031    0.061    0.945   *</span></span>
+<span><span class="co">#&gt; male_col             0.992    0.267   3.713       0    0.437    1.513 ***</span></span>
+<span><span class="co">#&gt; smoker_col          -0.062    0.217  -0.288   0.774   -0.527    0.337    </span></span>
+<span><span class="co">#&gt; program_col           0.15    0.145   1.031   0.302   -0.113    0.438    </span></span>
+<span><span class="co">#&gt; same_male_dyad       0.446    0.058    7.65       0    0.333    0.563 ***</span></span>
+<span><span class="co">#&gt; same_smoker_dyad     0.142    0.056   2.532   0.011    0.037    0.244   *</span></span>
+<span><span class="co">#&gt; same_program_dyad    0.577    0.053  10.846       0     0.47    0.671 ***</span></span>
+<span><span class="co">#&gt; ---</span></span>
+<span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
+<span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Variance components:</span></span>
+<span><span class="co">#&gt; -------------------</span></span>
+<span><span class="co">#&gt;     Estimate StdError</span></span>
+<span><span class="co">#&gt; va     0.802    0.221</span></span>
+<span><span class="co">#&gt; cab    0.292    0.108</span></span>
+<span><span class="co">#&gt; vb     0.269    0.079</span></span>
+<span><span class="co">#&gt; rho    0.320    0.041</span></span>
+<span><span class="co">#&gt; ve     1.000    0.000</span></span>
+<span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
+<span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
+<p>A lot lands at once, so let’s walk through it.</p>
+<p><strong>Intercept.</strong> The probit intercept is the latent linear
+predictor when <em>every covariate is zero</em> and every random effect
+sits at its mean. That is not the same as the average student: the
+covariates here are uncentered, and <code>program</code> in particular
+is coded 2-4 and is never zero, so “all covariates zero” extrapolates
+well outside the observed data. The familiar <code>qnorm(density)</code>
+rule of thumb describes the predictor at the <em>average</em> covariate
+profile, not at the all-zero corner. The two reconcile exactly once you
+add back the mean covariate contribution:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">bhat</span>        <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">BETA</span><span class="op">)</span></span>
+<span><span class="va">slice_means</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">X</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="fl">3</span>, <span class="va">mean</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>   <span class="co"># mean of each design column</span></span>
+<span><span class="va">centroid_lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">bhat</span> <span class="op">*</span> <span class="va">slice_means</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">bhat</span><span class="op">)</span><span class="op">]</span><span class="op">)</span>       <span class="co"># predictor at the average profile</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>intercept     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">bhat</span><span class="op">[</span><span class="st">"intercept"</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>  centroid_lp   <span class="op">=</span> <span class="va">centroid_lp</span>,</span>
+<span>  qnorm_density <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">qnorm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;     intercept   centroid_lp qnorm_density </span></span>
+<span><span class="co">#&gt;   -2.87795598   -0.08348618    0.00842291</span></span></code></pre></div>
+<p>The intercept itself is strongly negative, but the predictor at the
+average covariate profile (<code>centroid_lp</code>) sits close to
+<code>qnorm(density)</code> – the uncentered covariates account for
+nearly the entire gap, leaving only a small shift from the random-effect
+variance. The intercept absorbs the mean covariate contribution; it is
+not a baseline probability. If you want the intercept to read directly
+as a baseline, center the covariates before fitting. Either way, read
+predicted probabilities on the response scale off
+<code>predict(fit, type = "response")</code>.</p>
+<p><strong>Homophily.</strong> The three dyadic coefficients
+(<code>same_male</code>, <code>same_smoker</code>,
+<code>same_program</code>) measure whether students of the same type are
+more likely to be friends, holding the sender, receiver, and latent
+positions fixed. Positive values mean homophily; credible intervals that
+exclude zero indicate that the direction of the association is
+well-identified. Program homophily tends to be the strongest of the
+three in this network, consistent with the substantive expectation that
+students bond around shared coursework.</p>
+<p><strong>Nodal covariates.</strong> <code>male_row</code> /
+<code>male_col</code> measure whether male students are unusually active
+senders or popular receivers, and similarly for <code>smoker</code> and
+<code>program</code>. With only 32 students, the credible intervals on
+individual nodal effects are wide; treat the sign as suggestive, the
+magnitude with caution.</p>
+<p><strong>Variance components.</strong> <code>va</code> (sender
+variance) and <code>vb</code> (receiver variance) quantify how much
+students differ in sociability and popularity beyond what the covariates
+explain. The dyadic correlation <code>rho</code> captures reciprocity:
+values away from zero indicate that ties tend to be mutual. In
+friendship networks <code>rho &gt; 0</code> is the rule rather than the
+exception.</p>
 </div>
 <div class="section level3">
 <h3 id="checking-convergence">Checking Convergence<a class="anchor" aria-label="anchor" href="#checking-convergence"></a>
 </h3>
-<p>Because <code>lame</code> uses MCMC, we need to verify that the
+<p>Because the model is estimated via MCMC, we need to verify that the
 sampler has converged before trusting the results. The
 <code>trace_plot</code> function shows the sampled values over
-iterations (left panels) and the corresponding posterior densities
-(right panels) for each parameter.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+iterations (top panels) and the corresponding posterior densities
+(bottom panels) for each parameter.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"beta"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/unnamed-chunk-4-1.png" class="r-plt" alt="MCMC trace plots and density plots showing convergence and posterior distributions of regression coefficients" width="100%" style="display: block; margin: auto;"></p>
-<p>What to look for: the trace plots should look like “fuzzy
-caterpillars,” bouncing around a stable mean without long-term trends or
-getting stuck in one region. The density plots should be smooth and
-unimodal. With only 20 post-burn-in samples (due to the small
-<code>nscan</code> we used here), the chains have not fully converged.
-In a real analysis, you would run much longer chains and check that
-increasing the run length doesn’t substantially change the posterior
-summaries.</p>
+<p><img src="lame-overview_files/figure-html/overview-trace-1.png" class="r-plt" alt="MCMC trace plots (top) and marginal posterior density plots (bottom) for each regression coefficient of the Dutch college fit; well-mixed fuzzy-caterpillar traces around a stable mean and smooth unimodal densities together indicate the chain has converged." width="100%" style="display: block; margin: auto;"></p>
+<p>What to look for: trace plots should bounce around a stable mean
+without long-term trends or sticky regions, and density plots should be
+smooth and unimodal. Numerically, the conventional Stan-era targets are
+<strong>split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+&lt; 1.01</strong> for every monitored parameter and <strong>bulk / tail
+ESS
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>
+400 per chain</strong> (so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>
+1600 with 4 chains);
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+between 1.01 and 1.05 is a yellow flag, anything
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>
+1.1 means you should not trust the posterior summaries yet and need a
+longer run.</p>
+<p>With 400 stored samples the regression coefficients mix well at this
+seed
+(split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≤</mo><mn>1.01</mn></mrow><annotation encoding="application/x-tex">\hat R \le 1.01</annotation></semantics></math>
+for every coefficient; bulk ESS in the low hundreds, lowest for the
+weakly-identified <code>same_smoker_dyad</code>). The variance
+components mix more slowly: in the <code>summarise_draws</code> table
+below, <code>va</code> (the sender variance) carries the highest
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+and the lowest ESS here. Which parameter mixes worst is itself
+seed-dependent in a single short chain – on other runs <code>rho</code>
+or a dyadic coefficient can be the slow one, and a coefficient
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+can drift above 1.05 – so read one chain’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>/ESS
+as indicative, not definitive. For a paper, run several independently
+initialised chains at greater length
+(<code>burn &gt;= 2000, nscan &gt;= 10000</code>) and check
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+across them. The point estimates are stable here; it is the uncertainty
+on the slow-mixing variance and reciprocity parameters that needs the
+longer multi-chain run before quoting.</p>
+</div>
+<div class="section level3">
+<h3 id="bayesian-ecosystem-diagnostics-posterioras_draws">Bayesian-ecosystem diagnostics:
+<code>posterior::as_draws()</code><a class="anchor" aria-label="anchor" href="#bayesian-ecosystem-diagnostics-posterioras_draws"></a>
+</h3>
+<p><code>lame</code> registers <code><a href="../reference/as_draws.html">as_draws()</a></code> methods so any
+fit drops straight into the Stan-era diagnostic ecosystem
+(<code>posterior</code>, <code>bayesplot</code>,
+<code>tidybayes</code>). The reshape lifts the <code>BETA</code> and
+<code>VC</code> blocks into a <code>draws_array</code> indexed by
+iteration / chain / variable, which means
+<code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">posterior::summarise_draws()</a></code> gives you per-parameter
+posterior mean, median, sd, MAD, 5%/95% quantiles,
+<strong>split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math></strong>,
+and <strong>bulk / tail ESS</strong> in one call:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/posterior/" class="external-link">posterior</a></span><span class="op">)</span></span>
+<span><span class="co">#&gt; This is posterior version 1.6.1</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Attaching package: 'posterior'</span></span>
+<span><span class="co">#&gt; The following object is masked from 'package:lame':</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     as_draws</span></span>
+<span><span class="co">#&gt; The following objects are masked from 'package:stats':</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     mad, sd, var</span></span>
+<span><span class="co">#&gt; The following objects are masked from 'package:base':</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     %in%, match</span></span>
+<span><span class="va">draws</span> <span class="op">&lt;-</span> <span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws.html" class="external-link">as_draws</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>              <span class="co"># draws_array [iter, chain, var]</span></span>
+<span><span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws</a></span><span class="op">(</span><span class="va">draws</span><span class="op">)</span>              <span class="co"># rhat, ess_bulk, ess_tail per param</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 15 × 10</span></span></span>
+<span><span class="co">#&gt;    variable            mean  median     sd    mad      q5    q95   rhat ess_bulk</span></span>
+<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>              <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept        -<span style="color: #BB0000;">2.88</span>   -<span style="color: #BB0000;">2.82</span>   1.21   1.23   -<span style="color: #BB0000;">4.91</span>   -<span style="color: #BB0000;">0.876</span>  1.00    377.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> male_row          0.942   0.925  0.418  0.446   0.319   1.66   1.00    463.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> smoker_row       -<span style="color: #BB0000;">0.951</span>  -<span style="color: #BB0000;">0.916</span>  0.341  0.317  -<span style="color: #BB0000;">1.53</span>   -<span style="color: #BB0000;">0.420</span>  1.00    347.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> program_row       0.499   0.509  0.232  0.216   0.116   0.889  0.998   359.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> male_col          0.992   0.990  0.267  0.235   0.561   1.44   0.998   462.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> smoker_col       -<span style="color: #BB0000;">0.062</span><span style="color: #BB0000; text-decoration: underline;">4</span> -<span style="color: #BB0000;">0.064</span><span style="color: #BB0000; text-decoration: underline;">3</span> 0.217  0.216  -<span style="color: #BB0000;">0.393</span>   0.274  1.00    301.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> program_col       0.150   0.159  0.145  0.143  -<span style="color: #BB0000;">0.080</span><span style="color: #BB0000; text-decoration: underline;">1</span>  0.388  1.00    369.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_male_dyad    0.446   0.444  0.058<span style="text-decoration: underline;">3</span> 0.053<span style="text-decoration: underline;">8</span>  0.352   0.546  1.00    330.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> same_smoker_dyad  0.142   0.146  0.056<span style="text-decoration: underline;">0</span> 0.055<span style="text-decoration: underline;">1</span>  0.043<span style="text-decoration: underline;">4</span>  0.235  1.00     80.5 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> same_program_dy…  0.577   0.578  0.053<span style="text-decoration: underline;">2</span> 0.050<span style="text-decoration: underline;">6</span>  0.488   0.659  1.01    203.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> va                0.802   0.762  0.221  0.197   0.517   1.24   1.11      6.94</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> cab               0.292   0.279  0.108  0.097<span style="text-decoration: underline;">6</span>  0.146   0.478  1.05     21.6 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> vb                0.269   0.257  0.078<span style="text-decoration: underline;">5</span> 0.073<span style="text-decoration: underline;">4</span>  0.158   0.419  1.00    202.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">14</span> rho               0.320   0.322  0.040<span style="text-decoration: underline;">7</span> 0.043<span style="text-decoration: underline;">6</span>  0.249   0.381  1.00    115.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">15</span> ve                1       1      0      0       1       1     <span style="color: #BB0000;">NA</span>        <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: ess_tail &lt;dbl&gt;</span></span></span></code></pre></div>
+<p>A single-chain fit like this one has <code>chain = 1</code>, so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+reduces to within-chain
+split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>,
+which is informative about within-chain non-stationarity but not about
+between-chain disagreement. For honest
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+across independently initialised chains, see the multi-chain section in
+the dynamic-effects vignette.</p>
 </div>
 <div class="section level3">
 <h3 id="goodness-of-fit">Goodness of Fit<a class="anchor" aria-label="anchor" href="#goodness-of-fit"></a>
@@ -275,47 +619,183 @@ just the dyad-level relationships, but emergent properties like how much
 actors vary in their degree (heterogeneity), whether friends-of-friends
 tend to be friends (transitivity), and whether ties tend to be
 reciprocated (dyadic dependence).</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/unnamed-chunk-5-1.png" class="r-plt" alt="Goodness of fit plots comparing observed network statistics to posterior predictive distributions across time periods" width="100%" style="display: block; margin: auto;"></p>
+<p><img src="lame-overview_files/figure-html/overview-gof-1.png" class="r-plt" alt="Longitudinal goodness-of-fit panels for the Dutch college fit: each facet plots one network statistic (Sender Degree Heterogeneity, Receiver Degree Heterogeneity, Dyadic Dependence, Triadic Dependence, Transitivity) across the six time periods. The observed series is a solid orange line with filled orange points; the posterior-predictive median is a dashed dark line; the 95 percent credible interval is a grey ribbon. The three elements differ on both colour and linetype, so the comparison survives grayscale printing and colour-blind viewing. Observed series falling outside the band flag structural features the model is missing." width="100%" style="display: block; margin: auto;"></p>
 <p>For a longitudinal model, <code>gof_plot</code> shows these
-statistics across time. The observed values (points) are overlaid on the
-posterior predictive intervals (shaded bands). When the observed values
-fall inside the bands, the model is capturing that aspect of the network
-well. When they fall outside, it signals that the model is missing
-something. For instance, if the model consistently under-predicts
-transitivity, it might suggest a higher-dimensional latent space is
-needed.</p>
+statistics across time. The figure encodes three series on each panel
+using both colour and linetype redundantly: the <strong>observed series
+is a solid orange line with filled orange points</strong>, the
+<strong>posterior-predictive median is a dashed dark line</strong>, and
+the <strong>95% credible interval is a grey ribbon</strong> (the width
+is controlled by the <code>credible.level</code> argument). When the
+observed series falls inside the ribbon, the model is reproducing that
+aspect of the network; when it falls outside, the model is missing
+something. Falling outside is itself a substantive finding about the
+data-generating process, not a failure to report.</p>
+<p>The panel-strip headers are the human-readable labels
+(<code>Sender Degree Heterogeneity</code>, etc.). <code>fit$GOF</code>
+is a named list whose elements are <code>sd.rowmean</code>,
+<code>sd.colmean</code>, <code>dyad.dep</code>, <code>cycle.dep</code>
+(cyclic triads), and <code>trans.dep</code>; user-facing aliases for
+<code>gof_plot(..., statistics = ...)</code> are <code>sd.row</code>,
+<code>sd.col</code>, <code>dyad.dep</code>, <code>triad.dep</code>,
+<code>trans.dep</code>.</p>
+<p>Reading the figure honestly: the Dutch college fit reproduces the
+average level of reciprocity and most of the cyclic-triad structure but
+under-predicts sender degree heterogeneity, transitivity, and (at the
+panel ends) receiver heterogeneity. The observed Sender Degree
+Heterogeneity series sits above the upper edge of the 95% band at five
+of the six periods (inside the band only at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t = 1</annotation></semantics></math>);
+some students nominate many more friends than the additive sender effect
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>i</mi></msub><annotation encoding="application/x-tex">a_i</annotation></semantics></math>
+plus latent
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>
+can absorb. Transitivity is under-predicted at every period – the
+observed value sits above the upper edge of the band at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t = 1</annotation></semantics></math>
+through
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">t = 6</annotation></semantics></math>
+– so triangle closure is systematically too low under the latent space.
+Receiver Degree Heterogeneity is above the band at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn><mo>,</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">t = 1, 2</annotation></semantics></math>,
+inside at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">t = 3</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">t = 5</annotation></semantics></math>,
+and below the band at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">t = 4</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">t = 6</annotation></semantics></math>.
+The Triadic Dependence panel (cyclic triads, <code>cycle.dep</code>)
+sits inside the band at five of the six periods (outside only at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t = 1</annotation></semantics></math>).
+Dyadic Dependence (reciprocity) is the most variable: above the band at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t = 1</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>5</mn><annotation encoding="application/x-tex">5</annotation></semantics></math>
+(and marginally at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">t = 2</annotation></semantics></math>),
+below at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">t = 3</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">t = 6</annotation></semantics></math>,
+inside only at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">t = 4</annotation></semantics></math>.</p>
+<p>This is the standard signature of a latent-space model on a
+friendship network. AME assumes conditional dyadic independence: given
+the additive and multiplicative effects, dyads are independent, so
+triangle closure has to be soaked up by clustering of the latent
+positions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>.
+ERGMs handle triangle closure directly via terms like <code>gwesp</code>
+or <code>triangle</code>. The two model classes are complementary. ERGM
+is the right answer for triangle-closure questions; AME is the right
+answer when the analyst wants stable, non-degenerate estimates with
+explicit actor heterogeneity and a coherent posterior to forecast or
+simulate from.</p>
+<div class="section level4">
+<h4 id="posterior-predictive-temporal-trend-test-gof_temporal">Posterior-predictive temporal-trend test:
+<code>gof_temporal()</code><a class="anchor" aria-label="anchor" href="#posterior-predictive-temporal-trend-test-gof_temporal"></a>
+</h4>
+<p>The figure read above is qualitative. For a scalar
+posterior-predictive p-value on the temporal <em>trend</em> in a chosen
+network statistic, <code><a href="../reference/gof_temporal.html">gof_temporal()</a></code> complements
+<code><a href="../reference/gof_plot.html">gof_plot()</a></code>. It computes the chosen statistic at each
+observed period, fits an OLS slope on period index, draws
+posterior-predictive replicate panels via <code>simulate(fit)</code>,
+recomputes the slope in each replicate, and returns a two-sided
+Gelman-style posterior-predictive p-value defined as
+<code>2 * min(p_up, 1 - p_up)</code>, so it runs from 0 (observed slope
+in the extreme tail) up to 1 (observed slope dead-centre). A static fit
+on truly trending data yields <code>p_pp</code> near 0 (the observed
+slope is unreachable); a fit that captures the trend yields a
+<code>p_pp</code> well away from 0 (the observed slope is central in the
+predictive distribution).</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># density rises across the panel on net (the network gets denser as</span></span>
+<span><span class="co"># students settle in, though the trajectory is not monotone), so it is the</span></span>
+<span><span class="co"># natural temporal-trend target.</span></span>
+<span><span class="va">gt_density</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gof_temporal.html">gof_temporal</a></span><span class="op">(</span><span class="va">fit</span>, stat <span class="op">=</span> <span class="st">"density"</span>, n_rep <span class="op">=</span> <span class="fl">100</span>, seed <span class="op">=</span> <span class="fl">6886</span><span class="op">)</span></span>
+<span><span class="va">gt_density</span>   <span class="co"># prints stat, observed slope, n_rep, and the p_pp</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Temporal-trend posterior-predictive check</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; • Statistic: <span style="color: #0000BB;">"density"</span></span></span>
+<span><span class="co">#&gt; • Observed slope (per-period): <span style="color: #0000BB;">0.025</span></span></span>
+<span><span class="co">#&gt; • Replicates: <span style="color: #0000BB;">100</span></span></span>
+<span><span class="co">#&gt; • Posterior-predictive p-value (two-sided): <span style="color: #0000BB;">0</span></span></span>
+<span><span class="co">#&gt; Observed temporal trend is incompatible with the fitted model.</span></span>
+<span></span>
+<span><span class="co"># reciprocity is the natural second target for a directed network.</span></span>
+<span><span class="va">gt_recip</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gof_temporal.html">gof_temporal</a></span><span class="op">(</span><span class="va">fit</span>, stat <span class="op">=</span> <span class="st">"reciprocity"</span>, n_rep <span class="op">=</span> <span class="fl">100</span>, seed <span class="op">=</span> <span class="fl">6886</span><span class="op">)</span></span>
+<span><span class="va">gt_recip</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Temporal-trend posterior-predictive check</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; • Statistic: <span style="color: #0000BB;">"reciprocity"</span></span></span>
+<span><span class="co">#&gt; • Observed slope (per-period): <span style="color: #0000BB;">-0.0306</span></span></span>
+<span><span class="co">#&gt; • Replicates: <span style="color: #0000BB;">100</span></span></span>
+<span><span class="co">#&gt; • Posterior-predictive p-value (two-sided): <span style="color: #0000BB;">0</span></span></span>
+<span><span class="co">#&gt; Observed temporal trend is incompatible with the fitted model.</span></span></code></pre></div>
+<p>A <code>p_pp</code> of 0 on <code>density</code> says the static fit
+cannot reproduce the empirical net densification slope (about +0.025 per
+period in our run); that is the expected diagnostic for a fit without
+<code>dynamic_beta</code> or time-varying covariates and is consistent
+with the per-period mass shift we already see in
+<code><a href="../reference/gof_plot.html">gof_plot()</a></code>. The reciprocity check tells the same story in
+the opposite direction: the static fit also rejects the observed
+reciprocity slope (<code>p_pp</code> near 0), because reciprocity
+actually drifts <em>downward</em> across the panel (slope about
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>0.03</mn></mrow><annotation encoding="application/x-tex">-0.03</annotation></semantics></math>
+per period) and the static
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+cannot track that drift. Both checks are pointing at the same structural
+mismatch: model parameters that are constant across periods cannot
+reproduce period-to-period drift in either marginal quantity. The
+companion diagnostic <code><a href="../reference/detect_change_point.html">detect_change_point()</a></code> reports a
+heuristic Bayes factor comparing the posterior path of each
+<code>dynamic_beta</code> coefficient to its AR(1) prior null. It
+requires a fit with <code>dynamic_beta</code> active and is therefore
+not applicable to the static fit shown here; the worked example lives in
+the <a href="dynamic_effects.html">Dynamic Effects</a> vignette.</p>
+</div>
 </div>
 <div class="section level3">
 <h3 id="latent-space">Latent Space<a class="anchor" aria-label="anchor" href="#latent-space"></a>
 </h3>
 <p>The multiplicative effects capture patterns of association that go
 beyond what the covariates and additive effects explain. The
-<code>uv_plot</code> function visualizes these latent positions.
-Countries positioned near each other in the sender space (triangles)
-tend to sanction similar targets; countries near each other in the
-receiver space (circles) tend to be sanctioned by the same senders.
-Countries placed on opposite sides of the plot tend to have dissimilar
-sanctioning patterns.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span></span>
-<span><span class="co"># Network plot showing multiplicative effects</span></span>
-<span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Sanctions Network - Multiplicative Effects"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
-<span>    legend.position<span class="op">=</span><span class="st">'none'</span>,</span>
-<span>    axis.text<span class="op">=</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    axis.title<span class="op">=</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/unnamed-chunk-6-1.png" class="r-plt" alt="Network visualization showing multiplicative effects latent space positions of countries in the sanctions network" width="100%" style="display: block; margin: auto;"></p>
-<p>The circular layout places sender positions (triangles) on the outer
-ring and receiver positions (circles) on an inner ring, scaled by
-magnitude. Countries with larger effects are placed further from the
-center, indicating they play a more distinctive role in the network.
-Countries clustered together (for example, Western allies like the USA
-and Canada) share similar sanctioning profiles.</p>
+<code>uv_plot</code> function visualizes these latent positions. Because
+we fit <code>R = 1</code>, the latent space is one-dimensional: each
+student’s sender position (triangle) and receiver position (circle) is a
+single number, and <code>uv_plot</code> lays them out along one axis
+(the two reference circles are drawn only for scale). Students who land
+near each other share friendship-formation patterns the covariates and
+additive effects miss; sign separates the two latent groups. With
+<code>R = 2</code> the same call would spread the positions across a
+genuine two-dimensional plane.</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Dutch college friendship: multiplicative effects"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
+<span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        legend.position <span class="op">=</span> <span class="st">"none"</span>,</span>
+<span>        axis.text  <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        axis.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        panel.grid <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>    <span class="op">)</span></span></code></pre></div>
+<p><img src="lame-overview_files/figure-html/overview-uv-1.png" class="r-plt" alt="One-dimensional latent-space layout for the Dutch college fit (R = 1): triangles mark each student's sender position and circles the receiver position, both falling along a single horizontal axis because the latent space has one dimension, with two reference circles drawn only for scale and marker size proportional to magnitude; students near each other share friendship-formation patterns beyond what the covariates and additive effects explain." width="100%" style="display: block; margin: auto;"></p>
+<p>With <code>R = 1</code> the latent space is one-dimensional, so the
+positions fall along a single axis and the two circles serve only as a
+reference scale; marker size encodes magnitude. Students at the extremes
+– and those whose sender (triangle) and receiver (circle) positions
+diverge – have the most distinctive friendship-formation patterns that
+the covariates and additive effects do not explain on their own. With
+<code>R = 2</code> the same call spreads the positions across a genuine
+plane.</p>
 </div>
 </div>
 <div class="section level2">
@@ -324,27 +804,798 @@ and Canada) share similar sanctioning profiles.</p>
 <p>If you need the estimated latent positions in a tidy format (for
 custom plots, merging with external data, or exporting to other tools),
 the <code><a href="../reference/latent_positions.html">latent_positions()</a></code> function returns a data frame:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>lp <span class="ot">&lt;-</span> <span class="fu">latent_positions</span>(fit)</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">head</span>(lp)</span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  actor dimension time      value posterior_sd type</span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="dv">1</span>   AFG         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">0.5253670</span>           <span class="cn">NA</span>    U</span>
-<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="dv">2</span>   ALB         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">1.0708329</span>           <span class="cn">NA</span>    U</span>
-<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="dv">3</span>   ARG         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span>  <span class="fl">0.3959614</span>           <span class="cn">NA</span>    U</span>
-<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="dv">4</span>   AUS         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span>  <span class="fl">1.2064454</span>           <span class="cn">NA</span>    U</span>
-<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="dv">5</span>   BEL         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">0.3992633</span>           <span class="cn">NA</span>    U</span>
-<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="dv">6</span>   BOL         <span class="dv">1</span> <span class="sc">&lt;</span><span class="cn">NA</span><span class="sc">&gt;</span> <span class="sc">-</span><span class="fl">2.1687274</span>           <span class="cn">NA</span>    U</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `posterior_sd` is <span style="color: #0000BB;">"NA"</span> because U/V samples were not saved.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> To get posterior SDs, refit with `posterior_opts = posterior_options(save_UV</span></span>
+<span><span class="co">#&gt;   = TRUE)`.</span></span>
+<span><span class="co">#&gt; <span style="color: #555555;">This message is displayed once per session.</span></span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   actor dimension time      value posterior_sd type</span></span>
+<span><span class="co">#&gt; 1   S01         1    1 -1.3221753           NA    U</span></span>
+<span><span class="co">#&gt; 2   S02         1    1 -0.1260440           NA    U</span></span>
+<span><span class="co">#&gt; 3   S03         1    1  0.2910177           NA    U</span></span>
+<span><span class="co">#&gt; 4   S04         1    1  0.3998524           NA    U</span></span>
+<span><span class="co">#&gt; 5   S05         1    1  0.5061699           NA    U</span></span>
+<span><span class="co">#&gt; 6   S06         1    1  0.8633610           NA    U</span></span></code></pre></div>
 <p>Each row gives one actor’s position on one latent dimension at one
-time point. For dynamic models (<code>dynamic_uv = TRUE</code>), the
-<code>time</code> column tracks how positions evolve. You can optionally
-apply Procrustes alignment to remove rotational indeterminacy across
-time periods:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>aligned <span class="ot">&lt;-</span> <span class="fu">procrustes_align</span>(fit)</span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a> [<span class="dv">36</span>mℹ [<span class="dv">39</span>m Latent positions are <span class="fu">static</span> (single time point). No alignment needed.</span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="fu">str</span>(aligned<span class="sc">$</span>U)  <span class="co"># aligned 3D array</span></span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a> num [<span class="dv">1</span><span class="sc">:</span><span class="dv">35</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>] <span class="sc">-</span><span class="fl">0.525</span> <span class="sc">-</span><span class="fl">1.071</span> <span class="fl">0.396</span> <span class="fl">1.206</span> <span class="sc">-</span><span class="fl">0.399</span> ...</span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a> <span class="sc">-</span> <span class="fu">attr</span>(<span class="sc">*</span>, <span class="st">"dimnames"</span>)<span class="ot">=</span>List of <span class="dv">2</span></span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  ..<span class="sc">$</span> <span class="er">:</span> chr [<span class="dv">1</span><span class="sc">:</span><span class="dv">35</span>] <span class="st">"AFG"</span> <span class="st">"ALB"</span> <span class="st">"ARG"</span> <span class="st">"AUS"</span> ...</span>
-<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  ..<span class="sc">$</span> <span class="er">:</span> <span class="cn">NULL</span></span></code></pre></div>
+time point; a <code>type</code> column distinguishes the sender position
+(<code>"U"</code>) from the receiver position (<code>"V"</code>), so a
+directed fit returns two rows per actor per dimension. For a static fit
+like this one the positions do not change over time, so
+<code><a href="../reference/latent_positions.html">latent_positions()</a></code> returns a single slice (labelled
+<code>time = 1</code>) that applies to every period rather than
+repeating it. For dynamic models (<code>dynamic_uv = TRUE</code>),
+positions evolve over time and <code><a href="../reference/latent_positions.html">latent_positions()</a></code> returns
+each time point separately (see the <a href="dynamic_effects.html">dynamic effects vignette</a>).</p>
+<p>When using dynamic latent positions, the latent space is only
+identified up to rotation at each time point. The
+<code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> function aligns each time period’s
+positions to the previous one, removing arbitrary rotations so that
+trajectories across time are interpretable:</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># procrustes alignment is useful for dynamic models.</span></span>
+<span><span class="co"># for a static model, positions are already aligned.</span></span>
+<span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/procrustes_align.html">procrustes_align</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Latent positions are static (single time point). No alignment needed.</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">$</span><span class="va">U</span><span class="op">)</span></span>
+<span><span class="co">#&gt;  num [1:32, 1] -1.322 -0.126 0.291 0.4 0.506 ...</span></span>
+<span><span class="co">#&gt;  - attr(*, "dimnames")=List of 2</span></span>
+<span><span class="co">#&gt;   ..$ : chr [1:32] "S01" "S02" "S03" "S04" ...</span></span>
+<span><span class="co">#&gt;   ..$ : NULL</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="tidy-data-round-trip-via-netify">Tidy-data round-trip via netify<a class="anchor" aria-label="anchor" href="#tidy-data-round-trip-via-netify"></a>
+</h2>
+<p><code>lame</code> integrates with the <code>netify</code> package via
+the <code>netify::to_amen(netlet, lame = TRUE)</code> bridge: feed a
+long-format edgelist (or any tidy network representation) through
+<code><a href="https://netify-dev.github.io/netify/reference/netify.html" class="external-link">netify::netify()</a></code> and then pass the result of
+<code><a href="https://netify-dev.github.io/netify/reference/netify_to_amen.html" class="external-link">to_amen()</a></code> straight into <code><a href="../reference/lame.html">lame()</a></code> or
+<code><a href="../reference/ame.html">ame()</a></code>. The <code>lame = TRUE</code> flag preserves the
+per-period dyadic-covariate axis (required for longitudinal models).
+Once the fit is built, <code><a href="../reference/tidy.html">tidy()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot()</a></code>, and
+<code><a href="../reference/prediction_draws_long.html">prediction_draws_long()</a></code> give you
+broom-/ggplot-/marginaleffects-ready output that composes naturally with
+the rest of the tidyverse.</p>
+<div class="section level3">
+<h3 id="entry-tidy-edgelist-lame">Entry: tidy edgelist → <code>lame()</code><a class="anchor" aria-label="anchor" href="#entry-tidy-edgelist-lame"></a>
+</h3>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/netify/" class="external-link">netify</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 1. tidy edgelist -&gt; netify</span></span>
+<span><span class="va">netlet</span> <span class="op">&lt;-</span> <span class="fu">netify</span><span class="fu">::</span><span class="fu"><a href="https://netify-dev.github.io/netify/reference/netify.html" class="external-link">netify</a></span><span class="op">(</span></span>
+<span>    <span class="va">edges_long</span>,</span>
+<span>    actor1 <span class="op">=</span> <span class="st">"from"</span>, actor2 <span class="op">=</span> <span class="st">"to"</span>, time <span class="op">=</span> <span class="st">"year"</span>,</span>
+<span>    weight <span class="op">=</span> <span class="st">"tie"</span>, dyad_vars <span class="op">=</span> <span class="st">"distance"</span>,</span>
+<span>    symmetric <span class="op">=</span> <span class="cn">FALSE</span>, mode <span class="op">=</span> <span class="st">"unipartite"</span>,</span>
+<span>    output_format <span class="op">=</span> <span class="st">"longit_array"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 2. netify -&gt; lame-ready list (lame = TRUE for longitudinal)</span></span>
+<span><span class="va">amen_in</span> <span class="op">&lt;-</span> <span class="fu">netify</span><span class="fu">::</span><span class="fu"><a href="https://netify-dev.github.io/netify/reference/netify_to_amen.html" class="external-link">to_amen</a></span><span class="op">(</span><span class="va">netlet</span>, lame <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 3. fit (same Dutch-college style fit we built above)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
+<span>    Y      <span class="op">=</span> <span class="va">amen_in</span><span class="op">$</span><span class="va">Y</span>,</span>
+<span>    Xdyad  <span class="op">=</span> <span class="va">amen_in</span><span class="op">$</span><span class="va">Xdyad</span>,</span>
+<span>    Xrow   <span class="op">=</span> <span class="va">amen_in</span><span class="op">$</span><span class="va">Xrow</span>,</span>
+<span>    Xcol   <span class="op">=</span> <span class="va">amen_in</span><span class="op">$</span><span class="va">Xcol</span>,</span>
+<span>    family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>    burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">4000</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="exit-tidy-autoplot-prediction_draws_long">Exit: <code>tidy()</code>, <code>autoplot()</code>,
+<code>prediction_draws_long()</code><a class="anchor" aria-label="anchor" href="#exit-tidy-autoplot-prediction_draws_long"></a>
+</h3>
+<p>The rest of the round-trip runs against the <code>fit</code> object
+we already built from the Dutch-college data above (no
+<code>netify</code> install needed):</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># tidy(fit) -&gt; term / estimate / std.error / statistic / p.value /</span></span>
+<span><span class="co"># conf.low / conf.high; one row per coefficient (or per</span></span>
+<span><span class="co"># coefficient x period for dynamic_beta fits). The generic ships with</span></span>
+<span><span class="co"># lame so this runs without broom installed; when broom is on the path</span></span>
+<span><span class="co"># `broom::tidy(fit)` dispatches to the same method via</span></span>
+<span><span class="co"># generics::tidy registration.</span></span>
+<span><span class="fu"><a href="../reference/tidy.html">tidy</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 10 × 7</span></span></span>
+<span><span class="co">#&gt;    term              estimate std.error statistic  p.value conf.low conf.high</span></span>
+<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept          -<span style="color: #BB0000;">2.88</span>      1.21      -<span style="color: #BB0000;">2.38</span>  1.75<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span>  -<span style="color: #BB0000;">5.25</span>      -<span style="color: #BB0000;">0.598</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> male_row            0.942     0.418      2.25  2.44<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span>   0.211      1.76 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> smoker_row         -<span style="color: #BB0000;">0.951</span>     0.341     -<span style="color: #BB0000;">2.79</span>  5.29<span style="color: #949494;">e</span><span style="color: #BB0000;">- 3</span>  -<span style="color: #BB0000;">1.59</span>      -<span style="color: #BB0000;">0.307</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> program_row         0.499     0.232      2.15  3.13<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span>   0.060<span style="text-decoration: underline;">9</span>     0.945</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> male_col            0.992     0.267      3.71  2.05<span style="color: #949494;">e</span><span style="color: #BB0000;">- 4</span>   0.437      1.51 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> smoker_col         -<span style="color: #BB0000;">0.062</span><span style="color: #BB0000; text-decoration: underline;">4</span>    0.217     -<span style="color: #BB0000;">0.288</span> 7.74<span style="color: #949494;">e</span><span style="color: #BB0000;">- 1</span>  -<span style="color: #BB0000;">0.527</span>      0.337</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> program_col         0.150     0.145      1.03  3.02<span style="color: #949494;">e</span><span style="color: #BB0000;">- 1</span>  -<span style="color: #BB0000;">0.113</span>      0.438</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_male_dyad      0.446     0.058<span style="text-decoration: underline;">3</span>     7.65  2.00<span style="color: #949494;">e</span><span style="color: #BB0000;">-14</span>   0.333      0.563</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> same_smoker_dyad    0.142     0.056<span style="text-decoration: underline;">0</span>     2.53  1.13<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span>   0.036<span style="text-decoration: underline;">7</span>     0.244</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> same_program_dyad   0.577     0.053<span style="text-decoration: underline;">2</span>    10.8   0   <span style="color: #949494;"> </span>      0.470      0.671</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="coefficient-tables-glance-tidy---modelsummary-gt-kableextra">Coefficient tables: <code>glance()</code> + <code>tidy()</code>
+-&gt; <code>modelsummary</code> / <code>gt</code> /
+<code>kableExtra</code><a class="anchor" aria-label="anchor" href="#coefficient-tables-glance-tidy---modelsummary-gt-kableextra"></a>
+</h3>
+<p><code>lame</code> ships both <code><a href="../reference/tidy.ame.html">tidy.lame()</a></code> and
+<code><a href="../reference/glance.ame.html">glance.lame()</a></code>, registered against
+<code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">generics::tidy</a></code> / <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">generics::glance</a></code> at load
+time, so any broom-aware table package consumes a <code>lame</code> fit
+directly. The most compact route is
+<code>modelsummary::modelsummary(fit)</code>, which uses
+<code><a href="../reference/tidy.html">tidy()</a></code> for the coefficient panel and <code><a href="../reference/glance.html">glance()</a></code>
+for the goodness-of-fit footer:</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># glance() returns the one-row model summary modelsummary uses for its</span></span>
+<span><span class="co"># lower panel: nobs, n_actors, n_periods, n_stored, family, mode, R,</span></span>
+<span><span class="co"># dynamic_uv / dynamic_ab / dynamic_beta, elpd_loo (NA unless save_log_lik=TRUE).</span></span>
+<span><span class="fu">broom</span><span class="fu">::</span><span class="fu"><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 13</span></span></span>
+<span><span class="co">#&gt;    nobs n_actors n_row_actors n_col_actors n_periods n_stored family mode      R</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">5</span>952       32           <span style="color: #BB0000;">NA</span>           <span style="color: #BB0000;">NA</span>         6      400 binary unip…     1</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 4 more variables: dynamic_uv &lt;lgl&gt;, dynamic_ab &lt;lgl&gt;, dynamic_beta &lt;lgl&gt;,</span></span></span>
+<span><span class="co">#&gt; <span style="color: #949494;">#   elpd_loo &lt;dbl&gt;</span></span></span>
+<span></span>
+<span><span class="co"># pass the fit straight to modelsummary -- tidy() drives the upper</span></span>
+<span><span class="co"># (coefficients) panel, glance() drives the lower (GOF) panel.</span></span>
+<span><span class="fu">modelsummary</span><span class="fu">::</span><span class="fu"><a href="https://modelsummary.com/man/modelsummary.html" class="external-link">modelsummary</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"Dutch college"</span> <span class="op">=</span> <span class="va">fit</span><span class="op">)</span>,</span>
+<span>    statistic <span class="op">=</span> <span class="st">"conf.int"</span>,</span>
+<span>    gof_map <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"nobs"</span>, <span class="st">"n_actors"</span>, <span class="st">"n_periods"</span>, <span class="st">"n_stored"</span>,</span>
+<span>                <span class="st">"family"</span>, <span class="st">"R"</span>, <span class="st">"dynamic_uv"</span>, <span class="st">"dynamic_ab"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<!-- preamble start -->
+
+    <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script><script>
+      // Create table-specific functions using external factory
+      const tableFns_jwaj4g5dp6kqab0hzts1 = TinyTable.createTableFunctions("tinytable_jwaj4g5dp6kqab0hzts1");
+      // tinytable span after
+      window.addEventListener('load', function () {
+          var cellsToStyle = [
+            // tinytable style arrays after
+          { positions: [ { i: '28', j: 2 } ], css_id: 'tinytable_css_urtrwctftkbcvo204a0z',}, 
+          { positions: [ { i: '20', j: 2 } ], css_id: 'tinytable_css_7sdofc101fttprsauq9v',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '21', j: 2 }, { i: '22', j: 2 }, { i: '23', j: 2 }, { i: '24', j: 2 }, { i: '25', j: 2 }, { i: '26', j: 2 }, { i: '27', j: 2 } ], css_id: 'tinytable_css_jowp6eoeqehvkeoyf2tm',}, 
+          { positions: [ { i: '0', j: 2 } ], css_id: 'tinytable_css_wbehs6coso697cyxaxo6',}, 
+          { positions: [ { i: '28', j: 1 } ], css_id: 'tinytable_css_arvlcjj3id2v6ajoyozs',}, 
+          { positions: [ { i: '20', j: 1 } ], css_id: 'tinytable_css_qqcc504dqmqb9ez43ok5',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '21', j: 1 }, { i: '22', j: 1 }, { i: '23', j: 1 }, { i: '24', j: 1 }, { i: '25', j: 1 }, { i: '26', j: 1 }, { i: '27', j: 1 } ], css_id: 'tinytable_css_0mrg4389y4wt84r3sk4x',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_ul1e5nabwenlmmojcboc',}, 
+          ];
+
+          // Loop over the arrays to style the cells
+          cellsToStyle.forEach(function (group) {
+              group.positions.forEach(function (cell) {
+                  tableFns_jwaj4g5dp6kqab0hzts1.styleCell(cell.i, cell.j, group.css_id);
+              });
+          });
+      });
+    </script><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
+<style>
+    /* tinytable css entries after */
+    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_urtrwctftkbcvo204a0z, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_urtrwctftkbcvo204a0z {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_7sdofc101fttprsauq9v, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_7sdofc101fttprsauq9v {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_jowp6eoeqehvkeoyf2tm, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_jowp6eoeqehvkeoyf2tm { text-align: center }
+    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_wbehs6coso697cyxaxo6, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_wbehs6coso697cyxaxo6 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_arvlcjj3id2v6ajoyozs, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_arvlcjj3id2v6ajoyozs {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_qqcc504dqmqb9ez43ok5, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_qqcc504dqmqb9ez43ok5 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_0mrg4389y4wt84r3sk4x, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_0mrg4389y4wt84r3sk4x { text-align: left }
+    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_ul1e5nabwenlmmojcboc, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_ul1e5nabwenlmmojcboc {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    </style>
+<div class="container">
+      <table class="table tinytable" id="tinytable_jwaj4g5dp6kqab0hzts1" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+<thead><tr>
+<th scope="col" data-row="0" data-col="1"> </th>
+                <th scope="col" data-row="0" data-col="2">Dutch college</th>
+              </tr></thead>
+<tbody>
+<tr>
+<td data-row="1" data-col="1">intercept</td>
+                  <td data-row="1" data-col="2">-2.878</td>
+                </tr>
+<tr>
+<td data-row="2" data-col="1"></td>
+                  <td data-row="2" data-col="2">[-5.252, -0.598]</td>
+                </tr>
+<tr>
+<td data-row="3" data-col="1">male_row</td>
+                  <td data-row="3" data-col="2">0.942</td>
+                </tr>
+<tr>
+<td data-row="4" data-col="1"></td>
+                  <td data-row="4" data-col="2">[0.211, 1.762]</td>
+                </tr>
+<tr>
+<td data-row="5" data-col="1">smoker_row</td>
+                  <td data-row="5" data-col="2">-0.951</td>
+                </tr>
+<tr>
+<td data-row="6" data-col="1"></td>
+                  <td data-row="6" data-col="2">[-1.589, -0.307]</td>
+                </tr>
+<tr>
+<td data-row="7" data-col="1">program_row</td>
+                  <td data-row="7" data-col="2">0.499</td>
+                </tr>
+<tr>
+<td data-row="8" data-col="1"></td>
+                  <td data-row="8" data-col="2">[0.061, 0.945]</td>
+                </tr>
+<tr>
+<td data-row="9" data-col="1">male_col</td>
+                  <td data-row="9" data-col="2">0.992</td>
+                </tr>
+<tr>
+<td data-row="10" data-col="1"></td>
+                  <td data-row="10" data-col="2">[0.437, 1.513]</td>
+                </tr>
+<tr>
+<td data-row="11" data-col="1">smoker_col</td>
+                  <td data-row="11" data-col="2">-0.062</td>
+                </tr>
+<tr>
+<td data-row="12" data-col="1"></td>
+                  <td data-row="12" data-col="2">[-0.527, 0.337]</td>
+                </tr>
+<tr>
+<td data-row="13" data-col="1">program_col</td>
+                  <td data-row="13" data-col="2">0.150</td>
+                </tr>
+<tr>
+<td data-row="14" data-col="1"></td>
+                  <td data-row="14" data-col="2">[-0.113, 0.438]</td>
+                </tr>
+<tr>
+<td data-row="15" data-col="1">same_male_dyad</td>
+                  <td data-row="15" data-col="2">0.446</td>
+                </tr>
+<tr>
+<td data-row="16" data-col="1"></td>
+                  <td data-row="16" data-col="2">[0.333, 0.563]</td>
+                </tr>
+<tr>
+<td data-row="17" data-col="1">same_smoker_dyad</td>
+                  <td data-row="17" data-col="2">0.142</td>
+                </tr>
+<tr>
+<td data-row="18" data-col="1"></td>
+                  <td data-row="18" data-col="2">[0.037, 0.244]</td>
+                </tr>
+<tr>
+<td data-row="19" data-col="1">same_program_dyad</td>
+                  <td data-row="19" data-col="2">0.577</td>
+                </tr>
+<tr>
+<td data-row="20" data-col="1"></td>
+                  <td data-row="20" data-col="2">[0.470, 0.671]</td>
+                </tr>
+<tr>
+<td data-row="21" data-col="1">Num.Obs.</td>
+                  <td data-row="21" data-col="2">5952</td>
+                </tr>
+<tr>
+<td data-row="22" data-col="1">n_actors</td>
+                  <td data-row="22" data-col="2">32</td>
+                </tr>
+<tr>
+<td data-row="23" data-col="1">n_periods</td>
+                  <td data-row="23" data-col="2">6</td>
+                </tr>
+<tr>
+<td data-row="24" data-col="1">n_stored</td>
+                  <td data-row="24" data-col="2">400</td>
+                </tr>
+<tr>
+<td data-row="25" data-col="1">family</td>
+                  <td data-row="25" data-col="2">binary</td>
+                </tr>
+<tr>
+<td data-row="26" data-col="1">R</td>
+                  <td data-row="26" data-col="2">1</td>
+                </tr>
+<tr>
+<td data-row="27" data-col="1">dynamic_uv</td>
+                  <td data-row="27" data-col="2">FALSE</td>
+                </tr>
+<tr>
+<td data-row="28" data-col="1">dynamic_ab</td>
+                  <td data-row="28" data-col="2">FALSE</td>
+                </tr>
+</tbody>
+</table>
+</div>
+<!-- hack to avoid NA insertion in last line -->
+<p>Multiple fits compose into a side-by-side table the same way they
+would for <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> / <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> – pass a named list,
+one column per fit. Below we compare the full specification against a
+no-latent-space variant (<code>R = 0</code>) to see how much of the
+coefficient story is being soaked up by multiplicative effects:</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit_noUV</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
+<span>    Y <span class="op">=</span> <span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, Xrow <span class="op">=</span> <span class="va">Xrow</span>, Xcol <span class="op">=</span> <span class="va">Xcol</span>,</span>
+<span>    family <span class="op">=</span> <span class="st">"binary"</span>, rvar <span class="op">=</span> <span class="cn">TRUE</span>, cvar <span class="op">=</span> <span class="cn">TRUE</span>, dcor <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    R <span class="op">=</span> <span class="fl">0</span>,                          <span class="co"># no latent space</span></span>
+<span>    symmetric <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>    burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">4000</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">modelsummary</span><span class="fu">::</span><span class="fu"><a href="https://modelsummary.com/man/modelsummary.html" class="external-link">modelsummary</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"AME (R = 1)"</span> <span class="op">=</span> <span class="va">fit</span>, <span class="st">"Additive only (R = 0)"</span> <span class="op">=</span> <span class="va">fit_noUV</span><span class="op">)</span>,</span>
+<span>    statistic <span class="op">=</span> <span class="st">"conf.int"</span>,</span>
+<span>    gof_map <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"nobs"</span>, <span class="st">"n_actors"</span>, <span class="st">"n_periods"</span>, <span class="st">"n_stored"</span>,</span>
+<span>                <span class="st">"family"</span>, <span class="st">"R"</span>, <span class="st">"dynamic_uv"</span>, <span class="st">"dynamic_ab"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<!-- preamble start -->
+
+    <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script><script>
+      // Create table-specific functions using external factory
+      const tableFns_bvheu1dv6qt6sbs26wn8 = TinyTable.createTableFunctions("tinytable_bvheu1dv6qt6sbs26wn8");
+      // tinytable span after
+      window.addEventListener('load', function () {
+          var cellsToStyle = [
+            // tinytable style arrays after
+          { positions: [ { i: '28', j: 2 }, { i: '28', j: 3 } ], css_id: 'tinytable_css_gxcw4abv0xvtf1zq6wo1',}, 
+          { positions: [ { i: '20', j: 2 }, { i: '20', j: 3 } ], css_id: 'tinytable_css_90v9ndfephq7o9pbaeui',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '21', j: 2 }, { i: '22', j: 2 }, { i: '23', j: 2 }, { i: '24', j: 2 }, { i: '25', j: 2 }, { i: '26', j: 2 }, { i: '27', j: 2 }, { i: '1', j: 3 }, { i: '2', j: 3 }, { i: '3', j: 3 }, { i: '4', j: 3 }, { i: '5', j: 3 }, { i: '6', j: 3 }, { i: '7', j: 3 }, { i: '8', j: 3 }, { i: '9', j: 3 }, { i: '10', j: 3 }, { i: '11', j: 3 }, { i: '12', j: 3 }, { i: '13', j: 3 }, { i: '14', j: 3 }, { i: '15', j: 3 }, { i: '16', j: 3 }, { i: '17', j: 3 }, { i: '18', j: 3 }, { i: '19', j: 3 }, { i: '21', j: 3 }, { i: '22', j: 3 }, { i: '23', j: 3 }, { i: '24', j: 3 }, { i: '25', j: 3 }, { i: '26', j: 3 }, { i: '27', j: 3 } ], css_id: 'tinytable_css_kyn3v9ieuqu7sav6bc9n',}, 
+          { positions: [ { i: '0', j: 2 }, { i: '0', j: 3 } ], css_id: 'tinytable_css_sfipkfps8lvmla3h3v98',}, 
+          { positions: [ { i: '28', j: 1 } ], css_id: 'tinytable_css_riolq4qc10876fmxmsy9',}, 
+          { positions: [ { i: '20', j: 1 } ], css_id: 'tinytable_css_pj1d26v4q4ue01ayxrna',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '21', j: 1 }, { i: '22', j: 1 }, { i: '23', j: 1 }, { i: '24', j: 1 }, { i: '25', j: 1 }, { i: '26', j: 1 }, { i: '27', j: 1 } ], css_id: 'tinytable_css_pj55lcxtsun6khgd1llo',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_smup22rbd8d9eaegvx23',}, 
+          ];
+
+          // Loop over the arrays to style the cells
+          cellsToStyle.forEach(function (group) {
+              group.positions.forEach(function (cell) {
+                  tableFns_bvheu1dv6qt6sbs26wn8.styleCell(cell.i, cell.j, group.css_id);
+              });
+          });
+      });
+    </script><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
+<style>
+    /* tinytable css entries after */
+    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_gxcw4abv0xvtf1zq6wo1, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_gxcw4abv0xvtf1zq6wo1 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_90v9ndfephq7o9pbaeui, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_90v9ndfephq7o9pbaeui {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_kyn3v9ieuqu7sav6bc9n, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_kyn3v9ieuqu7sav6bc9n { text-align: center }
+    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_sfipkfps8lvmla3h3v98, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_sfipkfps8lvmla3h3v98 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_riolq4qc10876fmxmsy9, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_riolq4qc10876fmxmsy9 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_pj1d26v4q4ue01ayxrna, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_pj1d26v4q4ue01ayxrna {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_pj55lcxtsun6khgd1llo, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_pj55lcxtsun6khgd1llo { text-align: left }
+    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_smup22rbd8d9eaegvx23, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_smup22rbd8d9eaegvx23 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    </style>
+<div class="container">
+      <table class="table tinytable" id="tinytable_bvheu1dv6qt6sbs26wn8" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+<thead><tr>
+<th scope="col" data-row="0" data-col="1"> </th>
+                <th scope="col" data-row="0" data-col="2">AME (R = 1)</th>
+                <th scope="col" data-row="0" data-col="3">Additive only (R = 0)</th>
+              </tr></thead>
+<tbody>
+<tr>
+<td data-row="1" data-col="1">intercept</td>
+                  <td data-row="1" data-col="2">-2.878</td>
+                  <td data-row="1" data-col="3">-2.693</td>
+                </tr>
+<tr>
+<td data-row="2" data-col="1"></td>
+                  <td data-row="2" data-col="2">[-5.252, -0.598]</td>
+                  <td data-row="2" data-col="3">[-5.172, -0.408]</td>
+                </tr>
+<tr>
+<td data-row="3" data-col="1">male_row</td>
+                  <td data-row="3" data-col="2">0.942</td>
+                  <td data-row="3" data-col="3">0.915</td>
+                </tr>
+<tr>
+<td data-row="4" data-col="1"></td>
+                  <td data-row="4" data-col="2">[0.211, 1.762]</td>
+                  <td data-row="4" data-col="3">[0.133, 1.698]</td>
+                </tr>
+<tr>
+<td data-row="5" data-col="1">smoker_row</td>
+                  <td data-row="5" data-col="2">-0.951</td>
+                  <td data-row="5" data-col="3">-0.853</td>
+                </tr>
+<tr>
+<td data-row="6" data-col="1"></td>
+                  <td data-row="6" data-col="2">[-1.589, -0.307]</td>
+                  <td data-row="6" data-col="3">[-1.508, -0.199]</td>
+                </tr>
+<tr>
+<td data-row="7" data-col="1">program_row</td>
+                  <td data-row="7" data-col="2">0.499</td>
+                  <td data-row="7" data-col="3">0.498</td>
+                </tr>
+<tr>
+<td data-row="8" data-col="1"></td>
+                  <td data-row="8" data-col="2">[0.061, 0.945]</td>
+                  <td data-row="8" data-col="3">[0.040, 0.981]</td>
+                </tr>
+<tr>
+<td data-row="9" data-col="1">male_col</td>
+                  <td data-row="9" data-col="2">0.992</td>
+                  <td data-row="9" data-col="3">0.973</td>
+                </tr>
+<tr>
+<td data-row="10" data-col="1"></td>
+                  <td data-row="10" data-col="2">[0.437, 1.513]</td>
+                  <td data-row="10" data-col="3">[0.501, 1.457]</td>
+                </tr>
+<tr>
+<td data-row="11" data-col="1">smoker_col</td>
+                  <td data-row="11" data-col="2">-0.062</td>
+                  <td data-row="11" data-col="3">-0.094</td>
+                </tr>
+<tr>
+<td data-row="12" data-col="1"></td>
+                  <td data-row="12" data-col="2">[-0.527, 0.337]</td>
+                  <td data-row="12" data-col="3">[-0.499, 0.347]</td>
+                </tr>
+<tr>
+<td data-row="13" data-col="1">program_col</td>
+                  <td data-row="13" data-col="2">0.150</td>
+                  <td data-row="13" data-col="3">0.104</td>
+                </tr>
+<tr>
+<td data-row="14" data-col="1"></td>
+                  <td data-row="14" data-col="2">[-0.113, 0.438]</td>
+                  <td data-row="14" data-col="3">[-0.161, 0.387]</td>
+                </tr>
+<tr>
+<td data-row="15" data-col="1">same_male_dyad</td>
+                  <td data-row="15" data-col="2">0.446</td>
+                  <td data-row="15" data-col="3">0.412</td>
+                </tr>
+<tr>
+<td data-row="16" data-col="1"></td>
+                  <td data-row="16" data-col="2">[0.333, 0.563]</td>
+                  <td data-row="16" data-col="3">[0.298, 0.521]</td>
+                </tr>
+<tr>
+<td data-row="17" data-col="1">same_smoker_dyad</td>
+                  <td data-row="17" data-col="2">0.142</td>
+                  <td data-row="17" data-col="3">0.191</td>
+                </tr>
+<tr>
+<td data-row="18" data-col="1"></td>
+                  <td data-row="18" data-col="2">[0.037, 0.244]</td>
+                  <td data-row="18" data-col="3">[0.108, 0.275]</td>
+                </tr>
+<tr>
+<td data-row="19" data-col="1">same_program_dyad</td>
+                  <td data-row="19" data-col="2">0.577</td>
+                  <td data-row="19" data-col="3">0.594</td>
+                </tr>
+<tr>
+<td data-row="20" data-col="1"></td>
+                  <td data-row="20" data-col="2">[0.470, 0.671]</td>
+                  <td data-row="20" data-col="3">[0.501, 0.684]</td>
+                </tr>
+<tr>
+<td data-row="21" data-col="1">Num.Obs.</td>
+                  <td data-row="21" data-col="2">5952</td>
+                  <td data-row="21" data-col="3">5952</td>
+                </tr>
+<tr>
+<td data-row="22" data-col="1">n_actors</td>
+                  <td data-row="22" data-col="2">32</td>
+                  <td data-row="22" data-col="3">32</td>
+                </tr>
+<tr>
+<td data-row="23" data-col="1">n_periods</td>
+                  <td data-row="23" data-col="2">6</td>
+                  <td data-row="23" data-col="3">6</td>
+                </tr>
+<tr>
+<td data-row="24" data-col="1">n_stored</td>
+                  <td data-row="24" data-col="2">400</td>
+                  <td data-row="24" data-col="3">400</td>
+                </tr>
+<tr>
+<td data-row="25" data-col="1">family</td>
+                  <td data-row="25" data-col="2">binary</td>
+                  <td data-row="25" data-col="3">binary</td>
+                </tr>
+<tr>
+<td data-row="26" data-col="1">R</td>
+                  <td data-row="26" data-col="2">1</td>
+                  <td data-row="26" data-col="3">0</td>
+                </tr>
+<tr>
+<td data-row="27" data-col="1">dynamic_uv</td>
+                  <td data-row="27" data-col="2">FALSE</td>
+                  <td data-row="27" data-col="3">FALSE</td>
+                </tr>
+<tr>
+<td data-row="28" data-col="1">dynamic_ab</td>
+                  <td data-row="28" data-col="2">FALSE</td>
+                  <td data-row="28" data-col="3">FALSE</td>
+                </tr>
+</tbody>
+</table>
+</div>
+<!-- hack to avoid NA insertion in last line -->
+<p>Reading down the <code>R = 1</code> column versus the
+<code>R = 0</code> column shows how the latent space can redistribute
+signal: when residual clustering is real, homophily coefficients move
+toward zero in the AME column because structure that was loaded onto
+<code>same_program</code> (etc.) is instead absorbed by the latent
+positions. On this small panel (32 students, short chains) the movement
+is modest and not uniform across the three homophily terms, with widely
+overlapping credible intervals, so treat the comparison as illustrating
+the mechanism rather than as a precise decomposition; the direction is
+what to look for, not the exact shift.</p>
+<p><strong>Side-by-side MCMC and ALS in one table.</strong>
+<code><a href="../reference/tidy.ame_als.html">tidy.ame_als()</a></code> and <code><a href="../reference/glance.ame_als.html">glance.ame_als()</a></code> are
+registered alongside the MCMC methods, so
+<code>modelsummary(list("MCMC" = fit, "ALS" = fit_als))</code> works
+directly. The ALS row reports sandwich-based SEs when no bootstrap is
+attached and bootstrap-based SEs when
+<code>ame_als(..., bootstrap = K)</code> was used; the
+<code>se_source</code> column on <code>tidy(fit_als)</code> records
+which one supplied the interval.</p>
+<p>If you prefer <code>gt</code> directly, the same <code><a href="../reference/tidy.html">tidy()</a></code>
+frame composes into any formatter; every column follows the broom
+contract so <code><a href="https://rdrr.io/pkg/kableExtra/man/kbl.html" class="external-link">kableExtra::kbl()</a></code>,
+<code>flextable::flextable()</code>, and <code>gt::gt()</code> all work
+without a custom shim:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://gt.rstudio.com" class="external-link">gt</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">broom</span><span class="fu">::</span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>`Estimate (95% CI)` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"%.3f (%.3f, %.3f)"</span>,</span>
+<span>                                         <span class="va">estimate</span>, <span class="va">conf.low</span>, <span class="va">conf.high</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">term</span>, <span class="va">`Estimate (95% CI)`</span>, <span class="va">p.value</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">gt</span><span class="fu">::</span><span class="fu">gt</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">gt</span><span class="fu">::</span><span class="fu">fmt_number</span><span class="op">(</span>columns <span class="op">=</span> <span class="va">p.value</span>, decimals <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">gt</span><span class="fu">::</span><span class="fu">tab_header</span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Posterior coefficient summary"</span>,</span>
+<span>                   subtitle <span class="op">=</span> <span class="st">"lame::lame() fit, Dutch college panel"</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># autoplot.lame returns a horizontal coefplot for static fits and a</span></span>
+<span><span class="co"># ribbon-per-period for dynamic_beta fits, so the same call works for</span></span>
+<span><span class="co"># both. ggplot layers compose on top.</span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Dutch college friendship: posterior coefficients"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="lame-overview_files/figure-html/autoplot-fit-1.png" class="r-plt" alt="Horizontal coefficient plot returned by autoplot.lame: each row is a regression coefficient, with a point at the posterior mean and a horizontal segment marking the 95 percent credible interval; a dashed reference line at zero indicates where an effect is indistinguishable from null." width="100%" style="display: block; margin: auto;"></p>
+<p>The same generic dispatches on <code>which = "uv"</code> (latent
+positions) and <code>which = "ab"</code> (sender / receiver random
+effects), so the entire random-effects diagnostic suite is reachable
+from a single broom-style verb:</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># which = "uv": delegates to uv_plot(); trajectory for dynamic_uv,</span></span>
+<span><span class="co"># snapshot for static -- returns a ggplot in both cases.</span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">fit</span>, which <span class="op">=</span> <span class="st">"uv"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="lame-overview_files/figure-html/autoplot-uv-ab-1.png" class="r-plt" alt="Two separate ggplots returned by autoplot.lame, rendered one above the other: a one-dimensional latent-space layout of posterior-mean U/V positions, and a lollipop plot of sender random effects." width="100%" style="display: block; margin: auto;"></p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span></span>
+<span><span class="co"># which = "ab": delegates to ab_plot() (sender side by default);</span></span>
+<span><span class="co"># call ab_plot(fit, effect = "receiver") for the column-side plot.</span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">fit</span>, which <span class="op">=</span> <span class="st">"ab"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="lame-overview_files/figure-html/autoplot-uv-ab-2.png" class="r-plt" alt="Two separate ggplots returned by autoplot.lame, rendered one above the other: a one-dimensional latent-space layout of posterior-mean U/V positions, and a lollipop plot of sender random effects." width="100%" style="display: block; margin: auto;"></p>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># prediction_draws_long() returns a long-format data frame with</span></span>
+<span><span class="co"># .chain / .iteration / .draw / period / period_label / i / j /</span></span>
+<span><span class="co"># actor_i / actor_j / .value -- ready for tidybayes / marginaleffects.</span></span>
+<span><span class="va">pdl</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prediction_draws_long.html">prediction_draws_long</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"response"</span>, n_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span>
+<span><span class="co"># the diagonal (i == j) is a self-tie, undefined in a friendship network, but</span></span>
+<span><span class="co"># the linear predictor is still numerically defined there -- drop it so the</span></span>
+<span><span class="co"># per-dyad summaries below cover only real (off-diagonal) pairs.</span></span>
+<span><span class="va">pdl</span> <span class="op">&lt;-</span> <span class="va">pdl</span><span class="op">[</span><span class="va">pdl</span><span class="op">$</span><span class="va">i</span> <span class="op">!=</span> <span class="va">pdl</span><span class="op">$</span><span class="va">j</span>, <span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">pdl</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 10</span></span></span>
+<span><span class="co">#&gt;   .chain .iteration .draw period period_label     i     j actor_i actor_j</span></span>
+<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>      1          1     1      1 t2               2     1 S02     S01    </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>      1          1     1      1 t2               3     1 S03     S01    </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>      1          1     1      1 t2               4     1 S04     S01    </span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: .value &lt;dbl&gt;</span></span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">pdl</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 297600     10</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="worked-tidybayes-style-summary">Worked tidybayes-style summary<a class="anchor" aria-label="anchor" href="#worked-tidybayes-style-summary"></a>
+</h3>
+<p>Because <code><a href="../reference/prediction_draws_long.html">prediction_draws_long()</a></code> already uses the
+<code>.draw</code> / <code>.value</code> column convention, you can pipe
+straight into a <code><a href="https://mjskay.github.io/tidybayes/reference/spread_draws.html" class="external-link">tidybayes::spread_draws()</a></code>- style workflow,
+or, since the columns are already in the right shape, go directly to
+<code>dplyr</code> for per-dyad posterior summaries:</p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Attaching package: 'dplyr'</span></span>
+<span><span class="co">#&gt; The following objects are masked from 'package:stats':</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     filter, lag</span></span>
+<span><span class="co">#&gt; The following objects are masked from 'package:base':</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     intersect, setdiff, setequal, union</span></span>
+<span><span class="va">pdl</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">actor_i</span>, <span class="va">actor_j</span>, <span class="va">period_label</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span>p_hat <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">.value</span><span class="op">)</span>,</span>
+<span>              lo    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">.value</span>, <span class="fl">0.025</span><span class="op">)</span>,</span>
+<span>              hi    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">.value</span>, <span class="fl">0.975</span><span class="op">)</span>,</span>
+<span>              .groups <span class="op">=</span> <span class="st">"drop"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 6</span></span></span>
+<span><span class="co">#&gt;   actor_i actor_j period_label  p_hat            lo    hi</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> S01     S02     t2           0.019<span style="text-decoration: underline;">8</span> 0.000<span style="text-decoration: underline;">000</span>002<span style="text-decoration: underline;">42</span> 0.135</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> S01     S02     t3           0.019<span style="text-decoration: underline;">8</span> 0.000<span style="text-decoration: underline;">000</span>002<span style="text-decoration: underline;">42</span> 0.135</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> S01     S02     t4           0.019<span style="text-decoration: underline;">8</span> 0.000<span style="text-decoration: underline;">000</span>002<span style="text-decoration: underline;">42</span> 0.135</span></span></code></pre></div>
+<p>Because the <code>.chain</code> / <code>.iteration</code> /
+<code>.draw</code> / <code>.value</code> columns already follow the
+<code>tidybayes</code> / <code>marginaleffects</code> convention, the
+data frame composes directly with
+<code><a href="https://mjskay.github.io/ggdist/reference/stat_pointinterval.html" class="external-link">ggdist::stat_pointinterval()</a></code>,
+<code><a href="https://mjskay.github.io/ggdist/reference/point_interval.html" class="external-link">tidybayes::point_interval()</a></code>, and
+<code>marginaleffects::posterior_draws()</code> without an intermediate
+<code>spread_draws()</code> call (that generic dispatches on draws /
+brms / Stan model objects, not on a long data frame – the point of
+returning the long shape directly is to skip that step).</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="model-comparison-looloo_compare-as-a-one-liner">Model comparison: <code>loo::loo_compare()</code> as a
+one-liner<a class="anchor" aria-label="anchor" href="#model-comparison-looloo_compare-as-a-one-liner"></a>
+</h2>
+<p>When two specifications are on the table – say a static-coefficient
+baseline against a <code>dynamic_beta = "dyad"</code> variant – the
+standard out-of-sample yardstick is the expected log pointwise
+predictive density (<code>elpd_loo</code>) returned by
+<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo()</a></code>. Both fits need <code>save_log_lik = TRUE</code>
+so <code><a href="../reference/loo.html">loo()</a></code> can read the pointwise log-likelihood matrix off
+<code>fit$log_lik</code>; <code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo::loo_compare()</a></code> then ranks
+them in a single call:</p>
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>                   burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">4000</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>                   save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="va">fit_dyn</span>    <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>                   dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>
+<span>                   burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">4000</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>                   save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">)</span>, <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">cmp</span></span>
+<span><span class="co">#&gt;            elpd_diff se_diff</span></span>
+<span><span class="co">#&gt; fit_dyn     0.0       0.0</span></span>
+<span><span class="co">#&gt; fit_static -8.4       3.1</span></span></code></pre></div>
+<p><strong>How to read the output.</strong> The top row is the preferred
+model and always carries <code>elpd_diff = 0</code>. Each subsequent row
+reports the <em>difference</em> in expected log pointwise predictive
+density relative to the top model, together with the standard error of
+that difference. In the printout above, <code>fit_dyn</code> beats
+<code>fit_static</code> by 8.4 elpd units with an SE of 3.1, so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mtext mathvariant="normal">elpd_diff</mtext><mo stretchy="true" form="postfix">|</mo></mrow><mi>/</mi><mtext mathvariant="normal">se_diff</mtext><mo>≈</mo><mn>2.7</mn></mrow><annotation encoding="application/x-tex">|\text{elpd\_diff}| / \text{se\_diff} \approx 2.7</annotation></semantics></math>
+– the dynamic-beta specification is preferred at roughly the “2-sigma”
+threshold. A natural way to phrase that comparison:</p>
+<blockquote>
+<p><em>“The time-varying-coefficient model is preferred over the static
+specification by 8.4 elpd units (SE 3.1) on leave-one-out
+cross-validation, a <code>|</code>elpd_diff<code>|</code>/SE ratio of
+2.7. This is consistent with non-trivial drift in the dyadic coefficient
+over the panel window; the static specification is rejected at
+conventional thresholds.”</em></p>
+</blockquote>
+<p>If <code>|elpd_diff|</code> were closer to its SE (say
+<code>-2.0 (SE 3.0)</code>), the two specifications would be
+predictively indistinguishable and the simpler static model would be the
+defensible choice. The numbers in the printout above are illustrative;
+the preferred model and the gap size depend on the data, the chain
+length, and how well AME captures the structural features of the
+network. A <code><a href="../reference/loo.html">loo()</a></code> run on a short Gibbs chain (the kind a
+replicator typically uses while iterating on a specification) will also
+commonly flag a few percent of dyads with Pareto
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>k</mi><mo accent="true">̂</mo></mover><mo>&gt;</mo><mn>0.7</mn></mrow><annotation encoding="application/x-tex">\hat k &gt; 0.7</annotation></semantics></math>;
+treat that warning as a sign that the importance-sampling approximation
+is straining and either lengthen the chain or apply
+<code><a href="https://mc-stan.org/loo/reference/loo_moment_match.html" class="external-link">loo::loo_moment_match()</a></code> before relying on the
+<code>elpd_diff</code> for inference.</p>
+<p>Because <code>family = "binary"</code> is one of the six families
+with an exact closed-form pointwise log-likelihood (<code>normal</code>,
+<code>binary</code>, <code>cbin</code>, <code>tobit</code>,
+<code>poisson</code>, <code>ordinal</code>), the absolute
+<code>elpd_loo</code> values here are directly comparable to a
+<code><a href="../reference/loo.html">loo()</a></code> result from a probit-link <code>brms</code> fit on
+the same data, modulo
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+and ESS being satisfactory on the <code>lame</code> Gibbs sampler. For
+<code>frn</code> and <code>rrl</code>, see the
+<code>log_lik_method = "observed_ghk"</code> caveat in <a href="dynamic_effects.html#loo-waic-via-save_log_lik-true">Dynamic
+Effects</a>.</p>
+</div>
+<div class="section level2">
+<h2 id="reproducibility-sessioninfo-and-renv-lock">Reproducibility: <code>sessionInfo()</code> and
+<code>renv.lock</code><a class="anchor" aria-label="anchor" href="#reproducibility-sessioninfo-and-renv-lock"></a>
+</h2>
+<p>MCMC posteriors depend on the RNG state, the C++ ABI of
+<code>RcppArmadillo</code>, and minor internal changes in
+<code>lame</code> itself across releases. A <code>lame</code> analysis
+that a reviewer or your future self can reproduce captures both the seed
+and the exact package versions you fit under. The conventional pattern
+at the top of any replication script:</p>
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span>                 <span class="co"># paste into supplementary materials</span></span></code></pre></div>
+<p>For long-running fits, save the fitted object together with the
+session record:</p>
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>fit <span class="op">=</span> <span class="va">fit</span>, session <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>        file <span class="op">=</span> <span class="st">"lame_fit_replication.rds"</span><span class="op">)</span></span></code></pre></div>
+<p>For long-term reproducibility, pin <code>lame</code> to a specific
+commit hash (the package is pre-CRAN at the time of writing):</p>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"netify-dev/lame@&lt;commit-sha&gt;"</span><span class="op">)</span></span></code></pre></div>
+<p>or commit an <code>renv.lock</code> to your project repo so reviewers
+can recreate the entire toolchain with <code><a href="https://rstudio.github.io/renv/reference/restore.html" class="external-link">renv::restore()</a></code>.
+Random-seed + package version is the floor; commit hash +
+<code>renv.lock</code> is the ceiling.</p>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># this vignette's own session record -- copy the pattern verbatim</span></span>
+<span><span class="co"># into your replication archive</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt; R version 4.3.3 (2024-02-29)</span></span>
+<span><span class="co">#&gt; Platform: x86_64-pc-linux-gnu (64-bit)</span></span>
+<span><span class="co">#&gt; Running under: Ubuntu 24.04.3 LTS</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Matrix products: default</span></span>
+<span><span class="co">#&gt; BLAS:   /usr/lib/x86_64-linux-gnu/blas/libblas.so.3.12.0 </span></span>
+<span><span class="co">#&gt; LAPACK: /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.12.0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; locale:</span></span>
+<span><span class="co">#&gt;  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       </span></span>
+<span><span class="co">#&gt;  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   </span></span>
+<span><span class="co">#&gt;  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          </span></span>
+<span><span class="co">#&gt; [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; time zone: America/New_York</span></span>
+<span><span class="co">#&gt; tzcode source: system (glibc)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; attached base packages:</span></span>
+<span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; other attached packages:</span></span>
+<span><span class="co">#&gt; [1] dplyr_1.2.0     posterior_1.6.1 ggplot2_4.0.2   lame_1.1.0     </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
+<span><span class="co">#&gt;  [1] tidyselect_1.2.1      farver_2.1.2          loo_2.9.0            </span></span>
+<span><span class="co">#&gt;  [4] S7_0.2.1              fastmap_1.2.0         tensorA_0.36.2.1     </span></span>
+<span><span class="co">#&gt;  [7] tweenr_2.0.3          bayestestR_0.17.0     digest_0.6.39        </span></span>
+<span><span class="co">#&gt; [10] lifecycle_1.0.5       magrittr_2.0.4        compiler_4.3.3       </span></span>
+<span><span class="co">#&gt; [13] rlang_1.2.0           sass_0.4.10           tools_4.3.3          </span></span>
+<span><span class="co">#&gt; [16] utf8_1.2.6            yaml_2.3.12           data.table_1.18.0    </span></span>
+<span><span class="co">#&gt; [19] knitr_1.51            labeling_0.4.3        htmlwidgets_1.6.4    </span></span>
+<span><span class="co">#&gt; [22] plyr_1.8.9            RColorBrewer_1.1-3    abind_1.4-8          </span></span>
+<span><span class="co">#&gt; [25] tinytable_0.16.0      withr_3.0.2           purrr_1.2.1          </span></span>
+<span><span class="co">#&gt; [28] desc_1.4.3            grid_4.3.3            polyclip_1.10-7      </span></span>
+<span><span class="co">#&gt; [31] datawizard_1.3.1      future_1.69.0         globals_0.19.0       </span></span>
+<span><span class="co">#&gt; [34] scales_1.4.0          MASS_7.3-60.0.1       insight_1.5.0        </span></span>
+<span><span class="co">#&gt; [37] cli_3.6.6             rmarkdown_2.30        ragg_1.5.0           </span></span>
+<span><span class="co">#&gt; [40] generics_0.1.4        otel_0.2.0            future.apply_1.20.2  </span></span>
+<span><span class="co">#&gt; [43] performance_0.16.0    reshape2_1.4.5        parameters_0.28.3    </span></span>
+<span><span class="co">#&gt; [46] cachem_1.1.0          ggforce_0.5.0         stringr_1.6.0        </span></span>
+<span><span class="co">#&gt; [49] network_1.20.0        parallel_4.3.3        matrixStats_1.5.0    </span></span>
+<span><span class="co">#&gt; [52] vctrs_0.7.2           jsonlite_2.0.0        litedown_0.9         </span></span>
+<span><span class="co">#&gt; [55] patchwork_1.3.2       ggrepel_0.9.6         listenv_0.10.0       </span></span>
+<span><span class="co">#&gt; [58] systemfonts_1.3.1     tidyr_1.3.2           jquerylib_0.1.4      </span></span>
+<span><span class="co">#&gt; [61] glue_1.8.0            modelsummary_2.6.0    parallelly_1.46.1    </span></span>
+<span><span class="co">#&gt; [64] statnet.common_4.13.0 pkgdown_2.2.0         codetools_0.2-19     </span></span>
+<span><span class="co">#&gt; [67] distributional_0.6.0  stringi_1.8.7         gtable_0.3.6         </span></span>
+<span><span class="co">#&gt; [70] tables_0.9.33         tibble_3.3.1          pillar_1.11.1        </span></span>
+<span><span class="co">#&gt; [73] htmltools_0.5.9       R6_2.6.1              textshaping_1.0.4    </span></span>
+<span><span class="co">#&gt; [76] evaluate_1.0.5        lattice_0.22-5        backports_1.5.0      </span></span>
+<span><span class="co">#&gt; [79] broom_1.0.11          bslib_0.9.0           Rcpp_1.1.1-1.1       </span></span>
+<span><span class="co">#&gt; [82] coda_0.19-4.1         checkmate_2.3.4       xfun_0.55            </span></span>
+<span><span class="co">#&gt; [85] fs_1.6.6              pkgconfig_2.0.3</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="whats-next">What’s Next?<a class="anchor" aria-label="anchor" href="#whats-next"></a>
@@ -368,9 +1619,10 @@ cross-sectional walkthrough</li>
 <p><strong>References</strong>:</p>
 <p>Hoff, PD (2021) Additive and Multiplicative Effects Network Models.
 Statistical Science 36, 34–50.</p>
-<p>Morgan, T. Clifton, Bapat, N., &amp; Kobayashi, Y. (2014). Threat and
-Imposition of Economic Sanctions 1945-2005. Conflict Management and
-Peace Science 31(5): 541-558.</p>
+<p>van de Bunt, G. G., van Duijn, M. A. J., &amp; Snijders, T. A. B.
+(1999). Friendship networks through time: An actor-oriented dynamic
+statistical network model. <em>Computational &amp; Mathematical
+Organization Theory</em>, 5(2), 167–192.</p>
 <p>Minhas, S., Dorff, C., Gallop, M. B., Foster, M., Liu, H., Tellez,
 J., &amp; Ward, M. D. (2022). Taking dyads seriously. Political Science
 Research and Methods, 10(4), 703–721. <a href="doi:10.1017/psrm.2021.56" class="uri">doi:10.1017/psrm.2021.56</a></p>

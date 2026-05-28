@@ -52,6 +52,10 @@
 #' @param plot_type For dynamic UV: "snapshot" (single time), "trajectory" (evolution),
 #'                  "faceted" (grid of time points). For static UV, this is ignored.
 #' @param show_arrows For trajectory plots, whether to show directional arrows
+#' @param highlight Optional character vector of actor names to highlight on a
+#'        \code{plot_type = "trajectory"} plot. Highlighted actors are coloured
+#'        with the colour-blind-safe Okabe-Ito palette; all other actors are
+#'        rendered in grey at lower alpha. Ignored for static or snapshot plots.
 #' @return A ggplot2 object that can be further customized
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
@@ -88,25 +92,30 @@ uv_plot <- function(
 	title = NULL,
 	time_point = NULL,
 	plot_type = c("snapshot", "trajectory", "faceted"),
-	show_arrows = TRUE
+	show_arrows = TRUE,
+	highlight = NULL
 	){
 	
 	layout <- match.arg(layout)
 	plot_type <- match.arg(plot_type)
 
 	if (!is.null(fit)) {
-		if (!inherits(fit, c("ame", "lame"))) {
-			stop("fit must be an object of class 'ame' or 'lame'")
+		if (!inherits(fit, c("ame", "lame", "ame_als"))) {
+			stop("fit must be an object of class 'ame', 'lame' or 'ame_als'")
 		}
 		if (is.null(U)) U <- fit$U
 		if (is.null(V)) V <- fit$V
+		# symmetric fits store the eigenmodel as U with L (V is NULL by
+		# design). Treat V as U so the rest of the routine can plot one
+		# common latent space for both endpoints of an undirected tie.
+		if (isTRUE(fit$symmetric) && is.null(V) && !is.null(U)) V <- U
 		is_dynamic <- FALSE
 		if (!is.null(U) && length(dim(U)) == 3) {
 			is_dynamic <- TRUE
 			if (plot_type != "snapshot" || (!is.null(time_point) && time_point != "average")) {
-				return(uv_plot_dynamic_internal(fit, U, V, time_point, plot_type, 
-																			 show_arrows, title, label.nodes, 
-																			 label.size, colors))
+				return(uv_plot_dynamic_internal(fit, U, V, time_point, plot_type,
+																			 show_arrows, title, label.nodes,
+																			 label.size, colors, highlight = highlight))
 			}
 			n_times <- dim(U)[3]
 			if (is.null(time_point)) {
@@ -150,9 +159,23 @@ uv_plot <- function(
 
 	####
 
-	if (is.null(U) || is.null(V)) {
+	# treat NULL *and* zero-column / zero-row matrices as "no latent space":
+	# an R = 0 fit stores U / V as n x 0 matrices rather than NULL, so the
+	# old is.null()-only guard fell through and indexed an empty matrix
+	# ("subscript out of bounds") instead of giving the intended message.
+	.uv_empty <- function(M) is.null(M) || NCOL(M) == 0L || NROW(M) == 0L
+	if (.uv_empty(U) && .uv_empty(V)) {
+		if (!is.null(fit)) {
+			# a fit was supplied but carries no multiplicative effects: do NOT
+			# silently substitute an SVD of the raw data and label it
+			# "Multiplicative Effects" -- that fabricates a latent space the
+			# model never estimated.
+			stop("This fit has no multiplicative effects (R = 0); there is no ",
+			     "estimated latent space to plot. Refit with R > 0, or use ",
+			     "ab_plot() for the additive effects.", call. = FALSE)
+		}
 		if (is.null(Y)) {
-			stop("Must provide either fit object with U and V, or Y matrix to compute factors")
+			stop("Must provide either a fit object with U and V, or a Y matrix to compute factors")
 		}
 		Y_centered <- Y - mean(Y, na.rm = TRUE)
 		Y_centered[is.na(Y_centered)] <- 0
@@ -328,10 +351,13 @@ uv_plot <- function(
 	if (!is.null(colors)) {
 		p <- p + geom_point(aes(color = color, shape = type, size = size))
 	} else {
+		# colour and shape both encode node type -- give the shape scale the
+		# same legend name so ggplot merges them into ONE legend, not two
 		p <- p + geom_point(aes(color = type, shape = type, size = size)) +
 			scale_color_manual(values = setNames(c(sender.color, receiver.color),
 																					 c(row_type_label, col_type_label)),
-												name = "Node Type")
+												name = "Node Type") +
+			scale_shape_discrete(name = "Node Type")
 	}
 	
 	if (label.nodes || !is.null(show.usernames)) {
@@ -373,7 +399,7 @@ uv_plot <- function(
 					data = node_data[node_data$label != "",],
 					aes(x = x, y = y, label = label, color = type),
 					size = label.size,
-					max.overlaps = 20,
+					max.overlaps = Inf,
 					show.legend = FALSE
 				)
 			} else {
@@ -381,7 +407,7 @@ uv_plot <- function(
 					data = node_data[node_data$label != "",],
 					aes(x = x, y = y, label = label),
 					size = label.size,
-					max.overlaps = 20
+					max.overlaps = Inf
 				)
 			}
 		}
@@ -391,13 +417,19 @@ uv_plot <- function(
 		scale_size_continuous(range = c(2, 6), guide = "none") +
 		theme_bw() +
 		theme(
-			panel.border = element_blank(),
-			axis.text = element_blank(),
-			axis.title = element_blank(),
-			panel.grid = element_blank(),
-			legend.position = "bottom"
-		) +
-		coord_fixed()
+			panel.border    = element_blank(),
+			axis.ticks      = element_blank(),
+			axis.text       = element_blank(),
+			legend.position = "top"
+		)
+	# biplot axes are the latent dimensions; circle layout uses an
+	# arbitrary coordinate so its axis titles stay blank.
+	if (identical(layout, "biplot")) {
+		p <- p + labs(x = "Latent Dimension 1", y = "Latent Dimension 2")
+	} else {
+		p <- p + theme(axis.title = element_blank())
+	}
+	p <- p + coord_fixed()
 	
 	if (!is.null(title)) {
 		p <- p + ggtitle(title)
@@ -417,7 +449,12 @@ uv_plot <- function(
 #' @noRd
 uv_plot_dynamic_internal <- function(fit, U, V, time_point, plot_type,
 																		 show_arrows, title, label.nodes,
-																		 label.size, colors) {
+																		 label.size, colors, highlight = NULL) {
+
+	# colour-blind-safe Okabe-Ito palette (Wong 2011, Nat Methods); used when
+	# the actor set is small enough that distinct colours stay distinguishable
+	okabe_ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+	               "#0072B2", "#D55E00", "#CC79A7", "#000000")
 	
 	n_U <- dim(U)[1]
 	n_V <- if (!is.null(V)) dim(V)[1] else n_U
@@ -468,14 +505,19 @@ uv_plot_dynamic_internal <- function(fit, U, V, time_point, plot_type,
 		p <- ggplot(positions, aes(x = x, y = y)) +
 			geom_point(aes(color = if (!is.null(colors)) colors else type), size = 3) +
 			theme_bw() +
-			theme(panel.border = element_blank()) +
+			theme(
+				panel.border    = element_blank(),
+				axis.ticks      = element_blank(),
+				legend.position = "top"
+			) +
 			coord_fixed() +
 			labs(x = "Dimension 1", y = "Dimension 2")
 		
 		if (label.nodes) {
-			p <- p + geom_text_repel(aes(label = node), size = label.size)
+			p <- p + geom_text_repel(aes(label = node), size = label.size,
+			                          max.overlaps = Inf)
 		}
-		
+
 		if (!is.null(title)) {
 			p <- p + ggtitle(title)
 		} else {
@@ -515,12 +557,38 @@ uv_plot_dynamic_internal <- function(fit, U, V, time_point, plot_type,
 			}
 		}
 		
+		# colour-by-actor; highlight subset if requested, otherwise Okabe-Ito for n <= 8
+		n_actors <- length(unique(traj_data$node))
+		if (!is.null(highlight)) {
+			traj_data$highlight <- ifelse(traj_data$node %in% highlight,
+			                              as.character(traj_data$node),
+			                              "Other")
+			# order highlighted actors first in the legend, Other last
+			lvl <- c(intersect(unique(traj_data$node), highlight), "Other")
+			traj_data$highlight <- factor(traj_data$highlight, levels = lvl)
+			n_h <- length(highlight)
+			h_cols <- okabe_ito[seq_len(min(n_h, length(okabe_ito)))]
+			names(h_cols) <- highlight[seq_len(min(n_h, length(okabe_ito)))]
+			h_cols <- c(h_cols, Other = "grey75")
+		}
 		p <- ggplot(traj_data, aes(x = x, y = y, group = interaction(node, type))) +
-			geom_path(aes(color = node, linetype = type), alpha = 0.5) +
+			geom_path(aes(color = if (!is.null(highlight)) highlight else node,
+			              linetype = type),
+			          alpha = if (!is.null(highlight)) 0.4 else 0.5) +
 			theme_bw() +
-			theme(panel.border = element_blank()) +
+			theme(
+				panel.border    = element_blank(),
+				axis.ticks      = element_blank(),
+				legend.position = "top"
+			) +
 			coord_fixed() +
-			labs(x = "Dimension 1", y = "Dimension 2")
+			labs(x = "Dimension 1", y = "Dimension 2",
+			     colour = if (!is.null(highlight)) "Actor" else NULL)
+		if (!is.null(highlight)) {
+			p <- p + scale_colour_manual(values = h_cols)
+		} else if (n_actors <= 8L) {
+			p <- p + scale_colour_manual(values = okabe_ito[seq_len(n_actors)])
+		}
 		
 		if (show_arrows) {
 			arrow_data <- traj_data[traj_data$time == n_times, ]
@@ -547,7 +615,8 @@ uv_plot_dynamic_internal <- function(fit, U, V, time_point, plot_type,
 		if (label.nodes && n <= 20) {
 			p <- p + geom_text_repel(data = end_data,
 															 aes(label = node, color = node),
-															 size = label.size)
+															 size = label.size,
+															 max.overlaps = Inf)
 		}
 		
 		if (!is.null(title)) {
@@ -597,15 +666,18 @@ uv_plot_dynamic_internal <- function(fit, U, V, time_point, plot_type,
 			facet_wrap(~ time, scales = "free") +
 			theme_bw() +
 			theme(
-				panel.border = element_blank(),
+				panel.border     = element_blank(),
+				axis.ticks       = element_blank(),
+				legend.position  = "top",
 				strip.background = element_rect(fill = "black", color = "black"),
-				strip.text = element_text(color = "white", hjust = 0)
+				strip.text       = element_text(color = "white", hjust = 0)
 			) +
 			coord_fixed() +
 			labs(x = "Dimension 1", y = "Dimension 2")
 		
 		if (label.nodes && n <= 10) {
-			p <- p + geom_text_repel(aes(label = node), size = label.size * 0.8)
+			p <- p + geom_text_repel(aes(label = node), size = label.size * 0.8,
+			                          max.overlaps = Inf)
 		}
 		
 		if (!is.null(title)) {

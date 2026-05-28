@@ -4,7 +4,15 @@
 \alias{sample_rho_uv}
 \title{Sample AR(1) parameter for dynamic latent factors}
 \usage{
-sample_rho_uv(U_cube, V_cube, sigma_uv, rho_current, symmetric)
+sample_rho_uv(
+  U_cube,
+  V_cube,
+  sigma_uv,
+  rho_current,
+  symmetric,
+  prior_mean = 0,
+  prior_sd = 1
+)
 }
 \arguments{
 \item{U_cube}{3D array of U positions (n x R x T)}
@@ -13,13 +21,20 @@ sample_rho_uv(U_cube, V_cube, sigma_uv, rho_current, symmetric)
 
 \item{sigma_uv}{Innovation standard deviation}
 
-\item{rho_current}{Current value of rho}
+\item{rho_current}{Current value of rho (ignored; full conditional)}
 
 \item{symmetric}{Whether network is symmetric}
+
+\item{prior_mean}{Prior mean for rho (default 0)}
+
+\item{prior_sd}{Prior SD for rho (default 1)}
 }
 \value{
 Updated rho value
 }
 \description{
-Sample AR(1) parameter for dynamic latent factors
+Uses a conjugate Normal(prior_mean, prior_sd^2) prior on rho. Defaults
+(prior_mean = 0, prior_sd = 1) preserve the historical N(0,1) behaviour
+for backward compatibility; lame::lame() passes the user-set
+prior$rho_uv_mean / prior$rho_uv_sd explicitly.
 }

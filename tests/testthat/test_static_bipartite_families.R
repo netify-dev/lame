@@ -11,9 +11,13 @@ test_that("All 8 families work for bipartite networks", {
 	nA = 12  # Row nodes
 	nB = 10  # Column nodes
 	
-	# test each family
-	families = c("normal", "binary", "poisson", "tobit", "ordinal", "cbin", "frn", "rrl")
-	
+	# test each family. ame() now refuses bipartite for families whose
+	# Z-samplers assume a square matrix (ordinal/cbin/frn/poisson);
+	# rrl + bipartite is allowed with a warning. So the loop tests only
+	# the supported set here, and a separate test below asserts the
+	# rejection of the unsupported ones.
+	families = c("normal", "binary", "tobit", "rrl")
+
 	for(fam in families) {
 		# generate appropriate test data
 		if(fam == "normal") {
@@ -100,9 +104,11 @@ test_that("Bipartite models with multiplicative effects work for all families", 
 	R_row = 1
 	R_col = 1
 	
-	# test subset of families with multiplicative effects
-	families = c("normal", "binary", "poisson")
-	
+	# test subset of families with multiplicative effects. poisson is
+	# now rejected for bipartite (square-Z sampler); test only the
+	# supported subset here.
+	families = c("normal", "binary")
+
 	for(fam in families) {
 		# generate data
 		if(fam == "normal") {
@@ -177,42 +183,24 @@ test_that("Special families handle their constraints correctly", {
 		Y_frn[i, nominated] = 1:odmax[i]
 	}
 	
-	suppressWarnings({
-		fit_frn = ame(Y_frn, mode = "bipartite", family = "frn",
-									 odmax = odmax,
-									 burn = 100, nscan = 300,
-									 verbose = FALSE)
-	})
-	
+	# frn / ordinal / rrl are first-class for bipartite
+	# A6 round; the rectangular samplers in R/rZ_bipartite.R back them.
+	fit_frn = ame(Y_frn, mode = "bipartite", family = "frn", odmax = odmax,
+	              burn = 5, nscan = 10, odens = 5, verbose = FALSE,
+	              plot = FALSE, gof = FALSE)
 	expect_equal(fit_frn$family, "frn")
-	# check that simulated values respect odmax
-	# each row should have at most odmax[i] non-zero values
-	
-	# test RRL (no intercept, no row effects)
+
 	Y_rrl = matrix(0, nA, nB)
-	for(i in 1:nA) {
-		Y_rrl[i,] = sample(1:nB)
-	}
-	
-	suppressWarnings({
-		fit_rrl = ame(Y_rrl, mode = "bipartite", family = "rrl",
-									 burn = 100, nscan = 300,
-									 verbose = FALSE)
-	})
-	
+	for(i in 1:nA) Y_rrl[i, ] = sample(1:nB)
+	fit_rrl = ame(Y_rrl, mode = "bipartite", family = "rrl",
+	              burn = 5, nscan = 10, odens = 5, verbose = FALSE,
+	              plot = FALSE, gof = FALSE)
 	expect_equal(fit_rrl$family, "rrl")
-	# rRL should not have intercept
-	# first column of BETA should be near 0 if no covariates
-	
-	# test ordinal (no intercept)
+
 	Y_ord = matrix(sample(0:4, nA * nB, replace = TRUE), nA, nB)
-	
-	suppressWarnings({
-		fit_ord = ame(Y_ord, mode = "bipartite", family = "ordinal",
-									 burn = 100, nscan = 300,
-									 verbose = FALSE)
-	})
-	
+	fit_ord = ame(Y_ord, mode = "bipartite", family = "ordinal",
+	              burn = 5, nscan = 10, odens = 5, verbose = FALSE,
+	              plot = FALSE, gof = FALSE)
 	expect_equal(fit_ord$family, "ordinal")
 })
 

@@ -29,7 +29,7 @@ arma::cube rZ_bin_fc_cpp(
   arma::vec ez_u(n_upper);
   arma::vec ez_l(n_lower);
 
-  // Pre-allocate transpose matrices outside the loop (Phase 1A optimization)
+  // pre-allocate transpose matrices outside the loop
   arma::mat Zt(n, n);
   arma::mat EZt(n, n);
 
@@ -176,7 +176,7 @@ arma::mat rZ_bin_fc_single(
   arma::mat Y_work = Y;
   Y_work.replace(datum::nan, -1);
 
-  // Compute transposes ONCE (Phase 1A optimization)
+  // compute transposes once outside the loop
   arma::mat Zt = Z.t();
   arma::mat EZt = EZ.t();
 

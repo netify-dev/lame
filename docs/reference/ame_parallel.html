@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,8 @@
     <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+    <li><a class="dropdown-item" href="../articles/fast_estimation.html">Fast (MCMC-free) Estimation</a></li>
+    <li><a class="dropdown-item" href="../articles/forecasting.html">Forecasting</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -55,6 +57,7 @@
 <span>  n_chains <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>  cores <span class="op">=</span> <span class="va">n_chains</span>,</span>
 <span>  combine_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pool"</span>, <span class="st">"list"</span><span class="op">)</span>,</span>
+<span>  fitter <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"ame"</span>, <span class="st">"lame"</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -80,14 +83,29 @@ Default is n_chains. Use 1 for sequential processing.</p></dd>
 <dd><p>Method for combining chains: "pool" (default) or "list"</p></dd>
 
 
+<dt id="arg-fitter">fitter<a class="anchor" aria-label="anchor" href="#arg-fitter"></a></dt>
+<dd><p>Which fitter to use: <code>"auto"</code> (default; pick
+<code><a href="lame.html">lame</a></code> when <code>Y</code> is a list / 3-D array with &gt;1 time slice,
+else <code><a href="ame.html">ame</a></code>), <code>"ame"</code> (force cross-sectional), or
+<code>"lame"</code> (force longitudinal – required for <code>dynamic_*</code> flags).</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Additional arguments passed to ame()</p></dd>
+<dd><p>Additional arguments passed to <code><a href="ame.html">ame()</a></code> or <code><a href="lame.html">lame()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>If combine_method = "pool": A single ame object with pooled chains
 If combine_method = "list": A list of ame objects, one per chain</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="lame_multi.html">lame_multi</a></code> for the unrelated multi-<em>panel</em>
+wrapper that fits K <em>distinct</em> networks with shared regression
+coefficients. <code>ame_parallel</code> / <code>lame_parallel</code> run K MCMC
+chains of the <em>same</em> model (for R-hat / ESS diagnostics);
+<code>lame_multi</code> runs one chain across K panels with pooled beta.</p></div>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
@@ -106,15 +124,16 @@ If combine_method = "list": A list of ame objects, one per chain</p>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── <span style="font-weight: bold;">Running </span><span style="color: #0000BB; font-weight: bold;">2</span><span style="font-weight: bold;"> chains sequentially</span> ──</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Starting chain <span style="color: #0000BB;">1</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Starting chain <span style="color: #0000BB;">1</span> (`ame()`)</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Completed chain <span style="color: #0000BB;">1</span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Starting chain <span style="color: #0000BB;">2</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Starting chain <span style="color: #0000BB;">2</span> (`ame()`)</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Completed chain <span style="color: #0000BB;">2</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Combining chains...</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── MCMC Convergence Diagnostics </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Number of chains: <span style="color: #0000BB;">2</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Samples per chain: <span style="color: #0000BB;">"100, 100"</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Diagnostics cover regression coefficients and variance components.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> All parameters converged (R-hat &lt; 1.1)</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>

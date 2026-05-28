@@ -4,13 +4,17 @@
 \alias{gof_stats_bipartite}
 \title{Goodness of fit statistics for bipartite networks}
 \usage{
-gof_stats_bipartite(Y)
+gof_stats_bipartite(Y, warn_square = TRUE)
 }
 \arguments{
 \item{Y}{a bipartite relational data matrix (nA x nB rectangular matrix)
 where Y\[i,j\] represents the relationship from node i in set A to
 node j in set B. Missing values (NA) are allowed and will be handled
 appropriately.}
+
+\item{warn_square}{logical; if \code{TRUE} (default) a warning is issued
+when \code{Y} is square (a possible unipartite matrix passed by mistake).
+Set \code{FALSE} for a genuinely square bipartite network.}
 }
 \value{
 A named numeric vector containing bipartite-specific goodness-of-fit

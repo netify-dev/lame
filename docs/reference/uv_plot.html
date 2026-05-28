@@ -13,7 +13,7 @@ clustering, transitivity, and other higher-order dependencies."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,6 +32,8 @@ clustering, transitivity, and other higher-order dependencies."></head><body>
     <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+    <li><a class="dropdown-item" href="../articles/fast_estimation.html">Fast (MCMC-free) Estimation</a></li>
+    <li><a class="dropdown-item" href="../articles/forecasting.html">Forecasting</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -80,7 +82,8 @@ clustering, transitivity, and other higher-order dependencies.</p>
 <span>  title <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  time_point <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  plot_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"snapshot"</span>, <span class="st">"trajectory"</span>, <span class="st">"faceted"</span><span class="op">)</span>,</span>
-<span>  show_arrows <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  show_arrows <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  highlight <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -173,6 +176,13 @@ Can be numeric index or "average" for time-averaged positions</p></dd>
 
 <dt id="arg-show-arrows">show_arrows<a class="anchor" aria-label="anchor" href="#arg-show-arrows"></a></dt>
 <dd><p>For trajectory plots, whether to show directional arrows</p></dd>
+
+
+<dt id="arg-highlight">highlight<a class="anchor" aria-label="anchor" href="#arg-highlight"></a></dt>
+<dd><p>Optional character vector of actor names to highlight on a
+<code>plot_type = "trajectory"</code> plot. Highlighted actors are coloured
+with the colour-blind-safe Okabe-Ito palette; all other actors are
+rendered in grey at lower alpha. Ignored for static or snapshot plots.</p></dd>
 
 </dl></div>
     <div class="section level2">

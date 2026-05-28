@@ -225,19 +225,24 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 	####
 	BETA <- fit$BETA
 	VC <- fit$VC
+	# 3-D BETA storage (dynamic_beta) -- first dim is iter
+	beta_is_dyn <- length(dim(BETA)) == 3L
 
 	# burn-in and thinning
-	if (burn_in > 0 && burn_in < nrow(BETA)) {
-		BETA <- BETA[-(1:burn_in), , drop = FALSE]
+	.dim1 <- function(x) dim(x)[1]
+	if (burn_in > 0 && burn_in < .dim1(BETA)) {
+		if (beta_is_dyn) BETA <- BETA[-(1:burn_in), , , drop = FALSE]
+		else             BETA <- BETA[-(1:burn_in), , drop = FALSE]
 		VC <- VC[-(1:burn_in), , drop = FALSE]
 	}
 	if (thin > 1) {
-		keep <- seq(1, nrow(BETA), by = thin)
-		BETA <- BETA[keep, , drop = FALSE]
+		keep <- seq(1, .dim1(BETA), by = thin)
+		if (beta_is_dyn) BETA <- BETA[keep, , , drop = FALSE]
+		else             BETA <- BETA[keep, , drop = FALSE]
 		VC <- VC[keep, , drop = FALSE]
 	}
-	
-	n_mcmc <- nrow(BETA)
+
+	n_mcmc <- .dim1(BETA)
 
 	####
 	# covariates
@@ -318,7 +323,16 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 	# simulate trajectories
 	for (i in 1:nsim) {
 		s <- sample(1:n_mcmc, 1)
-		beta <- BETA[s, ]
+		# beta_per_t: a matrix p x T (rows = coef, cols = period) for the
+		# dynamic_beta path; otherwise a constant matrix replicated across T.
+		if (beta_is_dyn) {
+			beta_per_t <- BETA[s, , , drop = FALSE]
+			beta_per_t <- matrix(beta_per_t, nrow = dim(BETA)[2], ncol = dim(BETA)[3])
+			beta <- as.numeric(apply(beta_per_t, 1, mean))  # back-compat default
+		} else {
+			beta <- BETA[s, ]
+			beta_per_t <- matrix(beta, nrow = length(beta), ncol = n_time)
+		}
 
 		# per-iteration temporal parameters
 		rho_ab <- rho_ab_samples[min(s, length(rho_ab_samples))]
@@ -440,12 +454,13 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 				}
 			}
 			
-			# linear predictor
-			if (length(beta) > 0 && any(beta != 0)) {
+			# linear predictor (per-period beta from beta_per_t)
+			beta_t_here <- beta_per_t[, t]
+			if (length(beta_t_here) > 0 && any(beta_t_here != 0)) {
 				if (length(dim(X_t)) == 3 && dim(X_t)[3] > 0) {
 					EZ <- array(0, dim = c(n_row, n_col))
-					for (k in 1:min(dim(X_t)[3], length(beta))) {
-						EZ <- EZ + beta[k] * X_t[, , k]
+					for (k in 1:min(dim(X_t)[3], length(beta_t_here))) {
+						EZ <- EZ + beta_t_here[k] * X_t[, , k]
 					}
 				} else {
 					EZ <- matrix(beta[1], n_row, n_col)
@@ -475,13 +490,30 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 			} else if (family == "normal") {
 				Y_sim <- simY_nrm(EZ, rho, s2)
 			} else if (family == "ordinal") {
-				if (is.null(fit$ODM)) stop("fit$ODM required for ordinal simulation but is NULL")
-				Y_sim <- simY_ord(EZ, rho, fit$ODM)
+				# simY_ord wants Y for the unique-category lookup
+				y_for_sim <- if (is.list(fit$Y)) fit$Y[[t]] else
+					if (length(dim(fit$Y)) == 3L) fit$Y[, , t] else fit$Y
+				if (is.null(y_for_sim))
+					stop("simulate.lame: ordinal needs `fit$Y` for the category template.")
+				Y_sim <- simY_ord(EZ, rho, y_for_sim)
 			} else if (family == "rrl") {
-				if (is.null(fit$ODM)) stop("fit$ODM required for rrl simulation but is NULL")
-				Y_sim <- simY_rrl(EZ, rho, fit$ODM)
+				# simY_rrl wants odobs (per-row observed outdegree).
+				y_for_sim <- if (is.list(fit$Y)) fit$Y[[t]] else
+					if (length(dim(fit$Y)) == 3L) fit$Y[, , t] else fit$Y
+				odobs_t <- if (!is.null(fit$odobs)) {
+					if (is.matrix(fit$odobs)) fit$odobs[, t] else fit$odobs
+				} else as.integer(rowSums(y_for_sim > 0, na.rm = TRUE))
+				Y_sim <- simY_rrl(EZ, rho, odobs_t)
 			} else if (family == "poisson") {
-				Y_sim <- simY_pois(EZ)
+				# honor period_exposure on the fit; fall through to the
+				# unscaled simY_pois() path when no exposure is stored.
+				exposure_t <- if (!is.null(fit$period_exposure))
+					fit$period_exposure[min(t, length(fit$period_exposure))] else 1
+				if (isTRUE(exposure_t != 1)) {
+					Y_sim <- simY_pois_exposure(EZ, exposure_t)
+				} else {
+					Y_sim <- simY_pois(EZ)
+				}
 			} else if (family == "frn") {
 				odmax <- if (!is.null(fit$odmax)) fit$odmax else rep(Inf, n_row)
 				Y_sim <- simY_frn(EZ, rho, odmax)

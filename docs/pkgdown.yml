@@ -5,9 +5,11 @@ articles:
   bipartite: bipartite.html
   cross_sec_ame: cross_sec_ame.html
   dynamic_effects: dynamic_effects.html
+  fast_estimation: fast_estimation.html
+  forecasting: forecasting.html
   lame-overview: lame-overview.html
   lame: lame.html
-last_built: 2026-03-16T15:36Z
+last_built: 2026-05-28T21:34Z
 urls:
   reference: https://netify-dev.github.io/lame/reference
   article: https://netify-dev.github.io/lame/articles

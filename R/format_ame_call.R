@@ -10,13 +10,22 @@ format_ame_call <- function(fit) {
 	call_str <- "Y ~ "
 
 	####
-	# add covariates if present
+	# add covariates if present. bipartite fits don't set fit$X_names but DO set
+	# colnames(fit$BETA); read that as a fallback so the Call line shows the
+	# real covariates rather than only "a[i] + b[j]".
+	x_names <- if (!is.null(fit$X_names) && length(fit$X_names) > 0) {
+		fit$X_names
+	} else if (!is.null(colnames(fit$BETA))) {
+		setdiff(colnames(fit$BETA), "intercept")
+	} else {
+		character(0)
+	}
 	covars <- c()
-	if(!is.null(fit$X_names) && length(fit$X_names) > 0) {
-		dyad_vars <- grep("_dyad$", fit$X_names, value = TRUE)
-		row_vars <- grep("_row$", fit$X_names, value = TRUE)
-		col_vars <- grep("_col$", fit$X_names, value = TRUE)
-		other_vars <- setdiff(fit$X_names, c(dyad_vars, row_vars, col_vars))
+	if(length(x_names) > 0) {
+		dyad_vars <- grep("_dyad$", x_names, value = TRUE)
+		row_vars <- grep("_row$", x_names, value = TRUE)
+		col_vars <- grep("_col$", x_names, value = TRUE)
+		other_vars <- setdiff(x_names, c(dyad_vars, row_vars, col_vars))
 
 		if(length(other_vars) > 0) {
 			covars <- c(covars, other_vars)
@@ -39,8 +48,17 @@ format_ame_call <- function(fit) {
 	if(!is.null(fit$rvar) && fit$rvar) effects <- c(effects, "a[i]")
 	if(!is.null(fit$cvar) && fit$cvar) effects <- c(effects, "b[j]")
 	if(!is.null(fit$dcor) && fit$dcor) effects <- c(effects, "rho*e[ji]")
-	if(!is.null(fit$R) && fit$R > 0) {
-		if(!is.null(fit$symmetric) && fit$symmetric) {
+	# bipartite fits store R_row / R_col separately and may leave R unset; surface
+	# the multiplicative term in either case so the printed Call matches the fit
+	is_bipartite <- identical(fit$mode, "bipartite")
+	if (is_bipartite) {
+		rr <- if (!is.null(fit$R_row)) fit$R_row else if (!is.null(fit$R)) fit$R else 0
+		rc <- if (!is.null(fit$R_col)) fit$R_col else if (!is.null(fit$R)) fit$R else 0
+		if (rr > 0 && rc > 0) {
+			effects <- c(effects, paste0("U[i,1:", rr, "] %*% G %*% V[j,1:", rc, "]'"))
+		}
+	} else if (!is.null(fit$R) && fit$R > 0) {
+		if (!is.null(fit$symmetric) && fit$symmetric) {
 			effects <- c(effects, paste0("U[i,1:", fit$R, "] %*% L %*% U[j,1:", fit$R, "]"))
 		} else {
 			effects <- c(effects, paste0("U[i,1:", fit$R, "] %*% V[j,1:", fit$R, "]"))

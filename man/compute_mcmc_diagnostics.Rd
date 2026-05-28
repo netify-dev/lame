@@ -7,13 +7,19 @@
 compute_mcmc_diagnostics(chain_list)
 }
 \arguments{
-\item{chain_list}{List of ame fit objects from multiple chains}
+\item{chain_list}{a list of fitted \code{ame}/\code{lame} objects, one per
+chain (each must carry a \code{BETA} matrix).}
 }
 \value{
-List containing convergence diagnostics
+A list with \code{rhat}, \code{ess}, \code{param_names} (over
+\code{BETA} and \code{VC}), \code{n_chains} and \code{n_samples}.
 }
 \description{
-Compute MCMC convergence diagnostics for multiple chains
+Computes Gelman-Rubin R-hat and effective sample size (ESS) across two or
+more independently-seeded chains, for both the regression coefficients
+(\code{BETA}) and the variance components (\code{VC}). ESS is computed on
+the pooled draws, so genuinely non-converged chains report a low ESS rather
+than an inflated one.
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

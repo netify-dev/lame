@@ -231,24 +231,42 @@ test_that("lame() bipartite binary recovers beta and effects", {
 })
 
 
-test_that("lame() rejects unsupported bipartite families", {
-	nA = 8
-	nB = 6
-	dat = simulate_test_network(
-		n = nA, nA = nA, nB = nB, n_time = 2,
-		family = "normal", R = 0,
-		mode = "bipartite", seed = 999
-	)
-	Xdyad_list = lapply(dat$Xdyad, function(x) x[,,1])
-
-	for (fam in c("ordinal", "cbin", "frn", "poisson")) {
-		expect_error(
-			lame(dat$Y, Xdyad = Xdyad_list, R = 0, family = fam,
-				mode = "bipartite", burn = 10, nscan = 10, odens = 1,
-				verbose = FALSE, gof = FALSE, seed = 42),
-			"not supported for bipartite",
-			info = paste("Family:", fam, "should be rejected for bipartite")
+test_that("lame() handles every bipartite family as first-class", {
+	# ordinal / cbin / frn / poisson / rrl are first-class bipartite
+	# families via the rectangular helpers in R/rZ_bipartite.R.
+	set.seed(999L)
+	nA = 8; nB = 6
+	for (fam in c("ordinal", "cbin", "frn", "rrl", "poisson")) {
+		# build minimal valid data per family
+		if (fam == "poisson") {
+			Yt = matrix(stats::rpois(nA * nB, lambda = 1), nA, nB)
+		} else if (fam == "ordinal") {
+			Yt = matrix(sample(1:3, nA * nB, replace = TRUE), nA, nB)
+		} else if (fam == "cbin") {
+			Yt = matrix(0L, nA, nB)
+			for (i in seq_len(nA)) Yt[i, sample(nB, 2L)] = 1L
+		} else if (fam == "frn") {
+			Yt = matrix(0L, nA, nB)
+			for (i in seq_len(nA)) Yt[i, sample(nB, 2L)] = 1:2
+		} else if (fam == "rrl") {
+			Yt = t(replicate(nA, sample(nB)))
+		}
+		dimnames(Yt) = list(paste0("r", seq_len(nA)),
+		                    paste0("c", seq_len(nB)))
+		Y_list = list(Yt, Yt)
+		Xdyad_list = list(
+			matrix(stats::rnorm(nA * nB), nA, nB,
+			        dimnames = dimnames(Yt)),
+			matrix(stats::rnorm(nA * nB), nA, nB,
+			        dimnames = dimnames(Yt))
 		)
+		fit = lame(Y_list, Xdyad = Xdyad_list, R = 0, family = fam,
+			mode = "bipartite",
+			odmax = if (fam %in% c("cbin", "frn")) 2L else NULL,
+			burn = 5, nscan = 10, odens = 1,
+			verbose = FALSE, gof = FALSE, seed = 42L)
+		expect_equal(fit$family, fam,
+			info = paste("Family:", fam, "should fit cleanly on bipartite"))
 	}
 })
 

@@ -10,6 +10,7 @@ procrustes_align(
   V = NULL,
   G = NULL,
   return_fit = FALSE,
+  per_draw = FALSE,
   ...
 )
 }
@@ -30,6 +31,16 @@ models. Updated to maintain the invariant U G V'.}
 
 \item{return_fit}{Logical. If TRUE and \code{object} is provided, returns
 a modified copy of the fit object with aligned latent positions.
+Default FALSE.}
+
+\item{per_draw}{Logical. When TRUE, run Procrustes alignment per
+posterior draw rather than on the posterior-mean trajectory. This
+uses \code{object$U_full} / \code{object$V_full} (the per-draw
+posterior cubes — populated when \code{posterior_opts} includes
+storing U/V) when present; otherwise falls back to mean-trajectory
+alignment and emits an informational note. Per-draw alignment is the
+methodologically correct treatment — rotation indeterminacy is a
+per-draw property, not a per-mean one — but is more memory-hungry.
 Default FALSE.}
 
 \item{...}{Additional arguments (currently unused).}

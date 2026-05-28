@@ -2,12 +2,13 @@
 #'
 #' @description
 #' Extracts multiplicative latent factor positions (U and V) from a fitted
-#' \code{ame} or \code{lame} model and returns them as a tidy data frame
-#' suitable for plotting and analysis. Optionally applies Procrustes alignment
-#' for dynamic models and includes posterior standard deviations when
-#' posterior samples are available.
+#' \code{ame}, \code{lame} or \code{ame_als} model and returns them as a
+#' tidy data frame suitable for plotting and analysis. Optionally applies
+#' Procrustes alignment for dynamic models and includes posterior standard
+#' deviations when posterior samples are available.
 #'
-#' @param object A fitted \code{ame} or \code{lame} model object with R > 0.
+#' @param object A fitted \code{ame}, \code{lame} or \code{ame_als} model
+#'   object with R > 0.
 #' @param align Logical. For dynamic models (\code{dynamic_uv = TRUE}), apply
 #'   Procrustes alignment across time to remove rotational indeterminacy.
 #'   Default is \code{FALSE} for \code{ame} objects and \code{TRUE} for
@@ -18,8 +19,10 @@
 #' \describe{
 #'   \item{actor}{Character. Actor name (from rownames of U or V).}
 #'   \item{dimension}{Integer. Latent dimension index (1 to R).}
-#'   \item{time}{Character or NA. Time period label for dynamic models;
-#'     \code{NA} for static (cross-sectional) models.}
+#'   \item{time}{Character. Time period label. Dynamic fits use the time
+#'     labels from the input; static (cross-sectional) fits return
+#'     \code{"1"} for every row so downstream filtering by \code{time}
+#'     behaves the same in both cases.}
 #'   \item{value}{Numeric. The posterior mean latent position.}
 #'   \item{posterior_sd}{Numeric. Posterior standard deviation of the latent
 #'     position, or \code{NA} if posterior samples are not available.
@@ -65,6 +68,14 @@ latent_positions.lame <- function(object, align = TRUE, ...) {
 	.extract_latent_positions(object, align = align)
 }
 
+#' @rdname latent_positions
+#' @method latent_positions ame_als
+#' @export
+latent_positions.ame_als <- function(object, align = FALSE, ...) {
+	# the fast estimator's U/V are static; posterior_sd is NA (no samples)
+	.extract_latent_positions(object, align = align)
+}
+
 # internal workhorse
 .extract_latent_positions <- function(object, align = FALSE) {
 
@@ -103,11 +114,21 @@ latent_positions.lame <- function(object, align = TRUE, ...) {
 	u_df <- .array_to_df(U, type = "U", sd_array = U_sd)
 
 	if (is_symmetric || is.null(V)) {
-		return(u_df)
+		out <- u_df
+	} else {
+		v_df <- .array_to_df(V, type = "V", sd_array = V_sd)
+		out <- rbind(u_df, v_df)
 	}
 
-	v_df <- .array_to_df(V, type = "V", sd_array = V_sd)
-	rbind(u_df, v_df)
+	# tell users why posterior_sd is NA (samples weren't saved)
+	if (nrow(out) > 0L && all(is.na(out$posterior_sd))) {
+		cli::cli_inform(c(
+			"i" = "{.code posterior_sd} is {.val NA} because U/V samples were not saved.",
+			"i" = "To get posterior SDs, refit with {.code posterior_opts = posterior_options(save_UV = TRUE)}."
+		), .frequency = "once", .frequency_id = "latent_positions_no_sd")
+	}
+
+	out
 }
 
 # compute element-wise posterior SD from a 3D samples array [n, R, n_samples]
@@ -135,7 +156,9 @@ latent_positions.lame <- function(object, align = TRUE, ...) {
 			data.frame(
 				actor = actors,
 				dimension = r,
-				time = NA_character_,
+				# label static fits with time = "1" so downstream filtering
+				# treats static and dynamic fits the same
+				time = "1",
 				value = x[, r],
 				posterior_sd = sd_vals,
 				type = type,

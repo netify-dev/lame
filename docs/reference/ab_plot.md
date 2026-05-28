@@ -52,8 +52,9 @@ ab_plot(
 - plot_type:
 
   For dynamic effects: "snapshot" (single time), "trajectory" (evolution
-  over time), "faceted" (grid of time points), or "ribbon" (confidence
-  bands over time). For static effects, this parameter is ignored.
+  over time), "faceted" (grid of time points), or "ribbon" (posterior
+  credible bands over time). For static effects, this parameter is
+  ignored.
 
 - show_actors:
 

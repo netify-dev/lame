@@ -1,3 +1,13 @@
+# lame 1.1.0
+
+## New features
+
+* Fast, MCMC-free estimation via `ame_als()` and `lame_als()`: an alternating
+  least squares / IRLS point estimator for the normal, binary, and Poisson
+  families. Supports parametric-bootstrap and sandwich standard errors and the
+  full S3 method set (`coef()`, `vcov()`, `confint()`, `predict()`, `tidy()`,
+  `glance()`, and the diagnostic plots).
+
 # lame 1.0.0
 
 ## Initial CRAN Submission

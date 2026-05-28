@@ -9,12 +9,13 @@ distributions to assess model fit.
 gof_plot(
   fit,
   type = c("auto", "static", "longitudinal"),
-  statistics = c("sd.row", "sd.col", "dyad.dep", "triad.dep"),
+  statistics = NULL,
   credible.level = 0.95,
   ncol = 2,
   point.size = 2,
   line.size = 1,
-  title = NULL
+  title = NULL,
+  ...
 )
 ```
 
@@ -31,8 +32,11 @@ gof_plot(
 
 - statistics:
 
-  Character vector specifying which statistics to plot. Default is all
-  four: c("sd.row", "sd.col", "dyad.dep", "triad.dep")
+  Character vector of statistics to plot, or `NULL` (default) for the
+  standard panels plus any custom GOF columns. Unipartite names:
+  "sd.row", "sd.col", "dyad.dep", "triad.dep", "trans.dep"; bipartite
+  names: "sd.row", "sd.col", "four.cycles"; custom GOF columns may also
+  be named. Unknown names are dropped with a warning.
 
 - credible.level:
 
@@ -54,6 +58,12 @@ gof_plot(
 - title:
 
   Optional title for the plot
+
+- ...:
+
+  Additional arguments forwarded to the ALS-specific
+  [`gof_plot.ame_als`](https://netify-dev.github.io/lame/reference/gof_plot.ame_als.md)
+  when `fit` inherits from `ame_als` (`nsim`, `seed`).
 
 ## Value
 
@@ -131,13 +141,14 @@ dependencies. This function implements posterior predictive checking by:
 
 *Histogram plots (static models):*
 
-- Red vertical line: observed statistic value
+- Dashed orange vertical line (Okabe-Ito `#D55E00`): observed statistic
+  value (dual-encoded on colour and linetype)
 
-- Blue histogram: distribution from posterior predictive simulations
+- Grey histogram: distribution from posterior predictive simulations
 
-- Good fit: red line falls within the bulk of the histogram
+- Good fit: orange line falls within the bulk of the histogram
 
-- Poor fit: red line in the tail or outside the distribution
+- Poor fit: orange line in the tail or outside the distribution
 
 *Common model inadequacies and solutions:*
 

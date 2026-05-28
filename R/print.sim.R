@@ -156,7 +156,9 @@ summary.ame.sim <- function(object, ...) {
 	# continuous networks
 	if (x$family %in% c("normal", "tobit")) {
 		means <- sapply(x$Y, mean, na.rm = TRUE)
-		vars <- sapply(x$Y, var, na.rm = TRUE)
+		# var() on a matrix returns a covariance matrix; vectorise first so
+		# the per-network statistic is a scalar (otherwise mean(vars) is NA)
+		vars <- sapply(x$Y, function(m) stats::var(as.vector(m), na.rm = TRUE))
 		
 		cli::cli_text("")
 		cli::cli_text("{style_bold('Network Value Statistics:')}")

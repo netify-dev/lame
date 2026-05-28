@@ -14,3 +14,15 @@
 ^DIAGNOSTIC_PLAN\.md$
 ^README\.md$
 ^cran-comments\.md$
+^out_.*\.log$
+^run_.*\.R$
+^EXPLORE_DESIGN_NOTE\.md$
+^EXPLORE_IMPLEMENTATION_REPORT\.md$
+^REVIEWER_PROMPT\.md$
+^AUDIT_V3_REPORT\.md$
+^AUDIT_V4_REPORT\.md$
+^AUDIT_.*_REPORT\.md$
+^tests/testthat/Rplots\.pdf$
+^tests/testthat/_problems$
+^tests/testthat/Rplots-.*\.pdf$
+^figure$

@@ -76,11 +76,11 @@ test_that("simulate.lame works for longitudinal binary networks", {
 	Y_sub = YX_bin_list$Y[1:3]
 	X_sub = YX_bin_list$X[1:3]
 	
-	# fit longitudinal model
-	fit = lame(Y_sub, X_sub,
+	# fit longitudinal model (Y is continuous; family="binary" thresholds it)
+	fit = suppressWarnings(lame(Y_sub, X_sub,
 							burn = 20, nscan = 30, odens = 10,
-							family = "binary", verbose = FALSE, plot = FALSE)
-	
+							family = "binary", verbose = FALSE, plot = FALSE))
+
 	# test 1: Basic simulation works
 	sims = simulate(fit, nsim = 5, n_time = 4, seed = 456,
 									 newdata = list(Xdyad = X_sub))
@@ -114,9 +114,9 @@ test_that("simulate.lame captures temporal dynamics", {
 	X_sub = YX_bin_list$X[1:3]
 	
 	# fit model with dynamic effects (if supported)
-	fit = lame(Y_sub, X_sub,
+	fit = suppressWarnings(lame(Y_sub, X_sub,
 							burn = 20, nscan = 30, odens = 10,
-							family = "binary", verbose = FALSE, plot = FALSE)
+							family = "binary", verbose = FALSE, plot = FALSE))
 	
 	# simulate longer time series
 	sims = simulate(fit, nsim = 10, n_time = 10, seed = 333)

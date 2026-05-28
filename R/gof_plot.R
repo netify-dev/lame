@@ -1,5 +1,10 @@
+# global variables for R CMD check
+if(getRversion() >= "2.15.1") {
+	utils::globalVariables("lab")
+}
+
 #' Visualize goodness-of-fit statistics for AME and LAME models
-#' 
+#'
 #' @description
 #' Plots observed network statistics against their posterior predictive
 #' distributions to assess model fit.
@@ -64,10 +69,11 @@
 #' \strong{Interpretation Guide:}
 #' 
 #' \emph{Histogram plots (static models):}
-#' - Red vertical line: observed statistic value
-#' - Blue histogram: distribution from posterior predictive simulations
-#' - Good fit: red line falls within the bulk of the histogram
-#' - Poor fit: red line in the tail or outside the distribution
+#' - Dashed orange vertical line (Okabe-Ito \code{#D55E00}): observed statistic
+#'   value (dual-encoded on colour and linetype)
+#' - Grey histogram: distribution from posterior predictive simulations
+#' - Good fit: orange line falls within the bulk of the histogram
+#' - Poor fit: orange line in the tail or outside the distribution
 #' 
 #' \emph{Common model inadequacies and solutions:}
 #' \describe{
@@ -124,14 +130,21 @@
 #' @param fit An object of class "ame" or "lame" containing GOF statistics
 #' @param type Character string: "auto" (default), "static", or "longitudinal".
 #'        If "auto", determined by model class.
-#' @param statistics Character vector specifying which statistics to plot.
-#'        Default is all four: c("sd.row", "sd.col", "dyad.dep", "triad.dep")
+#' @param statistics Character vector of statistics to plot, or \code{NULL}
+#'        (default) for the standard panels plus any custom GOF columns.
+#'        Unipartite names: "sd.row", "sd.col", "dyad.dep", "triad.dep",
+#'        "trans.dep"; bipartite names: "sd.row", "sd.col", "four.cycles";
+#'        custom GOF columns may also be named. Unknown names are dropped
+#'        with a warning.
 #' @param credible.level Numeric between 0 and 1; credible interval level for
 #'        longitudinal plots (default 0.95)
 #' @param ncol Number of columns for faceted plot layout (default 2)
 #' @param point.size Size of points in longitudinal plots (default 2)
 #' @param line.size Width of lines in plots (default 1)
 #' @param title Optional title for the plot
+#' @param ... Additional arguments forwarded to the ALS-specific
+#'   \code{\link{gof_plot.ame_als}} when \code{fit} inherits from
+#'   \code{ame_als} (\code{nsim}, \code{seed}).
 #' @return A ggplot2 object that can be further customized
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
@@ -151,17 +164,27 @@
 #' @import ggplot2
 #' @import reshape2
 gof_plot <- function(
-	fit, 
+	fit,
 	type = c("auto", "static", "longitudinal"),
-	statistics = c("sd.row", "sd.col", "dyad.dep", "triad.dep"),
+	statistics = NULL,
 	credible.level = 0.95,
 	ncol = 2,
 	point.size = 2,
 	line.size = 1,
-	title = NULL) {
-	
+	title = NULL,
+	...) {
+
+	# ame_als fits don't carry a posterior-predictive GOF chain; delegate to
+	# the bootstrap-based gof_plot.ame_als helper so users get something useful
+	# instead of a class-check rejection. Forward optional als-specific args
+	# (nsim, seed) via the dots.
+	if (inherits(fit, "ame_als")) {
+		dots <- list(...)
+		return(do.call(gof_plot.ame_als, c(list(fit = fit), dots)))
+	}
+
 	if (!inherits(fit, c("ame", "lame"))) {
-		stop("fit must be an object of class 'ame' or 'lame'")
+		stop("fit must be an object of class 'ame', 'lame', or 'ame_als'")
 	}
 	
 	if (is.null(fit$GOF)) {
@@ -180,38 +203,39 @@ gof_plot <- function(
 		is_bipartite <- fit$mode == "bipartite"
 	}
 	
+	# `statistics = NULL` (the default) means "use the standard panels plus any
+	# custom GOF columns"; a user-supplied vector is honoured (and may name
+	# custom columns). Unknown names are dropped with a warning rather than a
+	# hard match.arg() error.
+	user_stats <- statistics
 	if(is_bipartite) {
-		stat.names <- c("sd.row" = "sd.rowmean", 
+		stat.names <- c("sd.row" = "sd.rowmean",
 										"sd.col" = "sd.colmean",
 										"four.cycles" = "four.cycles")
-		
-		valid_stats <- intersect(statistics, c("sd.row", "sd.col", "four.cycles"))
-		if(length(valid_stats) == 0) {
-			statistics <- c("sd.row", "sd.col", "four.cycles")
-		} else {
-			statistics <- valid_stats
-		}
+		default_stats <- c("sd.row", "sd.col", "four.cycles")
 	} else {
-		stat.names <- c("sd.row" = "sd.rowmean", 
+		stat.names <- c("sd.row" = "sd.rowmean",
 										"sd.col" = "sd.colmean",
-										"dyad.dep" = "dyad.dep", 
+										"dyad.dep" = "dyad.dep",
 										"triad.dep" = "cycle.dep",
 										"trans.dep" = "trans.dep")
-		
-		statistics <- match.arg(statistics, several.ok = TRUE,
-													 choices = names(stat.names))
+		default_stats <- c("sd.row", "sd.col", "dyad.dep", "triad.dep", "trans.dep")
 	}
-	
+	# custom GOF columns (e.g. from a custom_gof function) become plottable
+	custom_cols <- character(0)
 	if (!is.null(colnames(fit$GOF))) {
 		custom_cols <- setdiff(colnames(fit$GOF), unname(stat.names))
-		if (length(custom_cols) > 0) {
-			for (col in custom_cols) {
-				stat.names[col] <- col
-			}
-			if (missing(statistics)) {
-				statistics <- c(statistics, custom_cols)
-			}
+		for (col in custom_cols) stat.names[col] <- col
+	}
+	if (is.null(user_stats)) {
+		statistics <- c(default_stats, custom_cols)
+	} else {
+		bad <- setdiff(user_stats, names(stat.names))
+		if (length(bad) > 0) {
+			cli::cli_warn("Unknown gof statistic{?s} dropped: {.val {bad}}. Available: {.val {names(stat.names)}}.")
 		}
+		statistics <- intersect(user_stats, names(stat.names))
+		if (length(statistics) == 0) statistics <- default_stats
 	}
 	
 	if (type == "static") {
@@ -244,14 +268,16 @@ gof_label <- function(x) {
 	ifelse(x %in% names(gof_stat_labels), gof_stat_labels[x], x)
 }
 
-# standard theme for GOF plots
+# standard theme for gof plots
 gof_theme <- function() {
 	theme_bw() +
 	theme(
-		panel.border = element_blank(),
+		panel.border     = element_blank(),
+		axis.ticks       = element_blank(),
+		legend.position  = "top",
 		strip.background = element_rect(fill = "black", color = "black"),
-		strip.text = element_text(color = "white", hjust = 0, size = 9),
-		panel.spacing = unit(0.5, "lines")
+		strip.text       = element_text(color = "white", hjust = 0, size = 9),
+		panel.spacing    = unit(0.5, "lines")
 	)
 }
 
@@ -309,21 +335,36 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 			statistic = stat,
 			stringsAsFactors = FALSE
 		)
-		
+
+		# observed value plotted as a dashed-and-coloured vline so the cue
+		# survives both colour-blind viewers (linetype is the secondary
+		# encoding) and grayscale printing. shape mapping at zero-extent
+		# segments lets the colour-blind-safe Okabe-Ito red anchor a real
+		# legend instead of relying on prose to explain it.
+		obs_df <- data.frame(value = obs_vals[stat_col], lab = "Observed")
 		p_stat <- ggplot(df, aes(x = value)) +
-			geom_histogram(aes(y = after_stat(density)), bins = 30) +
-			geom_vline(xintercept = obs_vals[stat_col],
-								color = "red", linewidth = line.size) +
+			geom_histogram(aes(y = after_stat(density), fill = "Posterior predictive"),
+			               bins = 30) +
+			geom_vline(data = obs_df,
+			           aes(xintercept = value, colour = lab, linetype = lab),
+			           linewidth = line.size) +
+			scale_fill_manual(NULL, values = c("Posterior predictive" = "grey60")) +
+			scale_colour_manual(NULL, values = c("Observed" = "#D55E00")) +
+			scale_linetype_manual(NULL, values = c("Observed" = "dashed")) +
 			labs(
-				x = "",
+				x = "Statistic Value",
 				y = "Density",
 				title = gof_label(stat)
 			) +
 			gof_theme() +
 			theme(
-				plot.title = element_text(size = 10, hjust = 0.5)
-			)
-		
+				plot.title = element_text(size = 10, hjust = 0.5),
+				legend.title = element_blank()
+			) +
+			guides(fill = guide_legend(order = 1),
+			       colour = guide_legend(order = 2),
+			       linetype = guide_legend(order = 2))
+
 		plot_list[[stat]] <- p_stat
 	}
 
@@ -349,7 +390,7 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 	} else {
 		if (requireNamespace("patchwork", quietly = TRUE)) {
 			p <- p + patchwork::plot_annotation(
-				title = "Goodness-of-Fit: Observed (red) vs Posterior Predictive"
+				title = "Goodness-of-Fit: Observed vs Posterior Predictive"
 			)
 		}
 	}
@@ -367,7 +408,9 @@ gof_plot_longitudinal <- function(
 	if (!is.null(fit$GOF_T)) {
 		gof_data <- fit$GOF_T
 	} else if (!is.null(fit$GOF) && is.list(fit$GOF) && !is.data.frame(fit$GOF)) {
-		stat_names_full <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
+		# use the GOF list's actual names -- a hardcoded unipartite set would
+		# omit the bipartite "four.cycles" column (and any custom statistic)
+		stat_names_full <- names(fit$GOF)
 
 		# gof list: rows = time periods, cols = mcmc iterations
 		# first col = observed, rest = simulated
@@ -437,13 +480,30 @@ gof_plot_longitudinal <- function(
 	# apply display labels
 	plot_data$statistic <- gof_label(plot_data$statistic)
 
+	# dual-encode the observed series (Okabe-Ito red + solid linetype with
+	# points; predictive median is grey dashed line, ribbon is grey shading)
+	# so the cue survives colour-blind viewers and grayscale printing. the
+	# colour / linetype scale provide a real legend instead of the prose-only
+	# "red = observed" convention.
 	p <- ggplot(plot_data, aes(x = time)) +
-		geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
-		geom_line(aes(y = median), linewidth = line.size, linetype = "dashed") +
-		geom_line(aes(y = observed), color = "red",
-						 linewidth = line.size) +
-		geom_point(aes(y = observed), color = "red",
-							size = point.size) +
+		geom_ribbon(aes(ymin = lower, ymax = upper,
+		                fill = "Posterior predictive 95%"),
+		            alpha = 0.3) +
+		geom_line(aes(y = median, colour = "Predictive median",
+		              linetype = "Predictive median"),
+		          linewidth = line.size) +
+		geom_line(aes(y = observed, colour = "Observed",
+		              linetype = "Observed"),
+		          linewidth = line.size) +
+		geom_point(aes(y = observed, colour = "Observed"),
+		           size = point.size) +
+		scale_fill_manual(NULL, values = c("Posterior predictive 95%" = "grey60")) +
+		scale_colour_manual(NULL,
+		                    values = c("Observed" = "#D55E00",
+		                               "Predictive median" = "grey25")) +
+		scale_linetype_manual(NULL,
+		                      values = c("Observed" = "solid",
+		                                 "Predictive median" = "dashed")) +
 		facet_wrap(~ statistic, scales = "free_y", ncol = ncol) +
 		labs(
 			x = "Time Period",
@@ -452,13 +512,16 @@ gof_plot_longitudinal <- function(
 		gof_theme() +
 		theme(
 			panel.spacing = unit(1, "lines")
-		)
-	
+		) +
+		guides(fill = guide_legend(order = 1),
+		       colour = guide_legend(order = 2),
+		       linetype = guide_legend(order = 2))
+
 	if (!is.null(title)) {
 		p <- p + ggtitle(title)
 	} else {
 		p <- p + ggtitle(sprintf(
-			"Longitudinal GOF: Observed (red) vs %d%% Credible Intervals",
+			"Longitudinal GOF: Observed vs %d%% Credible Intervals",
 			round(credible.level * 100)
 		))
 	}

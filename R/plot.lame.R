@@ -110,13 +110,15 @@ plot.lame <- function(x,
 		ifelse(x %in% names(mapping), mapping[x], x)
 	}
 
-	# standard theme
+	# standard theme used by all sub-plots in plot.lame()
 	lame_theme <- theme_bw() +
 		theme(
-			panel.border = element_blank(),
+			panel.border     = element_blank(),
+			axis.ticks       = element_blank(),
+			legend.position  = "top",
 			strip.background = element_rect(fill = "black", color = "black"),
-			strip.text = element_text(color = "white", hjust = 0, size = 8),
-			panel.spacing = unit(0.5, "lines")
+			strip.text       = element_text(color = "white", hjust = 0, size = 8),
+			panel.spacing    = unit(0.5, "lines")
 		)
 
 	plot_list <- list()
@@ -494,8 +496,7 @@ plot.lame <- function(x,
 						labs(title = "Top 20 Actors: Effects Over Time",
 								 x = "Time Period", y = "Effect",
 								 color = "Actor", linetype = "Type") +
-						lame_theme +
-						theme(legend.position = "right")
+						lame_theme
 					
 					effects_plots[["time_varying"]] <- p_effects_time
 				}
@@ -525,8 +526,7 @@ plot.lame <- function(x,
 					labs(title = "Additive Effects (Time-Averaged)",
 							 x = "Actor (Sorted)", y = "Effect", color = "Type") +
 					lame_theme +
-					theme(axis.text.x = element_blank(),
-								legend.position = "bottom")
+					theme(axis.text.x = element_blank())
 				
 				effects_plots[["additive"]] <- p_additive
 			}
@@ -658,10 +658,11 @@ plot.lame <- function(x,
 						labs(title = paste("Network at Time", t)) +
 						theme_bw() +
 						theme(
-							panel.border = element_blank(),
-							axis.text = element_blank(),
-							axis.title = element_blank(),
-							panel.grid = element_blank()
+							panel.border    = element_blank(),
+							axis.ticks      = element_blank(),
+							axis.text       = element_blank(),
+							axis.title      = element_blank(),
+							legend.position = "top"
 						) +
 						coord_fixed()
 					

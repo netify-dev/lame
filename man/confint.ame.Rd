@@ -3,27 +3,40 @@
 \name{confint.ame}
 \alias{confint.ame}
 \alias{confint.lame}
-\title{Bayesian credible intervals for AME model coefficients}
+\title{Bayesian credible intervals for AME model parameters}
 \usage{
 \method{confint}{ame}(object, parm = NULL, level = 0.95, ...)
 
 \method{confint}{lame}(object, parm = NULL, level = 0.95, ...)
 }
 \arguments{
-\item{object}{fitted AME model (class "ame")}
+\item{object}{fitted AME / LAME model.}
 
-\item{parm}{character vector of parameter names, or numeric indices.
-If NULL (default), intervals for all parameters are returned.}
+\item{parm}{character vector of parameter names, or numeric indices. When
+\code{parm} is character, both BETA names (e.g. \code{"intercept"},
+\code{"x1_dyad"}) and variance-component names (\code{"va"}, \code{"vb"},
+\code{"cab"}, \code{"rho"}, \code{"ve"}) are accepted. \code{NULL}
+(default) returns intervals for all available parameters.}
 
-\item{level}{credible level (default 0.95)}
+\item{level}{credible level (default 0.95).}
 
-\item{...}{additional arguments (ignored)}
+\item{...}{additional arguments (ignored).}
 }
 \value{
-matrix with columns for lower and upper bounds
+Matrix with one row per parameter and two columns
+(e.g. \code{"2.5\%"}, \code{"97.5\%"}).
 }
 \description{
-Returns posterior quantile-based credible intervals for regression
-coefficients. These are Bayesian credible intervals, not frequentist
-confidence intervals.
+Returns posterior \strong{equal-tailed quantile-based} credible intervals
+(not highest-posterior-density, HPD). Built directly from
+\code{quantile(object$BETA, c(alpha/2, 1-alpha/2))} and
+\code{quantile(object$VC, ...)}. These are Bayesian credible intervals, not
+frequentist confidence intervals.
 }
+\section{Note on interval type}{
+
+These are equal-tailed quantile intervals, not HPD. For an HPD interval use
+e.g. \code{coda::HPDinterval} on the columns of \code{object$BETA} and
+\code{object$VC} directly.
+}
+

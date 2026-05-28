@@ -78,6 +78,21 @@ For bipartite networks:
 If custom_gof is provided, additional statistics will be included with
 their user-specified names.
 
+**Naming note.** The columns above are the internal names used by
+`gof_stats()` and stored on `fit$GOF`.
+[`gof_plot`](https://netify-dev.github.io/lame/reference/gof_plot.md)
+exposes a shorter user-facing alias for some of them; the mapping is:
+
+|                            |                    |
+|----------------------------|--------------------|
+| **internal (this column)** | **gof_plot alias** |
+| `sd.rowmean`               | `sd.row`           |
+| `sd.colmean`               | `sd.col`           |
+| `dyad.dep`                 | `dyad.dep`         |
+| `cycle.dep`                | `triad.dep`        |
+| `trans.dep`                | `trans.dep`        |
+| `four.cycles` (bipartite)  | `four.cycles`      |
+
 ## Details
 
 The function computes network statistics that capture different aspects

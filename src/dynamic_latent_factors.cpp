@@ -48,7 +48,7 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
 
     VtV = V_t.t() * V_t;
 
-    // Phase 1C: Batch compute all ei = V_t^T * E_t^T as a single BLAS call
+    // batch compute all ei = V_t^T * E_t^T as a single BLAS call.
     // E_all_U = E_t * V_t gives n x R, each row i = E_t.row(i) * V_t
     arma::mat E_all_U = E_t * V_t;  // n x R (one BLAS gemm instead of n gemv calls)
 
@@ -79,7 +79,7 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
     if(!symmetric) {
       UtU = U_t.t() * U_t;
 
-      // Phase 1C: Batch compute all ej = U_t^T * E_t as single BLAS call
+      // batch compute all ej = U_t^T * E_t as a single BLAS call
       arma::mat E_all_V = E_t.t() * U_t;  // n x R
 
       for(int j = 0; j < n; j++) {
@@ -179,15 +179,23 @@ arma::cube init_dynamic_positions(int n, int R, int T,
 
 //' Sample AR(1) parameter for dynamic latent factors
 //'
+//' Uses a conjugate Normal(prior_mean, prior_sd^2) prior on rho. Defaults
+//' (prior_mean = 0, prior_sd = 1) preserve the historical N(0,1) behaviour
+//' for backward compatibility; lame::lame() passes the user-set
+//' prior$rho_uv_mean / prior$rho_uv_sd explicitly.
+//'
 //' @param U_cube 3D array of U positions (n x R x T)
 //' @param V_cube 3D array of V positions (n x R x T)
 //' @param sigma_uv Innovation standard deviation
-//' @param rho_current Current value of rho
+//' @param rho_current Current value of rho (ignored; full conditional)
 //' @param symmetric Whether network is symmetric
+//' @param prior_mean Prior mean for rho (default 0)
+//' @param prior_sd Prior SD for rho (default 1)
 //' @return Updated rho value
 // [[Rcpp::export]]
 double sample_rho_uv(const arma::cube& U_cube, const arma::cube& V_cube,
-                     double sigma_uv, double rho_current, bool symmetric) {
+                     double sigma_uv, double rho_current, bool symmetric,
+                     double prior_mean = 0.0, double prior_sd = 1.0) {
 
   const int n = U_cube.n_rows;
   const int R = U_cube.n_cols;
@@ -213,8 +221,10 @@ double sample_rho_uv(const arma::cube& U_cube, const arma::cube& V_cube,
   }
 
   const double sigma2_inv = 1.0 / (sigma_uv * sigma_uv);
-  const double var_post = 1.0 / (sum_yt1_yt1 * sigma2_inv + 1.0);
-  const double mean_post = var_post * sum_yt_yt1 * sigma2_inv;
+  const double prior_prec = 1.0 / (prior_sd * prior_sd);
+  const double var_post  = 1.0 / (sum_yt1_yt1 * sigma2_inv + prior_prec);
+  const double mean_post = var_post * (sum_yt_yt1 * sigma2_inv +
+                                       prior_mean * prior_prec);
 
   double rho_new = R::rnorm(mean_post, sqrt(var_post));
   return std::max(-0.99, std::min(0.99, rho_new));

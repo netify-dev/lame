@@ -11,8 +11,20 @@
 #' normal (nrm), binary (bin), ordinal (ord), Poisson count (poisson),
 #' tobit/censored continuous (tobit), censored binary (cbin),
 #' fixed-rank nomination (frn), and row-ranked (rrl). Based on the AME framework originally developed
-#' by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013). 
-#' 
+#' by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).
+#'
+#' \strong{Estimators.} The package offers two estimation routes:
+#' \itemize{
+#'   \item \code{\link{ame}} / \code{\link{lame}} --- the Bayesian MCMC
+#'     estimators, for calibrated posterior inference (cross-sectional and
+#'     longitudinal respectively).
+#'   \item \code{\link{ame_als}} / \code{\link{lame_als}} --- a fast,
+#'     MCMC-free point estimator by iterative block coordinate descent, with
+#'     bootstrap uncertainty via \code{\link{ame_als_bootstrap}}. Use it
+#'     for rapid model exploration, rank selection and starting values; use the
+#'     MCMC estimators for final inference.
+#' }
+#'
 #' \tabular{ll}{ Package: \tab lame\cr Type: \tab Package\cr Version: \tab
 #' 1.0.0 \cr Date: \tab 2026 \cr License: \tab MIT \cr }
 #' 
@@ -26,8 +38,6 @@
 #' @import ggplot2
 #' @import reshape2
 #' @import ggrepel
-#' @importFrom plyr ddply summarise
-#' @importFrom plyr .
 #' @importFrom network network
 #' @importFrom Rcpp evalCpp
 #' @importFrom graphics abline arrows hist matplot par points text
@@ -199,22 +209,34 @@ NULL
 NULL
 
 
-#' binary relational data and covariates
-#' 
-#' a synthetic dataset that includes longitudinal binary relational data
-#' as well as information on covariates
-#' 
-#' 
+#' synthetic longitudinal binary relational data (latent-scale)
+#'
+#' a synthetic 50-actor, 4-period dataset used by the vignettes. The
+#' shipped \code{Y} array holds the \emph{latent probit-scale predictor}
+#' (range roughly -24 to 20), not 0/1 ties. To recover the binary tie
+#' indicator the dataset name implies, threshold at zero:
+#' \code{Y_bin <- (YX_bin_long$Y > 0) * 1}. If passed unthresholded to
+#' \code{lame(..., family = "binary")} the fit will warn and silently
+#' apply the same \code{Y > 0} threshold.
+#'
 #' @name YX_bin_long
 #' @docType data
 #' @usage data(YX_bin_long)
-#' @format a list
+#' @format A list with two elements:
+#'   \describe{
+#'     \item{Y}{Numeric array \code{[50, 50, 4]}. Latent probit-scale
+#'       predictor; threshold at 0 to get the binary tie indicator.}
+#'     \item{X}{Numeric array \code{[50, 50, 3, 4]} of dyadic covariates.}
+#'   }
 #' @keywords datasets
 #' @examples
-#' 
+#'
 #' data(YX_bin_long)
-#' gof_stats(YX_bin_long$Y[,,1]) 
-#' 
+#' # threshold latent z to 0/1 before computing binary GOF stats
+#' Yt <- 1 * (YX_bin_long$Y[, , 1] > 0)
+#' diag(Yt) <- NA
+#' gof_stats(Yt)
+#'
 NULL
 
 

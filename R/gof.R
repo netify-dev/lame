@@ -102,7 +102,10 @@ gof <- function(
 	
 	custom_gof_names <- NULL
 	n_custom_stats <- 0
-	
+	# tracker for silent custom_gof failures across the simulation loop;
+	# emits one warning at the end instead of leaving NA entries in GOF.
+	.cg_tracker <- .new_custom_gof_err_tracker()
+
 	if (!is.null(custom_gof)) {
 		if (is.function(custom_gof)) {
 			tryCatch({
@@ -175,13 +178,13 @@ gof <- function(
 				tryCatch({
 					custom_vals <- custom_gof(Y_for_custom)
 					GOF[i + 1, (n_base_stats + 1):(n_base_stats + length(custom_vals))] <- custom_vals
-				}, error = function(e) {})
+				}, error = function(e) .record_custom_gof_err(.cg_tracker, e))
 			} else if (is.list(custom_gof)) {
 				for (j in seq_along(custom_gof)) {
 					if (is.function(custom_gof[[j]])) {
 						tryCatch({
 							GOF[i + 1, n_base_stats + j] <- custom_gof[[j]](Y_for_custom)
-						}, error = function(e) {})
+						}, error = function(e) .record_custom_gof_err(.cg_tracker, e))
 					}
 				}
 			}
@@ -196,7 +199,10 @@ gof <- function(
 		cli::cli_progress_done()
 		cli::cli_alert_success("GOF computation complete")
 	}
-	
+
+	# surface any custom_gof failures collected during the simulation loop
+	.maybe_warn_custom_gof(.cg_tracker, where = "GOF simulation")
+
 	return(GOF)
 }
 

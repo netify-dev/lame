@@ -4,19 +4,61 @@
 \alias{predict.lame}
 \title{Predict method for LAME models}
 \usage{
-\method{predict}{lame}(object, type = c("response", "link"), ...)
+\method{predict}{lame}(
+  object,
+  newdata = NULL,
+  type = c("response", "link"),
+  h = 0L,
+  by_draw = FALSE,
+  interval = c("none", "credible"),
+  probs = c(0.025, 0.975),
+  newexposure = NULL,
+  ...
+)
 }
 \arguments{
-\item{object}{Fitted LAME model object}
+\item{object}{Fitted LAME model object.}
 
-\item{type}{Character; "response" or "link"}
+\item{newdata}{Optional list of \code{T} dyadic covariate arrays
+(\code{[n_row, n_col, p]} each, with the same actors as the fit) to
+compute counterfactual predictions. When \code{NULL}, the training-data
+predictions are returned.}
 
-\item{...}{Additional arguments (not used)}
+\item{type}{Character; \code{"response"} (default) or \code{"link"}.}
+
+\item{h}{Integer >= 0: forecast horizon. When \code{h = 0} (default),
+returns in-sample predictions as before. When \code{h > 0}, propagates
+the AR(1) (or RW1) state-space model forward by \code{h} periods and
+returns a list of \code{h} matrices (one per future period). Requires
+at least one dynamic component on the fit. Warns when posterior
+\eqn{\rho_\beta} is near 1.}
+
+\item{by_draw}{When \code{TRUE} and \code{h > 0}, returns an
+\code{n x n x h x n_draws} array of per-draw forecasts instead of
+per-period means.}
+
+\item{interval}{One of \code{"none"} (default) or \code{"credible"}.
+When \code{h > 0} and \code{"credible"}, the per-period output is
+a list of length-3 lists with \code{$lower}, \code{$median},
+\code{$upper} matrices computed at the \code{probs} quantiles
+across posterior draws. Ignored for in-sample (\code{h = 0})
+predictions.}
+
+\item{probs}{Length-2 vector of lower / upper quantiles for the
+credible interval when \code{interval = "credible"}. Default
+\code{c(0.025, 0.975)}.}
+
+\item{newexposure}{Optional length-\code{h} non-negative numeric
+vector of future-period exposures (Poisson only). When omitted
+and the fit has \code{period_exposure} stored, defaults to the
+last observed exposure; when both are absent, defaults to 1.}
+
+\item{...}{Additional arguments (not used).}
 }
 \value{
-List of prediction matrices (one per time point)
+List of prediction matrices (one per time point).
 }
 \description{
-Generate predictions from fitted longitudinal AME models.
-Returns a list of matrices (one per time point) on the requested scale.
+Generate predictions from a fitted longitudinal AME model. Returns a list of
+matrices (one per time point) on the requested scale.
 }

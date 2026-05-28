@@ -15,7 +15,7 @@ use the ame function."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,6 +34,8 @@ use the ame function."></head><body>
     <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+    <li><a class="dropdown-item" href="../articles/fast_estimation.html">Fast (MCMC-free) Estimation</a></li>
+    <li><a class="dropdown-item" href="../articles/forecasting.html">Forecasting</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -62,16 +64,66 @@ use the <code>ame</code> function.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">lame</span><span class="op">(</span><span class="va">Y</span>,Xdyad<span class="op">=</span><span class="cn">NULL</span>, Xrow<span class="op">=</span><span class="cn">NULL</span>, Xcol<span class="op">=</span><span class="cn">NULL</span>, rvar <span class="op">=</span> <span class="op">!</span><span class="op">(</span><span class="va">family</span><span class="op">==</span><span class="st">"rrl"</span><span class="op">)</span>,</span>
-<span>  cvar <span class="op">=</span> <span class="cn">TRUE</span>, dcor <span class="op">=</span> <span class="op">!</span><span class="va">symmetric</span>, nvar<span class="op">=</span><span class="cn">TRUE</span>, R <span class="op">=</span> <span class="fl">0</span>, R_row <span class="op">=</span> <span class="cn">NULL</span>, R_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">lame</span><span class="op">(</span></span>
+<span>  <span class="va">Y</span>,</span>
+<span>  Xdyad <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  Xrow <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  Xcol <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  rvar <span class="op">=</span> <span class="op">!</span><span class="op">(</span><span class="va">family</span> <span class="op">==</span> <span class="st">"rrl"</span><span class="op">)</span>,</span>
+<span>  cvar <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  dcor <span class="op">=</span> <span class="op">!</span><span class="va">symmetric</span>,</span>
+<span>  nvar <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  R <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>  R_row <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  R_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  mode <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"unipartite"</span>, <span class="st">"bipartite"</span><span class="op">)</span>,</span>
-<span>  dynamic_uv <span class="op">=</span> <span class="cn">FALSE</span>, dynamic_ab <span class="op">=</span> <span class="cn">FALSE</span>, dynamic_G <span class="op">=</span> <span class="cn">FALSE</span>, family <span class="op">=</span><span class="st">"normal"</span>,</span>
-<span>intercept<span class="op">=</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>,<span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>,<span class="st">"ordinal"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>symmetric<span class="op">=</span><span class="cn">FALSE</span>,</span>
-<span>odmax<span class="op">=</span><span class="cn">NULL</span>, prior<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, g<span class="op">=</span><span class="cn">NA</span>,</span>
-<span>seed <span class="op">=</span> <span class="fl">6886</span>, nscan <span class="op">=</span> <span class="fl">10000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>, plot<span class="op">=</span><span class="cn">FALSE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span>, gof<span class="op">=</span><span class="cn">TRUE</span>,</span>
-<span>start_vals<span class="op">=</span><span class="cn">NULL</span>, periodic_save<span class="op">=</span><span class="cn">FALSE</span>, out_file<span class="op">=</span><span class="cn">NULL</span>, save_interval<span class="op">=</span><span class="fl">0.25</span>, model.name<span class="op">=</span><span class="cn">NULL</span>,</span>
-<span><span class="va">print</span><span class="op">)</span></span></code></pre></div>
+<span>  dynamic_uv <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  dynamic_ab <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  dynamic_G <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  dynamic_beta <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  dynamic_beta_kind <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ar1"</span>, <span class="st">"rw1"</span>, <span class="st">"rw2"</span>, <span class="st">"matern32"</span><span class="op">)</span>,</span>
+<span>  family <span class="op">=</span> <span class="st">"normal"</span>,</span>
+<span>  intercept <span class="op">=</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>, <span class="st">"ordinal"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  symmetric <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  odmax <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  g <span class="op">=</span> <span class="cn">NA</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">6886</span>,</span>
+<span>  nscan <span class="op">=</span> <span class="fl">10000</span>,</span>
+<span>  burn <span class="op">=</span> <span class="fl">500</span>,</span>
+<span>  odens <span class="op">=</span> <span class="fl">25</span>,</span>
+<span>  plot <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  gof <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  start_vals <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  periodic_save <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  out_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  save_interval <span class="op">=</span> <span class="fl">0.25</span>,</span>
+<span>  model.name <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  save_log_lik <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  log_lik_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  log_lik_chunk_size <span class="op">=</span> <span class="fl">10000L</span>,</span>
+<span>  freeze_call <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  dynamic_beta_pool <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"rho"</span>, <span class="st">"sigma"</span>, <span class="st">"both"</span><span class="op">)</span>,</span>
+<span>  dynamic_beta_per_actor <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  per_actor_covariate_idx <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>  per_actor_identifiability <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"center"</span>, <span class="st">"exact_center"</span>, <span class="st">"drop_population"</span><span class="op">)</span>,</span>
+<span>  keep_per_actor <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"draws"</span>, <span class="st">"summary"</span>, <span class="st">"none"</span><span class="op">)</span>,</span>
+<span>  time_index <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  period_exposure <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  max_seconds <span class="op">=</span> <span class="cn">Inf</span>,</span>
+<span>  checkpoint_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  checkpoint_every <span class="op">=</span> <span class="fl">100L</span>,</span>
+<span>  log_lik_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"observed_exact"</span>, <span class="st">"observed_ghk"</span>, <span class="st">"augmented"</span><span class="op">)</span>,</span>
+<span>  ordinal_cutpoints <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"data_induced"</span>, <span class="st">"explicit"</span><span class="op">)</span>,</span>
+<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mcmc"</span>, <span class="st">"als"</span><span class="op">)</span>,</span>
+<span>  bootstrap <span class="op">=</span> <span class="fl">0L</span>,</span>
+<span>  bootstrap_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"parametric"</span>, <span class="st">"block"</span><span class="op">)</span>,</span>
+<span>  bootstrap_block_length <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>  bootstrap_seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  resume_from <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">print</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -155,9 +207,58 @@ updates where possible and C++ for computational efficiency. Default FALSE.</p><
 
 
 <dt id="arg-dynamic-g">dynamic_G<a class="anchor" aria-label="anchor" href="#arg-dynamic-g"></a></dt>
-<dd><p>logical: for bipartite networks, fit dynamic interaction matrix G that
-evolves over time. When TRUE, the rectangular interaction matrix G becomes time-varying,
-allowing the mapping between row and column latent spaces to change over time. Default FALSE.</p></dd>
+<dd><p>logical (bipartite only). When TRUE the bipartite
+interaction matrix \(G\) is sampled per period and returned as
+<code>fit$G_cube</code>, an \(R_\text{row} \times R_\text{col} \times T\)
+array. The static \(G\) (single matrix) is the default and is the
+recommended choice; <code>dynamic_G = TRUE</code> is experimental and emits
+a one-line note at the start of the run. Unipartite fits ignore this
+argument with a warning. Default FALSE.</p></dd>
+
+
+<dt id="arg-dynamic-beta">dynamic_beta<a class="anchor" aria-label="anchor" href="#arg-dynamic-beta"></a></dt>
+<dd><p>logical, character, integer, or logical-vector flag
+selecting which regression coefficients evolve over time via independent
+AR(1) processes. Default FALSE keeps every coefficient static (the
+historical behaviour). Accepted forms:</p><ul><li><p><code>FALSE</code> / <code>NULL</code>: no coefficient is dynamic.</p></li>
+<li><p><code>TRUE</code>: every coefficient is dynamic.</p></li>
+<li><p>character vector of block shortcuts (<code>"intercept"</code>,
+<code>"dyad"</code>, <code>"row"</code>, <code>"col"</code>) or specific coefficient
+names from <code>colnames(BETA)</code> — those become dynamic.</p></li>
+<li><p>integer vector: 1-based column indices into <code>colnames(BETA)</code>.</p></li>
+<li><p>logical vector of length <code>p</code>: per-coefficient mask.</p></li>
+</ul><p>Each dynamic-coefficient block (one per distinct intercept / dyad / row /
+col label that has at least one dynamic coefficient) gets its own AR(1)
+parameters \(\rho_\beta\) (truncated-Normal prior, default mean 0.8,
+bounded between 0 and 0.999) and \(\sigma_\beta^2\) (inverse-Gamma
+prior, defaults shape 2 / scale 1). The joint posterior over the time path \(\beta_t\)
+is drawn by Forward-Filter / Backward-Sample (FFBS) inside the MCMC
+loop, conditional on the current static-block beta and on (a, b, U, V).
+When the intercept or a nodal coefficient is dynamic, a sum-to-zero
+contrast basis is applied to the additive-effect sampler to keep
+\(a_i + intercept_t\) identified. Requires at least 2 time periods,
+ignored for the ALS estimator (<code>method = "als"</code>), and unavailable
+for the intercept when <code>family = "ordinal"</code> or <code>"rrl"</code> (or for
+row-nodal coefficients with <code>family = "rrl"</code>). Default FALSE.</p></dd>
+
+
+<dt id="arg-dynamic-beta-kind">dynamic_beta_kind<a class="anchor" aria-label="anchor" href="#arg-dynamic-beta-kind"></a></dt>
+<dd><p>character: state-space prior on the dynamic
+coefficient block(s). <code>"ar1"</code> (default) gives mean-reverting
+AR(1) with a truncated-Normal prior on \(\rho_\beta\). <code>"rw1"</code>
+gives a random walk (\(\rho_\beta\) pinned at 1, no truncation),
+appropriate when you expect permanent drift with no mean reversion –
+e.g. trade-gravity coefficients in a permanently changing world economy.
+The alias <code>"random_walk"</code> is also accepted for <code>"rw1"</code>.
+When the stationarity warning in <code>summary(fit)</code> fires under the
+default AR(1), refit with <code>dynamic_beta_kind = "rw1"</code> for cleaner
+inference. Decision tree: <strong>mean-reverting?</strong> AR(1).
+<strong>Permanent / unit-root drift?</strong> RW1.
+<strong>Smooth with curvature?</strong> <code>"rw2"</code> (second-order random walk).
+<strong>Smooth with a known length-scale?</strong> <code>"matern32"</code> (Matern 3/2).
+Note: <code>"rw2"</code> and <code>"matern32"</code> use an R-level joint Gaussian
+sampler and run substantially slower per iteration than the C++ FFBS
+used for <code>"ar1"</code> / <code>"rw1"</code> (roughly 2-4x on n = 100, T = 10).</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
@@ -170,7 +271,7 @@ the details below</p></dd>
 
 
 <dt id="arg-symmetric">symmetric<a class="anchor" aria-label="anchor" href="#arg-symmetric"></a></dt>
-<dd><p>logical: Is the sociomatrix symmetric by design?</p></dd>
+<dd><p>logical: is the sociomatrix symmetric?</p></dd>
 
 
 <dt id="arg-odmax">odmax<a class="anchor" aria-label="anchor" href="#arg-odmax"></a></dt>
@@ -228,9 +329,51 @@ prior on additive effects innovation variance (default: 2).</p></dd>
 <dd><p>For dynamic_ab=TRUE: Scale parameter for inverse-gamma
 prior on additive effects innovation variance (default: 1).</p></dd>
 
+<dt>rho_beta_mean</dt>
+<dd><p>For dynamic_beta: Prior mean for the per-block AR(1)
+parameter on time-varying regression coefficients
+(default: 0.8). Closer to 1 = smoother evolution.</p></dd>
+
+<dt>rho_beta_sd</dt>
+<dd><p>For dynamic_beta: Prior SD for the per-block AR(1)
+parameter (default: 0.15).</p></dd>
+
+<dt>rho_beta_lower</dt>
+<dd><p>For dynamic_beta: Lower truncation bound on the
+AR(1) parameter (default: 0). Pass a negative value to allow
+negative autoregression.</p></dd>
+
+<dt>rho_beta_upper</dt>
+<dd><p>For dynamic_beta: Upper truncation bound (default:
+0.999). Closer to 1 admits near-unit-root behaviour.</p></dd>
+
+<dt>sigma_beta_shape</dt>
+<dd><p>For dynamic_beta: Shape parameter for the
+inverse-Gamma prior on the per-block innovation variance
+(default: 2).</p></dd>
+
+<dt>sigma_beta_scale</dt>
+<dd><p>For dynamic_beta: Scale parameter for the
+inverse-Gamma prior (default: 1).</p></dd>
+
+<dt>sigma_beta_init</dt>
+<dd><p>For dynamic_beta: Initial value of the per-block
+innovation standard deviation (default: 0.25). Affects mixing, not
+the stationary distribution.</p></dd>
+
+<dt>beta0_mean</dt>
+<dd><p>For dynamic_beta: Mean of the Gaussian prior on the
+dynamic coefficients at t = 0 (default: 0).</p></dd>
+
+<dt>beta0_var</dt>
+<dd><p>For dynamic_beta: Variance of the Gaussian prior on the
+dynamic coefficients at t = 0 (default: 10). Weakly informative.</p></dd>
+
 
 </dl><p>Common usage: prior = list(Sab0 = diag(c(1, 1)), eta0 = 10) for stronger
-shrinkage, or prior = list(rho_uv_mean = 0.95) for higher temporal persistence.</p></dd>
+shrinkage, or prior = list(rho_uv_mean = 0.95) for higher temporal persistence,
+or prior = list(rho_beta_mean = 0.95, sigma_beta_scale = 0.1) for very smooth
+time-varying coefficients with tight innovations.</p></dd>
 
 
 <dt id="arg-g">g<a class="anchor" aria-label="anchor" href="#arg-g"></a></dt>
@@ -270,7 +413,7 @@ control.</p></dd>
 
 
 <dt id="arg-start-vals">start_vals<a class="anchor" aria-label="anchor" href="#arg-start-vals"></a></dt>
-<dd><p>List from previous model run containing parameter starting values for new MCMC</p></dd>
+<dd><p>list of parameter starting values for the MCMC chain</p></dd>
 
 
 <dt id="arg-periodic-save">periodic_save<a class="anchor" aria-label="anchor" href="#arg-periodic-save"></a></dt>
@@ -289,6 +432,188 @@ control.</p></dd>
 <dd><p>optional string for model selection output</p></dd>
 
 
+<dt id="arg-save-log-lik">save_log_lik<a class="anchor" aria-label="anchor" href="#arg-save-log-lik"></a></dt>
+<dd><p>one of <code>FALSE</code> (default), <code>TRUE</code>, or
+<code>"chunked"</code>. When <code>TRUE</code>, stores the per-iteration pointwise
+log-likelihood matrix on <code>fit$log_lik</code> (an
+<code>[n_stored, n_obs]</code> double matrix). When <code>"chunked"</code>,
+streams the log-lik values to per-column-chunk binary files under
+<code>log_lik_path</code> so the in-memory cost during MCMC is just one
+chunk's width; the chunks are recovered later via
+<code>read_log_lik(fit)</code>. Required for <code>loo::loo(fit)</code> and
+<code>loo::waic(fit)</code>.</p></dd>
+
+
+<dt id="arg-log-lik-path">log_lik_path<a class="anchor" aria-label="anchor" href="#arg-log-lik-path"></a></dt>
+<dd><p>directory to write log-lik chunks to when
+<code>save_log_lik = "chunked"</code>. Default <code>NULL</code> creates a
+session-scoped subdirectory under <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>.</p></dd>
+
+
+<dt id="arg-log-lik-chunk-size">log_lik_chunk_size<a class="anchor" aria-label="anchor" href="#arg-log-lik-chunk-size"></a></dt>
+<dd><p>column-width of each on-disk chunk when
+<code>save_log_lik = "chunked"</code>. Larger chunks mean fewer files (and
+one <code>readBin</code> per chunk on read) but more memory during MCMC.
+Default <code>10000L</code>.</p></dd>
+
+
+<dt id="arg-freeze-call">freeze_call<a class="anchor" aria-label="anchor" href="#arg-freeze-call"></a></dt>
+<dd><p>logical: if <code>TRUE</code>, store a snapshot of the
+evaluated <code>Y</code>, <code>Xdyad</code>, <code>Xrow</code>, <code>Xcol</code> on
+<code>fit$data_snapshot</code> so that a later <code>update(fit, ...)</code> refits
+against the same data even if the caller has mutated those objects in
+their workspace. Memory cost equals the size of the data; default
+<code>FALSE</code>.</p></dd>
+
+
+<dt id="arg-dynamic-beta-pool">dynamic_beta_pool<a class="anchor" aria-label="anchor" href="#arg-dynamic-beta-pool"></a></dt>
+<dd><p>one of <code>"none"</code> (default), <code>"rho"</code>,
+<code>"sigma"</code>, or <code>"both"</code>. Stable argument name for a
+hierarchical pooling prior on the per-block \(\rho_b\) and / or
+\(\sigma_b\) dynamic hyperparameters. The value is recorded on
+the fit so future-phase samplers and downstream tooling can read it
+uniformly; the hierarchical sampler ships in a later release, at
+which point non-<code>"none"</code> values will take effect.</p></dd>
+
+
+<dt id="arg-dynamic-beta-per-actor">dynamic_beta_per_actor<a class="anchor" aria-label="anchor" href="#arg-dynamic-beta-per-actor"></a></dt>
+<dd><p>optional, one of <code>NULL</code> (default),
+<code>"row"</code>, or <code>"col"</code>. <strong>Currently a wired:</strong>
+the argument is validated and stored on the fit, but the in-loop
+sampler is not yet wired. For per-actor time-varying slopes today,
+fit a standard <code>lame()</code> and then call
+<code><a href="per_actor_slopes.html">per_actor_slopes</a>(fit, kind, covariate_idx, lambda)</code>
+for the post-MCMC penalised-LS estimate.</p></dd>
+
+
+<dt id="arg-per-actor-covariate-idx">per_actor_covariate_idx<a class="anchor" aria-label="anchor" href="#arg-per-actor-covariate-idx"></a></dt>
+<dd><p>positive integer; index into the
+dyadic covariate cube to slope on for the per-actor extension.
+Default <code>1L</code>.</p></dd>
+
+
+<dt id="arg-per-actor-identifiability">per_actor_identifiability<a class="anchor" aria-label="anchor" href="#arg-per-actor-identifiability"></a></dt>
+<dd><p>one of <code>"center"</code> (default)
+or <code>"drop_population"</code>. <code>"center"</code> preserves the
+population coefficient and constrains per-actor deviations to
+sum to zero per period via pairwise contrast FFBS. Reserved API
+for the <code>"drop_population"</code> mode (not yet wired).</p></dd>
+
+
+<dt id="arg-keep-per-actor">keep_per_actor<a class="anchor" aria-label="anchor" href="#arg-keep-per-actor"></a></dt>
+<dd><p>one of <code>"auto"</code> (default; full draws
+when memory cost &lt; 250 MB else streaming summary), <code>"draws"</code>
+(full <code>[n_iter, n_actors, T]</code> cube), <code>"summary"</code>
+(streaming posterior mean + sd only), or <code>"none"</code> (only
+hyperparameter chains).</p></dd>
+
+
+<dt id="arg-time-index">time_index<a class="anchor" aria-label="anchor" href="#arg-time-index"></a></dt>
+<dd><p>optional numeric vector of length \(T\) giving
+observation times. Default <code>NULL</code> treats periods as equally
+spaced. Strictly-increasing values are required when supplied. The
+gap-aware AR(1) update ships in a later release; the value is
+recorded on the fit.</p></dd>
+
+
+<dt id="arg-period-exposure">period_exposure<a class="anchor" aria-label="anchor" href="#arg-period-exposure"></a></dt>
+<dd><p>optional non-negative numeric vector of length
+\(T\) giving period-level exposure offsets. <strong>Wired for Poisson:</strong>
+when supplied with any value != 1, the Poisson observation
+likelihood becomes
+\(Y_{ij,t} \sim \text{Poisson}(e_t \cdot \exp(Z_{ij,t}))\),
+while the latent \(Z\) retains its existing semantic of
+"unexposed log-rate". For other families, non-trivial
+<code>period_exposure</code> is an error (rescale <code>Y</code> or use a
+covariate offset). <code>NULL</code> (default) or all-ones uses the
+unscaled likelihood path.</p></dd>
+
+
+<dt id="arg-max-seconds">max_seconds<a class="anchor" aria-label="anchor" href="#arg-max-seconds"></a></dt>
+<dd><p>optional positive scalar; if the MCMC wall-clock
+time exceeds this many seconds, the chain terminates cleanly and
+<code>fit$terminated_early</code> is set to <code>TRUE</code>.</p></dd>
+
+
+<dt id="arg-checkpoint-path">checkpoint_path<a class="anchor" aria-label="anchor" href="#arg-checkpoint-path"></a></dt>
+<dd><p>optional file path. When set, the chain
+periodically writes a snapshot of <code>BETA</code>, <code>VC</code>, the RNG
+state, and the original call to this file. Use <code><a href="lame_resume.html">lame_resume</a></code>
+or pass the same path back as <code>resume_from = path</code> to
+continue.</p></dd>
+
+
+<dt id="arg-checkpoint-every">checkpoint_every<a class="anchor" aria-label="anchor" href="#arg-checkpoint-every"></a></dt>
+<dd><p>positive integer; iterations between
+checkpoint writes. Default <code>100L</code>.</p></dd>
+
+
+<dt id="arg-log-lik-method">log_lik_method<a class="anchor" aria-label="anchor" href="#arg-log-lik-method"></a></dt>
+<dd><p>one of <code>"observed_exact"</code> (default),
+<code>"observed_ghk"</code>, or <code>"augmented"</code>. Selects the
+argument for selecting which pointwise log-lik is stored on
+<code>fit$log_lik</code>. <code>"observed_exact"</code> uses the closed-form
+marginal log-likelihood (currently wired for normal, binary, cbin,
+tobit, poisson, ordinal). <code>"observed_ghk"</code> is a stable api
+stub for the GHK Monte Carlo marginal on cbin/frn/rrl/ordinal that
+ships in a later release; it falls back to <code>"augmented"</code> now
+and emits a one-line note. <code>"augmented"</code> uses the augmented-
+data Gaussian-on-\(Z\) contribution.</p></dd>
+
+
+<dt id="arg-ordinal-cutpoints">ordinal_cutpoints<a class="anchor" aria-label="anchor" href="#arg-ordinal-cutpoints"></a></dt>
+<dd><p>character: cutpoint convention for
+<code>family = "ordinal"</code>. <code>"data_induced"</code> (default) uses the
+data-induced cutpoints; <code>"explicit"</code> samples explicit cutpoints via
+a Cowles (1996) Metropolis-Hastings update. Ignored for other families.</p></dd>
+
+
+<dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
+<dd><p>character: <code>"mcmc"</code> (default, the Bayesian MCMC fit) or
+<code>"als"</code> (the fast, MCMC-free iterative block coordinate descent point
+estimator; pooled-static over time). When <code>method = "als"</code>, MCMC- and
+dynamics-specific arguments (<code>nscan</code>, <code>burn</code>, <code>odens</code>,
+<code>prior</code>, <code>dynamic_uv</code>, <code>dynamic_ab</code>, ...) are silently
+ignored and the call forwards to <code><a href="lame_als.html">lame_als</a></code>.</p></dd>
+
+
+<dt id="arg-bootstrap">bootstrap<a class="anchor" aria-label="anchor" href="#arg-bootstrap"></a></dt>
+<dd><p>integer (only used when <code>method = "als"</code>): number of
+bootstrap replicates. <code>0</code> (default) skips the bootstrap; <code>N &gt; 0</code>
+runs <code>N</code> replicates and attaches the result so that <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></code>
+returns bootstrap intervals.</p></dd>
+
+
+<dt id="arg-bootstrap-type">bootstrap_type<a class="anchor" aria-label="anchor" href="#arg-bootstrap-type"></a></dt>
+<dd><p>character (only used when <code>method = "als"</code>):
+<code>"parametric"</code> (default) or <code>"block"</code>.</p></dd>
+
+
+<dt id="arg-bootstrap-block-length">bootstrap_block_length<a class="anchor" aria-label="anchor" href="#arg-bootstrap-block-length"></a></dt>
+<dd><p>integer: block length for the block bootstrap.</p></dd>
+
+
+<dt id="arg-bootstrap-seed">bootstrap_seed<a class="anchor" aria-label="anchor" href="#arg-bootstrap-seed"></a></dt>
+<dd><p>optional integer seed for the bootstrap.</p></dd>
+
+
+<dt id="arg-resume-from">resume_from<a class="anchor" aria-label="anchor" href="#arg-resume-from"></a></dt>
+<dd><p>optional path to a checkpoint file produced by a
+previous <code>lame(..., checkpoint_path = path)</code> call. When
+non-<code>NULL</code>, <code>lame()</code> short-circuits all other input
+parsing and delegates to <code><a href="lame_resume.html">lame_resume</a></code> with the
+user-supplied overrides forwarded. Pass <code>nscan = K</code> to
+request <code>K</code> additional stored draws on the continuation.
+Note: <code>checkpoint_path</code> and <code>max_seconds</code> cannot
+currently be overridden on a resume (they are stripped before
+re-evaluating the saved call); open both at the original
+<code>lame()</code> call if you need iterative checkpointing or a
+time budget on a chain of resumes. Pass <code>verbose = FALSE</code>
+on resume (the sampling progress bar is gated on <code>burn != 0</code>
+and the continuation forces <code>burn = 0</code>).
+Default <code>NULL</code>.</p></dd>
+
+
 <dt id="arg-print">print<a class="anchor" aria-label="anchor" href="#arg-print"></a></dt>
 <dd><p>Deprecated. Use <code>verbose</code> instead.</p></dd>
 
@@ -298,7 +623,22 @@ control.</p></dd>
 
 
 <dl><dt>BETA</dt>
-<dd><p>posterior samples of regression coefficients</p></dd>
+<dd><p>posterior samples of regression coefficients. A
+2-dimensional matrix <code>[n_stored, p]</code> when all coefficients are
+static. When <code>dynamic_beta</code> flags any coefficient as time-varying,
+<code>BETA</code> is a 3-dimensional array <code>[n_stored, p, T]</code> whose third
+dimension is the time period. Static coefficients are still present with
+their values replicated across the third dimension. <code>coef(fit)</code>
+collapses this to a <code>[p, T]</code> posterior-mean matrix.</p>
+<p><strong>Migration from amen.</strong> Under <code><a href="https://rdrr.io/pkg/amen/man/ame.html" class="external-link">amen::ame()</a></code> the
+<code>BETA</code> slot was always 2-D. Scripts that compute
+<code>apply(fit$BETA, 2, mean)</code> on an amen fit will silently
+aggregate across periods when run against a <code>lame()</code> fit
+with <code>dynamic_beta</code> active (the second margin is the
+coefficient index in both shapes; the new third margin is time).
+Use <code>length(dim(fit$BETA))</code> to detect the shape, or call
+<code>coef(fit)</code> which returns a <code>[p, T]</code> matrix in either
+case.</p></dd>
 
 <dt>VC</dt>
 <dd><p>posterior samples of the variance parameters</p></dd>
@@ -327,8 +667,14 @@ For dynamic_uv=TRUE, this is a 3D array (n x R x T)</p></dd>
 
 <dt>EZ</dt>
 <dd><p>estimate of expectation of Z
-matrix</p></dd>
- <dt>YPM</dt>
+matrix. For <code>mode = "bipartite"</code>, <code>EZ</code> is a list of
+per-period matrices whose row/column dimnames are currently
+<code>NULL</code>. Use <code>names(fit$APM)</code> / <code>names(fit$BPM)</code> (or
+<code>dimnames(fit$YPM[[t]])</code>) to recover the row/column actor
+ordering, which is the lexicographic sort of the input actor names
+(so <code>"r10"</code> sorts before <code>"r2"</code> unless you zero-pad).</p></dd>
+
+<dt>YPM</dt>
 <dd><p>posterior mean of Y (for imputing missing values)</p></dd>
 
 <dt>GOF</dt>
@@ -416,9 +762,16 @@ When dynamic_uv=TRUE for bipartite networks:
 $$U_{i,k,t} = \rho_{uv} U_{i,k,t-1} + \epsilon_{i,k,t}$$
 $$V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}$$
 where i indexes row nodes, j indexes column nodes, k indexes latent dimensions.</p>
-<p>When dynamic_G=TRUE, the interaction matrix also evolves:
-$$G_{k,l,t} = \rho_G G_{k,l,t-1} + \xi_{k,l,t}$$
-allowing the mapping between row and column latent spaces to change over time.</p>
+<p>When <code>dynamic_G = TRUE</code> the bipartite interaction matrix \(G_t\) is
+sampled per period via the bipartite \(G\)-sampler (a separate
+\(R_\text{row} \times R_\text{col}\) matrix at every time slice) and
+returned as <code>fit$G_cube</code>. This is experimental: the canonicalisation
+that absorbs rotation and scaling into \((U, V)\) is enforced per
+period, so the marginal \(U_t G_t V_t'\) linear predictor is identified
+even though the individual \(G_t\) entries are not. Always sanity-check
+against a <code>dynamic_G = FALSE</code> fit before relying on per-period
+\(G_t\) estimates. <code>dynamic_G = TRUE</code> is bipartite only and is
+ignored (with a warning) for unipartite networks.</p>
 <p><em>Key Differences from Unipartite Models:</em></p><ul><li><p>No dyadic correlation (rho): Bipartite edges are inherently directed</p></li>
 <li><p>Separate dimensions: R_row and R_col can differ for row/column spaces</p></li>
 <li><p>Rectangular structure: Network density patterns differ from square matrices</p></li>
@@ -446,12 +799,19 @@ variable represents the log mean of the Poisson distribution.</p>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="ame.html">ame</a></code> for cross-sectional models,
+<code><a href="lame_als.html">lame_als</a></code> for the fast MCMC-free point estimator,
+<code><a href="als_dynamic_beta.html">als_dynamic_beta</a></code> for a regression-only penalised
+smoother on the time-varying coefficient path,
+<code><a href="lame_resume.html">lame_resume</a></code> for the legacy resume entry point
+(equivalent to <code>lame(resume_from = path)</code>),
 <code><a href="gof.html">gof</a></code> for post-hoc goodness-of-fit computation,
 <code><a href="gof_plot.html">gof_plot</a></code> for visualizing GOF results,
 <code><a href="latent_positions.html">latent_positions</a></code> for extracting latent positions as a tidy data frame,
 <code><a href="procrustes_align.html">procrustes_align</a></code> for Procrustes alignment of latent positions,
 <code><a href="summary.lame.html">summary.lame</a></code> for model summaries,
-<code><a href="coef.ame.html">coef.lame</a></code> for coefficient extraction</p></div>
+<code><a href="coef.ame.html">coef.lame</a></code> for coefficient extraction,
+<code><a href="netify_to_lame.html">netify_to_lame</a></code> for the recommended netify -&gt; lame
+bridge (set <code>lame = TRUE</code> on <code><a href="https://netify-dev.github.io/netify/reference/netify_to_amen.html" class="external-link">netify::to_amen()</a></code>).</p></div>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
@@ -461,9 +821,91 @@ variable represents the log mean of the Poisson distribution.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">)</span> </span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">&lt;-</span><span class="fu">lame</span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">$</span><span class="va">Y</span>,<span class="va">YX_bin_list</span><span class="op">$</span><span class="va">X</span>,burn<span class="op">=</span><span class="fl">5</span>,nscan<span class="op">=</span><span class="fl">5</span>,odens<span class="op">=</span><span class="fl">1</span>,family<span class="op">=</span><span class="st">"binary"</span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`family` = <span style="color: #0000BB;">"binary"</span> but `Y` contains values other than 0/1.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
 <span class="r-in"><span><span class="co"># you should run the Markov chain much longer than this</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="co">## Time-varying regression coefficients (dynamic_beta).</span></span></span>
+<span class="r-in"><span><span class="co">## Make every dyadic coefficient evolve as an AR(1):</span></span></span>
+<span class="r-in"><span><span class="va">fit_dyn</span> <span class="op">&lt;-</span> <span class="fu">lame</span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">$</span><span class="va">Y</span>, <span class="va">YX_bin_list</span><span class="op">$</span><span class="va">X</span>,</span></span>
+<span class="r-in"><span>                family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span></span>
+<span class="r-in"><span>                nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span></span>
+<span class="r-in"><span>                dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`family` = <span style="color: #0000BB;">"binary"</span> but `Y` contains values other than 0/1.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">$</span><span class="va">BETA</span><span class="op">)</span>        <span class="co"># [n_stored, p, T] -- 3-D when dynamic</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 40  4  4</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span>            <span class="co"># [p, T] posterior-mean coefficient paths</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                  t1        t2        t3        t4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept 0.1199238 0.1199238 0.1199238 0.1199238</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad   0.7118277 0.7078791 0.6908902 0.6654124</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad   0.8650829 0.8748416 0.8417964 0.7950323</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad   1.0582930 1.0777578 1.0792037 0.9840359</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span>         <span class="co"># per-period 95% credible intervals</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                     2.5%     97.5%</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t1] 0.07566298 0.1711694</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t1]   0.53743396 0.8624926</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t1]   0.62135516 1.0598551</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t1]   0.76479496 1.3208536</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t2] 0.07566298 0.1711694</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t2]   0.50982957 0.8755414</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t2]   0.63062747 1.0549406</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t2]   0.77008591 1.2578084</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t3] 0.07566298 0.1711694</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t3]   0.54407504 0.8382262</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t3]   0.65171342 0.9979983</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t3]   0.84688357 1.2833791</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t4] 0.07566298 0.1711694</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t4]   0.51387021 0.7652479</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t4]   0.60842819 0.9169838</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t4]   0.75128416 1.1401657</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span>         <span class="co"># prints a "Dynamic coefficients per period" block</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> === Longitudinal AME Model Summary ===</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Y ~ dyad(X1, X2, X3) + a[i] + b[j] + rho*e[ji], family = 'binary'"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Time periods: 4 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Family: binary </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Mode: unipartite </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Dynamic regression coefficients: enabled, kind = 'ar1' (rho_beta = dyad : 0.93)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Regression coefficients:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           Estimate StdError z_value p_value CI_lower CI_upper    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept     0.12    0.031   3.857       0    0.076    0.171 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad      0.694    0.095   7.335       0    0.526    0.822 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad      0.844    0.117   7.244       0    0.631        1 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad       1.05    0.145   7.265       0    0.782    1.242 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Dynamic coefficients per period:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            Mean   Min   Max Drift_pct Dynamic</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept 0.120 0.120 0.120     0.000       N</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad   0.694 0.665 0.712     6.688       Y</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad   0.844 0.795 0.875     9.454       Y</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad   1.050 0.984 1.079     9.065       Y</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Variance components:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     Estimate StdError</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> va     0.839    0.321</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cab    0.437    0.193</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> vb     0.646    0.245</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rho    0.210    0.059</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ve     1.000    0.000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   (va = sender, cab = sender-receiver covariance, vb = receiver,</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    rho = dyadic correlation, ve = residual variance)</span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

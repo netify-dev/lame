@@ -36,6 +36,19 @@
 #'   
 #'   If custom_gof is provided, additional statistics will be included with their
 #'   user-specified names.
+#'
+#'   \strong{Naming note.} The columns above are the internal names used by
+#'   \code{gof_stats()} and stored on \code{fit$GOF}. \code{\link{gof_plot}}
+#'   exposes a shorter user-facing alias for some of them; the mapping is:
+#'   \tabular{ll}{
+#'     \strong{internal (this column)} \tab \strong{gof_plot alias} \cr
+#'     \code{sd.rowmean}               \tab \code{sd.row}           \cr
+#'     \code{sd.colmean}               \tab \code{sd.col}           \cr
+#'     \code{dyad.dep}                 \tab \code{dyad.dep}         \cr
+#'     \code{cycle.dep}                \tab \code{triad.dep}        \cr
+#'     \code{trans.dep}                \tab \code{trans.dep}        \cr
+#'     \code{four.cycles} (bipartite)  \tab \code{four.cycles}      \cr
+#'   }
 #' @details
 #' The function computes network statistics that capture different aspects of
 #' network structure beyond simple density. These statistics are particularly

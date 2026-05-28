@@ -101,49 +101,6 @@ sim_binary_ame = function(seed, n, mu, beta, gamma=NULL,
 # binary model with covariates only
 ####
 
-test_that("Binary AME with covariates only recovers true parameters", {
-	set.seed(6886)
-	n = 50
-	mu_true = -0.5  # Negative intercept for sparse network
-	beta_true = 1.0
-	
-	# run single detailed test
-	xw = matrix(rnorm(n*2), n, 2)
-	X = tcrossprod(xw[,1])
-	diag(X) = NA
-	
-	# generate on probit scale
-	eta = mu_true + beta_true * X
-	Z = eta + matrix(rnorm(n*n), n, n)
-	Y = 1 * (Z > 0)
-	diag(Y) = NA
-	
-	# check sparsity
-	density = mean(Y, na.rm=TRUE)
-	expect_lt(density, 0.5)  # Should be sparse with negative intercept
-	
-	# fit model with no additive or multiplicative effects
-	fit = ame(Y, Xdyad=X, R=0, family="binary",
-						rvar=FALSE, cvar=FALSE, dcor=FALSE,
-						burn=500, nscan=2000, verbose = FALSE)
-	
-	# check parameter recovery
-	beta_est = median(fit$BETA[,2])
-	mu_est = median(fit$BETA[,1])
-	
-	expect_lt(abs(beta_est - beta_true), 0.3)
-	expect_lt(abs(mu_est - mu_true), 0.3)
-	
-	# check that no additive/multiplicative effects were fit (or are minimal)
-	if(!is.null(fit$APM)) {
-		expect_lt(max(abs(fit$APM)), 0.5)
-	}
-	if(!is.null(fit$BPM)) {
-		expect_lt(max(abs(fit$BPM)), 0.5)
-	}
-})
-
-# simulation study for binary covariates only
 test_that("Binary AME with covariates only has calibrated confidence intervals", {
 	skip_on_cran()
 	

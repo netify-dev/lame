@@ -7,12 +7,13 @@
 gof_plot(
   fit,
   type = c("auto", "static", "longitudinal"),
-  statistics = c("sd.row", "sd.col", "dyad.dep", "triad.dep"),
+  statistics = NULL,
   credible.level = 0.95,
   ncol = 2,
   point.size = 2,
   line.size = 1,
-  title = NULL
+  title = NULL,
+  ...
 )
 }
 \arguments{
@@ -21,8 +22,12 @@ gof_plot(
 \item{type}{Character string: "auto" (default), "static", or "longitudinal".
 If "auto", determined by model class.}
 
-\item{statistics}{Character vector specifying which statistics to plot.
-Default is all four: c("sd.row", "sd.col", "dyad.dep", "triad.dep")}
+\item{statistics}{Character vector of statistics to plot, or \code{NULL}
+(default) for the standard panels plus any custom GOF columns.
+Unipartite names: "sd.row", "sd.col", "dyad.dep", "triad.dep",
+"trans.dep"; bipartite names: "sd.row", "sd.col", "four.cycles";
+custom GOF columns may also be named. Unknown names are dropped
+with a warning.}
 
 \item{credible.level}{Numeric between 0 and 1; credible interval level for
 longitudinal plots (default 0.95)}
@@ -34,6 +39,10 @@ longitudinal plots (default 0.95)}
 \item{line.size}{Width of lines in plots (default 1)}
 
 \item{title}{Optional title for the plot}
+
+\item{...}{Additional arguments forwarded to the ALS-specific
+\code{\link{gof_plot.ame_als}} when \code{fit} inherits from
+\code{ame_als} (\code{nsim}, \code{seed}).}
 }
 \value{
 A ggplot2 object that can be further customized
@@ -104,10 +113,11 @@ Captured through bipartite multiplicative effects with appropriate R_row, R_col.
 
 \emph{Histogram plots (static models):}
 \itemize{
-\item Red vertical line: observed statistic value
-\item Blue histogram: distribution from posterior predictive simulations
-\item Good fit: red line falls within the bulk of the histogram
-\item Poor fit: red line in the tail or outside the distribution
+\item Dashed orange vertical line (Okabe-Ito \code{#D55E00}): observed statistic
+value (dual-encoded on colour and linetype)
+\item Grey histogram: distribution from posterior predictive simulations
+\item Good fit: orange line falls within the bulk of the histogram
+\item Poor fit: orange line in the tail or outside the distribution
 }
 
 \emph{Common model inadequacies and solutions:}

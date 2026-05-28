@@ -20,6 +20,15 @@ get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NUL
 
 	N <- dim(Y)[3]
 
+	# partial start_vals are merged over defaults computed below, rather
+	# than overriding every slot wholesale; that lets callers warm-start
+	# just `beta` (say) without having to construct U/V/a/b/Sab themselves.
+	user_start <- start_vals
+	if(!is.null(user_start) && !is.list(user_start)) {
+		cli::cli_abort("{.arg start_vals} must be a list (or NULL).")
+	}
+	start_vals <- NULL
+
 	if(is.null(start_vals)){
 
 		####
@@ -108,14 +117,18 @@ get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NUL
 
 	}
 
-	####
-	# unpack start_vals list if provided
-	if(!is.null(start_vals)){
-		Z<-start_vals$Z ; beta<-start_vals$beta ; a<-start_vals$a ; b<-start_vals$b
-		U<-start_vals$U ; V<-start_vals$V ; rho<-start_vals$rho ; s2<-start_vals$s2
-		Sab<-start_vals$Sab
+	# merge any user-supplied slots over the defaults computed above
+	if(!is.null(user_start)){
+		if(!is.null(user_start$Z))    Z    <- user_start$Z
+		if(!is.null(user_start$beta)) beta <- user_start$beta
+		if(!is.null(user_start$a))    a    <- user_start$a
+		if(!is.null(user_start$b))    b    <- user_start$b
+		if(!is.null(user_start$U))    U    <- user_start$U
+		if(!is.null(user_start$V))    V    <- user_start$V
+		if(!is.null(user_start$rho))  rho  <- user_start$rho
+		if(!is.null(user_start$s2))   s2   <- user_start$s2
+		if(!is.null(user_start$Sab))  Sab  <- user_start$Sab
 	}
-	####
 
 	return(
 		list(

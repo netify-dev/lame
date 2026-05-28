@@ -4,33 +4,68 @@
 \alias{ame}
 \title{AME model fitting routine}
 \usage{
-ame(Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl") ,
-cvar = TRUE,  dcor = !symmetric, nvar=TRUE, R = 0, R_row = NULL, R_col = NULL,
-mode = c("unipartite", "bipartite"), family="normal",
-intercept=!is.element(family,c("rrl","ordinal")),
-symmetric=FALSE,
-odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
-prior=list(), g=NA,
-seed = 6886, nscan = 10000, burn = 500, odens = 25,
-verbose = TRUE, gof=TRUE, custom_gof=NULL,
-start_vals=NULL, periodic_save=FALSE, out_file=NULL,
-save_interval=0.25, model.name=NULL,
-posterior_opts = NULL, n_chains = 1, cores = 1,
-use_sparse_matrices = FALSE, print)
+ame(
+  Y,
+  Xdyad = NULL,
+  Xrow = NULL,
+  Xcol = NULL,
+  rvar = !(family == "rrl"),
+  cvar = TRUE,
+  dcor = !symmetric,
+  nvar = TRUE,
+  R = 0,
+  R_row = NULL,
+  R_col = NULL,
+  mode = c("unipartite", "bipartite"),
+  family = "normal",
+  intercept = !is.element(family, c("rrl", "ordinal")),
+  symmetric = FALSE,
+  odmax = rep(max(apply(Y > 0, 1, sum, na.rm = TRUE)), nrow(Y)),
+  prior = list(),
+  g = NA,
+  seed = 6886,
+  nscan = 10000,
+  burn = 500,
+  odens = 25,
+  verbose = TRUE,
+  gof = TRUE,
+  custom_gof = NULL,
+  plot = FALSE,
+  start_vals = NULL,
+  periodic_save = FALSE,
+  out_file = NULL,
+  save_interval = 0.25,
+  model.name = NULL,
+  posterior_opts = NULL,
+  n_chains = 1,
+  cores = 1,
+  use_sparse_matrices = FALSE,
+  method = c("mcmc", "als"),
+  bootstrap = 0L,
+  bootstrap_type = c("parametric", "block"),
+  bootstrap_block_length = 1L,
+  bootstrap_seed = NULL,
+  save_log_lik = FALSE,
+  ordinal_cutpoints = c("data_induced", "explicit"),
+  print,
+  ...
+)
 }
 \arguments{
 \item{Y}{For unipartite: an n x n square relational matrix. For bipartite: an nA x nB
 rectangular relational matrix where nA is the number of row nodes and nB is the
 number of column nodes. See family below for various data types.}
 
-\item{Xdyad}{For unipartite: an n x n x pd array of covariates. For bipartite:
-an nA x nB x pd array of covariates.}
+\item{Xdyad}{For unipartite: an n x n x pd array of dyadic covariates (e.g. distance, shared group). For
+bipartite: an nA x nB x pd array. A 2-D matrix (single dyadic covariate) must be wrapped as
+\code{array(x, dim = c(n, n, 1))}; \code{Inf}/\code{NaN} entries are rejected.}
 
-\item{Xrow}{For unipartite: an n x pr matrix of nodal row covariates. For bipartite:
-an nA x pr matrix of row node covariates.}
+\item{Xrow}{For unipartite: an n x pr matrix of \strong{sender} (row) covariates (e.g. sender's age, group).
+For bipartite: an nA x pr matrix of row-node covariates. A \code{data.frame} is accepted and coerced
+to numeric matrix internally.}
 
-\item{Xcol}{For unipartite: an n x pc matrix of nodal column covariates. For bipartite:
-an nB x pc matrix of column node covariates.}
+\item{Xcol}{For unipartite: an n x pc matrix of \strong{receiver} (column) covariates. For bipartite:
+an nB x pc matrix of column-node covariates. A \code{data.frame} is accepted and coerced internally.}
 
 \item{rvar}{logical: fit row random effects (asymmetric case)?}
 
@@ -47,10 +82,13 @@ this is used as the default for both R_row and R_col if they are not specified.}
 
 \item{R_col}{integer: for bipartite networks, dimension of column node multiplicative effects (defaults to R)}
 
-\item{mode}{character: either "unipartite" (default) for square networks or "bipartite" for rectangular networks}
+\item{mode}{character: either "unipartite" (default) for square networks or "bipartite" for rectangular networks.
+Not all combinations of \code{family} and \code{mode} are supported -- see the table under \strong{Supported
+family x mode combinations} below.}
 
-\item{family}{character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
-the details below}
+\item{family}{character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson". See the
+\strong{Supported family x mode combinations} table below for which combinations are valid; see \strong{Details}
+for the model assumptions behind each family.}
 
 \item{intercept}{logical: fit model with an intercept?}
 
@@ -73,28 +111,43 @@ impose stronger shrinkage on the latent factors. Common values: 4-10 for
 weak shrinkage, 10-20 for moderate, >20 for strong shrinkage.}
 \item{etaab}{Prior degrees of freedom for covariance of additive effects
 (default: 4 + 3 \\* n/100). Controls shrinkage of row/column random effects.
-Larger values shrink effects toward zero.}
+Larger values shrink effects toward zero. \emph{Used by the bipartite
+and longitudinal paths; ignored for a unipartite cross-sectional
+\code{ame()} fit, which controls the additive prior through
+\code{Sab0} and \code{eta0}.}}
 \item{s20}{Prior variance for regression coefficients (default: 1).
-Larger values allow for larger coefficient values.}
-\item{s2u0}{Prior variance for multiplicative effects (default: 1).}
+Larger values allow for larger coefficient values. \emph{Used by the
+bipartite and longitudinal paths; for a unipartite \code{ame()} fit
+the regression prior is controlled by \code{g}.}}
+\item{s2u0}{Prior variance for multiplicative effects (default: 1).
+\emph{Used by the bipartite and longitudinal paths.}}
 \item{Suv0}{Prior covariance for multiplicative effects (default: identity matrix).}
 }
 Common usage: prior = list(Sab0 = diag(c(2, 2)), eta0 = 10) for moderate
-shrinkage, or prior = list(Sab0 = diag(c(0.5, 0.5))) for tighter control.}
+shrinkage, or prior = list(Sab0 = diag(c(0.5, 0.5))) for tighter control.
+For a unipartite cross-sectional \code{ame()} fit the prior is controlled by
+\code{Sab0}, \code{eta0}, \code{Suv0} and \code{g}.}
 
-\item{g}{optional scalar or vector of length dim(X)\[3\] for g-prior on
-regression coefficients. If not specified, defaults are: for normal family,
-g = n\emph{var(Y); for tobit, g = n}var(Y)*4; for other families, g = n, where
-n is the number of non-missing dyads. The g-prior controls the variance of
-regression coefficients.}
+\item{g}{optional \strong{scalar} for the Zellner g-prior on regression
+coefficients (\code{beta ~ N(0, g * sigma^2 * solve(XtX))} where
+\code{XtX} is the design cross-product). If not specified, defaults are:
+for \code{normal} family, \code{g = n * var(Y)}; for \code{tobit},
+\code{g = n * var(Y) * 4}; for other families, \code{g = n} (number of
+non-missing dyads). Per-coefficient (vector) \code{g} is NOT currently
+supported by the unipartite path -- pass a scalar.
+\emph{Note:} \code{g} is a top-level argument to \code{ame()},
+\strong{not} an element of \code{prior = list(...)}; passing
+\code{prior = list(g = 0.1)} is a no-op (warned about).}
 
 \item{seed}{random seed}
 
 \item{nscan}{number of iterations of the Markov chain (beyond burn-in)}
 
-\item{burn}{burn in for the Markov chain}
+\item{burn}{burn in for the Markov chain. Typical use is \code{burn} far
+smaller than \code{nscan}; \code{burn > nscan} is allowed but warns.}
 
-\item{odens}{output density for the Markov chain}
+\item{odens}{output density (thinning interval) for the Markov chain.
+\code{nscan / odens} samples are stored.}
 
 \item{verbose}{logical: print progress while running? Default TRUE.}
 
@@ -109,6 +162,10 @@ should return a named vector. If a list of functions is provided, each function
 should return a single value and will be named according to the list names.
 Custom statistics will be computed in addition to default statistics.
 Example: custom_gof = function(Y) c(density = mean(Y > 0, na.rm = TRUE))}
+
+\item{plot}{accepted for signature parity with \code{\link{lame}};
+ignored. \code{ame()} runs a single-period MCMC and does not draw
+live trace panels. Default \code{FALSE}.}
 
 \item{start_vals}{List from previous model run containing parameter starting values for new MCMC}
 
@@ -129,7 +186,46 @@ Example: custom_gof = function(Y) c(density = mean(Y > 0, na.rm = TRUE))}
 \item{use_sparse_matrices}{logical: use sparse matrix storage for large networks? (default: FALSE).
 Recommended only for truly sparse networks (< 10\% non-zero entries).}
 
+\item{method}{character: \code{"mcmc"} (default, the Bayesian MCMC fit) or
+\code{"als"} (the fast, MCMC-free iterative block coordinate descent point
+estimator). When \code{method = "als"}, MCMC-specific arguments (\code{nscan},
+\code{burn}, \code{odens}, \code{prior}, ...) are silently ignored and the
+call forwards to \code{\link{ame_als}}.}
+
+\item{bootstrap}{integer (only used when \code{method = "als"}): number of
+bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N > 0}
+runs \code{N} replicates and attaches the result so that \code{\link{confint}}
+returns bootstrap intervals.}
+
+\item{bootstrap_type}{character (only used when \code{method = "als"}):
+\code{"parametric"} (default) or \code{"block"}.}
+
+\item{bootstrap_block_length}{integer: block length for the block bootstrap.}
+
+\item{bootstrap_seed}{optional integer seed for the bootstrap.}
+
+\item{save_log_lik}{logical: when \code{TRUE}, attach a per-iteration
+pointwise log-likelihood matrix \code{fit$log_lik} (an
+\code{n_iter x n_obs} array) using the augmented-Z normal
+approximation. Required for \code{loo::loo(fit)} and
+\code{loo::waic(fit)}. The augmented-Z approximation is the same
+semantics used by \code{lame()}; for non-normal families it is the
+predictive criterion on the latent-Z scale, not the family-specific
+Y density. Default \code{FALSE} (no log_lik storage; default fit is
+byte-identical to previous releases).}
+
+\item{ordinal_cutpoints}{character: cutpoint convention for
+\code{family = "ordinal"}. \code{"data_induced"} (default) uses the
+data-induced cutpoints; \code{"explicit"} samples explicit cutpoints via
+a Cowles (1996) Metropolis-Hastings update. Ignored for other families.}
+
 \item{print}{Deprecated. Use \code{verbose} instead.}
+
+\item{...}{reserved for future use. Passing \code{lame()}-only
+arguments (e.g. \code{dynamic_beta}, \code{period_exposure}) here
+triggers a clean abort directing you to \code{\link{lame}}; passing
+any other unrecognised name warns so typos are visible rather than
+silently dropped.}
 }
 \value{
 \strong{Posterior Samples (full MCMC chains):}
@@ -186,6 +282,45 @@ cross-sectional relational data, assuming one of eight possible data types/model
 The function supports both unipartite networks (square adjacency matrices) and
 bipartite networks (rectangular adjacency matrices with distinct row and column
 node sets) for single time point analysis.
+
+\strong{Model.} For a dyad \eqn{(i, j)} the AME linear predictor is
+
+\deqn{\eta_{ij} = \beta_0 + x_{ij}'\beta + a_i + b_j + u_i' D v_j,}
+
+where \eqn{\beta} are regression coefficients on dyadic / nodal
+covariates, \eqn{a_i} is a row (sender) random effect, \eqn{b_j} is
+a column (receiver) random effect, and \eqn{u_i' D v_j} is the
+multiplicative latent-factor term (rank \code{R}). The observation
+model is \eqn{Y_{ij} \sim F(\eta_{ij}, \theta)} with \eqn{F}
+specified by \code{family} (Gaussian for \code{"normal"}, probit
+for \code{"binary"} / \code{"cbin"}, etc.). For unipartite
+(\code{symmetric = FALSE}) the residual error has dyad-level
+correlation \eqn{\rho} between \eqn{(i, j)} and \eqn{(j, i)}; for
+bipartite, dyad correlation is fixed at 0.
+
+\strong{Priors (in brief).} \eqn{\beta} has a Zellner-style g-prior
+(\code{g}); \eqn{(a_i, b_i)} are jointly Normal with covariance
+\eqn{\Sigma_{ab}} (Inverse-Wishart prior \code{Sab0 / eta0});
+\eqn{u_i, v_j} are independent Normal with covariance
+\eqn{\Sigma_{uv}} (Inverse-Wishart prior \code{Suv0 / kappa0});
+the dyad-correlation \eqn{\rho} has a Normal prior on
+\eqn{\mathrm{atanh}(\rho)}. See \code{prior_summary(fit)} for the
+priors actually used.
+
+\strong{Choosing R.} The multiplicative rank \code{R} controls the
+dimensionality of latent homophily / heterogeneity not explained
+by covariates and additive effects. \code{R = 0} fits an
+additive-only social-relations model; \code{R = 1} or \code{2} is
+typical for small / medium networks; \code{R > floor(n/3)} is rarely
+identifiable and will issue a warning. Latent factors capture
+unobserved structure (clusters, hub patterns, transitive triangles
+the covariates miss) and are accessed at \code{fit$U}, \code{fit$V}.
+
+\strong{Identifiability.} The latent factor term \eqn{u_i' D v_j}
+is invariant to rotation and reflection of \eqn{U, V}; the package
+canonicalises with an SVD so successive draws are interpretable.
+For visual stability across posterior summaries see
+\code{\link{procrustes_align}} and \code{\link{latent_positions}}.
 
 \strong{Theoretical Foundation:}
 
@@ -269,6 +404,158 @@ for this model.
 "poisson": An overdispersed Poisson AME model for count data (log link: \eqn{E[Y] = \exp(\eta)}).
 The linear predictor \eqn{\eta} represents \eqn{\log(\lambda)} where \eqn{\lambda} is the expected count.
 }
+\section{Supported family x mode combinations}{
+
+Every \code{family} is supported under
+both \code{mode}s. The bipartite Z-samplers live in \code{R/rZ_bipartite.R}
+and dispatch per family; see also the inline comment in \code{R/lame.R}
+(\dQuote{first-class samplers as of the bipartite-families round}).
+
+\tabular{lll}{
+\strong{family}  \tab \strong{unipartite} \tab \strong{bipartite} \cr
+normal           \tab yes                 \tab yes                \cr
+binary           \tab yes                 \tab yes                \cr
+tobit            \tab yes                 \tab yes                \cr
+ordinal          \tab yes                 \tab yes                \cr
+cbin             \tab yes                 \tab yes                \cr
+frn              \tab yes                 \tab yes                \cr
+poisson          \tab yes                 \tab yes                \cr
+rrl              \tab yes                 \tab yes                \cr
+}
+
+Symmetric (\code{symmetric = TRUE}) fits require a symmetric \code{Y}.
+\code{family = "ordinal"} with \code{symmetric = TRUE} is supported via the
+dedicated sampler in \code{R/rZ_ord_sym_fc.R}, which uses the
+symmetric-doubled precision and mirrors upper-triangle draws to the lower
+triangle so \eqn{Z = t(Z)} holds at every sweep. The previous \dQuote{ordinal
+\itemize{
+\item symmetric is unsupported} restriction has been lifted. \code{rrl} +
+bipartite is first-class: the rectangular row-rank Z-sampler handles the
+full per-row permutation likelihood, and \code{ame()} recovers regression
+coefficients comparably to the unipartite rrl path on similarly-sized data.
+}
+
+\strong{Symmetric input with one triangle missing.} When
+\code{symmetric = TRUE} and one triangle of \code{Y} is fully \code{NA}
+(the user stored only the lower or upper triangle), the symmetry validator
+\code{any(is.finite(Y - t(Y)))} evaluates \code{FALSE} and the call
+proceeds: the sampler then treats the populated triangle as the
+symmetric data and mirrors it. This is usually intended, but if the
+upper / lower triangles were meant to differ, the model is silently
+fitting half the data. Audit \code{anyNA(Y[upper.tri(Y)]) !=
+anyNA(Y[lower.tri(Y)])} before calling if you are unsure.
+}
+
+\section{Converting a network from another R package}{
+
+\code{ame()} expects \code{Y} as a (potentially named) matrix, not a graph
+object. The most common conversions:
+\itemize{
+\item \pkg{igraph}: \code{Y <- igraph::as_adjacency_matrix(g, sparse = FALSE);
+        diag(Y) <- NA}
+\item \pkg{network} / \pkg{statnet}: \code{Y <- as.matrix(net); diag(Y) <- NA}
+\item \pkg{tibble} / long-format \pkg{tidyverse}: \code{Y <-
+        tidyr::pivot_wider(df, names_from = receiver, values_from = tie) |>
+        tibble::column_to_rownames("sender") |> as.matrix()}; or use the
+convenience helper \code{\link{as_lame_y}}.
+}
+For an undirected/symmetric network, pass \code{symmetric = TRUE}; for a
+rectangular two-mode network (students x courses, donors x candidates), pass
+\code{mode = "bipartite"}. \code{Xrow} and \code{Xcol} accept either a numeric
+matrix or a data.frame (coerced internally); \code{Xdyad} must be a 3-D array
+\code{n x n x p} of numeric covariates with no \code{Inf}/\code{NaN}.
+}
+
+\section{When to use AME vs ERGM}{
+
+AME and ERGM are complementary tools for binary network analysis,
+not direct substitutes. \strong{ERGM} is a class of exponential-family
+models built around explicit network statistics (counts of edges,
+mutual ties, triangles, geometrically-weighted shared partners, ...).
+You write the statistics you think matter, ERGM gives you their
+coefficients. ERGM excels when you have a substantive theory about
+which configurations drive tie formation.
+
+\strong{AME} models latent homophily / heterogeneity directly via
+sender, receiver, and multiplicative latent-factor effects. You don't
+enumerate triadic terms; the multiplicative-effects rank \code{R}
+captures higher-order structure (clustering, transitivity, hub
+patterns) implicitly. AME excels when (a) you have dyadic / nodal
+covariates whose effects you want to interpret cleanly without ERGM
+degeneracy, (b) higher-order structure is "nuisance" that you want
+to absorb but not parameterise, or (c) you need a posterior
+distribution over predictions for forecasting or imputation.
+
+Practical guidance: if your research question is "do nodes that
+share attribute X tend to form triangles together?", reach for
+ERGM's \code{gwesp}. If your research question is "controlling for
+unobserved sender / receiver heterogeneity and latent clustering,
+what is the effect of dyadic covariate X?", reach for AME. The
+\code{R = 0} additive-only case is the social relations model
+(Warner, Kenny, Stoto 1979); \code{R >= 1} adds latent space.
+}
+
+\section{ERGM to AME translation}{
+
+For users coming from \code{statnet::ergm}, the rough analogues are:
+\tabular{ll}{
+\strong{ERGM term}            \tab \strong{AME analogue} \cr
+\code{edges}                  \tab \code{intercept} (probit link, not logit) \cr
+\code{nodecov("x")}           \tab \code{Xrow = x} or \code{Xcol = x} \cr
+\code{nodematch("g")}         \tab dyadic covariate via \code{\link{nodematch}(g)} into \code{Xdyad} \cr
+\code{nodefactor("g")}        \tab dyadic covariate via \code{\link{nodefactor}(g)} into \code{Xdyad} (drop one level) \cr
+\code{absdiff("z")}           \tab dyadic covariate via \code{\link{absdiff}(z)} into \code{Xdyad} \cr
+\code{mutual}                 \tab \code{dcor = TRUE} -> the \code{rho} parameter (probit-scale, NOT log-odds; not numerically comparable to ERGM's \code{mutual}) \cr
+\code{gwesp} / transitivity   \tab \code{R >= 1} multiplicative latent factors (not the same statistic) \cr
+sender activity heterogeneity \tab \code{rvar = TRUE}, gives \code{a_i}, \code{va} \cr
+receiver popularity heterog.  \tab \code{cvar = TRUE}, gives \code{b_j}, \code{vb} \cr
+}
+For \code{family = "binary"} the link is probit, so the intercept is on the
+probit scale; do not compare it to an ERGM \code{edges} estimate by simple
+arithmetic.
+}
+
+\section{Migration from amen}{
+
+Both \code{amen} and \code{lame} export \code{ame()}; loading both
+packages fires a startup warning telling you to call
+\code{lame::ame(...)} or \code{amen::ame(...)} explicitly.
+
+For default cross-sectional calls, \code{lame::ame()} is a drop-in
+replacement for \code{amen::ame()}: the \code{fit$BETA} slot is a
+2-D \code{[n_stored, p]} matrix in both packages, so scripts that
+call \code{colMeans(fit$BETA)} or \code{apply(fit$BETA, 2, mean)}
+continue to work unchanged. \code{lame} additionally accepts
+\code{family = "binary"} (which \code{amen} 1.4.5 no longer
+accepts; \code{amen} requires \code{"bin"}). The \code{print}
+argument is deprecated in favour of \code{verbose}; calls that pass
+\code{print = ...} still work but warn.
+
+The cross-sectional path has no \code{dynamic_beta} option (an
+AR(1) prior on a single-period coefficient is unidentified), so the
+\code{BETA} 3-D shape that \code{lame()} can produce never arises
+from \code{ame()}. See \code{\link{lame}} for the longitudinal path
+and the silent-aggregation hazard with old \code{apply(fit$BETA, 2, mean)}
+scripts under \code{dynamic_beta = TRUE}.
+}
+
+\section{Notes on priors}{
+
+\itemize{
+\item The regression-coefficient prior is a Zellner g-prior
+(\code{beta ~ N(0, g * sigma^2 * (XtX)^-1)} where \code{XtX} is
+the design cross-product). \code{g} is a \emph{top-level}
+argument of \code{ame()}, not an entry in \code{prior = list(...)}
+(a common slip).
+\item There is no per-coefficient prior knob. If you need student_t,
+horseshoe, or to centre a slope away from zero, AME does not
+currently expose it; the g-prior structure is the only knob.
+\item Unknown names in \code{prior = list(...)} are warned about (a typo
+like \code{Sab = ...} instead of \code{Sab0} would otherwise be
+silently dropped).
+}
+}
+
 \examples{
 \donttest{
 data(YX_bin)

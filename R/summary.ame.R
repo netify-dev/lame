@@ -51,10 +51,15 @@ summary.ame <- function(object, ...) {
 	beta_upper <- apply(fit$BETA, 2, quantile, probs = 0.975)
 
 	# coefficient names
+	# the bipartite path leaves fit$X_names and dimnames(fit$X)[[3]] NULL even
+	# when fit$BETA has proper colnames, so fall back to colnames(fit$BETA)
+	# before the generic beta0..betaN labels.
 	if(!is.null(fit$X_names)) {
 		beta_names <- fit$X_names
 	} else if(!is.null(dimnames(fit$X)[[3]])) {
 		beta_names <- dimnames(fit$X)[[3]]
+	} else if(!is.null(colnames(fit$BETA))) {
+		beta_names <- colnames(fit$BETA)
 	} else {
 		beta_names <- paste0("beta", 0:(ncol(fit$BETA)-1))
 	}
@@ -90,16 +95,58 @@ summary.ame <- function(object, ...) {
 		fit$call
 	})
 	
-	# assemble summary object
+	# surface multi-chain diagnostics if the fit carries them so a brms-style
+	# user can read Rhat/ESS right out of summary()
+	diag_block <- NULL
+	if (!is.null(fit$diagnostics) &&
+	    (!is.null(fit$diagnostics$rhat) || !is.null(fit$diagnostics$ess))) {
+		n_chains_val <- fit$diagnostics$n_chains %||% NA_integer_
+		rhat_all <- fit$diagnostics$rhat
+		ess_all  <- fit$diagnostics$ess
+		# beta_table rownames are the BETA columns; fish out the matching subset
+		if (!is.null(rhat_all)) {
+			r_beta <- rhat_all[intersect(names(rhat_all), rownames(beta_table))]
+			# pad to match rows so cbind aligns
+			beta_table <- cbind(beta_table,
+			                    Rhat = unname(rhat_all[match(rownames(beta_table),
+			                                                 names(rhat_all))]))
+		}
+		if (!is.null(ess_all)) {
+			beta_table <- cbind(beta_table,
+			                    ESS = unname(ess_all[match(rownames(beta_table),
+			                                               names(ess_all))]))
+		}
+		# vc table
+		if (!is.null(rhat_all)) {
+			vc_table <- cbind(vc_table,
+			                  Rhat = unname(rhat_all[match(rownames(vc_table),
+			                                               names(rhat_all))]))
+		}
+		if (!is.null(ess_all)) {
+			vc_table <- cbind(vc_table,
+			                  ESS = unname(ess_all[match(rownames(vc_table),
+			                                             names(ess_all))]))
+		}
+		max_rhat <- if (length(rhat_all) > 0) max(rhat_all, na.rm = TRUE) else NA_real_
+		min_ess  <- if (length(ess_all)  > 0) min(ess_all,  na.rm = TRUE) else NA_real_
+		diag_block <- list(n_chains = n_chains_val,
+		                   max_rhat = max_rhat,
+		                   min_ess  = min_ess)
+	}
+
+	# assemble summary object. `coefficients` is an alias for `beta` to match
+	# the `summary(lm())$coefficients` convention that base-R users reach for
 	sum_obj <- list(
 		call = display_call,
 		beta = beta_table,
+		coefficients = beta_table,
 		variance = vc_table,
 		symmetric = isTRUE(fit$symmetric),
 		mode = fit$mode %||% "unipartite",
 		family = fit$family,
 		dynamic_uv = isTRUE(fit$dynamic_uv),
-		dynamic_ab = isTRUE(fit$dynamic_ab)
+		dynamic_ab = isTRUE(fit$dynamic_ab),
+		diagnostics = diag_block
 	)
 
 	class(sum_obj) <- "summary.ame"
@@ -132,7 +179,7 @@ print.summary.ame <- function(x, digits = 3, ...) {
 	coef_table <- cbind(coef_table, " " = stars)
 	print(coef_table, quote = FALSE, right = TRUE)
 	cat("---\nSignif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
-	cat("Note: p-values are approximate (posterior mean / SD); use credible intervals for inference.\n")
+	cat("Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.\n")
 
 	cat("\nVariance components:\n")
 	cat("-------------------\n")

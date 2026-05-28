@@ -4,10 +4,16 @@
 \alias{print.lame}
 \title{Print method for LAME objects}
 \usage{
-\method{print}{lame}(x, ...)
+\method{print}{lame}(x, compact = TRUE, digits = 3, ...)
 }
 \arguments{
 \item{x}{an object of class "lame"}
+
+\item{compact}{logical: when \code{TRUE} (default), use a compact joint
+table for fits with 2+ dynamic components; set to \code{FALSE} to
+force the per-component long-form display.}
+
+\item{digits}{Number of digits to display in the compact table. Default 3.}
 
 \item{...}{additional arguments (not used)}
 }
@@ -15,7 +21,12 @@
 the lame object invisibly
 }
 \description{
-Provides a concise print output for fitted LAME models
+Provides a concise print output for fitted LAME models. When the fit has
+two or more dynamic effects active simultaneously
+(\code{dynamic_uv + dynamic_ab + dynamic_beta} in any combination), a
+compact joint table summarising the AR(1) hyperparameters of each
+dynamic block is printed instead of a separate paragraph per component.
+Disable the compact mode by passing \code{compact = FALSE}.
 }
 \author{
 Peter Hoff, Cassy Dorff, Shahryar Minhas

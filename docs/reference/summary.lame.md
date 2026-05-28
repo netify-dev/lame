@@ -2,7 +2,7 @@
 
 Provides a comprehensive summary of a fitted LAME (Longitudinal Additive
 and Multiplicative Effects) model, including parameter estimates,
-standard errors, confidence intervals, and model diagnostics.
+standard errors, credible intervals, and model diagnostics.
 
 ## Usage
 
@@ -48,8 +48,14 @@ The summary includes:
 
 - Regression coefficients:
 
-  Point estimates, standard errors, z-values, p-values, and 95%
-  confidence intervals for dyadic, sender, and receiver covariates
+  Posterior means, posterior standard deviations, z-values, approximate
+  p-values, and 95% credible intervals for dyadic, sender, and receiver
+  covariates. Note: the z-values are computed as posterior mean /
+  posterior SD, and the p-values are derived from a normal
+  approximation. These are convenient screening statistics but are not
+  formal frequentist test statistics. For rigorous inference, use the
+  credible intervals or examine the full posterior via the BETA matrix
+  directly.
 
 - Variance components:
 
@@ -74,6 +80,33 @@ The summary includes:
   ve
 
   :   Residual variance
+
+- Dynamic coefficients per period:
+
+  Only printed when the fit was produced with `dynamic_beta` on at least
+  one coefficient. The table has one row per coefficient with columns:
+
+  Mean
+
+  :   average of the per-period posterior means across t
+
+  Min, Max
+
+  :   smallest and largest per-period posterior mean
+
+  Drift_pct
+
+  :   `100 * (Max - Min) / |Mean|`; a coarse measure of how much the
+      coefficient moves across periods relative to its average level
+
+  Dynamic
+
+  :   `"Y"` if the coefficient was flagged as dynamic, `"N"` if it was
+      held static
+
+  The block also prints the per-block AR(1) hyperparameters
+  (`rho_beta = ...`). For per-period credible intervals use
+  [`confint.lame`](https://netify-dev.github.io/lame/reference/confint.ame.md).
 
 ## See also
 

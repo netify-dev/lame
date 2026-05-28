@@ -4,7 +4,7 @@
 \alias{design_array}
 \title{Computes the design socioarray of covariate values}
 \usage{
-design_array(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n)
+design_array(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n,warn=TRUE)
 }
 \arguments{
 \item{Xrow}{an n x pr matrix of row covariates}
@@ -16,6 +16,10 @@ design_array(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n)
 \item{intercept}{logical}
 
 \item{n}{number of rows/columns}
+
+\item{warn}{logical; warn when missing covariate values are zero-filled
+(default \code{TRUE}). Set \code{FALSE} when the caller has already
+propagated the missingness into the response.}
 }
 \value{
 an n x n x (pr+pc+pd+intercept) 3-way array

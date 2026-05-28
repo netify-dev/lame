@@ -172,14 +172,26 @@ simulate.ame <- function(
 	####
 	# covariates
 	if (!is.null(newdata)) {
-		Xdyad <- newdata$Xdyad
-		Xrow <- newdata$Xrow
-		Xcol <- newdata$Xcol
-		
-		if (!is.null(Xdyad) && length(dim(Xdyad)) == 2) {
-			Xdyad <- array(Xdyad, dim = c(dim(Xdyad), 1))
+		# build the SAME design array the fit used (intercept slice + row/col
+		# covariates broadcast), so X aligns column-for-column with `beta`.
+		# Otherwise beta[1] (the intercept) multiplies the first covariate.
+		has_int <- "intercept" %in% colnames(BETA)
+		if (bip) {
+			Xdyad <- newdata$Xdyad
+			if (!is.null(Xdyad) && length(dim(Xdyad)) == 2) {
+				Xdyad <- array(Xdyad, dim = c(dim(Xdyad), 1))
+			}
+			X <- Xdyad
+		} else {
+			X <- design_array(newdata$Xrow, newdata$Xcol, newdata$Xdyad,
+			                  intercept = has_int, n = n_row, warn = FALSE)
+			if (dim(X)[3] != ncol(BETA)) {
+				stop("newdata covariates produce ", dim(X)[3],
+				     " design columns but the fit has ", ncol(BETA),
+				     " coefficients. Supply the covariates the model was fit with.",
+				     call. = FALSE)
+			}
 		}
-		X <- Xdyad
 	} else {
 		if (!is.null(fit$X)) {
 			X <- fit$X
@@ -236,17 +248,29 @@ simulate.ame <- function(
 			s2 <- max(s2, 0.01)
 		}
 		
-		# sample fresh random effects from the generative model
-		if (bip) {
+		# additive effects: use saved posterior draws if available, else the
+		# posterior mean (APM/BPM). Drawing iid from N(0, va) -- the old
+		# behaviour -- discards the fitted degree heterogeneity and collapses
+		# reciprocity/triadic structure in the posterior-predictive networks.
+		if (!is.null(fit$a_samples)) {
+			a <- fit$a_samples[, sample.int(ncol(fit$a_samples), 1)]
+		} else if (!is.null(fit$APM) && length(fit$APM) == n_row) {
+			a <- as.numeric(fit$APM)
+		} else if (bip) {
 			a <- rnorm(nA, mean = 0, sd = sqrt(a_var))
-			b <- rnorm(nB, mean = 0, sd = sqrt(b_var))
 		} else {
 			a <- rnorm(n, mean = 0, sd = sqrt(a_var))
-			if (!isTRUE(symmetric)) {
-				b <- rnorm(n, mean = 0, sd = sqrt(b_var))
-			} else {
-				b <- a
-			}
+		}
+		if (isTRUE(symmetric) && !bip) {
+			b <- a
+		} else if (!is.null(fit$b_samples)) {
+			b <- fit$b_samples[, sample.int(ncol(fit$b_samples), 1)]
+		} else if (!is.null(fit$BPM) && length(fit$BPM) == n_col) {
+			b <- as.numeric(fit$BPM)
+		} else if (bip) {
+			b <- rnorm(nB, mean = 0, sd = sqrt(b_var))
+		} else {
+			b <- rnorm(n, mean = 0, sd = sqrt(b_var))
 		}
 		
 		# linear predictor
@@ -266,12 +290,19 @@ simulate.ame <- function(
 		
 		EZ <- EZ + outer(a, b, "+")
 
-		# multiplicative effects
-		if (!is.null(fit$U) && !is.null(fit$V)) {
+		# multiplicative effects: per-draw posterior samples if saved,
+		# else the posterior-mean U/V
+		U_s <- fit$U; V_s <- fit$V
+		if (!is.null(fit$U_samples)) {
+			uidx <- sample.int(dim(fit$U_samples)[3], 1)
+			U_s  <- fit$U_samples[, , uidx]
+			V_s  <- if (!is.null(fit$V_samples)) fit$V_samples[, , uidx] else U_s
+		}
+		if (!is.null(U_s) && !is.null(V_s)) {
 			if (bip && !is.null(fit$G)) {
-				EZ <- EZ + fit$U %*% fit$G %*% t(fit$V)
+				EZ <- EZ + U_s %*% fit$G %*% t(V_s)
 			} else if (!bip) {
-				EZ <- EZ + fit$U %*% t(fit$V)
+				EZ <- EZ + U_s %*% t(V_s)
 			}
 		}
 		
@@ -285,11 +316,21 @@ simulate.ame <- function(
 		} else if (family == "normal") {
 			Y_sim <- simY_nrm(EZ, rho, s2)
 		} else if (family == "ordinal") {
-			if (is.null(fit$ODM)) stop("fit$ODM required for ordinal simulation but is NULL")
-			Y_sim <- simY_ord(EZ, rho, fit$ODM)
+			# simY_ord wants Y (for the unique-category lookup), not the
+			# nonexistent fit$ODM slot. Use the posterior-predictive mean
+			# or the original Y as a category template.
+			y_for_sim <- fit$Y %||% fit$YPM
+			if (is.null(y_for_sim)) stop("simulate.ame: ordinal needs `fit$Y` to be present.")
+			Y_sim <- simY_ord(EZ, rho, y_for_sim)
 		} else if (family == "rrl") {
-			if (is.null(fit$ODM)) stop("fit$ODM required for rrl simulation but is NULL")
-			Y_sim <- simY_rrl(EZ, rho, fit$ODM)
+			# simY_rrl wants `odobs` (per-row observed outdegree) -- not the
+			# nonexistent fit$ODM slot. Derive it from Y when absent.
+			odobs <- fit$odobs %||% {
+				yy <- fit$Y %||% fit$YPM
+				if (is.null(yy)) stop("simulate.ame: rrl needs `fit$Y` or `fit$odobs`.")
+				as.integer(rowSums(yy > 0, na.rm = TRUE))
+			}
+			Y_sim <- simY_rrl(EZ, rho, odobs)
 		} else if (family == "poisson") {
 			Y_sim <- simY_pois(EZ)
 		} else if (family == "frn") {
@@ -304,7 +345,14 @@ simulate.ame <- function(
 		if (!bip) {
 			diag(Y_sim) <- NA
 		}
-		
+		# symmetric fit -> each posterior-predictive draw must also be
+		# symmetric. EZ is already symmetrized above but simY_* draws independent
+		# noise per cell, breaking symmetry; mirror the upper triangle here.
+		if (isTRUE(symmetric) && !bip && nrow(Y_sim) == ncol(Y_sim)) {
+			ut <- upper.tri(Y_sim)
+			Y_sim[lower.tri(Y_sim)] <- t(Y_sim)[lower.tri(Y_sim)]
+		}
+
 		Y_sims[[i]] <- Y_sim
 		if (return_latent) {
 			Z_sims[[i]] <- simZ(EZ, rho, s2)

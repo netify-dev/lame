@@ -72,5 +72,6 @@ fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2, gof = TRUE,
 
 # Quick diagnostic plot (shows trace plots)
 plot(fit)
+
 # }
 ```

@@ -15,18 +15,37 @@
 \item{...}{Additional arguments (ignored).}
 }
 \value{
-Named numeric vector of posterior mean coefficients.
+Named numeric vector (static fit) or \code{p x T} matrix
+(\code{dynamic_beta} fit) of posterior mean coefficients.
 }
 \description{
 Returns posterior means of regression coefficients from a fitted AME or
-LAME model. The coefficients correspond to the columns of the \code{BETA}
-matrix stored in the model object, which records one draw per post-burn-in
-MCMC iteration. The posterior mean is computed as \code{colMeans(BETA)}.
+LAME model.
 }
 \details{
+For a STATIC fit (the default, and any model with \code{dynamic_beta = FALSE}),
+coefficients are returned as a named numeric vector computed as
+\code{colMeans(fit$BETA)}.
+
+For a DYNAMIC fit (\code{lame(..., dynamic_beta = ...)} where some
+coefficient is time-varying), \code{fit$BETA} is a 3-dimensional array
+\code{[n_stored, p, T]} and \code{coef.lame} returns a \code{[p, T]}
+matrix of per-period posterior means. Rownames are the coefficient names;
+colnames are the period labels (from \code{names(Y)} or \code{t1, t2, ...}).
+Static coefficients in a dynamic fit are constant across the columns.
+
 For binary models, these are on the probit (latent) scale. Use
 \code{\link{predict.ame}} with \code{type = "response"} to get predicted
 probabilities.
+
+\strong{What \code{coef()} does NOT return.} The multiplicative latent
+positions \eqn{U}, \eqn{V} are not part of the coefficient vector;
+they live on \code{fit$U} and \code{fit$V} (or as 3-D arrays
+\code{[n, R, T]} when \code{dynamic_uv} is on). The additive
+sender / receiver effects \eqn{a, b} are on \code{fit$APM} and
+\code{fit$BPM}. For a tidy frame of latent positions use
+\code{\link{latent_positions}}; for sender / receiver lollipops use
+\code{\link{ab_plot}}.
 }
 \seealso{
 \code{\link{vcov.ame}} for the posterior covariance matrix,

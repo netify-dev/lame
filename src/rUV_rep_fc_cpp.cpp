@@ -4,7 +4,7 @@
 using namespace arma;
 using namespace Rcpp;
 
-// Helper: build index vector excluding one element (Phase 1D optimization)
+// helper: build index vector excluding one element
 static inline arma::uvec indices_excluding(int total, int exclude) {
   arma::uvec idx(total - 1);
   int k = 0;
@@ -113,7 +113,7 @@ List rUV_rep_fc_cpp(
   arma::mat Usmall(n, R-1);
   arma::mat Vsmall(n, R-1);
 
-  // Phase 1D: Pre-compute index vectors for submat extraction
+  // pre-compute index vectors for submat extraction
   int dim2R = 2 * R;
 
   for(int i = 0; i < rLoopIDs.size(); i++) {
@@ -139,7 +139,7 @@ List rUV_rep_fc_cpp(
 
     arma::vec vr = V.col(r);
 
-    // Phase 1D: Use submat with index vectors instead of shed_col/shed_row
+    // use submat with index vectors instead of shed_col/shed_row
     arma::uvec idx_excl_r = indices_excluding(dim2R, r);
     arma::uvec idx_r_only(1); idx_r_only(0) = r;
 
@@ -172,7 +172,7 @@ List rUV_rep_fc_cpp(
     arma::vec ur = U.col(r);
     int rv = R + r;
 
-    // Phase 1D: Use submat for V update too
+    // use submat for the V update
     arma::uvec idx_excl_rv = indices_excluding(dim2R, rv);
     arma::uvec idx_rv_only(1); idx_rv_only(0) = rv;
 
