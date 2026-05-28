@@ -25,7 +25,8 @@ uv_plot(
   title = NULL,
   time_point = NULL,
   plot_type = c("snapshot", "trajectory", "faceted"),
-  show_arrows = TRUE
+  show_arrows = TRUE,
+  highlight = NULL
 )
 }
 \arguments{
@@ -73,6 +74,11 @@ Can be numeric index or "average" for time-averaged positions}
 "faceted" (grid of time points). For static UV, this is ignored.}
 
 \item{show_arrows}{For trajectory plots, whether to show directional arrows}
+
+\item{highlight}{Optional character vector of actor names to highlight on a
+\code{plot_type = "trajectory"} plot. Highlighted actors are coloured
+with the colour-blind-safe Okabe-Ito palette; all other actors are
+rendered in grey at lower alpha. Ignored for static or snapshot plots.}
 }
 \value{
 A ggplot2 object that can be further customized

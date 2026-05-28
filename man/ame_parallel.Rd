@@ -9,6 +9,7 @@ ame_parallel(
   n_chains = 4,
   cores = n_chains,
   combine_method = c("pool", "list"),
+  fitter = c("auto", "ame", "lame"),
   ...
 )
 }
@@ -22,7 +23,12 @@ Default is n_chains. Use 1 for sequential processing.}
 
 \item{combine_method}{Method for combining chains: "pool" (default) or "list"}
 
-\item{...}{Additional arguments passed to ame()}
+\item{fitter}{Which fitter to use: \code{"auto"} (default; pick
+\code{\link{lame}} when \code{Y} is a list / 3-D array with >1 time slice,
+else \code{\link{ame}}), \code{"ame"} (force cross-sectional), or
+\code{"lame"} (force longitudinal -- required for \code{dynamic_*} flags).}
+
+\item{...}{Additional arguments passed to \code{ame()} or \code{lame()}.}
 }
 \value{
 If combine_method = "pool": A single ame object with pooled chains
@@ -41,6 +47,13 @@ fit_parallel <- ame_parallel(YX_nrm$Y, Xdyad = YX_nrm$X,
                              verbose = FALSE)
 }
 
+}
+\seealso{
+\code{\link{lame_multi}} for the unrelated multi-\emph{panel}
+wrapper that fits K \emph{distinct} networks with shared regression
+coefficients. \code{ame_parallel} / \code{lame_parallel} run K MCMC
+chains of the \emph{same} model (for R-hat / ESS diagnostics);
+\code{lame_multi} runs one chain across K panels with pooled beta.
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

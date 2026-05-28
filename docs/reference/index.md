@@ -1,19 +1,156 @@
 # Package index
 
-## Model Fitting
+## Model Fitting (MCMC)
 
-Core functions for fitting AME and LAME models
+Core Bayesian MCMC estimators for AME and LAME models
 
 - [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) : AME
   model fitting routine
+
 - [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) : AME
   model fitting routine for longitudinal relational data
+
 - [`lame-package`](https://netify-dev.github.io/lame/reference/lame-package.md)
   : Longitudinal Additive and Multiplicative Effects Models for Networks
+
 - [`ame_parallel()`](https://netify-dev.github.io/lame/reference/ame_parallel.md)
   : Run AME model with multiple parallel chains
+
+- [`lame_parallel()`](https://netify-dev.github.io/lame/reference/lame_parallel.md)
+  : Run LAME (longitudinal AME) with multiple parallel chains
+
+- [`lame_multi()`](https://netify-dev.github.io/lame/reference/lame_multi.md)
+  : Multi-panel lame() with shared coefficients
+
+- [`lame_resume()`](https://netify-dev.github.io/lame/reference/lame_resume.md)
+  :
+
+  Resume a
+  [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) MCMC
+  run from a checkpoint
+
 - [`ame_options()`](https://netify-dev.github.io/lame/reference/ame_options.md)
   : AME model fitting options
+
+## Forecasting and Temporal Diagnostics
+
+Forecasts, counterfactuals, and diagnostics for dynamic fits
+
+- [`gof_temporal()`](https://netify-dev.github.io/lame/reference/gof_temporal.md)
+  : Posterior-predictive temporal-trend test
+- [`detect_change_point()`](https://netify-dev.github.io/lame/reference/detect_change_point.md)
+  : Detect potential change points in a dynamic_beta posterior path
+- [`lfo()`](https://netify-dev.github.io/lame/reference/lfo.md) : Exact
+  rolling-origin leave-future-out cross-validation
+- [`forecast_pit()`](https://netify-dev.github.io/lame/reference/forecast_pit.md)
+  : Probability-integral-transform calibration check for h-step
+  forecasts
+- [`rhat_dynamic_beta()`](https://netify-dev.github.io/lame/reference/rhat_dynamic_beta.md)
+  : Multivariate split-R-hat for dynamic_beta coefficient paths
+- [`dynamic_beta_prior_summary()`](https://netify-dev.github.io/lame/reference/dynamic_beta_prior_summary.md)
+  : Summarise the implied prior on a time-varying coefficient path
+- [`prediction_draws_long()`](https://netify-dev.github.io/lame/reference/prediction_draws_long.md)
+  : Long-format draws of the linear predictor for marginaleffects-style
+  use
+- [`per_actor_slopes()`](https://netify-dev.github.io/lame/reference/per_actor_slopes.md)
+  : Post-MCMC per-actor time-varying slopes
+- [`als_dynamic_beta()`](https://netify-dev.github.io/lame/reference/als_dynamic_beta.md)
+  : Penalised ALS time-varying coefficient estimate
+
+## Model Comparison and Posterior Diagnostics
+
+Information criteria, posterior draws, and held-out evaluation
+
+- [`loo()`](https://netify-dev.github.io/lame/reference/loo.md)
+  [`waic()`](https://netify-dev.github.io/lame/reference/loo.md) :
+  Generic dispatcher for loo / waic on ame / lame fits
+- [`loo(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/loo.ame.md)
+  [`loo(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/loo.ame.md)
+  [`loo(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/loo.ame.md)
+  : Approximate leave-one-out cross-validation for AME / LAME fits
+- [`waic(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/waic.ame.md)
+  [`waic(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/waic.ame.md)
+  [`waic(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/waic.ame.md)
+  : WAIC for AME / LAME fits
+- [`as_draws()`](https://netify-dev.github.io/lame/reference/as_draws.md)
+  : Generic dispatcher for posterior::as_draws on lame fits
+- [`as_draws(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/as_draws.ame.md)
+  [`as_draws(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/as_draws.ame.md)
+  [`as_draws(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/as_draws.ame.md)
+  : Convert an AME / LAME fit to a posterior draws object
+- [`prior_summary()`](https://netify-dev.github.io/lame/reference/prior_summary.md)
+  : Print the priors used by an AME / LAME / ame_als fit
+- [`evaluate_heldout()`](https://netify-dev.github.io/lame/reference/evaluate_heldout.md)
+  : Held-out predictive evaluation for an ame / lame fit
+- [`read_log_lik()`](https://netify-dev.github.io/lame/reference/read_log_lik.md)
+  : Read the per-iteration log-lik matrix back from on-disk chunks
+
+## Tidyverse Integration
+
+broom and ggplot2 methods for fitted models
+
+- [`tidy()`](https://netify-dev.github.io/lame/reference/tidy.md) :
+
+  S3 generic for `tidy`
+
+- [`tidy(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/tidy.ame.md)
+  [`tidy(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/tidy.ame.md)
+  :
+
+  Tidy method for fitted `ame` / `lame` objects
+
+- [`tidy(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/tidy.ame_als.md)
+  [`tidy(`*`<lame_als>`*`)`](https://netify-dev.github.io/lame/reference/tidy.ame_als.md)
+  :
+
+  Tidy method for fitted `ame_als` / `lame_als` objects
+
+- [`tidy(`*`<boot_ame>`*`)`](https://netify-dev.github.io/lame/reference/tidy.boot_ame.md)
+  :
+
+  Tidy method for a standalone bootstrap object (`boot_ame`)
+
+- [`glance()`](https://netify-dev.github.io/lame/reference/glance.md) :
+
+  S3 generic for `glance`
+
+- [`glance(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/glance.ame.md)
+  [`glance(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/glance.ame.md)
+  :
+
+  Glance method for fitted `ame` / `lame` objects
+
+- [`glance(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/glance.ame_als.md)
+  [`glance(`*`<lame_als>`*`)`](https://netify-dev.github.io/lame/reference/glance.ame_als.md)
+  :
+
+  Glance method for fitted `ame_als` / `lame_als` objects
+
+- [`autoplot(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/autoplot.lame.md)
+  [`autoplot(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/autoplot.lame.md)
+  : Ribbon plot of time-varying coefficients (or coefplot for static
+  fits)
+
+- [`autoplot(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/autoplot.ame_als.md)
+  [`autoplot(`*`<lame_als>`*`)`](https://netify-dev.github.io/lame/reference/autoplot.ame_als.md)
+  : autoplot method for ALS fits
+
+## Fast Estimator (MCMC-free)
+
+Iterative block coordinate descent point estimator with bootstrap
+uncertainty
+
+- [`ame_als()`](https://netify-dev.github.io/lame/reference/ame_als.md)
+  : Fast (MCMC-free) AME estimation for a cross-sectional network
+- [`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md)
+  : Fast (MCMC-free) AME estimation for a longitudinal network
+- [`ame_als_bootstrap()`](https://netify-dev.github.io/lame/reference/ame_als_bootstrap.md)
+  [`boot_ame()`](https://netify-dev.github.io/lame/reference/ame_als_bootstrap.md)
+  : Bootstrap uncertainty for the fast AME estimator
+- [`ame_als_refit()`](https://netify-dev.github.io/lame/reference/ame_als_refit.md)
+  : Refit a fast AME model with a warm start
+- [`sampler_describe()`](https://netify-dev.github.io/lame/reference/sampler_describe.md)
+  : Describe the estimator behind a fitted object
 
 ## S3 Methods
 
@@ -22,44 +159,168 @@ Standard R methods for model objects
 - [`coef(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/coef.ame.md)
   [`coef(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/coef.ame.md)
   : Extract model coefficients from AME model
+
 - [`vcov(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/vcov.ame.md)
   [`vcov(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/vcov.ame.md)
   : Posterior covariance of AME model coefficients
+
 - [`confint(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/confint.ame.md)
   [`confint(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/confint.ame.md)
-  : Bayesian credible intervals for AME model coefficients
+  : Bayesian credible intervals for AME model parameters
+
 - [`predict(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/predict.ame.md)
   : Predict method for AME models
+
 - [`predict(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/predict.lame.md)
   : Predict method for LAME models
+
 - [`fitted(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/fitted.ame.md)
   : Extract fitted values from AME model
+
 - [`fitted(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/fitted.lame.md)
   : Extract fitted values from LAME model
+
 - [`residuals(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/residuals.ame.md)
   : Extract residuals from AME model
+
 - [`residuals(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/residuals.lame.md)
   : Extract residuals from LAME model
+
 - [`simulate(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/simulate.ame.md)
   : Simulate networks from a fitted AME model
+
 - [`simulate(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/simulate.lame.md)
   : Simulate longitudinal networks from a fitted LAME model
+
 - [`summary(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/summary.ame.md)
   : Summary of an AME object
+
 - [`summary(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/summary.lame.md)
   : Summary of a LAME object
+
 - [`print(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/print.ame.md)
   : Print method for AME model objects
+
 - [`print(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/print.lame.md)
   : Print method for LAME objects
+
 - [`print(`*`<summary.ame>`*`)`](https://netify-dev.github.io/lame/reference/print.summary.ame.md)
   : Print method for summary.ame objects
+
 - [`print(`*`<summary.lame>`*`)`](https://netify-dev.github.io/lame/reference/print.summary.lame.md)
   : Print method for summary.lame objects
+
 - [`plot(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/plot.ame.md)
   : Simple diagnostic plot for AME model fit
+
 - [`plot(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/plot.lame.md)
   : Plot comprehensive diagnostics for a LAME model fit
+
+- [`coef(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/coef.ame_als.md)
+  : Extract coefficients from a fast AME fit
+
+- [`vcov(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/vcov.ame_als.md)
+  : Sandwich covariance for the regression coefficients of a fast AME
+  fit
+
+- [`confint(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/confint.ame_als.md)
+  : Confidence intervals for a fast AME fit
+
+- [`fitted(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/fitted.ame_als.md)
+  : Extract fitted values from a fast AME fit
+
+- [`residuals(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/residuals.ame_als.md)
+  : Residuals from a fast AME fit
+
+- [`predict(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/predict.ame_als.md)
+  : Predictions from a fast AME fit
+
+- [`logLik(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/logLik.ame_als.md)
+  : Log-likelihood is not defined for a fast AME fit
+
+- [`plot(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/plot.ame_als.md)
+  : Plot the convergence of a fast AME fit
+
+- [`print(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/print.ame_als.md)
+  : Print an ame_als object
+
+- [`summary(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/summary.ame_als.md)
+  : Summarize an ame_als object
+
+- [`print(`*`<boot_ame>`*`)`](https://netify-dev.github.io/lame/reference/print.boot_ame.md)
+  : Print bootstrap results for a fast AME fit
+
+- [`summary(`*`<boot_ame>`*`)`](https://netify-dev.github.io/lame/reference/summary.boot_ame.md)
+  [`print(`*`<summary.boot_ame>`*`)`](https://netify-dev.github.io/lame/reference/summary.boot_ame.md)
+  : Summarize bootstrap results for a fast AME fit
+
+- [`confint(`*`<boot_ame>`*`)`](https://netify-dev.github.io/lame/reference/confint.boot_ame.md)
+  : Confidence intervals from a fast AME bootstrap
+
+- [`vcov(`*`<boot_ame>`*`)`](https://netify-dev.github.io/lame/reference/vcov.boot_ame.md)
+  : Bootstrap covariance of the regression coefficients
+
+- [`coef(`*`<boot_ame>`*`)`](https://netify-dev.github.io/lame/reference/coef.boot_ame.md)
+  : Point estimates from a fast AME bootstrap
+
+- [`fitted(`*`<boot_ame>`*`)`](https://netify-dev.github.io/lame/reference/boot_ame-no-fitted.md)
+  [`residuals(`*`<boot_ame>`*`)`](https://netify-dev.github.io/lame/reference/boot_ame-no-fitted.md)
+  : fitted/residuals are not defined for a bootstrap object
+
+- [`formula(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/formula.ame.md)
+  [`formula(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/formula.ame.md)
+  : formula() is not defined for an ame() / lame() fit
+
+- [`logLik(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/logLik.ame.md)
+  [`logLik(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/logLik.ame.md)
+  : Log-likelihood is not directly exposed for ame() / lame() fits
+
+- [`nobs(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/nobs.ame.md)
+  [`nobs(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/nobs.ame.md)
+  : Number of observed dyads in an AME / LAME fit
+
+- [`nobs(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/nobs.ame_als.md)
+  : Number of observed dyads in an ame_als fit
+
+- [`update(`*`<ame>`*`)`](https://netify-dev.github.io/lame/reference/update.ame.md)
+  [`update(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/update.ame.md)
+  : Update an AME / LAME fit
+
+- [`update(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/update.ame_als.md)
+  [`update(`*`<lame_als>`*`)`](https://netify-dev.github.io/lame/reference/update.ame_als.md)
+  :
+
+  Update an `ame_als` / `lame_als` fit
+
+- [`simulate(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/simulate.ame_als.md)
+  : Simulate networks from a fitted ame_als model
+
+- [`ab_plot.ame_als()`](https://netify-dev.github.io/lame/reference/ab_plot.ame_als.md)
+  : Additive-effects plot for an ame_als fit
+
+- [`gof_plot.ame_als()`](https://netify-dev.github.io/lame/reference/gof_plot.ame_als.md)
+  : Goodness-of-fit posterior predictive check for an ame_als fit
+
+- [`coef(`*`<als_dynamic_beta>`*`)`](https://netify-dev.github.io/lame/reference/coef.als_dynamic_beta.md)
+  : Extract beta path from a penalised-ALS object
+
+- [`print(`*`<als_dynamic_beta>`*`)`](https://netify-dev.github.io/lame/reference/print.als_dynamic_beta.md)
+  : Print method for penalised ALS time-varying beta
+
+- [`print(`*`<gof_temporal>`*`)`](https://netify-dev.github.io/lame/reference/print.gof_temporal.md)
+  : Print method for gof_temporal output
+
+- [`print(`*`<lame_multi>`*`)`](https://netify-dev.github.io/lame/reference/print.lame_multi.md)
+  : Print method for lame_multi
+
+- [`print(`*`<lfo_lame>`*`)`](https://netify-dev.github.io/lame/reference/print.lfo_lame.md)
+  : Print method for lfo() results
+
+- [`print(`*`<per_actor_slopes>`*`)`](https://netify-dev.github.io/lame/reference/print.per_actor_slopes.md)
+  : Print method for per_actor_slopes
+
+- [`print(`*`<summary.ame_als>`*`)`](https://netify-dev.github.io/lame/reference/print.summary.ame_als.md)
+  : Print a fast AME summary
 
 ## Visualization
 
@@ -148,7 +409,7 @@ Simulate network data from fitted models
 
 ## Data Manipulation
 
-Convert between network data formats
+Convert between network data formats and build covariates
 
 - [`el2sm()`](https://netify-dev.github.io/lame/reference/el2sm.md) :
   Edgelist to sociomatrix
@@ -160,6 +421,12 @@ Convert between network data formats
   : Convert list to array
 - [`list_to_array_bipartite()`](https://netify-dev.github.io/lame/reference/list_to_array_bipartite.md)
   : Convert bipartite list data to array format
+- [`as_lame_y()`](https://netify-dev.github.io/lame/reference/as_lame_y.md)
+  : Convert a graph object to a lame-ready adjacency matrix
+- [`nodematch()`](https://netify-dev.github.io/lame/reference/nodematch.md)
+  [`absdiff()`](https://netify-dev.github.io/lame/reference/nodematch.md)
+  [`nodefactor()`](https://netify-dev.github.io/lame/reference/nodematch.md)
+  : ERGM-style covariate helpers for ame() / lame()
 - [`check_format()`](https://netify-dev.github.io/lame/reference/check_format.md)
   : Validate input data format for lame function
 - [`zscores()`](https://netify-dev.github.io/lame/reference/zscores.md)
@@ -270,6 +537,16 @@ and variance components
   : Compute Xbeta product for bipartite networks
 - [`rbeta_ab_bip_gibbs_cpp()`](https://netify-dev.github.io/lame/reference/rbeta_ab_bip_gibbs_cpp.md)
   : Full bipartite Gibbs update for beta, a, b
+- [`sample_beta_dynamic_cpp()`](https://netify-dev.github.io/lame/reference/sample_beta_dynamic_cpp.md)
+  : Sample the dynamic-block beta path via FFBS
+- [`sample_beta_static_cpp()`](https://netify-dev.github.io/lame/reference/sample_beta_static_cpp.md)
+  : Sample the static-block beta conditional on the dynamic path
+- [`sample_rho_beta_cpp()`](https://netify-dev.github.io/lame/reference/sample_rho_beta_cpp.md)
+  : Sample the AR(1) rho for each dynamic block
+- [`sample_sigma_beta_cpp()`](https://netify-dev.github.io/lame/reference/sample_sigma_beta_cpp.md)
+  : Sample the AR(1) innovation sigma for each dynamic block
+- [`get_EZ_dynamic_beta_cpp()`](https://netify-dev.github.io/lame/reference/get_EZ_dynamic_beta_cpp.md)
+  : Compute EZ when beta is time-varying
 
 ## Internal Helpers
 
@@ -311,9 +588,10 @@ Example network datasets
 - [`YX_bin`](https://netify-dev.github.io/lame/reference/YX_bin.md) :
   binary relational data and covariates
 - [`YX_bin_list`](https://netify-dev.github.io/lame/reference/YX_bin_list.md)
-  : Binary relational data list
+  : Synthetic longitudinal binary relational data, list-form
+  (latent-scale)
 - [`YX_bin_long`](https://netify-dev.github.io/lame/reference/YX_bin_long.md)
-  : binary relational data and covariates
+  : synthetic longitudinal binary relational data (latent-scale)
 - [`YX_ord`](https://netify-dev.github.io/lame/reference/YX_ord.md) :
   ordinal relational data and covariates
 - [`YX_cbin`](https://netify-dev.github.io/lame/reference/YX_cbin.md) :
@@ -340,6 +618,8 @@ Example network datasets
   : AddHealth community 3 data
 - [`addhealthc9`](https://netify-dev.github.io/lame/reference/addhealthc9.md)
   : AddHealth community 9 data
+- [`vignette_data`](https://netify-dev.github.io/lame/reference/vignette_data.md)
+  : TIES sanctions data for vignettes
 - [`Y`](https://netify-dev.github.io/lame/reference/Y.md) : Relational
   matrix
 - [`Xdyad`](https://netify-dev.github.io/lame/reference/Xdyad.md) :

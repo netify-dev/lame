@@ -38,14 +38,27 @@ latent “sanctioning space,” is the same in 1993 as in 2000.
 When you set `dynamic_uv = TRUE`, each actor’s latent position evolves
 over time according to an AR(1) process:
 
-$$U_{i,k,t} = \rho_{uv}\, U_{i,k,t - 1} + \epsilon_{i,k,t}$$$$V_{j,k,t} = \rho_{uv}\, V_{j,k,t - 1} + \eta_{j,k,t}$$
+$$U_{i,k,t} = \rho_{uv}\, U_{i,k,t - 1} + \epsilon_{i,k,t},\quad\epsilon_{i,k,t} \sim N\left( 0,\sigma_{uv}^{2} \right)$$$$V_{j,k,t} = \rho_{uv}\, V_{j,k,t - 1} + \eta_{j,k,t},\quad\eta_{j,k,t} \sim N\left( 0,\sigma_{uv}^{2} \right)$$
 
-The autoregressive parameter $\rho_{uv}$ controls how persistent the
-positions are. A value close to 1 means positions change slowly, as last
-year’s position is a strong predictor of this year’s. A value close to 0
-means positions are essentially re-drawn each period. In practice,
-$\rho_{uv}$ is estimated from the data, so you don’t need to choose it
-yourself.
+Note the **innovation parameterisation** *and* the storage convention.
+The symbol $\sigma_{uv}^{2}$ is the variance of the period-to-period
+innovation $\epsilon_{i,k,t}$, not the marginal/stationary variance of
+$U_{i,k,t}$ — and the on-fit field `fit$sigma_uv` holds the
+per-iteration posterior draws of the innovation **standard deviation**
+$\sigma_{uv}$ (so `mean(fit$sigma_uv)` is the posterior-mean SD and
+`mean(fit$sigma_uv)^2` recovers the innovation variance). Under the
+stationary AR(1), the implied marginal variance is
+$\sigma_{uv}^{2}/\left( 1 - \rho_{uv}^{2} \right)$. This matters
+whenever you write your own simulation code to generate test data,
+because supplying the *marginal* SD to
+[`rnorm()`](https://rdrr.io/r/stats/Normal.html) in the recurrence
+yields a process whose marginal variance is too large by a factor of
+$1/\left( 1 - \rho_{uv}^{2} \right)$. The autoregressive parameter
+$\rho_{uv}$ controls how persistent the positions are. A value close to
+1 means positions change slowly, as last year’s position is a strong
+predictor of this year’s. A value close to 0 means positions are
+essentially re-drawn each period. In practice, $\rho_{uv}$ is estimated
+from the data, so you don’t need to choose it yourself.
 
 This is useful when you believe the underlying community structure is
 evolving: alliances shift, social groups re-form, trading blocs realign.
@@ -55,20 +68,809 @@ evolving: alliances shift, social groups re-form, trading blocs realign.
 When you set `dynamic_ab = TRUE`, the sender and receiver effects evolve
 over time:
 
-$$a_{i,t} = \rho_{ab}\, a_{i,t - 1} + \epsilon_{i,t}$$$$b_{j,t} = \rho_{ab}\, b_{j,t - 1} + \eta_{j,t}$$
+$$a_{i,t} = \rho_{ab}\, a_{i,t - 1} + \epsilon_{i,t},\quad\epsilon_{i,t} \sim N\left( 0,\sigma_{ab}^{2} \right)$$$$b_{j,t} = \rho_{ab}\, b_{j,t - 1} + \eta_{j,t},\quad\eta_{j,t} \sim N\left( 0,\sigma_{ab}^{2} \right)$$
 
-This captures changes in actors’ overall activity levels. A country
-might become a more active sanctioner after a change in government. A
-student might become more or less socially active across semesters.
-These are changes in how much an actor participates, not in who they
-connect with (that’s what `dynamic_uv` captures).
+The same innovation parameterisation applies as for `dynamic_uv`:
+$\sigma_{ab}^{2}$ is the *innovation* variance, and `fit$sigma_ab` holds
+the posterior draws of the innovation standard deviation $\sigma_{ab}$
+(square the posterior mean to get the innovation variance); the implied
+stationary marginal variance is
+$\sigma_{ab}^{2}/\left( 1 - \rho_{ab}^{2} \right)$. The sampler in
+`sample_dynamic_ab_cpp` uses the stationary distribution
+$N\left( 0,\sigma_{ab}^{2}/\left( 1 - \rho_{ab}^{2} \right) \right)$ as
+the **prior on the initial state** $a_{i,1}$ — i.e. the $t = 0$ prior
+precision is
+$1/\left( \sigma_{ab}^{2}/\left( 1 - \rho_{ab}^{2} \right) \right)$
+rather than the one-step innovation precision $1/\sigma_{ab}^{2}$ — and
+then runs a single-pass Gibbs sweep across $t$ in which the interior
+full conditional combines both the AR(1) look-back from $a_{i,t - 1}$
+and the look-ahead from $a_{i,t + 1}$ (a smoothing-style update),
+reducing to the look-back alone at $t = T - 1$. Substantively,
+`dynamic_ab` captures changes in actors’ overall activity levels. A
+country might become a more active sanctioner after a change in
+government. A student might become more or less socially active across
+semesters. These are changes in how much an actor participates, not in
+who they connect with (that’s what `dynamic_uv` captures).
 
 You can use either option alone or combine them. In practice,
 `dynamic_ab` is often a good place to start, since changes in overall
 activity are common and relatively easy to estimate. `dynamic_uv` adds
 more flexibility but also more parameters.
 
-## Prior Specifications
+### Dynamic Regression Coefficients (`dynamic_beta`)
+
+The third dynamic option lets the regression coefficients themselves
+evolve over time. When you set `dynamic_beta = TRUE` (or pass a subset
+like `dynamic_beta = "dyad"` to make only the dyadic coefficients
+dynamic), each selected coefficient follows an independent AR(1):
+
+$$\beta_{k,t} = \rho_{\beta,b{(k)}}\,\beta_{k,t - 1} + \epsilon_{k,t},\quad\epsilon_{k,t} \sim N\left( 0,\sigma_{\beta,b{(k)}}^{2}\Lambda_{kk} \right)$$
+
+where $b(k)$ is the block of coefficient $k$ (intercept / dyad / row /
+col), so all coefficients in the same block share the AR(1) persistence
+$\rho_{\beta,b{(k)}}$ and innovation scale $\sigma_{\beta,b{(k)}}$. The
+diagonal matrix $\Lambda$ is a per-coefficient scale built once from the
+(period-averaged) design `XtX` so that the innovation variance for
+coefficient $k$ is commensurate with the data-level information about
+$\beta_{k}$ (a $g$-prior analogue; see `build_beta_state_scales()` in
+the source); by construction $\Lambda$ is diagonal, so the innovations
+are independent within a block. The package draws the entire time path
+of $\beta$ jointly via forward-filter / backward-sample (FFBS; Carter &
+Kohn 1994, Frühwirth-Schnatter 1994), the efficient state-space sampler
+for conditionally-Gaussian dynamic linear models. The per-block quantity
+is an **innovation SD** $\sigma_{\beta,b}$ (not a variance); the
+conditional variance of the innovation for coefficient $k$ is
+$\sigma_{\beta,b{(k)}}^{2}\Lambda_{kk}$. Note a storage difference from
+`dynamic_uv`/`dynamic_ab`: `fit$sigma_beta` and `fit$rho_beta` hold the
+**last-iteration** scalars, while the full posterior draws live in
+`fit$SIGMA_BETA` and `fit$RHO_BETA` – summarise those
+(e.g. `colMeans(fit$SIGMA_BETA)`), do not square the last-iteration
+`fit$sigma_beta`.
+
+This is useful when you believe a covariate’s effect changes over time:
+maybe trade increases the probability of cooperation more strongly
+during a recession, or a peer’s behavior matters more in certain
+semesters. The dynamic-coefficient path is reported in `coef(fit)` as a
+`p x T` matrix, and the per-period 95% CIs are available via
+`confint(fit)`.
+
+You can pass `dynamic_beta` in five forms:
+
+- `FALSE` (default): every coefficient is static.
+- `TRUE`: every coefficient becomes dynamic.
+- character vector of block shortcuts: `"intercept"`, `"dyad"`, `"row"`,
+  `"col"`, or any coefficient name from `colnames(fit$BETA)`.
+- integer vector: column indices into the BETA layout.
+- logical vector of length `p`: per-coefficient mask.
+
+When the intercept (or a nodal coefficient) is included in
+`dynamic_beta`, the additive-effects sampler imposes a sum-to-zero
+constraint on `a` (and `b`) so that the intercept and the additive
+effects remain jointly identified. This happens automatically; you don’t
+need to do anything.
+
+The AR(1) hyperparameters $\rho_{\beta}$ and $\sigma_{\beta}^{2}$ have
+their own priors:
+
+- $\rho_{\beta} \sim \text{TruncNormal}(0.8,0.15,0,0.999)$
+- $\sigma_{\beta}^{2} \sim \text{InverseGamma}(2,1)$
+
+You can override these via
+`prior = list(rho_beta_mean = ..., rho_beta_sd = ..., sigma_beta_shape = ..., sigma_beta_scale = ...)`.
+
+#### A worked `dynamic_beta` example
+
+Simulate a small longitudinal network where a single dyadic covariate’s
+effect grows linearly over time, and fit with `dynamic_beta = "dyad"`.
+
+``` r
+library(lame)
+set.seed(2026)
+
+n_db <- 15
+T_db <- 5
+beta_t_true <- seq(-0.5, 1.0, length.out = T_db)   # truth: rising effect
+
+X_db <- replicate(T_db, matrix(rnorm(n_db * n_db), n_db, n_db), simplify = FALSE)
+Y_db <- vector("list", T_db)
+for (t in seq_len(T_db)) {
+    Yt <- beta_t_true[t] * X_db[[t]] + matrix(rnorm(n_db * n_db, 0, 0.4), n_db, n_db)
+    diag(Yt) <- NA
+    rownames(Yt) <- colnames(Yt) <- paste0("a", seq_len(n_db))
+    Y_db[[t]] <- Yt
+}
+names(Y_db) <- paste0("t", seq_len(T_db))
+X_db_arr <- lapply(X_db, function(x) array(x, c(n_db, n_db, 1)))
+
+fit_db <- lame(Y_db, Xdyad = X_db_arr,
+               family = "normal", R = 0,
+               nscan = 200, burn = 50, odens = 5,
+               dynamic_beta = "dyad", verbose = FALSE)
+
+# fit$BETA is now a 3-D array [n_stored x p x T]
+dim(fit_db$BETA)
+#> [1] 40  2  5
+
+# coef() returns a p x T matrix of posterior means
+coef(fit_db)
+#>                     t1           t2           t3           t4           t5
+#> intercept -0.008086411 -0.008086411 -0.008086411 -0.008086411 -0.008086411
+#> X1_dyad   -0.475585013 -0.126231556  0.229613231  0.625957779  0.997500051
+
+# confint() returns one row per coef[t] with 95% credible interval
+head(confint(fit_db), 8)
+#>                      2.5%        97.5%
+#> intercept[t1] -0.02780649  0.006971105
+#> X1_dyad[t1]   -0.54245212 -0.431430480
+#> intercept[t2] -0.02780649  0.006971105
+#> X1_dyad[t2]   -0.17701452 -0.058029029
+#> intercept[t3] -0.02780649  0.006971105
+#> X1_dyad[t3]    0.17688772  0.287365069
+#> intercept[t4] -0.02780649  0.006971105
+#> X1_dyad[t4]    0.56717597  0.672599140
+```
+
+**Migration warning for `amen` / static-`lame` users.** Under
+[`amen::ame()`](https://rdrr.io/pkg/amen/man/ame.html) and any static
+`lame` fit, `fit$BETA` is a 2-D `[n_stored, p]` matrix and
+`apply(fit$BETA, 2, mean)` gives the posterior mean per coefficient.
+When `dynamic_beta` is active, `fit$BETA` becomes a 3-D
+`[n_stored, p, T]` array. The second margin is still the coefficient
+index in both shapes, so `apply(fit$BETA, 2, mean)` still returns a
+length-`p` vector and looks superficially correct, but it now silently
+averages across both iterations **and** time periods. The call does not
+error, the output length matches what the old code expected, and the
+silent collapse can survive into downstream plots as a single “average
+effect” that hides any time variation the user was trying to recover.
+Two safe patterns:
+
+``` r
+# detect the shape before applying old code
+if (length(dim(fit_db$BETA)) == 3L) {
+    # 3-D: take posterior mean over the iteration margin -> [p, T]
+    pm <- apply(fit_db$BETA, c(2, 3), mean)
+} else {
+    # 2-D amen-style fit
+    pm <- apply(fit_db$BETA, 2, mean)
+}
+
+# or just use coef(), which returns a [p, T] matrix for dynamic fits
+# and a length-p vector for static fits -- no shape sniffing required
+coef(fit_db)
+```
+
+The per-period posterior mean for `X1_dyad` should track the linear ramp
+`beta_t_true = c(-0.5, -0.125, 0.25, 0.625, 1.0)`. The AR(1) prior
+provides mild shrinkage that reduces the per-period variance compared to
+fitting a separate
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) per
+period.
+
+`summary(fit_db)` prints a *Dynamic coefficients per period* block with
+per-coefficient `Mean | Min | Max | Drift_pct | Dynamic` columns; the
+`Drift_pct` is `100 * (Max - Min) / |Mean|`, useful for spotting which
+coefficients move the most across periods.
+
+#### Choosing a prior family: `dynamic_beta_kind`
+
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) exposes
+a stable argument `dynamic_beta_kind` for selecting the prior family on
+the time-varying coefficients. **In this release the full decision tree
+is:**
+
+> **Mean-reverting** coefficient? Use the default
+> `dynamic_beta_kind = "ar1"`. **Permanent / unit-root drift** (no mean
+> reversion)? Use `dynamic_beta_kind = "rw1"`. **Smooth with curvature**
+> (acceleration matters; second-order smoothness)? Use
+> `dynamic_beta_kind = "rw2"`. **Smooth with a known length-scale** of
+> variation? Use `dynamic_beta_kind = "matern32"` (set the length scale
+> via `prior = list(matern32_length_scale = ...)`; defaults to
+> `max(2, T/4)`). If the stationarity warning fires after fitting AR(1),
+> meaning the posterior on $\rho_{\beta}$ is concentrated at or above
+> 0.97, refit with `"rw1"` (or `"rw2"` if acceleration matters).
+
+`"random_walk"` is accepted as an alias for `"rw1"`. The `"rw2"` and
+`"matern32"` samplers use an R-level joint Gaussian update (slower than
+the C++ FFBS used for `"ar1"` / `"rw1"`, but produces full posterior
+draws and works on any T).
+
+The same `fit_db` setup above can be refit under each kind. Each call
+swaps only the `dynamic_beta_kind` argument;
+[`coef()`](https://rdrr.io/r/stats/coef.html) returns the same `p x T`
+matrix regardless.
+
+``` r
+# RW1: random walk, rho pinned at 1 (for permanent drift)
+fit_rw1 <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
+                nscan = 200, burn = 50, odens = 5,
+                dynamic_beta = "dyad", dynamic_beta_kind = "rw1",
+                verbose = FALSE)
+round(coef(fit_rw1), 3)
+#>               t1     t2     t3     t4     t5
+#> intercept -0.006 -0.006 -0.006 -0.006 -0.006
+#> X1_dyad   -0.478 -0.122  0.223  0.627  0.988
+```
+
+``` r
+# RW2: smooth with curvature (second-order random walk)
+fit_rw2 <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
+                nscan = 200, burn = 50, odens = 5,
+                dynamic_beta = "dyad", dynamic_beta_kind = "rw2",
+                verbose = FALSE)
+round(coef(fit_rw2), 3)
+#>               t1     t2     t3     t4     t5
+#> intercept -0.007 -0.007 -0.007 -0.007 -0.007
+#> X1_dyad   -0.480 -0.130  0.232  0.624  1.001
+```
+
+``` r
+# Matern 3/2: smooth GP with a length-scale knob
+fit_m32 <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
+                nscan = 200, burn = 50, odens = 5,
+                dynamic_beta = "dyad", dynamic_beta_kind = "matern32",
+                prior = list(matern32_length_scale = 2),
+                verbose = FALSE)
+round(coef(fit_m32), 3)
+#>               t1     t2     t3     t4     t5
+#> intercept -0.007 -0.007 -0.007 -0.007 -0.007
+#> X1_dyad   -0.476 -0.132  0.232  0.627  0.993
+```
+
+When `time_index` is supplied with unequal gaps, the AR(1) / RW1
+conditional variance is automatically scaled by the gap (the
+per-coefficient diagonal entry, suppressing $\Lambda_{kk}$ for
+readability):
+$$q_{t} = \sigma_{\beta}^{2} \cdot \frac{1 - \rho_{\beta}^{2\Delta_{t}}}{1 - \rho_{\beta}^{2}}$$
+so quarterly-then-annual data, for example, gets the correct prior. The
+full diagonal entry is
+$\sigma_{\beta}^{2}\Lambda_{kk}\left( 1 - \rho_{\beta}^{2\Delta_{t}} \right)/\left( 1 - \rho_{\beta}^{2} \right)$;
+the $\Lambda$ factor is the same period-invariant per-coefficient scale
+used in the equal-gap case. Equal-gap `time_index` is byte-identical to
+leaving it unspecified. For `dynamic_beta_kind = "rw2"` and
+`"matern32"`, `time_index` is consumed by the joint precision-matrix
+construction (RW2 uses the second-difference operator on the supplied
+positions; Matern 3/2 uses the continuous-time kernel
+$k(s,t) = \left( 1 + \sqrt{3}|s - t|/\ell \right)\exp\left( - \sqrt{3}|s - t|/\ell \right)$),
+so unequal-gap support is uniform across kinds even though the
+closed-form $q_{t}$ above is the AR(1)/RW1 case.
+
+``` r
+# observations at t = 1, 2, 4, 8 (a doubling gap structure)
+fit_gaps <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
+                 nscan = 200, burn = 50, odens = 5,
+                 dynamic_beta = "dyad",
+                 time_index = c(1, 2, 4, 8, 16)[seq_len(T_db)],
+                 verbose = FALSE)
+fit_gaps$time_index
+#> [1]  1  2  4  8 16
+round(coef(fit_gaps), 3)
+#>               t1     t2     t3     t4     t5
+#> intercept -0.009 -0.009 -0.009 -0.009 -0.009
+#> X1_dyad   -0.477 -0.126  0.230  0.627  0.996
+```
+
+#### Hierarchical pooling: `dynamic_beta_pool`
+
+When multiple coefficient blocks are dynamic (intercept / dyad / row /
+col), each block has its own AR(1) hyperparameters
+$\left( \rho_{b},\sigma_{b} \right)$ by default, and short panels (small
+$T$) can leave one block’s hyperparameters badly under-identified.
+`dynamic_beta_pool` adds a hierarchical layer that shrinks block-level
+hyperparameters toward a shared mean: use `"rho"` when you want blocks
+to share a common persistence (you believe e.g. dyadic and nodal
+coefficients all drift at similar speed but the data alone can’t pin
+each $\rho_{b}$ down), `"sigma"` when blocks should share an innovation
+scale (a common case when blocks were standardised consistently), and
+`"both"` when you want full hierarchical pooling. The default `"none"`
+leaves each block independent. Pooling is implemented as a hierarchical
+MH step on the block-level hyperpriors and is most valuable for
+$T \leq 5$ panels where the per-block posteriors otherwise collapse to
+their priors.
+
+``` r
+fit_pool <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
+                 nscan = 200, burn = 50, odens = 5,
+                 dynamic_beta = "dyad", dynamic_beta_pool = "both",
+                 verbose = FALSE)
+fit_pool$dynamic_beta_pool
+#> [1] "both"
+```
+
+> **Diagnostic check.** With pooling on, compare the per-block posterior
+> dispersion of `(rho_beta, sigma_beta)` against an identical fit with
+> `dynamic_beta_pool = "none"`. For the pooling layer to be doing useful
+> work the between-block sd-of-means should shrink under `"both"`
+> relative to `"none"`. On very short panels with only a single dynamic
+> block (`dynamic_beta = "dyad"` alone) the hierarchical layer has no
+> other blocks to borrow strength from, and the pooled fit can actually
+> look noisier in `RHO_BETA` because the hyperprior is then a near-flat
+> mixing distribution over a single posterior draw; pooling earns its
+> keep when **two or more** blocks
+> (e.g. `dynamic_beta = c("intercept", "dyad", "row", "col")`) are
+> dynamic at once.
+
+#### Per-actor time-varying slopes: `dynamic_beta_per_actor`
+
+For research questions that ask *whether one actor responds to a
+covariate differently than another, and whether that gap evolves*, set
+`dynamic_beta_per_actor = "row"` (or `"col"`) and choose the relevant
+covariate via `per_actor_covariate_idx`. The sampler imposes a
+per-period sum-to-zero constraint on the per-actor deviations, so the
+population coefficient remains in `coef(fit)` and the deviations are
+stored in `fit$THETA_ACTOR` (a `n_iter x n_actors x T` array under the
+default `keep_per_actor = "auto"`).
+
+``` r
+fit_pa <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
+               dynamic_beta_per_actor = "row",
+               per_actor_covariate_idx = 1L,
+               keep_per_actor = "summary",
+               nscan = 200, burn = 50, odens = 5, verbose = FALSE)
+str(fit_pa$theta_actor_mean)   # n_actors x T posterior-mean deviations
+
+# The per-period sum-to-zero constraint is enforced exactly:
+colSums(fit_pa$theta_actor_mean)   # ~ 0 0 0 0 0
+```
+
+> **Known dimnames gap.** `theta_actor_mean` is currently returned
+> without
+> [`rownames()`](https://rdrr.io/r/base/colnames.html)/[`colnames()`](https://rdrr.io/r/base/colnames.html)
+> even when the input `Y` has actor names and named periods. If you need
+> labelled output, attach them manually after the fit using whatever
+> object on the fit still carries the labels,
+> e.g. `dimnames(fit_pa$theta_actor_mean) <- list(rownames(fit_pa$YPM[[1]]), names(fit_pa$YPM))`.
+> The sum-to-zero identifiability constraint
+> (`per_actor_identifiability = "center"`, the default) is enforced
+> exactly: `colSums(fit_pa$theta_actor_mean)` is numerically zero at
+> every period.
+
+#### Diagnosing your dynamic fit
+
+After fitting, two helpers are available before you trust the path:
+
+- `summary(fit)`: prints the *Dynamic coefficients per period* block
+  (mentioned above) and the per-block posterior-mean `rho_beta`. The
+  stationarity warning fires when, for any block, the **5th percentile**
+  of the posterior on $\rho_{\beta}$ is $\geq 0.97$**and** the IQR is
+  below 0.1 — that is, at least 95% of the posterior mass sits above
+  0.97 with little spread. The print method then recommends switching to
+  `dynamic_beta_kind = "rw1"`. The companion forecast warning (next
+  section) uses a complementary trigger: the **upper bound** of the
+  central 95% credible interval reaching 0.99.
+- `detect_change_point(fit, threshold_bf = 5)`: heuristic regime-switch
+  diagnostic. Computes the maximum first-difference
+  $\left| \Delta\beta_{t} \right|$ scaled by $\sigma_{\beta}$, compares
+  it to a prior-null reference built by resampling $(\rho,\sigma)$ from
+  the posterior, and reports a heuristic Bayes factor per coefficient.
+  Large values (≥5) flag coefficients with abrupt breaks. Documented as
+  a heuristic, not a formal BF.
+
+Worked example on the simulated linear-ramp data above (no real break is
+present, so we expect modest BFs):
+
+``` r
+detect_change_point(fit_db, threshold_bf = 5)
+#>      coef bf m_post_mean m_prior_q95 t_hat  warn
+#> 1 X1_dyad  0   0.7085288    2.814472     4 FALSE
+```
+
+Each row reports the largest one-period change for one coefficient, the
+BF heuristic, and a flag. The diagnostic is deliberately conservative:
+it fires only when a jump is large *relative to what the AR(1) prior can
+absorb*. A modest planted break such as
+`beta_t_true = c(rep(-0.5, 3), rep(1.0, 2))` does **not** reliably trip
+it: at $T = 5$ the BF is small and noisy run to run (often 0-2,
+occasionally clearing the threshold of 5), because the sampler can widen
+$\sigma_{\beta}$ to absorb a single step. Only a stark break
+(e.g. `c(rep(-2, 3), rep(2, 2))`) pushes the scaled first-difference
+reliably past the prior reference (BF roughly 6-16 across runs, always
+clearing the threshold of 5). On the smooth linear ramp here the BF is
+0, well inside the “bare mention” bin, exactly as it should be on a
+process with no abrupt jump – and a reminder (see the cautions below)
+that this heuristic needs a longer panel before it can be read
+seriously.
+
+Interpret the `bf` column on (a heuristic version of) the Kass-Raftery
+scale: $\text{BF} \lesssim 3$ is “not worth more than a bare mention”
+(no break evidence), $3 \leq \text{BF} < 10$ is “substantial” evidence
+for a single-period jump the AR(1) prior cannot easily generate, and
+$\text{BF} \geq 10$ is “strong” evidence. Note the construction:
+`bf = Pr(M_post > m_star) / 0.05` where `m_star` is the 95% quantile of
+the prior null, so the heuristic is **bounded above by 20**; the
+original Kass-Raftery “decisive” cell ($\geq 100$) is unreachable by
+design, and a value at or near 20 should be read as “the posterior
+almost never visits values the prior would tolerate”, not as a literal
+Bayes factor against a model with a planted change-point. On the
+linear-ramp data above there is no planted break, so all coefficients
+should land in the bare-mention bin. The `t_hat` column points to
+*where* the largest scaled jump sits in posterior; treat it as a flag
+for visual inspection of the coefficient trajectory, not a formal
+break-time estimate. Two cautions: (i) “BF” here is a Monte-Carlo
+tail-mass ratio against the AR(1) prior, not a marginal-likelihood ratio
+between competing models, so do not quote it as decisive evidence in a
+paper; (ii) with five periods the BF is unstable run-to-run, refit with
+a longer panel before reading it seriously.
+
+For prior elicitation *before* fitting, see
+`dynamic_beta_prior_summary(T = 10, kind = "ar1", rho_mean = 0.8, rho_sd = 0.15)`.
+It simulates paths from the prior so you can check the implied max
+first-difference, roughness, range, and trend correlation distributions
+for your chosen `T`.
+
+#### Temporal-trend posterior-predictive check: `gof_temporal()`
+
+The change-point diagnostic targets *coefficients*; the temporal-trend
+posterior-predictive check targets the *network statistic itself*.
+[`gof_temporal()`](https://netify-dev.github.io/lame/reference/gof_temporal.md)
+fits a linear time trend to a chosen network statistic (density / mean /
+reciprocity / transitivity), computes the same slope on every
+`simulate(fit)` replicate, and returns a two-sided Gelman-style
+posterior-predictive p-value, `p_pp = 2 * min(p_up, 1 - p_up)`. This
+runs from 0 (observed slope in the extreme tail) to 1 (observed slope
+dead-centre). The print method’s reading: small `p_pp` (below 0.05)
+means the observed temporal trend is *incompatible* with the fitted
+model; a large `p_pp` (toward 1) means the observed trend is *well
+covered* by the predictive distribution.
+
+``` r
+gof_temporal(fit_db, stat = "mean", n_rep = 200, seed = 1)
+#> 
+#> ── Temporal-trend posterior-predictive check ──
+#> 
+#> • Statistic: "mean"
+#> • Observed slope (per-period): 0.00534
+#> • Replicates: 200
+#> • Posterior-predictive p-value (two-sided): 0.83
+#> Observed temporal trend is well covered by the fitted model.
+```
+
+What is this telling us? `stat = "mean"` tracks the average edge weight
+across the network each period. In this simulation the dyadic covariate
+is zero-mean, so $\beta_{t}X_{t}$ averages to roughly zero *regardless*
+of how $\beta_{t}$ moves: the network mean has essentially no trend (its
+observed per-period slope is near 0). The high `p_pp` therefore confirms
+only that the fit reproduces a flat statistic; it is **not** a verdict
+on the (real, rising) trend in the coefficient. This is the key
+distinction from the change-point diagnostic above:
+[`gof_temporal()`](https://netify-dev.github.io/lame/reference/gof_temporal.md)
+tests trends in a *network statistic*, while
+[`detect_change_point()`](https://netify-dev.github.io/lame/reference/detect_change_point.md)
+and the per-period `coef(fit)` test trends in a *coefficient*. A
+static-`beta` fit also returns a high (well-covered) `p_pp` here, for
+the same reason – there is no trend in the network mean for either model
+to miss.
+
+[`gof_temporal()`](https://netify-dev.github.io/lame/reference/gof_temporal.md)
+earns its keep when the substantive statistic itself drifts – a network
+whose density or reciprocity climbs over time. There a static fit that
+cannot track the drift lands `p_pp` near 0, and the printed
+“incompatible” verdict is the diagnostic telling you to add
+`dynamic_beta` (or `dynamic_ab` / `dynamic_uv`) before trusting any
+time-averaged summary. To probe whether a *coefficient* trends, use the
+per-period `coef(fit)`, the change-point diagnostic, or a
+static-vs-dynamic LOO comparison.
+
+#### Inspecting the priors actually in effect: `prior_summary()`
+
+Modelled on `rstanarm::prior_summary()`, `prior_summary(fit)` prints the
+hyperparameters that were *actually used* (defaults filled in) for the
+AR(1) coefficient block, the variance components, and the g-prior on
+`beta`. Always run it once per fit; it is the cheapest way to catch a
+typo in a `prior = list(...)` override.
+
+``` r
+prior_summary(fit_db)
+#> 
+#> ── Priors in effect (lame fit) ──
+#> 
+#> Regression coefficients: `beta ~ N(0, g * sigma^2 * (X'X)^-1)` (g-prior).
+#> `g` (vector, top-level argument) = "225, 225"
+#> Note: `g` is set at top level on `lame()` -- not inside `prior = list(...)`.
+#> `Sab0` = "matrix(1, 0, 0, 1)"
+#> `eta0` = "4"
+#> `etaab` = "4"
+#> 
+#> ── Dynamic AR(1) priors
+#> `rho_beta_mean` = 0.8
+#> `rho_beta_sd` = 0.15
+#> `sigma_beta_shape` = 2
+#> `sigma_beta_scale` = 1
+#> `sigma_beta_init` = 0.25
+#> `rho_beta_lower` = 0
+#> `rho_beta_upper` = 0.999
+```
+
+#### Multi-chain $\widehat{R}$ via `lame_parallel()` and `rhat_dynamic_beta()`
+
+A single chain only ever buys you within-chain split-$\widehat{R}$. For
+an honest between-chain diagnostic on the per-period coefficient path,
+run four parallel chains with different seeds and call
+[`rhat_dynamic_beta()`](https://netify-dev.github.io/lame/reference/rhat_dynamic_beta.md)
+on the per-chain fit list:
+
+``` r
+fit_list_db <- lame_parallel(
+    Y_db, Xdyad = X_db_arr,
+    family = "normal", R = 0,
+    nscan = 200, burn = 50, odens = 5,
+    dynamic_beta = "dyad",
+    n_chains = 4, cores = 1,           # cores = 1 keeps the vignette portable
+    combine_method = "list",            # one fit per chain
+    verbose = FALSE
+)
+#> 
+#> ── Running 4 chains sequentially ──
+#> 
+#> Starting chain 1 (`lame()`)
+#> Completed chain 1
+#> Starting chain 2 (`lame()`)
+#> Completed chain 2
+#> Starting chain 3 (`lame()`)
+#> Completed chain 3
+#> Starting chain 4 (`lame()`)
+#> Completed chain 4
+
+# multivariate (Brooks-Gelman) Rhat per coefficient on the length-T path,
+# alongside the max univariate split-Rhat over the T per-period scalars.
+rhat_dynamic_beta(fit_list_db)
+#>        coef  rhat_mvt rhat_max_univariate n_chains n_iter_per_chain T
+#> 1 intercept 0.9989955           0.9913762        4               40 5
+#> 2   X1_dyad 1.0475509           1.0206500        4               40 5
+
+# the pooled fit also routes through posterior::as_draws() with per-period
+# coefficients flattened to "coef[t]" variable names, so summarise_draws()
+# gives you ess_bulk / ess_tail per (coef, period).
+fit_pool_db <- combine_ame_chains(fit_list_db)
+#> 
+#> ── MCMC Convergence Diagnostics
+#> Number of chains: 4
+#> Samples per chain: "400, 400, 400, 400"
+#> Diagnostics cover regression coefficients and variance components.
+#> ✔ All parameters converged (R-hat < 1.1)
+posterior::summarise_draws(posterior::as_draws(fit_pool_db))
+#> # A tibble: 15 × 10
+#>    variable        mean   median      sd     mad      q5      q95  rhat ess_bulk
+#>    <chr>          <dbl>    <dbl>   <dbl>   <dbl>   <dbl>    <dbl> <dbl>    <dbl>
+#>  1 intercept[… -0.0117  -0.0108  0.0121  0.0122  -0.0313  0.00906 1.00      168.
+#>  2 X1_dyad[t1] -0.486   -0.484   0.0304  0.0293  -0.535  -0.437   0.995     212.
+#>  3 intercept[… -0.0117  -0.0108  0.0121  0.0122  -0.0313  0.00906 1.00      168.
+#>  4 X1_dyad[t2] -0.121   -0.117   0.0259  0.0280  -0.165  -0.0804  1.02      148.
+#>  5 intercept[… -0.0117  -0.0108  0.0121  0.0122  -0.0313  0.00906 1.00      168.
+#>  6 X1_dyad[t3]  0.226    0.226   0.0275  0.0274   0.183   0.270   1.01      178.
+#>  7 intercept[… -0.0117  -0.0108  0.0121  0.0122  -0.0313  0.00906 1.00      168.
+#>  8 X1_dyad[t4]  0.635    0.638   0.0270  0.0272   0.588   0.676   1.00      174.
+#>  9 intercept[… -0.0117  -0.0108  0.0121  0.0122  -0.0313  0.00906 1.00      168.
+#> 10 X1_dyad[t5]  0.993    0.995   0.0269  0.0263   0.947   1.03    1.01      190.
+#> 11 va           0.0645   0.0620  0.0230  0.0179   0.0341  0.101   0.993     200.
+#> 12 cab          0.00256  0.00176 0.0168  0.0147  -0.0255  0.0321  1.00      104.
+#> 13 vb           0.0657   0.0618  0.0215  0.0173   0.0365  0.104   1.01      157.
+#> 14 rho         -0.0274  -0.0284  0.0427  0.0388  -0.0927  0.0475  0.999     166.
+#> 15 ve           0.151    0.151   0.00630 0.00559  0.141   0.162   0.997     187.
+#> # ℹ 1 more variable: ess_tail <dbl>
+```
+
+Use `rhat_mvt < 1.01` and `rhat_max_univariate < 1.01` as the joint pass
+condition for the path. The univariate column is what you compare
+against the Stan-era 1.01 threshold per scalar; the multivariate column
+catches the case where individual periods look fine but the *trajectory*
+disagrees across chains.
+
+#### Sampler-failure diagnostics (the Gibbs analog of HMC divergences)
+
+The `lame` sampler is Gibbs / Metropolis-Hastings, not HMC, so it does
+not produce HMC-style divergences. The closest analog is the per-block
+Metropolis acceptance / `tryError` count, which is exposed on every fit
+as `fit$mh_counters` (alias `fit$tryErrorChecks`). A post-MCMC warning
+fires automatically when any block exceeds a 10% failure rate; for
+routine reporting:
+
+``` r
+# per-block failure counts and acceptance proxies for the just-fit chain
+str(fit_db$mh_counters)
+```
+
+Treat any block with `>5%` failures as suspicious; combine that with the
+[`rhat_dynamic_beta()`](https://netify-dev.github.io/lame/reference/rhat_dynamic_beta.md)
+and
+[`summarise_draws()`](https://mc-stan.org/posterior/reference/draws_summary.html)
+output above for a full diagnostic pass. Pairing `ess_bulk` / `ess_tail`
+from
+[`summarise_draws()`](https://mc-stan.org/posterior/reference/draws_summary.html)
+with the `mh_counters` totals gives you the Gibbs-side equivalent of the
+Stan diagnostic triple (R-hat, ESS, divergences).
+
+### Forecasting
+
+When at least one dynamic component is active, `predict(fit, h = K)`
+propagates the AR(1) / RW1 state-space model forward $K$ periods and
+returns a list of $K$ matrices (one per future period). The propagation
+samples $\left( \rho_{\beta},\sigma_{\beta} \right)$ from the posterior
+at each draw, so the resulting forecast accounts for hyperparameter
+uncertainty.
+
+``` r
+# h = 3-step forecast on the link scale
+fc_link <- predict(fit_db, h = 3, type = "link")
+#> Warning: ! Posterior 95% interval for `rho_beta` reaches 0.998.
+#> ℹ Under AR(1) the `h`-step forecast variance saturates at the stationary level
+#>   `sigma_beta^2 / (1 - rho_beta^2)`, which itself explodes as `rho_beta -> 1`;
+#>   horizons beyond "3" become uninformative in this regime.
+#> ℹ Consider refitting with `dynamic_beta_kind = "rw1"` if the underlying process
+#>   is genuinely unit-root.
+length(fc_link)              # 3 (one matrix per future period)
+#> [1] 3
+dim(fc_link[[1]])            # n x n
+#> [1] 15 15
+
+# response scale applies the family inverse link per draw
+fc_resp <- predict(fit_db, h = 3, type = "response")
+
+# by_draw = TRUE returns an [n, n, h, n_draws] array of per-draw forecasts
+fc_full <- predict(fit_db, h = 3, type = "response", by_draw = TRUE)
+dim(fc_full)                 # n x n x 3 x n_draws
+#> [1] 15 15  3 40
+
+# interval = "credible" returns lower / median / upper per horizon
+fc_ci <- predict(fit_db, h = 3, type = "response", interval = "credible")
+str(fc_ci[[1]])              # list($lower, $median, $upper)
+#> List of 3
+#>  $ lower : num [1:15, 1:15] -0.1042 -2.3041 -0.3186 -0.7478 -0.0547 ...
+#>  $ median: num [1:15, 1:15] 0.178 -1.089 0.991 -0.355 0.277 ...
+#>  $ upper : num [1:15, 1:15] 0.396 0.403 2.048 0.129 0.536 ...
+```
+
+Forecast variance behavior depends on `dynamic_beta_kind`. For AR(1)
+with $\left| \rho_{\beta} \right| < 1$ the $h$-step conditional variance
+is
+$\sigma_{\beta}^{2}\left( 1 - \rho_{\beta}^{2h} \right)/\left( 1 - \rho_{\beta}^{2} \right)$
+and saturates at the stationary variance
+$\sigma_{\beta}^{2}/\left( 1 - \rho_{\beta}^{2} \right)$ as
+$\left. h\rightarrow\infty \right.$. The saturation level itself
+explodes as $\left. \rho_{\beta}\rightarrow 1 \right.$, so AR(1)
+forecasts beyond a few periods become uninformative in that regime even
+though the variance technically converges. For RW1 (the unit-root case)
+the variance grows exactly linearly in $h$, contributing
+$\sigma_{\beta}^{2} \cdot h$ per step (so the $h$-step conditional
+variance from the RW1 piece alone is $h \cdot \sigma_{\beta}^{2}$, with
+no saturation). [`predict()`](https://rdrr.io/r/stats/predict.html)
+emits a one-per-fit warning when the **upper bound** of the central 95%
+posterior credible interval for $\rho_{\beta}$ reaches 0.99
+(i.e. `quantile(RHO_BETA, 0.975) >= 0.99`); note this 0.99 forecast
+trigger is intentionally higher than the 0.97 stationarity flag used by
+`summary(fit)`. In that regime, prefer `dynamic_beta_kind = "rw1"` if
+the underlying process is genuinely non-stationary, and treat horizons
+beyond $h \approx 3$ cautiously in either case. **Forecasting under
+`"rw2"` / `"matern32"` is supported but currently uses the same AR(1)
+forward recursion** with $\rho_{\beta}$ pinned at 1 (since neither prior
+identifies an AR(1) persistence), so the forecast variance grows
+linearly in $h$ just like RW1; the smoothing or length-scale structure
+of these priors informs the *posterior path of $\beta$ in-sample* but
+does not shape the out-of-sample propagation.
+
+The [`predict()`](https://rdrr.io/r/stats/predict.html) warning copy is
+kind-aware: AR(1) reports the stationary-variance saturation explosion
+as $\left. \rho_{\beta}\rightarrow 1 \right.$, RW1 / RW2 / Matern 3/2
+report the linear variance growth, and the “refit with
+`dynamic_beta_kind = \"rw1\"`” suggestion is only printed under AR(1)
+(so it does not nag a user who is already on the unit-root branch).
+
+You can pass `newdata = list_of_future_X_arrays` to combine
+counterfactual future covariates with the forecast (one
+$n \times n \times p$ array per future period).
+
+For `family = "poisson"` fits that supplied `period_exposure` at fit
+time, the future-period exposure is passed through
+`predict(..., newexposure = ...)`. The forecast multiplies $\exp(\eta)$
+by `newexposure[k]` at horizon $k$, so the response-scale matrix is
+reported in the same units as the original `Y`. If `newexposure` is
+omitted, the forecast reuses the last observed `period_exposure` value
+(and falls back to 1 for fits that did not use exposure offsets).
+
+``` r
+# Poisson fit with period_exposure = c(1, 5, 25, 100):
+# pass the future exposure explicitly when h > 0:
+fc_pois <- predict(fit_pois, h = 2, type = "response",
+                   newexposure = c(200, 400))
+```
+
+### Visualising the coefficient path: `autoplot.lame`
+
+For a fit with `dynamic_beta` active, `autoplot(fit)` returns a `ggplot`
+with a ribbon plot per coefficient (posterior median line, 95% interval
+ribbon, faceted by coefficient). The S3 method is registered against
+[`ggplot2::autoplot`](https://ggplot2.tidyverse.org/reference/autoplot.html)
+so plain `autoplot(fit)` dispatches when `ggplot2` is loaded.
+
+``` r
+library(ggplot2)
+autoplot(fit_db, probs = c(0.025, 0.5, 0.975)) +
+    labs(title = "Posterior coefficient paths",
+         subtitle = "Median line, 95% credible interval ribbon",
+         x = "Time period", y = "Coefficient value")
+```
+
+![Ribbon plot of posterior coefficient paths across time, faceted by
+coefficient, with the median as a line and the 95 percent credible
+interval as a shaded
+band.](dynamic_effects_files/figure-html/autoplot-example-1.png)
+
+### LOO / WAIC via `save_log_lik = TRUE`
+
+Pass `save_log_lik = TRUE` and `lame` attaches a `[n_stored, n_obs]`
+pointwise log-likelihood matrix to `fit$log_lik`. From there,
+`loo::loo(fit)` and `loo::waic(fit)` work directly because the package
+registers S3 methods that hand the stored matrix to
+[`loo::loo.matrix()`](https://mc-stan.org/loo/reference/loo.html):
+
+``` r
+fit_ll <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
+               nscan = 200, burn = 50, odens = 5,
+               dynamic_beta = "dyad",
+               save_log_lik = TRUE,
+               verbose = FALSE)
+
+dim(fit_ll$log_lik)        # [n_stored, n_observations]
+#> [1]   40 1050
+loo_db <- loo::loo(fit_ll)
+#> Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
+print(loo_db)
+#> 
+#> Computed from 40 by 1050 log-likelihood matrix.
+#> 
+#>          Estimate   SE
+#> elpd_loo   -511.8 22.6
+#> p_loo        33.6  1.5
+#> looic      1023.5 45.1
+#> ------
+#> MCSE of elpd_loo is NA.
+#> MCSE and ESS estimates assume independent draws (r_eff=1).
+#> 
+#> Pareto k diagnostic values:
+#>                           Count Pct.    Min. ESS
+#> (-Inf, 0.38]   (good)     671   63.9%   27      
+#>    (0.38, 1]   (bad)      370   35.2%   <NA>    
+#>     (1, Inf)   (very bad)   9    0.9%   <NA>    
+#> See help('pareto-k-diagnostic') for details.
+```
+
+One important caveat for cross-software comparisons. For six families –
+`normal`, `binary`, `cbin`, `tobit`, `poisson`, `ordinal` – the stored
+pointwise log-likelihood is the **exact family-specific Y density** on
+the response scale (Gaussian density for `normal`, probit Bernoulli
+log-pmf for `binary`/`cbin`, censored-Gaussian for `tobit`, log-Poisson
+for `poisson`, and the cumulative-probit log-pmf for `ordinal`). For
+these six, `elpd_loo` is directly comparable to a
+[`loo()`](https://netify-dev.github.io/lame/reference/loo.md) result
+from a Stan / brms fit to the same family on the same data, modulo the
+`lame` Gibbs sampler’s $\widehat{R}$ and ESS being satisfactory. For the
+two rank likelihoods `frn` and `rrl`, the exact marginal needs GHK Monte
+Carlo and is currently only available on the longitudinal path via
+`log_lik_method = "observed_ghk"`; the default `observed_exact` for
+those two families falls back to the augmented-Z normal density and
+emits a one-time warning. Inspect `fit$log_lik_method` on any fit to see
+which branch was used.
+
+#### Memory-conscious variant: `save_log_lik = "chunked"`
+
+If the per-iteration log-likelihood matrix would exceed RAM (large
+`n_stored x n_obs`), pass `save_log_lik = "chunked"` instead to stream
+it to per-column-chunk binary files. The chunks are recovered
+transparently when you call `loo(fit)` (or directly via
+`read_log_lik(fit)`). The on-disk layout is row-major within each chunk
+so one `readBin` per chunk suffices.
+
+``` r
+fit_chk <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
+                nscan = 1000, burn = 200, odens = 5,
+                dynamic_beta = "dyad",
+                save_log_lik = "chunked",
+                log_lik_chunk_size = 5000L,
+                verbose = FALSE)
+
+loo::loo(fit_chk)   # reads the chunks back automatically
+```
+
+### Prior Specifications
 
 The AR(1) coefficients and innovation variances have sensible default
 priors:
@@ -80,403 +882,324 @@ priors:
 - $\sigma_{uv}^{2},\sigma_{ab}^{2} \sim \text{InverseGamma}(2,1)$
 
 These can be customized via the `prior` argument if you have strong
-beliefs about the rate of change:
+beliefs about the rate of change.
 
-``` r
-prior_custom <- list(
-  rho_uv_mean = 0.95,    # expect very slow change in latent positions
-  rho_uv_sd = 0.05,      # tight prior
-  sigma_uv_shape = 3,
-  sigma_uv_scale = 2
-)
-```
+## Genuine Dynamics: What They Look Like
 
-## Practical Example
-
-We simulate a simple longitudinal network and fit models with and
-without dynamic effects to see the difference.
+We start with an example where dynamics are truly present, so you can
+see what the model recovers when there is a real signal. We simulate 25
+actors over 5 periods where each actor’s latent position evolves via an
+AR(1) process with $\rho = 0.85$ and innovation SD $\sigma_{uv} = 0.3$
+(matching the **innovation parameterisation** the C++ sampler uses).
+Initial positions are drawn at SD 1.5, which is larger than the implied
+stationary SD $0.3/\sqrt{1 - 0.85^{2}} \approx 0.57$. This seeds the
+simulation with strong latent structure that the AR(1) then drifts down
+toward stationarity, producing a network with realistic density (roughly
+30%) after a negative intercept.
 
 ``` r
 library(lame)
-
 set.seed(6886)
-n <- 25  # actors
-n_periods <- 5
 
-# Generate sparse binary networks
-Y_list <- list()
-for(t in 1:n_periods) {
-  Y_t <- matrix(rbinom(n*n, 1, 0.1), n, n)
-  diag(Y_t) <- NA
-  rownames(Y_t) <- colnames(Y_t) <- paste0("Actor", 1:n)
-  Y_list[[t]] <- Y_t
+n_dyn <- 25
+n_per <- 5
+R_dyn <- 2
+
+# evolving latent positions with AR(1) dynamics
+U <- matrix(rnorm(n_dyn * R_dyn, 0, 1.5), n_dyn, R_dyn)
+V <- matrix(rnorm(n_dyn * R_dyn, 0, 1.5), n_dyn, R_dyn)
+
+Y_dyn <- list()
+for(t in 1:n_per) {
+    if(t > 1) {
+        U <- 0.85 * U + matrix(rnorm(n_dyn * R_dyn, 0, 0.3), n_dyn, R_dyn)
+        V <- 0.85 * V + matrix(rnorm(n_dyn * R_dyn, 0, 0.3), n_dyn, R_dyn)
+    }
+    eta <- -1 + U %*% t(V)
+    Y_t <- matrix(rbinom(n_dyn * n_dyn, 1, pnorm(eta)), n_dyn, n_dyn)
+    diag(Y_t) <- NA
+    rownames(Y_t) <- colnames(Y_t) <- paste0("A", 1:n_dyn)
+    Y_dyn[[t]] <- Y_t
 }
 
-# Fit model with both dynamic effects
-# Note: iterations are reduced for vignette speed.
-# Use burn >= 1000 and nscan >= 5000 for real analyses.
-fit_dynamic <- lame(
-  Y = Y_list,
-  R = 2,
-  dynamic_uv = TRUE,
-  dynamic_ab = TRUE,
-  family = "binary",
-  burn = 100,
-  nscan = 500,
-  odens = 25,
-  verbose = FALSE,
-  plot = FALSE
+# note: iterations are kept small for vignette speed.
+# use burn >= 1000 and nscan >= 5000 for real analyses.
+fit_dyn_real <- lame(Y_dyn, R = 2,
+    dynamic_uv = TRUE, dynamic_ab = TRUE,
+    family = "binary",
+    burn = 100, nscan = 1000, odens = 10,
+    verbose = FALSE, plot = FALSE)
+
+summary(fit_dyn_real)
+#> 
+#> === Longitudinal AME Model Summary ===
+#> 
+#> Call:
+#> [1] "Y ~ a[i] + b[j] + rho*e[ji] + U[i,1:2] %*% V[j,1:2], family = 'binary'"
+#> 
+#> Time periods: 5 
+#> Family: binary 
+#> Mode: unipartite 
+#> Dynamic latent positions: enabled (rho_uv = 0.943 )
+#> Dynamic additive effects: enabled (rho_ab = 0.542 )
+#> 
+#> Regression coefficients:
+#> ------------------------
+#>           Estimate StdError z_value p_value CI_lower CI_upper    
+#> intercept   -0.746    0.148  -5.031       0   -1.027   -0.452 ***
+#> ---
+#> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
+#> 
+#> Variance components:
+#> -------------------
+#>     Estimate StdError
+#> va     0.120    0.097
+#> cab    0.058    0.087
+#> vb     0.134    0.081
+#> rho    0.201    0.116
+#> ve     1.000    0.000
+#>   (va = sender, cab = sender-receiver covariance, vb = receiver,
+#>    rho = dyadic correlation, ve = residual variance)
+```
+
+The trajectory plot shows how actors move through the latent space over
+time. With genuine temporal structure, the paths should show coherent
+movement rather than random jumping:
+
+``` r
+uv_plot(fit_dyn_real, plot_type = "trajectory")
+```
+
+![Trajectory plot of each actor's path through the 2D latent space
+across five periods under genuine AR(1) dynamics, showing coherent and
+gradual movement.](dynamic_effects_files/figure-html/uv-traj-real-1.png)
+
+With more than eight actors the trajectory legend becomes a rainbow that
+loses meaning. Pass `highlight =` a small character vector of actor
+names to grey out the rest and colour only the highlighted set with the
+colour-blind-safe Okabe–Ito palette:
+
+``` r
+uv_plot(fit_dyn_real, plot_type = "trajectory",
+        highlight = c("A1", "A5", "A10", "A15"))
+```
+
+![Same trajectory plot as above but only four named actors (A1, A5, A10,
+A15) are coloured with the Okabe-Ito palette; remaining actors are drawn
+in light grey so the comparison reads at a
+glance.](dynamic_effects_files/figure-html/uv-traj-highlight-1.png)
+
+Always check convergence. Dynamic models have more parameters than
+static models, so adequate mixing is harder to achieve and requires
+longer chains:
+
+``` r
+trace_plot(fit_dyn_real)
+```
+
+![MCMC trace and density plots for the dynamic-effects fit on truly
+correlated data; well-mixed traces indicate the longer sampler ran long
+enough.](dynamic_effects_files/figure-html/trace-dyn-real-1.png)
+
+## What Happens Without Temporal Structure?
+
+To understand how the dynamic model behaves when there is no signal, we
+fit the same model to independent networks (no temporal correlation).
+This is a useful null baseline: the estimated `rho` values tell you what
+the prior alone produces when the data are uninformative.
+
+``` r
+set.seed(6886)
+n <- 30
+n_periods <- 5
+
+# independent binary networks with no temporal structure
+Y_list <- list()
+for(t in 1:n_periods) {
+    Y_t <- matrix(rbinom(n*n, 1, 0.2), n, n)
+    diag(Y_t) <- NA
+    rownames(Y_t) <- colnames(Y_t) <- paste0("Actor", 1:n)
+    Y_list[[t]] <- Y_t
+}
+
+# fit with a custom prior on rho_uv to illustrate prior sensitivity
+prior_custom <- list(
+    rho_uv_mean = 0.95,    # expect very slow change in latent positions
+    rho_uv_sd = 0.05       # tight prior
 )
-#> Note: Square matrix assumed to be unipartite. Use mode='bipartite' for square bipartite networks.
+
+fit_null <- lame(
+    Y = Y_list,
+    R = 2,
+    dynamic_uv = TRUE,
+    dynamic_ab = TRUE,
+    family = "binary",
+    prior = prior_custom,
+    burn = 100,
+    nscan = 1000,
+    odens = 10,
+    verbose = FALSE,
+    plot = FALSE
+)
+
+summary(fit_null)
+#> 
+#> === Longitudinal AME Model Summary ===
+#> 
+#> Call:
+#> [1] "Y ~ a[i] + b[j] + rho*e[ji] + U[i,1:2] %*% V[j,1:2], family = 'binary'"
+#> 
+#> Time periods: 5 
+#> Family: binary 
+#> Mode: unipartite 
+#> Dynamic latent positions: enabled (rho_uv = 0.741 )
+#> Dynamic additive effects: enabled (rho_ab = 0.536 )
+#> 
+#> Regression coefficients:
+#> ------------------------
+#>           Estimate StdError z_value p_value CI_lower CI_upper    
+#> intercept   -0.879    0.158  -5.556       0   -1.176   -0.651 ***
+#> ---
+#> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
+#> 
+#> Variance components:
+#> -------------------
+#>     Estimate StdError
+#> va     0.078    0.042
+#> cab    0.028    0.040
+#> vb     0.080    0.042
+#> rho    0.211    0.080
+#> ve     1.000    0.000
+#>   (va = sender, cab = sender-receiver covariance, vb = receiver,
+#>    rho = dyadic correlation, ve = residual variance)
 ```
 
-### Visualizing Dynamic Effects
-
-The trajectory plot shows how each actor’s latent position moves through
-the 2-dimensional space over time. Each line traces one actor’s path
-from the first to the last period. Actors whose lines are short stayed
-in roughly the same position; actors with long, wandering lines
-experienced substantial shifts in their network role.
+We can compare the estimated persistence parameters across the two
+settings:
 
 ``` r
-uv_plot(fit_dynamic, plot_type = "trajectory")
+cat("Independent data rho_uv:", round(mean(fit_null$rho_uv), 3), "\n")
+#> Independent data rho_uv: 0.741
+cat("Correlated data rho_uv:", round(mean(fit_dyn_real$rho_uv), 3), "\n")
+#> Correlated data rho_uv: 0.943
 ```
 
-![](dynamic_effects_files/figure-html/unnamed-chunk-3-1.png)
+With only 5 time periods you might expect the prior to dominate, and yet
+the posterior means above can be substantially different from each other
+and from the prior centre of 0.95. The correlated fit lands in the
+upper-AR(1) range (the posterior mean is around 0.94 here; the true 0.85
+actually falls *below* the 95% credible interval, because at this short
+panel length the well-known small-sample upward bias of AR(1) estimators
+is large enough that even the interval misses the truth), while the null
+fit collapses well below the prior centre because the data carry no
+period-to-period correlation for the prior to anchor against. In other
+words: even a deliberately tight prior centred near 1 will not always
+pull a clearly nonsensical posterior back toward 1, and the strength of
+that pull depends on the data. With even a modest panel the AR(1)
+parameter is identifiable enough to do real work, but the posterior mean
+is not a substitute for inspecting the trajectory plots, which remain
+the more honest diagnostic than the point estimate of `rho_uv` alone
+(compare the coherent paths above with the erratic paths below).
 
-The `ab_plot` with `plot_type = "trajectory"` shows how each actor’s
-additive effect changes over time. Rising lines indicate actors who
-became more active (or more popular) over the observation window;
-falling lines indicate the opposite. This is particularly useful for
-identifying actors who experienced a structural break in their network
-behavior.
+### Visualizing the Null Case
+
+The trajectory plot for independent data looks different: paths are more
+erratic, without the smooth coherence of genuinely correlated positions.
 
 ``` r
-ab_plot(fit_dynamic, effect = "sender", plot_type = "trajectory")
+uv_plot(fit_null, plot_type = "trajectory")
+```
+
+![Trajectory plot of latent positions for the null model fit on
+independent networks; paths look erratic and lack the smooth coherence
+of genuine AR(1)
+data.](dynamic_effects_files/figure-html/uv-traj-null-1.png)
+
+The additive effects show similar behavior. Without genuine temporal
+structure, the trajectories reflect noise rather than real shifts in
+actor activity.
+
+``` r
+ab_plot(fit_null, effect = "sender", plot_type = "trajectory")
 #> ℹ Showing top 5 and bottom 5 actors by average effect
 #> → Use `show_actors` to specify actors to display
 ```
 
-![](dynamic_effects_files/figure-html/unnamed-chunk-4-1.png)
+![Trajectory plot of sender additive effects for the null model fit on
+independent networks; per-actor lines fluctuate without persistent
+trend, reflecting noise rather than temporal
+signal.](dynamic_effects_files/figure-html/ab-traj-null-1.png)
 
-As always, check convergence. Dynamic models have more parameters, so
-adequate mixing is harder to achieve and requires longer chains.
+## Comparing Model Specifications
 
-``` r
-trace_plot(fit_dynamic)
-```
-
-![](dynamic_effects_files/figure-html/unnamed-chunk-5-1.png)
-
-### Comparing Model Specifications
-
-A natural workflow is to fit several specifications and compare them:
+A natural workflow is to fit several specifications and compare their
+goodness-of-fit. We use the independent data from above to show that
+dynamic effects add nothing when there is no signal.
 
 ``` r
-# Static model (no dynamic effects)
+# four small fits to compare specifications. nscan is intentionally
+# small here so the vignette stays under CRAN's vignette compute
+# budget; for a real comparison use nscan >= 2000 per fit and run them
+# under `ame_parallel()` with 4 chains.
 fit_static <- lame(Y_list, R = 2, family = "binary",
-                   burn = 100, nscan = 400, odens = 20,
-                   verbose = FALSE, plot = FALSE)
+                                    burn = 50, nscan = 300, odens = 5,
+                                    verbose = FALSE, plot = FALSE)
 
-# Dynamic latent positions only
 fit_uv <- lame(Y_list, R = 2, dynamic_uv = TRUE, family = "binary",
-               burn = 100, nscan = 400, odens = 20,
-               verbose = FALSE, plot = FALSE)
+                            burn = 50, nscan = 300, odens = 5,
+                            verbose = FALSE, plot = FALSE)
 
-# Dynamic additive effects only
 fit_ab <- lame(Y_list, R = 2, dynamic_ab = TRUE, family = "binary",
-               burn = 100, nscan = 400, odens = 20,
-               verbose = FALSE, plot = FALSE)
+                            burn = 50, nscan = 300, odens = 5,
+                            verbose = FALSE, plot = FALSE)
 
-# Full dynamic
 fit_full <- lame(Y_list, R = 2, dynamic_uv = TRUE, dynamic_ab = TRUE,
-                 family = "binary",
-                 burn = 100, nscan = 400, odens = 20,
-                 verbose = FALSE, plot = FALSE)
+                                family = "binary",
+                                burn = 50, nscan = 300, odens = 5,
+                                verbose = FALSE, plot = FALSE)
 ```
 
-Compare the GOF statistics across models. The model that best reproduces
-the observed network statistics (heterogeneity, transitivity, dyadic
-dependence) without unnecessary complexity is usually the best choice.
+Compare the GOF statistics across models. For each specification, we
+compute posterior predictive p-values: how often do the simulated
+network statistics exceed the observed ones? Values near 0.5 indicate
+good fit.
 
 ``` r
-if(!is.null(fit_static$GOF) && !is.null(fit_full$GOF)) {
-  cat("Static model GOF (sample):\n")
-  print(head(fit_static$GOF))
-  cat("\nFull dynamic model GOF (sample):\n")
-  print(head(fit_full$GOF))
+# compute p-values for each model and each GOF statistic
+compute_pvals <- function(fit) {
+    gof <- fit$GOF
+    sapply(names(gof), function(stat) {
+        mat <- gof[[stat]]
+        obs <- mat[, 1]           # first column = observed
+        sims <- mat[, -1]         # remaining = posterior predictive
+        mean(colMeans(sims) >= mean(obs))
+    })
 }
-#> Static model GOF (sample):
-#> $sd.rowmean
-#>             obs          1          2          3          4          5
-#> [1,] 0.04659041 0.05828665 0.06226824 0.06584831 0.05600000 0.10066446
-#> [2,] 0.06641285 0.06458070 0.07752849 0.08349052 0.05406169 0.06379133
-#> [3,] 0.05033223 0.06839103 0.04969239 0.04424176 0.05694442 0.07739078
-#> [4,] 0.06332982 0.06273755 0.05919459 0.05537749 0.05828665 0.05759630
-#> [5,] 0.05941941 0.06248200 0.07346655 0.05479659 0.07404503 0.06780364
-#>               6          7          8          9         10         11
-#> [1,] 0.06645299 0.05479659 0.04664762 0.05759630 0.06316117 0.04827698
-#> [2,] 0.06681317 0.06218253 0.05736433 0.05666274 0.07118052 0.07393691
-#> [3,] 0.07529498 0.07302967 0.06000000 0.04990658 0.05301572 0.05689757
-#> [4,] 0.06218253 0.06881860 0.06096994 0.06437391 0.06519714 0.05773503
-#> [5,] 0.04207929 0.04995998 0.08491564 0.07310267 0.07458329 0.05896892
-#>              12         13         14         15         16         17
-#> [1,] 0.04693258 0.05401234 0.06441532 0.06144917 0.05887841 0.07939773
-#> [2,] 0.06008882 0.07302967 0.05851496 0.06819580 0.05450382 0.07659417
-#> [3,] 0.05552177 0.07181458 0.06519714 0.07012370 0.05276362 0.05291503
-#> [4,] 0.06531973 0.06166577 0.05941941 0.06420800 0.05964338 0.06248200
-#> [5,] 0.05619015 0.06374951 0.05647418 0.07181458 0.06218253 0.04995998
-#>              18         19         20
-#> [1,] 0.05200000 0.07106804 0.05670979
-#> [2,] 0.07631514 0.06000000 0.05878775
-#> [3,] 0.07023769 0.07313914 0.07564831
-#> [4,] 0.06013319 0.05033223 0.07277362
-#> [5,] 0.06531973 0.06166577 0.06416645
-#> 
-#> $sd.colmean
-#>             obs          1          2          3          4          5
-#> [1,] 0.06955094 0.06053098 0.06118823 0.06166577 0.04969239 0.04472136
-#> [2,] 0.05547372 0.05326662 0.06118823 0.06031031 0.06420800 0.08125679
-#> [3,] 0.06429101 0.06540133 0.05833238 0.05851496 0.04805552 0.08320256
-#> [4,] 0.05043808 0.05356616 0.06955094 0.06531973 0.05474791 0.04744119
-#> [5,] 0.04393935 0.05689757 0.06974238 0.05479659 0.06744875 0.07872314
-#>               6          7          8          9         10         11
-#> [1,] 0.06744875 0.06978061 0.04942334 0.07382863 0.04749737 0.05713143
-#> [2,] 0.04393935 0.08000000 0.06800000 0.07218495 0.04898979 0.05887841
-#> [3,] 0.05717808 0.07023769 0.06429101 0.04855238 0.07578918 0.07236942
-#> [4,] 0.07211103 0.06784296 0.06205374 0.06540133 0.05874238 0.05887841
-#> [5,] 0.04513683 0.05623759 0.07125541 0.06740920 0.09289421 0.07218495
-#>              12         13         14         15         16         17
-#> [1,] 0.04400000 0.07106804 0.08803030 0.06035451 0.06110101 0.07236942
-#> [2,] 0.07125541 0.06000000 0.06290734 0.05759630 0.06031031 0.07118052
-#> [3,] 0.06231105 0.07454752 0.08073000 0.07735632 0.04301938 0.05416026
-#> [4,] 0.06928203 0.08125679 0.06580780 0.05764258 0.06290734 0.05689757
-#> [5,] 0.06701244 0.06053098 0.06316117 0.06183850 0.05537749 0.07185170
-#>              18         19         20
-#> [1,] 0.05070174 0.06519714 0.06441532
-#> [2,] 0.06075086 0.05291503 0.06823489
-#> [3,] 0.06429101 0.05306600 0.05153639
-#> [4,] 0.06337192 0.05887841 0.06294972
-#> [5,] 0.06324555 0.04400000 0.06621178
-#> 
-#> $dyad.dep
-#>               obs           1             2            3            4
-#> [1,]  0.019269395 -0.08506944  0.0008429252  0.092692118  0.026012947
-#> [2,] -0.009636809  0.05849862  0.0948083779  0.006229799 -0.090750436
-#> [3,]  0.021291209  0.03717591  0.0926921176  0.027048064  0.113504420
-#> [4,]  0.146174863  0.09269212 -0.0199598293 -0.069321534 -0.003450161
-#> [5,] -0.003450161  0.09772784  0.0802962672  0.042929560  0.033117516
-#>                5          6          7            8             9          10
-#> [1,] -0.01304945 0.10473844 0.04292956  0.056725318  0.0080553393 0.007076834
-#> [2,] -0.02307530 0.04779620 0.06692407 -0.013491600  0.0008429252 0.055631868
-#> [3,]  0.09647834 0.01547443 0.07817109  0.078171091  0.0270480638 0.094808378
-#> [4,]  0.12035096 0.02312600 0.01547443  0.017455413  0.0008429252 0.082919087
-#> [5,]  0.08029627 0.02206228 0.01173752 -0.009636809 -0.0354900593 0.049747613
-#>                11          12           13           14          15          16
-#> [1,]  0.003507653  0.02601295  0.119097956 -0.006185392  0.21513964 -0.01674641
-#> [2,] -0.032448378  0.03717591  0.041297935  0.014417662 -0.10424028  0.02206228
-#> [3,]  0.176186292 -0.04149014  0.030736767 -0.066808409  0.11909796 -0.07020548
-#> [4,]  0.062998405  0.04129794  0.009927131 -0.046150167  0.09734258  0.10812739
-#> [5,]  0.059993316  0.06758773 -0.046150167  0.077057323 -0.01349160  0.13043478
-#>                17            18          19           20
-#> [1,]  0.038812428  7.095916e-02  0.05133626 -0.074313872
-#> [2,]  0.002574003  6.758773e-02  0.02312600  0.077057323
-#> [3,] -0.047390110  4.349253e-16  0.02911936 -0.038056037
-#> [4,]  0.097727843 -6.185392e-03  0.06299841 -0.026272578
-#> [5,]  0.011737517 -5.661882e-02 -0.02313442  0.008055339
-#> 
-#> $cycle.dep
-#>              obs           1            2            3            4           5
-#> [1,] 0.004000134  0.01046658  0.005156871  0.002587708 -0.015568966  0.02201432
-#> [2,] 0.021198238  0.02633613 -0.024101497  0.004373551 -0.012779088  0.01027045
-#> [3,] 0.002352264 -0.01272342  0.015713763  0.007504213 -0.016753600 -0.02124150
-#> [4,] 0.006223826  0.01783294 -0.002866409  0.011567670 -0.001622874 -0.00245492
-#> [5,] 0.006189746 -0.01329777  0.013031194 -0.004518300  0.002895878 -0.00774277
-#>                 6            7            8            9           10
-#> [1,] -0.025074716 -0.019276601  0.004555402 -0.004625065  0.019903320
-#> [2,] -0.018725300  0.010373368 -0.018088381  0.036966200 -0.002280439
-#> [3,] -0.001830455 -0.032485374 -0.002397445 -0.003371258 -0.040664110
-#> [4,] -0.013524059 -0.001047002 -0.004893032  0.018745891 -0.021262842
-#> [5,] -0.002387489  0.036320190 -0.003689672  0.024631731 -0.009271581
-#>                11           12           13           14           15
-#> [1,] -0.021818061  0.005994402  0.030803801  0.016305928 -0.008350610
-#> [2,]  0.001798083 -0.002534585 -0.012346839 -0.025791914  0.018363758
-#> [3,] -0.009377787 -0.019384908  0.006850820 -0.011993749 -0.013582323
-#> [4,]  0.044234006  0.009709650 -0.004518300 -0.004476049  0.004287398
-#> [5,]  0.020329415  0.008250433 -0.008479456 -0.002159589  0.015394802
-#>                 16           17           18           19            20
-#> [1,]  0.0112101416 -0.001809800 -0.014798426 -0.003129834  0.0006472168
-#> [2,] -0.0170499683  0.006953576  0.014012912 -0.010086881 -0.0066983339
-#> [3,]  0.0066820710  0.004884090  0.002046445  0.005210098  0.0159912231
-#> [4,]  0.0007882298 -0.027412330  0.006029932 -0.001392843  0.0155441929
-#> [5,] -0.0140693096  0.007301542 -0.017500401 -0.009125562  0.0010025988
-#> 
-#> $trans.dep
-#>              obs           1           2           3           4           5
-#> [1,] -0.03405087 -0.02058727 -0.02476477 -0.02331335 -0.01769822 -0.01431110
-#> [2,] -0.02658332 -0.01838410 -0.03820428 -0.02049593 -0.02484362 -0.03639988
-#> [3,] -0.02865812 -0.01839430 -0.01331682 -0.01676637 -0.03929119 -0.01128881
-#> [4,] -0.02792264 -0.02672972 -0.01932682 -0.04053679 -0.02695289 -0.02035146
-#> [5,] -0.03012973 -0.03208649 -0.03827971 -0.04214148 -0.01838610 -0.04510440
-#>                6           7           8           9          10           11
-#> [1,] -0.02869628 -0.02601291 -0.02159594 -0.03009464 -0.02689034 -0.005954512
-#> [2,] -0.03431534 -0.01055250 -0.03474936 -0.02679316 -0.03973710 -0.037060497
-#> [3,] -0.03039011 -0.03580184 -0.02914893 -0.02703842 -0.04866681 -0.030209810
-#> [4,] -0.01873599 -0.03962031 -0.02638574 -0.01821062 -0.03689115 -0.016354676
-#> [5,] -0.02236458 -0.02501249 -0.02885986 -0.04103486 -0.02159583 -0.021931274
-#>               12           13          14          15          16          17
-#> [1,] -0.01636271 -0.009281669 -0.03354295 -0.03367404 -0.02042088 -0.04443277
-#> [2,] -0.02381506 -0.031786119 -0.03119688 -0.02209248 -0.03471450 -0.03025701
-#> [3,] -0.02330813 -0.016755940 -0.02701311 -0.03649685 -0.02091644 -0.03352425
-#> [4,] -0.03240546 -0.019263068 -0.00548188 -0.03338885 -0.02408578 -0.02582943
-#> [5,] -0.02209586 -0.012532658 -0.01574673 -0.03620495 -0.03875455 -0.02889336
-#>                18          19          20
-#> [1,] -0.024780872 -0.03403682 -0.01921213
-#> [2,] -0.035776567 -0.03859524 -0.03291249
-#> [3,] -0.028778133 -0.01935496 -0.02636007
-#> [4,] -0.033572895 -0.01736561 -0.02673965
-#> [5,] -0.005863421 -0.01575709 -0.04258012
-#> 
-#> 
-#> Full dynamic model GOF (sample):
-#> $sd.rowmean
-#>             obs          1          2          3          4          5
-#> [1,] 0.04659041 0.05736433 0.05896892 0.04636090 0.05499091 0.05642694
-#> [2,] 0.06641285 0.05406169 0.09318083 0.05887841 0.08554141 0.08460102
-#> [3,] 0.05033223 0.07364781 0.06831301 0.04898979 0.06641285 0.06740920
-#> [4,] 0.06332982 0.07050296 0.06858571 0.07571878 0.08830251 0.08223543
-#> [5,] 0.05941941 0.05773503 0.05805744 0.04000000 0.06661331 0.08000000
-#>               6          7          8          9         10         11
-#> [1,] 0.07016172 0.04963869 0.02026491 0.09729680 0.05225578 0.08304216
-#> [2,] 0.06877984 0.06429101 0.03525148 0.07418895 0.03555278 0.07564831
-#> [3,] 0.07735632 0.07393691 0.04687572 0.09443163 0.04543127 0.05623759
-#> [4,] 0.07436845 0.04898979 0.05163978 0.07125541 0.04270831 0.05547372
-#> [5,] 0.06601010 0.04601449 0.02612789 0.08092795 0.03946306 0.03843609
-#>              12         13         14         15         16         17
-#> [1,] 0.11530828 0.06862458 0.07635007 0.04543127 0.09572182 0.05656854
-#> [2,] 0.09965273 0.05782733 0.07635007 0.06337192 0.08349052 0.06166577
-#> [3,] 0.07110556 0.06075086 0.08009994 0.04163332 0.07292005 0.08320256
-#> [4,] 0.06661331 0.06916647 0.03448671 0.04749737 0.07236942 0.05600000
-#> [5,] 0.08979978 0.05075431 0.05887841 0.04543127 0.05986652 0.08082904
-#>              18         19         20
-#> [1,] 0.05225578 0.06008882 0.05163978
-#> [2,] 0.05600000 0.08326664 0.03525148
-#> [3,] 0.03815757 0.06544209 0.04472136
-#> [4,] 0.04548993 0.07302967 0.04630335
-#> [5,] 0.02508652 0.05764258 0.03158058
-#> 
-#> $sd.colmean
-#>             obs          1          2          3          4          5
-#> [1,] 0.06955094 0.08845338 0.05896892 0.06843001 0.05964338 0.08708616
-#> [2,] 0.05547372 0.06725077 0.08092795 0.04320494 0.06621178 0.05964338
-#> [3,] 0.06429101 0.09429033 0.08246211 0.04163332 0.08252676 0.06839103
-#> [4,] 0.05043808 0.05070174 0.05919459 0.05163978 0.06269503 0.07368401
-#> [5,] 0.04393935 0.06928203 0.05070174 0.04472136 0.05919459 0.06928203
-#>               6          7          8          9         10         11
-#> [1,] 0.08634813 0.06374951 0.03282276 0.08793937 0.04079216 0.07547185
-#> [2,] 0.07346655 0.06218253 0.03709447 0.09748846 0.03158058 0.07203703
-#> [3,] 0.08475848 0.06928203 0.03555278 0.07821338 0.03912374 0.06803920
-#> [4,] 0.06374951 0.06110101 0.04163332 0.08569714 0.04270831 0.05547372
-#> [5,] 0.06075086 0.07200000 0.02856571 0.08726970 0.04715930 0.07922962
-#>              12         13         14         15         16         17
-#> [1,] 0.09360912 0.07943131 0.05968808 0.04393935 0.09846827 0.05291503
-#> [2,] 0.07346655 0.06226824 0.06079474 0.05787343 0.05070174 0.05600000
-#> [3,] 0.08787870 0.08460102 0.05552177 0.03651484 0.07012370 0.06823489
-#> [4,] 0.08428523 0.05986652 0.06725077 0.04150502 0.08662563 0.05600000
-#> [5,] 0.06053098 0.04519587 0.04898979 0.05351635 0.06205374 0.07302967
-#>              18         19         20
-#> [1,] 0.03362539 0.07310267 0.05033223
-#> [2,] 0.05717808 0.06633250 0.04805552
-#> [3,] 0.04460194 0.06544209 0.04898979
-#> [4,] 0.05230679 0.07211103 0.04484046
-#> [5,] 0.03600000 0.05991105 0.04687572
-#> 
-#> $dyad.dep
-#>               obs           1          2           3          4          5
-#> [1,]  0.019269395  0.02704806 0.09753216  0.05198566 0.15785326 0.04548721
-#> [2,] -0.009636809  0.11900926 0.17999831  0.06174334 0.08521711 0.23204433
-#> [3,]  0.021291209  0.12607413 0.10606061  0.06174334 0.16443850 0.16443850
-#> [4,]  0.146174863 -0.02683461 0.13695707 -0.04347826 0.16115425 0.20178799
-#> [5,] -0.003450161  0.18261563 0.11985605 -0.04166667 0.05849862 0.22566372
-#>              6          7           8         9        10        11        12
-#> [1,] 0.2089786 0.25274988  0.12321721 0.3102797 0.2776422 0.2352557 0.3982670
-#> [2,] 0.2678688 0.11504425  0.52887080 0.5001272 0.0368563 0.2149730 0.3360054
-#> [3,] 0.1125448 0.11123853  0.13338880 0.3680763 0.0368563 0.2358734 0.2501781
-#> [4,] 0.2029234 0.19299451  0.45833333 0.3580203 0.1683059 0.3733289 0.3989662
-#> [5,] 0.1451059 0.08640996 -0.01957586 0.3122566 0.2608798 0.1992536 0.3255506
-#>                13         14          15         16         17          18
-#> [1,] 0.2779284710 0.18084310  0.03685630 0.10779835 0.10287081 -0.03993344
-#> [2,] 0.0008429252 0.08775771  0.32753519 0.10397769 0.09269212 -0.02393511
-#> [3,] 0.1260741343 0.14054890  0.12500000 0.03727665 0.05387632 -0.03820598
-#> [4,] 0.2546213476 0.03510538 -0.04515050 0.02332011 0.12590905  0.01190978
-#> [5,] 0.0107119193 0.17391304 -0.04340568 0.01745541 0.19299451 -0.02796053
-#>              19         20
-#> [1,] 0.10984188 0.14529915
-#> [2,] 0.07575758 0.02787748
-#> [3,] 0.06892798 0.03846154
-#> [4,] 0.04129794 0.05678174
-#> [5,] 0.11900926 0.11711827
-#> 
-#> $cycle.dep
-#>              obs            1            2            3            4
-#> [1,] 0.004000134 -0.004863698 -0.010484886 -0.021129984  0.018973901
-#> [2,] 0.021198238 -0.017274191 -0.005873411  0.010925973  0.009328688
-#> [3,] 0.002352264 -0.028981326 -0.003795519  0.002227218 -0.005053393
-#> [4,] 0.006223826 -0.021882546  0.004000134  0.010871739 -0.007014093
-#> [5,] 0.006189746 -0.026868396 -0.024463582 -0.002375735 -0.003839827
-#>                 5            6            7            8            9
-#> [1,] -0.008536230 -0.039303728 -0.008285261 -0.006319956 -0.031421404
-#> [2,] -0.015537100 -0.016013806 -0.009290098 -0.018414400 -0.001847216
-#> [3,] -0.012795810  0.005121326 -0.012259145  0.012855259 -0.005000272
-#> [4,]  0.008669044  0.001299266 -0.018818113 -0.020702835 -0.007237220
-#> [5,] -0.004375336  0.010796637  0.013911535 -0.004497010 -0.015735101
-#>                10           11           12           13            14
-#> [1,] -0.003976914  0.007972305 -0.041457924 -0.016025802 -0.0002344697
-#> [2,] -0.013985926 -0.037935778 -0.005536017  0.008369461 -0.0172758605
-#> [3,]  0.007071495 -0.004166583 -0.029591872 -0.037431037  0.0365569627
-#> [4,]  0.012392833 -0.005757249 -0.049784475  0.018714811  0.0198213194
-#> [5,]  0.012672939 -0.024970320 -0.008342543  0.002984650 -0.0094648083
-#>                15           16           17            18           19
-#> [1,] -0.001975112 -0.018128598 -0.002134195  0.0003731671 -0.002534585
-#> [2,] -0.011133850 -0.033652564 -0.028814645  0.0084323291 -0.006474708
-#> [3,] -0.012557457 -0.005626893  0.002051449  0.0001126648 -0.017307656
-#> [4,]  0.014364305  0.017188891  0.006429071  0.0035152534 -0.009469906
-#> [5,]  0.004030296  0.007977255 -0.030992427 -0.0015654845 -0.020329116
-#>                20
-#> [1,] -0.013969712
-#> [2,]  0.003129132
-#> [3,] -0.009789250
-#> [4,] -0.016958608
-#> [5,]  0.015078705
-#> 
-#> $trans.dep
-#>              obs           1            2            3           4            5
-#> [1,] -0.03405087 -0.01061236 -0.021724260 -0.017865778 -0.03260994 -0.030969234
-#> [2,] -0.02658332 -0.03694693 -0.044817618 -0.034753000 -0.03164718 -0.038850210
-#> [3,] -0.02865812 -0.03296481 -0.008037569 -0.027104818 -0.04159892 -0.021102777
-#> [4,] -0.02792264 -0.03245686 -0.011065922 -0.010488031 -0.02633641 -0.003111548
-#> [5,] -0.03012973 -0.03095706 -0.026873769 -0.007805987 -0.04010184 -0.024793572
-#>                6           7           8           9            10          11
-#> [1,] -0.04255652 -0.02656948 -0.01426403 -0.04868229 -0.0293330781 -0.04475317
-#> [2,] -0.05054492 -0.01242675 -0.02487811 -0.03806017 -0.0059530524 -0.04797191
-#> [3,] -0.03308699 -0.02729886 -0.02795989 -0.03181522 -0.0216466701 -0.02575960
-#> [4,] -0.03805555 -0.01813578 -0.02647248 -0.03324686 -0.0067048086 -0.01712892
-#> [5,] -0.04215480 -0.01692475 -0.01398437 -0.04468652  0.0009406761 -0.04749371
-#>               12          13          14           15          16           17
-#> [1,] -0.07415339 -0.03666564 -0.02796993 -0.026664008 -0.03025114 -0.028845334
-#> [2,] -0.04006404 -0.02959147 -0.02296751 -0.018021200 -0.04610224 -0.029388322
-#> [3,] -0.06497210 -0.02797427 -0.01721970 -0.016969537 -0.03071219 -0.029924585
-#> [4,] -0.08435361 -0.02350339 -0.02408716 -0.005985249 -0.02527722 -0.005199903
-#> [5,] -0.03329674 -0.02908207 -0.03632440 -0.021313036 -0.01503230 -0.024312715
-#>                18          19           20
-#> [1,] -0.025195687 -0.03453933 -0.038286069
-#> [2,] -0.009011132 -0.03081068 -0.030140114
-#> [3,] -0.013557125 -0.01512401 -0.003065672
-#> [4,] -0.011282700 -0.03158633 -0.028775805
-#> [5,] -0.015283647 -0.03594802 -0.016975798
+
+gof_comparison <- rbind(
+    Static     = compute_pvals(fit_static),
+    Dynamic_UV = compute_pvals(fit_uv),
+    Dynamic_AB = compute_pvals(fit_ab),
+    Full       = compute_pvals(fit_full)
+)
+round(gof_comparison, 3)
+#>            sd.rowmean sd.colmean dyad.dep cycle.dep trans.dep
+#> Static          0.900      0.983    0.500     0.617     0.300
+#> Dynamic_UV      0.983      1.000    0.433     0.717     0.450
+#> Dynamic_AB      1.000      0.967    0.950     0.433     0.283
+#> Full            0.867      0.917    0.950     0.250     0.283
 ```
 
-### When to Use Dynamic Effects
+Since the data were generated without temporal structure, the dynamic
+specifications should not systematically out-fit the static model. With
+short chains and a small panel these posterior-predictive p-values are
+noisy and will not line up exactly across specifications – so read the
+comparison as “no specification is clearly better here”, rather than
+expecting identical numbers or values pinned near 0.5.
+
+## When to Use Dynamic Effects
 
 **Use `dynamic_ab`** when you suspect actors’ overall activity levels
 change over time. This is common in many settings: countries go through
@@ -489,60 +1212,158 @@ less active, but that the pattern of *who connects with whom* is
 changing. Examples include political realignment, market disruption, or
 generational turnover in a social network.
 
-**Use both** when you believe both types of change are happening. This
-is the most flexible specification but also the most data-hungry. With
-short panels (few time periods) or sparse networks, the dynamic
-parameters may not be well-identified, and you might be better off with
-the static model.
+**Use `dynamic_beta`** when you suspect a covariate’s *effect* on tie
+formation changes over time, while the actors themselves and the
+community structure are stable. Example: trade’s effect on alliance
+formation may strengthen during economic recessions and weaken
+otherwise; peer influence may matter more in some semesters than others.
+`dynamic_beta` is the right tool when the question is *how strongly X
+translates into Y*, not *who is connecting to whom* (which is
+`dynamic_uv`’s territory) or *who is generally active* (which is
+`dynamic_ab`’s).
+
+**Use multiple together** when you believe several types of change are
+happening simultaneously. This is the most flexible specification but
+also the most data-hungry. With short panels (few time periods) or
+sparse networks, the dynamic parameters may not be well-identified, and
+you might be better off with a simpler specification.
 
 **Stick with static** when you have few time periods, when the network
 structure is genuinely stable, or when you primarily care about the
-covariate effects (which are the same across specifications) rather than
-the latent structure.
+*average* covariate effects rather than how they evolve.
 
 ## Dealing with Rotational Indeterminacy
 
 One subtlety of dynamic latent space models: the latent space is only
-identified up to rotation at each time point. This means that even if
-actor positions are evolving smoothly, the raw estimated $U_{t}$
-matrices might appear to “jump” between time periods due to arbitrary
-rotations.
+identified up to an orthogonal rotation **at each time point** *and*
+**at each posterior draw**. Even if actor positions are evolving
+smoothly under the truth, the raw estimated $U_{t}$ matrices can appear
+to “jump” between periods due to arbitrary rotations, and posterior
+means across draws can shrink toward zero when different draws sit in
+different rotations of the latent space.
 
 The
 [`procrustes_align()`](https://netify-dev.github.io/lame/reference/procrustes_align.md)
-function solves this by applying Procrustes rotation to align each time
-period’s positions to the previous one:
+function applies the standard orthogonal-Procrustes rotation (Gower
+1975) to align each time period’s positions to the previous one:
 
 ``` r
-# Align latent positions across time
-aligned <- procrustes_align(fit_dynamic)
+# align latent positions across time
+aligned <- procrustes_align(fit_null)
 str(aligned$U)  # 3D array: actors x dimensions x time
-#>  num [1:25, 1:2, 1:5] -0.3423 -0.0519 -0.1383 -0.0499 -0.0464 ...
+#>  num [1:30, 1:2, 1:5] -0.2481 -0.0187 0.0272 0.0907 0.0224 ...
 #>  - attr(*, "dimnames")=List of 3
-#>   ..$ : chr [1:25] "Actor1" "Actor2" "Actor3" "Actor4" ...
+#>   ..$ : chr [1:30] "Actor1" "Actor10" "Actor11" "Actor12" ...
 #>   ..$ : NULL
 #>   ..$ : NULL
 ```
+
+**Methodological caveat.** By default,
+[`procrustes_align()`](https://netify-dev.github.io/lame/reference/procrustes_align.md)
+aligns the **posterior-mean** trajectory `fit$U` (an `n x R x T` array
+of posterior means) across time only. The Hoff (2005) / Sewell–Chen
+(2015) standard is to Procrustes-align each posterior draw to a
+reference (the first draw, or the posterior mean) *before* computing
+per-period summaries, because rotation indeterminacy is a per-draw
+property, not a per-mean one. The `per_draw = TRUE` argument is the hook
+for that workflow – it looks for a 4-D per-draw trajectory cube
+`fit$U_full` / `fit$V_full` (`[n, R, T, S]`). **That cube is not
+currently persisted by either
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) or
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md)**, so
+`per_draw = TRUE` emits an informational note and falls back to
+mean-trajectory alignment on every fit today; full per-draw alignment is
+a planned extension. In the meantime, for dynamic latent positions the
+trajectory view (`uv_plot(plot_type = "trajectory")`) is the more honest
+visualisation than per-period credible intervals on the raw `U_t`
+entries.
 
 You can also extract aligned positions as a tidy data frame using
 [`latent_positions()`](https://netify-dev.github.io/lame/reference/latent_positions.md)
 with `align = TRUE` (the default for `lame` objects):
 
 ``` r
-lp <- latent_positions(fit_dynamic, align = TRUE)
+lp <- latent_positions(fit_null, align = TRUE)
+#> ℹ `posterior_sd` is "NA" because U/V samples were not saved.
+#> ℹ To get posterior SDs, refit with `posterior_opts = posterior_options(save_UV
+#>   = TRUE)`.
+#> This message is displayed once per session.
 head(lp)
-#>    actor dimension time       value posterior_sd type
-#> 1 Actor1         1    1 -0.34234484           NA    U
-#> 2 Actor2         1    1 -0.05188764           NA    U
-#> 3 Actor3         1    1 -0.13831092           NA    U
-#> 4 Actor4         1    1 -0.04987621           NA    U
-#> 5 Actor5         1    1 -0.04644628           NA    U
-#> 6 Actor6         1    1  0.19183921           NA    U
+#>     actor dimension time       value posterior_sd type
+#> 1  Actor1         1    1 -0.24807856           NA    U
+#> 2 Actor10         1    1 -0.01872938           NA    U
+#> 3 Actor11         1    1  0.02719916           NA    U
+#> 4 Actor12         1    1  0.09072103           NA    U
+#> 5 Actor13         1    1  0.02235869           NA    U
+#> 6 Actor14         1    1 -0.05799677           NA    U
 ```
 
 This data frame is ready for `ggplot2` if you want to build custom
 trajectory plots (e.g., highlighting specific actors or overlaying
 external events).
+
+## Parallel chains with `ame_parallel()` / `lame_parallel()`
+
+Outside the dynamic-$\beta$ Rhat workflow above, the same parallel
+wrapper is the recommended way to (a) get an honest between-chain Rhat
+on **any** parameter and (b) cut wall-clock time roughly linearly in
+`n_chains` when you have idle cores.
+[`ame_parallel()`](https://netify-dev.github.io/lame/reference/ame_parallel.md)
+auto-dispatches to
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) for
+cross-sectional data and
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) for a
+list / 3-D array;
+[`lame_parallel()`](https://netify-dev.github.io/lame/reference/lame_parallel.md)
+is a thin wrapper that forces the longitudinal fitter. Both accept the
+full [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) /
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) argument
+list via `...`.
+
+``` r
+# 4 chains, one per core, pooled into a single fit.
+# `cores` defaults to `n_chains`; the wrapper clamps `cores` to
+# `parallel::detectCores(logical = TRUE)` and emits a `cli_warn` when you
+# over-request, so a stray `cores = 16` on a 4-core laptop will be capped
+# (not silently honoured). For a *physical*-core cap (avoiding hyperthread
+# oversubscription on BLAS-heavy workloads), pass it yourself:
+n_phys <- max(1L, parallel::detectCores(logical = FALSE) - 1L)
+data(YX_bin_list)
+
+fit_pool <- ame_parallel(
+  Y               = YX_bin_list$Y,
+  Xdyad           = YX_bin_list$X,
+  family          = "binary",
+  R               = 2,
+  rvar = TRUE, cvar = TRUE, dcor = TRUE,
+  burn = 1000, nscan = 4000, odens = 25,
+  n_chains        = 4,
+  cores           = min(4, n_phys),   # set to 1 for sequential
+  combine_method  = "pool",            # one merged fit; use "list" for per-chain
+  verbose         = FALSE
+)
+
+summary(fit_pool)            # pooled posterior, 4x the draws of a single chain
+
+# `compute_mcmc_diagnostics()` reports per-parameter between-chain Rhat and
+# bulk/tail ESS off the pooled fit (when chains are preserved internally):
+compute_mcmc_diagnostics(fit_pool)
+```
+
+A practical note on scale. Each chain runs in its own R worker, so the
+memory cost is roughly `n_chains x` the single-chain footprint; for a
+network with $n \approx 200$ and `nscan = 4000` that is a few hundred MB
+per chain, fine on a laptop; for $n \approx 1000$ plan on dozens of GB
+if you run `n_chains = 8` in parallel and prefer fewer, longer chains.
+**There is no GPU backend.** All numerical work is CPU via
+RcppArmadillo, so the right scaling lever is cores plus the fast point
+estimator
+([`ame_als()`](https://netify-dev.github.io/lame/reference/ame_als.md) /
+[`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md),
+see the [fast estimation
+vignette](https://netify-dev.github.io/lame/articles/fast_estimation.md))
+for $n \gtrsim 500$ exploratory passes; reserve the full MCMC fit for
+the final calibrated run.
 
 ## Implementation Notes
 
@@ -555,9 +1376,27 @@ actors at each time point, which is efficient for large networks.
 1.  **Hoff, PD (2021)**. Additive and Multiplicative Effects Network
     Models. *Statistical Science* 36, 34–50.
 
-2.  **Sewell, D. K., & Chen, Y. (2015)**. Latent space models for
+2.  **Hoff, PD (2005)**. Bilinear mixed-effects models for dyadic data.
+    *Journal of the American Statistical Association* 100(469), 286–295.
+    The original AME formulation underlying `amen` and `lame`.
+
+3.  **Sewell, D. K., & Chen, Y. (2015)**. Latent space models for
     dynamic networks. *Journal of the American Statistical Association*,
     110(512), 1646-1657.
 
-3.  **Durante, D., & Dunson, D. B. (2014)**. Nonparametric Bayes dynamic
+4.  **Durante, D., & Dunson, D. B. (2014)**. Nonparametric Bayes dynamic
     modeling of relational data. *Biometrika*, 101(4), 883-898.
+
+5.  **Carter, C. K., & Kohn, R. (1994)**. On Gibbs sampling for state
+    space models. *Biometrika* 81(3), 541–553. The original
+    forward-filter / backward-sample algorithm used by
+    `dynamic_beta_kind = "ar1"` / `"rw1"`.
+
+6.  **Frühwirth-Schnatter, S. (1994)**. Data augmentation and dynamic
+    linear models. *Journal of Time Series Analysis* 15(2), 183–202.
+    Independent derivation of FFBS for dynamic linear models.
+
+7.  **Gower, J. C. (1975)**. Generalized Procrustes analysis.
+    *Psychometrika* 40(1), 33–51. The orthogonal-Procrustes rotation
+    underlying
+    [`procrustes_align()`](https://netify-dev.github.io/lame/reference/procrustes_align.md).

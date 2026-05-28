@@ -1,0 +1,312 @@
+---
+title: "Fast (MCMC-free) AME Estimation"
+author: "Cassy Dorff, Shahryar Minhas, and Tosin Salau"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    fig_width: 7
+    fig_height: 5
+vignette: >
+  %\VignetteIndexEntry{Fast (MCMC-free) AME Estimation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+	collapse = TRUE,
+	comment = "#>"
+)
+library(lame)
+```
+
+## When to use the fast estimator
+
+`ame()` and `lame()` fit AME models by Bayesian MCMC, which gives calibrated
+posterior inference but can take minutes. For rapid model exploration, trying several ranks, screening covariates, or getting starting values, the
+package also ships a fast, MCMC-free point estimator:
+
+- `ame_als()`: cross-sectional networks
+- `lame_als()`: longitudinal (replicated) networks
+- `ame_als_bootstrap()`: bootstrap standard errors and intervals
+
+It fits the same model
+
+  z_ij = mu + beta'x_ij + a_i + b_j + u_i'v_j + e_ij
+
+by **iterative block coordinate descent** rather than Gibbs sampling. It is
+typically tens to hundreds of times faster than `ame()`, and the point
+estimates are usually close. Use it to explore; use `ame()` / `lame()` for the
+inference you report.
+
+### Wall-clock benchmark
+
+The numbers below are indicative for normal-family AME with `R = 2`;
+absolute timings depend heavily on CPU, BLAS, and whether you are on a
+high-clock workstation or a virtualised / WSL host. On the dev box
+(WSL2, single-threaded BLAS) the same benchmark ran roughly 2-4× slower
+than the workstation reference column, so treat these as order-of-
+magnitude. The point estimator scales O(n² · iter) per BCD pass and is
+dominated by the linear system at each block; the MCMC scales similarly
+per iteration but pays the constant of running thousands of iterations.
+The "ratio" column is what you actually feel: the ALS fit completes
+before MCMC finishes its burn-in for any reasonable n.
+
+| n   | `ame()` MCMC (4000 iter) | `ame_als()` | Speed ratio |
+|-----|--------------------------|-------------|-------------|
+| 50  | 5-25 s                   | 0.1-0.5 s   | 25-250×     |
+| 100 | 15-50 s                  | 0.3-1 s     | 30-200×     |
+| 200 | 60-120 s                 | 2-3 s       | 30-60×      |
+| 500 | 7-15 min                 | 15-30 s     | 25-40×      |
+
+These ranges are wide on purpose: under a single-threaded BLAS on a
+virtualised host, the small-n speed ratios we have measured are several
+times larger than the "≈ 30×" figure quoted in earlier docs, because the
+MCMC's per-iteration overhead is fixed and the ALS solve is nearly free
+at n ≤ 100. Treat the ratio as "ALS finishes before MCMC's burn-in"
+rather than a number to plan against.
+
+For binary/poisson the **point-estimate** speedup ratio is much smaller
+(often only 3-10× on small networks) because the IRLS path runs 3-5
+reweighting iterations per fit, and because the MCMC binary sampler is
+itself cheaper per iteration than the normal sampler. Bipartite and
+unipartite ALS run at broadly similar cost for comparable dimensions;
+which is faster depends on the exact shape and hardware, so do not read
+much into small differences.
+
+**The bootstrap can dominate.** A `bootstrap = 100` parametric bootstrap
+runs the full ALS fit 101 times. For a binary `ame_als(R = 1, bootstrap = 100)`
+at n = 50, we measured ≈ 135 s --- slower than the equivalent MCMC fit.
+If you only need the point estimate, skip the bootstrap (`bootstrap = 0`,
+the default) and use the sandwich `vcov()`/`confint()` on the fit. If
+you need calibrated intervals at scale, `ame()` MCMC is often the
+cheaper option even though it samples for thousands of iterations.
+
+To benchmark on your own hardware:
+
+```{r benchmark_self, eval = FALSE}
+set.seed(1)
+n <- 100
+Y <- matrix(rnorm(n*n), n, n); diag(Y) <- NA
+rownames(Y) <- colnames(Y) <- paste0("a", sprintf("%03d", 1:n))
+
+t_als <- system.time(ame_als(Y, R = 2, family = "normal", verbose = FALSE))
+t_mcmc <- system.time(ame(Y, R = 2, family = "normal", burn = 500,
+                          nscan = 4000, odens = 25, verbose = FALSE, plot = FALSE))
+cat("ALS:  ", round(t_als["elapsed"], 2), "s\n",
+    "MCMC: ", round(t_mcmc["elapsed"], 2), "s\n",
+    "ratio:", round(t_mcmc["elapsed"] / t_als["elapsed"], 1), "x\n")
+```
+
+### What ALS can do vs. what only MCMC does
+
+ALS is a fast point estimator, not a drop-in replacement for the Bayesian
+MCMC fits. The current coverage is:
+
+| Capability                                | `ame()` / `lame()` (MCMC) | `ame_als()` / `lame_als()` |
+|-------------------------------------------|---------------------------|----------------------------|
+| Families: normal, binary                  | yes                        | yes                         |
+| Family: poisson                           | yes                        | yes                         |
+| Families: ordinal / tobit / cbin / frn / rrl | yes                     | no (error)                  |
+| Unipartite / bipartite mode               | yes                        | yes                         |
+| `symmetric = TRUE`                        | yes                        | yes                         |
+| `R = 0..min(n)-1`                         | yes                        | yes                         |
+| Xrow / Xcol / Xdyad covariates            | yes                        | yes                         |
+| Reproducibility via `seed=`               | yes                        | yes (deterministic ALS)     |
+| `coef`, `vcov`, `fitted`, `residuals`     | yes                        | yes                         |
+| `confint`                                 | posterior quantile         | sandwich Wald OR bootstrap  |
+| `predict(newdata=)`                        | yes                        | yes                         |
+| `summary`, `print`, `latent_positions`    | yes                        | yes                         |
+| `nobs`                                    | yes                        | yes                         |
+| `simulate`                                | yes                        | yes                         |
+| `gof_plot`                                | posterior predictive       | bootstrap-based             |
+| `ab_plot`, `uv_plot`                      | yes                        | yes                         |
+| `prior_summary`                           | yes                        | yes (reports "no priors")   |
+| `dynamic_uv` / `dynamic_ab` (AR(1))       | yes                        | **no (static pooled)**      |
+| Custom priors (`prior = list(...)`, `g`)  | yes                        | **no (no priors)**          |
+| Multi-chain (`n_chains`, via `ame_parallel`) | yes                     | no (use `bootstrap = N`)    |
+| `posterior_opts` (save U/V/a/b samples)   | yes                        | no (point estimator)        |
+| `trace_plot` (Rhat / ESS)                 | yes                        | no (deterministic)          |
+| `custom_gof`, `periodic_save`             | yes                        | no                           |
+
+When you call the unified front door with MCMC-only arguments, the ALS
+dispatcher warns and lists exactly which ones it ignored -- for the
+arguments each entry point actually accepts. Two caveats on the edges:
+
+- `nscan` / `burn` / `odens` / `prior` / `g` are accepted-then-ignored
+  with a warning by both `ame(method = "als")` and `lame(method = "als")`.
+- The longitudinal-only arguments (`dynamic_uv`, `dynamic_ab`,
+  `dynamic_beta`, `time_index`, ...) are warned-and-ignored by
+  `lame(method = "als")`, but passing them to `ame()` (cross-sectional)
+  raises the usual "longitudinal-only argument" *error* before ALS runs,
+  because they are not valid `ame()` arguments at all.
+- `n_chains` is an `ame()` / `ame_parallel()` argument; it is not a
+  `lame()` formal, so `lame(method = "als", n_chains = ...)` raises an
+  "unused argument" error rather than a warn-and-ignore. Use
+  `bootstrap = N` for ALS uncertainty regardless of entry point.
+
+## A first fit
+
+```{r}
+set.seed(1)
+n  <- 40
+a  <- rnorm(n, 0, 0.5); b <- rnorm(n, 0, 0.5)
+Xd <- matrix(rnorm(n * n), n, n)
+Y  <- 0.5 + 0.8 * Xd + outer(a, b, "+") + matrix(rnorm(n * n), n, n)
+diag(Y) <- NA
+
+fit <- ame_als(Y, Xdyad = Xd, R = 1, family = "normal", verbose = FALSE)
+fit
+```
+
+`coef()`, `fitted()`, `residuals()`, `predict()` and `plot()` all work as for
+any model object. The printed variance components (`va`, `vb`, `cab`, `rho`,
+`ve`) are descriptive summaries of the fitted effects, not random-effect
+variance components.
+
+## Choosing the rank R
+
+There is no information criterion for `R`. Fit a few values and look for an
+elbow in the deviance / SSE:
+
+```{r}
+devs <- sapply(0:3, function(r)
+	ame_als(Y, Xdyad = Xd, R = r, family = "normal",
+	            verbose = FALSE)$deviance)
+data.frame(R = 0:3, deviance = round(devs, 1))
+```
+
+If the curve declines smoothly with no clear elbow, keep `R` small and confirm
+the chosen rank with an `ame()` fit.
+
+## Non-normal families
+
+For `binary` and `poisson` data the default `non_normal_method = "irls"` runs
+an iteratively reweighted least squares loop, returning coefficients on the
+calibrated link scale (probit for binary, log for poisson). The alternative
+`non_normal_method = "transform"` is faster but its coefficients are on an
+uncalibrated rank scale, good for the sign and ranking of effects but not their
+magnitude.
+
+```{r}
+set.seed(2)
+Yb <- 1 * (Y > median(Y, na.rm = TRUE)); diag(Yb) <- NA
+fb <- ame_als(Yb, Xdyad = Xd, R = 0, family = "binary", verbose = FALSE)
+coef(fb)
+```
+
+## Uncertainty
+
+The point estimator carries no uncertainty. Use the bootstrap:
+
+```{r}
+bt <- ame_als_bootstrap(fb, R = 100, type = "parametric",
+                            seed = 1, verbose = FALSE)
+summary(bt)
+```
+
+`type = "parametric"` (the default) simulates fresh outcomes from the fitted
+model and refits; `type = "block"` resamples time slices and is available for
+longitudinal fits with several time points. `confint()` and `vcov()` work on
+the bootstrap object.
+
+A fast analytic alternative for the **regression coefficients only** is the
+conditional sandwich covariance, `vcov()` / `confint()` applied directly to the
+fit. It is anti-conservative (it holds the additive and multiplicative effects
+fixed); the bootstrap is the recommended tool for full inference.
+
+### ALS bootstrap vs MCMC posterior on the same data
+
+A useful sanity check on the fast estimator is to fit the same data
+with both engines and overlay the coefficient intervals. With a
+calibrated link (`non_normal_method = "irls"` for binary, the default)
+the ALS bootstrap should give a coefficient story qualitatively
+similar to the MCMC posterior on cases the model fits well; large
+discrepancies are a signal to use MCMC for inference.
+
+```{r als-vs-mcmc, fig.width = 7, fig.height = 3.5, fig.alt="Side-by-side coefficient plot comparing the ALS bootstrap and MCMC posterior on the same binary network. Each coefficient (intercept and the single dyadic covariate) has two horizontal intervals: one for the ALS bootstrap, one for the MCMC posterior. A dashed vertical line at zero marks the no-effect reference; intervals on the same side of zero and with overlapping range indicate the two estimators agree."}
+# wrap Xd into a 3-D array with an explicit slice name so the ALS and MCMC
+# paths produce identical coefficient names (the auto-naming default differs
+# between the two engines)
+Xd_arr <- array(Xd, dim = c(nrow(Xd), ncol(Xd), 1),
+                dimnames = list(NULL, NULL, "Xd"))
+
+# refit the binary ALS fit with the bootstrap attached so tidy() returns
+# bootstrap-based intervals
+fb_b <- ame_als(Yb, Xdyad = Xd_arr, R = 0, family = "binary",
+                verbose = FALSE, bootstrap = 100, bootstrap_seed = 1)
+
+# fit the same data with MCMC, short chain (this is a 40-actor binary
+# fit; sub-second wall-clock for a 200-sample posterior summary)
+fit_mcmc <- ame(Yb, Xdyad = Xd_arr, family = "binary", R = 0,
+                burn = 200, nscan = 1000, odens = 5,
+                verbose = FALSE, plot = FALSE, gof = FALSE,
+                seed = 1)
+
+# tidy both; the term names match, and the four columns we select
+# (term, estimate, conf.low, conf.high) are common to both engines
+# (ALS tidy adds an extra se_source column, which we drop here)
+als_tdy  <- broom::tidy(fb_b)
+mcmc_tdy <- broom::tidy(fit_mcmc)
+df <- rbind(
+    cbind(estimator = "ALS bootstrap",
+          als_tdy[, c("term", "estimate", "conf.low", "conf.high")]),
+    cbind(estimator = "MCMC posterior",
+          mcmc_tdy[, c("term", "estimate", "conf.low", "conf.high")])
+)
+
+library(ggplot2)
+ggplot(df, aes(x = estimate, y = term,
+                colour = estimator, shape = estimator)) +
+    geom_vline(xintercept = 0, linetype = "dashed", colour = "grey60") +
+    geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                    position = position_dodge(width = 0.45),
+                    size = 0.5) +
+    scale_colour_manual(values = c("ALS bootstrap"  = "#0072B2",
+                                    "MCMC posterior" = "#D55E00")) +
+    scale_shape_manual(values  = c("ALS bootstrap"  = 16,
+                                    "MCMC posterior" = 17)) +
+    labs(x = "coefficient (probit scale)", y = NULL,
+         colour = NULL, shape = NULL) +
+    theme_bw() +
+    theme(panel.border    = element_blank(),
+          axis.ticks      = element_blank(),
+          legend.position = "bottom")
+```
+
+Two intervals on the same side of zero with substantial overlap
+means ALS is a fine point estimate for that coefficient; intervals
+that disagree on sign or location are a flag to invest the MCMC
+budget for that fit.
+
+## Longitudinal data
+
+`lame_als()` is the longitudinal counterpart. Its effects are static
+(pooled across time), as in a non-dynamic `lame()` fit.
+
+```{r}
+set.seed(3)
+Yl <- replicate(5, {
+	# intercept 0.4 + sender/receiver structure + noise (no dyadic
+	# covariate is passed below, so only the intercept is recoverable)
+	m <- 0.4 + outer(a, b, "+") + matrix(rnorm(n * n), n, n)
+	diag(m) <- NA
+	m
+}, simplify = FALSE)
+lf <- lame_als(Yl, R = 1, family = "normal", verbose = FALSE)
+coef(lf)
+```
+
+## Summary
+
+| Task | Function |
+|------|----------|
+| Fast cross-sectional point estimate | `ame_als()` |
+| Fast longitudinal point estimate | `lame_als()` |
+| Bootstrap standard errors / intervals | `ame_als_bootstrap()` |
+| Calibrated posterior inference | `ame()` / `lame()` |
+
+The fast estimator is for exploration. When you report results, confirm them
+with the MCMC estimator.

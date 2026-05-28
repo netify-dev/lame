@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,8 @@
     <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+    <li><a class="dropdown-item" href="../articles/fast_estimation.html">Fast (MCMC-free) Estimation</a></li>
+    <li><a class="dropdown-item" href="../articles/forecasting.html">Forecasting</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -44,11 +46,27 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.3.0" id="lame-030">lame 0.3.0<a class="anchor" aria-label="anchor" href="#lame-030"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.1.0" id="lame-110">lame 1.1.0<a class="anchor" aria-label="anchor" href="#lame-110"></a></h2>
 <div class="section level3">
-<h3 id="initial-cran-submission-0-3-0">Initial CRAN Submission<a class="anchor" aria-label="anchor" href="#initial-cran-submission-0-3-0"></a></h3>
+<h3 id="new-features-1-1-0">New features<a class="anchor" aria-label="anchor" href="#new-features-1-1-0"></a></h3>
+<ul><li>Fast, MCMC-free estimation via <code><a href="../reference/ame_als.html">ame_als()</a></code> and <code><a href="../reference/lame_als.html">lame_als()</a></code>: an alternating least squares / IRLS point estimator for the normal, binary, and Poisson families. Supports parametric-bootstrap and sandwich standard errors and the full S3 method set (<code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>, <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>, <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code>, <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>, <code><a href="../reference/tidy.html">tidy()</a></code>, <code><a href="../reference/glance.html">glance()</a></code>, and the diagnostic plots).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-1-1-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-1-0"></a></h3>
+<ul><li>
+<code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> applies each covariate’s own coefficient and realigns <code>newdata</code> to the fitted (alphabetical) actor order, so feeding the training covariates back reproduces the in-sample linear predictor.</li>
+<li>
+<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> reports the posterior mean of the dynamic-coefficient AR(1) parameters rather than the last MCMC iteration.</li>
+<li>The bipartite rank and count samplers no longer produce non-finite latent values on wide networks.</li>
+<li>The default g-prior is variance-aware, so large-magnitude normal outcomes recover the regression slope.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.0.0" id="lame-100">lame 1.0.0<a class="anchor" aria-label="anchor" href="#lame-100"></a></h2>
+<div class="section level3">
+<h3 id="initial-cran-submission-1-0-0">Initial CRAN Submission<a class="anchor" aria-label="anchor" href="#initial-cran-submission-1-0-0"></a></h3>
 <div class="section level4">
-<h4 id="features-0-3-0">Features<a class="anchor" aria-label="anchor" href="#features-0-3-0"></a></h4>
+<h4 id="features-1-0-0">Features<a class="anchor" aria-label="anchor" href="#features-1-0-0"></a></h4>
 <ul><li>Cross-sectional network analysis via <code><a href="../reference/ame.html">ame()</a></code> with support for 8 distributional families: normal, binary, ordinal, tobit, Poisson, censored binary, fixed rank nomination, and row-ranked likelihood.</li>
 <li>Longitudinal network analysis via <code><a href="../reference/lame.html">lame()</a></code> with dynamic additive and multiplicative effects modeled as AR(1) processes.</li>
 <li>Support for both unipartite (square) and bipartite (rectangular) network structures.</li>

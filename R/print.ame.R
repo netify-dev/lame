@@ -65,8 +65,7 @@ print.ame <- function(x, ...) {
 		cat("\nNetwork dimensions: ", n, "x", n, "\n")  
 	}
 	
-	nscan <- nrow(x$BETA)
-	cat("MCMC iterations: ", nscan, "\n")
+	cat("Stored posterior samples: ", nrow(x$BETA), "\n")
 	
 	# model configuration
 	if (!is.null(x$model.name)) {

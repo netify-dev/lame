@@ -9,10 +9,10 @@
 #' @keywords internal
 #' @noRd
 ame_unipartite <- function(
-	Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL, 
-	rvar = !(family=="rrl"), cvar = TRUE, dcor = !symmetric, 
+	Y, Xdyad=NULL, Xrow=NULL, Xcol=NULL,
+	rvar = !(family=="rrl"), cvar = TRUE, dcor = !symmetric,
 	nvar=TRUE, R = 0, family="normal",
-	intercept=!is.element(family,c("rrl","ordinal")), 
+	intercept=!is.element(family,c("rrl","ordinal")),
 	symmetric=FALSE,
 	odmax=rep(max(apply(Y>0,1,sum,na.rm=TRUE)),nrow(Y)),
 	prior=list(), g=NA,
@@ -20,17 +20,38 @@ ame_unipartite <- function(
 	verbose = TRUE, gof=TRUE, custom_gof=NULL,
 	start_vals=NULL, periodic_save=FALSE, out_file=NULL,
 	save_interval=0.25, model.name=NULL,
-	posterior_opts = NULL, use_sparse_matrices = FALSE
+	posterior_opts = NULL, use_sparse_matrices = FALSE,
+	ordinal_cutpoints = c("data_induced", "explicit")
 	){
 	
 	#### parameter setup ####
+	# seed locally: restore the global RNG stream on exit so a downstream
+	# random draw is not silently perturbed by having fit a model
+	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+		.old_seed <- get(".Random.seed", envir = globalenv())
+		on.exit(assign(".Random.seed", .old_seed, envir = globalenv()),
+		        add = TRUE)
+	}
 	set.seed(seed)
 	diag(Y) <- NA
 	if(is.element(family,c("binary","cbin"))) { Y<-1*(Y>0) }
 	if(family=="tobit") { Y[Y<0]<-0 }
 
 	if(is.element(family,c("cbin","frn","rrl"))) {
-		odobs<-apply(Y>0,1,sum,na.rm=TRUE) 
+		odobs<-apply(Y>0,1,sum,na.rm=TRUE)
+		# reject NA / <=0 odmax with observed nominations
+		if (!is.null(odmax)) {
+			if (anyNA(odmax)) {
+				cli::cli_abort(c(
+					"{.arg odmax} contains {.val NA}.",
+					"i" = "Supply a positive integer (scalar or per-row vector), or pass {.code odmax = NULL} to infer from {.arg Y}."))
+			}
+			if (any(odmax <= 0L) && any(Y > 0, na.rm = TRUE)) {
+				cli::cli_abort(c(
+					"{.arg odmax} <= 0 but {.arg Y} contains nominations.",
+					"i" = "{.code odmax = 0} prohibits any nominations; inconsistent with the observed data."))
+			}
+		}
 		if(length(odmax)==1) { odmax<-rep(odmax,nrow(Y)) }
 	}
 	
@@ -44,8 +65,17 @@ ame_unipartite <- function(
 	
 	if(symmetric){ Xcol<-Xrow ; rvar<-cvar<-nvar }
 	
-	if(is.na(g)) {
-		if(family=="normal") { 
+	# `g` is the scalar Zellner g-prior scale. A non-scalar g doesn't match
+	# what rbeta_ab_fc() expects (XX/g with a length-p vector miscomputes
+	# the inverse-prior matrix); reject it explicitly rather than silently
+	# producing the wrong posterior.
+	if (length(g) > 1L) {
+		cli::cli_abort(c(
+			"{.arg g} must be a single scalar (length {length(g)} supplied).",
+			"i" = "Per-coefficient g-priors are not currently supported in the unipartite path."))
+	}
+	if (length(g) == 1L && is.na(g)) {
+		if(family=="normal") {
 			g <- sum(!is.na(Y))*var(c(Y),na.rm=TRUE)
 		} else if(family=="tobit") {
 			g <- sum(!is.na(Y))*var(c(Y),na.rm=TRUE)*4
@@ -77,7 +107,21 @@ ame_unipartite <- function(
 	pc<-length(Xcol)/n
 	pd<-length(Xdyad)/n^2
 
-	X <- design_array(Xrow, Xcol, Xdyad, intercept, n)
+	# propagate covariate missingness into Y: a dyad with a missing covariate
+	# is treated as an unobserved tie (data-augmented), instead of silently
+	# imputing the covariate as 0 and biasing its coefficient. Matches lame().
+	if ((pr + pc + pd) > 0) {
+		n_na_before <- sum(is.na(Y))
+		Y <- .ame_propagate_cov_na(Y, Xrow, Xcol, Xdyad)
+		n_cov_na <- sum(is.na(Y)) - n_na_before
+		if (n_cov_na > 0 && getOption("lame.warn.na", TRUE)) {
+			cli::cli_inform(c(
+				"i" = "{n_cov_na} {.arg Y} cell{?s} had a missing covariate and {?is/are} treated as unobserved (data-augmented).",
+				"i" = "The covariate coefficients are estimated from the complete dyads only."))
+		}
+	}
+
+	X <- design_array(Xrow, Xcol, Xdyad, intercept, n, warn = FALSE)
 	
 	Xnames <- dimnames(X)[[3]]
 	if(is.null(Xnames) || length(Xnames) == 0) {
@@ -163,10 +207,13 @@ ame_unipartite <- function(
 	ZA<-mu + outer(a,b,"+") 
 	Z[is.na(Z)]<-ZA[is.na(Z)] 
 	
+	# accumulator for in-loop sampler failures (parity with lame()). Exposed on
+	# the fit object as fit$tryErrorChecks so the user can audit silent fallbacks.
+	tryErrorChecks <- list(beta = 0L, Sab = 0L, s2 = 0L, rho = 0L, UV = 0L)
 	if(!is.null(start_vals)) {
 		if(!is.null(start_vals$beta)) beta <- start_vals$beta else beta <- rep(0,dim(X)[3])
 		if(!is.null(start_vals$s2)) s2 <- start_vals$s2 else s2 <- 1
-		if(!is.null(start_vals$a)) a <- start_vals$a 
+		if(!is.null(start_vals$a)) a <- start_vals$a
 		if(!is.null(start_vals$b)) b <- start_vals$b
 		if(!is.null(start_vals$rho)) rho <- start_vals$rho else rho <- 0
 		if(!is.null(start_vals$Sab)) Sab <- start_vals$Sab
@@ -317,6 +364,9 @@ ame_unipartite <- function(
 		n_base_stats <- 5
 		custom_gof_names <- NULL
 		n_custom_stats <- 0
+		# tracker for silent custom_gof failures: count + first message,
+		# surfaced as one warning at the end of MCMC (not per iteration).
+		.cg_tracker <- .new_custom_gof_err_tracker()
 		if(!is.null(custom_gof)) {
 			if(is.function(custom_gof)) {
 				tryCatch({
@@ -327,8 +377,11 @@ ame_unipartite <- function(
 						custom_gof_names <- paste0("custom", seq_len(n_custom_stats))
 					}
 				}, error = function(e) {
-					warning("Custom GOF function failed on initial test. It will be skipped.")
-					custom_gof <- NULL
+					cli::cli_warn(c(
+						"!" = "{.arg custom_gof} failed on the initial test call; the function will be skipped for this fit.",
+						"i" = "Error: {conditionMessage(e)}",
+						"i" = "Check that {.arg custom_gof} accepts a single matrix {.arg Y} and returns a numeric scalar / vector."))
+					custom_gof <<- NULL
 				})
 			} else if(is.list(custom_gof)) {
 				n_custom_stats <- length(custom_gof)
@@ -341,22 +394,22 @@ ame_unipartite <- function(
 
 		n_total_stats <- n_base_stats + n_custom_stats
 		GOF <- matrix(NA_real_, nrow = n_samples + 1, ncol = n_total_stats)
-		
+
 		base_gof <- gof_stats(Y, mode = "unipartite")
 		GOF[1, 1:n_base_stats] <- base_gof
-		
+
 		if(!is.null(custom_gof)) {
 			if(is.function(custom_gof)) {
 				tryCatch({
 					custom_vals <- custom_gof(Y)
 					GOF[1, (n_base_stats + 1):(n_base_stats + length(custom_vals))] <- custom_vals
-				}, error = function(e) {})
+				}, error = function(e) .record_custom_gof_err(.cg_tracker, e))
 			} else if(is.list(custom_gof)) {
 				for(i in seq_along(custom_gof)) {
 					if(is.function(custom_gof[[i]])) {
 						tryCatch({
 							GOF[1, n_base_stats + i] <- custom_gof[[i]](Y)
-						}, error = function(e) {})
+						}, error = function(e) .record_custom_gof_err(.cg_tracker, e))
 					}
 				}
 			}
@@ -383,14 +436,19 @@ ame_unipartite <- function(
 	}
 	
 	if(symmetric) {
-		colnames(VC) <- c("va", "ve")  
+		colnames(VC) <- c("va", "ve")
 		rb<-intercept+seq(1,pr,length=pr) ; cb<-intercept+pr+seq(1,pr,length=pr)
 		bnames<-dimnames(X)[[3]]
-		bni<-bnames[1*intercept] 
-		bnn<-gsub("row",bnames[rb],replacement="node")       
-		bnd<-bnames[-c(1*intercept,rb,cb)]
-		colnames(BETA)<-c(bni,bnn,bnd) 
-	}    
+		# guard against `-c(0, integer(0))` short-circuit: when intercept = FALSE
+		# and pr = 0, the negative index becomes `-0` and silently empties the
+		# vector. Build the exclude index explicitly and skip the [-excl] step
+		# when there is nothing to drop.
+		excl_idx <- c(if (intercept) 1L else integer(0), rb, cb)
+		bni <- if (intercept) bnames[1L] else character(0)
+		bnn <- if (length(rb) > 0L) gsub("row", bnames[rb], replacement = "node") else character(0)
+		bnd <- if (length(excl_idx) > 0L) bnames[-excl_idx] else bnames
+		colnames(BETA) <- c(bni, bnn, bnd)
+	}
 	
 	Xr<-apply(X,c(1,3),sum)
 	Xc<-apply(X,c(2,3),sum)
@@ -434,11 +492,50 @@ ame_unipartite <- function(
 		}
 	}
 	
+	# explicit-cutpoint state init (ordinal_cutpoints = "explicit"). When
+	# active we override the ordinal Z sampler to the explicit-alpha path
+	# (rZ_ord_(sym_)explicit_fc) and run a Cowles (1996) MH on alpha after
+	# each Z sweep.
+	ordinal_cutpoints <- match.arg(ordinal_cutpoints)
+	use_explicit_cutpoints <- (family == "ordinal" &&
+	                            identical(ordinal_cutpoints, "explicit"))
+	if (use_explicit_cutpoints) {
+		ord_lvls <- sort(unique(c(Y[is.finite(Y)])))
+		K_ord <- length(ord_lvls)
+		if (K_ord < 2L) {
+			cli::cli_abort(c(
+				"{.arg ordinal_cutpoints} = {.val explicit} requires at least 2 distinct observed categories.",
+				"i" = "Found {K_ord}; check {.arg Y} or use a different family."))
+		}
+		Y_int <- matrix(match(Y, ord_lvls), nrow(Y), ncol(Y),
+		                dimnames = dimnames(Y))
+		alpha <- .init_alpha_from_data(Y)
+		tau_prop <- 0.5
+		tau_target <- 0.30
+		alpha_accept_n <- 0L
+		alpha_accept_total <- 0L
+		ALPHA <- if (K_ord >= 3L) {
+			matrix(NA_real_, nrow = nscan/odens, ncol = K_ord - 2L,
+			       dimnames = list(NULL, paste0("alpha_", seq.int(2L, K_ord - 1L))))
+		} else NULL
+	} else {
+		alpha <- numeric(0)
+		Y_int <- NULL
+		tau_prop <- NA_real_
+		K_ord <- 0L
+		ALPHA <- NULL
+	}
+
+	# symmetric ordinal uses a dedicated sampler that draws Z on the upper
+	# triangle from a TN with the doubled precision (variance 1/2, mean =
+	# (EZ_ij + EZ_ji)/2) and mirrors to the lower triangle. See R/rZ_ord_sym_fc.R.
+	# When ordinal_cutpoints == "explicit", the ordinal slot is left as the
+	# default sampler; the MCMC loop overrides it inline via Y_int + alpha.
 	update_Z_fn <- switch(family,
 		normal = rZ_nrm_fc,
 		tobit = rZ_tob_fc,
 		binary = rZ_bin_fc,
-		ordinal = rZ_ord_fc,
+		ordinal = if (symmetric) function(Z, EZ, rho, Y) rZ_ord_sym_fc(Z, EZ, Y) else rZ_ord_fc,
 		cbin = function(Z, EZ, rho, Y) rZ_cbin_fc(Z, EZ, rho, Y, odmax, odobs),
 		frn = function(Z, EZ, rho, Y) rZ_frn_fc(Z, EZ, rho, Y, YL, odmax, odobs),
 		rrl = function(Z, EZ, rho, Y) rZ_rrl_fc(Z, EZ, rho, Y, YL),
@@ -477,7 +574,7 @@ ame_unipartite <- function(
 				if(is.function(custom_gof)) {
 					tryCatch({
 						n_gof_stats <- n_gof_stats + length(custom_gof(Y))
-					}, error = function(e) {})
+					}, error = function(e) .record_custom_gof_err(.cg_tracker, e))
 				} else if(is.list(custom_gof)) {
 					n_gof_stats <- n_gof_stats + length(custom_gof)
 				}
@@ -496,20 +593,66 @@ ame_unipartite <- function(
 		
 		EZ <- EZ_cache
 		rho_eff <- rho
-		Z <- if(family %in% c("normal", "tobit", "poisson")) {
+		Z <- if (use_explicit_cutpoints) {
+			# explicit-cutpoint ordinal: rZ_ord_(sym_)explicit_fc takes
+			# (Z, EZ, Y_int, alpha) and ignores rho (handled via the
+			# precision-2 / variance-1/2 convention internally).
+			if (symmetric) {
+				rZ_ord_sym_explicit_fc(Z, EZ, Y_int, alpha)
+			} else {
+				rZ_ord_explicit_fc(Z, EZ, Y_int, alpha)
+			}
+		} else if(family %in% c("normal", "tobit", "poisson")) {
 			update_Z_fn(Z, EZ, rho_eff, s2, Y)
 		} else {
 			update_Z_fn(Z, EZ, rho_eff, Y)
 		}
-		
-		if (needs_s2) {
-			s2<-rs2_fc(Z,rho_eff,offset=EZ)  
+
+		# Cowles (1996) MH update on alpha, Z-marginalised. Runs after the
+		# Z sweep so EZ is current; Robbins-Monro on tau_prop only during
+		# burn-in to preserve the stationary distribution.
+		if (use_explicit_cutpoints) {
+			alpha_step <- sample_alpha_cowles(
+				alpha = alpha, Y_int = Y_int, EZ = EZ,
+				tau_prop = tau_prop, symmetric = symmetric)
+			alpha <- alpha_step$alpha
+			alpha_accept_total <- alpha_accept_total + isTRUE(alpha_step$accept)
+			alpha_accept_n <- alpha_accept_n + 1L
+			if (s <= burn && alpha_accept_n >= 25L) {
+				acc_rate <- alpha_accept_total / alpha_accept_n
+				log_tau <- log(tau_prop) + (acc_rate - tau_target) / sqrt(s)
+				tau_prop <- min(max(exp(log_tau), 0.01), 2.0)
+				alpha_accept_n <- 0L
+				alpha_accept_total <- 0L
+			}
 		}
 		
+		if (needs_s2) {
+			if (symmetric) {
+				# symmetric path: e_ij == e_ji by construction, so the
+				# rs2_fc whitening (which decorrelates a length-2 dyad pair)
+				# double-counts the degrees of freedom and gives s2 -> ve/2.
+				# Sample directly from the upper-triangle residual variance.
+				resid <- Z - EZ
+				ut <- upper.tri(resid)
+				e <- resid[ut]; e <- e[is.finite(e)]
+				n_e <- length(e)
+				if (n_e > 1) {
+					ssr <- sum(e^2)
+					# inverse-gamma conjugate update with the default
+					# diffuse prior (shape=2, rate=1) used elsewhere
+					s2 <- 1 / rgamma(1, shape = 2 + n_e / 2,
+					                 rate  = 1 + ssr / 2)
+				}
+			} else {
+				s2 <- rs2_fc(Z, rho_eff, offset = EZ)
+			}
+		}
+
 		if(dcor) {
 			rho<-rrho_mh(Z, rho, s2, offset=EZ)
 		}
-		
+
 		if(symmetric){ rho<-min(.9999,1-1/sqrt(s)) }
 		
 		tmp <- rbeta_ab_fc(Z, Sab, rho, X_precomp, s2, offset=UV_cache, g=g)
@@ -616,12 +759,16 @@ ame_unipartite <- function(
 			sample_idx <- sample_idx + 1
 			
 			if(symmetric) {
-				br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2 
-				sbeta<-c(beta[1*intercept],bn,beta[-c(1*intercept,rb,cb)] )
+				br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2
+				# same `-c(0, integer(0))` guard as in the colnames(BETA) build
+				excl_idx <- c(if (intercept) 1L else integer(0), rb, cb)
+				bint <- if (intercept) beta[1L] else numeric(0)
+				bdyad <- if (length(excl_idx) > 0L) beta[-excl_idx] else beta
+				sbeta <- c(bint, bn, bdyad)
 				BETA[sample_idx,] <- sbeta
-				
+
 				VC[sample_idx,] <- c(Sab[1,1],s2)
-				
+
 				beta_running_mean <- beta_running_mean + (sbeta - beta_running_mean) / sample_idx
 				vc_running_mean <- vc_running_mean + (c(Sab[1,1],s2) - vc_running_mean) / sample_idx
 			}
@@ -629,9 +776,16 @@ ame_unipartite <- function(
 			if(!symmetric) {
 				BETA[sample_idx,] <- beta
 				VC[sample_idx,] <- c(Sab[upper.tri(Sab, diag = T)], rho, s2)
-				
+
 				beta_running_mean <- beta_running_mean + (beta - beta_running_mean) / sample_idx
 				vc_running_mean <- vc_running_mean + (c(Sab[upper.tri(Sab, diag = T)], rho, s2) - vc_running_mean) / sample_idx
+			}
+
+			# explicit-cutpoint ALPHA storage (alpha_2..alpha_{K-1}; alpha_1 = 0
+			# is the identification anchor, not stored). K = 2 has zero free
+			# cutpoints, in which case ALPHA is NULL and we skip the store.
+			if (use_explicit_cutpoints && !is.null(ALPHA)) {
+				ALPHA[sample_idx, ] <- alpha[-1L]
 			}
 			
 			if(!is.null(posterior_opts)) {
@@ -703,13 +857,13 @@ ame_unipartite <- function(
 						tryCatch({
 							custom_vals <- custom_gof(Ys)
 							GOF[gof_idx, (6):(5 + length(custom_vals))] <- custom_vals
-						}, error = function(e) {})
+						}, error = function(e) .record_custom_gof_err(.cg_tracker, e))
 					} else if(is.list(custom_gof)) {
 						for(i in seq_along(custom_gof)) {
 							if(is.function(custom_gof[[i]])) {
 								tryCatch({
 									GOF[gof_idx, 5 + i] <- custom_gof[[i]](Ys)
-								}, error = function(e) {})
+								}, error = function(e) .record_custom_gof_err(.cg_tracker, e))
 							}
 						}
 					}
@@ -747,6 +901,9 @@ ame_unipartite <- function(
 	if(exists("sample_idx") && sample_idx > 0) {
 		BETA <- BETA[1:sample_idx, , drop=FALSE]
 		VC <- VC[1:sample_idx, , drop=FALSE]
+		if (use_explicit_cutpoints && !is.null(ALPHA)) {
+			ALPHA <- ALPHA[1:sample_idx, , drop=FALSE]
+		}
 		if(gof && exists("gof_idx")) {
 			GOF <- GOF[1:gof_idx, , drop=FALSE]
 		}
@@ -779,10 +936,16 @@ ame_unipartite <- function(
 			V <- NULL
 		}
 		start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
+		# stash the resolved scalar g and the prior list (with sampler-side
+		# defaults filled in) so prior_summary() can show what was actually used
+		.resolved_prior <- prior
 		fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,L=NULL,
 								YPM=YPM,GOF=GOF,X=X,Y=Y,start_vals=start_vals_final,model.name=model.name,
 								mode="unipartite",family=family,symmetric=symmetric,odmax=odmax,R=R,
 								n=n,p=dim(X)[3],rvar=rvar,cvar=cvar,dcor=dcor,
+								g=g, prior=.resolved_prior,
+								tryErrorChecks=tryErrorChecks,
+								mh_counters=tryErrorChecks,
 								X_names=colnames(BETA),actor_names=rownames(Y))
 		
 		if(!is.null(posterior_opts)) {
@@ -830,6 +993,9 @@ ame_unipartite <- function(
 							YPM=YPM,GOF=GOF,X=X,Y=Y,start_vals=start_vals_final,model.name=model.name,
 							mode="unipartite",family=family,symmetric=symmetric,odmax=odmax,R=R,
 							call=match.call(),n=n,p=dim(X)[3],rvar=rvar,cvar=cvar,dcor=dcor,
+							g=g, prior=prior,                     # parity with the asymmetric path
+							tryErrorChecks=tryErrorChecks,
+							mh_counters=tryErrorChecks,
 							X_names=colnames(BETA),actor_names=rownames(Y))
 
 		if(!is.null(posterior_opts)) {
@@ -861,12 +1027,32 @@ ame_unipartite <- function(
 
 	if (!is.null(fit$RHO)) fit$RHO <- as.numeric(fit$RHO)
 	if (!is.null(fit$s2))  fit$s2  <- as.numeric(fit$s2)
-	
+
+	# attach explicit-cutpoint posterior + bookkeeping. ordinal_cutpoints
+	# is stored unconditionally for downstream methods (summary/predict)
+	# so they can branch off it. alpha_post_mean prepends the anchor 0.
+	fit$ordinal_cutpoints <- ordinal_cutpoints
+	if (use_explicit_cutpoints) {
+		fit$ordinal_levels <- ord_lvls
+		if (!is.null(ALPHA)) {
+			fit$ALPHA <- ALPHA
+			fit$alpha_post_mean <- c(0, colMeans(ALPHA, na.rm = TRUE))
+		} else {
+			fit$alpha_post_mean <- 0
+		}
+	}
+
+	# emit a single post-MCMC warning if the user-supplied custom_gof
+	# function raised any errors during the run. without this the GOF
+	# matrix would carry NA entries with no indication of why.
+	if (exists(".cg_tracker", inherits = FALSE))
+		.maybe_warn_custom_gof(.cg_tracker, where = "GOF")
+
 	class(fit) <- "ame"
-	
+
 	if(use_sparse_matrices) {
 		fit <- compact_ame(fit, use_sparse_matrices = use_sparse_matrices)
 	}
-	
+
 	fit
 }

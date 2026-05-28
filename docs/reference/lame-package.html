@@ -6,10 +6,10 @@ data with several key enhancements: (1) robust handling of changing actor
 compositions across time periods, allowing for networks with different sets
 of actors at each time point; (2) significant performance improvements through
 C++ implementations via Rcpp and RcppArmadillo; (3) specialized functions for
-temporal network dynamics. The package supports various data types including
-binary/network data (bin), normal relational data (nrm), ordinal relational
-data (ord), censored binary data (cbin), fixed-rank nomination schemes (frn),
-and row-ranked data (rrl). Based on the AME framework originally developed
+temporal network dynamics. The package supports eight data types:
+normal (nrm), binary (bin), ordinal (ord), Poisson count (poisson),
+tobit/censored continuous (tobit), censored binary (cbin),
+fixed-rank nomination (frn), and row-ranked (rrl). Based on the AME framework originally developed
 by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013)."><meta property="og:description" content="An extension of the 'amen' package specifically designed for longitudinal
 network analysis. This package provides tools for fitting Additive and
 Multiplicative Effects (AME) models to longitudinal/replicated relational
@@ -17,10 +17,10 @@ data with several key enhancements: (1) robust handling of changing actor
 compositions across time periods, allowing for networks with different sets
 of actors at each time point; (2) significant performance improvements through
 C++ implementations via Rcpp and RcppArmadillo; (3) specialized functions for
-temporal network dynamics. The package supports various data types including
-binary/network data (bin), normal relational data (nrm), ordinal relational
-data (ord), censored binary data (cbin), fixed-rank nomination schemes (frn),
-and row-ranked data (rrl). Based on the AME framework originally developed
+temporal network dynamics. The package supports eight data types:
+normal (nrm), binary (bin), ordinal (ord), Poisson count (poisson),
+tobit/censored continuous (tobit), censored binary (cbin),
+fixed-rank nomination (frn), and row-ranked (rrl). Based on the AME framework originally developed
 by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013)."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
@@ -29,7 +29,7 @@ by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -48,6 +48,8 @@ by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013)."></head><body>
     <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+    <li><a class="dropdown-item" href="../articles/fast_estimation.html">Fast (MCMC-free) Estimation</a></li>
+    <li><a class="dropdown-item" href="../articles/forecasting.html">Forecasting</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -74,22 +76,29 @@ data with several key enhancements: (1) robust handling of changing actor
 compositions across time periods, allowing for networks with different sets
 of actors at each time point; (2) significant performance improvements through
 C++ implementations via Rcpp and RcppArmadillo; (3) specialized functions for
-temporal network dynamics. The package supports various data types including
-binary/network data (bin), normal relational data (nrm), ordinal relational
-data (ord), censored binary data (cbin), fixed-rank nomination schemes (frn),
-and row-ranked data (rrl). Based on the AME framework originally developed
+temporal network dynamics. The package supports eight data types:
+normal (nrm), binary (bin), ordinal (ord), Poisson count (poisson),
+tobit/censored continuous (tobit), censored binary (cbin),
+fixed-rank nomination (frn), and row-ranked (rrl). Based on the AME framework originally developed
 by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).</p>
     </div>
 
 
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-
-<table class="table table"><tr><td>Package:</td><td>lame</td></tr><tr><td>Type:</td><td>Package</td></tr><tr><td>Version:</td><td>0.0.0.9000</td></tr><tr><td>Date:</td><td>2025</td></tr><tr><td>License:</td><td>MIT</td></tr></table></div>
+    <p><strong>Estimators.</strong> The package offers two estimation routes:</p><ul><li><p><code><a href="ame.html">ame</a></code> / <code><a href="lame.html">lame</a></code> — the Bayesian MCMC
+estimators, for calibrated posterior inference (cross-sectional and
+longitudinal respectively).</p></li>
+<li><p><code><a href="ame_als.html">ame_als</a></code> / <code><a href="lame_als.html">lame_als</a></code> — a fast,
+MCMC-free point estimator by iterative block coordinate descent, with
+bootstrap uncertainty via <code><a href="ame_als_bootstrap.html">ame_als_bootstrap</a></code>. Use it
+for rapid model exploration, rank selection and starting values; use the
+MCMC estimators for final inference.</p></li>
+</ul><table class="table table"><tr><td>Package:</td><td>lame</td></tr><tr><td>Type:</td><td>Package</td></tr><tr><td>Version:</td><td>1.0.0</td></tr><tr><td>Date:</td><td>2026</td></tr><tr><td>License:</td><td>MIT</td></tr></table></div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
     <p>Shahryar Minhas, Tosin Salau, Cassy Dorff</p>
-<p>Maintainer: Shahryar Minhas <a href="mailto:sminhas@example.com">sminhas@example.com</a></p>
+<p>Maintainer: Shahryar Minhas <a href="mailto:minhassh@msu.edu">minhassh@msu.edu</a></p>
     </div>
 
     <div class="section level2">
@@ -100,35 +109,24 @@ by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).</p>
 <span class="r-in"><span>           family <span class="op">=</span> <span class="st">"normal"</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> === AME Model Summary ===</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Y ~ dyad(intercept, rgpa, rsmoke, cgpa, csmoke, igrade, igpa, ismoke) + a[i] + b[j] + rho*e[ji], family = 'normal'"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Regression coefficients:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                Estimate StdError z_value p_value CI_lower CI_upper    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept_dyad   -2.709    0.115 -23.527       0   -2.934   -2.483 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rgpa_dyad         0.219    0.101   2.165    0.03    0.021    0.418   *</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rsmoke_dyad       0.263     0.12   2.186   0.029    0.027    0.499   *</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> cgpa_dyad         0.164    0.039   4.165       0    0.087    0.242 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> csmoke_dyad       0.112    0.056   1.995   0.046    0.002    0.222   *</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> igrade_dyad       1.129    0.037  30.452       0    1.056    1.202 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> igpa_dyad         0.055    0.016   3.413   0.001    0.023    0.086 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ismoke_dyad       0.029    0.025   1.166   0.243    -0.02    0.079    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                 pmean   psd  z-stat p-val</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept_dyad -2.709 0.115 -23.527 0.000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rgpa_dyad       0.219 0.101   2.165 0.030</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rsmoke_dyad     0.263 0.120   2.186 0.029</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cgpa_dyad       0.164 0.039   4.165 0.000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> csmoke_dyad     0.112 0.056   1.995 0.046</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> igrade_dyad     1.129 0.037  30.452 0.000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> igpa_dyad       0.055 0.016   3.413 0.001</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ismoke_dyad     0.029 0.025   1.166 0.243</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Variance components:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> -------------------</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     Estimate StdError</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> va     0.853    0.120</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> cab    0.094    0.034</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> vb     0.120    0.019</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rho    0.920    0.002</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ve     1.053    0.020</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   (va = sender, cab = sender-receiver covariance, vb = receiver,</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    rho = dyadic correlation, ve = residual variance)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Variance parameters:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     pmean   psd</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> va  0.853 0.120</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cab 0.094 0.034</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> vb  0.120 0.019</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rho 0.920 0.002</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ve  1.053 0.020</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span></span></span>

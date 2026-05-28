@@ -23,6 +23,15 @@
 #' @param return_fit Logical. If TRUE and \code{object} is provided, returns
 #'   a modified copy of the fit object with aligned latent positions.
 #'   Default FALSE.
+#' @param per_draw Logical. When TRUE, run Procrustes alignment per
+#'   posterior draw rather than on the posterior-mean trajectory. This
+#'   uses \code{object$U_full} / \code{object$V_full} (the per-draw
+#'   posterior cubes — populated when \code{posterior_opts} includes
+#'   storing U/V) when present; otherwise falls back to mean-trajectory
+#'   alignment and emits an informational note. Per-draw alignment is the
+#'   methodologically correct treatment — rotation indeterminacy is a
+#'   per-draw property, not a per-mean one — but is more memory-hungry.
+#'   Default FALSE.
 #' @param ... Additional arguments (currently unused).
 #'
 #' @return If \code{return_fit = FALSE} (default): a list with components
@@ -61,7 +70,50 @@
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @export
 procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
-                              return_fit = FALSE, ...) {
+                              return_fit = FALSE, per_draw = FALSE, ...) {
+
+	# per-draw alignment: align each posterior draw's U/V trajectory independently
+	if (isTRUE(per_draw)) {
+		U_full <- object$U_full %||% object$U_draws %||% object$U_samples
+		V_full <- object$V_full %||% object$V_draws
+		if (is.null(U_full) || length(dim(U_full)) != 4L) {
+			cli::cli_inform(c(
+				"i" = "Per-draw alignment requires a 4-D per-draw trajectory cube {.code object$U_full} ([n, R, T, S]), which the current samplers do not persist.",
+				"i" = "Falling back to posterior-mean (mean-trajectory) alignment."))
+			per_draw <- FALSE
+		} else {
+			S <- dim(U_full)[4L]
+			U_aligned <- U_full
+			V_aligned <- V_full
+			for (s in seq_len(S)) {
+				if (length(dim(V_full)) == 4L) {
+					a <- procrustes_align(NULL,
+					                      U = U_full[, , , s],
+					                      V = V_full[, , , s],
+					                      G = G)
+					U_aligned[, , , s] <- a$U
+					V_aligned[, , , s] <- a$V
+				} else {
+					a <- procrustes_align(NULL, U = U_full[, , , s])
+					U_aligned[, , , s] <- a$U
+				}
+			}
+			result <- list(U = U_aligned, V = V_aligned, G = G,
+			               per_draw = TRUE, n_draws = S)
+			if (return_fit && !is.null(object)) {
+				fit_copy <- object
+				fit_copy$U_full_aligned <- U_aligned
+				fit_copy$V_full_aligned <- V_aligned
+				# replace mean U/V with the posterior mean of the aligned cube
+				fit_copy$U <- apply(U_aligned, c(1, 2, 3), mean)
+				if (length(dim(V_full)) == 4L) {
+					fit_copy$V <- apply(V_aligned, c(1, 2, 3), mean)
+				}
+				return(fit_copy)
+			}
+			return(result)
+		}
+	}
 
 	# extract from fit object if not provided directly
 	if (!is.null(object)) {

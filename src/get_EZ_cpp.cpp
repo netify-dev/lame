@@ -22,13 +22,13 @@ using namespace Rcpp;
 
    arma::cube EZ(n, n, N);
 
-   // Pre-compute UV product ONCE (Phase 1B optimization)
+   // pre-compute UV product once
    arma::mat UVt = U * V.t();
 
-   // Pre-compute ab + UVt (constant across time)
+   // pre-compute ab + UVt (constant across time)
    arma::mat ab_uv = ab + UVt;
 
-   // Allocate Xbeta ONCE outside loop (Phase 1B optimization)
+   // allocate Xbeta once outside the loop
    arma::mat Xbeta(n, n);
 
    for(int t = 0; t < N; ++t) {

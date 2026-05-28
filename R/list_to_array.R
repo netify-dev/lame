@@ -56,10 +56,25 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 	####
 
 	####
-	# convert Y into array format
+	# convert Y into array format. A slice without row/column names cannot be
+	# placed by name -- rather than silently producing an all-NA array, fall
+	# back to positional placement (assuming the slice is already in `actors`
+	# order) or error if the dimensions do not even match.
 	tmp <- array(NA, dim=c(n,n,N),
 							 dimnames=list( actors, actors, names(Y) ) )
-	for(t in 1:N){ tmp[rownames(Y[[t]]),rownames(Y[[t]]),t] <- Y[[t]] }
+	for(t in 1:N){
+		rn <- rownames(Y[[t]])
+		if(is.null(rn)){
+			if(!all(dim(Y[[t]]) == n)){
+				stop("list_to_array(): Y slice ", t, " has no actor names and is ",
+				     "not ", n, "x", n, "; add dimnames so actors can be matched.",
+				     call. = FALSE)
+			}
+			tmp[,,t] <- Y[[t]]
+		} else {
+			tmp[rn,rn,t] <- Y[[t]]
+		}
+	}
 	Y <- tmp
 	####
 
@@ -77,7 +92,10 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 		tmp <- array(NA, dim=c(n,n,dim(Xdyad[[1]])[3],N),
 								 dimnames=list( actors, actors, var_names, pdLabs ) )
 		for(t in 1:N){
-			tmp[rownames(Xdyad[[t]]),rownames(Xdyad[[t]]),,t] <- Xdyad[[t]] }
+			rn <- rownames(Xdyad[[t]])
+			if(is.null(rn)){ tmp[,,,t] <- Xdyad[[t]] }
+			else { tmp[rn,rn,,t] <- Xdyad[[t]] }
+		}
 		Xdyad <- tmp
 	}
 	####
@@ -88,7 +106,10 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 		tmp <- array(NA, dim=c(n, dim(Xrow[[1]])[2], N),
 			dimnames=list( actors, colnames(Xrow[[1]]), pdLabs) )
 		for(t in 1:N){
-			tmp[rownames(Xrow[[t]]),,t] <- Xrow[[t]] }
+			rn <- rownames(Xrow[[t]])
+			if(is.null(rn)){ tmp[,,t] <- Xrow[[t]] }
+			else { tmp[rn,,t] <- Xrow[[t]] }
+		}
 		Xrow <- tmp
 	}
 	####
@@ -99,7 +120,10 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 		tmp <- array(NA, dim=c(n, dim(Xcol[[1]])[2], N),
 			dimnames=list( actors, colnames(Xcol[[1]]), pdLabs) )
 		for(t in 1:N){
-			tmp[rownames(Xcol[[t]]),,t] <- Xcol[[t]] }
+			rn <- rownames(Xcol[[t]])
+			if(is.null(rn)){ tmp[,,t] <- Xcol[[t]] }
+			else { tmp[rn,,t] <- Xcol[[t]] }
+		}
 		Xcol <- tmp
 	}
 	####

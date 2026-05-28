@@ -23,16 +23,19 @@
 #' 
 #' @export
 compact_ame <- function(fit, use_sparse_matrices = FALSE) {
-	
-	# only apply sparse if requested
-	if(!use_sparse_matrices) {
-		return(fit)
-	}
 
+	# drop null entries unconditionally. when use_sparse_matrices = TRUE we
+	# additionally cast dense posterior-mean matrices to Matrix::Matrix.
 	compact_fit <- fit
-
-	# drop null entries
 	compact_fit <- compact_fit[!sapply(compact_fit, is.null)]
+
+	if(!use_sparse_matrices) {
+		# preserve class and return the null-stripped fit. without sparse
+		# conversion the size reduction is modest and depends on how many
+		# slots were left empty by the fit assembly.
+		class(compact_fit) <- class(fit)
+		return(compact_fit)
+	}
 
 	# sparse matrices
 	if(use_sparse_matrices && requireNamespace("Matrix", quietly = TRUE)) {
@@ -75,8 +78,14 @@ compact_ame <- function(fit, use_sparse_matrices = FALSE) {
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' 
 #' @export
-ame_memory_usage <- function(fit, detailed = TRUE) {
-	
+ame_memory_usage <- function(fit = NULL, detailed = TRUE) {
+
+	if (is.null(fit)) {
+		cli::cli_abort(c(
+			"{.arg fit} is required.",
+			"i" = "Pass a fitted {.cls ame} / {.cls lame} object: {.code ame_memory_usage(fit)}."))
+	}
+
 	# object names and sizes
 	components <- names(fit)
 	sizes <- sapply(components, function(x) {

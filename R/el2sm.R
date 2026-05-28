@@ -16,20 +16,31 @@
 #' 
 #' @export el2sm
 el2sm<-function(el,directed=TRUE,nadiag=all(el[,1]!=el[,2])) {
-	w<-rep(1,nrow(el))
-	if(ncol(el)>2){ w<-el[,3] }
-	
-	if( is.numeric(el) && all(round(el[,1:2])==el[,1:2])  ) { nodes<-1:max(el) }
-	if(!(is.numeric(el) && all(round(el[,1:2])==el[,1:2]))) {
-		nodes<-sort(unique(c(el[,1:2])))
+	el <- as.matrix(el)            # accept a data.frame edgelist too
+
+	# edge weights: column 3 if present, else 1. Coerce to numeric so a
+	# character edgelist (e.g. from igraph::as_edgelist) does not silently
+	# produce a character sociomatrix.
+	w <- rep(1, nrow(el))
+	if(ncol(el) > 2){
+		w <- suppressWarnings(as.numeric(el[,3]))
+		if(any(is.na(w))){
+			stop("el2sm(): the weight column (column 3) is not numeric.",
+			     call. = FALSE)
+		}
 	}
-	
-	el<-cbind( match(el[,1],nodes) ,  match(el[,2],nodes) )
-	
-	n<-max(el[,1:2])
-	sm <- matrix(0,n,n)            # construct sociomatrix 
-	sm[el[,1:2]]<-w                # fill in 
-	if(nadiag) { diag(sm) <- NA  } # set diagonal to NA 
+
+	# node set: from the first two (id) columns ONLY -- never the weight column
+	ids <- el[,1:2]
+	numeric_ids <- is.numeric(ids) && all(round(ids) == ids)
+	nodes <- if(numeric_ids) 1:max(ids) else sort(unique(c(ids)))
+
+	elij <- cbind( match(el[,1],nodes), match(el[,2],nodes) )
+
+	n  <- length(nodes)
+	sm <- matrix(0,n,n)            # construct sociomatrix
+	sm[elij[,1:2]] <- w            # fill in
+	if(nadiag) { diag(sm) <- NA  } # set diagonal to NA
 	if(!directed){ sm<-sm+t(sm) }
 	dimnames(sm)[[1]]<-dimnames(sm)[[2]]<-nodes
 	sm

@@ -43,6 +43,21 @@ BETA matrix directly.}
 \item{rho}{Dyadic correlation (reciprocity)}
 \item{ve}{Residual variance}
 }}
+\item{Dynamic coefficients per period}{Only printed when the fit was
+produced with \code{dynamic_beta} on at least one coefficient. The
+table has one row per coefficient with columns:
+\describe{
+\item{Mean}{average of the per-period posterior means across t}
+\item{Min, Max}{smallest and largest per-period posterior mean}
+\item{Drift_pct}{\code{100 * (Max - Min) / |Mean|}; a coarse
+measure of how much the coefficient moves across periods
+relative to its average level}
+\item{Dynamic}{\code{"Y"} if the coefficient was flagged as
+dynamic, \code{"N"} if it was held static}
+}
+The block also prints the per-block AR(1) hyperparameters
+(\code{rho_beta = ...}). For per-period credible intervals use
+\code{\link{confint.lame}}.}
 }
 }
 \seealso{

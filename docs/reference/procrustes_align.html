@@ -19,7 +19,7 @@ applies it sequentially from t=2 to T."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,6 +38,8 @@ applies it sequentially from t=2 to T."></head><body>
     <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+    <li><a class="dropdown-item" href="../articles/fast_estimation.html">Fast (MCMC-free) Estimation</a></li>
+    <li><a class="dropdown-item" href="../articles/forecasting.html">Forecasting</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -74,6 +76,7 @@ applies it sequentially from t=2 to T.</p>
 <span>  V <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  G <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  return_fit <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  per_draw <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -107,6 +110,18 @@ models. Updated to maintain the invariant U G V'.</p></dd>
 <dt id="arg-return-fit">return_fit<a class="anchor" aria-label="anchor" href="#arg-return-fit"></a></dt>
 <dd><p>Logical. If TRUE and <code>object</code> is provided, returns
 a modified copy of the fit object with aligned latent positions.
+Default FALSE.</p></dd>
+
+
+<dt id="arg-per-draw">per_draw<a class="anchor" aria-label="anchor" href="#arg-per-draw"></a></dt>
+<dd><p>Logical. When TRUE, run Procrustes alignment per
+posterior draw rather than on the posterior-mean trajectory. This
+uses <code>object$U_full</code> / <code>object$V_full</code> (the per-draw
+posterior cubes — populated when <code>posterior_opts</code> includes
+storing U/V) when present; otherwise falls back to mean-trajectory
+alignment and emits an informational note. Per-draw alignment is the
+methodologically correct treatment — rotation indeterminacy is a
+per-draw property, not a per-mean one — but is more memory-hungry.
 Default FALSE.</p></dd>
 
 
@@ -151,9 +166,12 @@ a tidy data frame, <code><a href="uv_plot.html">uv_plot</a></code> for visualizi
 <span class="r-in"><span>            family <span class="op">=</span> <span class="st">"binary"</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>            burn <span class="op">=</span> <span class="fl">5</span>, nscan <span class="op">=</span> <span class="fl">5</span>, odens <span class="op">=</span> <span class="fl">1</span>,</span></span>
 <span class="r-in"><span>            verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`family` = <span style="color: #0000BB;">"binary"</span> but `Y` contains values other than 0/1.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
 <span class="r-in"><span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu">procrustes_align</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">$</span><span class="va">U</span><span class="op">)</span>  <span class="co"># aligned 3D array [n, R, T]</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  num [1:50, 1:2, 1:4] 0.0512 0.083 0.0178 -0.0686 -0.079 ...</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  num [1:50, 1:2, 1:4] 0.00291 0.23663 -0.10317 -0.09938 -0.11498 ...</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  - attr(*, "dimnames")=List of 3</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   ..$ : chr [1:50] "303" "304" "317" "321" ...</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   ..$ : NULL</span>

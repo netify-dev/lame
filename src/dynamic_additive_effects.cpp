@@ -108,10 +108,19 @@ List sample_dynamic_ab_cpp(arma::mat a_current, arma::mat b_current,
 //' @param sigma_ab Innovation standard deviation
 //' @param rho_current Current value of rho
 //' @param symmetric Whether the network is symmetric
+//' @param prior_mean Prior mean for rho. Used only when \code{prior_sd > 0}.
+//' @param prior_sd Prior SD for rho. \code{prior_sd < 0} (the default)
+//'   selects a Jeffreys-like flat prior; a positive value switches to a
+//'   truncated Normal(prior_mean, prior_sd^2) prior.
 //' @return Updated rho value
 // [[Rcpp::export]]
 double sample_rho_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat,
-                         double sigma_ab, double rho_current, bool symmetric) {
+                         double sigma_ab, double rho_current, bool symmetric,
+                         double prior_mean = 0.0, double prior_sd = -1.0) {
+  // prior_sd < 0 (the default) selects the historical Jeffreys-like prior
+  // -0.5 * log(1 - rho^2); a positive prior_sd switches to a truncated
+  // Normal(prior_mean, prior_sd^2) prior on rho, as documented in
+  // ?lame for prior$rho_ab_mean / prior$rho_ab_sd.
 
   const int n = a_mat.n_rows;
   const int T = a_mat.n_cols;
@@ -157,8 +166,17 @@ double sample_rho_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat,
   ll_proposal -= 0.5 * (sum_sq_curr - 2.0 * rho_proposal * sum_prod +
                         rho_proposal * rho_proposal * sum_sq_lag) / (sigma_ab * sigma_ab);
 
-  double log_prior_current = -0.5 * log(1.0 - rho_current * rho_current);
-  double log_prior_proposal = -0.5 * log(1.0 - rho_proposal * rho_proposal);
+  double log_prior_current, log_prior_proposal;
+  if (prior_sd > 0.0) {
+    // truncated Normal(prior_mean, prior_sd^2); truncation constant cancels
+    const double inv2v = 0.5 / (prior_sd * prior_sd);
+    log_prior_current  = -inv2v * (rho_current  - prior_mean) * (rho_current  - prior_mean);
+    log_prior_proposal = -inv2v * (rho_proposal - prior_mean) * (rho_proposal - prior_mean);
+  } else {
+    // Jeffreys-like flat prior on rho
+    log_prior_current  = -0.5 * log(1.0 - rho_current * rho_current);
+    log_prior_proposal = -0.5 * log(1.0 - rho_proposal * rho_proposal);
+  }
 
   double log_ratio = (ll_proposal + log_prior_proposal) - (ll_current + log_prior_current);
 

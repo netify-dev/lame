@@ -4,7 +4,7 @@
 \alias{ame_memory_usage}
 \title{Calculate memory usage of AME model components}
 \usage{
-ame_memory_usage(fit, detailed = TRUE)
+ame_memory_usage(fit = NULL, detailed = TRUE)
 }
 \arguments{
 \item{fit}{Fitted AME model}

@@ -4,7 +4,15 @@
 \alias{sample_rho_ab_cpp}
 \title{Sample AR(1) parameter for dynamic additive effects}
 \usage{
-sample_rho_ab_cpp(a_mat, b_mat, sigma_ab, rho_current, symmetric)
+sample_rho_ab_cpp(
+  a_mat,
+  b_mat,
+  sigma_ab,
+  rho_current,
+  symmetric,
+  prior_mean = 0,
+  prior_sd = -1
+)
 }
 \arguments{
 \item{a_mat}{Matrix of row effects (n x T)}
@@ -16,6 +24,12 @@ sample_rho_ab_cpp(a_mat, b_mat, sigma_ab, rho_current, symmetric)
 \item{rho_current}{Current value of rho}
 
 \item{symmetric}{Whether the network is symmetric}
+
+\item{prior_mean}{Prior mean for rho. Used only when \code{prior_sd > 0}.}
+
+\item{prior_sd}{Prior SD for rho. \code{prior_sd < 0} (the default)
+selects a Jeffreys-like flat prior; a positive value switches to a
+truncated Normal(prior_mean, prior_sd^2) prior.}
 }
 \value{
 Updated rho value

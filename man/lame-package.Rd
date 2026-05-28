@@ -18,6 +18,18 @@ fixed-rank nomination (frn), and row-ranked (rrl). Based on the AME framework or
 by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).
 }
 \details{
+\strong{Estimators.} The package offers two estimation routes:
+\itemize{
+\item \code{\link{ame}} / \code{\link{lame}} --- the Bayesian MCMC
+estimators, for calibrated posterior inference (cross-sectional and
+longitudinal respectively).
+\item \code{\link{ame_als}} / \code{\link{lame_als}} --- a fast,
+MCMC-free point estimator by iterative block coordinate descent, with
+bootstrap uncertainty via \code{\link{ame_als_bootstrap}}. Use it
+for rapid model exploration, rank selection and starting values; use the
+MCMC estimators for final inference.
+}
+
 \tabular{ll}{ Package: \tab lame\cr Type: \tab Package\cr Version: \tab
 1.0.0 \cr Date: \tab 2026 \cr License: \tab MIT \cr }
 }

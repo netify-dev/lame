@@ -60,17 +60,24 @@ if(getRversion() >= "2.15.1") {
 #' @import ggplot2
 #' @import cli
 #' @importFrom stats reorder
-ab_plot <- function(fit, 
-										effect = c("sender", "receiver"), 
-										sorted = TRUE, 
-										labels = NULL, 
+ab_plot <- function(fit,
+										effect = c("sender", "receiver"),
+										sorted = TRUE,
+										labels = NULL,
 										title = NULL,
 										time_point = NULL,
 										plot_type = c("snapshot", "trajectory", "faceted", "ribbon"),
 										show_actors = NULL) {
-	
+
+	# ALS fits estimate additive effects but have no posterior; delegate to
+	# the ame_als-specific lollipop chart instead of refusing the class.
+	if (inherits(fit, "ame_als")) {
+		eff <- match.arg(effect)
+		return(ab_plot.ame_als(fit, effect = eff))
+	}
+
 	if (!inherits(fit, c("ame", "lame"))) {
-		stop("fit must be an object of class 'ame' or 'lame'")
+		stop("fit must be an object of class 'ame', 'lame', or 'ame_als'")
 	}
 	
 	effect <- match.arg(effect)
@@ -127,19 +134,22 @@ ab_plot <- function(fit,
 		ylab(ylabel) +
 		theme_bw() +
 		theme(
-			panel.grid.major.x = element_blank(),
-			panel.grid.minor = element_blank(),
-			panel.border = element_blank()
+			panel.border     = element_blank(),
+			axis.ticks       = element_blank(),
+			legend.position  = "top"
 		)
-	
+
 	if (!labels) {
 		p <- p + theme(
-			axis.text.x = element_blank(),
-			axis.ticks.x = element_blank()
-		) + xlab("Actors (sorted by effect magnitude)")
+			axis.text.x = element_blank()
+		) + xlab("Actors (Sorted by Effect Magnitude)")
 	} else {
+		# scale label angle and size with n so n > 15 stays readable.
+		n_actors <- length(unique(muDf$id))
+		ang  <- if (n_actors > 30L) 90 else if (n_actors > 15L) 75 else 45
+		size <- if (n_actors > 30L) 7  else if (n_actors > 15L) 8  else 10
 		p <- p + theme(
-			axis.text.x = element_text(angle = 45, hjust = 1)
+			axis.text.x = element_text(angle = ang, hjust = 1, size = size)
 		)
 	}
 	
@@ -210,8 +220,9 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
 				xlab("") + ylab(paste(ylabel, "(Time-Averaged)")) +
 				theme_bw() +
 				theme(
-					panel.border = element_blank(),
-					axis.ticks = element_blank()
+					panel.border    = element_blank(),
+					axis.ticks      = element_blank(),
+					legend.position = "top"
 				)
 
 			if (!labels) {
@@ -259,13 +270,14 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
 		
 		p <- ggplot(muDf, aes(x = id, y = mu)) +
 			geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-			geom_segment(aes(xend = id, yend = 0), color = "black") +
-			geom_point(size = 2, color = "black") +
+			geom_segment(aes(xend = id, yend = 0)) +
+			geom_point(size = 2) +
 			xlab("") + ylab(ylabel) +
 			theme_bw() +
 			theme(
-				panel.border = element_blank(),
-				axis.ticks = element_blank()
+				panel.border    = element_blank(),
+				axis.ticks      = element_blank(),
+				legend.position = "top"
 			)
 
 		if (!labels) {
@@ -324,8 +336,9 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
 			scale_x_continuous(breaks = 1:n_times, labels = time_labels) +
 			theme_bw() +
 			theme(
-				panel.border = element_blank(),
-				axis.ticks = element_blank()
+				panel.border    = element_blank(),
+				axis.ticks      = element_blank(),
+				legend.position = "top"
 			) +
 			labs(x = "Time", y = ylabel, color = "Actor")
 		
@@ -367,10 +380,12 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
 			facet_wrap(~ time, scales = "free_x") +
 			theme_bw() +
 			theme(
-				panel.border = element_blank(),
+				panel.border     = element_blank(),
+				axis.ticks       = element_blank(),
+				legend.position  = "top",
 				strip.background = element_rect(fill = "black", color = "black"),
-				strip.text = element_text(color = "white", hjust = 0),
-				axis.text.x = element_text(angle = 45, hjust = 1, size = 6)
+				strip.text       = element_text(color = "white", hjust = 0),
+				axis.text.x      = element_text(angle = 45, hjust = 1, size = 6)
 			) +
 			labs(x = "", y = ylabel)
 		
@@ -440,8 +455,9 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
 			scale_x_continuous(breaks = 1:n_times, labels = time_labels) +
 			theme_bw() +
 			theme(
-				panel.border = element_blank(),
-				axis.ticks = element_blank()
+				panel.border    = element_blank(),
+				axis.ticks      = element_blank(),
+				legend.position = "top"
 			) +
 			labs(x = "Time", y = ylabel, color = "Actor", fill = "Actor")
 

@@ -65,8 +65,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_rho_ab_cpp
-double sample_rho_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat, double sigma_ab, double rho_current, bool symmetric);
-RcppExport SEXP _lame_sample_rho_ab_cpp(SEXP a_matSEXP, SEXP b_matSEXP, SEXP sigma_abSEXP, SEXP rho_currentSEXP, SEXP symmetricSEXP) {
+double sample_rho_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat, double sigma_ab, double rho_current, bool symmetric, double prior_mean, double prior_sd);
+RcppExport SEXP _lame_sample_rho_ab_cpp(SEXP a_matSEXP, SEXP b_matSEXP, SEXP sigma_abSEXP, SEXP rho_currentSEXP, SEXP symmetricSEXP, SEXP prior_meanSEXP, SEXP prior_sdSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -75,7 +75,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type sigma_ab(sigma_abSEXP);
     Rcpp::traits::input_parameter< double >::type rho_current(rho_currentSEXP);
     Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_rho_ab_cpp(a_mat, b_mat, sigma_ab, rho_current, symmetric));
+    Rcpp::traits::input_parameter< double >::type prior_mean(prior_meanSEXP);
+    Rcpp::traits::input_parameter< double >::type prior_sd(prior_sdSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_rho_ab_cpp(a_mat, b_mat, sigma_ab, rho_current, symmetric, prior_mean, prior_sd));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -108,6 +110,109 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type mean_a(mean_aSEXP);
     Rcpp::traits::input_parameter< double >::type mean_b(mean_bSEXP);
     rcpp_result_gen = Rcpp::wrap(init_dynamic_ab_cpp(n, T, rho_ab, sigma_ab, mean_a, mean_b));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sample_beta_dynamic_cpp
+List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list, List Z_list, List offset_list, arma::vec beta_static, arma::vec rho_by_coef, arma::vec sigma_by_coef, arma::mat Lambda, arma::vec beta0_mean, arma::mat beta0_cov, double s2, double dyad_rho, bool bipartite, bool symmetric, bool use_dyad_rho);
+RcppExport SEXP _lame_sample_beta_dynamic_cpp(SEXP Xdyn_listSEXP, SEXP Xstat_listSEXP, SEXP Z_listSEXP, SEXP offset_listSEXP, SEXP beta_staticSEXP, SEXP rho_by_coefSEXP, SEXP sigma_by_coefSEXP, SEXP LambdaSEXP, SEXP beta0_meanSEXP, SEXP beta0_covSEXP, SEXP s2SEXP, SEXP dyad_rhoSEXP, SEXP bipartiteSEXP, SEXP symmetricSEXP, SEXP use_dyad_rhoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type Xdyn_list(Xdyn_listSEXP);
+    Rcpp::traits::input_parameter< List >::type Xstat_list(Xstat_listSEXP);
+    Rcpp::traits::input_parameter< List >::type Z_list(Z_listSEXP);
+    Rcpp::traits::input_parameter< List >::type offset_list(offset_listSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type beta_static(beta_staticSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type rho_by_coef(rho_by_coefSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type sigma_by_coef(sigma_by_coefSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Lambda(LambdaSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type beta0_mean(beta0_meanSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type beta0_cov(beta0_covSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< double >::type dyad_rho(dyad_rhoSEXP);
+    Rcpp::traits::input_parameter< bool >::type bipartite(bipartiteSEXP);
+    Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_dyad_rho(use_dyad_rhoSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_beta_dynamic_cpp(Xdyn_list, Xstat_list, Z_list, offset_list, beta_static, rho_by_coef, sigma_by_coef, Lambda, beta0_mean, beta0_cov, s2, dyad_rho, bipartite, symmetric, use_dyad_rho));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sample_beta_static_cpp
+List sample_beta_static_cpp(List Xdyn_list, List Xstat_list, List Z_list, List offset_list, arma::mat beta_dyn_path, arma::vec prior_mean, arma::mat prior_prec, double s2, double dyad_rho, bool bipartite, bool symmetric, bool use_dyad_rho);
+RcppExport SEXP _lame_sample_beta_static_cpp(SEXP Xdyn_listSEXP, SEXP Xstat_listSEXP, SEXP Z_listSEXP, SEXP offset_listSEXP, SEXP beta_dyn_pathSEXP, SEXP prior_meanSEXP, SEXP prior_precSEXP, SEXP s2SEXP, SEXP dyad_rhoSEXP, SEXP bipartiteSEXP, SEXP symmetricSEXP, SEXP use_dyad_rhoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type Xdyn_list(Xdyn_listSEXP);
+    Rcpp::traits::input_parameter< List >::type Xstat_list(Xstat_listSEXP);
+    Rcpp::traits::input_parameter< List >::type Z_list(Z_listSEXP);
+    Rcpp::traits::input_parameter< List >::type offset_list(offset_listSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type beta_dyn_path(beta_dyn_pathSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type prior_mean(prior_meanSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type prior_prec(prior_precSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< double >::type dyad_rho(dyad_rhoSEXP);
+    Rcpp::traits::input_parameter< bool >::type bipartite(bipartiteSEXP);
+    Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_dyad_rho(use_dyad_rhoSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_beta_static_cpp(Xdyn_list, Xstat_list, Z_list, offset_list, beta_dyn_path, prior_mean, prior_prec, s2, dyad_rho, bipartite, symmetric, use_dyad_rho));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sample_rho_beta_cpp
+arma::vec sample_rho_beta_cpp(arma::mat beta_path, arma::ivec group_id, int n_groups, arma::mat Lambda_inv, arma::vec sigma_by_coef, arma::vec rho_current, arma::vec rho_prior_mean, arma::vec rho_prior_sd, double rho_lower, double rho_upper);
+RcppExport SEXP _lame_sample_rho_beta_cpp(SEXP beta_pathSEXP, SEXP group_idSEXP, SEXP n_groupsSEXP, SEXP Lambda_invSEXP, SEXP sigma_by_coefSEXP, SEXP rho_currentSEXP, SEXP rho_prior_meanSEXP, SEXP rho_prior_sdSEXP, SEXP rho_lowerSEXP, SEXP rho_upperSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type beta_path(beta_pathSEXP);
+    Rcpp::traits::input_parameter< arma::ivec >::type group_id(group_idSEXP);
+    Rcpp::traits::input_parameter< int >::type n_groups(n_groupsSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Lambda_inv(Lambda_invSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type sigma_by_coef(sigma_by_coefSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type rho_current(rho_currentSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type rho_prior_mean(rho_prior_meanSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type rho_prior_sd(rho_prior_sdSEXP);
+    Rcpp::traits::input_parameter< double >::type rho_lower(rho_lowerSEXP);
+    Rcpp::traits::input_parameter< double >::type rho_upper(rho_upperSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_rho_beta_cpp(beta_path, group_id, n_groups, Lambda_inv, sigma_by_coef, rho_current, rho_prior_mean, rho_prior_sd, rho_lower, rho_upper));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sample_sigma_beta_cpp
+arma::vec sample_sigma_beta_cpp(arma::mat beta_path, arma::ivec group_id, int n_groups, arma::mat Lambda_inv, arma::vec rho_by_group, arma::vec prior_shape, arma::vec prior_scale);
+RcppExport SEXP _lame_sample_sigma_beta_cpp(SEXP beta_pathSEXP, SEXP group_idSEXP, SEXP n_groupsSEXP, SEXP Lambda_invSEXP, SEXP rho_by_groupSEXP, SEXP prior_shapeSEXP, SEXP prior_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type beta_path(beta_pathSEXP);
+    Rcpp::traits::input_parameter< arma::ivec >::type group_id(group_idSEXP);
+    Rcpp::traits::input_parameter< int >::type n_groups(n_groupsSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Lambda_inv(Lambda_invSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type rho_by_group(rho_by_groupSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type prior_shape(prior_shapeSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type prior_scale(prior_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_sigma_beta_cpp(beta_path, group_id, n_groups, Lambda_inv, rho_by_group, prior_shape, prior_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_EZ_dynamic_beta_cpp
+arma::cube get_EZ_dynamic_beta_cpp(List Xlist, arma::mat beta_full_path, arma::mat a_mat, arma::mat b_mat, arma::cube U_cube, arma::cube V_cube, arma::mat G, bool bipartite, bool symmetric);
+RcppExport SEXP _lame_get_EZ_dynamic_beta_cpp(SEXP XlistSEXP, SEXP beta_full_pathSEXP, SEXP a_matSEXP, SEXP b_matSEXP, SEXP U_cubeSEXP, SEXP V_cubeSEXP, SEXP GSEXP, SEXP bipartiteSEXP, SEXP symmetricSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type Xlist(XlistSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type beta_full_path(beta_full_pathSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type a_mat(a_matSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type b_mat(b_matSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type U_cube(U_cubeSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type V_cube(V_cubeSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< bool >::type bipartite(bipartiteSEXP);
+    Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_EZ_dynamic_beta_cpp(Xlist, beta_full_path, a_mat, b_mat, U_cube, V_cube, G, bipartite, symmetric));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -145,8 +250,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_rho_uv
-double sample_rho_uv(const arma::cube& U_cube, const arma::cube& V_cube, double sigma_uv, double rho_current, bool symmetric);
-RcppExport SEXP _lame_sample_rho_uv(SEXP U_cubeSEXP, SEXP V_cubeSEXP, SEXP sigma_uvSEXP, SEXP rho_currentSEXP, SEXP symmetricSEXP) {
+double sample_rho_uv(const arma::cube& U_cube, const arma::cube& V_cube, double sigma_uv, double rho_current, bool symmetric, double prior_mean, double prior_sd);
+RcppExport SEXP _lame_sample_rho_uv(SEXP U_cubeSEXP, SEXP V_cubeSEXP, SEXP sigma_uvSEXP, SEXP rho_currentSEXP, SEXP symmetricSEXP, SEXP prior_meanSEXP, SEXP prior_sdSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -155,7 +260,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type sigma_uv(sigma_uvSEXP);
     Rcpp::traits::input_parameter< double >::type rho_current(rho_currentSEXP);
     Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_rho_uv(U_cube, V_cube, sigma_uv, rho_current, symmetric));
+    Rcpp::traits::input_parameter< double >::type prior_mean(prior_meanSEXP);
+    Rcpp::traits::input_parameter< double >::type prior_sd(prior_sdSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_rho_uv(U_cube, V_cube, sigma_uv, rho_current, symmetric, prior_mean, prior_sd));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -308,6 +415,50 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
     Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
     rcpp_result_gen = Rcpp::wrap(ldZgbme_nrm_cpp(Z, Y, EZ, rho, s2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ldZgbme_pois_exposure_cpp
+arma::mat ldZgbme_pois_exposure_cpp(const arma::mat& Z, const arma::mat& Y, const arma::mat& EZ, double rho, double s2, double log_exposure);
+RcppExport SEXP _lame_ldZgbme_pois_exposure_cpp(SEXP ZSEXP, SEXP YSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP log_exposureSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< double >::type log_exposure(log_exposureSEXP);
+    rcpp_result_gen = Rcpp::wrap(ldZgbme_pois_exposure_cpp(Z, Y, EZ, rho, s2, log_exposure));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rZ_pois_fc_exposure_cpp
+arma::mat rZ_pois_fc_exposure_cpp(const arma::mat& Z, const arma::mat& EZ, double rho, double s2, const arma::mat& Y, double log_exposure);
+RcppExport SEXP _lame_rZ_pois_fc_exposure_cpp(SEXP ZSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP YSEXP, SEXP log_exposureSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< double >::type log_exposure(log_exposureSEXP);
+    rcpp_result_gen = Rcpp::wrap(rZ_pois_fc_exposure_cpp(Z, EZ, rho, s2, Y, log_exposure));
+    return rcpp_result_gen;
+END_RCPP
+}
+// simY_pois_exposure
+arma::mat simY_pois_exposure(const arma::mat& EZ, double exposure);
+RcppExport SEXP _lame_simY_pois_exposure(SEXP EZSEXP, SEXP exposureSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< double >::type exposure(exposureSEXP);
+    rcpp_result_gen = Rcpp::wrap(simY_pois_exposure(EZ, exposure));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -645,12 +796,17 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_outer_cpp", (DL_FUNC) &_lame_outer_cpp, 2},
     {"_lame_gof_stats_cpp", (DL_FUNC) &_lame_gof_stats_cpp, 1},
     {"_lame_sample_dynamic_ab_cpp", (DL_FUNC) &_lame_sample_dynamic_ab_cpp, 8},
-    {"_lame_sample_rho_ab_cpp", (DL_FUNC) &_lame_sample_rho_ab_cpp, 5},
+    {"_lame_sample_rho_ab_cpp", (DL_FUNC) &_lame_sample_rho_ab_cpp, 7},
     {"_lame_sample_sigma_ab_cpp", (DL_FUNC) &_lame_sample_sigma_ab_cpp, 6},
     {"_lame_init_dynamic_ab_cpp", (DL_FUNC) &_lame_init_dynamic_ab_cpp, 6},
+    {"_lame_sample_beta_dynamic_cpp", (DL_FUNC) &_lame_sample_beta_dynamic_cpp, 15},
+    {"_lame_sample_beta_static_cpp", (DL_FUNC) &_lame_sample_beta_static_cpp, 12},
+    {"_lame_sample_rho_beta_cpp", (DL_FUNC) &_lame_sample_rho_beta_cpp, 10},
+    {"_lame_sample_sigma_beta_cpp", (DL_FUNC) &_lame_sample_sigma_beta_cpp, 7},
+    {"_lame_get_EZ_dynamic_beta_cpp", (DL_FUNC) &_lame_get_EZ_dynamic_beta_cpp, 9},
     {"_lame_rUV_dynamic_fc_cpp", (DL_FUNC) &_lame_rUV_dynamic_fc_cpp, 8},
     {"_lame_init_dynamic_positions", (DL_FUNC) &_lame_init_dynamic_positions, 5},
-    {"_lame_sample_rho_uv", (DL_FUNC) &_lame_sample_rho_uv, 5},
+    {"_lame_sample_rho_uv", (DL_FUNC) &_lame_sample_rho_uv, 7},
     {"_lame_sample_sigma_uv", (DL_FUNC) &_lame_sample_sigma_uv, 4},
     {"_lame_rUV_dynamic_bip_fc_cpp", (DL_FUNC) &_lame_rUV_dynamic_bip_fc_cpp, 7},
     {"_lame_count_four_cycles_bip_cpp", (DL_FUNC) &_lame_count_four_cycles_bip_cpp, 1},
@@ -662,6 +818,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_ldZgbme_cpp", (DL_FUNC) &_lame_ldZgbme_cpp, 5},
     {"_lame_rZ_pois_fc_cpp", (DL_FUNC) &_lame_rZ_pois_fc_cpp, 5},
     {"_lame_ldZgbme_nrm_cpp", (DL_FUNC) &_lame_ldZgbme_nrm_cpp, 5},
+    {"_lame_ldZgbme_pois_exposure_cpp", (DL_FUNC) &_lame_ldZgbme_pois_exposure_cpp, 6},
+    {"_lame_rZ_pois_fc_exposure_cpp", (DL_FUNC) &_lame_rZ_pois_fc_exposure_cpp, 6},
+    {"_lame_simY_pois_exposure", (DL_FUNC) &_lame_simY_pois_exposure, 2},
     {"_lame_simY_pois", (DL_FUNC) &_lame_simY_pois, 1},
     {"_lame_rwish_cpp", (DL_FUNC) &_lame_rwish_cpp, 2},
     {"_lame_rUV_rep_fc_cpp", (DL_FUNC) &_lame_rUV_rep_fc_cpp, 9},

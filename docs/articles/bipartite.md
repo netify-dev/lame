@@ -3,7 +3,6 @@
 ``` r
 library(lame)
 library(ggplot2)
-library(reshape2)
 set.seed(6886)
 ```
 
@@ -36,13 +35,33 @@ The additive effects work just as in the unipartite case: $a_{i}$
 captures how “active” row node $i$ is (e.g., a student who takes many
 courses), and $b_{j}$ captures how “popular” column node $j$ is (e.g., a
 course with high enrollment). But the multiplicative term
-$u_{i}\prime Gv_{j}$ is different. Instead of $u_{i}\prime v_{j}$ with
-shared latent dimensions, the row and column nodes live in potentially
+$u_{i}\prime Gv_{j}$ is different from the unipartite
+$u_{i}\prime v_{j}$. Row and column nodes live in potentially
 different-dimensional latent spaces ($R_{\text{row}}$ and
-$R_{\text{col}}$), and the interaction matrix $G$ maps between them.
-This is more flexible, letting the model discover that, say, two
-dimensions of student preferences map onto three dimensions of course
-characteristics.
+$R_{\text{col}}$), and $G$ is a $R_{\text{row}} \times R_{\text{col}}$
+interaction matrix.
+
+How $G$ is handled differs between the cross-sectional and longitudinal
+entry points:
+
+- In **[`ame()`](https://netify-dev.github.io/lame/reference/ame.md)**
+  (cross-sectional bipartite), $G$ is initialised to a rank-truncated
+  scaled identity and **held fixed** during MCMC. The rotation and
+  scaling of the interaction are absorbed into $U$ and $V$, so $G$
+  itself is not estimated; what is identified is the overall
+  multiplicative term $UGV\prime$.
+- In **[`lame()`](https://netify-dev.github.io/lame/reference/lame.md)**
+  (longitudinal bipartite), $G$ is **sampled** each iteration from its
+  conditional Gaussian via the bipartite $G$-sampler. With
+  `dynamic_G = FALSE` a single $G$ is shared across periods; with
+  `dynamic_G = TRUE` a separate $G_{t}$ is drawn per period and returned
+  as `fit$G_cube` (see the section on `dynamic_G` below).
+
+In either case, the bipartite parameterisation lets row-side latent
+positions ($U$, shape $n_{\text{row}} \times R_{\text{row}}$) and
+column-side latent positions ($V$, shape
+$n_{\text{col}} \times R_{\text{col}}$) be chosen at different ranks,
+which is the substantive flexibility users get.
 
 A few things drop away in the bipartite setting. There is no dyadic
 correlation parameter $\rho$, because ties are inherently directional
@@ -51,7 +70,75 @@ student–course network). The additive effects $a$ and $b$ also have
 independent variances rather than a joint covariance, since they
 describe fundamentally different types of actors.
 
+### Supported families in bipartite mode
+
+Every family that works for a square network also works for a
+rectangular one. The rectangular Z-samplers live in `R/rZ_bipartite.R`
+and treat each cell as independent given the linear predictor (there is
+no reciprocal-cell coupling in a bipartite graph). The supported set:
+
+| Family    | Bipartite supported? | Notes                                                                                                                                                                                 |
+|-----------|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `normal`  | yes                  | the unrestricted-Gaussian baseline.                                                                                                                                                   |
+| `binary`  | yes                  | probit link on tie / no-tie.                                                                                                                                                          |
+| `tobit`   | yes                  | left-censored continuous outcome.                                                                                                                                                     |
+| `ordinal` | yes                  | rectangular ordinal-probit sampler (`rZ_ord_bip_fc`); use data-induced cutpoints (default) or pass `ordinal_cutpoints = "explicit"` for the Cowles MH variant on the unipartite path. |
+| `cbin`    | yes                  | constrained-binary with `odmax` interpreted as the per-row outdegree cap.                                                                                                             |
+| `frn`     | yes                  | fixed-rank-nominations; each row’s top-`odmax` ranks are observed.                                                                                                                    |
+| `rrl`     | yes                  | row-ranked likelihood ranks each row over column nodes; scales linearly in the row length, so long rows (`nB = 50` or larger) are routine.                                            |
+| `poisson` | yes                  | rectangular MH on Z; supports the `period_exposure` offset on the longitudinal path.                                                                                                  |
+
+The same table applies to
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) in
+bipartite mode. `dynamic_G = TRUE` is supported in
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md); it runs
+a Carter-Kohn FFBS on `vec(G_t)` under an AR(1) state-space prior and
+returns the posterior-mean per-period `G_t` plus a rotation-drift
+diagnostic that flags when apparent time variation is dominated by
+latent-rotation drift rather than real change. We demonstrate
+`dynamic_G` later in this vignette.
+
+### Tobit and rrl in practice
+
+Bipartite **tobit** is the right choice when your outcome is a
+continuous quantity that is censored at a known boundary, such as trade
+volume between a country and an IGO that records “no exchange” as zero
+rather than as missing, or a patient’s reported dose of a drug they were
+not prescribed (also zero). The Z-sampler treats observed zeros as
+left-censored draws from the underlying latent intensity and propagates
+that censoring into the additive / multiplicative updates. Set
+`family = "tobit"` and supply the matrix of recorded values (zeros
+allowed).
+
+Bipartite **rrl** (row-ranked likelihood) is first-class in both
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) and
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md): the
+rectangular Z-sampler `rZ_rrl_bip_fc` in `R/rZ_bipartite.R` enforces the
+per-row rank cone (`Y_ij > Y_ik` implies `Z_ij > Z_ik` within row `i`)
+without a zero threshold and without `odmax`. The sampler scales
+linearly in the row length, so long rows (`nB = 50` or larger) are
+routine.
+
 ## Cross-Sectional Analysis with `ame()`
+
+### Coming from a long-format tibble?
+
+If your data lives in a long-format tibble (`patient_id`, `drug`,
+`prescribed`), pivot it to a matrix once before calling
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md):
+
+``` r
+library(tidyr); library(tibble)
+Y_df <- rx %>%                                        # long tibble
+    pivot_wider(names_from = drug, values_from = prescribed)
+Y <- as.matrix(Y_df[, -1])                            # numeric matrix
+rownames(Y) <- Y_df$patient_id                        # row actor names
+# colnames(Y) are already the drug names from pivot_wider
+```
+
+The matrix is what `ame(..., mode = "bipartite")` consumes. Rownames /
+colnames carry through to `fit$APM` (one number per patient) and
+`fit$BPM` (one number per drug) downstream.
 
 ### Simulating Data
 
@@ -63,23 +150,24 @@ attracts. The interaction matrix $G$ determines how these latent
 dimensions combine to predict enrollment.
 
 ``` r
-# Simulate a student-course enrollment network
+# simulate a student-course enrollment network
 n_students <- 30
 n_courses <- 20
 
-# True latent positions (unobserved in practice)
-U_true <- matrix(rnorm(n_students * 2), n_students, 2)
-V_true <- matrix(rnorm(n_courses * 2), n_courses, 2)
+# true latent positions (unobserved in practice)
+U_true <- matrix(rnorm(n_students * 2, 0, 0.8), n_students, 2)
+V_true <- matrix(rnorm(n_courses * 2, 0, 0.8), n_courses, 2)
 
-# Interaction matrix: dimension 1 has positive affinity,
+# interaction matrix: dimension 1 has positive affinity,
 # dimension 2 has negative (students high on dim 2 avoid courses high on dim 2)
 G_true <- matrix(c(1, 0.5, 0.5, -1), 2, 2)
 
-# Generate enrollment probabilities and binary outcomes
-eta <- U_true %*% G_true %*% t(V_true)
-prob <- plogis(eta)
+# generate enrollment probabilities and binary outcomes
+# negative intercept keeps enrollment rate realistic (~25-30%)
+eta <- -0.8 + U_true %*% G_true %*% t(V_true)
+prob <- pnorm(eta)
 Y_bipartite <- matrix(rbinom(n_students * n_courses, 1, prob),
-                      n_students, n_courses)
+                                            n_students, n_courses)
 
 rownames(Y_bipartite) <- paste0("Student", 1:n_students)
 colnames(Y_bipartite) <- paste0("Course", 1:n_courses)
@@ -87,7 +175,7 @@ colnames(Y_bipartite) <- paste0("Course", 1:n_courses)
 cat("Network dimensions:", dim(Y_bipartite), "\n")
 #> Network dimensions: 30 20
 cat("Enrollment rate:", round(mean(Y_bipartite), 2), "\n")
-#> Enrollment rate: 0.54
+#> Enrollment rate: 0.29
 ```
 
 ### Fitting the Model
@@ -97,18 +185,18 @@ specifying the latent dimensions for each node type separately via
 `R_row` and `R_col`.
 
 ``` r
-# Note: burn/nscan are kept small here for fast vignette building.
-# For real analyses, use burn >= 1000 and nscan >= 5000.
+# note: burn/nscan are kept small here for fast vignette building.
+# for real analyses, use burn >= 1000 and nscan >= 5000.
 fit_cross <- ame(
-  Y = Y_bipartite,
-  mode = "bipartite",
-  R_row = 2,              # latent dimensions for students
-  R_col = 2,              # latent dimensions for courses
-  family = "binary",
-  burn = 100,
-  nscan = 500,
-  odens = 5,
-  verbose = FALSE
+    Y = Y_bipartite,
+    mode = "bipartite",
+    R_row = 2,              # latent dimensions for students
+    R_col = 2,              # latent dimensions for courses
+    family = "binary",
+    burn = 100,
+    nscan = 500,
+    odens = 5,
+    verbose = FALSE
 )
 
 summary(fit_cross)
@@ -116,21 +204,22 @@ summary(fit_cross)
 #> === AME Model Summary ===
 #> 
 #> Call:
-#> [1] "Y ~ a[i] + b[j], family = 'binary'"
+#> [1] "Y ~ a[i] + b[j] + U[i,1:2] %*% G %*% V[j,1:2]', family = 'binary'"
 #> 
 #> Regression coefficients:
 #> ------------------------
-#>       Estimate StdError z_value p_value CI_lower CI_upper  
-#> beta0    0.136    0.167   0.815   0.415   -0.192    0.464  
+#>           Estimate StdError z_value p_value CI_lower CI_upper   
+#> intercept   -0.597    0.195  -3.062   0.002   -0.963   -0.221 **
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.248    0.093
+#> va     0.309    0.120
 #> cab    0.000    0.000
-#> vb     0.334    0.112
+#> vb     0.401    0.135
 #> ve     1.000    0.000
 #> rho    0.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
@@ -138,10 +227,12 @@ summary(fit_cross)
 #>   Note: bipartite model (rho fixed to 0, cab fixed to 0)
 ```
 
-The output includes posterior means for the student latent positions
-(`U`), course latent positions (`V`), and the interaction matrix (`G`),
-along with additive effects: `APM` for student activity levels and `BPM`
-for course popularity.
+The summary shows the regression coefficient (just an intercept here,
+since we included no covariates) and the variance components. The fitted
+object also stores the student latent positions (`U`), course latent
+positions (`V`), the (fixed) interaction matrix (`G`), and additive
+effects (`APM` for student activity, `BPM` for course popularity), which
+we’ll visualize next.
 
 ### Visualizing the Latent Space
 
@@ -153,29 +244,59 @@ tie.
 
 ``` r
 uv_plot(fit_cross, layout = "biplot") +
-  ggtitle("Bipartite Latent Space: Students and Courses")
-#> Warning: ggrepel: 16 unlabeled data points (too many overlaps). Consider
-#> increasing max.overlaps
+    ggtitle("Bipartite Latent Space: Students and Courses")
 ```
 
-![](bipartite_files/figure-html/visualize_cross_sectional-1.png)
+![Bipartite latent-space biplot placing students and courses in the same
+2D coordinate system, with proximity indicating a higher predicted
+enrollment
+probability.](bipartite_files/figure-html/visualize_cross_sectional-1.png)
 
-The interaction matrix $G$ tells us how the latent dimensions relate to
-each other. Positive entries mean that students and courses that score
-similarly on a dimension are more likely to be connected; negative
-entries mean the opposite.
+The interaction matrix $G$ mediates how the latent dimensions of
+students and courses combine to predict ties. In
+**[`ame()`](https://netify-dev.github.io/lame/reference/ame.md)** (the
+cross-sectional path used in this fit) $G$ is held **fixed** at a
+rank-truncated scaled identity: the rotation and scaling of the
+interaction are absorbed into $U$ and $V$, so $G$ itself is not
+estimated and its entries carry no information. What *is* estimated is
+the overall multiplicative term $UGV\prime$, which captures the latent
+structure of the network. (In
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) $G$ is
+sampled rather than fixed; see the next section.) We visualise the
+fitted latent structure $UGV\prime$ directly:
 
 ``` r
-G_melt <- melt(fit_cross$G)
-ggplot(G_melt, aes(x = Var2, y = Var1, fill = value)) +
-  geom_tile() +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
-  labs(title = "Estimated Interaction Matrix G",
-       x = "Column Dimension", y = "Row Dimension") +
-  theme_minimal()
+G_mult <- fit_cross$U %*% fit_cross$G %*% t(fit_cross$V)
+G_df <- data.frame(
+    Student = rownames(G_mult)[row(G_mult)],
+    Course = colnames(G_mult)[col(G_mult)],
+    Fitted = as.vector(G_mult)
+)
+# RdBu reversed (direction = -1): positive => red, negative => blue,
+# zero => white. By default scale_fill_distiller() centres white at the
+# midpoint of the DATA range, not at zero -- so we pass symmetric limits
+# c(-mx, mx) to force the white midpoint onto zero, which is the right
+# choice for a signed effect. RdBu is colour-blind-safe per ColorBrewer's
+# protanopia / deuteranopia checks.
+mx <- max(abs(G_df$Fitted), na.rm = TRUE)
+ggplot(G_df, aes(x = Course, y = Student, fill = Fitted)) +
+    geom_tile() +
+    scale_fill_distiller(palette = "RdBu", direction = -1, limits = c(-mx, mx)) +
+    labs(title = "Fitted Multiplicative Structure (UGV')",
+            subtitle = "Red = positive latent affinity, Blue = negative, near-white = ~0",
+            x = "Course", y = "Student",
+            fill = "U G V'") +
+    theme_bw() +
+    theme(panel.border = element_blank())
 ```
 
-![](bipartite_files/figure-html/interaction_heatmap-1.png)
+![Heatmap of the fitted multiplicative structure U G V' across
+student-course pairs using a diverging colour-blind-safe ColorBrewer
+RdBu palette: red tiles mark positive latent affinity (predicted
+enrollment above baseline), blue tiles mark negative latent affinity
+(predicted below baseline), and near-white tiles mark a posterior
+estimate near
+zero.](bipartite_files/figure-html/interaction_heatmap-1.png)
 
 ## Longitudinal Analysis with `lame()`
 
@@ -188,27 +309,52 @@ structure to evolve.
 
 ### Simulating Longitudinal Data
 
-We simulate a panel of user–item interaction networks over 5 periods.
-The underlying latent structure is held fixed (for now), with small
-random shocks to the overall baseline at each period.
+We simulate a panel of user–item interaction networks over 5 periods in
+which the latent positions drift via an AR(1) process with $\rho = 0.9$.
+This is a smooth, mean-reverting evolution: each period’s latent
+position is mostly the previous one plus a small innovation. The
+simulation chunk below uses the **stationary-variance parameterisation**
+($U_{t} = \rho\, U_{t - 1} + \sqrt{1 - \rho^{2}}\,\epsilon$ with
+$\epsilon \sim N(0,I)$, so the marginal variance of $U_{t}$ stays equal
+to 1 for every $t$). The MCMC sampler internally uses the
+**innovation-variance parameterisation**
+($U_{t} = \rho\, U_{t - 1} + \epsilon$ with
+$\epsilon \sim N\left( 0,\sigma_{uv}^{2} \right)$); the two are the same
+process when $\sigma_{uv}^{2} = 1 - \rho^{2}$, but the variance lives on
+different objects, so don’t mix them when writing your own simulations.
+The data-generating interaction matrix $G$ that combines $U$ and $V$ is
+held constant across periods, so when we fit
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) with
+`dynamic_G = FALSE` the model’s static $G$ is matched to the truth; we
+show the time-varying alternative (`dynamic_G = TRUE`) further down.
 
 ``` r
 n_periods <- 5
 n_users <- 20
 n_items <- 15
 
-U_long <- matrix(rnorm(n_users * 2), n_users, 2)
-V_long <- matrix(rnorm(n_items * 2), n_items, 2)
+true_rho <- 0.9
 G_long <- matrix(c(1, 0.3, 0.3, -0.8), 2, 2)
+
+U_t <- vector("list", n_periods)
+V_t <- vector("list", n_periods)
+U_t[[1]] <- matrix(rnorm(n_users * 2), n_users, 2)
+V_t[[1]] <- matrix(rnorm(n_items * 2), n_items, 2)
+for(t in 2:n_periods) {
+    U_t[[t]] <- true_rho * U_t[[t-1]] +
+        sqrt(1 - true_rho^2) * matrix(rnorm(n_users * 2), n_users, 2)
+    V_t[[t]] <- true_rho * V_t[[t-1]] +
+        sqrt(1 - true_rho^2) * matrix(rnorm(n_items * 2), n_items, 2)
+}
 
 Y_list <- list()
 for(t in 1:n_periods) {
-  eta_t <- U_long %*% G_long %*% t(V_long) + rnorm(1, 0, 0.2)
-  prob_t <- plogis(eta_t)
-  Y_list[[t]] <- matrix(rbinom(n_users * n_items, 1, prob_t),
-                        n_users, n_items)
-  rownames(Y_list[[t]]) <- paste0("User", 1:n_users)
-  colnames(Y_list[[t]]) <- paste0("Item", 1:n_items)
+    eta_t <- U_t[[t]] %*% G_long %*% t(V_t[[t]])
+    prob_t <- pnorm(eta_t)
+    Y_list[[t]] <- matrix(rbinom(n_users * n_items, 1, prob_t),
+                                                n_users, n_items)
+    rownames(Y_list[[t]]) <- paste0("User", 1:n_users)
+    colnames(Y_list[[t]]) <- paste0("Item", 1:n_items)
 }
 names(Y_list) <- paste0("T", 1:n_periods)
 
@@ -218,6 +364,8 @@ cat("Dimensions per period:", dim(Y_list[[1]]), "\n")
 #> Dimensions per period: 20 15
 cat("Average density:", round(mean(sapply(Y_list, mean)), 2), "\n")
 #> Average density: 0.51
+cat("True latent AR(1) coefficient:", true_rho, "\n")
+#> True latent AR(1) coefficient: 0.9
 ```
 
 ### Static Model
@@ -229,21 +377,21 @@ useful when you believe the underlying structure is stable and you just
 want more data to estimate it precisely.
 
 ``` r
-# Note: iterations are kept small for vignette speed; use burn >= 1000
+# note: iterations are kept small for vignette speed; use burn >= 1000
 # and nscan >= 5000 for real analyses.
 fit_static <- lame(
-  Y = Y_list,
-  mode = "bipartite",
-  R_row = 2,
-  R_col = 2,
-  family = "binary",
-  dynamic_uv = FALSE,
-  dynamic_ab = FALSE,
-  burn = 100,
-  nscan = 500,
-  odens = 5,
-  verbose = FALSE,
-  plot = FALSE
+    Y = Y_list,
+    mode = "bipartite",
+    R_row = 2,
+    R_col = 2,
+    family = "binary",
+    dynamic_uv = FALSE,
+    dynamic_ab = FALSE,
+    burn = 100,
+    nscan = 500,
+    odens = 5,
+    verbose = FALSE,
+    plot = FALSE
 )
 
 summary(fit_static)
@@ -251,29 +399,36 @@ summary(fit_static)
 #> === Longitudinal AME Model Summary ===
 #> 
 #> Call:
-#> NULL
+#> [1] "Y ~ a[i] + b[j] + U[i,1:2] %*% G %*% V[j,1:2]', family = 'binary'"
 #> 
 #> Time periods: 5 
 #> Family: binary 
 #> Mode: bipartite 
 #> 
+#> Note: STATIC fit pooled across 5 time periods --
+#>   U, V, a, b are time-invariant; per-period predictions vary
+#>   only through per-period covariates. For time-varying effects,
+#>   refit with dynamic_uv = TRUE and/or dynamic_ab = TRUE.
+#> 
 #> Regression coefficients:
 #> ------------------------
 #>           Estimate StdError z_value p_value CI_lower CI_upper  
-#> intercept    0.023    0.159   0.147   0.883   -0.289    0.336  
+#> intercept    0.008    0.236   0.034   0.973   -0.461    0.421  
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.235    0.075
+#> va     0.254    0.088
 #> cab    0.000    0.000
-#> vb     0.268    0.101
+#> vb     0.303    0.128
 #> rho    0.000    0.000
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
+#>   Note: bipartite model (rho fixed to 0, cab fixed to 0)
 ```
 
 ### Dynamic Model
@@ -285,20 +440,20 @@ autoregressive parameter ($\rho$ close to 1) means slow, gradual change;
 a low one means the structure is more volatile from period to period.
 
 ``` r
-# Same reduced iterations as above for vignette speed.
+# same reduced iterations as above for vignette speed.
 fit_dynamic <- lame(
-  Y = Y_list,
-  mode = "bipartite",
-  R_row = 2,
-  R_col = 2,
-  family = "binary",
-  dynamic_uv = TRUE,
-  dynamic_ab = TRUE,
-  burn = 100,
-  nscan = 500,
-  odens = 5,
-  verbose = FALSE,
-  plot = FALSE
+    Y = Y_list,
+    mode = "bipartite",
+    R_row = 2,
+    R_col = 2,
+    family = "binary",
+    dynamic_uv = TRUE,
+    dynamic_ab = TRUE,
+    burn = 100,
+    nscan = 500,
+    odens = 5,
+    verbose = FALSE,
+    plot = FALSE
 )
 
 summary(fit_dynamic)
@@ -306,32 +461,121 @@ summary(fit_dynamic)
 #> === Longitudinal AME Model Summary ===
 #> 
 #> Call:
-#> NULL
+#> [1] "Y ~ a[i] + b[j] + U[i,1:2] %*% G %*% V[j,1:2]', family = 'binary'"
 #> 
 #> Time periods: 5 
 #> Family: binary 
 #> Mode: bipartite 
-#> Dynamic latent positions: enabled (rho_uv = 0.391 )
-#> Dynamic additive effects: enabled (rho_ab = 0.485 )
+#> Dynamic latent positions: enabled (rho_uv = 0.905 )
+#> Dynamic additive effects: enabled (rho_ab = 0.402 )
 #> 
 #> Regression coefficients:
 #> ------------------------
 #>           Estimate StdError z_value p_value CI_lower CI_upper  
-#> intercept   -0.003    0.038  -0.084   0.933   -0.078    0.072  
+#> intercept    0.005    0.036   0.139   0.889   -0.065    0.078  
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
 #> 
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.241    0.075
+#> va     0.289    0.089
 #> cab    0.000    0.000
-#> vb     0.268    0.086
+#> vb     0.324    0.158
 #> rho    0.000    0.000
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
+#>   Note: bipartite model (rho fixed to 0, cab fixed to 0)
 ```
+
+The dynamic model reports estimated AR(1) persistence parameters for the
+latent positions (`rho_uv`) and additive effects (`rho_ab`). Values
+close to 1 indicate strong period-to-period persistence; values close to
+0 indicate near-independent latent positions across periods.
+
+``` r
+cat(sprintf("True rho_uv = %.2f | posterior mean = %.3f | 95%% CI = [%.3f, %.3f]\n",
+                        true_rho,
+                        mean(fit_dynamic$rho_uv),
+                        quantile(fit_dynamic$rho_uv, 0.025),
+                        quantile(fit_dynamic$rho_uv, 0.975)))
+#> True rho_uv = 0.90 | posterior mean = 0.905 | 95% CI = [0.865, 0.947]
+```
+
+The posterior recovers the true `rho_uv = 0.9` within the 95% credible
+interval, indicating that
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md)
+correctly identifies that the latent positions drift smoothly rather
+than refreshing each period.
+
+### Time-varying Interaction Matrix (`dynamic_G`)
+
+When you suspect that the way the row and column latent spaces interact
+is itself shifting over time, not just the actor positions, set
+`dynamic_G = TRUE`.
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) then
+runs a Carter-Kohn FFBS on `vec(G_t)` under an AR(1) state-space prior
+(the persistence and innovation variance are sampled jointly inside the
+loop) and attaches three outputs:
+
+- `fit$G_cube` – the final draw’s per-period $G_{t}$
+  ($R_{\text{row}} \times R_{\text{col}} \times T$).
+- `fit$G_cube_post_mean` – the posterior-mean $G_{t}$ averaged across
+  all stored draws, same shape; this is the recommended summary.
+- `fit$G_cube_post_sd` – the elementwise posterior SD across draws, same
+  shape.
+
+The hyperparameter chains live at `fit$RHO_G` and `fit$SIGMA_G2`. A
+rotation-drift diagnostic (`fit$G_rotation_drift`) compares the variance
+of the raw $G_{t}$ entries to their SVD-canonicalised counterparts; when
+the ratio is large the apparent time variation is dominated by
+latent-rotation drift rather than real change in the interaction matrix.
+
+``` r
+fit_dynG <- lame(
+    Y = Y_list,
+    mode = "bipartite",
+    R_row = 2,
+    R_col = 2,
+    family = "binary",
+    dynamic_uv = TRUE,
+    dynamic_ab = TRUE,
+    dynamic_G = TRUE,
+    burn = 100,
+    nscan = 500,
+    odens = 5,
+    verbose = FALSE,
+    plot = FALSE
+)
+
+# fit$G_cube_post_mean has dimensions R_row x R_col x n_periods
+if (!is.null(fit_dynG$G_cube_post_mean)) {
+    cat("G_cube_post_mean dimensions:", dim(fit_dynG$G_cube_post_mean), "\n")
+    cat("Frobenius norm of posterior-mean G_t per period:\n")
+    print(round(apply(fit_dynG$G_cube_post_mean, 3,
+                      function(g) sqrt(sum(g^2))), 3))
+    cat("Rotation-drift ratio (>= 5 flags latent-rotation domination):",
+        round(fit_dynG$G_rotation_drift$ratio, 2), "\n")
+} else {
+    cat("G_cube was not attached (no bipartite + RA>0 + RB>0 case).\n")
+}
+#> G_cube_post_mean dimensions: 2 2 5 
+#> Frobenius norm of posterior-mean G_t per period:
+#> [1] 8.645 8.696 8.498 8.185 8.057
+#> Rotation-drift ratio (>= 5 flags latent-rotation domination): 1.08
+```
+
+If the Frobenius norms across periods are nearly identical (and the
+static-G fit GOF is comparable), there is no real evidence of
+time-varying interaction structure and you should stick with
+`dynamic_G = FALSE`. If they drift substantially and the static-G fit
+shows worse GOF coverage, the time-varying $G_{t}$ is doing meaningful
+work. The rotation-drift diagnostic is the second sanity check: if the
+ratio is above ~5, the apparent variation across $G_{t}$ slices is
+mostly U/V rotation rather than real temporal change, and the canonical
+reporting in `G_cube_post_mean` is the honest summary.
 
 ### Visualizing Temporal Evolution
 
@@ -342,10 +586,13 @@ revealing which actors’ roles are stable and which are shifting.
 
 ``` r
 uv_plot(fit_dynamic, plot_type = "trajectory") +
-  ggtitle("Dynamic Latent Positions: Trajectories Over Time")
+    ggtitle("Dynamic Latent Positions: Trajectories Over Time")
 ```
 
-![](bipartite_files/figure-html/visualize_longitudinal-1.png)
+![Trajectory plot showing the path of each actor's latent position from
+the first to the last period; coherent curved paths indicate smooth
+temporal
+evolution.](bipartite_files/figure-html/visualize_longitudinal-1.png)
 
 Convergence diagnostics are especially important for dynamic models,
 since the additional parameters ($\rho$, innovation variances) need
@@ -355,27 +602,44 @@ adequate samples to be well-estimated.
 trace_plot(fit_dynamic)
 ```
 
-![](bipartite_files/figure-html/trace_dynamic-1.png)
+![MCMC trace plots and posterior densities for the dynamic bipartite
+model parameters; well-mixed caterpillar traces indicate adequate
+sampling.](bipartite_files/figure-html/trace_dynamic-1.png)
 
 ## Comparing Static and Dynamic Models
 
 A natural question is whether the dynamic model is worth the added
 complexity. The goodness-of-fit plots provide one way to compare: if the
-dynamic model’s posterior predictive distributions better cover the
-observed statistics, the extra flexibility is paying off.
+dynamic model’s posterior-predictive distributions better cover the
+observed statistics, the extra flexibility is paying off. In each panel
+below the **observed bipartite statistic at each period appears as a
+solid Okabe-Ito orange (`#D55E00`) line with filled points**, the
+**posterior-predictive median is a dashed dark grey line**, and the
+**grey ribbon is the 95% posterior-predictive credible interval**; the
+three series are dual-encoded on colour and linetype so the comparison
+stays legible in greyscale and for colour-blind readers. For bipartite
+fits the three panels are labelled “Sender Degree Heterogeneity”
+(row-mean SD), “Receiver Degree Heterogeneity” (column-mean SD), and
+“Four Cycles”, the bipartite analogue of transitivity.
 
 ``` r
 # GOF plots for each model
 gof_plot(fit_static)
 ```
 
-![](bipartite_files/figure-html/model_comparison-1.png)
+![Side-by-side goodness-of-fit panels comparing posterior predictive
+coverage of bipartite degree heterogeneity and four-cycle counts for the
+static versus dynamic
+model.](bipartite_files/figure-html/model_comparison-1.png)
 
 ``` r
 gof_plot(fit_dynamic)
 ```
 
-![](bipartite_files/figure-html/model_comparison-2.png)
+![Side-by-side goodness-of-fit panels comparing posterior predictive
+coverage of bipartite degree heterogeneity and four-cycle counts for the
+static versus dynamic
+model.](bipartite_files/figure-html/model_comparison-2.png)
 
 We can also compare the GOF statistics directly. For bipartite networks,
 the key statistics are the standard deviation of row means (how much
@@ -388,29 +652,73 @@ unipartite networks).
 gof_static <- fit_static$GOF
 gof_dynamic <- fit_dynamic$GOF
 
-gof_df <- data.frame(
-  value = c(
-    colMeans(gof_static$sd.rowmean), colMeans(gof_dynamic$sd.rowmean),
-    colMeans(gof_static$sd.colmean), colMeans(gof_dynamic$sd.colmean),
-    colMeans(gof_static$four.cycles), colMeans(gof_dynamic$four.cycles)
-  ),
-  model = rep(c("Static", "Dynamic"), 3,
-              each = ncol(gof_static$sd.rowmean)),
-  statistic = rep(c("Row Mean SD", "Column Mean SD", "Four-Cycles"),
-                  each = 2 * ncol(gof_static$sd.rowmean))
+# extract posterior predictive samples (exclude column 1, which is observed)
+# each element is a matrix [n_time x n_mcmc], so colMeans averages across time
+extract_ppc <- function(gof, stat) {
+    mat <- gof[[stat]]
+    colMeans(mat[, -1, drop = FALSE])
+}
+
+# observed values (column 1, averaged across time periods)
+obs_vals <- c(
+    mean(gof_static$sd.rowmean[, 1]),
+    mean(gof_static$sd.colmean[, 1]),
+    mean(gof_static$four.cycles[, 1])
 )
 
-ggplot(gof_df, aes(x = model, y = value, fill = model)) +
-  geom_boxplot() +
-  scale_fill_manual(values = c(Dynamic = "#D94A4A", Static = "#4A90D9")) +
-  facet_wrap(~statistic, scales = "free_y") +
-  labs(title = "GOF Comparison: Static vs Dynamic",
-       x = "Model", y = "GOF Statistic") +
-  theme_minimal() +
-  theme(legend.position = "none")
+gof_df <- data.frame(
+    value = c(
+        extract_ppc(gof_static, "sd.rowmean"),
+        extract_ppc(gof_dynamic, "sd.rowmean"),
+        extract_ppc(gof_static, "sd.colmean"),
+        extract_ppc(gof_dynamic, "sd.colmean"),
+        extract_ppc(gof_static, "four.cycles"),
+        extract_ppc(gof_dynamic, "four.cycles")
+    ),
+    model = rep(rep(c("Static", "Dynamic"),
+                            each = ncol(gof_static$sd.rowmean) - 1), 3),
+    statistic = rep(c("Row Mean SD", "Column Mean SD", "Four-Cycles"),
+                                    each = 2 * (ncol(gof_static$sd.rowmean) - 1))
+)
+
+obs_df <- data.frame(
+    statistic = c("Row Mean SD", "Column Mean SD", "Four-Cycles"),
+    observed = obs_vals
+)
+
+ggplot(gof_df, aes(x = model, y = value)) +
+    geom_boxplot() +
+    geom_hline(data = obs_df, aes(yintercept = observed),
+                        linetype = 2) +
+    facet_wrap(~statistic, scales = "free_y") +
+    labs(title = "GOF Comparison: Static vs Dynamic",
+            subtitle = "Dashed Line = Observed Value",
+            x = "Model", y = "Simulated Statistic") +
+    theme_bw() +
+    theme(
+        panel.border = element_blank(),
+        strip.background = element_rect(fill = "black", color = "black"),
+        strip.text = element_text(color = "white", hjust = 0)
+    )
 ```
 
-![](bipartite_files/figure-html/model_comparison_boxplot-1.png)
+![Boxplots of posterior predictive bipartite statistics (row-mean SD,
+column-mean SD, four cycles) faceted by static and dynamic models, with
+horizontal reference lines at observed
+values.](bipartite_files/figure-html/model_comparison_boxplot-1.png)
+
+We simulated a constant interaction matrix $G$ with actor positions that
+drift via an AR(1) with $\rho = 0.9$ – moderate persistence (the lag-4
+autocorrelation is $0.9^{4} \approx 0.66$, so the positions at the first
+and last period correlate only about 0.6-0.8 and do move). What is
+genuinely fixed is $G$, not the positions; combined with the short panel
+and short chains, that is why the static and dynamic models fit
+similarly here rather than the dynamic one clearly winning. If the
+boxplots overlap substantially and both cover the dashed line, the
+dynamic model’s extra flexibility is not paying off here. In real
+applications where user preferences or item popularity genuinely shift
+over time, the dynamic model would show tighter coverage of the observed
+statistics.
 
 ### Choosing Latent Dimensions
 
@@ -421,40 +729,70 @@ slower computation). A practical approach is to fit models with
 different dimensions and compare their GOF statistics.
 
 ``` r
+# include R=0 as a no-latent-space baseline
 dims_to_test <- list(
-  c(1, 1),
-  c(2, 2)
+    c(0, 0),
+    c(1, 1),
+    c(2, 2)
 )
+
+# compute observed GOF statistics from the data
+obs_gof <- gof_stats(Y_bipartite, mode = "bipartite")
 
 gof_results <- list()
 for(i in seq_along(dims_to_test)) {
-  fit_temp <- ame(
-    Y = Y_bipartite,
-    mode = "bipartite",
-    R_row = dims_to_test[[i]][1],
-    R_col = dims_to_test[[i]][2],
-    family = "binary",
-    burn = 100,
-    nscan = 500,
-    odens = 5,
-    verbose = FALSE
-  )
-  gof_results[[i]] <- c(
-    R_row = dims_to_test[[i]][1],
-    R_col = dims_to_test[[i]][2],
-    gof_rowmean = mean(abs(fit_temp$GOF[, "sd.rowmean"])),
-    gof_fourcycles = mean(abs(fit_temp$GOF[, "four.cycles"]))
-  )
+    fit_temp <- ame(
+        Y = Y_bipartite,
+        mode = "bipartite",
+        R_row = dims_to_test[[i]][1],
+        R_col = dims_to_test[[i]][2],
+        family = "binary",
+        burn = 200,
+        nscan = 2500,
+        odens = 5,
+        verbose = FALSE
+    )
+    # posterior predictive tail probability: proportion of simulated
+    # statistics at or above the observed value (one-sided)
+    gof_results[[i]] <- c(
+        R_row = dims_to_test[[i]][1],
+        R_col = dims_to_test[[i]][2],
+        pval_rowmean = mean(fit_temp$GOF[, "sd.rowmean"] >= obs_gof["sd.rowmean"]),
+        pval_colmean = mean(fit_temp$GOF[, "sd.colmean"] >= obs_gof["sd.colmean"]),
+        pval_fourcycles = mean(fit_temp$GOF[, "four.cycles"] >= obs_gof["four.cycles"])
+    )
 }
 
 do.call(rbind, gof_results)
-#>      R_row R_col gof_rowmean gof_fourcycles
-#> [1,]     1     1   0.1422260       7239.300
-#> [2,]     2     2   0.1409541       7266.175
+#>      R_row R_col pval_rowmean pval_colmean pval_fourcycles
+#> [1,]     0     0     1.000000    0.9900200       0.9920160
+#> [2,]     1     1     0.998004    0.9221557       0.9820359
+#> [3,]     2     2     0.988024    0.8742515       0.9700599
 ```
 
-Smaller GOF values (closer to zero) indicate better fit. Look for the
-point where adding more dimensions stops improving the GOF appreciably.
+These are one-sided posterior predictive tail probabilities, not formal
+test p-values. Values near 0.5 indicate the observed statistic lies in
+the bulk of the model’s posterior predictive distribution; values near 0
+or 1 indicate the model systematically over- or under-predicts that
+feature. (Note that for
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md), `fit$GOF`
+stores the observed statistic in row 1 alongside the
+posterior-predictive draws, so the tail probability here includes the
+observed point itself — a one-row bias that is negligible for the chain
+lengths we use, but worth knowing.) The relationship to `R` is not
+monotonic; adding latent dimensions can move some tail probabilities
+away from 0.5 (e.g. by making the predictive distribution more
+dispersed), so use this together with the trajectory and GOF plots
+rather than as a single number to optimise. A sensible heuristic is to
+pick the smallest `R` at which all three tail probabilities sit
+comfortably away from 0 and 1. On this particular simulated network the
+three tail probabilities all stay high (near 1) at every `R` – the fit
+over-predicts both row-degree heterogeneity and four-cycles (the
+simulated networks carry more of each than the observed network)
+regardless of rank – which is itself a useful verdict: no value of `R`
+rescues these statistics, so the limitation is structural rather than a
+matter of adding latent dimensions. That is exactly the kind of read
+this diagnostic is for.
 
 ## Practical Guidance
 
@@ -484,12 +822,33 @@ densities for the regression coefficients and variance components.
 trace_plot(fit_cross)
 ```
 
-![](bipartite_files/figure-html/convergence-1.png)
+![MCMC trace and density plots for the cross-sectional bipartite fit;
+well-mixed traces and smooth unimodal densities support
+convergence.](bipartite_files/figure-html/convergence-1.png)
 
 Look for traces that mix well (no long flat stretches or slow drifts)
 and densities that are smooth and unimodal. With the short chains used
 in this vignette, convergence is not guaranteed. In practice, run longer
 chains and consider multiple starting values.
+
+For numerical diagnostics use the same Stan-era stack the
+cross-sectional vignette demonstrates. `posterior::as_draws(fit_cross)`
+returns a `draws_array` keyed by chain, and
+[`posterior::summarise_draws()`](https://mc-stan.org/posterior/reference/draws_summary.html)
+reports split-$\widehat{R}$, `ess_bulk`, and `ess_tail` per coefficient
+and variance component. For honest between-chain $\widehat{R}$ run
+`ame_parallel(..., n_chains = 4, fitter = "ame", combine_method = "pool")`
+so the pooled fit carries a `chain_indicator` column;
+`summarise_draws()` then computes Rhat across chains.
+`prior_summary(fit_cross)` prints the hyperparameters actually in effect
+(g-prior on $\beta$, variance-component priors), and
+`loo::loo(fit_cross)` works after refitting with `save_log_lik = TRUE`
+(Gaussian density for `normal`, probit Bernoulli for `binary`,
+log-Poisson for `poisson`; pair with
+[`loo::loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
+for model selection). See the [cross-sectional
+vignette](https://netify-dev.github.io/lame/articles/cross_sec_ame.md)
+for the worked end-to-end stack.
 
 ## Extracting Positions for Custom Analysis
 
@@ -501,16 +860,20 @@ combination:
 
 ``` r
 lp <- latent_positions(fit_cross)
+#> ℹ `posterior_sd` is "NA" because U/V samples were not saved.
+#> ℹ To get posterior SDs, refit with `posterior_opts = posterior_options(save_UV
+#>   = TRUE)`.
+#> This message is displayed once per session.
 head(lp)
-#>   actor dimension time      value posterior_sd type
-#> 1 node1         1 <NA> -1.9086611           NA    U
-#> 2 node2         1 <NA>  0.8718661           NA    U
-#> 3 node3         1 <NA>  2.0128221           NA    U
-#> 4 node4         1 <NA> -0.7177380           NA    U
-#> 5 node5         1 <NA>  0.3638942           NA    U
-#> 6 node6         1 <NA>  3.0011548           NA    U
+#>      actor dimension time       value posterior_sd type
+#> 1 Student1         1    1 -2.12110916           NA    U
+#> 2 Student2         1    1  0.49495598           NA    U
+#> 3 Student3         1    1  1.74106967           NA    U
+#> 4 Student4         1    1 -1.90187944           NA    U
+#> 5 Student5         1    1 -0.03972852           NA    U
+#> 6 Student6         1    1  4.32579340           NA    U
 
-# Filter to just the row nodes (students)
+# filter to just the row nodes (students)
 lp_students <- lp[lp$type == "U", ]
 cat("Student positions:", nrow(lp_students), "rows\n")
 #> Student positions: 60 rows

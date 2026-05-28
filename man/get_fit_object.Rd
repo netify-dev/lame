@@ -14,6 +14,7 @@ get_fit_object(
   GOF,
   Xlist,
   actorByYr,
+  colActorByYr = NULL,
   start_vals,
   symmetric,
   tryErrorChecks,
@@ -31,7 +32,14 @@ get_fit_object(
   nB = NULL,
   n_time = NULL,
   Y_obs = NULL,
-  G = NULL
+  G = NULL,
+  dynamic_beta = FALSE,
+  beta_dynamic_mask = NULL,
+  beta_dynamic_groups = NULL,
+  rho_beta = NULL,
+  sigma_beta = NULL,
+  RHO_BETA = NULL,
+  SIGMA_BETA = NULL
 )
 }
 \arguments{
@@ -51,7 +59,11 @@ get_fit_object(
 
 \item{Xlist}{List based version of design array}
 
-\item{actorByYr}{List of actors by time point}
+\item{actorByYr}{List of actors by time point. In bipartite mode this is
+the per-year list of row actors.}
+
+\item{colActorByYr}{Bipartite only. List of column actors by time point;
+defaults to \code{NULL} (unipartite).}
 
 \item{start_vals}{start_vals for future model run}
 
@@ -88,6 +100,25 @@ get_fit_object(
 \item{Y_obs}{original observed network (stored for residuals computation)}
 
 \item{G}{bipartite interaction matrix mapping row to column latent spaces}
+
+\item{dynamic_beta}{logical or scalar; whether the BETA storage is 3-D
+(dynamic_beta path). Default \code{FALSE}.}
+
+\item{beta_dynamic_mask}{logical vector marking which coefficients are dynamic.}
+
+\item{beta_dynamic_groups}{character vector of per-coefficient block labels
+("intercept", "dyad", "row", "col"); \code{""} for static coefficients.}
+
+\item{rho_beta}{named numeric vector of per-block AR(1) rho values (one
+per dynamic block).}
+
+\item{sigma_beta}{named numeric vector of per-block AR(1) innovation
+standard deviations.}
+
+\item{RHO_BETA}{matrix of per-iteration rho_beta draws (rows = MCMC draw,
+cols = dynamic block).}
+
+\item{SIGMA_BETA}{matrix of per-iteration sigma_beta draws.}
 }
 \value{
 Fitted AME object

@@ -74,7 +74,7 @@ print(fit)
 #> ================================================
 #> 
 #> Network dimensions:  100 x 100 
-#> MCMC iterations:  100 
+#> Stored posterior samples:  100 
 #> Family:  normal 
 #> Mode:  unipartite 
 #> Symmetric:  FALSE 

@@ -23,7 +23,23 @@ get_design_rep <- function(Y=Y, Xdyad, Xrow, Xcol, actorSet, intercept, n, N, pr
 	# construct design array
 	X<-array(dim=c(n,n,pr+pc+pd+intercept,N))
 	for (t in 1:N ){
-		Xt<-design_array_listwisedel(Xrow[,,t],Xcol[,,t],Xdyad[,,,t],intercept,n)
+		# slice each covariate array, keeping the covariate-name dimension even
+		# when there is a single covariate (a plain [,,t]/[,,,t] drops the
+		# singleton dim and loses the name -> coefficient labelled "dyad1")
+		xr <- if (is.null(Xrow)) NULL else Xrow[,,t]
+		if (!is.null(xr) && is.null(dim(xr))) {
+			xr <- matrix(xr, n, 1, dimnames = list(NULL, dimnames(Xrow)[[2]]))
+		}
+		xc <- if (is.null(Xcol)) NULL else Xcol[,,t]
+		if (!is.null(xc) && is.null(dim(xc))) {
+			xc <- matrix(xc, n, 1, dimnames = list(NULL, dimnames(Xcol)[[2]]))
+		}
+		xd <- if (is.null(Xdyad)) NULL else Xdyad[,,,t]
+		if (!is.null(xd) && length(dim(xd)) == 2L) {
+			xd <- array(xd, c(n, n, 1),
+			            dimnames = list(NULL, NULL, dimnames(Xdyad)[[3]]))
+		}
+		Xt<-design_array_listwisedel(xr,xc,xd,intercept,n)
 
 		# re-add intercept if it was removed
 		if(dim(Xt)[3]<dim(X)[3] ){

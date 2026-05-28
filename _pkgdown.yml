@@ -26,6 +26,10 @@ navbar:
           href: articles/bipartite.html
         - text: "Dynamic Effects"
           href: articles/dynamic_effects.html
+        - text: "Fast (MCMC-free) Estimation"
+          href: articles/fast_estimation.html
+        - text: "Forecasting"
+          href: articles/forecasting.html
 
 articles:
   - title: "Getting Started"
@@ -37,16 +41,68 @@ articles:
     contents:
     - bipartite
     - dynamic_effects
+    - fast_estimation
+    - forecasting
 
 reference:
-  - title: "Model Fitting"
-    desc: "Core functions for fitting AME and LAME models"
+  - title: "Model Fitting (MCMC)"
+    desc: "Core Bayesian MCMC estimators for AME and LAME models"
     contents:
     - ame
     - lame
     - lame-package
     - ame_parallel
+    - lame_parallel
+    - lame_multi
+    - lame_resume
     - ame_options
+
+  - title: "Forecasting and Temporal Diagnostics"
+    desc: "Forecasts, counterfactuals, and diagnostics for dynamic fits"
+    contents:
+    - gof_temporal
+    - detect_change_point
+    - lfo
+    - forecast_pit
+    - rhat_dynamic_beta
+    - dynamic_beta_prior_summary
+    - prediction_draws_long
+    - per_actor_slopes
+    - als_dynamic_beta
+
+  - title: "Model Comparison and Posterior Diagnostics"
+    desc: "Information criteria, posterior draws, and held-out evaluation"
+    contents:
+    - loo
+    - loo.ame
+    - waic.ame
+    - as_draws
+    - as_draws.ame
+    - prior_summary
+    - evaluate_heldout
+    - read_log_lik
+
+  - title: "Tidyverse Integration"
+    desc: "broom and ggplot2 methods for fitted models"
+    contents:
+    - tidy
+    - tidy.ame
+    - tidy.ame_als
+    - tidy.boot_ame
+    - glance
+    - glance.ame
+    - glance.ame_als
+    - autoplot.lame
+    - autoplot.ame_als
+
+  - title: "Fast Estimator (MCMC-free)"
+    desc: "Iterative block coordinate descent point estimator with bootstrap uncertainty"
+    contents:
+    - ame_als
+    - lame_als
+    - ame_als_bootstrap
+    - ame_als_refit
+    - sampler_describe
 
   - title: "S3 Methods"
     desc: "Standard R methods for model objects"
@@ -70,6 +126,38 @@ reference:
     - print.summary.lame
     - plot.ame
     - plot.lame
+    - coef.ame_als
+    - vcov.ame_als
+    - confint.ame_als
+    - fitted.ame_als
+    - residuals.ame_als
+    - predict.ame_als
+    - logLik.ame_als
+    - plot.ame_als
+    - print.ame_als
+    - summary.ame_als
+    - print.boot_ame
+    - summary.boot_ame
+    - confint.boot_ame
+    - vcov.boot_ame
+    - coef.boot_ame
+    - boot_ame-no-fitted
+    - formula.ame
+    - logLik.ame
+    - nobs.ame
+    - nobs.ame_als
+    - update.ame
+    - update.ame_als
+    - simulate.ame_als
+    - ab_plot.ame_als
+    - gof_plot.ame_als
+    - coef.als_dynamic_beta
+    - print.als_dynamic_beta
+    - print.gof_temporal
+    - print.lame_multi
+    - print.lfo_lame
+    - print.per_actor_slopes
+    - print.summary.ame_als
 
   - title: "Visualization"
     desc: "Plotting functions for diagnostics and model exploration"
@@ -121,13 +209,15 @@ reference:
     - simZ
 
   - title: "Data Manipulation"
-    desc: "Convert between network data formats"
+    desc: "Convert between network data formats and build covariates"
     contents:
     - el2sm
     - sm2el
     - array_to_list
     - list_to_array
     - list_to_array_bipartite
+    - as_lame_y
+    - nodematch
     - check_format
     - zscores
 
@@ -182,6 +272,11 @@ reference:
     - compute_XtX_Xty_bip_cpp
     - Xbeta_bip_cpp
     - rbeta_ab_bip_gibbs_cpp
+    - sample_beta_dynamic_cpp
+    - sample_beta_static_cpp
+    - sample_rho_beta_cpp
+    - sample_sigma_beta_cpp
+    - get_EZ_dynamic_beta_cpp
 
   - title: "Internal Helpers"
     desc: "Design matrix construction and low-level utilities"

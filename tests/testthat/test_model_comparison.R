@@ -315,13 +315,20 @@ test_that("Models scale appropriately with network size", {
 		n = sizes[i]
 		Y = matrix(rbinom(n*n, 1, 0.3), n, n)
 		diag(Y) = NA
-		
-		time_start = Sys.time()
+
+		# use proc.time() (monotonic CPU clock) instead of Sys.time() so an
+		# ntp adjustment mid-run can't produce a negative elapsed value
+		t0 = proc.time()[["elapsed"]]
 		fit = ame(Y, R=1, family="binary",
 							 burn=100, nscan=300, verbose = FALSE)
-		times[i] = as.numeric(Sys.time() - time_start, units="secs")
+		times[i] = proc.time()[["elapsed"]] - t0
 	}
-	
+
+	# skip the timing assertions on a shared/CI machine where another
+	# process can starve a single fit; only assert finite (clock-sane)
+	skip_if_not(all(is.finite(times) & times >= 0),
+	            "negative or non-finite elapsed time (clock skew or starved CPU)")
+
 	# largest network should take at least as long as smallest
 	# (relaxed test: timing can be noisy on small sizes)
 	expect_gt(times[length(times)], 0)  # Largest finishes in finite time

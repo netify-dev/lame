@@ -35,9 +35,13 @@ sample_dynamic_ab_cpp <- function(a_current, b_current, Z_array, EZ_array, rho_a
 #' @param sigma_ab Innovation standard deviation
 #' @param rho_current Current value of rho
 #' @param symmetric Whether the network is symmetric
+#' @param prior_mean Prior mean for rho. Used only when \code{prior_sd > 0}.
+#' @param prior_sd Prior SD for rho. \code{prior_sd < 0} (the default)
+#'   selects a Jeffreys-like flat prior; a positive value switches to a
+#'   truncated Normal(prior_mean, prior_sd^2) prior.
 #' @return Updated rho value
-sample_rho_ab_cpp <- function(a_mat, b_mat, sigma_ab, rho_current, symmetric) {
-    .Call(`_lame_sample_rho_ab_cpp`, a_mat, b_mat, sigma_ab, rho_current, symmetric)
+sample_rho_ab_cpp <- function(a_mat, b_mat, sigma_ab, rho_current, symmetric, prior_mean = 0.0, prior_sd = -1.0) {
+    .Call(`_lame_sample_rho_ab_cpp`, a_mat, b_mat, sigma_ab, rho_current, symmetric, prior_mean, prior_sd)
 }
 
 #' Sample innovation variance for dynamic additive effects
@@ -64,6 +68,122 @@ sample_sigma_ab_cpp <- function(a_mat, b_mat, rho_ab, symmetric, prior_shape = 2
 #' @return List with initialized a and b matrices
 init_dynamic_ab_cpp <- function(n, T, rho_ab, sigma_ab, mean_a = 0.0, mean_b = 0.0) {
     .Call(`_lame_init_dynamic_ab_cpp`, n, T, rho_ab, sigma_ab, mean_a, mean_b)
+}
+
+#' Sample the dynamic-block beta path via FFBS
+#'
+#' Forward-filter / backward-sample the AR(1) state-space model for the
+#' dynamic-block beta coefficients. Returns the joint draw of beta_dyn at
+#' every time period.
+#'
+#' @param Xdyn_list T-length list of (n*n) x p_dyn long-format design
+#'   matrices for the dynamic block (column-major reshape per period).
+#' @param Xstat_list T-length list of (n*n) x p_static long-format design
+#'   matrices for the static block.
+#' @param Z_list T-length list of (n x n) latent matrices.
+#' @param offset_list T-length list of (n x n) offset matrices (a_i + b_j +
+#'   U_i'V_j contributions; everything that's not in X*beta).
+#' @param beta_static Length p_static current static beta vector.
+#' @param rho_by_coef Length p_dyn vector of AR(1) rho values for each
+#'   dynamic coefficient. (Per-block but expanded per-column for vectorised
+#'   indexing.)
+#' @param sigma_by_coef Length p_dyn vector of AR(1) innovation standard
+#'   deviations for each dynamic coefficient.
+#' @param Lambda Block-diagonal innovation scale matrix (p_dyn x p_dyn).
+#'   Combined with sigma^2 to give Q = sigma^2 * Lambda.
+#' @param beta0_mean Length p_dyn prior mean for beta at t=0.
+#' @param beta0_cov  p_dyn x p_dyn prior covariance for beta at t=0.
+#' @param s2 Dyadic variance.
+#' @param dyad_rho Dyadic correlation (ignored when use_dyad_rho=FALSE).
+#' @param bipartite Whether the network is bipartite.
+#' @param symmetric Whether the network is symmetric.
+#' @param use_dyad_rho Whether to use the dyad-corr branch (TRUE only for
+#'   unipartite, asymmetric, with a non-zero rho).
+#' @return List with: path -- a (T x p_dyn) matrix of beta draws (one row
+#'   per period); chol_fail -- integer count of Cholesky failures.
+sample_beta_dynamic_cpp <- function(Xdyn_list, Xstat_list, Z_list, offset_list, beta_static, rho_by_coef, sigma_by_coef, Lambda, beta0_mean, beta0_cov, s2, dyad_rho, bipartite, symmetric, use_dyad_rho) {
+    .Call(`_lame_sample_beta_dynamic_cpp`, Xdyn_list, Xstat_list, Z_list, offset_list, beta_static, rho_by_coef, sigma_by_coef, Lambda, beta0_mean, beta0_cov, s2, dyad_rho, bipartite, symmetric, use_dyad_rho)
+}
+
+#' Sample the static-block beta conditional on the dynamic path
+#'
+#' Conjugate Gaussian update for the static coefficient block, treating the
+#' dynamic path as known. Uses a flat-ish ridge-style prior `prior_prec` on
+#' the static beta (typically diag(1/g) to match the existing g-prior path).
+#'
+#' @param Xdyn_list T-length list of long-format dynamic design matrices.
+#' @param Xstat_list T-length list of long-format static design matrices.
+#' @param Z_list T-length list of latent (n x n) matrices.
+#' @param offset_list T-length list of (n x n) offsets.
+#' @param beta_dyn_path (T x p_dyn) dynamic path matrix.
+#' @param prior_mean Length p_static prior mean.
+#' @param prior_prec p_static x p_static prior precision.
+#' @param s2 Dyadic variance.
+#' @param dyad_rho Dyadic correlation.
+#' @param bipartite TRUE/FALSE.
+#' @param symmetric TRUE/FALSE.
+#' @param use_dyad_rho TRUE/FALSE.
+#' @return List with: beta -- length p_static; chol_fail -- integer.
+sample_beta_static_cpp <- function(Xdyn_list, Xstat_list, Z_list, offset_list, beta_dyn_path, prior_mean, prior_prec, s2, dyad_rho, bipartite, symmetric, use_dyad_rho) {
+    .Call(`_lame_sample_beta_static_cpp`, Xdyn_list, Xstat_list, Z_list, offset_list, beta_dyn_path, prior_mean, prior_prec, s2, dyad_rho, bipartite, symmetric, use_dyad_rho)
+}
+
+#' Sample the AR(1) rho for each dynamic block
+#'
+#' Truncated-Normal full conditional, one rho per block.
+#'
+#' @param beta_path (T x p_dyn) matrix of beta draws.
+#' @param group_id Length p_dyn integer vector (1-based) of block IDs.
+#' @param n_groups Number of distinct block IDs.
+#' @param Lambda_inv (p_dyn x p_dyn) inverse of the (full) Lambda scale.
+#' @param sigma_by_coef Length p_dyn vector of per-coef sigma (block-shared).
+#' @param rho_current Length n_groups vector of current rho values.
+#' @param rho_prior_mean Length n_groups vector of prior means.
+#' @param rho_prior_sd   Length n_groups vector of prior SDs.
+#' @param rho_lower Lower truncation bound (typically 0).
+#' @param rho_upper Upper truncation bound (typically 0.999).
+#' @return Length n_groups vector of new rho values.
+sample_rho_beta_cpp <- function(beta_path, group_id, n_groups, Lambda_inv, sigma_by_coef, rho_current, rho_prior_mean, rho_prior_sd, rho_lower = 0.0, rho_upper = 0.999) {
+    .Call(`_lame_sample_rho_beta_cpp`, beta_path, group_id, n_groups, Lambda_inv, sigma_by_coef, rho_current, rho_prior_mean, rho_prior_sd, rho_lower, rho_upper)
+}
+
+#' Sample the AR(1) innovation sigma for each dynamic block
+#'
+#' Inverse-Gamma full conditional, one sigma per block.
+#'
+#' @param beta_path (T x p_dyn) matrix.
+#' @param group_id Length p_dyn integer vector (1-based) of block IDs.
+#' @param n_groups Number of distinct block IDs.
+#' @param Lambda_inv (p_dyn x p_dyn) inverse of the (full) Lambda scale.
+#' @param rho_by_group Length n_groups vector of current rho values.
+#' @param prior_shape Length n_groups vector of IG shape parameters.
+#' @param prior_scale Length n_groups vector of IG scale parameters.
+#' @return Length n_groups vector of new sigma values.
+sample_sigma_beta_cpp <- function(beta_path, group_id, n_groups, Lambda_inv, rho_by_group, prior_shape, prior_scale) {
+    .Call(`_lame_sample_sigma_beta_cpp`, beta_path, group_id, n_groups, Lambda_inv, rho_by_group, prior_shape, prior_scale)
+}
+
+#' Compute EZ when beta is time-varying
+#'
+#' Rebuild the (n x n x T) or (nA x nB x T) EZ cube using a per-period beta
+#' vector. Mirrors get_EZ_cpp / get_EZ_bip_cpp but accepts a (T x p) beta
+#' matrix where each row is the beta for that period.
+#'
+#' @param Xlist T-length list of design arrays (each n x n x p or nA x nB x p).
+#' @param beta_full_path (T x p) matrix of per-period beta. For coefficients
+#'   that are NOT in the dynamic block, the rows are identical (the static
+#'   beta replicated across all periods).
+#' @param a_mat (n_a x T) row effects (or repmat-ed static effects).
+#' @param b_mat (n_b x T) column effects.
+#' @param U_cube (n_u x R x T) row latent positions (or replicated-static).
+#' @param V_cube (n_v x R x T) column latent positions.
+#' @param G (R x R or RA x RB) interaction matrix (bipartite); identity for
+#'   unipartite.
+#' @param bipartite TRUE/FALSE.
+#' @param symmetric TRUE/FALSE.
+#' @return n_a x n_b x T cube of EZ values.
+get_EZ_dynamic_beta_cpp <- function(Xlist, beta_full_path, a_mat, b_mat, U_cube, V_cube, G, bipartite, symmetric) {
+    .Call(`_lame_get_EZ_dynamic_beta_cpp`, Xlist, beta_full_path, a_mat, b_mat, U_cube, V_cube, G, bipartite, symmetric)
 }
 
 #' Update dynamic latent positions using AR(1) process
@@ -95,14 +215,21 @@ init_dynamic_positions <- function(n, R, T, rho_uv, sigma_uv) {
 
 #' Sample AR(1) parameter for dynamic latent factors
 #'
+#' Uses a conjugate Normal(prior_mean, prior_sd^2) prior on rho. Defaults
+#' (prior_mean = 0, prior_sd = 1) preserve the historical N(0,1) behaviour
+#' for backward compatibility; lame::lame() passes the user-set
+#' prior$rho_uv_mean / prior$rho_uv_sd explicitly.
+#'
 #' @param U_cube 3D array of U positions (n x R x T)
 #' @param V_cube 3D array of V positions (n x R x T)
 #' @param sigma_uv Innovation standard deviation
-#' @param rho_current Current value of rho
+#' @param rho_current Current value of rho (ignored; full conditional)
 #' @param symmetric Whether network is symmetric
+#' @param prior_mean Prior mean for rho (default 0)
+#' @param prior_sd Prior SD for rho (default 1)
 #' @return Updated rho value
-sample_rho_uv <- function(U_cube, V_cube, sigma_uv, rho_current, symmetric) {
-    .Call(`_lame_sample_rho_uv`, U_cube, V_cube, sigma_uv, rho_current, symmetric)
+sample_rho_uv <- function(U_cube, V_cube, sigma_uv, rho_current, symmetric, prior_mean = 0.0, prior_sd = 1.0) {
+    .Call(`_lame_sample_rho_uv`, U_cube, V_cube, sigma_uv, rho_current, symmetric, prior_mean, prior_sd)
 }
 
 #' Sample innovation variance for dynamic latent factors
@@ -167,6 +294,18 @@ rZ_pois_fc_cpp <- function(Z, EZ, rho, s2, Y) {
 
 ldZgbme_nrm_cpp <- function(Z, Y, EZ, rho, s2) {
     .Call(`_lame_ldZgbme_nrm_cpp`, Z, Y, EZ, rho, s2)
+}
+
+ldZgbme_pois_exposure_cpp <- function(Z, Y, EZ, rho, s2, log_exposure) {
+    .Call(`_lame_ldZgbme_pois_exposure_cpp`, Z, Y, EZ, rho, s2, log_exposure)
+}
+
+rZ_pois_fc_exposure_cpp <- function(Z, EZ, rho, s2, Y, log_exposure) {
+    .Call(`_lame_rZ_pois_fc_exposure_cpp`, Z, EZ, rho, s2, Y, log_exposure)
+}
+
+simY_pois_exposure <- function(EZ, exposure) {
+    .Call(`_lame_simY_pois_exposure`, EZ, exposure)
 }
 
 simY_pois <- function(EZ) {

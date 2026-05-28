@@ -4,16 +4,66 @@
 \alias{lame}
 \title{AME model fitting routine for longitudinal relational data}
 \usage{
-lame(Y,Xdyad=NULL, Xrow=NULL, Xcol=NULL, rvar = !(family=="rrl"),
-  cvar = TRUE, dcor = !symmetric, nvar=TRUE, R = 0, R_row = NULL, R_col = NULL,
+lame(
+  Y,
+  Xdyad = NULL,
+  Xrow = NULL,
+  Xcol = NULL,
+  rvar = !(family == "rrl"),
+  cvar = TRUE,
+  dcor = !symmetric,
+  nvar = TRUE,
+  R = 0,
+  R_row = NULL,
+  R_col = NULL,
   mode = c("unipartite", "bipartite"),
-  dynamic_uv = FALSE, dynamic_ab = FALSE, dynamic_G = FALSE, family ="normal",
-intercept=!is.element(family,c("rrl","ordinal")),
-symmetric=FALSE,
-odmax=NULL, prior=list(), g=NA,
-seed = 6886, nscan = 10000, burn = 500, odens = 25, plot=FALSE, verbose = FALSE, gof=TRUE,
-start_vals=NULL, periodic_save=FALSE, out_file=NULL, save_interval=0.25, model.name=NULL,
-print)
+  dynamic_uv = FALSE,
+  dynamic_ab = FALSE,
+  dynamic_G = FALSE,
+  dynamic_beta = FALSE,
+  dynamic_beta_kind = c("ar1", "rw1", "rw2", "matern32"),
+  family = "normal",
+  intercept = !is.element(family, c("rrl", "ordinal")),
+  symmetric = FALSE,
+  odmax = NULL,
+  prior = list(),
+  g = NA,
+  seed = 6886,
+  nscan = 10000,
+  burn = 500,
+  odens = 25,
+  plot = FALSE,
+  verbose = FALSE,
+  gof = TRUE,
+  start_vals = NULL,
+  periodic_save = FALSE,
+  out_file = NULL,
+  save_interval = 0.25,
+  model.name = NULL,
+  save_log_lik = FALSE,
+  log_lik_path = NULL,
+  log_lik_chunk_size = 10000L,
+  freeze_call = FALSE,
+  dynamic_beta_pool = c("none", "rho", "sigma", "both"),
+  dynamic_beta_per_actor = NULL,
+  per_actor_covariate_idx = 1L,
+  per_actor_identifiability = c("center", "exact_center", "drop_population"),
+  keep_per_actor = c("auto", "draws", "summary", "none"),
+  time_index = NULL,
+  period_exposure = NULL,
+  max_seconds = Inf,
+  checkpoint_path = NULL,
+  checkpoint_every = 100L,
+  log_lik_method = c("observed_exact", "observed_ghk", "augmented"),
+  ordinal_cutpoints = c("data_induced", "explicit"),
+  method = c("mcmc", "als"),
+  bootstrap = 0L,
+  bootstrap_type = c("parametric", "block"),
+  bootstrap_block_length = 1L,
+  bootstrap_seed = NULL,
+  resume_from = NULL,
+  print
+)
 }
 \arguments{
 \item{Y}{a T length list of n x n relational matrices, or a 3D array
@@ -64,16 +114,64 @@ decrease across observation periods. The AR(1) specification ensures temporal sm
 while allowing for actor-specific evolution patterns. Implementation uses conjugate
 updates where possible and C++ for computational efficiency. Default FALSE.}
 
-\item{dynamic_G}{logical: reserved for future use. Dynamic interaction matrix G
-is not yet implemented. Setting this to TRUE will produce a warning; the
-parameter is accepted for forward compatibility only. Default FALSE.}
+\item{dynamic_G}{logical (bipartite only). When TRUE the bipartite
+interaction matrix \eqn{G} is sampled per period and returned as
+\code{fit$G_cube}, an \eqn{R_\text{row} \times R_\text{col} \times T}
+array. The static \eqn{G} (single matrix) is the default and is the
+recommended choice; \code{dynamic_G = TRUE} is experimental and emits
+a one-line note at the start of the run. Unipartite fits ignore this
+argument with a warning. Default FALSE.}
+
+\item{dynamic_beta}{logical, character, integer, or logical-vector flag
+selecting which regression coefficients evolve over time via independent
+AR(1) processes. Default FALSE keeps every coefficient static (the
+historical behaviour). Accepted forms:
+\itemize{
+\item \code{FALSE} / \code{NULL}: no coefficient is dynamic.
+\item \code{TRUE}: every coefficient is dynamic.
+\item character vector of block shortcuts (\code{"intercept"},
+\code{"dyad"}, \code{"row"}, \code{"col"}) or specific coefficient
+names from \code{colnames(BETA)} — those become dynamic.
+\item integer vector: 1-based column indices into \code{colnames(BETA)}.
+\item logical vector of length \code{p}: per-coefficient mask.
+}
+Each dynamic-coefficient block (one per distinct intercept / dyad / row /
+col label that has at least one dynamic coefficient) gets its own AR(1)
+parameters \eqn{\rho_\beta} (truncated-Normal prior, default mean 0.8,
+bounded between 0 and 0.999) and \eqn{\sigma_\beta^2} (inverse-Gamma
+prior, defaults shape 2 / scale 1). The joint posterior over the time path \eqn{\beta_t}
+is drawn by Forward-Filter / Backward-Sample (FFBS) inside the MCMC
+loop, conditional on the current static-block beta and on (a, b, U, V).
+When the intercept or a nodal coefficient is dynamic, a sum-to-zero
+contrast basis is applied to the additive-effect sampler to keep
+\eqn{a_i + intercept_t} identified. Requires at least 2 time periods,
+ignored for the ALS estimator (\code{method = "als"}), and unavailable
+for the intercept when \code{family = "ordinal"} or \code{"rrl"} (or for
+row-nodal coefficients with \code{family = "rrl"}). Default FALSE.}
+
+\item{dynamic_beta_kind}{character: state-space prior on the dynamic
+coefficient block(s). \code{"ar1"} (default) gives mean-reverting
+AR(1) with a truncated-Normal prior on \eqn{\rho_\beta}. \code{"rw1"}
+gives a random walk (\eqn{\rho_\beta} pinned at 1, no truncation),
+appropriate when you expect permanent drift with no mean reversion --
+e.g. trade-gravity coefficients in a permanently changing world economy.
+The alias \code{"random_walk"} is also accepted for \code{"rw1"}.
+When the stationarity warning in \code{summary(fit)} fires under the
+default AR(1), refit with \code{dynamic_beta_kind = "rw1"} for cleaner
+inference. Decision tree: \strong{mean-reverting?} AR(1).
+\strong{Permanent / unit-root drift?} RW1.
+\strong{Smooth with curvature?} \code{"rw2"} (second-order random walk).
+\strong{Smooth with a known length-scale?} \code{"matern32"} (Matern 3/2).
+Note: \code{"rw2"} and \code{"matern32"} use an R-level joint Gaussian
+sampler and run substantially slower per iteration than the C++ FFBS
+used for \code{"ar1"} / \code{"rw1"} (roughly 2-4x on n = 100, T = 10).}
 
 \item{family}{character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 the details below}
 
 \item{intercept}{logical: fit model with an intercept?}
 
-\item{symmetric}{logical: Is the sociomatrix symmetric by design?}
+\item{symmetric}{logical: is the sociomatrix symmetric?}
 
 \item{odmax}{a scalar integer or vector of length n giving the maximum
 number of nominations that each node may make - used for "frn" and "cbin"
@@ -107,9 +205,33 @@ parameter (default: 0.15).}
 prior on additive effects innovation variance (default: 2).}
 \item{sigma_ab_scale}{For dynamic_ab=TRUE: Scale parameter for inverse-gamma
 prior on additive effects innovation variance (default: 1).}
+\item{rho_beta_mean}{For dynamic_beta: Prior mean for the per-block AR(1)
+parameter on time-varying regression coefficients
+(default: 0.8). Closer to 1 = smoother evolution.}
+\item{rho_beta_sd}{For dynamic_beta: Prior SD for the per-block AR(1)
+parameter (default: 0.15).}
+\item{rho_beta_lower}{For dynamic_beta: Lower truncation bound on the
+AR(1) parameter (default: 0). Pass a negative value to allow
+negative autoregression.}
+\item{rho_beta_upper}{For dynamic_beta: Upper truncation bound (default:
+0.999). Closer to 1 admits near-unit-root behaviour.}
+\item{sigma_beta_shape}{For dynamic_beta: Shape parameter for the
+inverse-Gamma prior on the per-block innovation variance
+(default: 2).}
+\item{sigma_beta_scale}{For dynamic_beta: Scale parameter for the
+inverse-Gamma prior (default: 1).}
+\item{sigma_beta_init}{For dynamic_beta: Initial value of the per-block
+innovation standard deviation (default: 0.25). Affects mixing, not
+the stationary distribution.}
+\item{beta0_mean}{For dynamic_beta: Mean of the Gaussian prior on the
+dynamic coefficients at t = 0 (default: 0).}
+\item{beta0_var}{For dynamic_beta: Variance of the Gaussian prior on the
+dynamic coefficients at t = 0 (default: 10). Weakly informative.}
 }
 Common usage: prior = list(Sab0 = diag(c(1, 1)), eta0 = 10) for stronger
-shrinkage, or prior = list(rho_uv_mean = 0.95) for higher temporal persistence.}
+shrinkage, or prior = list(rho_uv_mean = 0.95) for higher temporal persistence,
+or prior = list(rho_beta_mean = 0.95, sigma_beta_scale = 0.1) for very smooth
+time-varying coefficients with tight innovations.}
 
 \item{g}{optional scalar or vector for g-prior on regression coefficients.
 Default is p^2 where p is the number of regression parameters. The g-prior
@@ -131,7 +253,7 @@ control.}
 
 \item{gof}{logical: calculate goodness of fit statistics?}
 
-\item{start_vals}{List from previous model run containing parameter starting values for new MCMC}
+\item{start_vals}{list of parameter starting values for the MCMC chain}
 
 \item{periodic_save}{logical: indicating whether to periodically save MCMC results}
 
@@ -141,10 +263,164 @@ control.}
 
 \item{model.name}{optional string for model selection output}
 
+\item{save_log_lik}{one of \code{FALSE} (default), \code{TRUE}, or
+\code{"chunked"}. When \code{TRUE}, stores the per-iteration pointwise
+log-likelihood matrix on \code{fit$log_lik} (an
+\code{[n_stored, n_obs]} double matrix). When \code{"chunked"},
+streams the log-lik values to per-column-chunk binary files under
+\code{log_lik_path} so the in-memory cost during MCMC is just one
+chunk's width; the chunks are recovered later via
+\code{read_log_lik(fit)}. Required for \code{loo::loo(fit)} and
+\code{loo::waic(fit)}.}
+
+\item{log_lik_path}{directory to write log-lik chunks to when
+\code{save_log_lik = "chunked"}. Default \code{NULL} creates a
+session-scoped subdirectory under \code{tempdir()}.}
+
+\item{log_lik_chunk_size}{column-width of each on-disk chunk when
+\code{save_log_lik = "chunked"}. Larger chunks mean fewer files (and
+one \code{readBin} per chunk on read) but more memory during MCMC.
+Default \code{10000L}.}
+
+\item{freeze_call}{logical: if \code{TRUE}, store a snapshot of the
+evaluated \code{Y}, \code{Xdyad}, \code{Xrow}, \code{Xcol} on
+\code{fit$data_snapshot} so that a later \code{update(fit, ...)} refits
+against the same data even if the caller has mutated those objects in
+their workspace. Memory cost equals the size of the data; default
+\code{FALSE}.}
+
+\item{dynamic_beta_pool}{one of \code{"none"} (default), \code{"rho"},
+\code{"sigma"}, or \code{"both"}. Stable argument name for a
+hierarchical pooling prior on the per-block \eqn{\rho_b} and / or
+\eqn{\sigma_b} dynamic hyperparameters. The value is recorded on
+the fit so future-phase samplers and downstream tooling can read it
+uniformly; the hierarchical sampler ships in a later release, at
+which point non-\code{"none"} values will take effect.}
+
+\item{dynamic_beta_per_actor}{optional, one of \code{NULL} (default),
+\code{"row"}, or \code{"col"}. \strong{Currently a wired:}
+the argument is validated and stored on the fit, but the in-loop
+sampler is not yet wired. For per-actor time-varying slopes today,
+fit a standard \code{lame()} and then call
+\code{\link{per_actor_slopes}(fit, kind, covariate_idx, lambda)}
+for the post-MCMC penalised-LS estimate.}
+
+\item{per_actor_covariate_idx}{positive integer; index into the
+dyadic covariate cube to slope on for the per-actor extension.
+Default \code{1L}.}
+
+\item{per_actor_identifiability}{one of \code{"center"} (default)
+or \code{"drop_population"}. \code{"center"} preserves the
+population coefficient and constrains per-actor deviations to
+sum to zero per period via pairwise contrast FFBS. Reserved API
+for the \code{"drop_population"} mode (not yet wired).}
+
+\item{keep_per_actor}{one of \code{"auto"} (default; full draws
+when memory cost < 250 MB else streaming summary), \code{"draws"}
+(full \code{[n_iter, n_actors, T]} cube), \code{"summary"}
+(streaming posterior mean + sd only), or \code{"none"} (only
+hyperparameter chains).}
+
+\item{time_index}{optional numeric vector of length \eqn{T} giving
+observation times. Default \code{NULL} treats periods as equally
+spaced. Strictly-increasing values are required when supplied. The
+gap-aware AR(1) update ships in a later release; the value is
+recorded on the fit.}
+
+\item{period_exposure}{optional non-negative numeric vector of length
+\eqn{T} giving period-level exposure offsets. \strong{Wired for Poisson:}
+when supplied with any value != 1, the Poisson observation
+likelihood becomes
+\eqn{Y_{ij,t} \sim \text{Poisson}(e_t \cdot \exp(Z_{ij,t}))},
+while the latent \eqn{Z} retains its existing semantic of
+"unexposed log-rate". For other families, non-trivial
+\code{period_exposure} is an error (rescale \code{Y} or use a
+covariate offset). \code{NULL} (default) or all-ones uses the
+unscaled likelihood path.}
+
+\item{max_seconds}{optional positive scalar; if the MCMC wall-clock
+time exceeds this many seconds, the chain terminates cleanly and
+\code{fit$terminated_early} is set to \code{TRUE}.}
+
+\item{checkpoint_path}{optional file path. When set, the chain
+periodically writes a snapshot of \code{BETA}, \code{VC}, the RNG
+state, and the original call to this file. Use \code{\link{lame_resume}}
+or pass the same path back as \code{resume_from = path} to
+continue.}
+
+\item{checkpoint_every}{positive integer; iterations between
+checkpoint writes. Default \code{100L}.}
+
+\item{log_lik_method}{one of \code{"observed_exact"} (default),
+\code{"observed_ghk"}, or \code{"augmented"}. Selects the
+argument for selecting which pointwise log-lik is stored on
+\code{fit$log_lik}. \code{"observed_exact"} uses the closed-form
+marginal log-likelihood (currently wired for normal, binary, cbin,
+tobit, poisson, ordinal). \code{"observed_ghk"} is a stable api
+stub for the GHK Monte Carlo marginal on cbin/frn/rrl/ordinal that
+ships in a later release; it falls back to \code{"augmented"} now
+and emits a one-line note. \code{"augmented"} uses the augmented-
+data Gaussian-on-\eqn{Z} contribution.}
+
+\item{ordinal_cutpoints}{character: cutpoint convention for
+\code{family = "ordinal"}. \code{"data_induced"} (default) uses the
+data-induced cutpoints; \code{"explicit"} samples explicit cutpoints via
+a Cowles (1996) Metropolis-Hastings update. Ignored for other families.}
+
+\item{method}{character: \code{"mcmc"} (default, the Bayesian MCMC fit) or
+\code{"als"} (the fast, MCMC-free iterative block coordinate descent point
+estimator; pooled-static over time). When \code{method = "als"}, MCMC- and
+dynamics-specific arguments (\code{nscan}, \code{burn}, \code{odens},
+\code{prior}, \code{dynamic_uv}, \code{dynamic_ab}, ...) are silently
+ignored and the call forwards to \code{\link{lame_als}}.}
+
+\item{bootstrap}{integer (only used when \code{method = "als"}): number of
+bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N > 0}
+runs \code{N} replicates and attaches the result so that \code{\link{confint}}
+returns bootstrap intervals.}
+
+\item{bootstrap_type}{character (only used when \code{method = "als"}):
+\code{"parametric"} (default) or \code{"block"}.}
+
+\item{bootstrap_block_length}{integer: block length for the block bootstrap.}
+
+\item{bootstrap_seed}{optional integer seed for the bootstrap.}
+
+\item{resume_from}{optional path to a checkpoint file produced by a
+previous \code{lame(..., checkpoint_path = path)} call. When
+non-\code{NULL}, \code{lame()} short-circuits all other input
+parsing and delegates to \code{\link{lame_resume}} with the
+user-supplied overrides forwarded. Pass \code{nscan = K} to
+request \code{K} additional stored draws on the continuation.
+Note: \code{checkpoint_path} and \code{max_seconds} cannot
+currently be overridden on a resume (they are stripped before
+re-evaluating the saved call); open both at the original
+\code{lame()} call if you need iterative checkpointing or a
+time budget on a chain of resumes. Pass \code{verbose = FALSE}
+on resume (the sampling progress bar is gated on \code{burn != 0}
+and the continuation forces \code{burn = 0}).
+Default \code{NULL}.}
+
 \item{print}{Deprecated. Use \code{verbose} instead.}
 }
 \value{
-\item{BETA}{posterior samples of regression coefficients}
+\item{BETA}{posterior samples of regression coefficients. A
+2-dimensional matrix \code{[n_stored, p]} when all coefficients are
+static. When \code{dynamic_beta} flags any coefficient as time-varying,
+\code{BETA} is a 3-dimensional array \code{[n_stored, p, T]} whose third
+dimension is the time period. Static coefficients are still present with
+their values replicated across the third dimension. \code{coef(fit)}
+collapses this to a \code{[p, T]} posterior-mean matrix.
+
+\strong{Migration from amen.} Under \code{amen::ame()} the
+\code{BETA} slot was always 2-D. Scripts that compute
+\code{apply(fit$BETA, 2, mean)} on an amen fit will silently
+aggregate across periods when run against a \code{lame()} fit
+with \code{dynamic_beta} active (the second margin is the
+coefficient index in both shapes; the new third margin is time).
+Use \code{length(dim(fit$BETA))} to detect the shape, or call
+\code{coef(fit)} which returns a \code{[p, T]} matrix in either
+case.}
 \item{VC}{posterior samples of the variance parameters}
 \item{APM}{posterior mean of additive row effects a} \item{BPM}{posterior
 mean of additive column effects b} \item{U}{posterior mean of multiplicative
@@ -155,7 +431,13 @@ For dynamic_uv=TRUE, this is a 3D array (n x R x T)}
 \item{ULUPM}{posterior mean of ULU (symmetric case)}
 \item{L}{posterior mean of L (symmetric case)}
 \item{EZ}{estimate of expectation of Z
-matrix} \item{YPM}{posterior mean of Y (for imputing missing values)}
+matrix. For \code{mode = "bipartite"}, \code{EZ} is a list of
+per-period matrices whose row/column dimnames are currently
+\code{NULL}. Use \code{names(fit$APM)} / \code{names(fit$BPM)} (or
+\code{dimnames(fit$YPM[[t]])}) to recover the row/column actor
+ordering, which is the lexicographic sort of the input actor names
+(so \code{"r10"} sorts before \code{"r2"} unless you zero-pad).}
+\item{YPM}{posterior mean of Y (for imputing missing values)}
 \item{GOF}{observed (first row) and posterior predictive (remaining rows)
 values of four goodness-of-fit statistics.
 See \code{\link{gof}} for post-hoc computation and \code{\link{gof_plot}} for visualization.}
@@ -281,7 +563,16 @@ When dynamic_uv=TRUE for bipartite networks:
 \deqn{V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}}
 where i indexes row nodes, j indexes column nodes, k indexes latent dimensions.
 
-Note: dynamic_G is reserved for future use and not yet implemented.
+When \code{dynamic_G = TRUE} the bipartite interaction matrix \eqn{G_t} is
+sampled per period via the bipartite \eqn{G}-sampler (a separate
+\eqn{R_\text{row} \times R_\text{col}} matrix at every time slice) and
+returned as \code{fit$G_cube}. This is experimental: the canonicalisation
+that absorbs rotation and scaling into \eqn{(U, V)} is enforced per
+period, so the marginal \eqn{U_t G_t V_t'} linear predictor is identified
+even though the individual \eqn{G_t} entries are not. Always sanity-check
+against a \code{dynamic_G = FALSE} fit before relying on per-period
+\eqn{G_t} estimates. \code{dynamic_G = TRUE} is bipartite only and is
+ignored (with a warning) for unipartite networks.
 
 \emph{Key Differences from Unipartite Models:}
 \itemize{
@@ -322,19 +613,39 @@ variable represents the log mean of the Poisson distribution.
 }
 \examples{
 
-data(YX_bin_list) 
+data(YX_bin_list)
 fit<-lame(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,family="binary")
 # you should run the Markov chain much longer than this
+
+\donttest{
+## Time-varying regression coefficients (dynamic_beta).
+## Make every dyadic coefficient evolve as an AR(1):
+fit_dyn <- lame(YX_bin_list$Y, YX_bin_list$X,
+                family = "binary", R = 0,
+                nscan = 200, burn = 50, odens = 5,
+                dynamic_beta = "dyad")
+dim(fit_dyn$BETA)        # [n_stored, p, T] -- 3-D when dynamic
+coef(fit_dyn)            # [p, T] posterior-mean coefficient paths
+confint(fit_dyn)         # per-period 95\% credible intervals
+summary(fit_dyn)         # prints a "Dynamic coefficients per period" block
+}
 
 }
 \seealso{
 \code{\link{ame}} for cross-sectional models,
+\code{\link{lame_als}} for the fast MCMC-free point estimator,
+\code{\link{als_dynamic_beta}} for a regression-only penalised
+smoother on the time-varying coefficient path,
+\code{\link{lame_resume}} for the legacy resume entry point
+(equivalent to \code{lame(resume_from = path)}),
 \code{\link{gof}} for post-hoc goodness-of-fit computation,
 \code{\link{gof_plot}} for visualizing GOF results,
 \code{\link{latent_positions}} for extracting latent positions as a tidy data frame,
 \code{\link{procrustes_align}} for Procrustes alignment of latent positions,
 \code{\link{summary.lame}} for model summaries,
-\code{\link{coef.lame}} for coefficient extraction
+\code{\link{coef.lame}} for coefficient extraction,
+\code{\link{netify_to_lame}} for the recommended netify -> lame
+bridge (set \code{lame = TRUE} on \code{netify::to_amen()}).
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

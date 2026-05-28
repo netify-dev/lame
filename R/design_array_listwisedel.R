@@ -30,7 +30,9 @@ design_array_listwisedel<-function(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE
 		Xrowa<-array(dim=c(n,n,pr))
 		for( j in 1:pr ){ Xrowa[,,j]<-matrix( Xrow[,j], n,n) }
 		X[,,1:pr]<- Xrowa
-		dnX<-c(dnX,paste0(colnames(Xrow),rep(".row" ,pr)))
+		row_nms <- colnames(Xrow)
+		if (is.null(row_nms)) row_nms <- paste0("Xrow", seq_len(pr))
+		dnX <- c(dnX, .lame_apply_suffix(row_nms, "row"))
 	}
 	####
 
@@ -41,16 +43,20 @@ design_array_listwisedel<-function(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE
 		Xcola<-array(dim=c(n,n,pc))
 		for( j in 1:pc ){ Xcola[,,j]<-t(matrix( Xcol[,j], n,n)) }
 		X[,,pr+1:pc]<- Xcola
-		dnX<-c(dnX,paste0(colnames(Xcol),rep(".col" ,pc)))
+		col_nms <- colnames(Xcol)
+		if (is.null(col_nms)) col_nms <- paste0("Xcol", seq_len(pc))
+		dnX <- c(dnX, .lame_apply_suffix(col_nms, "col"))
 	}
 	####
 
 	####
 	# dyadic covariates
 	if(pd>0)                                                {
+		dyad_names <- dimnames(Xdyad)[[3]]
 		if(pd==1){ Xdyad<-array(Xdyad,dim=c(n,n,pd)) }
 		X[,,pr+pc+1:pd]<-Xdyad
-		dnX<-c(dnX,paste0(dimnames(Xdyad)[[3]],rep(".dyad",pd)))
+		if(is.null(dyad_names)) dyad_names <- paste0("Xdyad", 1:pd)
+		dnX <- c(dnX, .lame_apply_suffix(dyad_names, "dyad"))
 	}
 	####
 

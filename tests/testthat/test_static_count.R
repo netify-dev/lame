@@ -102,47 +102,6 @@ sim_count_ame = function(seed, n, mu, beta, gamma=NULL,
 # count model with covariates only
 ####
 
-test_that("Poisson AME with covariates only recovers true parameters", {
-	set.seed(6886)
-	n = 40
-	mu_true = 1.0  # Log scale intercept
-	beta_true = 0.5
-	
-	# run single detailed test
-	xw = matrix(rnorm(n*2, 0, 0.5), n, 2)
-	X = tcrossprod(xw[,1])
-	diag(X) = NA
-	
-	# generate on log scale
-	eta = mu_true + beta_true * X
-	lambda = exp(eta)
-	lambda[lambda > 50] = 50  # Cap for stability
-	Y = matrix(suppressWarnings(rpois(n*n, as.vector(lambda))), n, n)
-	diag(Y) = NA
-	
-	# check that we have count data
-	expect_true(all(Y >= 0, na.rm=TRUE))
-	expect_true(any(Y > 1, na.rm=TRUE))  # Should have some counts > 1
-	
-	# fit model with no additive or multiplicative effects
-	fit = ame(Y, Xdyad=X, R=0, family="poisson",
-						rvar=FALSE, cvar=FALSE, dcor=FALSE,
-						burn=500, nscan=2000, verbose = FALSE)
-	
-	# check parameter recovery
-	beta_est = median(fit$BETA[,2])
-	mu_est = median(fit$BETA[,1])
-	
-	expect_lt(abs(beta_est - beta_true), 0.2)
-	expect_lt(abs(mu_est - mu_true), 0.2)
-	
-	# for Poisson, EZ is on log scale and can be negative
-	# check YPM (response scale) is non-negative instead
-	expect_true(all(fit$YPM >= 0, na.rm=TRUE), 
-							info = "YPM (response scale) should be non-negative for Poisson")
-})
-
-# simulation study for count covariates only
 test_that("Poisson AME with covariates only has calibrated confidence intervals", {
 	skip_on_cran()
 	

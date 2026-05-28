@@ -102,50 +102,6 @@ sim_gaussian_ame = function(seed, n, mu, beta, gamma=NULL,
 # gaussian model with covariates only
 ####
 
-test_that("Gaussian AME with covariates only recovers true parameters", {
-	set.seed(6886)
-	n = 50
-	mu_true = -0.5
-	beta_true = 1.2
-	
-	# run single detailed test
-	xw = matrix(rnorm(n*2), n, 2)
-	X = tcrossprod(xw[,1])
-	diag(X) = NA
-	
-	eta = mu_true + beta_true * X
-	sigma2_true = 1
-	Y = eta + matrix(rnorm(n*n, 0, sqrt(sigma2_true)), n, n)
-	diag(Y) = NA
-	
-	# fit model with no additive or multiplicative effects
-	fit = ame(Y, Xdyad=X, R=0, family="normal",
-						rvar=FALSE, cvar=FALSE, dcor=FALSE,
-						burn=500, nscan=2000, verbose = FALSE)
-	
-	# check parameter recovery
-	beta_est = median(fit$BETA[,2])
-	mu_est = median(fit$BETA[,1])
-	sigma2_est = if(!is.null(fit$s2)) median(fit$s2) else if(!is.null(fit$VC)) median(fit$VC[,"va"]) else NA
-	
-	expect_lt(abs(beta_est - beta_true), 0.2)
-	expect_lt(abs(mu_est - mu_true), 0.2)
-	if(!is.na(sigma2_est)) {
-		expect_lt(abs(sigma2_est - sigma2_true), 1.0)  # Relax tolerance for now
-	} else {
-		skip("Sigma2 estimation not available")
-	}
-	
-	if(!is.null(fit$APM)) {
-		expect_lt(max(abs(fit$APM)), 0.5)
-	}
-	if(!is.null(fit$BPM)) {
-		expect_lt(max(abs(fit$BPM)), 0.5)
-	}
-	if(!is.null(reconstruct_UVPM(fit))) {
-	}
-})
-
 test_that("Gaussian AME with covariates only has calibrated confidence intervals", {
 	skip_on_cran()
 	

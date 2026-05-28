@@ -4,6 +4,7 @@
 \alias{latent_positions}
 \alias{latent_positions.ame}
 \alias{latent_positions.lame}
+\alias{latent_positions.ame_als}
 \title{Extract latent positions as a tidy data frame}
 \usage{
 latent_positions(object, ...)
@@ -11,9 +12,12 @@ latent_positions(object, ...)
 \method{latent_positions}{ame}(object, align = FALSE, ...)
 
 \method{latent_positions}{lame}(object, align = TRUE, ...)
+
+\method{latent_positions}{ame_als}(object, align = FALSE, ...)
 }
 \arguments{
-\item{object}{A fitted \code{ame} or \code{lame} model object with R > 0.}
+\item{object}{A fitted \code{ame}, \code{lame} or \code{ame_als} model
+object with R > 0.}
 
 \item{...}{Additional arguments (currently unused).}
 
@@ -27,8 +31,10 @@ A data frame with columns:
 \describe{
 \item{actor}{Character. Actor name (from rownames of U or V).}
 \item{dimension}{Integer. Latent dimension index (1 to R).}
-\item{time}{Character or NA. Time period label for dynamic models;
-\code{NA} for static (cross-sectional) models.}
+\item{time}{Character. Time period label. Dynamic fits use the time
+labels from the input; static (cross-sectional) fits return
+\code{"1"} for every row so downstream filtering by \code{time}
+behaves the same in both cases.}
 \item{value}{Numeric. The posterior mean latent position.}
 \item{posterior_sd}{Numeric. Posterior standard deviation of the latent
 position, or \code{NA} if posterior samples are not available.
@@ -43,10 +49,10 @@ Returns a zero-row data frame with correct column names if R = 0.
 }
 \description{
 Extracts multiplicative latent factor positions (U and V) from a fitted
-\code{ame} or \code{lame} model and returns them as a tidy data frame
-suitable for plotting and analysis. Optionally applies Procrustes alignment
-for dynamic models and includes posterior standard deviations when
-posterior samples are available.
+\code{ame}, \code{lame} or \code{ame_als} model and returns them as a
+tidy data frame suitable for plotting and analysis. Optionally applies
+Procrustes alignment for dynamic models and includes posterior standard
+deviations when posterior samples are available.
 }
 \examples{
 \donttest{

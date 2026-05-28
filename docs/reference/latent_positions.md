@@ -1,10 +1,10 @@
 # Extract latent positions as a tidy data frame
 
 Extracts multiplicative latent factor positions (U and V) from a fitted
-`ame` or `lame` model and returns them as a tidy data frame suitable for
-plotting and analysis. Optionally applies Procrustes alignment for
-dynamic models and includes posterior standard deviations when posterior
-samples are available.
+`ame`, `lame` or `ame_als` model and returns them as a tidy data frame
+suitable for plotting and analysis. Optionally applies Procrustes
+alignment for dynamic models and includes posterior standard deviations
+when posterior samples are available.
 
 ## Usage
 
@@ -16,13 +16,16 @@ latent_positions(object, align = FALSE, ...)
 
 # S3 method for class 'lame'
 latent_positions(object, align = TRUE, ...)
+
+# S3 method for class 'ame_als'
+latent_positions(object, align = FALSE, ...)
 ```
 
 ## Arguments
 
 - object:
 
-  A fitted `ame` or `lame` model object with R \> 0.
+  A fitted `ame`, `lame` or `ame_als` model object with R \> 0.
 
 - ...:
 
@@ -48,8 +51,9 @@ A data frame with columns:
 
 - time:
 
-  Character or NA. Time period label for dynamic models; `NA` for static
-  (cross-sectional) models.
+  Character. Time period label. Dynamic fits use the time labels from
+  the input; static (cross-sectional) fits return `"1"` for every row so
+  downstream filtering by `time` behaves the same in both cases.
 
 - value:
 
@@ -89,13 +93,17 @@ data(YX_nrm)
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
            burn = 5, nscan = 5, odens = 1, verbose = FALSE)
 lp <- latent_positions(fit)
+#> ℹ `posterior_sd` is "NA" because U/V samples were not saved.
+#> ℹ To get posterior SDs, refit with `posterior_opts = posterior_options(save_UV
+#>   = TRUE)`.
+#> This message is displayed once per session.
 head(lp)
 #>   actor dimension time       value posterior_sd type
-#> 1 node1         1 <NA> -0.28119834           NA    U
-#> 2 node2         1 <NA>  0.24841529           NA    U
-#> 3 node3         1 <NA>  0.45288719           NA    U
-#> 4 node4         1 <NA> -0.24169524           NA    U
-#> 5 node5         1 <NA>  0.06922696           NA    U
-#> 6 node6         1 <NA> -0.28624933           NA    U
+#> 1 node1         1    1 -0.28119834           NA    U
+#> 2 node2         1    1  0.24841529           NA    U
+#> 3 node3         1    1  0.45288719           NA    U
+#> 4 node4         1    1 -0.24169524           NA    U
+#> 5 node5         1    1  0.06922696           NA    U
+#> 6 node6         1    1 -0.28624933           NA    U
 # }
 ```

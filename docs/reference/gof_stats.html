@@ -11,7 +11,7 @@ patterns. Can handle both unipartite and bipartite networks."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,6 +30,8 @@ patterns. Can handle both unipartite and bipartite networks."></head><body>
     <li><a class="dropdown-item" href="../articles/lame-overview.html">Longitudinal Models (Overview)</a></li>
     <li><a class="dropdown-item" href="../articles/bipartite.html">Bipartite Networks</a></li>
     <li><a class="dropdown-item" href="../articles/dynamic_effects.html">Dynamic Effects</a></li>
+    <li><a class="dropdown-item" href="../articles/fast_estimation.html">Fast (MCMC-free) Estimation</a></li>
+    <li><a class="dropdown-item" href="../articles/forecasting.html">Forecasting</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -116,7 +118,9 @@ heterogeneity in in-degree centrality (receiver effects).</p></dd>
 
 </dl><p>If custom_gof is provided, additional statistics will be included with their
 user-specified names.</p>
-    </div>
+<p><strong>Naming note.</strong> The columns above are the internal names used by
+<code>gof_stats()</code> and stored on <code>fit$GOF</code>. <code><a href="gof_plot.html">gof_plot</a></code>
+exposes a shorter user-facing alias for some of them; the mapping is:</p><table class="table table"><tr><td><strong>internal (this column)</strong></td><td><strong>gof_plot alias</strong></td></tr><tr><td><code>sd.rowmean</code></td><td><code>sd.row</code></td></tr><tr><td><code>sd.colmean</code></td><td><code>sd.col</code></td></tr><tr><td><code>dyad.dep</code></td><td><code>dyad.dep</code></td></tr><tr><td><code>cycle.dep</code></td><td><code>triad.dep</code></td></tr><tr><td><code>trans.dep</code></td><td><code>trans.dep</code></td></tr><tr><td><code>four.cycles</code> (bipartite)</td><td><code>four.cycles</code></td></tr></table></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The function computes network statistics that capture different aspects of

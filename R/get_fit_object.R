@@ -9,7 +9,10 @@
 #' @param VC Matrix of draws for variance estimates
 #' @param GOF Matrix of draws for goodness of fit calculations
 #' @param Xlist List based version of design array
-#' @param actorByYr List of actors by time point
+#' @param actorByYr List of actors by time point. In bipartite mode this is
+#'   the per-year list of row actors.
+#' @param colActorByYr Bipartite only. List of column actors by time point;
+#'   defaults to \code{NULL} (unipartite).
 #' @param start_vals start_vals for future model run
 #' @param symmetric logical indicating whether model is symmetric
 #' @param tryErrorChecks list with counts of MCMC errors
@@ -28,34 +31,75 @@
 #' @param n_time number of time periods (for longitudinal models)
 #' @param Y_obs original observed network (stored for residuals computation)
 #' @param G bipartite interaction matrix mapping row to column latent spaces
+#' @param dynamic_beta logical or scalar; whether the BETA storage is 3-D
+#'   (dynamic_beta path). Default \code{FALSE}.
+#' @param beta_dynamic_mask logical vector marking which coefficients are dynamic.
+#' @param beta_dynamic_groups character vector of per-coefficient block labels
+#'   ("intercept", "dyad", "row", "col"); \code{""} for static coefficients.
+#' @param rho_beta named numeric vector of per-block AR(1) rho values (one
+#'   per dynamic block).
+#' @param sigma_beta named numeric vector of per-block AR(1) innovation
+#'   standard deviations.
+#' @param RHO_BETA matrix of per-iteration rho_beta draws (rows = MCMC draw,
+#'   cols = dynamic block).
+#' @param SIGMA_BETA matrix of per-iteration sigma_beta draws.
 #' @return Fitted AME object
 #' @author Shahryar Minhas
 #' @export get_fit_object
 get_fit_object <- function(
 	APS, BPS, UVPS, YPS,
 	BETA, VC, GOF,
-	Xlist, actorByYr, start_vals,
+	Xlist, actorByYr, colActorByYr = NULL, start_vals,
 	symmetric, tryErrorChecks,
 	model.name=NULL,
 	U=NULL, V=NULL, dynamic_uv=FALSE, dynamic_ab=FALSE,
 	bip=FALSE,
 	rho_ab=NULL, rho_uv=NULL,
 	family=NULL, odmax=NULL, nA=NULL, nB=NULL, n_time=NULL,
-	Y_obs=NULL, G=NULL
+	Y_obs=NULL, G=NULL,
+	dynamic_beta=FALSE,
+	beta_dynamic_mask=NULL, beta_dynamic_groups=NULL,
+	rho_beta=NULL, sigma_beta=NULL,
+	RHO_BETA=NULL, SIGMA_BETA=NULL
 ){
+	# detect 3-D BETA (= dynamic_beta path). when 3-D, the per-period
+	# posterior-mean beta is apply(BETA, c(2,3), mean) (p x T); the time-mean
+	# beta is apply(BETA, 2, mean) (p,). these summaries feed the existing
+	# downstream EZ/UVPM/YPM code.
+	.beta_is_dynamic <- !is.null(BETA) && length(dim(BETA)) == 3L
+	.beta_post_mean_per_t <- function(B) {
+		if (length(dim(B)) == 3L) apply(B, c(2, 3), mean)
+		else colMeans(B)
+	}
+	.beta_post_mean_overall <- function(B) {
+		if (length(dim(B)) == 3L) apply(B, 2, mean)
+		else colMeans(B)
+	}
 
 	####
 	if(bip) {
 		if(is.matrix(APS)) {
 			row_actors <- rownames(APS)
 			col_actors <- rownames(BPS)
-			if(is.null(row_actors)) row_actors <- paste0("Row", 1:nrow(APS))
-			if(is.null(col_actors)) col_actors <- paste0("Col", 1:nrow(BPS))
 		} else {
 			row_actors <- names(APS)
 			col_actors <- names(BPS)
-			if(is.null(row_actors)) row_actors <- paste0("Row", 1:length(APS))
-			if(is.null(col_actors)) col_actors <- paste0("Col", 1:length(BPS))
+		}
+		# dynamic-ab bipartite stores APS/BPS as unnamed matrices; recover
+		# the real row and column actor names from actorByYr/colActorByYr
+		# (the MCMC's sorted actor order) so APM/BPM/U/V/YPM are not
+		# labelled "Row1/Col1..." with the values silently in sorted order
+		n_row_a <- if (is.matrix(APS)) nrow(APS) else length(APS)
+		n_col_a <- if (is.matrix(BPS)) nrow(BPS) else length(BPS)
+		if (is.null(row_actors)) {
+			real_row <- sort(unique(unlist(actorByYr)))
+			row_actors <- if (length(real_row) == n_row_a) real_row
+			              else paste0("Row", seq_len(n_row_a))
+		}
+		if (is.null(col_actors)) {
+			real_col <- sort(unique(unlist(colActorByYr)))
+			col_actors <- if (length(real_col) == n_col_a) real_col
+			              else paste0("Col", seq_len(n_col_a))
 		}
 		actors <- row_actors
 	} else {
@@ -65,10 +109,15 @@ get_fit_object <- function(
 			actors <- names(APS)
 		}
 		if(is.null(actors)) {
-			if(is.matrix(APS)) {
-				actors <- paste0("Actor", 1:nrow(APS))
+			n_a <- if(is.matrix(APS)) nrow(APS) else length(APS)
+			# a dynamic-ab fit stores APS as an unnamed actor x time matrix;
+			# recover the real actor names (the MCMC's sorted actor order)
+			# from actorByYr so APM/EZ/YPM are not labelled "Actor1..."
+			real_actors <- sort(unique(unlist(actorByYr)))
+			actors <- if(length(real_actors) == n_a) {
+				real_actors
 			} else {
-				actors <- paste0("Actor", 1:length(APS))
+				paste0("Actor", 1:n_a)
 			}
 		}
 	}
@@ -119,34 +168,82 @@ get_fit_object <- function(
 
 	####
 	if(!bip) {
+		# per-period vs scalar beta-mean depending on dynamic_beta state
+		beta_per_t <- .beta_post_mean_per_t(BETA)  # p x T (matrix) or p-vec
+		beta_overall <- .beta_post_mean_overall(BETA)  # p-vec
+		.beta_at_t <- function(t) {
+			if (.beta_is_dynamic) beta_per_t[, t] else beta_overall
+		}
 		if(dynamic_uv && length(dim(UVPS)) == 3) {
 			UVPM <- UVPS
-			UV_avg <- apply(UVPS, c(1,2), mean)
-			EZ<-get_EZ_cpp(Xlist, 
-										 apply(BETA,2,mean), outer(APM_avg,BPM_avg,"+"), 
-										 UV_avg, diag(nrow(UV_avg)))
+			# build EZ per time slice so the time-varying U_t V_t' signal
+			# flows into EZ; predict(type = "link") then returns one matrix
+			# per period under dynamic_uv.
+			N_t <- length(Xlist)
+			n_actors <- dim(UVPS)[1]
+			I_mat <- diag(n_actors)
+			EZ <- array(NA_real_, dim = c(n_actors, n_actors, N_t))
+			for (t in seq_len(N_t)) {
+				a_t <- if (dynamic_ab && is.matrix(APM)) APM[, t] else APM_avg
+				b_t <- if (dynamic_ab && is.matrix(BPM)) BPM[, t] else BPM_avg
+				EZ_t <- get_EZ_cpp(list(Xlist[[t]]), .beta_at_t(t),
+				                   outer(a_t, b_t, "+"),
+				                   UVPS[, , t], I_mat)
+				EZ[, , t] <- EZ_t[, , 1]
+			}
 		} else {
-			UVPM<-UVPS
-			if(length(dim(UVPM)) == 2) {
-				EZ<-get_EZ_cpp(Xlist, 
-											 apply(BETA,2,mean), outer(APM_avg,BPM_avg,"+"), 
-											 UVPM, diag(nrow(UVPM)))
+			UVPM <- UVPS
+			if (length(dim(UVPM)) == 2) {
+				# dynamic_ab with static UV: per-slice loop so each period
+				# uses its own a_t / b_t.
+				if (dynamic_ab && is.matrix(APM)) {
+					N_t <- length(Xlist)
+					n_actors <- nrow(UVPM)
+					I_mat <- diag(n_actors)
+					EZ <- array(NA_real_, dim = c(n_actors, n_actors, N_t))
+					for (t in seq_len(N_t)) {
+						EZ_t <- get_EZ_cpp(list(Xlist[[t]]), .beta_at_t(t),
+						                   outer(APM[, t], BPM[, t], "+"),
+						                   UVPM, I_mat)
+						EZ[, , t] <- EZ_t[, , 1]
+					}
+				} else if (.beta_is_dynamic) {
+					# dynamic_beta with static a/b: loop over t for per-period beta
+					N_t <- length(Xlist)
+					n_actors <- nrow(UVPM)
+					I_mat <- diag(n_actors)
+					EZ <- array(NA_real_, dim = c(n_actors, n_actors, N_t))
+					for (t in seq_len(N_t)) {
+						EZ_t <- get_EZ_cpp(list(Xlist[[t]]), .beta_at_t(t),
+						                   outer(APM_avg, BPM_avg, "+"),
+						                   UVPM, I_mat)
+						EZ[, , t] <- EZ_t[, , 1]
+					}
+				} else {
+					EZ <- get_EZ_cpp(Xlist,
+					                 beta_overall,
+					                 outer(APM_avg, BPM_avg, "+"),
+					                 UVPM, diag(nrow(UVPM)))
+				}
 			}
 		}
-		
+
 		dimnames(EZ) <- list(actors, actors, pdLabs)
 	} else {
 		UVPM <- UVPS
 		if(!is.null(Xlist) && !is.null(G) && !is.null(nA) && !is.null(nB)) {
 			N_t <- if(!is.null(n_time)) n_time else length(Xlist)
-			beta_mean <- colMeans(BETA)
+			# bipartite + dynamic_beta: use per-period beta in base_cube
+			beta_per_t_bip <- .beta_post_mean_per_t(BETA)
+			beta_overall_bip <- .beta_post_mean_overall(BETA)
 
 			base_cube <- array(0, dim = c(nA, nB, N_t))
 			for(t in 1:N_t) {
-				if(length(beta_mean) > 0 && !is.null(Xlist[[t]])) {
-					p_x <- min(length(beta_mean), dim(Xlist[[t]])[3])
+				beta_t_here <- if (.beta_is_dynamic) beta_per_t_bip[, t] else beta_overall_bip
+				if(length(beta_t_here) > 0 && !is.null(Xlist[[t]])) {
+					p_x <- min(length(beta_t_here), dim(Xlist[[t]])[3])
 					for(k in 1:p_x) {
-						base_cube[,,t] <- base_cube[,,t] + beta_mean[k] * Xlist[[t]][,,k]
+						base_cube[,,t] <- base_cube[,,t] + beta_t_here[k] * Xlist[[t]][,,k]
 					}
 				}
 			}
@@ -190,7 +287,14 @@ get_fit_object <- function(
 			rownames(UVPM)<-colnames(UVPM)<-actors
 		}
 	}
-	rownames(BETA)<-NULL
+	# BETA is 2-D (matrix) or 3-D (array) -- the 3-D path is the dynamic_beta
+	# storage and its first dim names should also be NULL'd if present
+	if (length(dim(BETA)) == 2L) {
+		rownames(BETA) <- NULL
+	} else if (length(dim(BETA)) == 3L) {
+		dn <- dimnames(BETA)
+		if (!is.null(dn)) dimnames(BETA) <- list(NULL, dn[[2]], dn[[3]])
+	}
 
 	####
 	if(!symmetric){
@@ -264,9 +368,13 @@ get_fit_object <- function(
 	}
 
 	####
+	# APM/BPM/U/V are indexed in the sorted actor order the MCMC runs in;
+	# EZ/YPM must use the SAME per-slice order or a user combining APM with
+	# YPM positionally gets silently misaligned actors. Sort each slice's
+	# actor list so every per-actor object in the fit shares one ordering.
 	if(!bip) {
-		EZ <- array_to_list(EZ, actorByYr, pdLabs)
-		YPM <- array_to_list(YPM, actorByYr, pdLabs)
+		EZ <- array_to_list(EZ, lapply(actorByYr, sort), pdLabs)
+		YPM <- array_to_list(YPM, lapply(actorByYr, sort), pdLabs)
 	} else {
 		if(!is.null(EZ) && is.array(EZ) && length(dim(EZ)) == 3) {
 			N_t <- dim(EZ)[3]
@@ -338,6 +446,18 @@ get_fit_object <- function(
 	if(!is.null(n_time)) fit$n_time <- n_time
 	fit$dynamic_uv <- dynamic_uv
 	fit$dynamic_ab <- dynamic_ab
+	fit$dynamic_beta <- isTRUE(dynamic_beta) || .beta_is_dynamic
+	# expose dynamic-beta metadata so downstream S3 methods can dispatch
+	if (.beta_is_dynamic) {
+		fit$beta_dynamic_mask   <- beta_dynamic_mask
+		fit$beta_dynamic_groups <- beta_dynamic_groups
+		# per-period posterior-mean beta convenience
+		fit$beta_path <- apply(BETA, c(2, 3), mean)
+		if (!is.null(RHO_BETA))   fit$RHO_BETA   <- RHO_BETA
+		if (!is.null(SIGMA_BETA)) fit$SIGMA_BETA <- SIGMA_BETA
+		if (!is.null(rho_beta))   fit$rho_beta   <- rho_beta
+		if (!is.null(sigma_beta)) fit$sigma_beta <- sigma_beta
+	}
 	if(!is.null(Xlist)) fit$Xlist <- Xlist
 	class(fit)<-"ame"
 	return(fit)

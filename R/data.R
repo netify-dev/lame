@@ -32,13 +32,27 @@
 #' cat("Time periods:", length(Y), "\n")
 NULL
 
-#' Binary relational data list
-#' 
-#' A list containing binary relational data in list format with associated covariates
-#' 
+#' Synthetic longitudinal binary relational data, list-form (latent-scale)
+#'
+#' The list-form sibling of \code{\link{YX_bin_long}}: same synthetic
+#' 4-period 50-actor panel reshaped from arrays to lists. The shipped
+#' \code{Y} entries hold the \emph{latent probit-scale predictor}
+#' (range roughly -20 to 17), not 0/1 ties. To recover the binary tie
+#' indicator the dataset name implies, threshold at zero, e.g.
+#' \code{Y_bin <- lapply(YX_bin_list$Y, function(Yt) 1 * (Yt > 0))}.
+#' If passed unthresholded to \code{lame(..., family = "binary")} the
+#' fit will warn and silently apply the same \code{Y > 0} threshold.
+#'
 #' @name YX_bin_list
 #' @docType data
-#' @format A list containing Y and X matrices for binary relational data
+#' @format A list with two elements:
+#'   \describe{
+#'     \item{Y}{List of 4 numeric matrices, each \code{[50, 50]}, with
+#'       \code{NA} on the diagonal. Latent probit-scale predictor;
+#'       threshold at 0 for the binary indicator.}
+#'     \item{X}{List of 4 numeric arrays, each \code{[50, 50, 3]} of
+#'       dyadic covariates.}
+#'   }
 #' @keywords datasets
 NULL
 

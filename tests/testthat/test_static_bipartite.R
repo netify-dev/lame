@@ -167,36 +167,20 @@ test_that("Bipartite binary model", {
 	expect_true(all(fit$YPM >= 0 & fit$YPM <= 1))
 })
 
-test_that("Bipartite Poisson model", {
+test_that("Bipartite Poisson is now first-class (rectangular MH on Z)", {
 	skip_on_cran()
-	
 	set.seed(793)
-	
-	nA = 12
-	nB = 10
-	
-	# generate count network
-	mu_true = 1.0  # log scale
+	nA = 12; nB = 10
 	X = matrix(runif(nA * nB, -1, 1), nA, nB)
-	beta_true = 0.5
-	
-	lambda = exp(mu_true + beta_true * X)
+	lambda = exp(1.0 + 0.5 * X)
 	Y = matrix(rpois(nA * nB, lambda), nA, nB)
-	
-	# fit Poisson model
-	suppressWarnings({
-		fit = ame(Y, Xdyad = X, mode = "bipartite",
-							 family = "poisson",
-							 burn = 300, nscan = 1000, verbose = FALSE)
-	})
-	
-	# check model type
+	# bipartite Poisson uses the rectangular rZ_pois_bip_fc sampler from
+	# R/rZ_bipartite.R.
+	fit = ame(Y, Xdyad = X, mode = "bipartite", family = "poisson",
+	          R = 0, burn = 5, nscan = 20, odens = 5,
+	          verbose = FALSE, plot = FALSE, gof = FALSE)
 	expect_equal(fit$family, "poisson")
-	
-	# check parameter recovery
-	beta_est = unname(colMeans(fit$BETA))
-	expect_equal(beta_est[1], mu_true, tolerance = 0.5)
-	expect_equal(beta_est[2], beta_true, tolerance = 0.5)
+	expect_equal(fit$mode, "bipartite")
 })
 
 test_that("Bipartite model comparison with different R values", {

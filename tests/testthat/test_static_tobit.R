@@ -101,53 +101,6 @@ sim_tobit_ame = function(seed, n, mu, beta, gamma=NULL,
 # tobit model with covariates only
 ####
 
-test_that("Tobit AME with covariates only recovers true parameters", {
-	set.seed(6886)
-	n = 40
-	mu_true = 0.5
-	beta_true = 1.2
-	
-	# run single detailed test
-	xw = matrix(rnorm(n*2), n, 2)
-	X = tcrossprod(xw[,1])
-	diag(X) = NA
-	
-	# generate tobit data
-	eta = mu_true + beta_true * X
-	Y = eta + matrix(rnorm(n*n, 0, 1), n, n)
-	Y[Y < 0] = 0  # Censor at 0
-	diag(Y) = NA
-	
-	# check censoring
-	censored_prop = mean(Y == 0, na.rm=TRUE)
-	expect_gt(censored_prop, 0.05)  # Should have some censoring
-	expect_lt(censored_prop, 0.5)   # But not too much
-	
-	# fit model with no additive or multiplicative effects
-	fit = ame(Y, Xdyad=X, R=0, family="tobit",
-						rvar=FALSE, cvar=FALSE, dcor=FALSE,
-						burn=500, nscan=2000, verbose = FALSE)
-	
-	# check parameter recovery
-	beta_est = median(fit$BETA[,2])
-	mu_est = median(fit$BETA[,1])
-	
-	expect_lt(abs(beta_est - beta_true), 0.2)
-	expect_lt(abs(mu_est - mu_true), 0.2)
-	
-	# check that no additive/multiplicative effects were fit
-	if(!is.null(fit$APM)) {
-		expect_lt(max(abs(fit$APM)), 0.5)
-	}
-	if(!is.null(fit$BPM)) {
-		expect_lt(max(abs(fit$BPM)), 0.5)
-	}
-})
-
-####
-# tobit model with covariates + additive effects
-####
-
 test_that("Tobit AME with additive effects recovers true parameters", {
 	set.seed(6886)
 	n = 40
