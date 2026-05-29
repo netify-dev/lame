@@ -10,11 +10,13 @@ Trade flows, friendship nominations, alliance ties, and sanctions are all exampl
 
 The `lame` package fits **L**ongitudinal **A**dditive and **M**ultiplicative **E**ffects models that account for that structure. Concretely, the model gives every actor two random effects (a *sender* effect $a_i$ for how active they are and a *receiver* effect $b_j$ for how popular they are), plus a position $(u_i, v_j)$ in a low-dimensional *latent space* that captures patterns covariates cannot, such as homophily ("similar actors tie to each other") and transitivity ("friends of friends are friends"). Covariates enter additively, just like in a regression. The "longitudinal" piece lets all of these pieces drift across time periods.
 
-The package builds directly on Peter Hoff's [`amen`](https://CRAN.R-project.org/package=amen) and extends it in four directions: (1) `lame()` fits *panel* networks (the same actors observed at multiple time points) with time-varying effects; (2) it supports *bipartite* (rectangular) networks like students-by-courses alongside the more familiar unipartite (square) case; (3) the MCMC sampler is written in C++ (via Rcpp / RcppArmadillo) so it scales to the network sizes typical in political-science applications; (4) the fitted object exposes the usual `coef()`, `vcov()`, `confint()`, `predict()`, `fitted()`, `residuals()`, `simulate()` methods, so it plugs into the rest of the R modelling ecosystem the same way `lm()` or `glm()` does.
+The package builds directly on Peter Hoff's [`amen`](https://CRAN.R-project.org/package=amen) and extends it in four directions: (1) `lame()` fits *panel* networks (the same actors observed at multiple time points) with time-varying effects; (2) it supports *bipartite* (rectangular) networks — such as countries-by-international-organisations (which states belong to which IGOs) — alongside the more familiar unipartite (square) case; (3) the MCMC sampler is written in C++ (via Rcpp / RcppArmadillo) so it scales to the network sizes typical in political-science applications; (4) the fitted object exposes the usual `coef()`, `vcov()`, `confint()`, `predict()`, `fitted()`, `residuals()`, `simulate()` methods, so it plugs into the rest of the R modelling ecosystem the same way `lm()` or `glm()` does.
+
+**Two ways to estimate the same model.** Alongside the Bayesian MCMC sampler, `lame` ships a fast, **MCMC-free point estimator**, `ame_als()` / `lame_als()`, adapted from the **Social Influence Regression (SIR)** estimator of Minhas & Hoff (2025). It fits the same additive-and-multiplicative structure by iterative block coordinate descent (alternating least squares / IRLS) for the normal, binary, and Poisson families, in a fraction of the time, with parametric-bootstrap or sandwich standard errors and the full S3 method set. Reach for it when you want speed — data exploration, model screening, starting values, or large networks — and switch to the MCMC path (`ame()` / `lame()`) when you want a full posterior, the rank/censored families, or dynamic effects.
 
 If terms like *probit*, *latent space*, or *AR(1)* are new to you, do not worry: the `vignette("lame")` walk-through introduces each one in context. You do not need to fully internalise the math to fit a first model.
 
-Two functions form the public API. `ame()` fits cross-sectional networks. `lame()` fits longitudinal networks and adds dynamic additive, multiplicative, and (optionally) regression-coefficient effects through autoregressive processes. Both support unipartite (square) and bipartite (rectangular) network structures.
+Four functions form the public API. `ame()` and `lame()` fit cross-sectional and longitudinal networks via Bayesian MCMC; `lame()` additionally adds dynamic additive, multiplicative, and (optionally) regression-coefficient effects through autoregressive processes. `ame_als()` and `lame_als()` are their fast, MCMC-free counterparts (see [Fast (MCMC-free) estimation](#fast-mcmc-free-estimation)). All four support unipartite (square) and bipartite (rectangular) network structures.
 
 ## Installation
 
@@ -228,8 +230,9 @@ Xdyad <- array(
 
 For a single cross-section use `ame(Y, ...)`; for a panel use
 `lame(list(Y_t1, Y_t2, ...), ...)`. For undirected networks pass
-`symmetric = TRUE`; for two-mode/rectangular data (students × courses,
-donors × candidates) pass `mode = "bipartite"`. `Xrow` / `Xcol` accept
+`symmetric = TRUE`; for two-mode/rectangular data (countries ×
+international organisations, states × treaties) pass
+`mode = "bipartite"`. `Xrow` / `Xcol` accept
 either a numeric matrix or a `data.frame`; `Xdyad` must be a 3-D
 `n × n × p` numeric array.
 
@@ -249,11 +252,10 @@ pass `symmetric = TRUE` and the same family table applies.
 | frn     | yes        | yes       | no (row-cone is directed) |
 | rrl     | yes        | yes       | no (row-cone is directed) |
 
-The four bipartite rank-and-count families (`ordinal`, `cbin`, `frn`,
-`poisson`, plus first-class `rrl` on bipartite) and symmetric `ordinal`
-were first-class as of the v5-post / v6 release. Earlier releases
-errored on these cells; the [`vignette("bipartite")`](#documentation)
-walk-through covers each.
+Every family works under both modes, including the rank-and-count
+families (`ordinal`, `cbin`, `frn`, `rrl`, `poisson`) on bipartite
+networks and symmetric `ordinal`; the
+[`vignette("bipartite")`](#documentation) walk-through covers each.
 
 ### Dynamic Effects
 
@@ -353,27 +355,27 @@ gof_plot(fit)                                       # Goodness-of-fit
 
 ### Fast (MCMC-free) estimation
 
+`ame_als()` and `lame_als()` are a fast, MCMC-free point estimator for
+the additive-and-multiplicative model, **adapted from the Social
+Influence Regression (SIR) estimator of Minhas & Hoff (2025)** — the
+iterative block coordinate descent method introduced in *Decomposing
+Network Dynamics: Social Influence Regression* and implemented in the
+[`sir`](https://github.com/netify-dev/sir) package. It is a port and
+adaptation of that estimator to the AME model, not original `lame`
+methodology.
+
 - **`ame_als()` / `lame_als()`**: fast AME point estimates via
-  iterative block coordinate descent, typically much faster than the
-  MCMC estimator since it returns point estimates rather than a
-  posterior sample. Useful for data exploration, model screening,
-  and starting values. **Family scope**: `normal`, `binary`,
-  `poisson`. For `tobit`, `ordinal`, `cbin`, `frn`, `rrl` use the MCMC
-  path; an earlier EM-ALS extension to `tobit` / `ordinal` was
-  removed after audit work showed the bootstrap arm inherited an
-  attenuation bias from the EM initialisation.
+  iterative block coordinate descent (alternating least squares /
+  IRLS), typically much faster than the MCMC sampler since they return
+  point estimates rather than a posterior sample. Useful for data
+  exploration, model screening, starting values, and large networks.
+  **Family scope**: `normal`, `binary`, `poisson`; for `tobit`,
+  `ordinal`, `cbin`, `frn`, `rrl` use the MCMC path.
 - **`ame_als_bootstrap()`**: block and parametric bootstrap standard
   errors and confidence intervals for the fast estimator. The
   one-shot path `ame_als(..., bootstrap = N)` attaches the bootstrap
   to the fit; `tidy(fit)` / `confint(fit)` use the bootstrap
   intervals when present, the sandwich (`vcov.ame_als`) otherwise.
-- The estimation algorithm is **adapted from the Social Influence
-  Regression (SIR) estimator of Hoff & Minhas**, the "iterative
-  block coordinate descent" method introduced in Minhas & Hoff
-  (2025), *Decomposing Network Dynamics: Social Influence
-  Regression*, and implemented in `sir::sir_alsfit()`. It is a port
-  and adaptation of that estimator to the AME model, not original
-  `lame` methodology.
 
 ## Documentation
 
@@ -433,7 +435,7 @@ If you use `lame` in your research, please cite:
   title = {lame: Longitudinal Additive and Multiplicative Effects Models for Networks},
   author = {Cassy Dorff and Shahryar Minhas and Tosin Salau},
   year = {2026},
-  note = {R package version 1.0.0},
+  note = {R package version 1.1.0},
   url = {https://github.com/netify-dev/lame},
 }
 ```
