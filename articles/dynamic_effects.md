@@ -1228,8 +1228,8 @@ gof_comparison <- rbind(
 )
 round(gof_comparison, 3)
 #>            sd.rowmean sd.colmean dyad.dep cycle.dep trans.dep
-#> Static          0.900      0.983    0.500     0.617     0.317
-#> Dynamic_UV      0.983      1.000    0.433     0.717     0.450
+#> Static          0.883      0.983    0.567     0.550     0.300
+#> Dynamic_UV      0.950      0.983    0.417     0.717     0.467
 #> Dynamic_AB      1.000      0.967    0.950     0.433     0.283
 #> Full            0.867      0.917    0.950     0.250     0.283
 ```
@@ -1334,12 +1334,12 @@ lp <- latent_positions(fit_null, align = TRUE)
 #> This message is displayed once per session.
 head(lp)
 #>     actor dimension time       value posterior_sd type
-#> 1  Actor1         1    1 -0.24807856           NA    U
-#> 2 Actor10         1    1 -0.01872938           NA    U
-#> 3 Actor11         1    1  0.02719916           NA    U
+#> 1  Actor1         1    1 -0.24807855           NA    U
+#> 2 Actor10         1    1 -0.01872939           NA    U
+#> 3 Actor11         1    1  0.02719917           NA    U
 #> 4 Actor12         1    1  0.09072103           NA    U
-#> 5 Actor13         1    1  0.02235869           NA    U
-#> 6 Actor14         1    1 -0.05799677           NA    U
+#> 5 Actor13         1    1  0.02235868           NA    U
+#> 6 Actor14         1    1 -0.05799678           NA    U
 ```
 
 This data frame is ready for `ggplot2` if you want to build custom

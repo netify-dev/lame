@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2026-05-28</h4>
+            <h4 data-toc-skip class="date">2026-05-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/dynamic_effects.Rmd" class="external-link"><code>vignettes/dynamic_effects.Rmd</code></a></small>
       <div class="d-none name"><code>dynamic_effects.Rmd</code></div>
@@ -1338,8 +1338,8 @@ good fit.</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">gof_comparison</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            sd.rowmean sd.colmean dyad.dep cycle.dep trans.dep</span></span>
-<span><span class="co">#&gt; Static          0.900      0.983    0.500     0.617     0.317</span></span>
-<span><span class="co">#&gt; Dynamic_UV      0.983      1.000    0.433     0.717     0.450</span></span>
+<span><span class="co">#&gt; Static          0.883      0.983    0.567     0.550     0.300</span></span>
+<span><span class="co">#&gt; Dynamic_UV      0.950      0.983    0.417     0.717     0.467</span></span>
 <span><span class="co">#&gt; Dynamic_AB      1.000      0.967    0.950     0.433     0.283</span></span>
 <span><span class="co">#&gt; Full            0.867      0.917    0.950     0.250     0.283</span></span></code></pre></div>
 <p>Since the data were generated without temporal structure, the dynamic
@@ -1438,12 +1438,12 @@ default for <code>lame</code> objects):</p>
 <span><span class="co">#&gt; <span style="color: #555555;">This message is displayed once per session.</span></span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     actor dimension time       value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1  Actor1         1    1 -0.24807856           NA    U</span></span>
-<span><span class="co">#&gt; 2 Actor10         1    1 -0.01872938           NA    U</span></span>
-<span><span class="co">#&gt; 3 Actor11         1    1  0.02719916           NA    U</span></span>
+<span><span class="co">#&gt; 1  Actor1         1    1 -0.24807855           NA    U</span></span>
+<span><span class="co">#&gt; 2 Actor10         1    1 -0.01872939           NA    U</span></span>
+<span><span class="co">#&gt; 3 Actor11         1    1  0.02719917           NA    U</span></span>
 <span><span class="co">#&gt; 4 Actor12         1    1  0.09072103           NA    U</span></span>
-<span><span class="co">#&gt; 5 Actor13         1    1  0.02235869           NA    U</span></span>
-<span><span class="co">#&gt; 6 Actor14         1    1 -0.05799677           NA    U</span></span></code></pre></div>
+<span><span class="co">#&gt; 5 Actor13         1    1  0.02235868           NA    U</span></span>
+<span><span class="co">#&gt; 6 Actor14         1    1 -0.05799678           NA    U</span></span></code></pre></div>
 <p>This data frame is ready for <code>ggplot2</code> if you want to
 build custom trajectory plots (e.g., highlighting specific actors or
 overlaying external events).</p>

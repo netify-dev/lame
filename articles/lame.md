@@ -269,8 +269,8 @@ summary(fit)
 #> Regression coefficients:
 #> ------------------------
 #>                 Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept         -1.105    0.087 -12.767       0   -1.245   -0.912 ***
-#> similarity_dyad    0.754     0.05  15.101       0    0.658    0.841 ***
+#> intercept         -1.107    0.086   -12.8       0   -1.245   -0.915 ***
+#> similarity_dyad    0.755     0.05  15.071       0    0.654    0.841 ***
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
@@ -281,7 +281,7 @@ summary(fit)
 #> va     0.080    0.028
 #> cab   -0.004    0.019
 #> vb     0.074    0.022
-#> rho   -0.130    0.087
+#> rho   -0.135    0.093
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
@@ -333,13 +333,13 @@ explicit dimnames are safer.
 # regression coefficients (posterior means)
 coef(fit)
 #>       intercept similarity_dyad 
-#>      -1.1050394       0.7542629
+#>      -1.1065454       0.7550219
 
 # 95% credible intervals
 confint(fit)
 #>                       2.5%      97.5%
-#> intercept       -1.2452117 -0.9123551
-#> similarity_dyad  0.6575347  0.8412236
+#> intercept       -1.2452112 -0.9150417
+#> similarity_dyad  0.6544237  0.8412236
 
 # broom-style one-row-per-coefficient frame; ships with lame so it works
 # without broom installed and dispatches through broom::tidy(fit) when
@@ -350,8 +350,8 @@ tidy(fit)
 #> # A tibble: 2 × 7
 #>   term            estimate std.error statistic p.value conf.low conf.high
 #>   <chr>              <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
-#> 1 intercept         -1.11     0.0866     -12.8       0   -1.25     -0.912
-#> 2 similarity_dyad    0.754    0.0499      15.1       0    0.658     0.841
+#> 1 intercept         -1.11     0.0865     -12.8       0   -1.25     -0.915
+#> 2 similarity_dyad    0.755    0.0501      15.1       0    0.654     0.841
 glance(fit)
 #> # A tibble: 1 × 13
 #>    nobs n_actors n_row_actors n_col_actors n_periods n_stored family mode      R
@@ -373,7 +373,7 @@ dim(Y_hat[[1]])                    # 25 x 25
 #> [1] 25 25
 cat("Predicted probability range:",
         round(range(unlist(Y_hat), na.rm = TRUE), 3), "\n")
-#> Predicted probability range: 0 0.98
+#> Predicted probability range: 0 0.97
 
 # residuals: same list-of-matrices shape, observed minus predicted
 resid_list <- residuals(fit)
@@ -504,7 +504,7 @@ fit_cs <- ame(
 
 coef(fit_cs)
 #>       intercept similarity_dyad 
-#>      -1.1742315       0.7408774
+#>      -1.1772019       0.7421418
 ```
 
 The output and methods are the same. The difference is that

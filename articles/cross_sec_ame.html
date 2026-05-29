@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-05-28</h4>
+            <h4 data-toc-skip class="date">2026-05-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/cross_sec_ame.Rmd" class="external-link"><code>vignettes/cross_sec_ame.Rmd</code></a></small>
       <div class="d-none name"><code>cross_sec_ame.Rmd</code></div>
@@ -304,15 +304,15 @@ generally a more stable estimator.</li>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;                  Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept          -3.485    1.095  -3.182   0.001   -5.894   -1.711  **</span></span>
-<span><span class="co">#&gt; female_row         -0.524    0.303   -1.73   0.084   -1.128   -0.002   .</span></span>
-<span><span class="co">#&gt; grade_row           0.064    0.085   0.762   0.446   -0.062    0.248    </span></span>
-<span><span class="co">#&gt; female_col         -0.387    0.277  -1.395   0.163   -0.898    0.081    </span></span>
-<span><span class="co">#&gt; grade_col           0.275    0.059   4.629       0    0.142    0.364 ***</span></span>
-<span><span class="co">#&gt; same_female_dyad    0.187    0.182   1.023   0.306   -0.163    0.519    </span></span>
-<span><span class="co">#&gt; same_race_dyad     -0.085    0.264  -0.322   0.748     -0.5    0.409    </span></span>
-<span><span class="co">#&gt; same_grade_dyad     0.169    0.261   0.648   0.517   -0.338     0.65    </span></span>
-<span><span class="co">#&gt; grade_diff_dyad    -0.602    0.101  -5.966       0   -0.783   -0.409 ***</span></span>
+<span><span class="co">#&gt; intercept          -3.485    1.097  -3.177   0.001   -5.894   -1.611  **</span></span>
+<span><span class="co">#&gt; female_row         -0.524    0.303  -1.727   0.084   -1.128   -0.002   .</span></span>
+<span><span class="co">#&gt; grade_row           0.065    0.085   0.763   0.445   -0.062    0.248    </span></span>
+<span><span class="co">#&gt; female_col         -0.386    0.277  -1.393   0.164   -0.898    0.081    </span></span>
+<span><span class="co">#&gt; grade_col           0.275    0.059   4.624       0    0.142    0.364 ***</span></span>
+<span><span class="co">#&gt; same_female_dyad    0.187    0.183    1.02   0.308   -0.163    0.519    </span></span>
+<span><span class="co">#&gt; same_race_dyad     -0.085    0.264  -0.321   0.748     -0.5    0.409    </span></span>
+<span><span class="co">#&gt; same_grade_dyad     0.169    0.261   0.645   0.519   -0.338     0.65    </span></span>
+<span><span class="co">#&gt; grade_diff_dyad    -0.602    0.101   -5.96       0   -0.783   -0.409 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -321,9 +321,9 @@ generally a more stable estimator.</li>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
 <span><span class="co">#&gt; va     0.404    0.135</span></span>
-<span><span class="co">#&gt; cab    0.031    0.091</span></span>
+<span><span class="co">#&gt; cab    0.032    0.091</span></span>
 <span><span class="co">#&gt; vb     0.236    0.084</span></span>
-<span><span class="co">#&gt; rho    0.832    0.078</span></span>
+<span><span class="co">#&gt; rho    0.829    0.085</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
@@ -451,19 +451,19 @@ summary triple is
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 14 × 10</span></span></span>
 <span><span class="co">#&gt;    variable           mean  median     sd    mad      q5     q95   rhat ess_bulk</span></span>
 <span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept       -<span style="color: #BB0000;">3.48</span>   -<span style="color: #BB0000;">3.38</span>   1.10   0.940  -<span style="color: #BB0000;">5.30</span>   -<span style="color: #BB0000;">1.72</span>    0.991    79.3 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> female_row      -<span style="color: #BB0000;">0.524</span>  -<span style="color: #BB0000;">0.527</span>  0.303  0.261  -<span style="color: #BB0000;">1.03</span>   -<span style="color: #BB0000;">0.084</span><span style="color: #BB0000; text-decoration: underline;">6</span>  1.000    66.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> grade_row        0.064<span style="text-decoration: underline;">4</span>  0.059<span style="text-decoration: underline;">1</span> 0.084<span style="text-decoration: underline;">6</span> 0.085<span style="text-decoration: underline;">8</span> -<span style="color: #BB0000;">0.052</span><span style="color: #BB0000; text-decoration: underline;">1</span>  0.231   0.991    66.2 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> female_col      -<span style="color: #BB0000;">0.387</span>  -<span style="color: #BB0000;">0.367</span>  0.277  0.266  -<span style="color: #BB0000;">0.859</span>   0.028<span style="text-decoration: underline;">1</span>  0.989    74.1 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> grade_col        0.275   0.278  0.059<span style="text-decoration: underline;">3</span> 0.054<span style="text-decoration: underline;">1</span>  0.186   0.359   0.998    58.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> same_female_dy…  0.187   0.180  0.182  0.178  -<span style="color: #BB0000;">0.143</span>   0.502   1.01     67.1 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> same_race_dyad  -<span style="color: #BB0000;">0.085</span><span style="color: #BB0000; text-decoration: underline;">0</span> -<span style="color: #BB0000;">0.092</span><span style="color: #BB0000; text-decoration: underline;">1</span> 0.264  0.272  -<span style="color: #BB0000;">0.461</span>   0.334   1.03     80.3 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept       -<span style="color: #BB0000;">3.49</span>   -<span style="color: #BB0000;">3.38</span>   1.10   0.940  -<span style="color: #BB0000;">5.30</span>   -<span style="color: #BB0000;">1.72</span>    0.991    77.1 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> female_row      -<span style="color: #BB0000;">0.524</span>  -<span style="color: #BB0000;">0.527</span>  0.303  0.261  -<span style="color: #BB0000;">1.03</span>   -<span style="color: #BB0000;">0.055</span><span style="color: #BB0000; text-decoration: underline;">2</span>  1.000    66.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> grade_row        0.064<span style="text-decoration: underline;">5</span>  0.059<span style="text-decoration: underline;">1</span> 0.084<span style="text-decoration: underline;">6</span> 0.085<span style="text-decoration: underline;">8</span> -<span style="color: #BB0000;">0.052</span><span style="color: #BB0000; text-decoration: underline;">1</span>  0.231   0.991    66.7 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> female_col      -<span style="color: #BB0000;">0.386</span>  -<span style="color: #BB0000;">0.367</span>  0.277  0.266  -<span style="color: #BB0000;">0.850</span>   0.028<span style="text-decoration: underline;">1</span>  0.989    73.8 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> grade_col        0.275   0.278  0.059<span style="text-decoration: underline;">4</span> 0.054<span style="text-decoration: underline;">1</span>  0.186   0.359   1.00     57.5 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> same_female_dy…  0.187   0.180  0.183  0.178  -<span style="color: #BB0000;">0.143</span>   0.502   1.01     67.4 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> same_race_dyad  -<span style="color: #BB0000;">0.084</span><span style="color: #BB0000; text-decoration: underline;">9</span> -<span style="color: #BB0000;">0.092</span><span style="color: #BB0000; text-decoration: underline;">1</span> 0.264  0.272  -<span style="color: #BB0000;">0.466</span>   0.334   1.03     80.2 </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_grade_dyad  0.169   0.195  0.261  0.276  -<span style="color: #BB0000;">0.258</span>   0.619   1.03     94.7 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> grade_diff_dyad -<span style="color: #BB0000;">0.602</span>  -<span style="color: #BB0000;">0.592</span>  0.101  0.108  -<span style="color: #BB0000;">0.765</span>  -<span style="color: #BB0000;">0.463</span>   1.12      7.62</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> va               0.404   0.380  0.135  0.136   0.223   0.650   0.992    80.6 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> cab              0.030<span style="text-decoration: underline;">8</span>  0.020<span style="text-decoration: underline;">1</span> 0.090<span style="text-decoration: underline;">9</span> 0.085<span style="text-decoration: underline;">3</span> -<span style="color: #BB0000;">0.114</span>   0.179   0.988    69.7 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> vb               0.236   0.226  0.083<span style="text-decoration: underline;">8</span> 0.078<span style="text-decoration: underline;">5</span>  0.128   0.394   1.00     56.1 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> rho              0.832   0.860  0.078<span style="text-decoration: underline;">0</span> 0.071<span style="text-decoration: underline;">9</span>  0.688   0.925   1.08      9.47</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> grade_diff_dyad -<span style="color: #BB0000;">0.602</span>  -<span style="color: #BB0000;">0.592</span>  0.101  0.108  -<span style="color: #BB0000;">0.769</span>  -<span style="color: #BB0000;">0.463</span>   1.12      7.63</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> va               0.404   0.380  0.135  0.136   0.223   0.654   0.994    81.3 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> cab              0.031<span style="text-decoration: underline;">5</span>  0.021<span style="text-decoration: underline;">5</span> 0.091<span style="text-decoration: underline;">0</span> 0.086<span style="text-decoration: underline;">7</span> -<span style="color: #BB0000;">0.108</span>   0.179   0.988    70.4 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> vb               0.236   0.226  0.083<span style="text-decoration: underline;">8</span> 0.078<span style="text-decoration: underline;">5</span>  0.128   0.394   1.00     56.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> rho              0.829   0.860  0.084<span style="text-decoration: underline;">9</span> 0.071<span style="text-decoration: underline;">9</span>  0.626   0.925   1.07      9.71</span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">14</span> ve               1       1      0      0       1       1      <span style="color: #BB0000;">NA</span>        <span style="color: #BB0000;">NA</span>   </span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: ess_tail &lt;dbl&gt;</span></span></span>
 <span>                                               <span class="co"># ess_bulk, ess_tail per param</span></span></code></pre></div>
@@ -705,8 +705,8 @@ family. Those are one-liners as custom stats:</p>
 <span>    pp_p_right <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mapply.html" class="external-link">mapply</a></span><span class="op">(</span><span class="va">pp_right</span>, <span class="va">obs</span>, <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">sim</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"triangles"</span>, <span class="st">"two_path"</span>, <span class="st">"trans_ratio"</span>, <span class="st">"deg_cor"</span><span class="op">)</span>, <span class="op">]</span></span>
 <span><span class="co">#&gt;                    stat observed sim_mean pp_p_right</span></span>
-<span><span class="co">#&gt; triangles     triangles  239.000  182.880       0.24</span></span>
-<span><span class="co">#&gt; two_path       two_path  493.000  472.400       0.40</span></span>
+<span><span class="co">#&gt; triangles     triangles  239.000  183.060       0.24</span></span>
+<span><span class="co">#&gt; two_path       two_path  493.000  472.940       0.42</span></span>
 <span><span class="co">#&gt; trans_ratio trans_ratio    0.485    0.370       0.06</span></span>
 <span><span class="co">#&gt; deg_cor         deg_cor    0.564    0.414       0.32</span></span></code></pre></div>
 <p>Read the table the same way you would read <code>ergm::gof()</code>.

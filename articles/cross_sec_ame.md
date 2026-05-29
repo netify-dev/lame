@@ -214,15 +214,15 @@ summary(fit)
 #> Regression coefficients:
 #> ------------------------
 #>                  Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept          -3.485    1.095  -3.182   0.001   -5.894   -1.711  **
-#> female_row         -0.524    0.303   -1.73   0.084   -1.128   -0.002   .
-#> grade_row           0.064    0.085   0.762   0.446   -0.062    0.248    
-#> female_col         -0.387    0.277  -1.395   0.163   -0.898    0.081    
-#> grade_col           0.275    0.059   4.629       0    0.142    0.364 ***
-#> same_female_dyad    0.187    0.182   1.023   0.306   -0.163    0.519    
-#> same_race_dyad     -0.085    0.264  -0.322   0.748     -0.5    0.409    
-#> same_grade_dyad     0.169    0.261   0.648   0.517   -0.338     0.65    
-#> grade_diff_dyad    -0.602    0.101  -5.966       0   -0.783   -0.409 ***
+#> intercept          -3.485    1.097  -3.177   0.001   -5.894   -1.611  **
+#> female_row         -0.524    0.303  -1.727   0.084   -1.128   -0.002   .
+#> grade_row           0.065    0.085   0.763   0.445   -0.062    0.248    
+#> female_col         -0.386    0.277  -1.393   0.164   -0.898    0.081    
+#> grade_col           0.275    0.059   4.624       0    0.142    0.364 ***
+#> same_female_dyad    0.187    0.183    1.02   0.308   -0.163    0.519    
+#> same_race_dyad     -0.085    0.264  -0.321   0.748     -0.5    0.409    
+#> same_grade_dyad     0.169    0.261   0.645   0.519   -0.338     0.65    
+#> grade_diff_dyad    -0.602    0.101   -5.96       0   -0.783   -0.409 ***
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
@@ -231,9 +231,9 @@ summary(fit)
 #> -------------------
 #>     Estimate StdError
 #> va     0.404    0.135
-#> cab    0.031    0.091
+#> cab    0.032    0.091
 #> vb     0.236    0.084
-#> rho    0.832    0.078
+#> rho    0.829    0.085
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
@@ -354,19 +354,19 @@ posterior::summarise_draws(draws)              # mean, sd, q5, q95, rhat,
 #> # A tibble: 14 × 10
 #>    variable           mean  median     sd    mad      q5     q95   rhat ess_bulk
 #>    <chr>             <dbl>   <dbl>  <dbl>  <dbl>   <dbl>   <dbl>  <dbl>    <dbl>
-#>  1 intercept       -3.48   -3.38   1.10   0.940  -5.30   -1.72    0.991    79.3 
-#>  2 female_row      -0.524  -0.527  0.303  0.261  -1.03   -0.0846  1.000    66.0 
-#>  3 grade_row        0.0644  0.0591 0.0846 0.0858 -0.0521  0.231   0.991    66.2 
-#>  4 female_col      -0.387  -0.367  0.277  0.266  -0.859   0.0281  0.989    74.1 
-#>  5 grade_col        0.275   0.278  0.0593 0.0541  0.186   0.359   0.998    58.0 
-#>  6 same_female_dy…  0.187   0.180  0.182  0.178  -0.143   0.502   1.01     67.1 
-#>  7 same_race_dyad  -0.0850 -0.0921 0.264  0.272  -0.461   0.334   1.03     80.3 
+#>  1 intercept       -3.49   -3.38   1.10   0.940  -5.30   -1.72    0.991    77.1 
+#>  2 female_row      -0.524  -0.527  0.303  0.261  -1.03   -0.0552  1.000    66.0 
+#>  3 grade_row        0.0645  0.0591 0.0846 0.0858 -0.0521  0.231   0.991    66.7 
+#>  4 female_col      -0.386  -0.367  0.277  0.266  -0.850   0.0281  0.989    73.8 
+#>  5 grade_col        0.275   0.278  0.0594 0.0541  0.186   0.359   1.00     57.5 
+#>  6 same_female_dy…  0.187   0.180  0.183  0.178  -0.143   0.502   1.01     67.4 
+#>  7 same_race_dyad  -0.0849 -0.0921 0.264  0.272  -0.466   0.334   1.03     80.2 
 #>  8 same_grade_dyad  0.169   0.195  0.261  0.276  -0.258   0.619   1.03     94.7 
-#>  9 grade_diff_dyad -0.602  -0.592  0.101  0.108  -0.765  -0.463   1.12      7.62
-#> 10 va               0.404   0.380  0.135  0.136   0.223   0.650   0.992    80.6 
-#> 11 cab              0.0308  0.0201 0.0909 0.0853 -0.114   0.179   0.988    69.7 
-#> 12 vb               0.236   0.226  0.0838 0.0785  0.128   0.394   1.00     56.1 
-#> 13 rho              0.832   0.860  0.0780 0.0719  0.688   0.925   1.08      9.47
+#>  9 grade_diff_dyad -0.602  -0.592  0.101  0.108  -0.769  -0.463   1.12      7.63
+#> 10 va               0.404   0.380  0.135  0.136   0.223   0.654   0.994    81.3 
+#> 11 cab              0.0315  0.0215 0.0910 0.0867 -0.108   0.179   0.988    70.4 
+#> 12 vb               0.236   0.226  0.0838 0.0785  0.128   0.394   1.00     56.0 
+#> 13 rho              0.829   0.860  0.0849 0.0719  0.626   0.925   1.07      9.71
 #> 14 ve               1       1      0      0       1       1      NA        NA   
 #> # ℹ 1 more variable: ess_tail <dbl>
                                                # ess_bulk, ess_tail per param
@@ -607,8 +607,8 @@ data.frame(
     pp_p_right = round(mapply(pp_right, obs, as.data.frame(sim)), 3)
 )[c("triangles", "two_path", "trans_ratio", "deg_cor"), ]
 #>                    stat observed sim_mean pp_p_right
-#> triangles     triangles  239.000  182.880       0.24
-#> two_path       two_path  493.000  472.400       0.40
+#> triangles     triangles  239.000  183.060       0.24
+#> two_path       two_path  493.000  472.940       0.42
 #> trans_ratio trans_ratio    0.485    0.370       0.06
 #> deg_cor         deg_cor    0.564    0.414       0.32
 ```
