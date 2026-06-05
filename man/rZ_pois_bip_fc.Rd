@@ -24,7 +24,7 @@ or matrix conformable with Y). Default \code{0}.}
 updated \code{nA x nB} latent matrix.
 }
 \description{
-Rectangular drop-in for \code{\link{rZ_pois_fc}}. Each \code{(i,j)}
+Rectangular analogue of \code{\link{rZ_pois_fc}}. Each \code{(i,j)}
 cell is updated independently with a Metropolis-Hastings step on
 the Poisson log-link; there is no upper/lower-triangle coupling and
 no diagonal because the bipartite Y is \code{nA x nB} with disjoint

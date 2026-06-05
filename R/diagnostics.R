@@ -2,19 +2,20 @@
 # compares the max absolute scaled first difference of the posterior
 # beta path to a prior-null reference simulated from the fit's
 # rho_beta / sigma_beta. large values flag abrupt breaks. this is a
-# heuristic, not a formal bayes factor.
+# heuristic tail-ratio score, not a formal bayes factor.
 
 #' Detect potential change points in a dynamic_beta posterior path
 #'
 #' For each dynamic coefficient in a \code{dynamic_beta} fit, compares the
 #' posterior distribution of the maximum scaled first-difference
 #' \eqn{M = \max_t |\beta_t - \beta_{t-1}| / \sigma_\beta} to a Monte-Carlo
-#' approximation of the same statistic under the AR(1) prior. A
-#' \dQuote{change-point-flavored} Bayes factor is reported as
-#' \eqn{BF = \Pr(M^{post} > m^*) / 0.05}, where \eqn{m^*} is the 95\%
-#' quantile of \eqn{M^{prior}}. \strong{This is a heuristic, not a real
-#' Bayes factor.} Use it to surface posterior temporal jumps that the AR(1)
-#' prior cannot comfortably accommodate.
+#' approximation of the same statistic under the AR(1) prior. The returned
+#' \code{bf} column is the tail-ratio score
+#' \eqn{\Pr(M^{post} > m^*) / 0.05}, where \eqn{m^*} is the 95\%
+#' quantile of \eqn{M^{prior}}. It is kept under the historical column name
+#' for compatibility, but it is not a marginal-likelihood Bayes factor. Use it
+#' to surface posterior temporal jumps that the AR(1) prior cannot comfortably
+#' accommodate.
 #'
 #' @param fit A fitted \code{lame} object with \code{dynamic_beta}.
 #' @param coefs Optional character vector of coefficient names to check.
@@ -26,7 +27,7 @@
 #' @param seed Optional seed for reproducibility.
 #'
 #' @return A data frame with one row per dynamic coefficient: \code{coef},
-#'   \code{bf} (the heuristic Bayes factor), \code{m_post_mean} (posterior
+#'   \code{bf} (the heuristic tail-ratio score), \code{m_post_mean} (posterior
 #'   mean of \eqn{M}), \code{m_prior_q95} (95\% quantile of the prior
 #'   \eqn{M}), \code{t_hat} (period of the largest scaled jump), \code{warn}
 #'   (logical, \code{bf > threshold_bf}).
@@ -90,8 +91,8 @@ detect_change_point <- function(
 			# coef is static or block label missing; skip
 			next
 		}
-		# posterior M
-		beta_path <- fit$BETA[, j, , drop = FALSE]  # iter x 1 x T
+		# posterior m
+		beta_path <- fit$BETA[, j, , drop = FALSE]  # iter x 1 x t
 		# squeeze the singleton coef dim out
 		beta_path <- matrix(beta_path, nrow = dim(beta_path)[1L], ncol = dim(beta_path)[3L])
 		# scale each iteration's diffs by that iteration's sigma_beta
@@ -102,15 +103,15 @@ detect_change_point <- function(
 		beta_path <- beta_path[seq_len(n_iter), , drop = FALSE]
 		sb_block  <- sb_block[seq_len(n_iter)]
 
-		diffs <- abs(t(apply(beta_path, 1, diff)))   # iter x (T-1)
+		diffs <- abs(t(apply(beta_path, 1, diff)))   # iter x (t-1)
 		scaled_diffs <- diffs / pmax(sb_block, 1e-8)
 		M_post <- apply(scaled_diffs, 1, max)
-		# which period was the largest jump? Take posterior mode (= 1 + most common argmax)
+		# which period was the largest jump? take posterior mode (= 1 + most common argmax)
 		t_jumps <- apply(scaled_diffs, 1, which.max) + 1L
 		t_hat <- as.integer(names(sort(table(t_jumps), decreasing = TRUE))[1L])
 
 		# prior simulation: draw (rho, sigma) from the per-block posterior and
-		# generate prior AR(1) paths of length T
+		# generate prior ar(1) paths of length t
 		Tn <- ncol(beta_path) + 1L
 		# resample (rho, sigma) from the posterior with replacement
 		idx <- sample.int(n_iter, n_prior_sims, replace = TRUE)
@@ -118,7 +119,7 @@ detect_change_point <- function(
 		sigma_s <- fit$SIGMA_BETA[idx, blk]
 		M_prior <- vapply(seq_len(n_prior_sims), function(k) {
 			r <- rho_s[k]; s <- sigma_s[k]
-			# stationary initial draw, then T-1 innovations
+			# stationary initial draw, then t-1 innovations
 			path <- numeric(Tn)
 			path[1] <- stats::rnorm(1, 0, s / sqrt(max(1 - r * r, 1e-8)))
 			for (t in 2:Tn) {

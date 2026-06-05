@@ -1,5 +1,5 @@
 # ggplot2 non-standard evaluation variables
-# listed here to avoid R CMD check warnings
+# listed here to avoid r cmd check warnings
 utils::globalVariables(c(
 	"mu", "ymax", "ymin", "id",  # ab_plot
 	"odmax",  # get_start_vals
@@ -16,14 +16,11 @@ utils::globalVariables(c(
 ))
 
 # package-internal helper: ensure a covariate-slice name carries the expected
-# `_dyad`, `_row`, or `_col` suffix exactly once. Pre-existing names that
-# already end in `_<sfx>` are preserved; names that end in the legacy
-# `.<sfx>` form are upgraded to `_<sfx>` for consistency with the unipartite
-# design path. Bare names get the new suffix appended.
+# `_dyad`, `_row`, or `_col` suffix exactly once. names that already end in
+# `_<sfx>` are preserved; names that end in `.<sfx>` are normalised to
+# `_<sfx>`. bare names get the suffix appended.
 #
-# Called from R/bipartite_helpers.R, R/design_array.R, R/design_array_listwisedel.R,
-# R/lame.R, R/ame_bipartite.R, and R/ame_als.R so the convention is
-# idempotent at every coefficient-naming site.
+# called from the coefficient-naming helpers so the convention is idempotent.
 .lame_apply_suffix <- function(nms, sfx) {
 	if (is.null(nms) || length(nms) == 0L) return(nms)
 	has_us  <- grepl(paste0("_", sfx, "$"), nms)

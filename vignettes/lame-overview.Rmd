@@ -35,7 +35,7 @@ The modeling approach builds on the Additive and Multiplicative Effects (AME) fr
 - **ggplot2-based diagnostics**: Built-in visualization functions (`trace_plot`, `gof_plot`, `ab_plot`, `uv_plot`) return standard ggplot2 figures you can theme and extend.
 - **Standard S3 methods**: `coef()`, `confint()`, `fitted()`, `residuals()`, `predict()`, and `simulate()` work as you would expect from any R model object.
 
-The package is part of the `netify-verse`, so it works seamlessly with the [`netify`](https://netify-dev.github.io/netify/) package for data preparation.
+The package is part of the `netify-verse`, and it works with the [`netify`](https://netify-dev.github.io/netify/) package for data preparation.
 
 ### Migrating from `amen`
 
@@ -43,7 +43,7 @@ Both `amen` and `lame` export an `ame()` function. If you load both packages in 
 
 | Topic | `amen::ame()` | `lame::ame()` / `lame::lame()` | Old code breaks? |
 |---|---|---|---|
-| Family strings | `"nrm"`, `"bin"`, `"ord"`, `"cbin"`, `"frn"`, `"rrl"`, `"tobit"` | `"normal"`, `"binary"`, `"ordinal"`, `"cbin"`, `"frn"`, `"rrl"`, `"tobit"`, `"poisson"` | No for `ame()` / `lame()` (short forms `"nrm"`, `"bin"`, `"ord"`, `"pois"`, `"tob"` are accepted as aliases via `cli::cli_inform()` -- two informational lines per call, recommending the full name; old scripts run unchanged). For `ame_als()` / `lame_als()` (MCMC-free estimator) the same short aliases (`"nrm"`, `"bin"`, `"ord"`, `"pois"`, `"tob"`) are accepted with an informational message, but the estimator *supports* only `"normal"`, `"binary"`, and `"poisson"`. The censoring / rank families `"ordinal"`, `"tobit"`, `"cbin"`, `"frn"`, and `"rrl"` are rejected with a clear error directing you to `ame()` / `lame()` (MCMC), which is the calibrated path for those families. |
+| Family strings | `"nrm"`, `"bin"`, `"ord"`, `"cbin"`, `"frn"`, `"rrl"`, `"tobit"` | `"normal"`, `"binary"`, `"ordinal"`, `"cbin"`, `"frn"`, `"rrl"`, `"tobit"`, `"poisson"` | No for `ame()` / `lame()` (short forms `"nrm"`, `"bin"`, `"ord"`, `"pois"`, `"tob"` are accepted as aliases via `cli::cli_inform()` -- two informational lines per call, recommending the full name; old scripts run unchanged). For `ame_als()` / `lame_als()` (MCMC-free estimator) the same short aliases (`"nrm"`, `"bin"`, `"ord"`, `"pois"`, `"tob"`) are accepted with an informational message, but the estimator *supports* only `"normal"`, `"binary"`, and `"poisson"`. The censoring / rank families `"ordinal"`, `"tobit"`, `"cbin"`, `"frn"`, and `"rrl"` are rejected with a direct error pointing to `ame()` / `lame()` (MCMC), which is the posterior-sampling path for those families. |
 | Bipartite rank | single `R` | `R` (square) or separate `R_row` / `R_col` (bipartite); single `R` still accepted | No (old `R` calls work; `R_row` / `R_col` is new) |
 | Verbosity flag | `print = TRUE/FALSE` | `verbose = TRUE/FALSE` | No (deprecation warning) |
 | `fit$BETA` shape (static) | `[n_stored, p]` matrix | `[n_stored, p]` matrix | No (identical) |
@@ -78,7 +78,7 @@ n <- nrow(dutchcollege$Y)
 T_all <- dim(dutchcollege$Y)[3]
 actor_names <- sprintf("S%02d", seq_len(n))
 
-# binarize and drop the cold-start wave (T = 1 has almost no ties)
+# binarize and drop the cold-start wave (t = 1 has almost no ties)
 Y <- lapply(2:T_all, function(t) {
 	Yt <- (dutchcollege$Y[, , t] > 0) * 1
 	diag(Yt) <- NA
@@ -165,15 +165,15 @@ The intercept itself is strongly negative, but the predictor at the average cova
 
 ### Checking Convergence
 
-Because the model is estimated via MCMC, we need to verify that the sampler has converged before trusting the results. The `trace_plot` function shows the sampled values over iterations (top panels) and the corresponding posterior densities (bottom panels) for each parameter.
+The model is estimated via MCMC, so trace plots and posterior-density plots are useful checks. The `trace_plot` function shows the sampled values over iterations (top panels) and the corresponding posterior densities (bottom panels) for each parameter.
 
 ```{r overview-trace, fig.width=8, fig.height=8, dpi=100, dev="png", fig.alt="MCMC trace plots (top) and marginal posterior density plots (bottom) for each regression coefficient of the Dutch college fit; well-mixed fuzzy-caterpillar traces around a stable mean and smooth unimodal densities together indicate the chain has converged."}
 trace_plot(fit, params = "beta")
 ```
 
-What to look for: trace plots should bounce around a stable mean without long-term trends or sticky regions, and density plots should be smooth and unimodal. Numerically, the conventional Stan-era targets are **split-$\hat R$ < 1.01** for every monitored parameter and **bulk / tail ESS $\ge$ 400 per chain** (so $\ge$ 1600 with 4 chains); $\hat R$ between 1.01 and 1.05 is a yellow flag, anything $\ge$ 1.1 means you should not trust the posterior summaries yet and need a longer run.
+Trace plots should bounce around a stable mean without long-term trends or sticky regions, and density plots should be smooth and unimodal. Numerically, common MCMC checks are **split-$\hat R$ < 1.01** for monitored parameters and **bulk / tail ESS $\ge$ 400 per chain**.
 
-With `r nrow(fit$BETA)` stored samples the regression coefficients mix well at this seed (split-$\hat R \le 1.01$ for every coefficient; bulk ESS in the low hundreds, lowest for the weakly-identified `same_smoker_dyad`). The variance components mix more slowly: in the `summarise_draws` table below, `va` (the sender variance) carries the highest $\hat R$ and the lowest ESS here. Which parameter mixes worst is itself seed-dependent in a single short chain -- on other runs `rho` or a dyadic coefficient can be the slow one, and a coefficient $\hat R$ can drift above 1.05 -- so read one chain's $\hat R$/ESS as indicative, not definitive. For a paper, run several independently initialised chains at greater length (`burn >= 2000, nscan >= 10000`) and check $\hat R$ across them. The point estimates are stable here; it is the uncertainty on the slow-mixing variance and reciprocity parameters that needs the longer multi-chain run before quoting.
+With `r nrow(fit$BETA)` stored samples, the regression coefficients mix well at this seed. The variance components mix more slowly: in the `summarise_draws` table below, `va` carries the highest $\hat R$ and the lowest ESS. Which parameter mixes worst is seed-dependent in a short chain, so treat this fit as a compact worked example rather than a final diagnostic run.
 
 ### Bayesian-ecosystem diagnostics: `posterior::as_draws()`
 
@@ -219,7 +219,7 @@ gt_recip <- gof_temporal(fit, stat = "reciprocity", n_rep = 100, seed = 6886)
 gt_recip
 ```
 
-A `p_pp` of 0 on `density` says the static fit cannot reproduce the empirical net densification slope (about +0.025 per period in our run); that is the expected diagnostic for a fit without `dynamic_beta` or time-varying covariates and is consistent with the per-period mass shift we already see in `gof_plot()`. The reciprocity check tells the same story in the opposite direction: the static fit also rejects the observed reciprocity slope (`p_pp` near 0), because reciprocity actually drifts *downward* across the panel (slope about $-0.03$ per period) and the static $\rho$ cannot track that drift. Both checks are pointing at the same structural mismatch: model parameters that are constant across periods cannot reproduce period-to-period drift in either marginal quantity. The companion diagnostic `detect_change_point()` reports a heuristic Bayes factor comparing the posterior path of each `dynamic_beta` coefficient to its AR(1) prior null. It requires a fit with `dynamic_beta` active and is therefore not applicable to the static fit shown here; the worked example lives in the [Dynamic Effects](dynamic_effects.html) vignette.
+A `p_pp` of 0 on `density` says the static fit cannot reproduce the empirical net densification slope (about +0.025 per period in our run); that is the expected diagnostic for a fit without `dynamic_beta` or time-varying covariates and is consistent with the per-period mass shift in `gof_plot()`. The reciprocity check tells the same story in the opposite direction: the static fit also rejects the observed reciprocity slope (`p_pp` near 0), because reciprocity actually drifts *downward* across the panel (slope about $-0.03$ per period) and the static $\rho$ cannot track that drift. Both checks are pointing at the same structural mismatch: model parameters that are constant across periods cannot reproduce period-to-period drift in either marginal quantity. The companion diagnostic `detect_change_point()` reports a heuristic tail-ratio score comparing the posterior path of each `dynamic_beta` coefficient to its AR(1) prior null. It requires a fit with `dynamic_beta` active and is therefore not applicable to the static fit shown here; the worked example lives in the [Dynamic Effects](dynamic_effects.html) vignette.
 
 ### Latent Space
 
@@ -296,8 +296,8 @@ fit <- lame(
 
 ### Exit: `tidy()`, `autoplot()`, `prediction_draws_long()`
 
-The rest of the round-trip runs against the `fit` object we already
-built from the Dutch-college data above (no `netify` install needed):
+The rest of the round-trip runs against the `fit` object built from
+the Dutch-college data above (no `netify` install needed):
 
 ```{r tidy-fit}
 # tidy(fit) -> term / estimate / std.error / statistic / p.value /

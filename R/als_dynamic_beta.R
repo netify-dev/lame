@@ -73,7 +73,7 @@
 als_dynamic_beta <- function(Y, Xdyad, lambda = 0, intercept = TRUE) {
 	if (lambda < 0) cli::cli_abort("{.arg lambda} must be non-negative.")
 
-	# normalise Y to list-of-matrices
+	# normalise y to list-of-matrices
 	if (is.array(Y) && length(dim(Y)) == 3L) {
 		Y <- lapply(seq_len(dim(Y)[3L]), function(t) Y[, , t])
 	}
@@ -81,14 +81,14 @@ als_dynamic_beta <- function(Y, Xdyad, lambda = 0, intercept = TRUE) {
 	T_per <- length(Y)
 	if (T_per < 2L) cli::cli_abort("Need at least two periods.")
 
-	# normalise Xdyad to list-of-arrays
+	# normalise xdyad to list-of-arrays
 	if (is.array(Xdyad) && length(dim(Xdyad)) == 4L) {
 		Xdyad <- lapply(seq_len(dim(Xdyad)[4L]), function(t) Xdyad[, , , t])
 	}
 	if (length(Xdyad) != T_per) {
 		cli::cli_abort("{.arg Xdyad} must have one element per time period.")
 	}
-	# per-period (y_t, X_t) on observed dyads
+	# per-period (y_t, x_t) on observed dyads
 	y_list <- list(); X_list <- list()
 	for (t in seq_len(T_per)) {
 		Yt <- Y[[t]]; Xt <- Xdyad[[t]]
@@ -106,9 +106,9 @@ als_dynamic_beta <- function(Y, Xdyad, lambda = 0, intercept = TRUE) {
 	cov_names <- colnames(X_list[[1L]]) %||% paste0("v", seq_len(p))
 
 	# build the block-diagonal normal equations:
-	#   H = blockdiag(X_t' X_t) + lambda * D' D
-	#   g = blockdiag(X_t' y_t)
-	# D is the first-difference operator on the stacked beta = (beta_1, ..., beta_T)
+	#   h = blockdiag(x_t' x_t) + lambda * d' d
+	#   g = blockdiag(x_t' y_t)
+	# d is the first-difference operator on the stacked beta = (beta_1, ..., beta_t)
 	H <- matrix(0, p * T_per, p * T_per)
 	g <- numeric(p * T_per)
 	for (t in seq_len(T_per)) {
@@ -118,20 +118,20 @@ als_dynamic_beta <- function(Y, Xdyad, lambda = 0, intercept = TRUE) {
 		g[idx] <- crossprod(Xt, yt)
 	}
 	if (lambda > 0) {
-		# add lambda * D'D to H where D differences adjacent periods
+		# add lambda * d'd to h where d differences adjacent periods
 		Dblock <- diag(p)
 		for (t in seq_len(T_per - 1L)) {
 			i1 <- ((t - 1L) * p + 1L):(t * p)
 			i2 <- (t * p + 1L):((t + 1L) * p)
-			# D row block: [-I, I] => D'D contributes I to (t,t) and (t+1,t+1),
-			# -I to (t,t+1) and (t+1,t)
+			# d row block: [-i, i] => d'd contributes i to (t,t) and (t+1,t+1),
+			# -i to (t,t+1) and (t+1,t)
 			H[i1, i1] <- H[i1, i1] + lambda * Dblock
 			H[i2, i2] <- H[i2, i2] + lambda * Dblock
 			H[i1, i2] <- H[i1, i2] - lambda * Dblock
 			H[i2, i1] <- H[i2, i1] - lambda * Dblock
 		}
 	}
-	# tiny ridge for numerical safety when H is rank-deficient
+	# tiny ridge for numerical safety when h is rank-deficient
 	H <- H + diag(1e-10, nrow(H))
 
 	beta_stack <- tryCatch(

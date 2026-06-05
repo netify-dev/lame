@@ -1,5 +1,5 @@
 # as_draws methods for ame / lame fits so they integrate cleanly with the
-# Stan ecosystem (posterior, bayesplot, tidybayes, loo).
+# stan ecosystem (posterior, bayesplot, tidybayes, loo).
 
 #' Convert an AME / LAME fit to a posterior draws object
 #'
@@ -28,7 +28,7 @@ as_draws.ame <- function(x, include = c("beta", "vc"), ...) {
 		cli::cli_abort("Fit has no stored posterior draws (BETA is empty).")
 	}
 	include <- intersect(include, c("beta", "vc", "rho_uv", "rho_ab"))
-	# 3-D BETA (dynamic_beta) -> flatten to [iter x (p*T)] with combined names
+	# 3-d beta (dynamic_beta) -> flatten to [iter x (p*t)] with combined names
 	beta_is_dyn <- length(dim(x$BETA)) == 3L
 	beta_mat <- if (beta_is_dyn) {
 		B <- x$BETA
@@ -70,7 +70,7 @@ as_draws.ame <- function(x, include = c("beta", "vc"), ...) {
 		blocks$rho_uv <- matrix(x$rho_uv, ncol = 1, dimnames = list(NULL, "rho_uv"))
 	if ("rho_ab" %in% include && !is.null(x$rho_ab))
 		blocks$rho_ab <- matrix(x$rho_ab, ncol = 1, dimnames = list(NULL, "rho_ab"))
-	# unify into one matrix (column-bind) -- assumes all blocks have nrow(BETA) rows
+	# unify into one matrix (column-bind) -- assumes all blocks have nrow(beta) rows
 	wide <- do.call(cbind, blocks)
 	var_names <- colnames(wide)
 	if (is.null(var_names)) var_names <- paste0("v", seq_len(ncol(wide)))
@@ -106,9 +106,9 @@ as_draws.ame_als <- function(x, ...) {
 			"i" = "Refit with {.code ame_als(..., bootstrap = N)} or attach replicates via {.fn ame_als_bootstrap} to get a draws array."))
 	}
 	boot <- x$bootstrap
-	# boot$coefs is the [R x p] matrix of per-replicate coefficient draws
+	# boot$coefs is the [r x p] matrix of per-replicate coefficient draws
 	# (renamed from boot_coefs in the bootstrap assembly); treat as one
-	# chain of R draws.
+	# chain of r draws.
 	mat <- boot$coefs
 	if (is.null(mat) || !is.matrix(mat)) {
 		cli::cli_abort("The bootstrap object on {.code fit$bootstrap} does not expose a per-draw coefficient matrix.")
@@ -137,7 +137,7 @@ as_draws <- function(x, ...) UseMethod("as_draws")
 
 # register the methods against posterior::as_draws when posterior is
 # available so qualified posterior::as_draws(fit) dispatches to the
-# methods defined here. called from the .onLoad hook in zzz.R.
+# methods defined here. called from the .onload hook in zzz.r.
 .register_posterior_methods <- function() {
 	if (requireNamespace("posterior", quietly = TRUE)) {
 		registerS3method("as_draws", "ame",     as_draws.ame,

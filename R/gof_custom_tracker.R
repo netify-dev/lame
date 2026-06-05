@@ -1,7 +1,7 @@
 # helper for safe evaluation of user-supplied `custom_gof` functions.
 # the tracker counts failures and captures the first error message; the
-# MCMC code routes errors through it so one clean warning is emitted
-# post-fit instead of leaving NA GOF entries unexplained.
+# mcmc code routes errors through it so one clean warning is emitted
+# after fitting rather than leaving na gof entries unexplained.
 
 #' @noRd
 .new_custom_gof_err_tracker <- function() {
@@ -19,10 +19,8 @@
 	}
 }
 
-# emit at most one warning per (fit, phase) so a broken custom_gof function
-# does not flood the console with one warning per MCMC iteration. the call
-# site is responsible for passing a meaningful `where` ("observed GOF" /
-# "posterior-predictive GOF" / "GOF simulation").
+# emit at most one warning per fit location so a broken custom_gof function
+# does not flood the console. the call site passes a meaningful `where`.
 #' @noRd
 .maybe_warn_custom_gof <- function(tracker, where = "MCMC") {
 	if (!is.environment(tracker) || isTRUE(tracker$count == 0L)) return(invisible(NULL))

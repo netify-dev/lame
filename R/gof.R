@@ -62,7 +62,7 @@ gof <- function(
 		}
 	}
 
-	# lame stores Y as a 3D array; average across time for GOF baseline
+	# lame stores y as a 3d array; average across time for gof baseline
 	is_lame <- inherits(fit, "lame")
 	if (is.array(Y) && length(dim(Y)) == 3) {
 		Y_list <- lapply(seq_len(dim(Y)[3]), function(t) Y[, , t])
@@ -94,7 +94,7 @@ gof <- function(
 
 	network_mode <- if (is_bipartite) "bipartite" else "unipartite"
 
-	# compute observed GOF per time point, then average
+	# compute observed gof per time point, then average
 	obs_gof_list <- lapply(Y_list, function(y) gof_stats(y, mode = network_mode))
 	obs_gof <- Reduce("+", obs_gof_list) / length(obs_gof_list)
 	
@@ -103,7 +103,7 @@ gof <- function(
 	custom_gof_names <- NULL
 	n_custom_stats <- 0
 	# tracker for silent custom_gof failures across the simulation loop;
-	# emits one warning at the end instead of leaving NA entries in GOF.
+	# emits one warning at the end instead of leaving na entries in gof.
 	.cg_tracker <- .new_custom_gof_err_tracker()
 
 	if (!is.null(custom_gof)) {
@@ -155,7 +155,7 @@ gof <- function(
 
 	sims <- simulate(fit, nsim = nsim, seed = 6886)
 
-	# helper: compute average GOF across time periods for a simulated dataset
+	# helper: compute average gof across time periods for a simulated dataset
 	avg_gof <- function(y_sim) {
 		if (is.list(y_sim)) {
 			gof_list <- lapply(y_sim, function(y) gof_stats(y, mode = network_mode))
@@ -170,7 +170,7 @@ gof <- function(
 
 		GOF[i + 1, 1:n_base_stats] <- avg_gof(Y_sim)
 
-		# custom GOF
+		# custom gof
 		if (!is.null(custom_gof)) {
 			# for lame sims, pass first time period to custom functions
 			Y_for_custom <- if (is.list(Y_sim)) Y_sim[[1]] else Y_sim

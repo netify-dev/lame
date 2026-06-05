@@ -19,7 +19,7 @@ rZ_rrl_bip_fc(Z, EZ, Y, YL)
 updated nA x nB latent matrix.
 }
 \description{
-Rectangular drop-in for \code{\link{rZ_rrl_fc}}. Row-wise full
+Rectangular analogue of \code{\link{rZ_rrl_fc}}. Row-wise full
 ordering: cells with higher rank have higher Z within the row.
 No 0-threshold and no \code{odmax}. With rho ≡ 0 the unipartite
 triangle coupling drops out.

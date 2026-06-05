@@ -27,7 +27,7 @@
                                      prior_mu_sd   = 10,
                                      prior_tau_a   = 2.0,
                                      prior_tau_b   = 0.5) {
-	# transform: theta_b = logit((rho + 1) / 2) so theta_b in R
+	# transform: theta_b = logit((rho + 1) / 2) so theta_b in r
 	r <- pmin(pmax(rho_beta_by_group, -0.999), 0.999)
 	theta <- log((r + 1) / (1 - r) / 2 + 1 / (1 - r))  # logit((r+1)/2)
 	# simpler & equivalent: theta_b = 0.5 * log((1+r)/(1-r))
@@ -40,7 +40,7 @@
 	post_prec_mu <- prior_prec_mu + B / tau_sq
 	post_mean_mu <- (prior_prec_mu * prior_mu_mean + sum(theta) / tau_sq) / post_prec_mu
 	mu_new <- stats::rnorm(1, post_mean_mu, 1 / sqrt(post_prec_mu))
-	# tau update: 1/tau^2 | mu, theta ~ Gamma(prior_tau_a + B/2,
+	# tau update: 1/tau^2 | mu, theta ~ gamma(prior_tau_a + b/2,
 	#                                          prior_tau_b + 0.5 * sum((theta - mu)^2))
 	inv_tau_sq <- stats::rgamma(1L,
 		shape = prior_tau_a + B / 2,

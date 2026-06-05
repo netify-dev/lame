@@ -61,10 +61,11 @@ each element is a list of T networks}
 }
 }
 \description{
-Generates multiple longitudinal network realizations from the posterior
-distribution of a fitted LAME (Longitudinal AME) model. This function performs
-posterior predictive simulation for dynamic networks, propagating both
-cross-sectional and temporal uncertainty through the simulated trajectories.
+Generates multiple longitudinal network realizations from a fitted LAME
+(Longitudinal AME) model. This function performs conditional posterior
+predictive simulation for dynamic networks: it draws from stored MCMC samples
+when available and uses posterior means for latent components that were not
+retained.
 }
 \details{
 \strong{Mathematical Framework for Longitudinal Networks:}
@@ -158,8 +159,7 @@ Apply appropriate link function based on family
 \strong{Interpretation of Multiple Trajectories:}
 
 Each simulated trajectory represents one possible evolution of the network
-consistent with the posterior distribution. Variation across trajectories
-captures:
+conditional on the stored fit. Variation across trajectories captures:
 \itemize{
 \item Model parameter uncertainty
 \item Stochastic variation in temporal evolution
@@ -181,10 +181,10 @@ covariates are recycled or set to zero with appropriate warnings
 
 \strong{Limitations:}
 
-As with simulate.ame, multiplicative effects currently use posterior means.
-Full uncertainty would require storing complete MCMC chains for
-\eqn{u_{i,t}, v_{j,t}} at all time points, which is memory-intensive for
-large networks and long time series.
+As with simulate.ame, multiplicative effects use posterior means unless the
+fit retained compatible latent-factor draws. Storing complete MCMC chains for
+\eqn{u_{i,t}, v_{j,t}} at all time points is memory-intensive for large
+networks and long time series.
 }
 \examples{
 \donttest{

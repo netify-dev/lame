@@ -1,8 +1,8 @@
 #' Summary of a LAME object
 #' 
-#' Provides a comprehensive summary of a fitted LAME (Longitudinal Additive and
-#' Multiplicative Effects) model, including parameter estimates, standard errors,
-#' credible intervals, and model diagnostics.
+#' Summarizes a fitted LAME (Longitudinal Additive and Multiplicative Effects)
+#' model, including parameter estimates, standard errors, credible intervals,
+#' and model diagnostics.
 #' 
 #' @details
 #' The summary includes:
@@ -60,8 +60,8 @@ summary.lame <- function(object, ...) {
 	display_call <- tryCatch(format_ame_call(fit),
 	                         error = function(e) fit$call)
 
-	# regression coefficient summaries. for 3-D dynamic_beta BETA, the main
-	# table reports the OVERALL (time-collapsed) posterior summary; the
+	# regression coefficient summaries. for 3-d dynamic_beta beta, the main
+	# table reports the overall (time-collapsed) posterior summary; the
 	# per-period table is attached as `beta_dynamic` for the print method.
 	beta_is_dyn <- length(dim(fit$BETA)) == 3L
 	if (beta_is_dyn) {
@@ -70,7 +70,7 @@ summary.lame <- function(object, ...) {
 		                       ncol = dim(fit$BETA)[2] * dim(fit$BETA)[3])
 		# but the overall mean is meaningless for time-varying coefficients
 		# (the time-average could even pass through zero while every period is
-		# nonzero). instead, report the OVERALL TIME-AVERAGE per-coefficient
+		# nonzero). instead, report the overall time-average per-coefficient
 		# computed as mean over iterations and periods, plus its drift range.
 		beta_mean_overall <- apply(fit$BETA, 2, mean, na.rm = TRUE)
 		beta_sd_overall   <- apply(apply(fit$BETA, c(1, 2), mean), 2, sd, na.rm = TRUE)
@@ -93,7 +93,7 @@ summary.lame <- function(object, ...) {
 			CI_lower = beta_lower,
 			CI_upper = beta_upper
 		)
-		# per-period table (Mean | SD | Min | Max | %Drift)
+		# per-period table (mean | sd | min | max | %drift)
 		beta_per_t_mean <- apply(fit$BETA, c(2, 3), mean)
 		beta_per_t_sd   <- apply(fit$BETA, c(2, 3), sd)
 	} else {
@@ -240,7 +240,7 @@ print.summary.lame <- function(x, digits = 3, ...) {
 			}
 		}
 	}
-	# loud notice when a longitudinal fit is STATIC (the common novice surprise)
+		# note when a longitudinal fit is static
 	if (!is.null(x$n.periods) && x$n.periods > 1L &&
 	    !isTRUE(x$dynamic_uv) && !isTRUE(x$dynamic_ab) && !isTRUE(x$dynamic_beta)) {
 		cat("\nNote: STATIC fit pooled across", x$n.periods,
@@ -276,8 +276,7 @@ print.summary.lame <- function(x, digits = 3, ...) {
 			row.names = rownames(x$beta_dynamic_per_t)
 		)
 		num_tbl <- round(num_tbl, digits)
-		# attach dynamic-mask flag column AFTER rounding so the numeric cols
-		# stay numeric (cbind() with a character vector coerces every column).
+			# attach dynamic-mask flag after rounding so numeric columns stay numeric
 		if (!is.null(x$beta_dynamic_mask) && length(x$beta_dynamic_mask) == nrow(num_tbl)) {
 			num_tbl$Dynamic <- ifelse(x$beta_dynamic_mask, "Y", "N")
 		}

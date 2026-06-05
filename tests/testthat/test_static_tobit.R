@@ -32,7 +32,7 @@ sim_tobit_ame = function(seed, n, mu, beta, gamma=NULL,
 		eta = eta + outer(a_true, rep(1, n)) + outer(rep(1, n), b_true)
 	}
 	
-	# add multiplicative effects if R > 0
+	# add multiplicative effects if r > 0
 	U_true = V_true = NULL
 	if(R > 0) {
 		U_true = matrix(rnorm(n*R, 0, 0.5), n, R)
@@ -42,10 +42,10 @@ sim_tobit_ame = function(seed, n, mu, beta, gamma=NULL,
 	
 	# generate tobit outcome (censored at 0)
 	Y = eta + matrix(rnorm(n*n, 0, 1), n, n)
-	Y[Y < 0] = 0  # Left-censoring at 0
+	Y[Y < 0] = 0  # left-censoring at 0
 	diag(Y) = NA
 	
-	# fit AME model
+	# fit ame model
 	fit = ame(Y, Xdyad=X, R=R, family="tobit",
 						rvar=rvar, cvar=cvar, dcor=FALSE,
 						burn=burn, nscan=nscan, 
@@ -120,7 +120,7 @@ test_that("Tobit AME with additive effects recovers true parameters", {
 				 outer(a_true, rep(1, n)) + outer(rep(1, n), b_true)
 	
 	Y = eta + matrix(rnorm(n*n, 0, 1), n, n)
-	Y[Y < 0] = 0  # Censor at 0
+	Y[Y < 0] = 0  # censor at 0
 	diag(Y) = NA
 	
 	# fit model with additive effects
@@ -154,13 +154,13 @@ test_that("Tobit AME with full model recovers true parameters", {
 	n = 40
 	mu_true = 0.2
 	beta_true = 0.7
-	gamma_true = 0.5  # Unobserved covariate
+	gamma_true = 0.5  # unobserved covariate
 	R_true = 2
 	
 	# generate data
 	xw = matrix(rnorm(n*2), n, 2)
 	X = tcrossprod(xw[,1])
-	W = tcrossprod(xw[,2])  # Unobserved
+	W = tcrossprod(xw[,2])  # unobserved
 	diag(X) = NA
 	diag(W) = NA
 	
@@ -178,10 +178,10 @@ test_that("Tobit AME with full model recovers true parameters", {
 				 tcrossprod(U_true, V_true)
 	
 	Y = eta + matrix(rnorm(n*n, 0, 1), n, n)
-	Y[Y < 0] = 0  # Censor at 0
+	Y[Y < 0] = 0  # censor at 0
 	diag(Y) = NA
 	
-	# fit full AME model
+	# fit full ame model
 	fit = ame(Y, Xdyad=X, R=R_true, family="tobit",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
 						burn=500, nscan=2000, verbose = FALSE)
@@ -212,7 +212,7 @@ test_that("Multiplicative effects reduce bias in tobit models", {
 	n = 40
 	mu_true = 0.3
 	beta_true = 0.8
-	gamma_true = 0.9  # Strong unobserved effect
+	gamma_true = 0.9  # strong unobserved effect
 	
 	# generate data with unobserved confounder
 	xw = matrix(rnorm(n*2), n, 2)
@@ -223,15 +223,15 @@ test_that("Multiplicative effects reduce bias in tobit models", {
 	
 	eta = mu_true + beta_true * X + gamma_true * W
 	Y = eta + matrix(rnorm(n*n, 0, 1), n, n)
-	Y[Y < 0] = 0  # Censor at 0
+	Y[Y < 0] = 0  # censor at 0
 	diag(Y) = NA
 	
-	# fit model WITHOUT multiplicative effects
+	# fit model without multiplicative effects
 	fit_no_uv = ame(Y, Xdyad=X, R=0, family="tobit",
 									rvar=FALSE, cvar=FALSE, dcor=FALSE,
 									burn=400, nscan=1500, verbose = FALSE)
 	
-	# fit model WITH multiplicative effects
+	# fit model with multiplicative effects
 	fit_with_uv = ame(Y, Xdyad=X, R=2, family="tobit",
 										rvar=FALSE, cvar=FALSE, dcor=FALSE,
 										burn=400, nscan=1500, verbose = FALSE)
@@ -239,14 +239,14 @@ test_that("Multiplicative effects reduce bias in tobit models", {
 	beta_no_uv = median(fit_no_uv$BETA[,2])
 	beta_with_uv = median(fit_with_uv$BETA[,2])
 	
-	# model with UV should have less bias
+	# model with uv should have less bias
 	bias_no_uv = abs(beta_no_uv - beta_true)
 	bias_with_uv = abs(beta_with_uv - beta_true)
 	
 	# we expect the model with multiplicative effects to have less bias
 	expect_lt(bias_with_uv, bias_no_uv + 0.2)
 	
-	# check that UV captures the unobserved structure
+	# check that uv captures the unobserved structure
 	if(!is.null(fit_with_uv$UVPM)) {
 		cor_W = cor(c(W), c(fit_with_uv$UVPM), use='pairwise.complete.obs')
 		expect_gt(cor_W, 0.3)
@@ -262,30 +262,30 @@ test_that("Tobit AME handles different censoring levels", {
 	n = 30
 	
 	# test with heavy censoring (negative intercept)
-	Y_heavy = matrix(rnorm(n*n, -1, 1), n, n)  # Mean -1 leads to heavy censoring
+	Y_heavy = matrix(rnorm(n*n, -1, 1), n, n)  # mean -1 leads to heavy censoring
 	Y_heavy[Y_heavy < 0] = 0
 	diag(Y_heavy) = NA
 	
 	censored_prop = mean(Y_heavy == 0, na.rm=TRUE)
-	expect_gt(censored_prop, 0.3)  # Should have substantial censoring
+	expect_gt(censored_prop, 0.3)  # should have substantial censoring
 	
 	fit_heavy = ame(Y_heavy, R=1, family="tobit",
 									burn=200, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit_heavy$BETA))
-	expect_lt(median(fit_heavy$BETA[,1]), 0.5)  # Intercept should reflect censoring
+	expect_lt(median(fit_heavy$BETA[,1]), 0.5)  # intercept should reflect censoring
 	
 	# test with light censoring (positive intercept)
-	Y_light = matrix(rnorm(n*n, 2, 1), n, n)  # Mean 2 leads to light censoring
+	Y_light = matrix(rnorm(n*n, 2, 1), n, n)  # mean 2 leads to light censoring
 	Y_light[Y_light < 0] = 0
 	diag(Y_light) = NA
 	
 	censored_prop_light = mean(Y_light == 0, na.rm=TRUE)
-	expect_lt(censored_prop_light, 0.05)  # Should have minimal censoring
+	expect_lt(censored_prop_light, 0.05)  # should have minimal censoring
 	
 	fit_light = ame(Y_light, R=1, family="tobit",
 									burn=200, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit_light$BETA))
-	expect_gt(median(fit_light$BETA[,1]), 1)  # Intercept should be positive
+	expect_gt(median(fit_light$BETA[,1]), 1)  # intercept should be positive
 })

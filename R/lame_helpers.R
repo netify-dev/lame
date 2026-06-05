@@ -54,7 +54,7 @@ as_lame_y <- function(x, na_diag = TRUE) {
 #'
 #' \code{nodematch(x)} returns an \code{n x n} matrix with \code{1} where
 #' \code{x[i] == x[j]} and \code{0} otherwise -- the AME analogue of ERGM's
-#' \code{nodematch} term, suitable to drop into \code{Xdyad} as a single
+#' \code{nodematch} term, suitable for \code{Xdyad} as a single
 #' homophily covariate. \code{absdiff(x)} returns the absolute difference
 #' \code{|x[i] - x[j]|}, the AME analogue of ERGM's \code{absdiff}.
 #' \code{nodefactor(x)} returns the dyadic matrix of \code{x[i] + x[j]} for

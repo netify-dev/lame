@@ -18,8 +18,8 @@
 #' function with the user-supplied overrides forwarded; pass
 #' \code{nscan = K} on the resume call to request \code{K}
 #' additional stored draws. Both call shapes are supported. The
-#' legacy \code{lame_resume(path, ...)} form is currently the
-#' more robust of the two: the consolidated form re-evaluates the
+#' \code{lame_resume(path, ...)} form is safer for nested calls: the
+#' consolidated form re-evaluates the
 #' saved \code{lame()} call in \code{parent.frame()}, which is
 #' the \code{lame()} frame whose required formal arguments
 #' (\code{Y}, \code{Xdyad}, etc.) were not supplied on the
@@ -79,15 +79,15 @@ lame_resume <- function(path, nscan_more = NULL, ..., .envir = NULL) {
 	cl2$max_seconds <- NULL
 	for (nm in names(usr)) cl2[[nm]] <- usr[[nm]]
 	# the original run paid the burn-in cost; the continuation re-uses the
-	# saved RNG stream and skips burn-in unless the user overrides it.
+	# saved rng stream and skips burn-in unless the user overrides it.
 	if (!"burn" %in% names(usr)) cl2$burn <- 0L
-	# restore the RNG stream from the checkpoint
+	# restore the rng stream from the checkpoint
 	if (!is.null(ck$rng_state)) assign(".Random.seed", ck$rng_state, envir = .GlobalEnv)
-	# evaluate in the user's frame. When called directly by a user from the
-	# top level, parent.frame() is globalenv() and Y/Xdyad references in the
-	# saved call resolve fine. When called via `do.call()` from the
+	# evaluate in the user's frame. when called directly by a user from the
+	# top level, parent.frame() is globalenv() and y/xdyad references in the
+	# saved call resolve fine. when called via `do.call()` from the
 	# consolidated `lame(resume_from = ...)` short-circuit, the lame() frame
-	# has Y as a missing promise; in that case the caller must pass `.envir`
+	# has y as a missing promise; in that case the caller must pass `.envir`
 	# explicitly (typically the user's frame captured at lame() entry).
 	use_env <- if (!is.null(.envir)) .envir else parent.frame()
 	eval(cl2, envir = use_env)

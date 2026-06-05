@@ -16,3 +16,8 @@ src/*.so
 src/*.dll
 .claude/
 .claude
+.agents/
+.agents
+.codex/
+.codex
+docs/llms.txt

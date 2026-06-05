@@ -22,6 +22,7 @@ lame(
   dynamic_G = FALSE,
   dynamic_beta = FALSE,
   dynamic_beta_kind = c("ar1", "rw1", "rw2", "matern32"),
+  dynamic_uv_kind = c("ar1", "snap", "t"),
   family = "normal",
   intercept = !is.element(family, c("rrl", "ordinal")),
   symmetric = FALSE,
@@ -43,6 +44,7 @@ lame(
   save_log_lik = FALSE,
   log_lik_path = NULL,
   log_lik_chunk_size = 10000L,
+  keep_snap_draws = c("none", "summary", "draws", "chunked"),
   freeze_call = FALSE,
   dynamic_beta_pool = c("none", "rho", "sigma", "both"),
   dynamic_beta_per_actor = NULL,
@@ -57,6 +59,9 @@ lame(
   log_lik_method = c("observed_exact", "observed_ghk", "augmented"),
   ordinal_cutpoints = c("data_induced", "explicit"),
   method = c("mcmc", "als"),
+  als_stability = c("none", "quick", "validation"),
+  als_max_iter = 200L,
+  als_tol = NULL,
   bootstrap = 0L,
   bootstrap_type = c("parametric", "block"),
   bootstrap_block_length = 1L,
@@ -94,15 +99,9 @@ data types.}
 
 \item{mode}{character: either "unipartite" (default) for square networks or "bipartite" for rectangular networks}
 
-\item{dynamic_uv}{logical: fit dynamic multiplicative effects (latent factors) that
-evolve over time using AR(1) processes. When TRUE, the latent positions U and V become
-time-varying, following \eqn{U_{i,t} = \rho_{uv} U_{i,t-1} + \epsilon_{i,t}}, where epsilon
-follows N(0, sigma_uv^2). This allows actors' positions in latent social space to
-drift smoothly over time, capturing evolving network structure and community dynamics.
-Inspired by dynamic latent space models (Sewell and Chen 2015, "Latent Space Models
-for Dynamic Networks", JASA; Durante and Dunson 2014, "Nonparametric Bayes Dynamic
-Modeling of Relational Data", Biometrika). The implementation uses efficient blocked
-Gibbs sampling with C++ acceleration for scalability. Default FALSE.}
+\item{dynamic_uv}{logical: fit dynamic multiplicative effects (latent
+factors). The transition model is selected by \code{dynamic_uv_kind}. Default
+\code{FALSE}.}
 
 \item{dynamic_ab}{logical: fit dynamic additive effects (sender/receiver effects) that
 evolve over time using AR(1) processes. When TRUE, the row effects (a) and column
@@ -115,12 +114,14 @@ while allowing for actor-specific evolution patterns. Implementation uses conjug
 updates where possible and C++ for computational efficiency. Default FALSE.}
 
 \item{dynamic_G}{logical (bipartite only). When TRUE the bipartite
-interaction matrix \eqn{G} is sampled per period and returned as
-\code{fit$G_cube}, an \eqn{R_\text{row} \times R_\text{col} \times T}
-array. The static \eqn{G} (single matrix) is the default and is the
-recommended choice; \code{dynamic_G = TRUE} is experimental and emits
-a one-line note at the start of the run. Unipartite fits ignore this
-argument with a warning. Default FALSE.}
+interaction matrix \eqn{G_t} in \eqn{U_t G_t V_t'} varies by period and is
+returned as \code{fit$G_cube}, an
+\eqn{R_\text{row} \times R_\text{col} \times T} array. MCMC fits also return
+posterior summaries for this cube; ALS fits return the penalized point path
+using the same storage names. The marginal bilinear predictor is identified
+under the package's canonicalization conventions, while individual entries
+of \eqn{G_t} can move under equivalent rotations and scalings of
+\eqn{U_t} and \eqn{V_t}. Default FALSE.}
 
 \item{dynamic_beta}{logical, character, integer, or logical-vector flag
 selecting which regression coefficients evolve over time via independent
@@ -144,10 +145,16 @@ is drawn by Forward-Filter / Backward-Sample (FFBS) inside the MCMC
 loop, conditional on the current static-block beta and on (a, b, U, V).
 When the intercept or a nodal coefficient is dynamic, a sum-to-zero
 contrast basis is applied to the additive-effect sampler to keep
-\eqn{a_i + intercept_t} identified. Requires at least 2 time periods,
-ignored for the ALS estimator (\code{method = "als"}), and unavailable
-for the intercept when \code{family = "ordinal"} or \code{"rrl"} (or for
-row-nodal coefficients with \code{family = "rrl"}). Default FALSE.}
+\eqn{a_i + intercept_t} identified. Requires at least 2 time periods.
+With \code{method = "als"}, selected intercept, dyadic, row-node, and
+column-node coefficients are supported on normal, binary, and Poisson panels,
+including named panels where actors enter or exit. Dynamic ALS uses
+period-specific \code{Xrow} or
+\code{Xcol} values for selected dynamic node coefficients; static node
+coefficients still use per-actor means. Dynamic intercepts are
+unavailable when \code{family = "ordinal"} or \code{"rrl"}
+(and row-nodal coefficients are unavailable with \code{family = "rrl"}).
+Default FALSE.}
 
 \item{dynamic_beta_kind}{character: state-space prior on the dynamic
 coefficient block(s). \code{"ar1"} (default) gives mean-reverting
@@ -165,6 +172,19 @@ inference. Decision tree: \strong{mean-reverting?} AR(1).
 Note: \code{"rw2"} and \code{"matern32"} use an R-level joint Gaussian
 sampler and run substantially slower per iteration than the C++ FFBS
 used for \code{"ar1"} / \code{"rw1"} (roughly 2-4x on n = 100, T = 10).}
+
+\item{dynamic_uv_kind}{Character string selecting the transition model for
+dynamic multiplicative latent positions when \code{dynamic_uv = TRUE}.
+\code{"ar1"} uses Gaussian AR(1) drift, \code{"snap"} uses a mixture of
+AR(1) drift and discontinuous reset transitions, and \code{"t"} uses
+heavy-tailed Student-t innovations represented by local transition scales.
+On the MCMC path, \code{"snap"} and \code{"t"} are currently supported for
+unipartite directed and symmetric models only. With \code{method = "als"},
+\code{"snap"} is also supported for normal bipartite panels when it is the
+only dynamic block and \eqn{G} is static. With \code{method = "als"},
+\code{"t"} is supported for bipartite normal, binary, and Poisson panels.
+ALS Student-t dynamic UV fits attach the final local transition-weight
+matrices as \code{fit$lambda_u} and \code{fit$lambda_v}.}
 
 \item{family}{character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
 the details below}
@@ -259,7 +279,7 @@ control.}
 
 \item{out_file}{character vector indicating name and path in which file should be stored if periodic_save is selected. For example, on an Apple OS out_file="~/Desktop/ameFit.rda".}
 
-\item{save_interval}{quantile interval indicating when to save during post burn-in phase.}
+\item{save_interval}{quantile interval indicating when to save during the post-burn-in period.}
 
 \item{model.name}{optional string for model selection output}
 
@@ -282,6 +302,16 @@ session-scoped subdirectory under \code{tempdir()}.}
 one \code{readBin} per chunk on read) but more memory during MCMC.
 Default \code{10000L}.}
 
+\item{keep_snap_draws}{controls storage of post-burn-in MCMC snap-shift
+indicators when \code{dynamic_uv = TRUE} and
+\code{dynamic_uv_kind = "snap"}. \code{"none"} keeps only the posterior
+mean snap probabilities. \code{"summary"} stores cell-level count, mean,
+and variance summaries. \code{"draws"} stores retained binary indicator
+arrays as \code{fit$snap_draws} and, for directed fits,
+\code{fit$snap_draws_v}, with dimensions draw x actor x time and first
+period set to \code{NA}. \code{"chunked"} currently stores the same arrays
+in memory and labels the storage mode for downstream tooling.}
+
 \item{freeze_call}{logical: if \code{TRUE}, store a snapshot of the
 evaluated \code{Y}, \code{Xdyad}, \code{Xrow}, \code{Xcol} on
 \code{fit$data_snapshot} so that a later \code{update(fit, ...)} refits
@@ -290,20 +320,20 @@ their workspace. Memory cost equals the size of the data; default
 \code{FALSE}.}
 
 \item{dynamic_beta_pool}{one of \code{"none"} (default), \code{"rho"},
-\code{"sigma"}, or \code{"both"}. Stable argument name for a
-hierarchical pooling prior on the per-block \eqn{\rho_b} and / or
-\eqn{\sigma_b} dynamic hyperparameters. The value is recorded on
-the fit so future-phase samplers and downstream tooling can read it
-uniformly; the hierarchical sampler ships in a later release, at
-which point non-\code{"none"} values will take effect.}
+\code{"sigma"}, or \code{"both"}. When two or more coefficient blocks are
+dynamic, non-\code{"none"} values update shared hyperparameters across
+blocks for the selected persistence and / or innovation-scale component.
+With a single dynamic block the value is recorded but there is no other
+block to pool against.}
 
 \item{dynamic_beta_per_actor}{optional, one of \code{NULL} (default),
-\code{"row"}, or \code{"col"}. \strong{Currently a wired:}
-the argument is validated and stored on the fit, but the in-loop
-sampler is not yet wired. For per-actor time-varying slopes today,
-fit a standard \code{lame()} and then call
-\code{\link{per_actor_slopes}(fit, kind, covariate_idx, lambda)}
-for the post-MCMC penalised-LS estimate.}
+\code{"row"}, or \code{"col"}. When non-\code{NULL}, fits
+actor-specific time-varying deviations for one dyadic covariate on the
+selected margin. The default \code{per_actor_identifiability = "center"}
+keeps the population coefficient in \code{coef(fit)} and enforces a
+per-period sum-to-zero constraint on the actor deviations. Draws are
+stored in \code{fit$THETA_ACTOR} when retained; summary mode stores
+\code{fit$theta_actor_mean} and \code{fit$theta_actor_sd}.}
 
 \item{per_actor_covariate_idx}{positive integer; index into the
 dyadic covariate cube to slope on for the per-actor extension.
@@ -312,8 +342,8 @@ Default \code{1L}.}
 \item{per_actor_identifiability}{one of \code{"center"} (default)
 or \code{"drop_population"}. \code{"center"} preserves the
 population coefficient and constrains per-actor deviations to
-sum to zero per period via pairwise contrast FFBS. Reserved API
-for the \code{"drop_population"} mode (not yet wired).}
+sum to zero per period via pairwise contrast FFBS. \code{"drop_population"}
+is reserved and currently falls back to \code{"center"}.}
 
 \item{keep_per_actor}{one of \code{"auto"} (default; full draws
 when memory cost < 250 MB else streaming summary), \code{"draws"}
@@ -323,9 +353,9 @@ hyperparameter chains).}
 
 \item{time_index}{optional numeric vector of length \eqn{T} giving
 observation times. Default \code{NULL} treats periods as equally
-spaced. Strictly-increasing values are required when supplied. The
-gap-aware AR(1) update ships in a later release; the value is
-recorded on the fit.}
+spaced. Strictly-increasing values are required when supplied. Unequal
+gaps scale the AR(1) / RW1 transition variance and are also used by the
+RW2 and Matérn 3/2 dynamic-beta precision builders.}
 
 \item{period_exposure}{optional non-negative numeric vector of length
 \eqn{T} giving period-level exposure offsets. \strong{Wired for Poisson:}
@@ -355,12 +385,12 @@ checkpoint writes. Default \code{100L}.}
 \code{"observed_ghk"}, or \code{"augmented"}. Selects the
 argument for selecting which pointwise log-lik is stored on
 \code{fit$log_lik}. \code{"observed_exact"} uses the closed-form
-marginal log-likelihood (currently wired for normal, binary, cbin,
-tobit, poisson, ordinal). \code{"observed_ghk"} is a stable api
-stub for the GHK Monte Carlo marginal on cbin/frn/rrl/ordinal that
-ships in a later release; it falls back to \code{"augmented"} now
-and emits a one-line note. \code{"augmented"} uses the augmented-
-data Gaussian-on-\eqn{Z} contribution.}
+marginal log-likelihood for normal, binary, cbin, tobit, poisson,
+and ordinal fits. \code{"observed_ghk"} uses a randomized-Halton GHK
+Monte Carlo marginal for rank-family fits (\code{"frn"} and
+\code{"rrl"}) and the exact observed likelihood when no GHK step is
+needed. \code{"augmented"} uses the augmented-data Gaussian-on-\eqn{Z}
+contribution.}
 
 \item{ordinal_cutpoints}{character: cutpoint convention for
 \code{family = "ordinal"}. \code{"data_induced"} (default) uses the
@@ -368,11 +398,41 @@ data-induced cutpoints; \code{"explicit"} samples explicit cutpoints via
 a Cowles (1996) Metropolis-Hastings update. Ignored for other families.}
 
 \item{method}{character: \code{"mcmc"} (default, the Bayesian MCMC fit) or
-\code{"als"} (the fast, MCMC-free iterative block coordinate descent point
-estimator; pooled-static over time). When \code{method = "als"}, MCMC- and
-dynamics-specific arguments (\code{nscan}, \code{burn}, \code{odens},
-\code{prior}, \code{dynamic_uv}, \code{dynamic_ab}, ...) are silently
-ignored and the call forwards to \code{\link{lame_als}}.}
+\code{"als"} (the fast, MCMC-free point-estimation path). With no dynamic
+arguments, \code{method = "als"} uses the pooled-static
+\code{\link{lame_als}} estimator. For normal, binary,
+and Poisson panels, \code{method = "als"} also supports a dynamic
+penalized point-estimation path for \code{dynamic_ab}, selected
+\code{dynamic_beta}, smooth AR(1) \code{dynamic_uv} in directed,
+symmetric, and bipartite panels, bipartite \code{dynamic_G}, and
+Student-t \code{dynamic_uv} in directed, symmetric, and bipartite panels.
+The snap-only
+\code{dynamic_uv = TRUE, dynamic_uv_kind = "snap"} case routes to
+\code{\link{lame_snap_als}} for supported normal unipartite and
+bipartite panels.
+Node-covariate coefficients use the same orthogonal additive-effect
+decomposition as \code{\link{lame_als}}; dynamic node coefficients use
+period-specific node values when selected by \code{dynamic_beta}, while
+static node coefficients use per-actor means. Named changing-composition
+panels are aligned to the union actor set and actor-entry gaps break the
+dynamic smoothing penalties. Posterior draws, rank/censored families, and
+bipartite snap-shift fits with node covariates, dynamic coefficients, or
+dynamic \code{G_t} are not handled by the snap ALS shortcut.}
+
+\item{als_stability}{character (only used when \code{method = "als"} and a
+dynamic ALS path is selected): \code{"none"} (default), \code{"quick"}, or
+\code{"validation"}. The non-\code{"none"} presets rerun the dynamic ALS
+fit from jittered starts and attach \code{fit$stability}. Smooth dynamic
+ALS fits report fitted-surface and coefficient-path differences across
+starts; snap ALS fits report snap-score, snap-class, top-period, and
+fitted-surface differences.}
+
+\item{als_max_iter}{positive integer (only used when \code{method = "als"}):
+maximum block-coordinate iterations for the ALS fit. Default \code{200}.}
+
+\item{als_tol}{optional positive scalar (only used when
+\code{method = "als"}): convergence tolerance for the ALS objective and
+fitted values. \code{NULL} keeps each ALS estimator's built-in default.}
 
 \item{bootstrap}{integer (only used when \code{method = "als"}): number of
 bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N > 0}
@@ -466,12 +526,22 @@ through autoregressive processes. These extensions are particularly useful for
 understanding how network structure evolves over time.
 
 \emph{Dynamic Multiplicative Effects (dynamic_uv=TRUE):}
-The latent factors U and V evolve according to AR(1) processes:
+The latent factors U and V evolve according to the transition selected by
+\code{dynamic_uv_kind}. The default \code{"ar1"} model uses Gaussian AR(1)
+drift:
 \deqn{U_{i,k,t} = \rho_{uv} U_{i,k,t-1} + \epsilon_{i,k,t}}
 where \eqn{\epsilon_{i,k,t} \sim N(0, \sigma_{uv}^2)}, i indexes actors, k indexes
 latent dimensions, and t indexes time. The parameter \eqn{\rho_{uv}} controls
 temporal persistence (values near 1 indicate slow evolution). This captures
 time-varying homophily, latent community structure, and transitivity dynamics.
+The \code{"snap"} transition uses a mixture of AR(1) drift and discontinuous
+reset transitions, while \code{"t"} uses heavy-tailed Student-t innovations
+represented by local transition scales. On the MCMC path, snap and t
+transitions are supported for unipartite directed and symmetric models. With
+\code{method = "als"}, Student-t dynamic UV is also supported for bipartite
+normal, binary, and Poisson panels, and snap ALS is supported for normal
+unipartite and bipartite panels, including named panels where actors enter or
+exit.
 
 Key references:
 \itemize{
@@ -490,13 +560,8 @@ The sender (a) and receiver (b) effects evolve as:
 where \eqn{\epsilon_{i,t}, \eta_{i,t} \sim N(0, \sigma_{ab}^2)}. This models
 time-varying individual activity levels (outdegree) and popularity (indegree).
 
-Applications include:
-\itemize{
-\item Tracking changes in node centrality over time
-\item Identifying emerging influential actors
-\item Detecting declining activity patterns
-\item Modeling life-cycle effects in social networks
-}
+Dynamic additive effects are useful when sender activity and receiver
+popularity change over time rather than staying fixed across the whole panel.
 
 \emph{Prior Specification for Dynamic Parameters:}
 \itemize{
@@ -512,9 +577,9 @@ more rapid changes
 
 \emph{Computational Considerations:}
 \itemize{
-\item Dynamic effects increase computation by ~30-50\\% per iteration
+\item Dynamic effects increase computation by roughly 30 to 50 percent per iteration
 \item Memory usage scales as O(n\emph{R}T) for dynamic_uv, O(n*T) for dynamic_ab
-\item C++ implementation provides ~70\\% efficiency gain over pure R
+\item C++ implementation is substantially faster than a pure R loop
 \item Convergence diagnostics: Monitor rho and sigma parameters carefully
 \item Effective sample sizes typically lower due to temporal correlation
 \item Recommend burn >= 1000 and nscan >= 20000 for dynamic models
@@ -563,16 +628,16 @@ When dynamic_uv=TRUE for bipartite networks:
 \deqn{V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}}
 where i indexes row nodes, j indexes column nodes, k indexes latent dimensions.
 
-When \code{dynamic_G = TRUE} the bipartite interaction matrix \eqn{G_t} is
-sampled per period via the bipartite \eqn{G}-sampler (a separate
-\eqn{R_\text{row} \times R_\text{col}} matrix at every time slice) and
-returned as \code{fit$G_cube}. This is experimental: the canonicalisation
-that absorbs rotation and scaling into \eqn{(U, V)} is enforced per
-period, so the marginal \eqn{U_t G_t V_t'} linear predictor is identified
-even though the individual \eqn{G_t} entries are not. Always sanity-check
-against a \code{dynamic_G = FALSE} fit before relying on per-period
-\eqn{G_t} estimates. \code{dynamic_G = TRUE} is bipartite only and is
-ignored (with a warning) for unipartite networks.
+When \code{dynamic_G = TRUE} the bipartite interaction matrix \eqn{G_t} varies
+by period (a separate \eqn{R_\text{row} \times R_\text{col}} matrix at every
+time slice) and is returned as \code{fit$G_cube}. The MCMC estimator samples
+\eqn{G_t} with a Carter-Kohn/FFBS update; \code{method = "als"} estimates a
+penalized point path for normal, binary, and Poisson bipartite panels,
+including named changing-composition panels. The marginal
+\eqn{U_t G_t V_t'} linear predictor is the
+identified object; individual \eqn{G_t} entries can shift under equivalent
+rotations and scalings of \eqn{U_t} and \eqn{V_t}. \code{dynamic_G = TRUE}
+is bipartite only.
 
 \emph{Key Differences from Unipartite Models:}
 \itemize{
@@ -634,10 +699,11 @@ summary(fit_dyn)         # prints a "Dynamic coefficients per period" block
 \seealso{
 \code{\link{ame}} for cross-sectional models,
 \code{\link{lame_als}} for the fast MCMC-free point estimator,
+\code{\link{lame_snap_als}} for the approximate dynamic snap-shift
+point estimator,
 \code{\link{als_dynamic_beta}} for a regression-only penalised
 smoother on the time-varying coefficient path,
-\code{\link{lame_resume}} for the legacy resume entry point
-(equivalent to \code{lame(resume_from = path)}),
+\code{\link{lame_resume}} for resuming saved checkpoints,
 \code{\link{gof}} for post-hoc goodness-of-fit computation,
 \code{\link{gof_plot}} for visualizing GOF results,
 \code{\link{latent_positions}} for extracting latent positions as a tidy data frame,

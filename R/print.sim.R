@@ -157,7 +157,7 @@ summary.ame.sim <- function(object, ...) {
 	if (x$family %in% c("normal", "tobit")) {
 		means <- sapply(x$Y, mean, na.rm = TRUE)
 		# var() on a matrix returns a covariance matrix; vectorise first so
-		# the per-network statistic is a scalar (otherwise mean(vars) is NA)
+		# the per-network statistic is a scalar (otherwise mean(vars) is na)
 		vars <- sapply(x$Y, function(m) stats::var(as.vector(m), na.rm = TRUE))
 		
 		cli::cli_text("")
@@ -268,7 +268,7 @@ summary.lame.sim <- function(object, ...) {
 			
 			# text-based plot
 			for (t in 1:n_time) {
-				bar_val <- round(mean_density[t] * 20)  # Scale to ~20 chars
+				bar_val <- round(mean_density[t] * 20)  # scale to ~20 chars
 				bar <- paste(rep("\u2593", bar_val), collapse = "")
 				time_label <- sprintf("T%02d", t)
 				density_label <- sprintf("%.3f", mean_density[t])

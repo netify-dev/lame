@@ -23,11 +23,11 @@ Returns posterior means of regression coefficients from a fitted AME or
 LAME model.
 }
 \details{
-For a STATIC fit (the default, and any model with \code{dynamic_beta = FALSE}),
+For a static fit (the default, and any model with \code{dynamic_beta = FALSE}),
 coefficients are returned as a named numeric vector computed as
 \code{colMeans(fit$BETA)}.
 
-For a DYNAMIC fit (\code{lame(..., dynamic_beta = ...)} where some
+For a dynamic fit (\code{lame(..., dynamic_beta = ...)} where some
 coefficient is time-varying), \code{fit$BETA} is a 3-dimensional array
 \code{[n_stored, p, T]} and \code{coef.lame} returns a \code{[p, T]}
 matrix of per-period posterior means. Rownames are the coefficient names;
@@ -38,7 +38,7 @@ For binary models, these are on the probit (latent) scale. Use
 \code{\link{predict.ame}} with \code{type = "response"} to get predicted
 probabilities.
 
-\strong{What \code{coef()} does NOT return.} The multiplicative latent
+\strong{What \code{coef()} does not return.} The multiplicative latent
 positions \eqn{U}, \eqn{V} are not part of the coefficient vector;
 they live on \code{fit$U} and \code{fit$V} (or as 3-D arrays
 \code{[n, R, T]} when \code{dynamic_uv} is on). The additive

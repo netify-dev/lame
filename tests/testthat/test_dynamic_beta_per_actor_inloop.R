@@ -1,8 +1,8 @@
 # in-loop per-actor slope sampler
 #
-# with pairwise contrast FFBS. Zero-sum preserved per period; AR(1)
-# prior on each actor's path; hyperparameters separate from the
-# per-block dynamic_beta hyperparams.
+# with pairwise contrast ffbs. zero-sum is preserved per period; ar(1)
+# prior on each actor's path; hyperparameters are separate from the
+# per-block dynamic_beta hyperparameters.
 
 skip_on_cran()
 
@@ -45,7 +45,7 @@ test_that("dynamic_beta_per_actor records on fit + dim checks", {
 	expect_identical(fit$dynamic_beta_per_actor, "row")
 	expect_true(!is.null(fit$THETA_ACTOR))
 	expect_equal(dim(fit$THETA_ACTOR)[2L], 20L)  # n_actors
-	expect_equal(dim(fit$THETA_ACTOR)[3L], 5L)   # T_per
+	expect_equal(dim(fit$THETA_ACTOR)[3L], 5L)   # t_per
 	expect_true(all(is.finite(fit$THETA_ACTOR)))
 })
 
@@ -81,9 +81,8 @@ test_that("per-actor sampler recovers truth with high correlation", {
 
 # -- byte-identical default -------------------------------------------
 
-test_that("dynamic_beta_per_actor = NULL bypasses the new code path", {
-	# Default value is NULL; ensures per_actor_active is FALSE and the
-	# per-actor block does not consume any RNG.
+test_that("dynamic_beta_per_actor = NULL leaves the base sampler unchanged", {
+	# null keeps the per-actor block inactive
 	fx = .make_per_actor_fixture()
 	set.seed(1); fit_null = suppressWarnings(suppressMessages(lame(
 		fx$Y, fx$X, family = "normal", R = 0,

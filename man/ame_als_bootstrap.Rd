@@ -124,8 +124,9 @@ fit with \code{R > 0} can still carry a small residual parametric-bootstrap
 bias (the low-rank refit re-absorbs simulated noise); \code{summary()} flags
 any point estimate that falls outside its interval. A binary IRLS fit can
 carry a finite-sample (incidental-parameters) bias in the point estimator
-itself, which the bootstrap reproduces rather than removes; for the inference
-you report, confirm with the MCMC \code{\link{ame}} / \code{\link{lame}}.
+itself, which the bootstrap reproduces rather than removes. The MCMC
+\code{\link{ame}} / \code{\link{lame}} path gives posterior summaries when
+that is the target.
 }
 \examples{
 \donttest{

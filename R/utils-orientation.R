@@ -1,6 +1,6 @@
 ####
 # align latent positions across time to prevent arbitrary sign/rotation flips
-# unipartite: U is [n, R, T]
+# unipartite: u is [n, r, t]
 align_over_time_unip <- function(U) {
 	if (is.null(U) || length(dim(U)) != 3L) return(U)
 	T <- dim(U)[3]
@@ -22,7 +22,7 @@ align_over_time_unip <- function(U) {
 ####
 
 ####
-# bipartite: U [nA, RA, T], V [nB, RB, T], G [RA, RB]
+# bipartite: u [na, ra, t], v [nb, rb, t], g [ra, rb]
 align_over_time_bip <- function(U, V, G) {
 	if (is.null(U) || is.null(V) || length(dim(U)) != 3L || length(dim(V)) != 3L) {
 		return(list(U = U, V = V, G = G))
@@ -45,7 +45,7 @@ align_over_time_bip <- function(U, V, G) {
 		RV <- sv$u %*% t(sv$v)
 		U_al[,,t] <- U_al[,,t] %*% RU
 		V_al[,,t] <- V_al[,,t] %*% RV
-		# keep U G V' invariant over rotations
+		# keep u g v' invariant over rotations
 		G_al <- t(RU) %*% G_al %*% RV
 	}
 	list(U = U_al, V = V_al, G = G_al)
@@ -53,7 +53,7 @@ align_over_time_bip <- function(U, V, G) {
 ####
 
 ####
-# estimate AR(1)-like persistence from aligned latent series
+# estimate ar(1)-like persistence from aligned latent series
 estimate_rho_from_U <- function(U) {
 	if (is.null(U) || length(dim(U)) != 3L) return(NA_real_)
 	T <- dim(U)[3]

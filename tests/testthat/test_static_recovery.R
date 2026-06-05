@@ -2,13 +2,13 @@ skip_on_cran()
 
 # one cheap parameter-recovery check per supported family on the
 # cross-sectional ame() path. family-specific edge cases live in the
-# per-family test_static_*.R files.
+# per-family test_static_*.r files.
 
 library(lame)
 library(testthat)
 
-# generate a synthetic AME network with the requested family. eta is mu +
-# beta * X plus standard normal noise; family map applies the appropriate
+# generate a synthetic ame network with the requested family. eta is mu +
+# beta * x plus standard normal noise; family map applies the appropriate
 # link or thresholding without collapsing the matrix shape.
 make_net = function(family, n = 20, mu = 0.5, beta = 0.6, seed = 6886) {
 	set.seed(seed)
@@ -32,7 +32,7 @@ make_net = function(family, n = 20, mu = 0.5, beta = 0.6, seed = 6886) {
 	list(Y = Y, X = X, mu = mu, beta = beta)
 }
 
-# 95% CI on the dyadic coefficient should cover the truth
+# 95% ci on the dyadic coefficient should cover the truth
 recovery_test = function(
 	family, n = 20, mu = 0.5, beta = 0.6,
 	burn = 200, nscan = 600, R = 0

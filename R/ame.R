@@ -196,7 +196,7 @@
 #' \code{XtX} is the design cross-product). If not specified, defaults are:
 #' for \code{normal} family, \code{g = n * var(Y)}; for \code{tobit},
 #' \code{g = n * var(Y) * 4}; for other families, \code{g = n} (number of
-#' non-missing dyads). Per-coefficient (vector) \code{g} is NOT currently
+#' non-missing dyads). Per-coefficient (vector) \code{g} is not currently
 #' supported by the unipartite path -- pass a scalar.
 #' \emph{Note:} \code{g} is a top-level argument to \code{ame()},
 #' \strong{not} an element of \code{prior = list(...)}; passing
@@ -225,7 +225,7 @@
 #' @param start_vals List from previous model run containing parameter starting values for new MCMC
 #' @param periodic_save logical: indicating whether to periodically save MCMC results
 #' @param out_file character vector indicating name and path in which file should be stored if periodic_save is selected. For example, on an Apple OS out_file="~/Desktop/ameFit.rda".
-#' @param save_interval quantile interval indicating when to save during post burn-in phase.
+#' @param save_interval quantile interval indicating when to save during the post-burn-in period.
 #' @param model.name optional string for model selection output
 #' @param posterior_opts optional list of posterior sampling options
 #' @param n_chains integer: number of MCMC chains to run (default: 1)
@@ -235,8 +235,8 @@
 #' @param method character: \code{"mcmc"} (default, the Bayesian MCMC fit) or
 #'   \code{"als"} (the fast, MCMC-free iterative block coordinate descent point
 #'   estimator). When \code{method = "als"}, MCMC-specific arguments (\code{nscan},
-#'   \code{burn}, \code{odens}, \code{prior}, ...) are silently ignored and the
-#'   call forwards to \code{\link{ame_als}}.
+#'   \code{burn}, \code{odens}, \code{prior}, ...) are warned about and ignored;
+#'   the call forwards to \code{\link{ame_als}}.
 #' @param bootstrap integer (only used when \code{method = "als"}): number of
 #'   bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N > 0}
 #'   runs \code{N} replicates and attaches the result so that \code{\link{confint}}
@@ -268,7 +268,7 @@
 #' Every \code{family} is supported under
 #' both \code{mode}s. The bipartite Z-samplers live in \code{R/rZ_bipartite.R}
 #' and dispatch per family; see also the inline comment in \code{R/lame.R}
-#' (\dQuote{first-class samplers as of the bipartite-families round}).
+#' (the rectangular samplers live in \code{R/rZ_bipartite.R}).
 #'
 #' \tabular{lll}{
 #'   \strong{family}  \tab \strong{unipartite} \tab \strong{bipartite} \cr
@@ -286,9 +286,8 @@
 #' \code{family = "ordinal"} with \code{symmetric = TRUE} is supported via the
 #' dedicated sampler in \code{R/rZ_ord_sym_fc.R}, which uses the
 #' symmetric-doubled precision and mirrors upper-triangle draws to the lower
-#' triangle so \eqn{Z = t(Z)} holds at every sweep. The previous \dQuote{ordinal
-#' + symmetric is unsupported} restriction has been lifted. \code{rrl} +
-#' bipartite is first-class: the rectangular row-rank Z-sampler handles the
+#' triangle so \eqn{Z = t(Z)} holds at every sweep. \code{rrl} + bipartite is
+#' supported: the rectangular row-rank Z-sampler handles the
 #' full per-row permutation likelihood, and \code{ame()} recovers regression
 #' coefficients comparably to the unipartite rrl path on similarly-sized data.
 #'
@@ -356,7 +355,7 @@
 #'   \code{nodematch("g")}         \tab dyadic covariate via \code{\link{nodematch}(g)} into \code{Xdyad} \cr
 #'   \code{nodefactor("g")}        \tab dyadic covariate via \code{\link{nodefactor}(g)} into \code{Xdyad} (drop one level) \cr
 #'   \code{absdiff("z")}           \tab dyadic covariate via \code{\link{absdiff}(z)} into \code{Xdyad} \cr
-#'   \code{mutual}                 \tab \code{dcor = TRUE} -> the \code{rho} parameter (probit-scale, NOT log-odds; not numerically comparable to ERGM's \code{mutual}) \cr
+#'   \code{mutual}                 \tab \code{dcor = TRUE} -> the \code{rho} parameter (probit-scale, not log-odds; not numerically comparable to ERGM's \code{mutual}) \cr
 #'   \code{gwesp} / transitivity   \tab \code{R >= 1} multiplicative latent factors (not the same statistic) \cr
 #'   sender activity heterogeneity \tab \code{rvar = TRUE}, gives \code{a_i}, \code{va} \cr
 #'   receiver popularity heterog.  \tab \code{cvar = TRUE}, gives \code{b_j}, \code{vb} \cr
@@ -370,8 +369,8 @@
 #' packages fires a startup warning telling you to call
 #' \code{lame::ame(...)} or \code{amen::ame(...)} explicitly.
 #'
-#' For default cross-sectional calls, \code{lame::ame()} is a drop-in
-#' replacement for \code{amen::ame()}: the \code{fit$BETA} slot is a
+#' For default cross-sectional calls, \code{lame::ame()} follows the
+#' \code{amen::ame()} interface: the \code{fit$BETA} slot is a
 #' 2-D \code{[n_stored, p]} matrix in both packages, so scripts that
 #' call \code{colMeans(fit$BETA)} or \code{apply(fit$BETA, 2, mean)}
 #' continue to work unchanged. \code{lame} additionally accepts
@@ -384,7 +383,7 @@
 #' AR(1) prior on a single-period coefficient is unidentified), so the
 #' \code{BETA} 3-D shape that \code{lame()} can produce never arises
 #' from \code{ame()}. See \code{\link{lame}} for the longitudinal path
-#' and the silent-aggregation hazard with old \code{apply(fit$BETA, 2, mean)}
+#' and the silent-aggregation hazard with 2-D \code{apply(fit$BETA, 2, mean)}
 #' scripts under \code{dynamic_beta = TRUE}.
 #'
 #' @section Notes on priors:
@@ -503,8 +502,8 @@ ame<-function (
 	invisible(plot)
 
 	# detect lame()-only args passed into ame() and abort with a clear
-	# explanation rather than R's primitive "unused argument" message.
-	# These all assume a longitudinal panel (T >= 2) and have no meaning
+	# explanation rather than r's primitive "unused argument" message.
+	# these all assume a longitudinal panel and have no meaning
 	# on a single cross-section.
 	dot_names <- names(list(...))
 	lame_only <- c("dynamic_beta", "dynamic_beta_kind", "dynamic_beta_pool",
@@ -519,7 +518,7 @@ ame<-function (
 			"i" = "Use {.fn lame} with a list of {.val T >= 2} matrices to enable dynamic / time-varying effects."))
 	}
 	# any remaining unrecognised args: emit a single warning rather than
-	# silently dropping them. (R's primitive `unused argument` would
+	# silently dropping them. (r's primitive `unused argument` would
 	# have aborted; we accept via `...` to give the cleaner message above,
 	# so we have to catch typos ourselves.)
 	if (length(dot_names) > 0L) {
@@ -546,33 +545,32 @@ ame<-function (
 	}
 
 	####
-	# single-front-door dispatch: method = "als" forwards to ame_als()
-	# (the fast, MCMC-free point estimator). MCMC-specific args don't apply;
-	# warn loudly when the user supplied any of them so they know what was
-	# ignored (rather than silently believing their MCMC settings took).
+	# route als fits through the point estimator
 	####
 	method <- match.arg(method)
 	if (identical(method, "als")) {
 		mode_arg <- match.arg(mode)
-		# detect MCMC-only args the user explicitly supplied
+		if (!isTRUE(intercept)) {
+			cli::cli_abort(c(
+				"{.fn ame} {.arg method} = {.val als} does not currently support {.code intercept = FALSE}.",
+				"i" = "Use {.code method = \"mcmc\"} for a no-intercept fit, or keep the ALS intercept and center covariates as needed."))
+		}
+		# detect mcmc-only args the user explicitly supplied
 		user_args <- setdiff(names(match.call()), "")
 		forwarded <- c("Y", "Xdyad", "Xrow", "Xcol", "R", "R_row", "R_col",
 		               "family", "mode", "symmetric",
 		               "bootstrap", "bootstrap_type",
 		               "bootstrap_block_length", "bootstrap_seed",
 		               "verbose", "seed", "method", "intercept", "odmax",
-		               # silently absorb cosmetic-only MCMC args
+		               # silently absorb cosmetic-only mcmc args
 		               "model.name")
 		dropped <- setdiff(user_args, forwarded)
 		if (length(dropped) > 0L) {
 			cli::cli_warn(c(
-				"{.fn ame} {.arg method} = {.val als}: ignored {length(dropped)} argument{?s} that apply only to the MCMC path: {.arg {dropped}}.",
+				"{.fn ame} {.arg method} = {.val als}: ignored {length(dropped)} arguments that apply only to the MCMC path: {.arg {dropped}}.",
 				"i" = "These do not affect the ALS fit. Use {.code method = \"mcmc\"} (the default) if you need them."))
 		}
-		# ame_als() has a single latent dimension R; the bipartite MCMC path
-		# accepts asymmetric R_row / R_col. collapse to a single R for the
-		# ALS path (max of the two so nothing is truncated) and warn when
-		# they differ since ALS can't honour them separately.
+		# collapse bipartite ranks for the static als route
 		R_als <- R
 		if (!is.null(R_row) || !is.null(R_col)) {
 			rr <- R_row %||% R; rc <- R_col %||% R
@@ -599,9 +597,9 @@ ame<-function (
 	mode <- match.arg(mode)
 
 	# save_log_lik on the cross-sectional path: the underlying samplers do
-	# not store a per-iteration log_lik matrix during MCMC, so we compute
-	# log_lik post-hoc from saved per-iteration parameters. That requires
-	# per-iteration U / V / a / b storage which is opt-in via
+	# not store a per-iteration log_lik matrix during mcmc, so we compute
+	# log_lik post-hoc from saved per-iteration parameters. that requires
+	# per-iteration u / v / a / b storage which is opt-in via
 	# posterior_opts; force it on here so the log_lik is faithful.
 	want_log_lik <- isTRUE(save_log_lik) ||
 	                identical(save_log_lik, "chunked")
@@ -613,13 +611,13 @@ ame<-function (
 		}
 		if (is.null(posterior_opts)) posterior_opts <- list()
 		# field names match what ame_unipartite/ame_bipartite check:
-		# `save_UV` (uppercase) for U/V storage, `save_ab` for a/b storage
+		# `save_uv` (uppercase) for u/v storage, `save_ab` for a/b storage
 		posterior_opts$save_UV <- TRUE
 		posterior_opts$save_ab <- TRUE
 		if (is.null(posterior_opts$thin_UV)) posterior_opts$thin_UV <- 1L
 		if (is.null(posterior_opts$thin_ab)) posterior_opts$thin_ab <- 1L
 	}
-	# basic identifiability check on the multiplicative rank R. with R too
+	# basic identifiability check on the multiplicative rank r. with r too
 	# close to the network size the latent factors can absorb the entire
 	# residual structure and lose interpretability; warn loudly so the user
 	# can lower it.
@@ -637,12 +635,10 @@ ame<-function (
 				"i" = "Consider {.code R = 2} or {.code R = 3} unless you have a specific reason."))
 		}
 	}
-	# (note: dynamic_beta is intentionally NOT a formal argument here -- the
-	# cross-sectional path has only one time period, so an AR(1) prior on beta
-	# is unidentified. Use lame() with >= 2 periods to fit dynamic
-	# coefficients.)
+	# dynamic_beta is intentionally absent from ame(); use lame() for dynamic
+	# coefficients
 
-	# seed locally: restore the global RNG stream on exit so a downstream
+	# seed locally: restore the global rng stream on exit so a downstream
 	# random draw is not silently perturbed by having fit a model
 	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
 		.old_seed <- get(".Random.seed", envir = globalenv())
@@ -671,12 +667,12 @@ ame<-function (
 	}
 
 	####
-	# bipartite ordinal / cbin / frn / poisson / rrl are first-class; the
-	# rectangular Z samplers in R/rZ_bipartite.R back the ame_bipartite()
+	# bipartite ordinal / cbin / frn / poisson / rrl share rectangular samplers;
+	# rectangular z samplers in r/rz_bipartite.r back the ame_bipartite()
 	# dispatch. no guard here.
 
 	####
-	# validate Y and the key MCMC arguments up front so degenerate input
+	# validate y and the key mcmc arguments up front so degenerate input
 	# surfaces as a clear error rather than a deep-stack failure.
 	####
 	if (!is.matrix(Y) && !is.array(Y)) {
@@ -690,7 +686,7 @@ ame<-function (
 			"{.arg Y} contains infinite or NaN values.",
 			"i" = "Only finite values and {.val NA} (missing) are allowed."))
 	}
-	# symmetric=TRUE must be accompanied by a symmetric Y. Otherwise the
+	# symmetric=true must be accompanied by a symmetric y. otherwise the
 	# model silently averages the upper and lower triangles and discards
 	# half the observed asymmetry, no warning emitted.
 	if (isTRUE(symmetric) && nrow(Y) == ncol(Y)) {
@@ -700,8 +696,8 @@ ame<-function (
 				"{.arg symmetric} = TRUE, but {.arg Y} is not symmetric.",
 				"i" = "Symmetrize {.arg Y} (e.g. {.code (Y + t(Y))/2}) or set {.arg symmetric} = FALSE."))
 		}
-		# when one full triangle is NA the symmetry check above passes
-		# vacuously (Y - t(Y) is all-NA off-diagonal) and the sampler would
+		# when one full triangle is na the symmetry check above passes
+		# vacuously (y - t(y) is all-na off-diagonal) and the sampler would
 		# silently mirror the populated triangle, almost certainly user error.
 		ut <- upper.tri(Y); lt <- lower.tri(Y)
 		ut_obs <- sum(is.finite(Y[ut]))
@@ -712,14 +708,14 @@ ame<-function (
 				"i" = "The symmetric sampler would silently mirror the populated triangle.",
 				"i" = "Symmetrize {.arg Y} explicitly with {.code Y[lower.tri(Y)] <- t(Y)[lower.tri(Y)]} (or vice versa) before fitting."))
 		}
-		# warn when symmetric=TRUE is paired with an asymmetric Xdyad slice.
-		# The linear predictor eta_ij = beta'X_ij + a_i + b_j + u_i'G v_j is
-		# structurally symmetric on the (a, U, V) side (a == b averaged after
-		# each sweep; rUV_sym_fc parameterises V = U L for L diagonal) but the
-		# regression term inherits whatever symmetry the input X has. The
-		# ordinal symmetric sampler (rZ_ord_sym_fc) averages (EZ[i,j] +
-		# EZ[j,i])/2 internally to compensate, so non-ordinal symmetric fits
-		# carry the most risk of silent misspecification when Xdyad is
+		# warn when symmetric=true is paired with an asymmetric xdyad slice.
+		# the linear predictor eta_ij = beta'x_ij + a_i + b_j + u_i'g v_j is
+		# structurally symmetric on the (a, u, v) side (a == b averaged after
+		# each sweep; ruv_sym_fc parameterises v = u l for l diagonal) but the
+		# regression term inherits whatever symmetry the input x has. the
+		# ordinal symmetric sampler (rz_ord_sym_fc) averages (ez[i,j] +
+		# ez[j,i])/2 internally to compensate, so non-ordinal symmetric fits
+		# carry the most risk of silent misspecification when xdyad is
 		# asymmetric.
 		if (!is.null(Xdyad)) {
 			Xd_check <- if (is.matrix(Xdyad)) array(Xdyad, c(dim(Xdyad), 1L)) else Xdyad
@@ -765,7 +761,7 @@ ame<-function (
 		cli::cli_abort("{.arg R} = {R} must be smaller than the network dimension ({min(nrow(Y), ncol(Y))}).")
 	}
 	# bipartite latent dimensions get the same non-negative-integer / range
-	# checks as R (otherwise R_row = 1.7 silently recycles a corrupt factor)
+	# checks as r (otherwise r_row = 1.7 silently recycles a corrupt factor)
 	rmax_bip <- min(nrow(Y), ncol(Y))
 	for (rr in c("R_row", "R_col")) {
 		rv <- get(rr)
@@ -795,8 +791,7 @@ ame<-function (
 			"{.arg family} = {.val poisson} requires non-negative counts.",
 			"i" = "{.arg Y} has negative observed values."))
 	}
-	# binary/cbin silently threshold via 1*(Y>0); warn so a novice fitting
-	# count data with family="binary" sees that their counts were collapsed
+	# binary and cbin threshold observed values at zero
 	if (family %in% c("binary", "cbin")) {
 		uy <- unique(obs_y)
 		if (any(!uy %in% c(0, 1))) {
@@ -805,8 +800,7 @@ ame<-function (
 				"i" = "{.arg Y} will be thresholded to {.code 1 * (Y > 0)}; if you meant counts, use {.val poisson}, or {.val ordinal}/{.val normal} as appropriate."))
 		}
 	}
-	# binary-looking Y with family="normal" is a common novice slip; nudge but
-	# do not block (the user may genuinely want a linear-probability model)
+	# warn on binary-looking y when family = "normal", but do not block
 	if (family == "normal") {
 		uy <- unique(obs_y)
 		if (length(uy) <= 2L && all(uy %in% c(0, 1))) {
@@ -822,12 +816,12 @@ ame<-function (
 			"{.arg burn} = {burn} is greater than {.arg nscan} = {nscan}.",
 			"i" = "Most iterations will be discarded; consider {.arg burn} <= {.arg nscan}."))
 	}
-	# fully unobserved actors (all-NA rows / cols) silently get APM/BPM purely
+	# fully unobserved actors (all-na rows / cols) silently get apm/bpm purely
 	# from the prior; surface this so an upstream data-pipeline bug is visible
 	if (mode == "unipartite") {
 		drow <- apply(Y, 1, function(r) all(is.na(r) | !is.finite(r)))
 		dcol <- apply(Y, 2, function(c) all(is.na(c) | !is.finite(c)))
-		# drop the diagonal NA from the "all NA" judgement
+		# drop the diagonal na from the "all na" judgement
 		drow_ex <- vapply(seq_len(nrow(Y)), function(i)
 			all(is.na(Y[i, -i]) | !is.finite(Y[i, -i])), logical(1))
 		dcol_ex <- vapply(seq_len(ncol(Y)), function(j)
@@ -840,7 +834,7 @@ ame<-function (
 	} else {
 		drow <- apply(Y, 1, function(r) all(is.na(r) | !is.finite(r)))
 		dcol <- apply(Y, 2, function(c) all(is.na(c) | !is.finite(c)))
-		# the bipartite-binary / tobit Z sampler cannot proceed when a row
+		# the bipartite-binary / tobit z sampler cannot proceed when a row
 		# or column has no observed data; abort with a clear remediation
 		# hint rather than letting the sampler crash deeper in the stack.
 		if ((any(drow) || any(dcol)) && family %in% c("binary", "tobit")) {
@@ -873,7 +867,7 @@ ame<-function (
 	.check_cov_finite(Xrow, "Xrow")
 	.check_cov_finite(Xcol, "Xcol")
 	.check_cov_finite(Xdyad, "Xdyad")
-	# warn when Y and Xdyad both carry dimnames but in different orders --
+	# warn when y and xdyad both carry dimnames but in different orders --
 	# the package aligns positionally, so a name mismatch would silently
 	# misalign the whole design and can flip coefficient signs.
 	if (!is.null(Xdyad) && length(dim(Xdyad)) == 3L &&
@@ -900,9 +894,7 @@ ame<-function (
 		}
 	}
 
-	# Xdyad should be a 3-D array n x n x p (or nA x nB x p for bipartite).
-	# a 2-D n x n matrix is a common novice slip; coerce with a message so
-	# the variable name is preserved and the user knows the wrap happened.
+	# xdyad should be a 3d array; wrap a 2d matrix with a short message
 	if (!is.null(Xdyad)) {
 		dimd <- dim(Xdyad)
 		if (is.null(dimd) || length(dimd) == 2L) {
@@ -985,9 +977,9 @@ ame<-function (
 				"i" = "Use mode='bipartite' for rectangular matrices."
 			))
 		}
-		# symmetric ordinal is first-class. the sampler in R/rZ_ord_sym_fc.R
+		# symmetric ordinal uses the sampler in r/rz_ord_sym_fc.r
 		# uses the symmetric-doubled precision (variance 1/2) and mirrors
-		# upper-triangle draws to the lower triangle so Z = t(Z) holds at
+		# upper-triangle draws to the lower triangle so z = t(z) holds at
 		# every sweep.
 		
 		fit <- ame_unipartite(
@@ -1032,10 +1024,10 @@ ame<-function (
 		fit$call <- mc
 	}
 
-	# post-hoc log_lik computation when save_log_lik = TRUE. uses the
-	# augmented-Z normal approximation (same semantics as lame()): for
+	# post-hoc log_lik computation when save_log_lik = true. uses the
+	# augmented-z normal approximation (same semantics as lame()): for
 	# non-normal families this is the predictive criterion on the latent
-	# Z scale, not the family-specific Y density. matches the documented
+	# z scale, not the family-specific y density. matches the documented
 	# behaviour of loo.ame and is sufficient for relative model comparison.
 	if (want_log_lik) {
 		fit$log_lik <- .ame_compute_log_lik_post_hoc(fit, Y = Y, family = family)
@@ -1046,7 +1038,7 @@ ame<-function (
 }
 
 # post-hoc per-iteration log_lik for ame() fits. relies on
-# posterior_opts$store_uv / store_ab having stored U_samples / V_samples /
+# posterior_opts$store_uv / store_ab having stored u_samples / v_samples /
 # a_samples / b_samples; falls back to posterior means when storage was
 # disabled (rare: only triggered for chunked path on bipartite, which
 # warns elsewhere).
@@ -1057,7 +1049,7 @@ ame<-function (
 		return(NULL)
 	}
 	n_iter <- nrow(fit$BETA)
-	# observations: off-diagonal finite cells of Y
+	# observations: off-diagonal finite cells of y
 	if (is.array(Y) && length(dim(Y)) == 2L) {
 		if (nrow(Y) == ncol(Y)) diag(Y) <- NA
 	}
@@ -1069,17 +1061,17 @@ ame<-function (
 	if (n_obs == 0L) return(NULL)
 	# pre-compute per-cell design components that don't change per iter
 	n_a <- nrow(Y); n_b <- ncol(Y)
-	# locate sigma^2 column on VC: last column is "ve" by convention.
+	# locate sigma^2 column on vc: last column is "ve" by convention.
 	ve_col <- ncol(fit$VC)
 	# beta_names: tells us which beta columns are dyadic vs intercept / nodal
 	beta_names <- colnames(fit$BETA)
 	has_intercept <- !is.null(beta_names) && beta_names[1] == "intercept"
-	# pull out per-iteration U / V / a / b if available; else fall back to
-	# posterior-mean U / V / APM / BPM (the latter understates per-draw spread
+	# pull out per-iteration u / v / a / b if available; else fall back to
+	# posterior-mean u / v / apm / bpm (the latter understates per-draw spread
 	# but at least lets loo() run on a fit where the samples were not stored)
 	have_U <- !is.null(fit$U_samples) && !is.null(fit$V_samples)
 	have_ab <- !is.null(fit$a_samples) && !is.null(fit$b_samples)
-	# build a per-cell Xdyad x BETA matrix once. Xdyad is stored on fit$X
+	# build a per-cell xdyad x beta matrix once. xdyad is stored on fit$x
 	# when ame() saves the call args; rebuild from the call if missing.
 	X <- fit$X
 	ll <- matrix(NA_real_, nrow = n_iter, ncol = n_obs)
@@ -1090,7 +1082,7 @@ ame<-function (
 		if (has_intercept) eta_s <- eta_s + beta_s[1]
 		# dyadic covariates
 		if (!is.null(X)) {
-			# X is [n_a, n_b, p_dyad]; map beta_s[non-intercept dyad slots] -> X
+			# x is [n_a, n_b, p_dyad]; map beta_s[non-intercept dyad slots] to x
 			is_dyad <- if (is.null(beta_names)) {
 				c(FALSE, rep(TRUE, length(beta_s) - 1L))
 			} else {
@@ -1125,7 +1117,7 @@ ame<-function (
 		}
 		eta_s
 	}
-	# per-iteration family-specific pointwise log-Y density
+	# per-iteration family-specific pointwise log-y density
 	y_obs <- Y[obs_idx]
 	for (s in seq_len(n_iter)) {
 		eta_s <- compute_eta_draw(s)
@@ -1153,7 +1145,7 @@ ame<-function (
 		} else if (family == "ordinal") {
 			ll[s, ] <- .ordinal_pointwise_loglik(y_obs, eta_obs)
 		} else {
-			# augmented-Z normal fallback for frn / rrl
+			# augmented-z normal fallback for frn / rrl
 			if (s == 1L) {
 				cli::cli_warn(c(
 					"!" = "Pointwise log-lik for family {.val {family}} uses the augmented-Z normal approximation.",

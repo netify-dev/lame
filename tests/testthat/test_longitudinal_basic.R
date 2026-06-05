@@ -29,7 +29,7 @@ test_that("lame() runs with normal family and returns correct structure", {
 	expect_false(is.null(fit$BPM))
 	expect_false(is.null(fit$YPM))
 
-	# BETA should have intercept + Xdyad coefficient + Xrow + Xcol = 4 columns
+	# beta should have intercept + xdyad coefficient + xrow + xcol = 4 columns
 	expect_equal(ncol(fit$BETA), 4)
 	# 100 posterior samples (500 / odens=5)
 	expect_equal(nrow(fit$BETA), 100)
@@ -74,9 +74,9 @@ test_that("lame() runs with binary family and returns correct structure", {
 	expect_false(is.null(fit$BETA))
 	expect_false(is.null(fit$VC))
 
-	# YPM should be probabilities in [0,1]
+	# ypm should be probabilities in [0,1]
 	if (!is.null(fit$YPM)) {
-		# YPM may be an array or list; unlist to get numeric values
+		# ypm may be an array or list; unlist to get numeric values
 		ypm_vals = unlist(fit$YPM)
 		ypm_vals = ypm_vals[!is.na(ypm_vals)]
 		expect_true(all(ypm_vals >= 0 & ypm_vals <= 1),
@@ -107,11 +107,11 @@ test_that("lame() with multiplicative effects (R > 0) returns UV", {
 
 	expect_s3_class(fit, "lame")
 
-	# u and V should exist with correct dimensions
+	# u and v should exist with correct dimensions
 	expect_false(is.null(fit$U))
 	expect_false(is.null(fit$V))
 
-	# for static (non-dynamic) model, U and V should be 2D (n x R)
+	# for static (non-dynamic) model, u and v should be 2d (n x r)
 	expect_equal(ncol(fit$U), 2)
 	expect_equal(ncol(fit$V), 2)
 })
@@ -224,7 +224,7 @@ test_that("lame() additive effects correlate with true values", {
 
 	# additive effects should correlate with truth (match by actor name)
 	if (!is.null(fit$APM) && length(fit$APM) == n) {
-		# match APM to true_a by actor names (lame may reorder actors)
+		# match apm to true_a by actor names (lame may reorder actors)
 		names(true_a) = actors
 		apm_matched = fit$APM[actors]
 		a_centered = true_a - mean(true_a)
@@ -263,7 +263,7 @@ test_that("lame() GOF output has correct structure", {
 	expect_false(is.null(fit$GOF),
 		info = "GOF should be computed when gof=TRUE")
 	if (!is.null(fit$GOF)) {
-		# GOF for lame is a list of matrices (one per GOF statistic)
+		# gof for lame is a list of matrices (one per gof statistic)
 		expect_true(is.list(fit$GOF) || is.matrix(fit$GOF))
 		if (is.list(fit$GOF)) {
 			expect_true(length(fit$GOF) > 0, info = "GOF should have at least one statistic")
@@ -309,7 +309,7 @@ test_that("lame() works with tobit family", {
 
 	expect_s3_class(fit, "lame")
 
-	# tobit YPM should be >= 0
+	# tobit ypm should be >= 0
 	if (!is.null(fit$YPM)) {
 		ypm_vals = unlist(fit$YPM)
 		ypm_vals = ypm_vals[!is.na(ypm_vals)]
@@ -352,7 +352,7 @@ test_that("lame() works with poisson family", {
 	expect_s3_class(fit, "lame")
 	expect_false(is.null(fit$BETA))
 
-	# YPM should be non-negative counts
+	# ypm should be non-negative counts
 	if (!is.null(fit$YPM)) {
 		ypm_vals = unlist(fit$YPM)
 		ypm_vals = ypm_vals[!is.na(ypm_vals)]

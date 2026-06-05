@@ -41,7 +41,7 @@ per_actor_slopes <- function(fit, kind = c("row", "col"),
 		cli::cli_abort("{.arg fit} must be a fitted {.cls lame} object.")
 	}
 
-	# extract per-period residuals from the in-sample EZ
+	# extract per-period residuals from the in-sample ez
 	Y_list <- if (is.list(fit$Y)) fit$Y else if (length(dim(fit$Y)) == 3L)
 		lapply(seq_len(dim(fit$Y)[3L]), function(t) fit$Y[, , t]) else
 		list(fit$Y)
@@ -50,8 +50,8 @@ per_actor_slopes <- function(fit, kind = c("row", "col"),
 		cli::cli_abort("Fit has no {.code $EZ}; cannot decompose residuals.")
 	}
 	T_per <- length(EZ_list)
-	# Aggregate the dyadic covariate slice to a per-actor value per period.
-	# Xlist is [n_a x n_b x p] per period; we pick covariate slice
+	# aggregate the dyadic covariate slice to a per-actor value per period.
+	# xlist is [n_a x n_b x p] per period; we pick covariate slice
 	# `covariate_idx` and take the per-actor mean across the *other* index.
 	X_dyad <- fit$Xlist
 	if (is.null(X_dyad) || length(X_dyad) < T_per) {
@@ -66,7 +66,7 @@ per_actor_slopes <- function(fit, kind = c("row", "col"),
 		if (!is.null(fit$nB)) fit$nB else ncol(EZ_list[[1]])
 	}
 
-	# residual per period (Z - EZ) summed across the other index
+	# residual per period (z - ez) summed across the other index
 	r_per_actor <- matrix(0, n_actors, T_per)
 	x_per_actor <- matrix(0, n_actors, T_per)
 	for (t in seq_len(T_per)) {
@@ -91,14 +91,14 @@ per_actor_slopes <- function(fit, kind = c("row", "col"),
 		}
 	}
 
-	# ridge / first-difference penalised LS per actor
+	# ridge / first-difference penalised ls per actor
 	slopes <- matrix(0, n_actors, T_per)
 	for (i in seq_len(n_actors)) {
 		x_i <- x_per_actor[i, ]
 		r_i <- r_per_actor[i, ]
 		ok <- is.finite(x_i) & is.finite(r_i)
 		if (sum(ok) < 1L) next
-		# build a [T x T] precision: data prec + lambda * D'D (1st-difference)
+		# build a [t x t] precision: data prec + lambda * d'd (1st-difference)
 		if (T_per >= 2L) {
 			D <- diff(diag(T_per))
 			K <- crossprod(D)

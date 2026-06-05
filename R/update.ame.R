@@ -1,5 +1,5 @@
-# Internal helper: extract the original lame() call and overwrite the named
-# arguments passed via `...`. Not exported.
+# internal helper: extract the original lame() call and overwrite the named
+# arguments passed via `...`. not exported.
 #' @noRd
 .update_ame_call <- function(object, ...) {
 	if (is.null(object$call)) {
@@ -20,15 +20,15 @@
 }
 
 # build the call + an environment whose enclosing frame holds the
-# data snapshot (if `freeze_call = TRUE` was set at fit time). Returns a list
-# (cl, envir) ready for eval(). When no snapshot is present, `envir` is the
-# caller's frame (parent.frame() of the S3 method dispatcher).
+# data snapshot (if `freeze_call = true` was set at fit time). returns a list
+# (cl, envir) ready for eval(). when no snapshot is present, `envir` is the
+# caller's frame (parent.frame() of the s3 method dispatcher).
 .update_ame_eval_setup <- function(object, dots, caller_env) {
 	cl <- do.call(.update_ame_call, c(list(object = object), dots))
 	if (isTRUE(object$freeze_call) && !is.null(object$data_snapshot)) {
-		# substitute frozen data references in the call. The snapshot
-		# overrides any Y/Xdyad/Xrow/Xcol the user passes through `...`
-		# unless they explicitly thaw with `freeze_call = FALSE`.
+		# substitute frozen data references in the call. the snapshot
+		# overrides any y/xdyad/xrow/xcol the user passes through `...`
+		# unless they explicitly thaw with `freeze_call = false`.
 		snap_env <- new.env(parent = caller_env)
 		snap_env$.lame_frozen_Y     <- object$data_snapshot$Y
 		snap_env$.lame_frozen_Xdyad <- object$data_snapshot$Xdyad
@@ -78,7 +78,7 @@ update.ame <- function(object, ..., evaluate = TRUE) {
 	setup <- .update_ame_eval_setup(object, list(...), parent.frame())
 	if (!isTRUE(evaluate)) return(setup$cl)
 	# evaluate in the snapshot env if freeze_call was set; otherwise in the
-	# caller's frame so user-supplied data objects (e.g. `dat$Y`) are visible.
+	# caller's frame so user-supplied data objects (e.g. `dat$y`) are visible.
 	eval(setup$cl, envir = setup$envir)
 }
 
@@ -87,7 +87,7 @@ update.ame <- function(object, ..., evaluate = TRUE) {
 #' @export
 update.lame <- function(object, ..., evaluate = TRUE) {
 	# inline (not a method call) so parent.frame() inside the eval()
-	# resolves to the user's calling frame and references like `dat$Y`
+	# resolves to the user's calling frame and references like `dat$y`
 	# stay in scope.
 	setup <- .update_ame_eval_setup(object, list(...), parent.frame())
 	if (!isTRUE(evaluate)) return(setup$cl)

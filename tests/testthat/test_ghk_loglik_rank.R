@@ -1,5 +1,5 @@
-# GHK / Halton / Gauss-Hermite pointwise log-lik tests.
-# Cover the dispatcher, GHK on frn/rrl, Gauss-Hermite on cbin, and the
+# ghk / halton / gauss-hermite pointwise log-lik tests.
+# cover the dispatcher, ghk on frn/rrl, gauss-hermite on cbin, and the
 # reproducibility contract (deterministic given fit seed).
 
 test_that(".halton_seq_randomised respects [0, 1) and decorrelates from base", {
@@ -12,10 +12,10 @@ test_that(".halton_seq_randomised respects [0, 1) and decorrelates from base", {
 })
 
 test_that(".ghk_row_loglik handles trivial cases cleanly", {
-	# D = 0
+	# d = 0
 	expect_equal(lame:::.ghk_row_loglik(numeric(0), integer(0),
 	                                     n_mc = 32L), 0)
-	# D = 1
+	# d = 1
 	expect_equal(lame:::.ghk_row_loglik(c(0.5), c(1L), n_mc = 32L), 0)
 })
 
@@ -69,7 +69,7 @@ test_that(".pointwise_loglik_observed_ghk_rank dispatches by family", {
 	                                                    s2 = 1)
 	expect_equal(length(lp_norm), n_obs)
 	expect_true(all(is.finite(lp_norm)))
-	# cbin -> Gauss-Hermite
+	# cbin -> gauss-hermite
 	lp_cbin = lame:::.pointwise_loglik_observed_ghk_rank(y_obs, ez_obs, z_obs,
 	                                                    obs_idx, family = "cbin",
 	                                                    s2 = 1)
@@ -94,16 +94,16 @@ test_that("v8 GHK on frn produces finite, family-correct log_lik", {
 		diag(Y) = NA
 		Y
 	})
-	suppressMessages(suppressWarnings(
-		fit <- lame(Y_list, Xdyad = Xdyad_list, family = "frn", R = 1,
-		            log_lik_method = "observed_ghk",
-		            save_log_lik = TRUE,
-		            nscan = 15, burn = 8, odens = 5,
-		            verbose = FALSE, seed = 7)))
+	fit = suppressMessages(suppressWarnings(
+		lame(Y_list, Xdyad = Xdyad_list, family = "frn", R = 1,
+		     log_lik_method = "observed_ghk",
+		     save_log_lik = TRUE,
+		     nscan = 15, burn = 8, odens = 5,
+		     verbose = FALSE, seed = 7)))
 	expect_false(is.null(fit$log_lik))
 	expect_true(all(is.finite(fit$log_lik)))
 	expect_true(all(fit$log_lik < 0))
-	# log_lik_meta records the deterministic Halton shift
+	# log_lik_meta records the deterministic halton shift
 	expect_false(is.null(fit$log_lik_meta))
 	expect_equal(fit$log_lik_meta$seed, 7)
 	expect_true(fit$log_lik_meta$halton_shift >= 0 &&
@@ -129,18 +129,18 @@ test_that("v8 GHK is reproducible given seed (halton_shift deterministic)", {
 		diag(Y) = NA
 		Y
 	})
-	suppressMessages(suppressWarnings(
-		f1 <- lame(Y_list, Xdyad = Xdyad_list, family = "frn", R = 0,
-		           log_lik_method = "observed_ghk",
-		           save_log_lik = TRUE,
-		           nscan = 10, burn = 5, odens = 5,
-		           rvar = FALSE, cvar = FALSE, verbose = FALSE, seed = 99)))
-	suppressMessages(suppressWarnings(
-		f2 <- lame(Y_list, Xdyad = Xdyad_list, family = "frn", R = 0,
-		           log_lik_method = "observed_ghk",
-		           save_log_lik = TRUE,
-		           nscan = 10, burn = 5, odens = 5,
-		           rvar = FALSE, cvar = FALSE, verbose = FALSE, seed = 99)))
+	f1 = suppressMessages(suppressWarnings(
+		lame(Y_list, Xdyad = Xdyad_list, family = "frn", R = 0,
+		     log_lik_method = "observed_ghk",
+		     save_log_lik = TRUE,
+		     nscan = 10, burn = 5, odens = 5,
+		     rvar = FALSE, cvar = FALSE, verbose = FALSE, seed = 99)))
+	f2 = suppressMessages(suppressWarnings(
+		lame(Y_list, Xdyad = Xdyad_list, family = "frn", R = 0,
+		     log_lik_method = "observed_ghk",
+		     save_log_lik = TRUE,
+		     nscan = 10, burn = 5, odens = 5,
+		     rvar = FALSE, cvar = FALSE, verbose = FALSE, seed = 99)))
 	expect_equal(f1$log_lik_meta$halton_shift, f2$log_lik_meta$halton_shift)
 	# byte-identical log_lik matrices
 	expect_identical(f1$log_lik, f2$log_lik)

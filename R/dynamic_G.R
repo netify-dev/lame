@@ -7,19 +7,19 @@
 # we canonicalise (u, g, v) per period by an svd of g_t.
 
 #' @noRd
-# Sample G_t (RA x RB) conditional on U_t (nA x RA), V_t (nB x RB), and
-# the residual matrix E_t (nA x nB). The prior on vec(G_t) is
-# N(prior_mean, prior_cov * s^2) by default; we use prior_cov = I / lambda_G.
+# sample g_t (ra x rb) conditional on u_t (na x ra), v_t (nb x rb), and
+# the residual matrix e_t (na x nb). the prior on vec(g_t) is
+# n(prior_mean, prior_cov * s^2) by default; we use prior_cov = i / lambda_g.
 .sample_G_period <- function(E_t, U_t, V_t, s2,
                               lambda_G = 1.0,
                               prior_mean_vec = NULL) {
 	RA <- ncol(U_t); RB <- ncol(V_t)
 	if (RA == 0L || RB == 0L) return(matrix(0, RA, RB))
-	# Build design matrix X_des: (nA*nB) x (RA*RB) so that
-	# vec(E_t) = X_des %*% vec(G_t) (column-major vec)
-	# Each row corresponds to (i, j); the column for (r, s) of G is
-	# U_t[i, r] * V_t[j, s].
-	# Equivalently: X_des = V_t kronecker U_t.
+	# build design matrix x_des: (na*nb) x (ra*rb) so that
+	# vec(e_t) = x_des %*% vec(g_t) (column-major vec)
+	# each row corresponds to (i, j); the column for (r, s) of g is
+	# u_t[i, r] * v_t[j, s].
+	# equivalently: x_des = v_t kronecker u_t.
 	X_des <- kronecker(V_t, U_t)
 	y_vec <- as.numeric(E_t)
 	ok <- is.finite(y_vec)
@@ -44,9 +44,9 @@
 }
 
 #' @noRd
-# Canonicalise (U, G, V) per period via SVD of G_t so the parameterisation
-# is identifiable. Returns a list with canonical U/G/V cubes that
-# preserve the linear predictor U %*% G %*% V'.
+# canonicalise (u, g, v) per period via svd of g_t so the parameterisation
+# is identifiable. returns a list with canonical u/g/v cubes that
+# preserve the linear predictor u %*% g %*% v'.
 .canonicalize_UGV <- function(U_cube, G_cube, V_cube) {
 	T_per <- if (length(dim(G_cube)) == 3L) dim(G_cube)[3L] else 1L
 	U_can <- U_cube
@@ -59,15 +59,15 @@
 		if (NCOL(U_t) == 0L || NCOL(V_t) == 0L) next
 		sv <- tryCatch(svd(G_t), error = function(e) NULL)
 		if (is.null(sv)) next
-		# canonical: U_can_t = U_t %*% sv$u; G_can_t = diag(sv$d);
-		#            V_can_t = V_t %*% sv$v
-		# preserves U %*% G %*% V'
+		# canonical: u_can_t = u_t %*% sv$u; g_can_t = diag(sv$d);
+		#            v_can_t = v_t %*% sv$v
+		# preserves u %*% g %*% v'
 		if (length(dim(U_cube)) == 3L) {
 			U_can[, , t] <- U_t %*% sv$u
 			V_can[, , t] <- V_t %*% sv$v
 			G_can[, , t] <- diag(sv$d, length(sv$d))
 		} else if (t == 1L) {
-			# static U/V: only canonicalise once
+			# static u/v: only canonicalise once
 			U_can <- U_t %*% sv$u
 			V_can <- V_t %*% sv$v
 			G_can <- diag(sv$d, length(sv$d))

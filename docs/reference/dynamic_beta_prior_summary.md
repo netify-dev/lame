@@ -5,7 +5,7 @@ Draws `ndraws` sample paths of length `T` from the `dynamic_beta` prior
 innovation variance) and reports the implied distribution of common
 summary statistics: maximum absolute first difference, roughness (sum of
 squared first differences), path range, and correlation with time. Use
-this BEFORE fitting to confirm that your prior is loose / tight enough.
+this before fitting to confirm that your prior is loose / tight enough.
 
 ## Usage
 

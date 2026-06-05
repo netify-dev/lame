@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-05-28</h4>
+            <h4 data-toc-skip class="date">2026-06-04</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/HEAD/vignettes/lame-overview.Rmd" class="external-link"><code>vignettes/lame-overview.Rmd</code></a></small>
       <div class="d-none name"><code>lame-overview.Rmd</code></div>
@@ -126,8 +126,8 @@ figures you can theme and extend.</li>
 <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>, and <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> work as you would
 expect from any R model object.</li>
 </ul>
-<p>The package is part of the <code>netify-verse</code>, so it works
-seamlessly with the <a href="https://netify-dev.github.io/netify/" class="external-link"><code>netify</code></a>
+<p>The package is part of the <code>netify-verse</code>, and it works
+with the <a href="https://netify-dev.github.io/netify/" class="external-link"><code>netify</code></a>
 package for data preparation.</p>
 <div class="section level3">
 <h3 id="migrating-from-amen">Migrating from <code>amen</code><a class="anchor" aria-label="anchor" href="#migrating-from-amen"></a>
@@ -179,9 +179,9 @@ accepted with an informational message, but the estimator
 <em>supports</em> only <code>"normal"</code>, <code>"binary"</code>, and
 <code>"poisson"</code>. The censoring / rank families
 <code>"ordinal"</code>, <code>"tobit"</code>, <code>"cbin"</code>,
-<code>"frn"</code>, and <code>"rrl"</code> are rejected with a clear
-error directing you to <code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> (MCMC),
-which is the calibrated path for those families.</td>
+<code>"frn"</code>, and <code>"rrl"</code> are rejected with a direct
+error pointing to <code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> (MCMC), which
+is the posterior-sampling path for those families.</td>
 </tr>
 <tr class="even">
 <td>Bipartite rank</td>
@@ -336,7 +336,7 @@ the node attributes: <code>same_male</code>, <code>same_smoker</code>,
 <span><span class="va">T_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">dutchcollege</span><span class="op">$</span><span class="va">Y</span><span class="op">)</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span></span>
 <span><span class="va">actor_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"S%02d"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># binarize and drop the cold-start wave (T = 1 has almost no ties)</span></span>
+<span><span class="co"># binarize and drop the cold-start wave (t = 1 has almost no ties)</span></span>
 <span><span class="va">Y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fl">2</span><span class="op">:</span><span class="va">T_all</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="va">Yt</span> <span class="op">&lt;-</span> <span class="op">(</span><span class="va">dutchcollege</span><span class="op">$</span><span class="va">Y</span><span class="op">[</span>, , <span class="va">t</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
@@ -505,50 +505,28 @@ exception.</p>
 <div class="section level3">
 <h3 id="checking-convergence">Checking Convergence<a class="anchor" aria-label="anchor" href="#checking-convergence"></a>
 </h3>
-<p>Because the model is estimated via MCMC, we need to verify that the
-sampler has converged before trusting the results. The
-<code>trace_plot</code> function shows the sampled values over
-iterations (top panels) and the corresponding posterior densities
-(bottom panels) for each parameter.</p>
+<p>The model is estimated via MCMC, so trace plots and posterior-density
+plots are useful checks. The <code>trace_plot</code> function shows the
+sampled values over iterations (top panels) and the corresponding
+posterior densities (bottom panels) for each parameter.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"beta"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/overview-trace-1.png" class="r-plt" alt="MCMC trace plots (top) and marginal posterior density plots (bottom) for each regression coefficient of the Dutch college fit; well-mixed fuzzy-caterpillar traces around a stable mean and smooth unimodal densities together indicate the chain has converged." width="100%" style="display: block; margin: auto;"></p>
-<p>What to look for: trace plots should bounce around a stable mean
-without long-term trends or sticky regions, and density plots should be
-smooth and unimodal. Numerically, the conventional Stan-era targets are
+<p>Trace plots should bounce around a stable mean without long-term
+trends or sticky regions, and density plots should be smooth and
+unimodal. Numerically, common MCMC checks are
 <strong>split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-&lt; 1.01</strong> for every monitored parameter and <strong>bulk / tail
-ESS
+&lt; 1.01</strong> for monitored parameters and <strong>bulk / tail ESS
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>
-400 per chain</strong> (so
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>
-1600 with 4 chains);
+400 per chain</strong>.</p>
+<p>With 400 stored samples, the regression coefficients mix well at this
+seed. The variance components mix more slowly: in the
+<code>summarise_draws</code> table below, <code>va</code> carries the
+highest
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-between 1.01 and 1.05 is a yellow flag, anything
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>
-1.1 means you should not trust the posterior summaries yet and need a
-longer run.</p>
-<p>With 400 stored samples the regression coefficients mix well at this
-seed
-(split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≤</mo><mn>1.01</mn></mrow><annotation encoding="application/x-tex">\hat R \le 1.01</annotation></semantics></math>
-for every coefficient; bulk ESS in the low hundreds, lowest for the
-weakly-identified <code>same_smoker_dyad</code>). The variance
-components mix more slowly: in the <code>summarise_draws</code> table
-below, <code>va</code> (the sender variance) carries the highest
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-and the lowest ESS here. Which parameter mixes worst is itself
-seed-dependent in a single short chain – on other runs <code>rho</code>
-or a dyadic coefficient can be the slow one, and a coefficient
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-can drift above 1.05 – so read one chain’s
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>/ESS
-as indicative, not definitive. For a paper, run several independently
-initialised chains at greater length
-(<code>burn &gt;= 2000, nscan &gt;= 10000</code>) and check
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-across them. The point estimates are stable here; it is the uncertainty
-on the slow-mixing variance and reciprocity parameters that needs the
-longer multi-chain run before quoting.</p>
+and the lowest ESS. Which parameter mixes worst is seed-dependent in a
+short chain, so treat this fit as a compact worked example rather than a
+final diagnostic run.</p>
 </div>
 <div class="section level3">
 <h3 id="bayesian-ecosystem-diagnostics-posterioras_draws">Bayesian-ecosystem diagnostics:
@@ -743,11 +721,11 @@ predictive distribution).</p>
 cannot reproduce the empirical net densification slope (about +0.025 per
 period in our run); that is the expected diagnostic for a fit without
 <code>dynamic_beta</code> or time-varying covariates and is consistent
-with the per-period mass shift we already see in
-<code><a href="../reference/gof_plot.html">gof_plot()</a></code>. The reciprocity check tells the same story in
-the opposite direction: the static fit also rejects the observed
-reciprocity slope (<code>p_pp</code> near 0), because reciprocity
-actually drifts <em>downward</em> across the panel (slope about
+with the per-period mass shift in <code><a href="../reference/gof_plot.html">gof_plot()</a></code>. The
+reciprocity check tells the same story in the opposite direction: the
+static fit also rejects the observed reciprocity slope
+(<code>p_pp</code> near 0), because reciprocity actually drifts
+<em>downward</em> across the panel (slope about
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>0.03</mn></mrow><annotation encoding="application/x-tex">-0.03</annotation></semantics></math>
 per period) and the static
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
@@ -755,7 +733,7 @@ cannot track that drift. Both checks are pointing at the same structural
 mismatch: model parameters that are constant across periods cannot
 reproduce period-to-period drift in either marginal quantity. The
 companion diagnostic <code><a href="../reference/detect_change_point.html">detect_change_point()</a></code> reports a
-heuristic Bayes factor comparing the posterior path of each
+heuristic tail-ratio score comparing the posterior path of each
 <code>dynamic_beta</code> coefficient to its AR(1) prior null. It
 requires a fit with <code>dynamic_beta</code> active and is therefore
 not applicable to the static fit shown here; the worked example lives in
@@ -892,8 +870,8 @@ the rest of the tidyverse.</p>
 <code>prediction_draws_long()</code><a class="anchor" aria-label="anchor" href="#exit-tidy-autoplot-prediction_draws_long"></a>
 </h3>
 <p>The rest of the round-trip runs against the <code>fit</code> object
-we already built from the Dutch-college data above (no
-<code>netify</code> install needed):</p>
+built from the Dutch-college data above (no <code>netify</code> install
+needed):</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># tidy(fit) -&gt; term / estimate / std.error / statistic / p.value /</span></span>
 <span><span class="co"># conf.low / conf.high; one row per coefficient (or per</span></span>

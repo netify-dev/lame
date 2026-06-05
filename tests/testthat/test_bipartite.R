@@ -17,7 +17,7 @@ test_that("bipartite EZ computation works correctly", {
 	V = array(rnorm(nB * RB * T), c(nB, RB, T))
 	G = matrix(rnorm(RA * RB), RA, RB)
 	
-	# test EZ computation
+	# test ez computation
 	EZ = lame:::get_EZ_bip_cpp(base, a, b, U, V, G)
 	
 	# check dimensions
@@ -44,11 +44,11 @@ test_that("four-cycle counting works for bipartite networks", {
 	Y = array(0, c(3, 3, 1))
 	
 	# create a pattern with exactly 1 four-cycle
-	# nodes A1, A2 connect to B1, B2 (forms a 4-cycle)
-	Y[1, 1, 1] = 1  # A1 -> B1
-	Y[1, 2, 1] = 1  # A1 -> B2
-	Y[2, 1, 1] = 1  # A2 -> B1
-	Y[2, 2, 1] = 1  # A2 -> B2
+	# nodes a1, a2 connect to b1, b2 (forms a 4-cycle)
+	Y[1, 1, 1] = 1  # a1 -> b1
+	Y[1, 2, 1] = 1  # a1 -> b2
+	Y[2, 1, 1] = 1  # a2 -> b1
+	Y[2, 2, 1] = 1  # a2 -> b2
 	
 	cycles = lame:::count_four_cycles_bip_cpp(Y)
 	expect_equal(as.numeric(cycles), 1)
@@ -62,9 +62,9 @@ test_that("four-cycle counting works for bipartite networks", {
 test_that("bipartite degree computation works", {
 	# create test network
 	Y = array(0, c(3, 4, 2))
-	Y[1, 1:2, 1] = 1  # Node A1 has degree 2 at time 1
-	Y[2, 3:4, 1] = 1  # Node A2 has degree 2 at time 1
-	Y[3, 1, 1] = 1    # Node A3 has degree 1 at time 1
+	Y[1, 1:2, 1] = 1  # node a1 has degree 2 at time 1
+	Y[2, 3:4, 1] = 1  # node a2 has degree 2 at time 1
+	Y[3, 1, 1] = 1    # node a3 has degree 1 at time 1
 	
 	degrees = lame:::compute_degrees_bip_cpp(Y)
 	
@@ -86,13 +86,13 @@ test_that("UV sampling for bipartite works", {
 	lambdaU = rep(1, RA)
 	s2 = 1
 	
-	# test U sampling
+	# test u sampling
 	U_new = lame:::sample_U_bip_cpp(R, V, G, lambdaU, s2)
 	
 	expect_equal(dim(U_new), c(nA, RA, T))
 	expect_true(all(is.finite(U_new)))
 	
-	# test V sampling
+	# test v sampling
 	lambdaV = rep(1, RB)
 	V_new = lame:::sample_V_bip_cpp(R, U_new, G, lambdaV, s2)
 	
@@ -113,7 +113,7 @@ test_that("G sampling and orientation works", {
 	lambdaG = 1
 	s2 = 1
 	
-	# test G sampling
+	# test g sampling
 	G_new = lame:::sample_G_bip_cpp(R, U, V, lambdaG, s2)
 	
 	expect_equal(dim(G_new), c(RA, RB))
@@ -126,7 +126,7 @@ test_that("G sampling and orientation works", {
 	expect_equal(dim(oriented$V), dim(V))
 	expect_equal(dim(oriented$G), dim(G_new))
 	
-	# check that G is now diagonal-like (singular values on diagonal)
+	# check that g is now diagonal-like (singular values on diagonal)
 	G_oriented = oriented$G
 	# off-diagonal elements should be close to zero
 	for(i in 1:min(RA, RB)) {

@@ -1,13 +1,13 @@
-# Cowles (1996) Z-marginalised Metropolis-Hastings update for explicit
+# cowles (1996) z-marginalised metropolis-hastings update for explicit
 # ordinal cutpoints, an alternative to the
-# data-induced cutpoint convention. Default behaviour unchanged
+# data-induced cutpoint convention. default behaviour unchanged
 # (`ordinal_cutpoints = "data_induced"`); the explicit path is opt-in
 # via `ordinal_cutpoints = "explicit"` and stores a posterior on
-# `fit$ALPHA` with `alpha_1 = 0` as the identification anchor.
+# `fit$alpha` with `alpha_1 = 0` as the identification anchor.
 #
-# Reference: Cowles, M. K. (1996). Accelerating Monte Carlo Markov chain
-# convergence for cumulative-link generalized linear models. Statistics
-# and Computing, 6, 101–111.
+# reference: cowles, m. k. (1996). accelerating monte carlo markov chain
+# convergence for cumulative-link generalized linear models. statistics
+# and computing, 6, 101–111.
 
 #' Numerically stable log(Phi(hi) - Phi(lo))
 #'
@@ -21,17 +21,17 @@
 #' @return numeric, log(Phi(hi) - Phi(lo))
 #' @keywords internal
 log_phi_diff <- function(hi, lo) {
-	# Stable in both tails. For points in the lower tail we use the
-	# lower-tail log CDF and compute log(exp(a) - exp(b)) where a > b.
-	# For the upper tail we flip to the upper-tail log CDF (1 - Phi) and
+	# stable in both tails. for points in the lower tail we use the
+	# lower-tail log cdf and compute log(exp(a) - exp(b)) where a > b.
+	# for the upper tail we flip to the upper-tail log cdf (1 - phi) and
 	# compute log(exp(b') - exp(a')) where b' > a' because the survival
-	# function is monotone-decreasing. We dispatch elementwise off the
+	# function is monotone-decreasing. we dispatch elementwise off the
 	# midpoint sign so an array with both regimes is handled correctly.
 	out <- rep(-Inf, length(hi))
 	mid <- (hi + lo) / 2
 	lower <- which(is.finite(hi) & is.finite(lo) & mid <= 0)
 	upper <- which(is.finite(hi) & is.finite(lo) & mid > 0)
-	# infinite-bound case: lo = -Inf or hi = +Inf collapses to a single CDF
+	# infinite-bound case: lo = -inf or hi = +inf collapses to a single cdf
 	inf_lo <- which(!is.finite(lo) & is.finite(hi))
 	inf_hi <- which(is.finite(lo) & !is.finite(hi))
 	if (length(lower)) {
@@ -40,12 +40,12 @@ log_phi_diff <- function(hi, lo) {
 		out[lower] <- a + log1p(-exp(b - a))
 	}
 	if (length(upper)) {
-		# survival-function form: P(lo < X <= hi) = S(lo) - S(hi),
-		# S(.) = pnorm(., lower.tail = FALSE). Both S values are
+		# survival-function form: p(lo < x <= hi) = s(lo) - s(hi),
+		# s(.) = pnorm(., lower.tail = false). both s values are
 		# representable as log-tail probs without cancellation.
 		ap <- stats::pnorm(hi[upper], lower.tail = FALSE, log.p = TRUE)
 		bp <- stats::pnorm(lo[upper], lower.tail = FALSE, log.p = TRUE)
-		# bp > ap because S is decreasing and lo < hi
+		# bp > ap because s is decreasing and lo < hi
 		out[upper] <- bp + log1p(-exp(ap - bp))
 	}
 	if (length(inf_lo)) {
@@ -60,17 +60,17 @@ log_phi_diff <- function(hi, lo) {
 
 # alpha <-> delta reparameterisation
 .alpha_to_delta <- function(alpha) {
-	# alpha is length (K-1) with alpha[1] = 0; delta is length (K-2)
+	# alpha is length (k-1) with alpha[1] = 0; delta is length (k-2)
 	if (length(alpha) <= 1L) return(numeric(0))
 	log(diff(alpha))
 }
 
 .delta_to_alpha <- function(delta) {
-	# returns length (K-1), anchored at alpha[1] = 0
+	# returns length (k-1), anchored at alpha[1] = 0
 	c(0, cumsum(exp(delta)))
 }
 
-# initial alpha from empirical CDF (probit inverse), anchored at alpha[1] = 0
+# initial alpha from empirical cdf (probit inverse), anchored at alpha[1] = 0
 .init_alpha_from_data <- function(Y) {
 	obs <- Y[is.finite(Y)]
 	lvls <- sort(unique(obs))
@@ -94,12 +94,11 @@ log_phi_diff <- function(hi, lo) {
 	alpha_raw - alpha_raw[1L]
 }
 
-# Z-marginalised ordinal log-likelihood at cutpoints alpha:
-#   sum_{ij} log{Phi(alpha_{Y_{ij}} - eta_{ij}) - Phi(alpha_{Y_{ij}-1} - eta_{ij})}
-# For symmetric ordinal, the marginal cell probability uses the
-# precision-2 scaling sqrt(2) on both arguments (per Phase B sym sampler).
-# `Y_int` is the integer-recoded Y in 1..K (NA for missing); `alpha_full`
-# is c(-Inf, alpha, Inf) of length K+1.
+# z-marginalised ordinal log-likelihood at cutpoints alpha:
+# sum_{ij} log{pnorm(alpha_y - eta) - pnorm(alpha_y_minus_1 - eta)}
+# symmetric ordinal uses the precision-2 scaling sqrt(2) on both arguments.
+# `y_int` is the integer-recoded y in 1..k (na for missing); `alpha_full`
+# is c(-inf, alpha, inf) of length k+1.
 .ord_marginal_loglik <- function(alpha_full, eta_obs, Y_int_obs, symmetric) {
 	scale <- if (isTRUE(symmetric)) sqrt(2) else 1
 	hi <- alpha_full[Y_int_obs + 1L]
@@ -135,7 +134,7 @@ log_phi_diff <- function(hi, lo) {
 sample_alpha_cowles <- function(alpha, Y_int, EZ, tau_prop, symmetric = FALSE) {
 	K_minus_1 <- length(alpha)
 	if (K_minus_1 < 2L) {
-		# K = 2 (binary): no free cutpoint to update
+		# k = 2 (binary): no free cutpoint to update
 		return(list(alpha = alpha, delta = numeric(0), accept = FALSE))
 	}
 
@@ -163,12 +162,12 @@ sample_alpha_cowles <- function(alpha, Y_int, EZ, tau_prop, symmetric = FALSE) {
 	ll_curr <- .ord_marginal_loglik(af_curr, EZ_obs, Y_obs, symmetric)
 	ll_prop <- .ord_marginal_loglik(af_prop, EZ_obs, Y_obs, symmetric)
 
-	# Jacobian of delta -> alpha is product of exp(delta_k), so log |J*|/|J|
-	# = sum(delta* - delta). Flat prior on ordered alpha; the proposal
+	# jacobian of delta -> alpha is product of exp(delta_k), so log |j*|/|j|
+	# = sum(delta* - delta). flat prior on ordered alpha; the proposal
 	# itself is symmetric in delta.
 	log_jac <- sum(delta_prop) - sum(delta)
 	log_a <- (ll_prop - ll_curr) + log_jac
-	# numerical sanity: NaN means support violated
+	# numerical sanity: nan means support violated
 	if (!is.finite(log_a)) {
 		return(list(alpha = alpha, delta = delta, accept = FALSE))
 	}
@@ -201,7 +200,7 @@ rZ_ord_explicit_fc <- function(Z, EZ, Y_int, alpha) {
 	hi <- af[Y_int[obs] + 1L]
 	ez_obs <- EZ[obs]
 	u <- stats::runif(sum(obs))
-	# inverse-CDF on the truncation interval
+	# inverse-cdf on the truncation interval
 	plo <- stats::pnorm(lo - ez_obs)
 	phi <- stats::pnorm(hi - ez_obs)
 	# guard against degenerate (plo == phi) by widening minimally

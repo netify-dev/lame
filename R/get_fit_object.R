@@ -62,10 +62,10 @@ get_fit_object <- function(
 	rho_beta=NULL, sigma_beta=NULL,
 	RHO_BETA=NULL, SIGMA_BETA=NULL
 ){
-	# detect 3-D BETA (= dynamic_beta path). when 3-D, the per-period
-	# posterior-mean beta is apply(BETA, c(2,3), mean) (p x T); the time-mean
-	# beta is apply(BETA, 2, mean) (p,). these summaries feed the existing
-	# downstream EZ/UVPM/YPM code.
+	# detect 3-d beta (= dynamic_beta path). when 3-d, the per-period
+	# posterior-mean beta is apply(beta, c(2,3), mean) (p x t); the time-mean
+	# beta is apply(beta, 2, mean) (p,). these summaries feed the existing
+	# downstream ez/uvpm/ypm code.
 	.beta_is_dynamic <- !is.null(BETA) && length(dim(BETA)) == 3L
 	.beta_post_mean_per_t <- function(B) {
 		if (length(dim(B)) == 3L) apply(B, c(2, 3), mean)
@@ -85,10 +85,10 @@ get_fit_object <- function(
 			row_actors <- names(APS)
 			col_actors <- names(BPS)
 		}
-		# dynamic-ab bipartite stores APS/BPS as unnamed matrices; recover
-		# the real row and column actor names from actorByYr/colActorByYr
-		# (the MCMC's sorted actor order) so APM/BPM/U/V/YPM are not
-		# labelled "Row1/Col1..." with the values silently in sorted order
+		# dynamic-ab bipartite stores aps/bps as unnamed matrices; recover
+		# the real row and column actor names from actorbyyr/colactorbyyr
+		# (the mcmc's sorted actor order) so apm/bpm/u/v/ypm are not
+		# labelled "row1/col1..." with the values silently in sorted order
 		n_row_a <- if (is.matrix(APS)) nrow(APS) else length(APS)
 		n_col_a <- if (is.matrix(BPS)) nrow(BPS) else length(BPS)
 		if (is.null(row_actors)) {
@@ -110,9 +110,9 @@ get_fit_object <- function(
 		}
 		if(is.null(actors)) {
 			n_a <- if(is.matrix(APS)) nrow(APS) else length(APS)
-			# a dynamic-ab fit stores APS as an unnamed actor x time matrix;
-			# recover the real actor names (the MCMC's sorted actor order)
-			# from actorByYr so APM/EZ/YPM are not labelled "Actor1..."
+			# a dynamic-ab fit stores aps as an unnamed actor x time matrix;
+			# recover the real actor names (the mcmc's sorted actor order)
+			# from actorbyyr so apm/ez/ypm are not labelled "actor1..."
 			real_actors <- sort(unique(unlist(actorByYr)))
 			actors <- if(length(real_actors) == n_a) {
 				real_actors
@@ -169,15 +169,15 @@ get_fit_object <- function(
 	####
 	if(!bip) {
 		# per-period vs scalar beta-mean depending on dynamic_beta state
-		beta_per_t <- .beta_post_mean_per_t(BETA)  # p x T (matrix) or p-vec
+		beta_per_t <- .beta_post_mean_per_t(BETA)  # p x t (matrix) or p-vec
 		beta_overall <- .beta_post_mean_overall(BETA)  # p-vec
 		.beta_at_t <- function(t) {
 			if (.beta_is_dynamic) beta_per_t[, t] else beta_overall
 		}
 		if(dynamic_uv && length(dim(UVPS)) == 3) {
 			UVPM <- UVPS
-			# build EZ per time slice so the time-varying U_t V_t' signal
-			# flows into EZ; predict(type = "link") then returns one matrix
+			# build ez per time slice so the time-varying u_t v_t' signal
+			# flows into ez; predict(type = "link") then returns one matrix
 			# per period under dynamic_uv.
 			N_t <- length(Xlist)
 			n_actors <- dim(UVPS)[1]
@@ -194,7 +194,7 @@ get_fit_object <- function(
 		} else {
 			UVPM <- UVPS
 			if (length(dim(UVPM)) == 2) {
-				# dynamic_ab with static UV: per-slice loop so each period
+				# dynamic_ab with static uv: per-slice loop so each period
 				# uses its own a_t / b_t.
 				if (dynamic_ab && is.matrix(APM)) {
 					N_t <- length(Xlist)
@@ -287,8 +287,8 @@ get_fit_object <- function(
 			rownames(UVPM)<-colnames(UVPM)<-actors
 		}
 	}
-	# BETA is 2-D (matrix) or 3-D (array) -- the 3-D path is the dynamic_beta
-	# storage and its first dim names should also be NULL'd if present
+	# beta is 2-d (matrix) or 3-d (array) -- the 3-d path is the dynamic_beta
+	# storage and its first dim names should also be null'd if present
 	if (length(dim(BETA)) == 2L) {
 		rownames(BETA) <- NULL
 	} else if (length(dim(BETA)) == 3L) {
@@ -359,7 +359,7 @@ get_fit_object <- function(
 	}
 
 	####
-	# transform EZ to count scale for poisson
+	# transform ez to count scale for poisson
 	if(!is.null(family) && family == "poisson" && !is.null(EZ)) {
 		if(is.array(EZ)) {
 			EZ <- exp(EZ)
@@ -368,10 +368,7 @@ get_fit_object <- function(
 	}
 
 	####
-	# APM/BPM/U/V are indexed in the sorted actor order the MCMC runs in;
-	# EZ/YPM must use the SAME per-slice order or a user combining APM with
-	# YPM positionally gets silently misaligned actors. Sort each slice's
-	# actor list so every per-actor object in the fit shares one ordering.
+	# per-actor objects use the sorted actor order from the sampler
 	if(!bip) {
 		EZ <- array_to_list(EZ, lapply(actorByYr, sort), pdLabs)
 		YPM <- array_to_list(YPM, lapply(actorByYr, sort), pdLabs)
@@ -447,7 +444,7 @@ get_fit_object <- function(
 	fit$dynamic_uv <- dynamic_uv
 	fit$dynamic_ab <- dynamic_ab
 	fit$dynamic_beta <- isTRUE(dynamic_beta) || .beta_is_dynamic
-	# expose dynamic-beta metadata so downstream S3 methods can dispatch
+	# expose dynamic-beta metadata so downstream s3 methods can dispatch
 	if (.beta_is_dynamic) {
 		fit$beta_dynamic_mask   <- beta_dynamic_mask
 		fit$beta_dynamic_groups <- beta_dynamic_groups

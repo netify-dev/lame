@@ -1,6 +1,6 @@
 skip_on_cran()
 
-# static Gaussian models
+# static gaussian models
 
 library(lame)
 library(testthat)
@@ -32,7 +32,7 @@ sim_gaussian_ame = function(seed, n, mu, beta, gamma=NULL,
 		eta = eta + outer(a_true, rep(1, n)) + outer(rep(1, n), b_true)
 	}
 	
-	# add multiplicative effects if R > 0
+	# add multiplicative effects if r > 0
 	U_true = V_true = NULL
 	if(R > 0) {
 		U_true = matrix(rnorm(n*R, 0, 1), n, R)
@@ -40,12 +40,12 @@ sim_gaussian_ame = function(seed, n, mu, beta, gamma=NULL,
 		eta = eta + tcrossprod(U_true, V_true)
 	}
 	
-	# generate Gaussian outcome with noise
+	# generate gaussian outcome with noise
 	sigma2 = 1
 	Y = eta + matrix(rnorm(n*n, 0, sqrt(sigma2)), n, n)
 	diag(Y) = NA
 	
-	# fit AME model
+	# fit ame model
 	fit = ame(Y, Xdyad=X, R=R, family="normal",
 						rvar=rvar, cvar=cvar, dcor=FALSE,
 						burn=burn, nscan=nscan, 
@@ -226,13 +226,13 @@ test_that("Gaussian AME with full model recovers true parameters", {
 	n = 50
 	mu_true = -0.2
 	beta_true = 1.0
-	gamma_true = 0.8  # Unobserved covariate
+	gamma_true = 0.8  # unobserved covariate
 	R_true = 2
 	
 	# generate data
 	xw = matrix(rnorm(n*2), n, 2)
 	X = tcrossprod(xw[,1])
-	W = tcrossprod(xw[,2])  # Unobserved
+	W = tcrossprod(xw[,2])  # unobserved
 	diag(X) = NA
 	diag(W) = NA
 	
@@ -253,7 +253,7 @@ test_that("Gaussian AME with full model recovers true parameters", {
 	Y = eta + matrix(rnorm(n*n, 0, sqrt(sigma2_true)), n, n)
 	diag(Y) = NA
 	
-	# fit full AME model
+	# fit full ame model
 	fit = ame(Y, Xdyad=X, R=R_true, family="normal",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
 						burn=500, nscan=2000, verbose = FALSE)
@@ -283,7 +283,7 @@ test_that("Gaussian AME full model captures unobserved confounding", {
 	n = 40
 	mu_true = 0
 	beta_true = 1
-	gamma_true = 1  # Effect of unobserved covariate
+	gamma_true = 1  # effect of unobserved covariate
 	
 	# run simulations with full model
 	results = lapply(1:n_sims, function(i) {
@@ -320,7 +320,7 @@ test_that("Multiplicative effects reduce bias from unobserved confounding", {
 	n = 50
 	mu_true = 0
 	beta_true = 1
-	gamma_true = 1.5  # Strong unobserved effect
+	gamma_true = 1.5  # strong unobserved effect
 	
 	# generate data with unobserved confounder
 	xw = matrix(rnorm(n*2), n, 2)
@@ -333,12 +333,12 @@ test_that("Multiplicative effects reduce bias from unobserved confounding", {
 	Y = eta + matrix(rnorm(n*n), n, n)
 	diag(Y) = NA
 	
-	# fit model WITHOUT multiplicative effects
+	# fit model without multiplicative effects
 	fit_no_uv = ame(Y, Xdyad=X, R=0, family="normal",
 									rvar=FALSE, cvar=FALSE, dcor=FALSE,
 									burn=400, nscan=1500, verbose = FALSE)
 	
-	# fit model WITH multiplicative effects
+	# fit model with multiplicative effects
 	fit_with_uv = ame(Y, Xdyad=X, R=2, family="normal",
 										rvar=FALSE, cvar=FALSE, dcor=FALSE,
 										burn=400, nscan=1500, verbose = FALSE)
@@ -346,13 +346,13 @@ test_that("Multiplicative effects reduce bias from unobserved confounding", {
 	beta_no_uv = median(fit_no_uv$BETA[,2])
 	beta_with_uv = median(fit_with_uv$BETA[,2])
 	
-	# model with UV should have less bias
+	# model with uv should have less bias
 	bias_no_uv = abs(beta_no_uv - beta_true)
 	bias_with_uv = abs(beta_with_uv - beta_true)
 	
 	expect_lt(bias_with_uv, bias_no_uv + 0.3)
 	
-	# check that UV captures the unobserved structure
+	# check that uv captures the unobserved structure
 	if(!is.null(fit_with_uv$UVPM)) {
 		cor_W = cor(c(W), c(fit_with_uv$UVPM), use='pairwise.complete.obs')
 		expect_gt(cor_W, 0.2)
@@ -382,7 +382,7 @@ test_that("Gaussian AME produces valid diagnostics", {
 	expect_true(!is.null(fit$VC))
 	
 	# check dimensions
-	expect_equal(ncol(fit$BETA), 2)  # Intercept + one covariate
+	expect_equal(ncol(fit$BETA), 2)  # intercept + one covariate
 	# check that we have some samples (may not be exactly nscan)
 	expect_gt(nrow(fit$BETA), 0)
 	

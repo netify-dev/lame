@@ -1,13 +1,13 @@
-# ame_als_bootstrap.R
+# ame_als_bootstrap.r
 #
-# bootstrap uncertainty quantification for the fast AME estimator
+# bootstrap uncertainty quantification for the fast ame estimator
 # (ame_als() / lame_als()).
 #
 # the point estimator and this bootstrap-based inference are adapted from the
-# Social Influence Regression (SIR) work of Hoff & Minhas --- the iterative
+# social influence regression (sir) work of hoff & minhas --- the iterative
 # block coordinate descent estimator and the block/parametric bootstrap of
-# sir::boot_sir(). See Minhas & Hoff (2025), "Decomposing Network Dynamics:
-# Social Influence Regression", Political Analysis. This is a port and
+# sir::boot_sir(). see minhas & hoff (2025), "decomposing network dynamics:
+# social influence regression", political analysis. this is a port and
 # adaptation, not original lame methodology.
 
 # --------------------------------------------------------------------------
@@ -15,8 +15,8 @@
 # --------------------------------------------------------------------------
 
 # draw a fresh additive contribution outer(a*, b*) for the full parametric
-# bootstrap. The additive effects are random effects with dispersion
-# Sab = [[va, cab], [cab, vb]]; regenerating them per replicate (rather than
+# bootstrap. the additive effects are random effects with dispersion
+# sab = [[va, cab], [cab, vb]]; regenerating them per replicate (rather than
 # holding the fitted a, b fixed) is what gives the intercept and node-covariate
 # standard errors their actor-level sampling-variability component.
 .ae_boot_draw_ab <- function(object) {
@@ -45,7 +45,7 @@
 	outer(ab[, 1], ab[, 2], "+")
 }
 
-# orthogonal Procrustes rotation: returns Rrot minimizing || M_src Rrot - M_tgt ||
+# orthogonal procrustes rotation: returns rrot minimizing || m_src rrot - m_tgt ||
 .ae_procrustes <- function(M_src, M_tgt) {
 	sv <- tryCatch(svd(crossprod(M_src, M_tgt)), error = function(e) NULL)
 	if (is.null(sv)) return(diag(ncol(M_src)))
@@ -135,7 +135,7 @@ ame_als_refit <- function(object, Y_new = NULL, X_new = NULL, Z_new = NULL,
 	}
 	Yarr <- if (is.null(Y_new)) object$Y else Y_new
 	X    <- if (is.null(X_new)) object$X else X_new
-	# accept a plain matrix for a cross-sectional refit (canonical form is 3D)
+	# accept a plain matrix for a cross-sectional refit (canonical form is 3d)
 	if (is.matrix(Yarr)) {
 		Yarr <- array(Yarr, dim = c(nrow(Yarr), ncol(Yarr), 1L))
 	}
@@ -151,7 +151,7 @@ ame_als_refit <- function(object, Y_new = NULL, X_new = NULL, Z_new = NULL,
 	                                object$row_names, object$col_names,
 	                                object$time_names)
 
-	# the BCD's init$beta is the dyadic-covariate coefficient vector only
+	# the bcd's init$beta is the dyadic-covariate coefficient vector only
 	# (node-covariate coefficients are recovered separately in .ae_assemble);
 	# object$beta concatenates dyad + row + col, so pass just the dyadic head
 	init <- list(mu = object$mu,
@@ -164,8 +164,8 @@ ame_als_refit <- function(object, Y_new = NULL, X_new = NULL, Z_new = NULL,
 	lsv <- .ae_default(object$linear_solver, "eigen")
 
 	if (!is.null(Z_new)) {
-		# working-scale refit: Z_new is the (Gaussian) working response itself,
-		# so a single Gaussian BCD pass replaces the family transform / IRLS
+		# working-scale refit: z_new is the (gaussian) working response itself,
+		# so a single gaussian bcd pass replaces the family transform / irls
 		Z <- Z_new
 		if (object$symmetric) for (t in seq_len(prep$Tt)) {
 			Z[, , t] <- .ae_symmetrize(Z[, , t])
@@ -189,7 +189,7 @@ ame_als_refit <- function(object, Y_new = NULL, X_new = NULL, Z_new = NULL,
 	}
 
 	if (identical(nnm, "irls")) {
-		# refit an IRLS fit by re-running the reweighting loop, warm-started
+		# refit an irls fit by re-running the reweighting loop, warm-started
 		ir <- .ae_irls_run(prep, object$family, object$link, object$R,
 		                   object$symmetric, max_iter, tol,
 		                   lowrank_method = lrm, init = init,
@@ -305,8 +305,9 @@ ame_als_refit <- function(object, Y_new = NULL, X_new = NULL, Z_new = NULL,
 #' bias (the low-rank refit re-absorbs simulated noise); \code{summary()} flags
 #' any point estimate that falls outside its interval. A binary IRLS fit can
 #' carry a finite-sample (incidental-parameters) bias in the point estimator
-#' itself, which the bootstrap reproduces rather than removes; for the inference
-#' you report, confirm with the MCMC \code{\link{ame}} / \code{\link{lame}}.
+#' itself, which the bootstrap reproduces rather than removes. The MCMC
+#' \code{\link{ame}} / \code{\link{lame}} path gives posterior summaries when
+#' that is the target.
 #'
 #' @param object an \code{ame_als} object from \code{\link{ame_als}}
 #'   or \code{\link{lame_als}}.
@@ -374,7 +375,7 @@ ame_als_bootstrap <- function(object, R = 200,
 		cli::cli_abort("{.arg block_length} must be a single positive integer.")
 	}
 	block_length <- as.integer(block_length)
-	# seed the bootstrap without leaving the global RNG stream mutated, so a
+	# seed the bootstrap without leaving the global rng stream mutated, so a
 	# scripted analysis is not silently perturbed (parity with ame_als())
 	if (!is.null(seed)) {
 		if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
@@ -388,7 +389,7 @@ ame_als_bootstrap <- function(object, R = 200,
 		}
 		set.seed(seed)
 	}
-	# block_length capped at T; effective length used by the moving-block resampler
+	# block_length capped at t; effective length used by the moving-block resampler
 	blk <- min(block_length, object$n_time)
 
 	Tt   <- object$n_time
@@ -402,19 +403,19 @@ ame_als_bootstrap <- function(object, R = 200,
 	s2_hat  <- object$s2
 	nnm <- .ae_default(object$non_normal_method, "transform")
 	# a non-normal `transform` fit has no calibrated generative model: its
-	# estimator is a Gaussian fit to a fixed transformed response, so the
-	# parametric bootstrap resamples on that working scale (Z = EZ + noise) and
-	# refits directly. IRLS and normal fits have a genuine response model and
+	# estimator is a gaussian fit to a fixed transformed response, so the
+	# parametric bootstrap resamples on that working scale (z = ez + noise) and
+	# refits directly. irls and normal fits have a genuine response model and
 	# are simulated on the response scale.
 	working_boot <- identical(type, "parametric") &&
 		family %in% c("binary", "poisson", "ordinal") &&
 		!identical(nnm, "irls")
 
-	# parametric residual-variance inflation: simulating from the fitted EZ
+	# parametric residual-variance inflation: simulating from the fitted ez
 	# (which carries no estimation error) lets each refit's flexible mean
 	# re-absorb the fresh noise, deflating the residual variance and biasing
 	# the variance-component and coefficient intervals (most visible for
-	# R > 0). Inflate the simulated residual variance by the mean-model
+	# r > 0). inflate the simulated residual variance by the mean-model
 	# degrees of freedom so the refits are centred on the point estimate.
 	n_obs <- sum(is.finite(object$Y))
 	df_add <- if (object$symmetric) max(nr - 1L, 0L) else
@@ -463,7 +464,7 @@ ame_als_bootstrap <- function(object, R = 200,
 		U_aln <- matrix(NA_real_, R, nr * Rlat)
 		V_raw <- matrix(NA_real_, R, nc * Rlat)
 		V_aln <- matrix(NA_real_, R, nc * Rlat)
-		uv_ok <- logical(R)                    # did U,V come back finite?
+		uv_ok <- logical(R)                    # did u,v come back finite?
 		if (object$symmetric) L_coefs <- matrix(NA_real_, R, Rlat)
 	}
 
@@ -494,9 +495,9 @@ ame_als_bootstrap <- function(object, R = 200,
 			Y_b <- object$Y[, , t_idx, drop = FALSE]
 			X_b <- object$X[, , , t_idx, drop = FALSE]
 		} else if (working_boot) {
-			# non-normal transform: resample on the Gaussian working scale.
-			# object$EZ is the fitted working-response predictor; swap the
-			# additive contribution for a fresh draw, then add Gaussian
+			# non-normal transform: resample on the gaussian working scale.
+			# object$ez is the fitted working-response predictor; swap the
+			# additive contribution for a fresh draw, then add gaussian
 			# residual noise with the fit's variance and reciprocity.
 			Z_b <- array(NA_real_, dim = c(nr, nc, Tt))
 			ab_new <- .ae_boot_draw_ab(object)
@@ -514,21 +515,21 @@ ame_als_bootstrap <- function(object, R = 200,
 			}
 		} else {
 			# parametric, response scale: simulate fresh outcomes from the
-			# calibrated fitted model (normal, or an IRLS GLM fit). The additive
+			# calibrated fitted model (normal, or an irls glm fit). the additive
 			# random effects are regenerated per replicate; mu, beta and the
 			# multiplicative term stay fixed.
 			Y_b <- array(NA_real_, dim = c(nr, nc, Tt))
 			ab_new <- .ae_boot_draw_ab(object)
 			for (t in seq_len(Tt)) {
 				ez <- object$EZ[[t]] - ab_orig + ab_new
-				ez[!is.finite(ez)] <- 0        # EZ diagonal is NA for unipartite
+				ez[!is.finite(ez)] <- 0        # ez diagonal is na for unipartite
 				yt <- if (family == "normal") {
 					simY_nrm(ez, rho_hat, s2_sim)
 				} else if (family == "poisson") {
-					# IRLS poisson: EZ is the log-mean linear predictor
+					# irls poisson: ez is the log-mean linear predictor
 					simY_pois(ez)
 				} else {
-					# IRLS binary: ez is the link-scale predictor; map to its
+					# irls binary: ez is the link-scale predictor; map to its
 					# probit-equivalent so the simulator (probit threshold)
 					# reproduces the fitted rate for either link
 					p   <- .ae_link_inverse(ez, family, object$link)
@@ -541,7 +542,7 @@ ame_als_bootstrap <- function(object, R = 200,
 				# symmetric model: mirror the upper triangle so the simulated
 				# network is symmetric with the correct per-tie variance
 				# (otherwise the refit averages two independent draws and the
-				# bootstrap SEs are deflated)
+				# bootstrap ses are deflated)
 				if (object$symmetric) {
 					yt[lower.tri(yt)] <- 0
 					yt <- yt + t(yt)
@@ -549,7 +550,7 @@ ame_als_bootstrap <- function(object, R = 200,
 				# re-impose the original observed-cell pattern: cells that were
 				# missing in the data (the unipartite diagonal, and any genuinely
 				# unobserved dyads) must stay missing, so each replicate carries
-				# the same information content as the data. Simulating those cells
+				# the same information content as the data. simulating those cells
 				# would give the refit more data than the original fit and bias
 				# the bootstrap standard errors downward.
 				yt[is.na(object$Y[, , t])] <- NA_real_
@@ -581,7 +582,7 @@ ame_als_bootstrap <- function(object, R = 200,
 				    all(is.finite(fit_b$U)) && all(is.finite(fit_b$V))) {
 					U_raw[b, ] <- c(fit_b$U)
 					V_raw[b, ] <- c(fit_b$V)
-					# procrustes-align replicate (U, V) to the original fit
+					# procrustes-align replicate (u, v) to the original fit
 					src <- rbind(fit_b$U, fit_b$V)
 					tgt <- rbind(object$U, object$V)
 					Rrot <- .ae_procrustes(src, tgt)
@@ -646,7 +647,7 @@ ame_als_bootstrap <- function(object, R = 200,
 
 	ci_lo_vec <- col_q(boot_coefs, valid, 0.025)
 	ci_hi_vec <- col_q(boot_coefs, valid, 0.975)
-	# flag coefficients whose point estimate falls outside their own CI
+	# flag coefficients whose point estimate falls outside their own ci
 	outside <- which(is.finite(point_coef) &
 	                 is.finite(ci_lo_vec) &
 	                 is.finite(ci_hi_vec) &
@@ -676,7 +677,7 @@ ame_als_bootstrap <- function(object, R = 200,
 		family = family, mode = object$mode, symmetric = object$symmetric,
 		R = Rlat,
 		# enrich dims with the underlying actor names so confint() labels
-		# intervals with real names instead of generic "a_a1...a_aN".
+		# intervals with real names instead of generic "a_a1...a_an".
 		dims = c(object$dims,
 		         list(row_names = names(object$a) %||% object$row_names,
 		              col_names = names(object$b) %||% object$col_names)),
@@ -715,7 +716,7 @@ boot_ame <- function(object, R = 200, type = c("parametric", "block"),
 }
 
 # --------------------------------------------------------------------------
-# S3 methods for boot_ame objects
+# s3 methods for boot_ame objects
 # --------------------------------------------------------------------------
 
 #' Print bootstrap results for a fast AME fit
@@ -869,9 +870,9 @@ confint.boot_ame <- function(object, parm = NULL, level = 0.95,
 	pr <- c(a, 1 - a)
 	pct <- paste0(format(100 * pr, trim = TRUE), "%")
 
-	# helper: build a CI matrix from a draws-matrix + point-estimate vector.
-	# quantile() is computed column-wise with na.rm so a column that's NA in
-	# every replicate (e.g. cab on a bipartite fit) just returns NA quantiles
+	# helper: build a ci matrix from a draws-matrix + point-estimate vector.
+	# quantile() is computed column-wise with na.rm so a column that's na in
+	# every replicate (e.g. cab on a bipartite fit) just returns na quantiles
 	# instead of removing every row from the matrix.
 	.boot_ci <- function(draws, point_est, names_, prefix = "") {
 		if (is.null(draws) || nrow(draws) == 0L || ncol(draws) == 0L) {
@@ -903,7 +904,7 @@ confint.boot_ame <- function(object, parm = NULL, level = 0.95,
 		               colnames(object$vc_coefs))
 		# variance components are non-negative by construction; the basic
 		# bootstrap (2 theta_hat - q) can push the lower endpoint below 0
-		# near a boundary. Clip to [0, Inf) for va/vb/ve and document.
+		# near a boundary. clip to [0, inf) for va/vb/ve and document.
 		non_neg <- intersect(c("va", "vb", "ve"), rownames(vc))
 		if (length(non_neg) > 0L) {
 			vc[non_neg, 1] <- pmax(vc[non_neg, 1], 0, na.rm = TRUE)
@@ -924,8 +925,8 @@ confint.boot_ame <- function(object, parm = NULL, level = 0.95,
 		parts$b <- .boot_ci(object$b_coefs, object$point_b,
 		                    nm_b, prefix = "b_")
 	}
-	# U/V are stored flat: U_aligned is an [R_boot, n_row * R_lat] matrix where
-	# each row is c(point_U) for that replicate (column-major flatten).
+	# u/v are stored flat: u_aligned is an [r_boot, n_row * r_lat] matrix where
+	# each row is c(point_u) for that replicate (column-major flatten).
 	.uv_names <- function(actors, Rlat, label) {
 		# column-major flatten matches c(matrix(...)): position i + (r-1)*n
 		as.vector(outer(actors, paste0("d", seq_len(Rlat)),
@@ -1093,7 +1094,7 @@ sampler_describe.boot_ame <- function(object, verbose = TRUE) {
 	invisible(object)
 }
 
-# describe() for the Bayesian MCMC path (ame and lame fits). prints the
+# describe() for the bayesian mcmc path (ame and lame fits). prints the
 # sampler / family / dimensions / dynamic options surfaced on the fit
 # object. shares the same generic so `sampler_describe(fit)` works
 # regardless of which constructor produced the fit.

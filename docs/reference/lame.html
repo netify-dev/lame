@@ -82,6 +82,7 @@ use the <code>ame</code> function.</p>
 <span>  dynamic_G <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  dynamic_beta <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  dynamic_beta_kind <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ar1"</span>, <span class="st">"rw1"</span>, <span class="st">"rw2"</span>, <span class="st">"matern32"</span><span class="op">)</span>,</span>
+<span>  dynamic_uv_kind <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ar1"</span>, <span class="st">"snap"</span>, <span class="st">"t"</span><span class="op">)</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"normal"</span>,</span>
 <span>  intercept <span class="op">=</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>, <span class="st">"ordinal"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  symmetric <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -103,6 +104,7 @@ use the <code>ame</code> function.</p>
 <span>  save_log_lik <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  log_lik_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  log_lik_chunk_size <span class="op">=</span> <span class="fl">10000L</span>,</span>
+<span>  keep_snap_draws <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"summary"</span>, <span class="st">"draws"</span>, <span class="st">"chunked"</span><span class="op">)</span>,</span>
 <span>  freeze_call <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  dynamic_beta_pool <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"rho"</span>, <span class="st">"sigma"</span>, <span class="st">"both"</span><span class="op">)</span>,</span>
 <span>  dynamic_beta_per_actor <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -117,6 +119,9 @@ use the <code>ame</code> function.</p>
 <span>  log_lik_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"observed_exact"</span>, <span class="st">"observed_ghk"</span>, <span class="st">"augmented"</span><span class="op">)</span>,</span>
 <span>  ordinal_cutpoints <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"data_induced"</span>, <span class="st">"explicit"</span><span class="op">)</span>,</span>
 <span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mcmc"</span>, <span class="st">"als"</span><span class="op">)</span>,</span>
+<span>  als_stability <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"quick"</span>, <span class="st">"validation"</span><span class="op">)</span>,</span>
+<span>  als_max_iter <span class="op">=</span> <span class="fl">200L</span>,</span>
+<span>  als_tol <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  bootstrap <span class="op">=</span> <span class="fl">0L</span>,</span>
 <span>  bootstrap_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"parametric"</span>, <span class="st">"block"</span><span class="op">)</span>,</span>
 <span>  bootstrap_block_length <span class="op">=</span> <span class="fl">1L</span>,</span>
@@ -183,15 +188,9 @@ data types.</p></dd>
 
 
 <dt id="arg-dynamic-uv">dynamic_uv<a class="anchor" aria-label="anchor" href="#arg-dynamic-uv"></a></dt>
-<dd><p>logical: fit dynamic multiplicative effects (latent factors) that
-evolve over time using AR(1) processes. When TRUE, the latent positions U and V become
-time-varying, following \(U_{i,t} = \rho_{uv} U_{i,t-1} + \epsilon_{i,t}\), where epsilon
-follows N(0, sigma_uv^2). This allows actors' positions in latent social space to
-drift smoothly over time, capturing evolving network structure and community dynamics.
-Inspired by dynamic latent space models (Sewell and Chen 2015, "Latent Space Models
-for Dynamic Networks", JASA; Durante and Dunson 2014, "Nonparametric Bayes Dynamic
-Modeling of Relational Data", Biometrika). The implementation uses efficient blocked
-Gibbs sampling with C++ acceleration for scalability. Default FALSE.</p></dd>
+<dd><p>logical: fit dynamic multiplicative effects (latent
+factors). The transition model is selected by <code>dynamic_uv_kind</code>. Default
+<code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-dynamic-ab">dynamic_ab<a class="anchor" aria-label="anchor" href="#arg-dynamic-ab"></a></dt>
@@ -208,12 +207,14 @@ updates where possible and C++ for computational efficiency. Default FALSE.</p><
 
 <dt id="arg-dynamic-g">dynamic_G<a class="anchor" aria-label="anchor" href="#arg-dynamic-g"></a></dt>
 <dd><p>logical (bipartite only). When TRUE the bipartite
-interaction matrix \(G\) is sampled per period and returned as
-<code>fit$G_cube</code>, an \(R_\text{row} \times R_\text{col} \times T\)
-array. The static \(G\) (single matrix) is the default and is the
-recommended choice; <code>dynamic_G = TRUE</code> is experimental and emits
-a one-line note at the start of the run. Unipartite fits ignore this
-argument with a warning. Default FALSE.</p></dd>
+interaction matrix \(G_t\) in \(U_t G_t V_t'\) varies by period and is
+returned as <code>fit$G_cube</code>, an
+\(R_\text{row} \times R_\text{col} \times T\) array. MCMC fits also return
+posterior summaries for this cube; ALS fits return the penalized point path
+using the same storage names. The marginal bilinear predictor is identified
+under the package's canonicalization conventions, while individual entries
+of \(G_t\) can move under equivalent rotations and scalings of
+\(U_t\) and \(V_t\). Default FALSE.</p></dd>
 
 
 <dt id="arg-dynamic-beta">dynamic_beta<a class="anchor" aria-label="anchor" href="#arg-dynamic-beta"></a></dt>
@@ -236,10 +237,16 @@ is drawn by Forward-Filter / Backward-Sample (FFBS) inside the MCMC
 loop, conditional on the current static-block beta and on (a, b, U, V).
 When the intercept or a nodal coefficient is dynamic, a sum-to-zero
 contrast basis is applied to the additive-effect sampler to keep
-\(a_i + intercept_t\) identified. Requires at least 2 time periods,
-ignored for the ALS estimator (<code>method = "als"</code>), and unavailable
-for the intercept when <code>family = "ordinal"</code> or <code>"rrl"</code> (or for
-row-nodal coefficients with <code>family = "rrl"</code>). Default FALSE.</p></dd>
+\(a_i + intercept_t\) identified. Requires at least 2 time periods.
+With <code>method = "als"</code>, selected intercept, dyadic, row-node, and
+column-node coefficients are supported on normal, binary, and Poisson panels,
+including named panels where actors enter or exit. Dynamic ALS uses
+period-specific <code>Xrow</code> or
+<code>Xcol</code> values for selected dynamic node coefficients; static node
+coefficients still use per-actor means. Dynamic intercepts are
+unavailable when <code>family = "ordinal"</code> or <code>"rrl"</code>
+(and row-nodal coefficients are unavailable with <code>family = "rrl"</code>).
+Default FALSE.</p></dd>
 
 
 <dt id="arg-dynamic-beta-kind">dynamic_beta_kind<a class="anchor" aria-label="anchor" href="#arg-dynamic-beta-kind"></a></dt>
@@ -259,6 +266,21 @@ inference. Decision tree: <strong>mean-reverting?</strong> AR(1).
 Note: <code>"rw2"</code> and <code>"matern32"</code> use an R-level joint Gaussian
 sampler and run substantially slower per iteration than the C++ FFBS
 used for <code>"ar1"</code> / <code>"rw1"</code> (roughly 2-4x on n = 100, T = 10).</p></dd>
+
+
+<dt id="arg-dynamic-uv-kind">dynamic_uv_kind<a class="anchor" aria-label="anchor" href="#arg-dynamic-uv-kind"></a></dt>
+<dd><p>Character string selecting the transition model for
+dynamic multiplicative latent positions when <code>dynamic_uv = TRUE</code>.
+<code>"ar1"</code> uses Gaussian AR(1) drift, <code>"snap"</code> uses a mixture of
+AR(1) drift and discontinuous reset transitions, and <code>"t"</code> uses
+heavy-tailed Student-t innovations represented by local transition scales.
+On the MCMC path, <code>"snap"</code> and <code>"t"</code> are currently supported for
+unipartite directed and symmetric models only. With <code>method = "als"</code>,
+<code>"snap"</code> is also supported for normal bipartite panels when it is the
+only dynamic block and \(G\) is static. With <code>method = "als"</code>,
+<code>"t"</code> is supported for bipartite normal, binary, and Poisson panels.
+ALS Student-t dynamic UV fits attach the final local transition-weight
+matrices as <code>fit$lambda_u</code> and <code>fit$lambda_v</code>.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
@@ -425,7 +447,7 @@ control.</p></dd>
 
 
 <dt id="arg-save-interval">save_interval<a class="anchor" aria-label="anchor" href="#arg-save-interval"></a></dt>
-<dd><p>quantile interval indicating when to save during post burn-in phase.</p></dd>
+<dd><p>quantile interval indicating when to save during the post-burn-in period.</p></dd>
 
 
 <dt id="arg-model-name">model.name<a class="anchor" aria-label="anchor" href="#arg-model-name"></a></dt>
@@ -457,6 +479,18 @@ one <code>readBin</code> per chunk on read) but more memory during MCMC.
 Default <code>10000L</code>.</p></dd>
 
 
+<dt id="arg-keep-snap-draws">keep_snap_draws<a class="anchor" aria-label="anchor" href="#arg-keep-snap-draws"></a></dt>
+<dd><p>controls storage of post-burn-in MCMC snap-shift
+indicators when <code>dynamic_uv = TRUE</code> and
+<code>dynamic_uv_kind = "snap"</code>. <code>"none"</code> keeps only the posterior
+mean snap probabilities. <code>"summary"</code> stores cell-level count, mean,
+and variance summaries. <code>"draws"</code> stores retained binary indicator
+arrays as <code>fit$snap_draws</code> and, for directed fits,
+<code>fit$snap_draws_v</code>, with dimensions draw x actor x time and first
+period set to <code>NA</code>. <code>"chunked"</code> currently stores the same arrays
+in memory and labels the storage mode for downstream tooling.</p></dd>
+
+
 <dt id="arg-freeze-call">freeze_call<a class="anchor" aria-label="anchor" href="#arg-freeze-call"></a></dt>
 <dd><p>logical: if <code>TRUE</code>, store a snapshot of the
 evaluated <code>Y</code>, <code>Xdyad</code>, <code>Xrow</code>, <code>Xcol</code> on
@@ -468,22 +502,22 @@ their workspace. Memory cost equals the size of the data; default
 
 <dt id="arg-dynamic-beta-pool">dynamic_beta_pool<a class="anchor" aria-label="anchor" href="#arg-dynamic-beta-pool"></a></dt>
 <dd><p>one of <code>"none"</code> (default), <code>"rho"</code>,
-<code>"sigma"</code>, or <code>"both"</code>. Stable argument name for a
-hierarchical pooling prior on the per-block \(\rho_b\) and / or
-\(\sigma_b\) dynamic hyperparameters. The value is recorded on
-the fit so future-phase samplers and downstream tooling can read it
-uniformly; the hierarchical sampler ships in a later release, at
-which point non-<code>"none"</code> values will take effect.</p></dd>
+<code>"sigma"</code>, or <code>"both"</code>. When two or more coefficient blocks are
+dynamic, non-<code>"none"</code> values update shared hyperparameters across
+blocks for the selected persistence and / or innovation-scale component.
+With a single dynamic block the value is recorded but there is no other
+block to pool against.</p></dd>
 
 
 <dt id="arg-dynamic-beta-per-actor">dynamic_beta_per_actor<a class="anchor" aria-label="anchor" href="#arg-dynamic-beta-per-actor"></a></dt>
 <dd><p>optional, one of <code>NULL</code> (default),
-<code>"row"</code>, or <code>"col"</code>. <strong>Currently a wired:</strong>
-the argument is validated and stored on the fit, but the in-loop
-sampler is not yet wired. For per-actor time-varying slopes today,
-fit a standard <code>lame()</code> and then call
-<code><a href="per_actor_slopes.html">per_actor_slopes</a>(fit, kind, covariate_idx, lambda)</code>
-for the post-MCMC penalised-LS estimate.</p></dd>
+<code>"row"</code>, or <code>"col"</code>. When non-<code>NULL</code>, fits
+actor-specific time-varying deviations for one dyadic covariate on the
+selected margin. The default <code>per_actor_identifiability = "center"</code>
+keeps the population coefficient in <code>coef(fit)</code> and enforces a
+per-period sum-to-zero constraint on the actor deviations. Draws are
+stored in <code>fit$THETA_ACTOR</code> when retained; summary mode stores
+<code>fit$theta_actor_mean</code> and <code>fit$theta_actor_sd</code>.</p></dd>
 
 
 <dt id="arg-per-actor-covariate-idx">per_actor_covariate_idx<a class="anchor" aria-label="anchor" href="#arg-per-actor-covariate-idx"></a></dt>
@@ -496,8 +530,8 @@ Default <code>1L</code>.</p></dd>
 <dd><p>one of <code>"center"</code> (default)
 or <code>"drop_population"</code>. <code>"center"</code> preserves the
 population coefficient and constrains per-actor deviations to
-sum to zero per period via pairwise contrast FFBS. Reserved API
-for the <code>"drop_population"</code> mode (not yet wired).</p></dd>
+sum to zero per period via pairwise contrast FFBS. <code>"drop_population"</code>
+is reserved and currently falls back to <code>"center"</code>.</p></dd>
 
 
 <dt id="arg-keep-per-actor">keep_per_actor<a class="anchor" aria-label="anchor" href="#arg-keep-per-actor"></a></dt>
@@ -511,9 +545,9 @@ hyperparameter chains).</p></dd>
 <dt id="arg-time-index">time_index<a class="anchor" aria-label="anchor" href="#arg-time-index"></a></dt>
 <dd><p>optional numeric vector of length \(T\) giving
 observation times. Default <code>NULL</code> treats periods as equally
-spaced. Strictly-increasing values are required when supplied. The
-gap-aware AR(1) update ships in a later release; the value is
-recorded on the fit.</p></dd>
+spaced. Strictly-increasing values are required when supplied. Unequal
+gaps scale the AR(1) / RW1 transition variance and are also used by the
+RW2 and Matérn 3/2 dynamic-beta precision builders.</p></dd>
 
 
 <dt id="arg-period-exposure">period_exposure<a class="anchor" aria-label="anchor" href="#arg-period-exposure"></a></dt>
@@ -553,12 +587,12 @@ checkpoint writes. Default <code>100L</code>.</p></dd>
 <code>"observed_ghk"</code>, or <code>"augmented"</code>. Selects the
 argument for selecting which pointwise log-lik is stored on
 <code>fit$log_lik</code>. <code>"observed_exact"</code> uses the closed-form
-marginal log-likelihood (currently wired for normal, binary, cbin,
-tobit, poisson, ordinal). <code>"observed_ghk"</code> is a stable api
-stub for the GHK Monte Carlo marginal on cbin/frn/rrl/ordinal that
-ships in a later release; it falls back to <code>"augmented"</code> now
-and emits a one-line note. <code>"augmented"</code> uses the augmented-
-data Gaussian-on-\(Z\) contribution.</p></dd>
+marginal log-likelihood for normal, binary, cbin, tobit, poisson,
+and ordinal fits. <code>"observed_ghk"</code> uses a randomized-Halton GHK
+Monte Carlo marginal for rank-family fits (<code>"frn"</code> and
+<code>"rrl"</code>) and the exact observed likelihood when no GHK step is
+needed. <code>"augmented"</code> uses the augmented-data Gaussian-on-\(Z\)
+contribution.</p></dd>
 
 
 <dt id="arg-ordinal-cutpoints">ordinal_cutpoints<a class="anchor" aria-label="anchor" href="#arg-ordinal-cutpoints"></a></dt>
@@ -570,11 +604,47 @@ a Cowles (1996) Metropolis-Hastings update. Ignored for other families.</p></dd>
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
 <dd><p>character: <code>"mcmc"</code> (default, the Bayesian MCMC fit) or
-<code>"als"</code> (the fast, MCMC-free iterative block coordinate descent point
-estimator; pooled-static over time). When <code>method = "als"</code>, MCMC- and
-dynamics-specific arguments (<code>nscan</code>, <code>burn</code>, <code>odens</code>,
-<code>prior</code>, <code>dynamic_uv</code>, <code>dynamic_ab</code>, ...) are silently
-ignored and the call forwards to <code><a href="lame_als.html">lame_als</a></code>.</p></dd>
+<code>"als"</code> (the fast, MCMC-free point-estimation path). With no dynamic
+arguments, <code>method = "als"</code> uses the pooled-static
+<code><a href="lame_als.html">lame_als</a></code> estimator. For normal, binary,
+and Poisson panels, <code>method = "als"</code> also supports a dynamic
+penalized point-estimation path for <code>dynamic_ab</code>, selected
+<code>dynamic_beta</code>, smooth AR(1) <code>dynamic_uv</code> in directed,
+symmetric, and bipartite panels, bipartite <code>dynamic_G</code>, and
+Student-t <code>dynamic_uv</code> in directed, symmetric, and bipartite panels.
+The snap-only
+<code>dynamic_uv = TRUE, dynamic_uv_kind = "snap"</code> case routes to
+<code><a href="lame_snap_als.html">lame_snap_als</a></code> for supported normal unipartite and
+bipartite panels.
+Node-covariate coefficients use the same orthogonal additive-effect
+decomposition as <code><a href="lame_als.html">lame_als</a></code>; dynamic node coefficients use
+period-specific node values when selected by <code>dynamic_beta</code>, while
+static node coefficients use per-actor means. Named changing-composition
+panels are aligned to the union actor set and actor-entry gaps break the
+dynamic smoothing penalties. Posterior draws, rank/censored families, and
+bipartite snap-shift fits with node covariates, dynamic coefficients, or
+dynamic <code>G_t</code> are not handled by the snap ALS shortcut.</p></dd>
+
+
+<dt id="arg-als-stability">als_stability<a class="anchor" aria-label="anchor" href="#arg-als-stability"></a></dt>
+<dd><p>character (only used when <code>method = "als"</code> and a
+dynamic ALS path is selected): <code>"none"</code> (default), <code>"quick"</code>, or
+<code>"validation"</code>. The non-<code>"none"</code> presets rerun the dynamic ALS
+fit from jittered starts and attach <code>fit$stability</code>. Smooth dynamic
+ALS fits report fitted-surface and coefficient-path differences across
+starts; snap ALS fits report snap-score, snap-class, top-period, and
+fitted-surface differences.</p></dd>
+
+
+<dt id="arg-als-max-iter">als_max_iter<a class="anchor" aria-label="anchor" href="#arg-als-max-iter"></a></dt>
+<dd><p>positive integer (only used when <code>method = "als"</code>):
+maximum block-coordinate iterations for the ALS fit. Default <code>200</code>.</p></dd>
+
+
+<dt id="arg-als-tol">als_tol<a class="anchor" aria-label="anchor" href="#arg-als-tol"></a></dt>
+<dd><p>optional positive scalar (only used when
+<code>method = "als"</code>): convergence tolerance for the ALS objective and
+fitted values. <code>NULL</code> keeps each ALS estimator's built-in default.</p></dd>
 
 
 <dt id="arg-bootstrap">bootstrap<a class="anchor" aria-label="anchor" href="#arg-bootstrap"></a></dt>
@@ -702,12 +772,22 @@ distinct row and column node sets) across multiple time points.</p>
 through autoregressive processes. These extensions are particularly useful for
 understanding how network structure evolves over time.</p>
 <p><em>Dynamic Multiplicative Effects (dynamic_uv=TRUE):</em>
-The latent factors U and V evolve according to AR(1) processes:
+The latent factors U and V evolve according to the transition selected by
+<code>dynamic_uv_kind</code>. The default <code>"ar1"</code> model uses Gaussian AR(1)
+drift:
 $$U_{i,k,t} = \rho_{uv} U_{i,k,t-1} + \epsilon_{i,k,t}$$
 where \(\epsilon_{i,k,t} \sim N(0, \sigma_{uv}^2)\), i indexes actors, k indexes
 latent dimensions, and t indexes time. The parameter \(\rho_{uv}\) controls
 temporal persistence (values near 1 indicate slow evolution). This captures
-time-varying homophily, latent community structure, and transitivity dynamics.</p>
+time-varying homophily, latent community structure, and transitivity dynamics.
+The <code>"snap"</code> transition uses a mixture of AR(1) drift and discontinuous
+reset transitions, while <code>"t"</code> uses heavy-tailed Student-t innovations
+represented by local transition scales. On the MCMC path, snap and t
+transitions are supported for unipartite directed and symmetric models. With
+<code>method = "als"</code>, Student-t dynamic UV is also supported for bipartite
+normal, binary, and Poisson panels, and snap ALS is supported for normal
+unipartite and bipartite panels, including named panels where actors enter or
+exit.</p>
 <p>Key references:</p><ul><li><p>Sewell &amp; Chen (2015): Introduced dynamic latent space models with
 actor-specific evolution rates</p></li>
 <li><p>Durante &amp; Dunson (2014): Nonparametric Bayesian approach allowing
@@ -720,11 +800,9 @@ $$a_{i,t} = \rho_{ab} a_{i,t-1} + \epsilon_{i,t}$$
 $$b_{i,t} = \rho_{ab} b_{i,t-1} + \eta_{i,t}$$
 where \(\epsilon_{i,t}, \eta_{i,t} \sim N(0, \sigma_{ab}^2)\). This models
 time-varying individual activity levels (outdegree) and popularity (indegree).</p>
-<p>Applications include:</p><ul><li><p>Tracking changes in node centrality over time</p></li>
-<li><p>Identifying emerging influential actors</p></li>
-<li><p>Detecting declining activity patterns</p></li>
-<li><p>Modeling life-cycle effects in social networks</p></li>
-</ul><p><em>Prior Specification for Dynamic Parameters:</em></p><ul><li><p>\(\rho_{uv}, \rho_{ab} \sim TruncNormal(mean, sd, 0, 1)\):
+<p>Dynamic additive effects are useful when sender activity and receiver
+popularity change over time rather than staying fixed across the whole panel.</p>
+<p><em>Prior Specification for Dynamic Parameters:</em></p><ul><li><p>\(\rho_{uv}, \rho_{ab} \sim TruncNormal(mean, sd, 0, 1)\):
 Ensures stationarity of AR(1) process</p></li>
 <li><p>\(\sigma_{uv}^2, \sigma_{ab}^2 \sim InverseGamma(shape, scale)\):
 Controls innovation variance</p></li>
@@ -732,9 +810,9 @@ Controls innovation variance</p></li>
 favor smooth evolution</p></li>
 <li><p>Adjust rho_*_mean closer to 1 for slower evolution, closer to 0 for
 more rapid changes</p></li>
-</ul><p><em>Computational Considerations:</em></p><ul><li><p>Dynamic effects increase computation by ~30-50\<!-- % per iteration --></p></li>
+</ul><p><em>Computational Considerations:</em></p><ul><li><p>Dynamic effects increase computation by roughly 30 to 50 percent per iteration</p></li>
 <li><p>Memory usage scales as O(n<em>R</em>T) for dynamic_uv, O(n*T) for dynamic_ab</p></li>
-<li><p>C++ implementation provides ~70\<!-- % efficiency gain over pure R --></p></li>
+<li><p>C++ implementation is substantially faster than a pure R loop</p></li>
 <li><p>Convergence diagnostics: Monitor rho and sigma parameters carefully</p></li>
 <li><p>Effective sample sizes typically lower due to temporal correlation</p></li>
 <li><p>Recommend burn &gt;= 1000 and nscan &gt;= 20000 for dynamic models</p></li>
@@ -762,16 +840,16 @@ When dynamic_uv=TRUE for bipartite networks:
 $$U_{i,k,t} = \rho_{uv} U_{i,k,t-1} + \epsilon_{i,k,t}$$
 $$V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}$$
 where i indexes row nodes, j indexes column nodes, k indexes latent dimensions.</p>
-<p>When <code>dynamic_G = TRUE</code> the bipartite interaction matrix \(G_t\) is
-sampled per period via the bipartite \(G\)-sampler (a separate
-\(R_\text{row} \times R_\text{col}\) matrix at every time slice) and
-returned as <code>fit$G_cube</code>. This is experimental: the canonicalisation
-that absorbs rotation and scaling into \((U, V)\) is enforced per
-period, so the marginal \(U_t G_t V_t'\) linear predictor is identified
-even though the individual \(G_t\) entries are not. Always sanity-check
-against a <code>dynamic_G = FALSE</code> fit before relying on per-period
-\(G_t\) estimates. <code>dynamic_G = TRUE</code> is bipartite only and is
-ignored (with a warning) for unipartite networks.</p>
+<p>When <code>dynamic_G = TRUE</code> the bipartite interaction matrix \(G_t\) varies
+by period (a separate \(R_\text{row} \times R_\text{col}\) matrix at every
+time slice) and is returned as <code>fit$G_cube</code>. The MCMC estimator samples
+\(G_t\) with a Carter-Kohn/FFBS update; <code>method = "als"</code> estimates a
+penalized point path for normal, binary, and Poisson bipartite panels,
+including named changing-composition panels. The marginal
+\(U_t G_t V_t'\) linear predictor is the
+identified object; individual \(G_t\) entries can shift under equivalent
+rotations and scalings of \(U_t\) and \(V_t\). <code>dynamic_G = TRUE</code>
+is bipartite only.</p>
 <p><em>Key Differences from Unipartite Models:</em></p><ul><li><p>No dyadic correlation (rho): Bipartite edges are inherently directed</p></li>
 <li><p>Separate dimensions: R_row and R_col can differ for row/column spaces</p></li>
 <li><p>Rectangular structure: Network density patterns differ from square matrices</p></li>
@@ -800,10 +878,11 @@ variable represents the log mean of the Poisson distribution.</p>
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="ame.html">ame</a></code> for cross-sectional models,
 <code><a href="lame_als.html">lame_als</a></code> for the fast MCMC-free point estimator,
+<code><a href="lame_snap_als.html">lame_snap_als</a></code> for the approximate dynamic snap-shift
+point estimator,
 <code><a href="als_dynamic_beta.html">als_dynamic_beta</a></code> for a regression-only penalised
 smoother on the time-varying coefficient path,
-<code><a href="lame_resume.html">lame_resume</a></code> for the legacy resume entry point
-(equivalent to <code>lame(resume_from = path)</code>),
+<code><a href="lame_resume.html">lame_resume</a></code> for resuming saved checkpoints,
 <code><a href="gof.html">gof</a></code> for post-hoc goodness-of-fit computation,
 <code><a href="gof_plot.html">gof_plot</a></code> for visualizing GOF results,
 <code><a href="latent_positions.html">latent_positions</a></code> for extracting latent positions as a tidy data frame,

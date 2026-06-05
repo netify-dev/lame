@@ -22,7 +22,7 @@ get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NUL
 
 	# partial start_vals are merged over defaults computed below, rather
 	# than overriding every slot wholesale; that lets callers warm-start
-	# just `beta` (say) without having to construct U/V/a/b/Sab themselves.
+	# just `beta` (say) without having to construct u/v/a/b/sab themselves.
 	user_start <- start_vals
 	if(!is.null(user_start) && !is.list(user_start)) {
 		cli::cli_abort("{.arg start_vals} must be a list (or NULL).")
@@ -32,7 +32,7 @@ get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NUL
 	if(is.null(start_vals)){
 
 		####
-		# initialize Z values
+		# initialize z values
 		Z<-array(dim=dim(Y))
 		for (t in 1:N) {
 			if(family=="normal"){Z[,,t]<-Y[,,t] }

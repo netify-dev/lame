@@ -75,7 +75,7 @@ simulate_posterior <- function(
 		UV = !is.null(fit$U_samples) && !is.null(fit$V_samples),
 		ab = !is.null(fit$a_samples) && !is.null(fit$b_samples),
 		beta = !is.null(fit$BETA),
-		Y = FALSE  # Always simulate Y
+		Y = FALSE  # always simulate y
 	)
 	
 	if(has_samples && component != "Y") {
@@ -103,7 +103,7 @@ simulate_posterior <- function(
 }
 
 ####
-# sample_from_saved_UV
+# sample_from_saved_uv
 ####
 
 #' Sample from saved U/V posteriors
@@ -131,7 +131,7 @@ sample_from_saved_UV <- function(fit, n_samples) {
 }
 
 ####
-# simulate_UV_posterior
+# simulate_uv_posterior
 ####
 
 #' Simulate U/V from posterior — requires saved MCMC samples
@@ -232,7 +232,7 @@ simulate_beta_posterior <- function(fit, n_samples) {
 }
 
 ####
-# simulate_Y_posterior
+# simulate_y_posterior
 ####
 
 #' Simulate Y from posterior predictive distribution
@@ -286,7 +286,7 @@ simulate_Y_posterior <- function(fit, n_samples) {
 }
 
 ####
-# generate_Y_from_EZ
+# generate_y_from_ez
 ####
 
 #' Generate Y from linear predictor EZ

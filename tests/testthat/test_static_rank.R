@@ -20,7 +20,7 @@ test_that("Censored binary (cbin) AME runs without errors", {
 	# set max outdegree (e.g., each node can nominate at most 5 others)
 	odmax = 5
 	
-	# ensure Y respects odmax constraint
+	# ensure y respects odmax constraint
 	for(i in 1:n) {
 		if(sum(Y[i,], na.rm=TRUE) > odmax) {
 			# randomly keep only odmax nominations
@@ -51,9 +51,9 @@ test_that("Censored binary (cbin) with covariates works", {
 	X = matrix(rnorm(n*n, 0, 0.5), n, n)
 	diag(X) = NA
 	
-	# generate binary outcome influenced by X
+	# generate binary outcome influenced by x
 	prob = pnorm(0.5 * X)
-	prob[is.na(prob)] = 0.5  # Handle NAs
+	prob[is.na(prob)] = 0.5  # handle nas
 	Y = matrix(rbinom(n*n, 1, c(prob)), n, n)
 	diag(Y) = NA
 	
@@ -118,12 +118,12 @@ test_that("Fixed rank nomination (frn) with covariates works", {
 	X = matrix(rnorm(n*n, 0, 0.5), n, n)
 	diag(X) = NA
 	
-	# create ranked nominations influenced by X
+	# create ranked nominations influenced by x
 	odmax = 4
 	Y = matrix(NA, n, n)
 	
 	for(i in 1:n) {
-		# higher X values get better (lower) ranks
+		# higher x values get better (lower) ranks
 		scores = X[i,]
 		scores[i] = NA
 		top_indices = order(scores, decreasing=TRUE, na.last=TRUE)[1:odmax]
@@ -136,7 +136,7 @@ test_that("Fixed rank nomination (frn) with covariates works", {
 						burn=300, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit$BETA))
-	# for frn, positive X should lead to better (lower) ranks
+	# for frn, positive x should lead to better (lower) ranks
 	if(ncol(fit$BETA) >= 2) {
 		beta_est = median(fit$BETA[,2])
 		expect_true(is.finite(beta_est))
@@ -159,7 +159,7 @@ test_that("Row rank likelihood (rrl) AME runs without errors", {
 	}
 	diag(Y) = NA
 	
-	# note: rrl doesn't allow row effects (rvar must be FALSE)
+	# note: rrl doesn't allow row effects (rvar must be false)
 	fit = ame(Y, R=1, family="rrl", 
 						rvar=FALSE, cvar=TRUE,
 						burn=200, nscan=600, verbose = FALSE)
@@ -168,7 +168,7 @@ test_that("Row rank likelihood (rrl) AME runs without errors", {
 	expect_true(!is.null(fit$U))
 	expect_true(!is.null(fit$V))
 	
-	# check that BPM exists but APM doesn't (rvar=FALSE for rrl)
+	# check that bpm exists but apm doesn't (rvar=false for rrl)
 	expect_true(!is.null(fit$BPM))
 })
 
@@ -180,11 +180,11 @@ test_that("Row rank likelihood (rrl) with covariates works", {
 	X = matrix(rnorm(n*n, 0, 0.5), n, n)
 	diag(X) = NA
 	
-	# generate outcome where higher X leads to higher Y
+	# generate outcome where higher x leads to higher y
 	Y = 0.5 * X + matrix(rnorm(n*n, 0, 0.5), n, n)
 	diag(Y) = NA
 	
-	# fit model (rvar must be FALSE for rrl)
+	# fit model (rvar must be false for rrl)
 	fit = ame(Y, Xdyad=X, R=0, family="rrl",
 						rvar=FALSE, cvar=TRUE,
 						burn=300, nscan=800, verbose = FALSE)

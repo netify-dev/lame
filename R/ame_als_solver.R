@@ -1,34 +1,34 @@
-# ame_als_solver.R
+# ame_als_solver.r
 #
-# linear-solver factory for the regression block (mu, beta) of the fast AME
+# linear-solver factory for the regression block (mu, beta) of the fast ame
 # estimator. `linear_solver` selects how the joint intercept + dyadic-covariate
 # least-squares step is solved:
-#   "eigen" - eigendecomposition of the weighted normal-equations matrix X'WX
-#             (default; X'WX is precomputed once, minimum-norm on rank
-#             deficiency). Forming X'WX squares the condition number of X.
-#   "qr"    - QR factorisation of the weighted observed design, which solves the
-#             least-squares step without squaring the condition number. For a
-#             near-singular design (collinear covariates) the QR solution is
+#   "eigen" - eigendecomposition of the weighted normal-equations matrix x'wx
+#             (default; x'wx is precomputed once, minimum-norm on rank
+#             deficiency). forming x'wx squares the condition number of x.
+#   "qr"    - qr factorisation of the weighted observed design, which solves the
+#             least-squares step without squaring the condition number. for a
+#             near-singular design (collinear covariates) the qr solution is
 #             noise-dominated, so the solver falls back to the minimum-norm
 #             "eigen" solution there and warns.
 #   "auto"  - "qr" for a moderately ill-conditioned full-rank design, "eigen"
 #             otherwise (minimum-norm when rank-deficient or near-singular).
 #
 # the factory returns a closure `solve(resid_arr)` that maps a residual array
-# (Z - a - b - O, with the regression part removed) to the (p+1)-vector
-# (mu, beta). The factorisation is fixed across BCD iterations, so it is built
+# (z - a - b - o, with the regression part removed) to the (p+1)-vector
+# (mu, beta). the factorisation is fixed across bcd iterations, so it is built
 # once; only the right-hand side changes.
 
 .ae_linsolver <- function(linear_solver, X, mask, Warr, nr, nc, Tt, p) {
 	pa <- p + 1L
-	obs_idx <- which(mask)                         # linear indices, nr*nc*Tt
+	obs_idx <- which(mask)                         # linear indices, nr*nc*tt
 	Wv <- Warr[obs_idx]                            # weights at observed cells
 	# observed-cell covariate columns (constant across iterations)
 	Xcols <- matrix(0, length(obs_idx), p)
 	if (p > 0) for (k in seq_len(p)) Xcols[, k] <- X[, , k, ][obs_idx]
 
-	# weighted normal-equations matrix X'WX. its eigenvalues are the squared
-	# singular values of sqrt(W) X, so they give both the numerical rank and the
+	# weighted normal-equations matrix x'wx. its eigenvalues are the squared
+	# singular values of sqrt(w) x, so they give both the numerical rank and the
 	# true condition number of the design -- which drive the "auto" choice and
 	# the rank-deficiency warning.
 	D <- cbind(1, Xcols)
@@ -39,7 +39,7 @@
 	rank_tol <- lam_max * max(pa, 1) * .Machine$double.eps * 100
 	num_rank <- sum(lam > rank_tol)
 	rank_deficient <- num_rank < pa
-	# condition number of sqrt(W) X (= sqrt of the X'WX condition number)
+	# condition number of sqrt(w) x (= sqrt of the x'wx condition number)
 	cond_x <- if (rank_deficient || lam_max <= 0) {
 		Inf
 	} else {
@@ -48,8 +48,8 @@
 
 	# a design that is numerically full rank but near-singular has a unique
 	# least-squares solution that is noise-dominated and can be enormous; the
-	# QR path returns exactly that solution, whereas the eigen path truncates
-	# and returns the stable minimum-norm solution. Treat such a design like a
+	# qr path returns exactly that solution, whereas the eigen path truncates
+	# and returns the stable minimum-norm solution. treat such a design like a
 	# rank-deficient one: prefer (and, for an explicit qr request, fall back to)
 	# the minimum-norm solver.
 	near_singular <- is.finite(cond_x) && cond_x > 1e5

@@ -21,7 +21,7 @@
 print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 	cli::cli_h1("Longitudinal Additive and Multiplicative Effects (LAME) Model")
 	
-	# network dimensions for display. fall back to Y_T when n_time and Y
+	# network dimensions for display. fall back to y_t when n_time and y
 	# are not populated.
 	n_periods <- x$n_time
 	if (is.null(n_periods)) {
@@ -31,7 +31,7 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 		             else NA_integer_
 	}
 	# capture both row and column counts so a bipartite (rectangular) fit
-	# prints "nA x nB".
+	# prints "na x nb".
 	n_row <- NULL; n_col <- NULL
 	if (length(x$Y_T) > 0) {
 		n_row <- nrow(x$Y_T[[1]]); n_col <- ncol(x$Y_T[[1]])
@@ -49,7 +49,7 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 		))
 	}
 	
-	# first dim of BETA is iter for both 2-D and 3-D (dynamic_beta) storage
+	# first dim of beta is iter for both 2-d and 3-d (dynamic_beta) storage
 	n_stored <- dim(x$BETA)[1]
 	cli::cli_bullets(c(
 		"*" = "Stored posterior samples: {.val {n_stored}}"
@@ -61,11 +61,8 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 		))
 	}
 	
-	# detect dynamic UV from the FIT FLAG, not from U's array dimensions: the
-	# bipartite static path stores U as [nA, R, T] too, so the shape-only check
-	# misclassified static bipartite fits as dynamic and suppressed the STATIC
-	# notice below. (Unipartite static stores U as 2-D, so the old check happened
-	# to work there.) Prefer the explicit fit$dynamic_uv flag.
+	# use explicit fit flags rather than array shape; bipartite static fits can
+	# also store u as a 3d array
 	is_dynamic_uv <- isTRUE(x$dynamic_uv)
 	is_dynamic_ab <- isTRUE(x$dynamic_ab) || !is.null(x$a_dynamic)
 	is_dynamic_beta <- isTRUE(x$dynamic_beta) || length(dim(x$BETA)) == 3L
@@ -105,9 +102,7 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 		))
 	}
 
-	# loud notice for the most common novice surprise: a panel + default flags
-	# fits a STATIC model. U / a / b are time-invariant; per-period EZ varies
-	# only through per-period X covariates.
+	# note when a panel fit keeps u, a, and b time-invariant
 	if (!is.null(n_periods) && !is.na(n_periods) && n_periods > 1L &&
 	    !is_dynamic_uv && !is_dynamic_ab && !is_dynamic_beta) {
 		cli::cli_alert_warning(c(
@@ -118,9 +113,7 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 			"{.code dynamic_uv = TRUE} and/or {.code dynamic_ab = TRUE}."))
 	}
 
-	# compact joint table when 2+ dynamic components are active.
-	# Replaces the per-component paragraphs that would otherwise become
-	# repetitive in joint dynamic_uv + dynamic_ab + dynamic_beta fits.
+	# compact joint table when 2+ dynamic components are active
 	if (isTRUE(compact)) {
 		n_dyn <- sum(c(is_dynamic_uv, is_dynamic_ab, is_dynamic_beta))
 		if (n_dyn >= 2L) {

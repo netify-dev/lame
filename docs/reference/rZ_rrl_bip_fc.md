@@ -1,6 +1,6 @@
 # Sample Z under bipartite relative-rank list (rectangular)
 
-Rectangular drop-in for
+Rectangular analogue of
 [`rZ_rrl_fc`](https://netify-dev.github.io/lame/reference/rZ_rrl_fc.md).
 Row-wise full ordering: cells with higher rank have higher Z within the
 row. No 0-threshold and no `odmax`. With rho ≡ 0 the unipartite triangle

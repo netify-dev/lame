@@ -1,9 +1,7 @@
-# period_exposure Poisson rate scaling
+# poisson period exposure tests
 #
-# c++ exposure-aware likelihood,
-# Z keeps its "unexposed log-rate" meaning, exposure enters only the
-# Poisson observation likelihood. NULL / all-ones bypasses the new
-# code path entirely.
+# z keeps its unexposed log-rate meaning; exposure enters the poisson
+# observation likelihood
 
 skip_on_cran()
 
@@ -26,9 +24,9 @@ skip_on_cran()
 	list(Y = Y_list, X = X_list, exposure = exposure, beta_true = beta_true)
 }
 
-# -- byte-identical: NULL vs rep(1, T) ------------------------------------
+# -- null and all-ones exposure -------------------------------------------
 
-test_that("period_exposure = NULL and rep(1, T) both byte-identical to legacy", {
+test_that("period_exposure = NULL and rep(1, T) match", {
 	fx = .make_poisson_fixture()
 	set.seed(1); fit_null = suppressWarnings(suppressMessages(lame(
 		fx$Y, fx$X, family = "poisson", R = 0,
@@ -42,11 +40,10 @@ test_that("period_exposure = NULL and rep(1, T) both byte-identical to legacy", 
 	expect_identical(fit_null$YPM,  fit_ones$YPM)
 })
 
-# -- substantive recovery -------------------------------------------------
+# -- intercept recovery ---------------------------------------------------
 
 test_that("intercept recovery: exposure absorbs the log-rate", {
-	# Pure intercept-only Poisson: without exposure, intercept ~ log(mean exposure);
-	# with exposure, intercept ~ 0 (true unexposed log-rate is 0).
+		# intercept-only poisson isolates the exposure offset
 	set.seed(7)
 	n = 12L; T_per = 4L
 	exposure = c(1, 5, 25, 100)
@@ -63,9 +60,9 @@ test_that("intercept recovery: exposure absorbs the log-rate", {
 		Y_list, family = "poisson", R = 0,
 		period_exposure = exposure,
 		nscan = 150, burn = 40, odens = 5, verbose = FALSE, plot = FALSE)))
-	# Without exposure: intercept must be markedly positive (absorbing log-rate)
+		# without exposure, the intercept absorbs the log-rate
 	expect_gt(mean(fit_noexp$BETA[, 1]), 1.0)
-	# With exposure: intercept must be small (close to 0, the true unexposed log-rate)
+		# with exposure, the intercept is close to the unexposed log-rate
 	expect_lt(abs(mean(fit_exp$BETA[, 1])), 0.5)
 })
 
@@ -73,13 +70,13 @@ test_that("intercept recovery: exposure absorbs the log-rate", {
 
 test_that("period_exposure validation", {
 	fx = .make_poisson_fixture()
-	# wrong length
+		# wrong length
 	expect_error(suppressWarnings(suppressMessages(lame(
 		fx$Y, fx$X, family = "poisson", R = 0,
 		period_exposure = c(1, 2, 3),
 		nscan = 30, burn = 10, odens = 5, verbose = FALSE, plot = FALSE))),
-		regexp = NA)  # current code only checks positivity + length-by-T, not strict length
-	# negative
+			regexp = NA)
+		# negative exposure
 	expect_error(suppressWarnings(suppressMessages(lame(
 		fx$Y, fx$X, family = "poisson", R = 0,
 		period_exposure = c(-1, 1, 1, 1),
@@ -89,13 +86,13 @@ test_that("period_exposure validation", {
 
 test_that("period_exposure with non-Poisson family aborts on non-trivial values", {
 	fx = .make_poisson_fixture()
-	# normal family with non-trivial exposure: abort
+		# non-poisson family with non-trivial exposure
 	expect_error(suppressWarnings(suppressMessages(lame(
 		fx$Y, fx$X, family = "normal", R = 0,
 		period_exposure = c(1, 5, 25, 100),
 		nscan = 30, burn = 10, odens = 5, verbose = FALSE, plot = FALSE))),
 		"meaningful only")
-	# normal family with all-ones exposure: should NOT abort (active = FALSE)
+		# all-ones exposure is inactive
 	set.seed(1)
 	fit_ones = suppressWarnings(suppressMessages(lame(
 		fx$Y, fx$X, family = "normal", R = 0,
@@ -113,18 +110,17 @@ test_that("forecast applies newexposure on the response scale", {
 		dynamic_beta = "dyad",
 		period_exposure = fx$exposure,
 		nscan = 80, burn = 20, odens = 5, verbose = FALSE, plot = FALSE)))
-	# default newexposure = last observed
+		# default newexposure uses the last observed exposure
 	fc_default = suppressWarnings(predict(fit, h = 2L, type = "response"))
-	# explicit newexposure
+		# explicit newexposure
 	fc_explicit = suppressWarnings(predict(fit, h = 2L, type = "response",
 	                                         newexposure = c(50, 200)))
 	expect_true(is.list(fc_default))
 	expect_length(fc_default, 2L)
-	# explicit exposure should scale the response: fc_explicit[k] = (newexp_k /
-	# last_observed) * fc_default[k] up to MC noise
+		# explicit exposure should scale the response
 	r_default  = mean(fc_default[[1]], na.rm = TRUE)
 	r_explicit = mean(fc_explicit[[1]], na.rm = TRUE)
-	expect_gt(r_explicit, r_default * 0.3)  # generous (MC noise, AR(1) drift)
+	expect_gt(r_explicit, r_default * 0.3)  # generous (mc noise, ar(1) drift)
 })
 
 test_that("forecast newexposure validation", {

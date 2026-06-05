@@ -46,7 +46,7 @@ lfo <- function(fit, periods = NULL, refit = TRUE, ...) {
 		cli::cli_abort("{.arg fit} must be a fitted {.cls lame} object.")
 	}
 
-	# extract per-period Y and X — fit$Y can be a list or a 3-D array
+	# extract per-period y and x — fit$y can be a list or a 3-d array
 	Y_src <- fit$Y_obs %||% fit$Y
 	Y_list <- if (is.list(Y_src)) {
 		Y_src
@@ -75,7 +75,7 @@ lfo <- function(fit, periods = NULL, refit = TRUE, ...) {
 
 	per_period <- data.frame(period = periods, elpd = NA_real_, n_obs = NA_integer_)
 	# per-dyad pointwise log-density at each leave-out period (one element of
-	# the list per period). Concatenated, these are what loo::loo_compare()
+	# the list per period). concatenated, these are what loo::loo_compare()
 	# style workflows would consume as the "pointwise elpd" vector.
 	pointwise_list <- vector("list", length(periods))
 	names(pointwise_list) <- as.character(periods)
@@ -106,7 +106,7 @@ lfo <- function(fit, periods = NULL, refit = TRUE, ...) {
 
 		# 1-step forecast under the refit
 		fc_mean <- predict(refit_obj, h = 1L, type = "link")[[1L]]
-		# pointwise elpd on Y_test using the family-implied density
+		# pointwise elpd on y_test using the family-implied density
 		obs_idx <- which(!is.na(Y_test))
 		y_obs <- Y_test[obs_idx]
 		ez_obs <- fc_mean[obs_idx]
@@ -143,7 +143,7 @@ lfo <- function(fit, periods = NULL, refit = TRUE, ...) {
 				lam <- pmin(exp(ez_obs), 1e8)
 				stats::dpois(round(y_obs), lambda = lam, log = TRUE)
 			},
-			# fall back to Gaussian on link for any unsupported family
+			# fall back to gaussian on link for any unsupported family
 			stats::dnorm(y_obs, mean = ez_obs, sd = sqrt(s2), log = TRUE)
 		)
 		pointwise_list[[rr]] <- ll_dyad

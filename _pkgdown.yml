@@ -81,6 +81,10 @@ reference:
     - prior_summary
     - evaluate_heldout
     - read_log_lik
+    - snap_index_draws
+    - snap_index_summary
+    - snap_category_summary
+    - snap_rank_summary
 
   - title: "Tidyverse Integration"
     desc: "broom and ggplot2 methods for fitted models"
@@ -100,6 +104,7 @@ reference:
     contents:
     - ame_als
     - lame_als
+    - lame_snap_als
     - ame_als_bootstrap
     - ame_als_refit
     - sampler_describe
@@ -248,6 +253,10 @@ reference:
     - rUV_sym_fc
     - rUV_dynamic_fc
     - rUV_dynamic_fc_cpp
+    - rUV_dynamic_snap_fc
+    - rUV_dynamic_snap_fc_cpp
+    - rUV_dynamic_t_fc
+    - rUV_dynamic_t_fc_cpp
     - raSab_bin_fc
     - raSab_cbin_fc
     - raSab_frn_fc

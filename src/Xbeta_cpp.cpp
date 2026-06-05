@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include <cmath>
 // [[Rcpp::depends(RcppArmadillo)]]
 
 using namespace Rcpp;
@@ -9,6 +10,9 @@ arma::mat Xbeta_cpp(const arma::cube& X, const arma::vec& beta) {
   int n = X.n_rows;
   int m = X.n_cols;
   int p = beta.n_elem;
+  if (p != static_cast<int>(X.n_slices)) {
+    Rcpp::stop("length(beta) must match dim(X)[3].");
+  }
   
   arma::mat XB(n, m, fill::zeros);
   
@@ -26,11 +30,12 @@ arma::mat outer_cpp(const arma::vec& a, const arma::vec& b) {
 
 // [[Rcpp::export]]
 arma::mat gof_stats_cpp(const arma::mat& Y) {
-  arma::vec stats(5);
-  
-  // Remove diagonal and NA values for calculations
+  arma::vec stats(5, fill::zeros);
+
+  // Self-ties are outside the unipartite likelihood. Treat the diagonal as
+  // missing even if a caller supplied finite placeholder values.
   arma::mat Y_clean = Y;
-  Y_clean.diag().zeros();
+  Y_clean.diag().fill(arma::datum::nan);
 
   int n = Y_clean.n_rows;
   arma::vec row_means(n);
@@ -71,12 +76,18 @@ arma::mat gof_stats_cpp(const arma::mat& Y) {
   arma::vec yt_vec = arma::vectorise(Y_clean.t());
   
   arma::uvec valid = arma::intersect(arma::find_finite(y_vec), arma::find_finite(yt_vec));
-  if(valid.n_elem > 0) {
-    stats(2) = arma::as_scalar(arma::cor(y_vec(valid), yt_vec(valid)));
-  } else {
-    stats(2) = 0;
+  if(valid.n_elem > 1) {
+    arma::vec y_valid = y_vec(valid);
+    arma::vec yt_valid = yt_vec(valid);
+    double y_sd_dyad = arma::stddev(y_valid);
+    double yt_sd_dyad = arma::stddev(yt_valid);
+    if(std::isfinite(y_sd_dyad) && std::isfinite(yt_sd_dyad) &&
+       y_sd_dyad > 0.0 && yt_sd_dyad > 0.0) {
+      double rho = arma::as_scalar(arma::cor(y_valid, yt_valid));
+      stats(2) = std::isfinite(rho) ? rho : 0.0;
+    }
   }
-  
+
   arma::uvec idx_f = arma::find_finite(y_vec);
   double y_mean = idx_f.n_elem ? arma::mean(y_vec(idx_f)) : 0.0;
   double y_sd = idx_f.n_elem > 1 ? arma::stddev(y_vec(idx_f)) : 1.0;
@@ -90,12 +101,20 @@ arma::mat gof_stats_cpp(const arma::mat& Y) {
   // Cycle dependence
   arma::mat E3 = E * E * E;
   arma::mat D3 = D * D * D;
-  stats(3) = arma::trace(E3) / (arma::trace(D3) * std::pow(y_sd, 3));
-  
+  double cycle_denom = arma::trace(D3) * std::pow(y_sd, 3);
+  if(std::isfinite(cycle_denom) && cycle_denom > 0.0) {
+    double cycle = arma::trace(E3) / cycle_denom;
+    stats(3) = std::isfinite(cycle) ? cycle : 0.0;
+  }
+
   // Transitive dependence
   arma::mat EtE = E * E.t() * E;
   arma::mat DtD = D * D.t() * D;
-  stats(4) = arma::trace(EtE) / (arma::trace(DtD) * std::pow(y_sd, 3));
-  
+  double trans_denom = arma::trace(DtD) * std::pow(y_sd, 3);
+  if(std::isfinite(trans_denom) && trans_denom > 0.0) {
+    double trans = arma::trace(EtE) / trans_denom;
+    stats(4) = std::isfinite(trans) ? trans : 0.0;
+  }
+
   return stats.t();
 }

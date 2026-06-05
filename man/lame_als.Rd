@@ -30,10 +30,10 @@ lame_als(
 }
 \arguments{
 \item{Y}{a list of \code{T} relational matrices, or a 3D array
-\code{[n_row, n_col, T]}. All slices must share the same dimensions and,
-if the matrices carry row/column names, the same actors in the same
-order (the ALS estimator does not handle changing actor
-compositions; use \code{\link{lame}} for that).}
+\code{[n_row, n_col, T]}. A named list may have changing actor
+composition; every slice must carry row and column names so actors can be
+aligned to the union panel. Unnamed lists and arrays are treated
+positionally and must have one fixed layout.}
 
 \item{Xdyad}{a list of \code{T} dyadic covariate matrices/arrays, or \code{NULL}.}
 
@@ -46,11 +46,11 @@ compositions; use \code{\link{lame}} for that).}
 multiplicative term \eqn{u_i'v_j} is a flexible high-variance regressor
 that can correlate with the dyadic covariates, so the estimated
 \code{beta} can shift -- and occasionally change sign -- as \code{R}
-increases. Validate against an \code{R = 0} fit and the MCMC
-\code{\link{ame}}/\code{\link{lame}} before reporting.}
+increases. Comparing against an \code{R = 0} fit is a useful check on
+whether the covariate story is being driven by the latent rank.}
 
-\item{family}{one of \code{"normal"}, \code{"binary"}, \code{"poisson"},
-\code{"ordinal"}.}
+\item{family}{one of \code{"normal"}, \code{"binary"}, or
+\code{"poisson"}. The rank and censoring families are MCMC-only.}
 
 \item{mode}{\code{"unipartite"} (square) or \code{"bipartite"} (rectangular).}
 
@@ -70,26 +70,17 @@ bipartite models (symmetric fits always use \code{"mm"}). All three
 minimise the same objective, so the point estimate is unchanged for
 balanced data.}
 
-\item{non_normal_method}{for the non-normal families, \code{"irls"}
+\item{non_normal_method}{for the non-normal ALS families, \code{"irls"}
 (default for \code{binary}/\code{poisson}) runs iteratively reweighted
-least squares -- a fast approximate GLM AME fit with coefficients on
-the calibrated link scale (Poisson log, binary logit/probit).
-\code{"transform"} fits a single fixed Gaussian working response
-(\code{log(y+1)} for Poisson, rank-normal scores for binary/ordinal);
-its coefficients are on an uncalibrated rank scale -- good for
-direction/ranking of effects, not for magnitudes. \strong{For ordinal
-data the transform path attenuates \eqn{\beta} toward zero (classical
-discretisation bias); prefer \code{"em"} when \eqn{\beta} is an effect-size
-estimand.} \code{"em"} (for \code{ordinal}, opt-in; default for
-\code{tobit}) runs a deterministic EM outer loop that maximises the
-observed ordinal log-likelihood, jointly estimating cutpoints
-(returned on \code{fit$alpha}, anchored at \code{alpha[1] = 0}) and the
-regression block; the surrogate is monotone non-decreasing across EM
-iterations. \code{"irls"} is supported for \code{binary}/\code{poisson};
-\code{ordinal} accepts \code{"transform"} (default, back-compat) or
-\code{"em"}. A directed \code{R > 0} IRLS fit uses the hybrid low-rank
-solver internally (the IRLS weights are unbalanced). Uncertainty for
-any of these is the bootstrap.}
+least squares, giving a fast approximate GLM AME fit with coefficients on
+the requested link scale (Poisson log, binary logit/probit).
+\code{"transform"} fits one fixed Gaussian working response
+(\code{log(y+1)} for Poisson, rank-normal scores for binary); its
+coefficients are on an uncalibrated working scale and are mainly useful
+for direction/ranking checks. A directed \code{R > 0} IRLS fit uses the
+hybrid low-rank solver internally because the IRLS weights are unbalanced.
+Uncertainty for either path comes from the bootstrap or sandwich
+covariance.}
 
 \item{link}{link for \code{non_normal_method = "irls"} with a \code{binary}
 family: \code{"probit"} (default; matches \code{\link{ame}}/\code{\link{lame}})
@@ -167,6 +158,8 @@ coordinate descent estimator adapted here originates with that work
 \seealso{
 \code{\link{ame_als}}, \code{\link{ame_als_bootstrap}},
 \code{\link{lame}} for the full MCMC estimator,
+\code{\link{lame_snap_als}} for the approximate dynamic snap-shift
+point estimator,
 \code{\link{als_dynamic_beta}} for a regression-only smoother
 that estimates \emph{only} a time-varying \eqn{\beta_t} (no
 \eqn{a, b, U, V}; not a special case of this function).

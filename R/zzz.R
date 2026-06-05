@@ -3,7 +3,7 @@
 #' @importFrom utils head object.size
 NULL
 
-# register S3 methods (posterior / loo / ggplot2::autoplot / generics::tidy)
+# register s3 methods (posterior / loo / ggplot2::autoplot / generics::tidy)
 # at package load so qualified package::generic(fit) dispatches to the
 # methods defined here. fires once per session.
 .onLoad <- function(libname, pkgname) {

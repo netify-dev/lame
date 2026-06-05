@@ -1,15 +1,15 @@
 skip_on_cran()
 
-# static bipartite AME models
+# static bipartite ame models
 
-test_that("Bipartite AME model works for Gaussian case", {
+test_that("bipartite ame fits a gaussian model", {
 	skip_on_cran()
 	
 	set.seed(789)
 	
 	# set up bipartite network dimensions
-	nA = 20  # Row nodes (e.g., individuals)
-	nB = 15  # Column nodes (e.g., organizations)
+	nA = 20
+	nB = 15
 	
 	# true parameters
 	mu_true = 0.5
@@ -27,23 +27,23 @@ test_that("Bipartite AME model works for Gaussian case", {
 						 R_row = 0, R_col = 0,
 						 burn = 500, nscan = 2000, verbose = FALSE)
 	
-	# check dimensions
+	# dimensions are correct
 	expect_equal(fit$mode, "bipartite")
 	expect_equal(fit$nA, nA)
 	expect_equal(fit$nB, nB)
-	expect_equal(dim(fit$BETA)[2], 2)  # Intercept + covariate
+	expect_equal(dim(fit$BETA)[2], 2)
 	
-	# check parameter recovery
+	# parameter recovery
 	beta_est = unname(colMeans(fit$BETA))
 	expect_equal(beta_est[1], mu_true, tolerance = 0.2)
 	expect_equal(beta_est[2], beta_true, tolerance = 0.2)
 	
-	# check variance recovery
+	# variance recovery
 	s2_est = mean(fit$VC[,4])
 	expect_equal(s2_est, sigma2_true, tolerance = 0.3)
 })
 
-test_that("Bipartite model with additive effects", {
+test_that("bipartite model fits additive effects", {
 	skip_on_cran()
 	
 	set.seed(790)
@@ -53,9 +53,9 @@ test_that("Bipartite model with additive effects", {
 	
 	# true parameters
 	mu_true = 0.3
-	sigma2_a = 0.4  # Row variance
-	sigma2_b = 0.3  # Column variance
-	sigma2_e = 0.5  # Error variance
+	sigma2_a = 0.4
+	sigma2_b = 0.3
+	sigma2_e = 0.5
 	
 	# generate additive effects
 	a_true = rnorm(nA, 0, sqrt(sigma2_a))
@@ -77,22 +77,21 @@ test_that("Bipartite model with additive effects", {
 						 R_row = 0, R_col = 0,
 						 burn = 500, nscan = 2000, verbose = FALSE)
 	
-	# check that additive effects were estimated
+	# additive effects are present
 	expect_false(is.null(fit$APM))
 	expect_false(is.null(fit$BPM))
 	expect_equal(length(fit$APM), nA)
 	expect_equal(length(fit$BPM), nB)
 	
-	# check variance components
-	expect_true(mean(fit$VC[,1]) > 0)  # Row variance
-	expect_true(mean(fit$VC[,3]) > 0)  # Column variance
+	expect_true(mean(fit$VC[,1]) > 0)
+	expect_true(mean(fit$VC[,3]) > 0)
 	
-	# check that row/column means are close to true values
+	# row and column means are close to true values
 	expect_equal(mean(fit$APM), mean(a_true), tolerance = 0.3)
 	expect_equal(mean(fit$BPM), mean(b_true), tolerance = 0.3)
 })
 
-test_that("Bipartite model with multiplicative effects", {
+test_that("bipartite model fits multiplicative effects", {
 	skip_on_cran()
 	
 	set.seed(791)
@@ -105,7 +104,7 @@ test_that("Bipartite model with multiplicative effects", {
 	# generate latent factors
 	U_true = matrix(rnorm(nA * R_row), nA, R_row)
 	V_true = matrix(rnorm(nB * R_col), nB, R_col)
-	G_true = diag(c(2, 1), R_row, R_col)  # Interaction strengths
+	G_true = diag(c(2, 1), R_row, R_col)
 	
 	# generate network with multiplicative effects
 	mu_true = 0.2
@@ -117,23 +116,22 @@ test_that("Bipartite model with multiplicative effects", {
 						 R_row = R_row, R_col = R_col,
 						 burn = 500, nscan = 2000, verbose = FALSE)
 	
-	# check dimensions of latent factors
+	# latent-factor dimensions
 	expect_equal(dim(fit$U), c(nA, R_row))
 	expect_equal(dim(fit$V), c(nB, R_col))
 	expect_equal(dim(fit$G), c(R_row, R_col))
 	
-	# check that multiplicative effects capture structure
-	# reconstruct UVPM from U, V, G
+	# multiplicative effects capture structure
 	UVPM_reconstructed = reconstruct_UVPM(fit)
 	
-	# correlation should be positive but not perfect
+	# correlation should be positive
 	if(!is.null(UVPM_reconstructed)) {
 		cor_uv = cor(c(UV_true), c(UVPM_reconstructed))
 		expect_gt(cor_uv, 0.3)
 	}
 })
 
-test_that("Bipartite binary model", {
+test_that("bipartite binary model fits", {
 	skip_on_cran()
 	
 	set.seed(792)
@@ -155,27 +153,26 @@ test_that("Bipartite binary model", {
 						 family = "binary",
 						 burn = 500, nscan = 2000, verbose = FALSE)
 	
-	# check model type
+	# model type
 	expect_equal(fit$family, "binary")
 	
-	# check parameter signs are correct
+	# parameter signs are correct
 	beta_est = colMeans(fit$BETA)
-	expect_true(beta_est[1] < 0)  # Negative intercept
-	expect_true(beta_est[2] > 0)  # Positive covariate effect
+	expect_true(beta_est[1] < 0)
+	expect_true(beta_est[2] > 0)
 	
-	# check predictions are binary
+	# predictions are binary probabilities
 	expect_true(all(fit$YPM >= 0 & fit$YPM <= 1))
 })
 
-test_that("Bipartite Poisson is now first-class (rectangular MH on Z)", {
+test_that("bipartite poisson uses the rectangular mh update for z", {
 	skip_on_cran()
 	set.seed(793)
 	nA = 12; nB = 10
 	X = matrix(runif(nA * nB, -1, 1), nA, nB)
 	lambda = exp(1.0 + 0.5 * X)
 	Y = matrix(rpois(nA * nB, lambda), nA, nB)
-	# bipartite Poisson uses the rectangular rZ_pois_bip_fc sampler from
-	# R/rZ_bipartite.R.
+	# bipartite poisson uses the rectangular rz_pois_bip_fc sampler
 	fit = ame(Y, Xdyad = X, mode = "bipartite", family = "poisson",
 	          R = 0, burn = 5, nscan = 20, odens = 5,
 	          verbose = FALSE, plot = FALSE, gof = FALSE)
@@ -183,7 +180,7 @@ test_that("Bipartite Poisson is now first-class (rectangular MH on Z)", {
 	expect_equal(fit$mode, "bipartite")
 })
 
-test_that("Bipartite model comparison with different R values", {
+test_that("bipartite multiplicative rank improves fit", {
 	skip_on_cran()
 	
 	set.seed(794)
@@ -196,36 +193,35 @@ test_that("Bipartite model comparison with different R values", {
 	V_true = matrix(rnorm(nB * 2), nB, 2)
 	Y = U_true %*% t(V_true) + matrix(rnorm(nA * nB, 0, 0.3), nA, nB)
 	
-	# fit with R = 0
+	# fit with r = 0
 	fit0 = ame(Y, mode = "bipartite",
 							R_row = 0, R_col = 0,
 							burn = 300, nscan = 1000, verbose = FALSE)
 	
-	# fit with R = 2
+	# fit with r = 2
 	fit2 = ame(Y, mode = "bipartite",
 							R_row = 2, R_col = 2,
 							burn = 300, nscan = 1000, verbose = FALSE)
 	
 	# model with multiplicative effects should fit better
-	# use YPM (posterior mean predictions) instead of EZ
 	resid0 = Y - fit0$YPM
 	resid2 = Y - fit2$YPM
 	
-	# check that both produced valid predictions
+	# both models produced valid predictions
 	expect_false(all(is.na(fit0$YPM)))
 	expect_false(all(is.na(fit2$YPM)))
 	
-	# model with R=2 should have lower residuals than R=0
+	# the rank-2 model should have lower residuals than r = 0
 	mse0 = mean(resid0^2, na.rm = TRUE)
 	mse2 = mean(resid2^2, na.rm = TRUE)
 	
-	# only test if both MSEs are finite
+	# only compare finite mse values
 	if(is.finite(mse0) && is.finite(mse2)) {
 		expect_lt(mse2, mse0)
 	}
 })
 
-test_that("Bipartite handles missing data correctly", {
+test_that("bipartite model handles missing data", {
 	skip_on_cran()
 	
 	set.seed(795)
@@ -244,13 +240,13 @@ test_that("Bipartite handles missing data correctly", {
 	fit = ame(Y, mode = "bipartite",
 						 burn = 200, nscan = 500, verbose = FALSE)
 	
-	# check that model ran
+	# model ran
 	expect_equal(fit$mode, "bipartite")
 	
 	expect_false(any(is.na(fit$YPM)))
 })
 
-test_that("Bipartite GOF statistics are computed", {
+test_that("bipartite gof statistics are computed", {
 	skip_on_cran()
 	
 	set.seed(796)
@@ -260,25 +256,21 @@ test_that("Bipartite GOF statistics are computed", {
 	
 	Y = matrix(rnorm(nA * nB), nA, nB)
 	
-	# fit with GOF
+	# fit with gof
 	fit = ame(Y, mode = "bipartite",
 						 burn = 100, nscan = 300, 
 						 gof = TRUE, verbose = FALSE)
 	
-	# check GOF exists
+	# gof output is present
 	expect_false(is.null(fit$GOF))
-	# bipartite GOF has 3 columns: sd.rowmean, sd.colmean, four.cycles
+	# bipartite gof has 3 columns: sd.rowmean, sd.colmean, four.cycles
 	expect_equal(ncol(fit$GOF), 3)
 	
-	# check GOF statistics are reasonable
-	# column 1: sd.rowmean (std dev of row means)
+	# gof statistics are non-negative
 	obs_sd_row = fit$GOF[1,1]
-	# column 2: sd.colmean (std dev of col means)
 	obs_sd_col = fit$GOF[1,2]
-	# column 3: four.cycles count
 	obs_four_cycles = fit$GOF[1,3]
 	
-	# check statistics are non-negative
 	expect_true(obs_sd_row >= 0)
 	expect_true(obs_sd_col >= 0)
 	expect_true(obs_four_cycles >= 0)

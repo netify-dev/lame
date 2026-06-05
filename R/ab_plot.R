@@ -1,4 +1,4 @@
-# global variables for R CMD check
+# global variables for r cmd check
 if(getRversion() >= "2.15.1") {
 	utils::globalVariables(c("mean_effect", "x_prev", "y_prev"))
 }
@@ -69,7 +69,7 @@ ab_plot <- function(fit,
 										plot_type = c("snapshot", "trajectory", "faceted", "ribbon"),
 										show_actors = NULL) {
 
-	# ALS fits estimate additive effects but have no posterior; delegate to
+	# als fits estimate additive effects but have no posterior; delegate to
 	# the ame_als-specific lollipop chart instead of refusing the class.
 	if (inherits(fit, "ame_als")) {
 		eff <- match.arg(effect)

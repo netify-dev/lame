@@ -1,6 +1,6 @@
 # posterior-predictive test for temporal trends. fits a linear time
 # trend to a chosen network statistic and compares its slope to slopes
-# from simulate(fit) replicates. p_pp is the two-sided Gelman-style
+# from simulate(fit) replicates. p_pp is the two-sided gelman-style
 # posterior-predictive p-value: 2 * min(p_up, 1 - p_up) where
 # p_up = mean(slope_rep >= slope_obs). large p_pp -> observed slope is
 # central in the predictive distribution (well covered); small p_pp ->
@@ -60,7 +60,7 @@ gof_temporal <- function(fit,
 	}
 	if (!is.null(seed)) set.seed(seed)
 
-	# observed Y: get a list of per-period matrices
+	# observed y: get a list of per-period matrices
 	Y_obs <- .get_Y_list_for_gof(fit)
 	T_periods <- length(Y_obs)
 	if (T_periods < 3L) {
@@ -70,7 +70,7 @@ gof_temporal <- function(fit,
 	# resolve "auto" stat: pick something non-degenerate for the fit's
 	# family. "density" measures the fraction of nonzero entries, which is
 	# constant ~ 1 for continuous-outcome families and gives a spuriously
-	# significant p_pp = 1. For those families default to "mean" (mean
+	# significant p_pp = 1. for those families default to "mean" (mean
 	# off-diagonal value), which actually moves with the temporal trend.
 	if (identical(stat, "auto")) {
 		fam <- tolower(fit$family %||% "normal")
@@ -115,14 +115,14 @@ gof_temporal <- function(fit,
 	slope_obs <- as.numeric(stats::coef(stats::lm(stat_obs_by_t ~ period))[2L])
 
 	# posterior-predictive: draw n_rep replicate networks via simulate(fit).
-	# simulate.lame returns an `lame.sim` object whose $Y is a list of
-	# length nsim, each element itself a list of T per-period matrices.
+	# simulate.lame returns an `lame.sim` object whose $y is a list of
+	# length nsim, each element itself a list of t per-period matrices.
 	sim_obj <- stats::simulate(fit, nsim = n_rep, seed = seed)
 	sim_list <- if (is.list(sim_obj) && !is.null(sim_obj$Y)) sim_obj$Y else sim_obj
 	if (!is.list(sim_list) || length(sim_list) < 1L) {
 		cli::cli_abort("{.fn simulate.lame} did not return the expected list.")
 	}
-	# normalise: each element should be a list-of-T matrices
+	# normalise: each element should be a list-of-t matrices
 	get_t_slice <- function(rep, t) {
 		if (is.list(rep)) return(rep[[t]])
 		if (length(dim(rep)) == 3L) return(rep[, , t])
@@ -139,8 +139,8 @@ gof_temporal <- function(fit,
 			stats::coef(stats::lm(stat_rep_by_t[r, ] ~ period))[2L])
 	}
 
-	# two-sided posterior-predictive p-value (Gelman et al. style)
-	# two-sided Gelman-style posterior-predictive p-value: large p_pp
+	# two-sided posterior-predictive p-value (gelman et al. style)
+	# two-sided gelman-style posterior-predictive p-value: large p_pp
 	# means well covered, small p_pp means in either tail.
 	p_up <- mean(slope_rep >= slope_obs, na.rm = TRUE)
 	p_pp <- 2 * min(p_up, 1 - p_up)
@@ -161,7 +161,7 @@ gof_temporal <- function(fit,
 
 #' @noRd
 .get_Y_list_for_gof <- function(fit) {
-	# prefer Y_obs (3-D array) over Y (sometimes list, sometimes array)
+	# prefer y_obs (3-d array) over y (sometimes list, sometimes array)
 	Y <- fit$Y_obs %||% fit$Y
 	if (is.list(Y)) return(Y)
 	if (is.array(Y) && length(dim(Y)) == 3L) {
@@ -176,7 +176,7 @@ gof_temporal <- function(fit,
 		density = function(Y) {
 			# fraction of nonzero off-diagonal entries.
 			# meaningful only for binary / count-like networks; for
-			# continuous outcomes mean(Y != 0) is ~1 by construction.
+			# continuous outcomes mean(y != 0) is ~1 by construction.
 			if (nrow(Y) == ncol(Y)) diag(Y) <- NA
 			mean(Y != 0 & !is.na(Y), na.rm = TRUE)
 		},
@@ -187,7 +187,7 @@ gof_temporal <- function(fit,
 			mean(Y, na.rm = TRUE)
 		},
 		reciprocity = function(Y) {
-			# Pearson correlation of Y with t(Y), off-diagonal only
+			# pearson correlation of y with t(y), off-diagonal only
 			if (nrow(Y) != ncol(Y)) return(NA_real_)
 			ut <- Y[upper.tri(Y)]
 			lt <- t(Y)[upper.tri(Y)]

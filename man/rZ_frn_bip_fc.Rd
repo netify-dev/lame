@@ -24,7 +24,7 @@ rZ_frn_bip_fc(Z, EZ, Y, YL, odmax, odobs)
 updated nA x nB latent matrix.
 }
 \description{
-Rectangular drop-in for \code{\link{rZ_frn_fc}}. Row-wise rank
+Rectangular analogue of \code{\link{rZ_frn_fc}}. Row-wise rank
 constraints: ranked nominees are positive and ordered by rank;
 non-nominees fall below all ranked cells in the row (and below 0
 when the row is unsaturated). With rho ≡ 0 the unipartite triangle

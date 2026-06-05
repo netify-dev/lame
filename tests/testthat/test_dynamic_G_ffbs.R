@@ -1,9 +1,9 @@
-# dynamic_G FFBS state-space sampler tests. Cover:
-# (a) low-level FFBS sampler exists + returns correct shapes
-# (b) rho_G MH update stays in (-1, 1) and respects the AR(1) likelihood
-# (c) sigma_G2 conjugate IG draw is positive
-# (d) byte-identical default contract for dynamic_G = FALSE
-# (e) end-to-end lame() fit with dynamic_G = TRUE stores all outputs
+# dynamic_g ffbs state-space sampler tests. cover:
+# (a) low-level ffbs sampler exists + returns correct shapes
+# (b) rho_g mh update stays in (-1, 1) and respects the ar(1) likelihood
+# (c) sigma_g2 conjugate ig draw is positive
+# (d) byte-identical default contract for dynamic_g = false
+# (e) end-to-end lame() fit with dynamic_g = true stores all outputs
 # (f) rotation drift diagnostic produces a numeric ratio + flag
 
 test_that("ffbs_vecG returns G_cube and vecG_path with correct shapes", {
@@ -32,7 +32,7 @@ test_that("ffbs_vecG zero-rank case returns empty G_cube cleanly", {
 
 test_that("sample_rho_G_mh keeps rho in (-1, 1) over many sweeps", {
 	set.seed(42)
-	# simulate a 1D AR(1) path with true rho = 0.6
+	# simulate a 1d ar(1) path with true rho = 0.6
 	N = 50; p = 4
 	true_rho = 0.6; true_sigma2 = 0.05
 	vG = matrix(0, p, N)
@@ -56,7 +56,7 @@ test_that("sample_sigma_G2 is positive and shrinks with more data", {
 	set.seed(13)
 	# small chain
 	vG_small = matrix(rnorm(5 * 5, 0, 0.1), 5, 5)
-	# large chain (same DGP, more periods)
+	# large chain (same dgp, more periods)
 	vG_large = matrix(rnorm(5 * 50, 0, 0.1), 5, 50)
 	s_small = lame:::sample_sigma_G2(vG_small, rho_G = 0.5)
 	s_large = lame:::sample_sigma_G2(vG_large, rho_G = 0.5)
@@ -100,12 +100,12 @@ test_that("dynamic_G = TRUE stores v8 outputs (G_cube + post_mean + RHO_G)", {
 		colnames(mat) = paste0("b", seq_len(nB))
 		mat
 	})
-	suppressWarnings(
-		fit <- lame(Y_list, family = "binary", mode = "bipartite",
-		            R_row = 2, R_col = 2,
-		            dynamic_G = TRUE,
-		            nscan = 30, burn = 15, odens = 5,
-		            rvar = FALSE, cvar = FALSE, verbose = FALSE, seed = 13))
+	fit = suppressWarnings(
+		lame(Y_list, family = "binary", mode = "bipartite",
+		     R_row = 2, R_col = 2,
+		     dynamic_G = TRUE,
+		     nscan = 30, burn = 15, odens = 5,
+		     rvar = FALSE, cvar = FALSE, verbose = FALSE, seed = 13))
 	expect_true(isTRUE(fit$dynamic_G))
 	expect_equal(dim(fit$G_cube), c(2L, 2L, T))
 	expect_equal(dim(fit$G_cube_post_mean), c(2L, 2L, T))

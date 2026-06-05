@@ -9,17 +9,14 @@
 #' deviations; \code{statistic} is \code{estimate / std.error}.
 #'
 #' \strong{Note on \code{p.value}.} This column is included for
-#' \pkg{broom} compatibility but is \emph{not} a frequentist p-value.
-#' It is the same approximate two-sided posterior tail probability
-#' \eqn{2(1 - \Phi(|z|))} that \code{summary(fit)} reports — a rough
-#' "does the posterior exclude zero?" heuristic computed under a Normal
-#' approximation to the marginal posterior. The honest Bayesian
-#' analogues are (a) the \code{conf.low} / \code{conf.high} columns
-#' (95\% credible interval) and (b) the posterior probability of sign
-#' agreement, \code{mean(sign(BETA) == sign(mean(BETA)))}, which you
-#' can compute from \code{x$BETA} directly. Treat small \code{p.value}
-#' as "the credible interval is unlikely to contain 0", not as a
-#' classical significance test.
+#' \pkg{broom} compatibility but is \emph{not} a classical test. It is a
+#' two-sided Normal approximation based on the posterior mean and marginal
+#' posterior standard deviation, matching the calculation in
+#' \code{summary(fit)}. Use it as a compact signal that the marginal posterior
+#' is far from zero, and report it alongside the \code{conf.low} /
+#' \code{conf.high} credible interval. When sign certainty matters, compute it
+#' directly from \code{x$BETA}, for example
+#' \code{mean(sign(BETA) == sign(mean(BETA)))}.
 #'
 #' Loaded as an S3 method against \code{generics::tidy} when the
 #' \pkg{generics} package is available; works as
@@ -56,7 +53,7 @@ tidy.ame <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 	}
 
 	if (length(dim(B)) == 3L) {
-		# dynamic_beta: [n_iter, p, T]
+		# dynamic_beta: [n_iter, p, t]
 		coef_nms <- dimnames(B)[[2]] %||% paste0("v", seq_len(dim(B)[2]))
 		per_nms  <- dimnames(B)[[3]] %||% paste0("t", seq_len(dim(B)[3]))
 		out_list <- list()
@@ -117,9 +114,9 @@ tidy.lame <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 }
 
 # generics::tidy is the canonical generic for broom-style methods.
-# Provide a fallback generic so `tidy(fit)` works even if neither
-# `broom` nor `generics` is loaded. When `generics` (or `broom`,
-# which imports the generic) is loaded, .onLoad registers tidy.ame
+# provide a fallback generic so `tidy(fit)` works even if neither
+# `broom` nor `generics` is loaded. when `generics` (or `broom`,
+# which imports the generic) is loaded, .onload registers tidy.ame
 # / tidy.lame against generics::tidy so that `broom::tidy(fit)`
 # also dispatches correctly.
 
@@ -137,9 +134,9 @@ tidy.lame <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 #' @export
 tidy <- function(x, ...) UseMethod("tidy")
 
-# Register tidy.ame / tidy.lame against generics::tidy (and broom::tidy
+# register tidy.ame / tidy.lame against generics::tidy (and broom::tidy
 # when broom is loaded) so that broom::tidy(fit) — which imports
-# generics::tidy — finds our methods. This is the standard pattern for
+# generics::tidy — finds our methods. this is the standard pattern for
 # package-provided broom methods without making generics a hard dep.
 #' @noRd
 .register_tidy_methods <- function() {
@@ -245,15 +242,15 @@ prediction_draws_long <- function(object,
 		else grepl("_dyad$|\\.dyad$", beta_names)
 	n_dyad <- sum(is_dyad)
 
-	# X source
+	# x source
 	X_src <- if (!is.null(newdata)) newdata else object$Xlist
 	if (is.null(X_src) || length(X_src) < T_per) {
 		# fall back to repeating the last period's covariates
 		X_src <- replicate(T_per, X_src[[length(X_src)]], simplify = FALSE)
 	}
 
-	# resolve actor and period labels from the fit's Y dimnames so the long
-	# table carries the same IDs the user supplied at fit time. Falls back
+	# resolve actor and period labels from the fit's y dimnames so the long
+	# table carries the same ids the user supplied at fit time. falls back
 	# to integer indices when dimnames are missing.
 	actor_i_names <- NULL
 	actor_j_names <- NULL
@@ -305,7 +302,7 @@ prediction_draws_long <- function(object,
 			b_t <- if (!is.null(object$b_dynamic)) object$b_dynamic[, t_idx] else object$BPM
 			if (!is.null(a_t)) eta <- eta + outer(a_t, rep(0, n_b), "+")
 			if (!is.null(b_t)) eta <- sweep(eta, 2L, b_t, "+")
-			# UV
+			# uv
 			if (!is.null(object$U) && !is.null(object$V) &&
 			    NCOL(object$U) > 0L && NCOL(object$V) > 0L) {
 				if (length(dim(object$U)) == 3L) {
@@ -322,7 +319,7 @@ prediction_draws_long <- function(object,
 			# stack into long. column names follow tidybayes / marginaleffects
 			# convention (.chain / .iteration / .draw / .value) so downstream
 			# packages auto-dispatch. actor_i / actor_j / period_label
-			# preserve the IDs the user supplied at fit time.
+			# preserve the ids the user supplied at fit time.
 			grid <- expand.grid(i = seq_len(n_a), j = seq_len(n_b),
 			                    KEEP.OUT.ATTRS = FALSE)
 			rows[[rix]] <- data.frame(
@@ -402,10 +399,10 @@ glance.ame <- function(x, ...) {
 	nA_bip <- if (is_bip) length(x$APM %||% x$row_names %||% integer(0)) else NA_integer_
 	nB_bip <- if (is_bip) length(x$BPM %||% x$col_names %||% integer(0)) else NA_integer_
 	# n_actors for bipartite is the row count (the "primary" actor side);
-	# the column actor count is surfaced separately as n_col_actors. A user
+	# the column actor count is surfaced separately as n_col_actors. a user
 	# reading n_actors on a 12x9 bipartite fit gets 12 (not 21 from
-	# `nA + nB`), which matches the dyadic-network convention and what
-	# `nrow(fit$Y[[1]])` would tell them.
+	# `na + nb`), which matches the dyadic-network convention and what
+	# `nrow(fit$y[[1]])` would tell them.
 	n_act <- if (is_bip) {
 		as.integer(nA_bip)
 	} else {
@@ -418,7 +415,7 @@ glance.ame <- function(x, ...) {
 		if (length(dim(x$BETA)) == 3L) dim(x$BETA)[1L] else NA_integer_
 
 	# the elpd_loo is only present when the user explicitly cached it on the
-	# fit object via loo::loo(); leave NA otherwise so modelsummary does not
+	# fit object via loo::loo(); leave na otherwise so modelsummary does not
 	# imply it was computed.
 	elpd <- NA_real_
 	if (!is.null(x$loo) && inherits(x$loo, "loo")) {
@@ -436,12 +433,12 @@ glance.ame <- function(x, ...) {
 
 	# reconstruct the dynamic flags. lame() fits preserve $dynamic_uv /
 	# $dynamic_ab / $dynamic_beta as logicals on the fit object, so prefer
-	# those when present (most reliable). Otherwise (e.g. ame() cross-
+	# those when present (most reliable). otherwise (e.g. ame() cross-
 	# sectional fits, or a fit produced before these fields were stored)
-	# fall back to shape inference: 3-D U means time-varying latent
-	# positions; a 2-D $a_dynamic or $b_dynamic matrix (or 3-D $APS /
-	# $BPS, in older fit objects) means time-varying additive effects;
-	# 3-D BETA means dynamic_beta is active.
+	# fall back to shape inference: 3-d u means time-varying latent
+	# positions; a 2-d $a_dynamic or $b_dynamic matrix (or 3-d $aps /
+	# $bps, in older fit objects) means time-varying additive effects;
+	# 3-d beta means dynamic_beta is active.
 	dyn_uv_flag <- if (!is.null(x$dynamic_uv)) isTRUE(x$dynamic_uv) else
 		(!is.null(x$U) && length(dim(x$U)) == 3L)
 	dyn_ab_flag <- if (!is.null(x$dynamic_ab)) isTRUE(x$dynamic_ab) else
@@ -500,8 +497,8 @@ glance <- function(x, ...) UseMethod("glance")
 #' attached to \code{x$bootstrap} when present (preferred, fully
 #' propagated). \code{statistic} is \code{estimate / std.error};
 #' \code{p.value} is the Normal-approximation two-sided tail
-#' \eqn{2(1 - \Phi(|z|))} - the same heuristic the MCMC \code{tidy.ame}
-#' uses.
+#' \eqn{2(1 - \Phi(|z|))} from the bootstrap or sandwich standard error. It is
+#' a Wald-style summary for the point estimator, not a posterior probability.
 #'
 #' Only the intercept and dyadic-covariate coefficients are returned,
 #' matching \code{coef(fit)} on the sandwich-covered subset. Additive
@@ -535,9 +532,9 @@ tidy.ame_als <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 		cli::cli_abort("{.arg conf.level} must be a single number in (0, 1).")
 	}
 	# prefer bootstrap-based summaries when available; fall back to the
-	# sandwich vcov for a fast point-and-CI table when not. The tidy
+	# sandwich vcov for a fast point-and-ci table when not. the tidy
 	# contract is the intercept and dyadic-covariate coefficients only;
-	# the a / b / U / V / VC bootstrap intervals are reachable via
+	# the a / b / u / v / vc bootstrap intervals are reachable via
 	# `confint(fit$bootstrap)` directly for users who want them.
 	if (!is.null(x$bootstrap)) {
 		# restrict to the regression-coefficient subset: same set
@@ -546,7 +543,7 @@ tidy.ame_als <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 		coef_nms <- names(x$coefficients)
 		boot_coefs <- x$bootstrap$coefs
 		# constrain to the rows that actually have a regression coefficient,
-		# excluding any a / b / U / V / VC entries that the bootstrap object
+		# excluding any a / b / u / v / vc entries that the bootstrap object
 		# also stores
 		nms <- intersect(coef_nms, colnames(boot_coefs))
 		if (length(nms) == 0L) {
@@ -568,7 +565,7 @@ tidy.ame_als <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 			ci <- cbind(ci_lo, ci_hi)
 			rownames(ci) <- nms
 		} else {
-			# fall back path: derive SE from confint() half-width
+			# fall back path: derive se from confint() half-width
 			ci_all <- suppressMessages(stats::confint(x, level = conf.level, ...))
 			ci <- ci_all[intersect(rownames(ci_all), nms), , drop = FALSE]
 			nms <- rownames(ci)
@@ -661,9 +658,9 @@ glance.ame_als <- function(x, ...) {
 	} else 1L
 
 	se_src <- if (!is.null(x$bootstrap)) "bootstrap" else "sandwich"
-	# non_normal_method distinguishes the IRLS path from the rank-normal
-	# transform. ALS supports normal / binary / poisson; tobit / ordinal
-	# inference goes through the MCMC path.
+	# non_normal_method distinguishes the irls path from the rank-normal
+	# transform. als supports normal / binary / poisson; tobit / ordinal
+	# inference goes through the mcmc path.
 	nnm <- x$non_normal_method %||% NA_character_
 	out <- data.frame(
 		nobs            = as.integer(nobs),

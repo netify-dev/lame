@@ -2,10 +2,10 @@
 
 `nodematch(x)` returns an `n x n` matrix with `1` where `x[i] == x[j]`
 and `0` otherwise – the AME analogue of ERGM's `nodematch` term,
-suitable to drop into `Xdyad` as a single homophily covariate.
-`absdiff(x)` returns the absolute difference `|x[i] - x[j]|`, the AME
-analogue of ERGM's `absdiff`. `nodefactor(x)` returns the dyadic matrix
-of `x[i] + x[j]` for a numeric `x` (or a list of per-level binary dyadic
+suitable for `Xdyad` as a single homophily covariate. `absdiff(x)`
+returns the absolute difference `|x[i] - x[j]|`, the AME analogue of
+ERGM's `absdiff`. `nodefactor(x)` returns the dyadic matrix of
+`x[i] + x[j]` for a numeric `x` (or a list of per-level binary dyadic
 indicators for a factor / character `x`).
 
 ## Usage

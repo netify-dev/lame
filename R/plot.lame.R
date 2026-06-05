@@ -1,6 +1,6 @@
-#' Plot comprehensive diagnostics for a LAME model fit
+#' Plot diagnostics for a LAME model fit
 #' 
-#' Creates a comprehensive set of diagnostic plots for a LAME (Longitudinal 
+#' Creates diagnostic plots for a LAME (Longitudinal 
 #' Additive and Multiplicative Effects) model, including MCMC diagnostics, 
 #' parameter evolution over time, and longitudinal goodness-of-fit checks. 
 #' This is the default plot method for LAME objects.
@@ -35,7 +35,7 @@
 #'        (only used if "network" in which). Default is c(1, middle, last).
 #' @param ask logical; if TRUE, user is prompted before each plot page
 #' @param pages character string specifying how to arrange plots:
-#'        "single" = one comprehensive page (default),
+#'        "single" = one combined page (default),
 #'        "multiple" = separate pages for each plot type
 #' @param ... additional arguments (currently not used)
 #' @return NULL (invisibly). Plots are displayed as side effects.
@@ -56,7 +56,7 @@
 #' fit <- lame(Y_list, family = "normal",
 #'             nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE)
 #'
-#' # Default comprehensive plot
+#' # default combined plot
 #' plot(fit)
 #' }
 #' @method plot lame
@@ -394,7 +394,7 @@ plot.lame <- function(x,
 				}
 			}
 		} else if (!is.null(fit$GOF) && is.matrix(fit$GOF) && nrow(fit$GOF) > 1) {
-			# fallback: static gof from 2D matrix
+			# fallback: static gof from 2d matrix
 			gof_data <- fit$GOF
 			obs_vals <- gof_data[1, ]
 			pred_vals <- gof_data[-1, , drop = FALSE]
@@ -451,7 +451,7 @@ plot.lame <- function(x,
 				df_b$time <- as.integer(df_b$time)
 				
 				effects_time_data <- rbind(df_a, df_b)
-				names(effects_time_data)[1] <- "name"  # Rename actor to name for consistency
+				names(effects_time_data)[1] <- "name"  # rename actor to name for consistency
 			} else if (!is.null(fit$APM_T)) {
 				n_time <- length(fit$APM_T)
 				effects_time_data <- data.frame()
@@ -545,7 +545,7 @@ plot.lame <- function(x,
 			}
 			
 			if (is.matrix(U_2d) && is.matrix(V_2d) && ncol(U_2d) > 0 && ncol(V_2d) > 0) {
-				# separate data frames for U and V (nrow may differ for bipartite)
+				# separate data frames for u and v (nrow may differ for bipartite)
 				u_names <- rownames(U_2d)
 				if (is.null(u_names)) u_names <- paste0("U", seq_len(nrow(U_2d)))
 				v_names <- rownames(V_2d)

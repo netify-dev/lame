@@ -28,7 +28,7 @@ lower to 5 if the false-positive rate on AR(1) data is too high.}
 }
 \value{
 A data frame with one row per dynamic coefficient: \code{coef},
-\code{bf} (the heuristic Bayes factor), \code{m_post_mean} (posterior
+\code{bf} (the heuristic tail-ratio score), \code{m_post_mean} (posterior
 mean of \eqn{M}), \code{m_prior_q95} (95\\% quantile of the prior
 \eqn{M}), \code{t_hat} (period of the largest scaled jump), \code{warn}
 (logical, \code{bf > threshold_bf}).
@@ -37,12 +37,13 @@ mean of \eqn{M}), \code{m_prior_q95} (95\\% quantile of the prior
 For each dynamic coefficient in a \code{dynamic_beta} fit, compares the
 posterior distribution of the maximum scaled first-difference
 \eqn{M = \max_t |\beta_t - \beta_{t-1}| / \sigma_\beta} to a Monte-Carlo
-approximation of the same statistic under the AR(1) prior. A
-\dQuote{change-point-flavored} Bayes factor is reported as
-\eqn{BF = \Pr(M^{post} > m^*) / 0.05}, where \eqn{m^*} is the 95\\%
-quantile of \eqn{M^{prior}}. \strong{This is a heuristic, not a real
-Bayes factor.} Use it to surface posterior temporal jumps that the AR(1)
-prior cannot comfortably accommodate.
+approximation of the same statistic under the AR(1) prior. The returned
+\code{bf} column is the tail-ratio score
+\eqn{\Pr(M^{post} > m^*) / 0.05}, where \eqn{m^*} is the 95\\%
+quantile of \eqn{M^{prior}}. It is kept under the historical column name
+for compatibility, but it is not a marginal-likelihood Bayes factor. Use it
+to surface posterior temporal jumps that the AR(1) prior cannot comfortably
+accommodate.
 }
 \examples{
 \donttest{

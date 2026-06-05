@@ -19,9 +19,9 @@ A list of class "summary.ame" containing:
 \item{variance}{Matrix of variance component estimates}
 }
 \description{
-Provides a comprehensive summary of a fitted AME (Additive and Multiplicative
-Effects) model, including parameter estimates, standard errors, credible
-intervals, and model diagnostics.
+Summarizes a fitted AME (Additive and Multiplicative Effects) model,
+including parameter estimates, standard errors, credible intervals, and
+model diagnostics.
 }
 \details{
 The summary includes:

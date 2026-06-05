@@ -1,5 +1,5 @@
 # loo / waic interop for ame / lame fits via the per-iteration log_lik matrix
-# stored when the user passed save_log_lik = TRUE.
+# stored when the user passed save_log_lik = true.
 
 #' Read the per-iteration log-lik matrix back from on-disk chunks
 #'
@@ -143,7 +143,7 @@ waic.lame <- function(x, ...) {
 	waic.ame(x, ...)
 }
 
-# loo / waic for ame_als abort with an explicit message: ALS is a point
+# loo / waic for ame_als abort with an explicit message: als is a point
 # estimator with no per-iteration log-likelihood, so loo::loo() / waic()
 # do not apply.
 
@@ -184,9 +184,9 @@ loo <- function(x, ...) UseMethod("loo")
 #' @export
 waic <- function(x, ...) UseMethod("waic")
 
-# .onLoad helper: register the methods against loo's generic when loo is
-# available, so qualified loo::loo(fit) works. Parallel pattern to
-# .register_posterior_methods() in zzz.R.
+# .onload helper: register the methods against loo's generic when loo is
+# available, so qualified loo::loo(fit) works. parallel pattern to
+# .register_posterior_methods() in zzz.r.
 .register_loo_methods <- function() {
 	if (requireNamespace("loo", quietly = TRUE)) {
 		registerS3method("loo",  "ame",     loo.ame,     envir = asNamespace("loo"))

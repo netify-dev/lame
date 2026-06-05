@@ -1,8 +1,8 @@
 #' Summary of an AME object
 #' 
-#' Provides a comprehensive summary of a fitted AME (Additive and Multiplicative
-#' Effects) model, including parameter estimates, standard errors, credible
-#' intervals, and model diagnostics.
+#' Summarizes a fitted AME (Additive and Multiplicative Effects) model,
+#' including parameter estimates, standard errors, credible intervals, and
+#' model diagnostics.
 #' 
 #' @details
 #' The summary includes:
@@ -51,9 +51,9 @@ summary.ame <- function(object, ...) {
 	beta_upper <- apply(fit$BETA, 2, quantile, probs = 0.975)
 
 	# coefficient names
-	# the bipartite path leaves fit$X_names and dimnames(fit$X)[[3]] NULL even
-	# when fit$BETA has proper colnames, so fall back to colnames(fit$BETA)
-	# before the generic beta0..betaN labels.
+	# the bipartite path leaves fit$x_names and dimnames(fit$x)[[3]] null even
+	# when fit$beta has proper colnames, so fall back to colnames(fit$beta)
+	# before the generic beta0..betan labels.
 	if(!is.null(fit$X_names)) {
 		beta_names <- fit$X_names
 	} else if(!is.null(dimnames(fit$X)[[3]])) {
@@ -96,14 +96,14 @@ summary.ame <- function(object, ...) {
 	})
 	
 	# surface multi-chain diagnostics if the fit carries them so a brms-style
-	# user can read Rhat/ESS right out of summary()
+	# user can read rhat/ess right out of summary()
 	diag_block <- NULL
 	if (!is.null(fit$diagnostics) &&
 	    (!is.null(fit$diagnostics$rhat) || !is.null(fit$diagnostics$ess))) {
 		n_chains_val <- fit$diagnostics$n_chains %||% NA_integer_
 		rhat_all <- fit$diagnostics$rhat
 		ess_all  <- fit$diagnostics$ess
-		# beta_table rownames are the BETA columns; fish out the matching subset
+		# beta_table rownames are the beta columns; fish out the matching subset
 		if (!is.null(rhat_all)) {
 			r_beta <- rhat_all[intersect(names(rhat_all), rownames(beta_table))]
 			# pad to match rows so cbind aligns
@@ -135,7 +135,7 @@ summary.ame <- function(object, ...) {
 	}
 
 	# assemble summary object. `coefficients` is an alias for `beta` to match
-	# the `summary(lm())$coefficients` convention that base-R users reach for
+	# the `summary(lm())$coefficients` convention that base-r users reach for
 	sum_obj <- list(
 		call = display_call,
 		beta = beta_table,

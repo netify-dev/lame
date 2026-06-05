@@ -1,7 +1,7 @@
 # symmetric ordinal in ame().
-# Verifies that the ordinal-symmetric path:
+# verifies that the ordinal-symmetric path:
 #   (i) does not abort
-#   (ii) returns a symmetric YPM
+#   (ii) returns a symmetric ypm
 #   (iii) recovers a known dyadic-covariate sign
 #   (iv) carries the symmetric-doubled precision in posterior summaries
 
@@ -41,7 +41,7 @@ test_that("ame(symmetric = TRUE, family = 'ordinal') runs end-to-end", {
 	          verbose = FALSE, plot = FALSE, gof = FALSE, seed = 5201L)
 
 	expect_true(inherits(fit, "ame"))
-	# BETA recovered as 1 column (the dyadic covariate)
+	# beta recovered as 1 column (the dyadic covariate)
 	expect_equal(ncol(fit$BETA), 1L)
 	expect_true("Xdyad_dyad" %in% colnames(fit$BETA))
 	# sign recovery
@@ -75,15 +75,15 @@ test_that("symmetric ordinal posterior YPM (and EZ) is symmetric", {
 	          R = 0, nscan = 150, burn = 30, odens = 5,
 	          verbose = FALSE, plot = FALSE, gof = FALSE, seed = 5202L)
 
-	# the EZ stored on the fit should be symmetric to numerical precision
-	# (ame returns YPM as a matrix for cross-sectional fits)
+	# the ez stored on the fit should be symmetric to numerical precision
+	# (ame returns ypm as a matrix for cross-sectional fits)
 	if (!is.null(fit$EZ)) {
 		expect_true(isTRUE(all.equal(fit$EZ, t(fit$EZ),
 		                              check.attributes = FALSE,
 		                              tolerance = 1e-8)))
 	}
-	# YPM is the posterior-predictive mean of Y; for ordinal it is a
-	# probability-weighted category mean, still symmetric under symmetric Y
+	# ypm is the posterior-predictive mean of y; for ordinal it is a
+	# probability-weighted category mean, still symmetric under symmetric y
 	ypm = fit$YPM
 	if (is.matrix(ypm)) {
 		# fill diag with t(diag) so the symmetry check ignores it

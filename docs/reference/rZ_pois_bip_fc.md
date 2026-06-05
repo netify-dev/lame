@@ -1,6 +1,6 @@
 # Sample Z under bipartite Poisson (rectangular MH step)
 
-Rectangular drop-in for
+Rectangular analogue of
 [`rZ_pois_fc`](https://netify-dev.github.io/lame/reference/rZ_pois_fc.md).
 Each `(i,j)` cell is updated independently with a Metropolis-Hastings
 step on the Poisson log-link; there is no upper/lower-triangle coupling

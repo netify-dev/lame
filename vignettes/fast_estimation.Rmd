@@ -38,8 +38,8 @@ It fits the same model
 
 by **iterative block coordinate descent** rather than Gibbs sampling. It is
 typically tens to hundreds of times faster than `ame()`, and the point
-estimates are usually close. Use it to explore; use `ame()` / `lame()` for the
-inference you report.
+estimates are usually close. Use it when a point estimate is enough; use
+`ame()` / `lame()` when the target is a posterior summary.
 
 ### Wall-clock benchmark
 
@@ -63,7 +63,7 @@ before MCMC finishes its burn-in for any reasonable n.
 
 These ranges are wide on purpose: under a single-threaded BLAS on a
 virtualised host, the small-n speed ratios we have measured are several
-times larger than the "≈ 30×" figure quoted in earlier docs, because the
+times larger than the "≈ 30×" figure in older docs, because the
 MCMC's per-iteration overhead is fixed and the ALS solve is nearly free
 at n ≤ 100. Treat the ratio as "ALS finishes before MCMC's burn-in"
 rather than a number to plan against.
@@ -81,8 +81,8 @@ runs the full ALS fit 101 times. For a binary `ame_als(R = 1, bootstrap = 100)`
 at n = 50, we measured ≈ 135 s --- slower than the equivalent MCMC fit.
 If you only need the point estimate, skip the bootstrap (`bootstrap = 0`,
 the default) and use the sandwich `vcov()`/`confint()` on the fit. If
-you need calibrated intervals at scale, `ame()` MCMC is often the
-cheaper option even though it samples for thousands of iterations.
+you need interval estimates at scale, compare the bootstrap cost with a
+regular `ame()` MCMC run; for some binary networks the MCMC fit is cheaper.
 
 To benchmark on your own hardware:
 
@@ -102,11 +102,12 @@ cat("ALS:  ", round(t_als["elapsed"], 2), "s\n",
 
 ### What ALS can do vs. what only MCMC does
 
-ALS is a fast point estimator, not a drop-in replacement for the Bayesian
+ALS is a fast point estimator. It covers most static AME workflows and several
+dynamic workflows, while posterior-specific features still require the Bayesian
 MCMC fits. The current coverage is:
 
-| Capability                                | `ame()` / `lame()` (MCMC) | `ame_als()` / `lame_als()` |
-|-------------------------------------------|---------------------------|----------------------------|
+| Capability                                | `ame()` / `lame()` (MCMC) | Fast point estimators |
+|-------------------------------------------|---------------------------|-----------------------|
 | Families: normal, binary                  | yes                        | yes                         |
 | Family: poisson                           | yes                        | yes                         |
 | Families: ordinal / tobit / cbin / frn / rrl | yes                     | no (error)                  |
@@ -121,11 +122,15 @@ MCMC fits. The current coverage is:
 | `summary`, `print`, `latent_positions`    | yes                        | yes                         |
 | `nobs`                                    | yes                        | yes                         |
 | `simulate`                                | yes                        | yes                         |
-| `gof_plot`                                | posterior predictive       | bootstrap-based             |
+| `gof_plot`                                | posterior predictive       | bootstrap-based GOF check   |
 | `ab_plot`, `uv_plot`                      | yes                        | yes                         |
 | `prior_summary`                           | yes                        | yes (reports "no priors")   |
-| `dynamic_uv` / `dynamic_ab` (AR(1))       | yes                        | **no (static pooled)**      |
-| Custom priors (`prior = list(...)`, `g`)  | yes                        | **no (no priors)**          |
+| `dynamic_ab` / selected `dynamic_beta`    | yes                        | normal, binary, and Poisson panels via dynamic ALS; named changing-composition panels are aligned |
+| Dynamic node-covariate coefficient paths  | yes                        | period-specific node values when selected by `dynamic_beta`; static node effects use actor means |
+| `dynamic_uv` (smooth AR(1) / t)           | yes                        | AR(1) and t for directed, symmetric, and bipartite panels |
+| `dynamic_G`                               | yes                        | bipartite normal, binary, and Poisson panels via dynamic ALS; named changing-composition panels are aligned |
+| `dynamic_uv_kind = "snap"`                | yes                        | `lame_snap_als()` for normal unipartite and bipartite panels |
+| Custom priors (`prior = list(...)`, `g`)  | yes                        | no Bayesian priors; dynamic ALS reads selected `prior$rho_*_mean` and `prior$lambda_*_als` values as smoothing controls |
 | Multi-chain (`n_chains`, via `ame_parallel`) | yes                     | no (use `bootstrap = N`)    |
 | `posterior_opts` (save U/V/a/b samples)   | yes                        | no (point estimator)        |
 | `trace_plot` (Rhat / ESS)                 | yes                        | no (deterministic)          |
@@ -135,13 +140,30 @@ When you call the unified front door with MCMC-only arguments, the ALS
 dispatcher warns and lists exactly which ones it ignored -- for the
 arguments each entry point actually accepts. Two caveats on the edges:
 
-- `nscan` / `burn` / `odens` / `prior` / `g` are accepted-then-ignored
-  with a warning by both `ame(method = "als")` and `lame(method = "als")`.
-- The longitudinal-only arguments (`dynamic_uv`, `dynamic_ab`,
-  `dynamic_beta`, `time_index`, ...) are warned-and-ignored by
-  `lame(method = "als")`, but passing them to `ame()` (cross-sectional)
-  raises the usual "longitudinal-only argument" *error* before ALS runs,
-  because they are not valid `ame()` arguments at all.
+- `nscan` / `burn` / `odens` / `g` are accepted-then-ignored with a warning
+  by both `ame(method = "als")` and `lame(method = "als")`.
+- The static ALS dispatcher warns and ignores MCMC tuning arguments such
+  as `nscan`, `burn`, `odens`, prior settings not used by the fast path,
+  and `g`. Dynamic ALS has no posterior priors, but it does use selected
+  entries in `prior` as deterministic smoothing controls
+  (`prior$rho_ab_mean`, `prior$rho_beta_mean`, `prior$rho_uv_mean`,
+  `prior$rho_G_mean`, and `prior$lambda_*_als`). Dynamic requests are stricter: supported `dynamic_ab`,
+  selected `dynamic_beta`, AR(1) or t `dynamic_uv`, and bipartite `dynamic_G`
+  requests route to dynamic ALS for
+  normal, binary, and Poisson panels. Named changing-composition panels are
+  aligned to the union actor set and actor-entry gaps break the smoothing
+  penalties. Student-t dynamic
+  UV fits attach final local transition-weight matrices as `fit$lambda_u`
+  and `fit$lambda_v`. `lame(method = "als", dynamic_uv = TRUE,
+  dynamic_uv_kind = "snap")` routes to
+  `lame_snap_als()` for supported normal unipartite and bipartite panels; unsupported
+  dynamic stacks raise a specific error rather than being silently
+  ignored. Use `als_max_iter`, `als_tol`, and `als_stability` for longer
+  dynamic ALS runs and start-sensitivity checks.
+- Passing longitudinal-only arguments such as `dynamic_uv`,
+  `dynamic_ab`, or `dynamic_beta` to `ame()` (cross-sectional) raises
+  the usual "longitudinal-only argument" error before ALS runs, because
+  they are not valid `ame()` arguments at all.
 - `n_chains` is an `ame()` / `ame_parallel()` argument; it is not a
   `lame()` formal, so `lame(method = "als", n_chains = ...)` raises an
   "unused argument" error rather than a warn-and-ignore. Use
@@ -224,7 +246,7 @@ with both engines and overlay the coefficient intervals. With a
 calibrated link (`non_normal_method = "irls"` for binary, the default)
 the ALS bootstrap should give a coefficient story qualitatively
 similar to the MCMC posterior on cases the model fits well; large
-discrepancies are a signal to use MCMC for inference.
+differences mean the posterior fit is the better reference for that dataset.
 
 ```{r als-vs-mcmc, fig.width = 7, fig.height = 3.5, fig.alt="Side-by-side coefficient plot comparing the ALS bootstrap and MCMC posterior on the same binary network. Each coefficient (intercept and the single dyadic covariate) has two horizontal intervals: one for the ALS bootstrap, one for the MCMC posterior. A dashed vertical line at zero marks the no-effect reference; intervals on the same side of zero and with overlapping range indicate the two estimators agree."}
 # wrap Xd into a 3-D array with an explicit slice name so the ALS and MCMC
@@ -238,8 +260,7 @@ Xd_arr <- array(Xd, dim = c(nrow(Xd), ncol(Xd), 1),
 fb_b <- ame_als(Yb, Xdyad = Xd_arr, R = 0, family = "binary",
                 verbose = FALSE, bootstrap = 100, bootstrap_seed = 1)
 
-# fit the same data with MCMC, short chain (this is a 40-actor binary
-# fit; sub-second wall-clock for a 200-sample posterior summary)
+# fit the same data with MCMC using a short chain for a quick comparison
 fit_mcmc <- ame(Yb, Xdyad = Xd_arr, family = "binary", R = 0,
                 burn = 200, nscan = 1000, odens = 5,
                 verbose = FALSE, plot = FALSE, gof = FALSE,
@@ -278,8 +299,7 @@ ggplot(df, aes(x = estimate, y = term,
 
 Two intervals on the same side of zero with substantial overlap
 means ALS is a fine point estimate for that coefficient; intervals
-that disagree on sign or location are a flag to invest the MCMC
-budget for that fit.
+that disagree on sign or location point to the MCMC fit for that dataset.
 
 ## Longitudinal data
 
@@ -308,5 +328,5 @@ coef(lf)
 | Bootstrap standard errors / intervals | `ame_als_bootstrap()` |
 | Calibrated posterior inference | `ame()` / `lame()` |
 
-The fast estimator is for exploration. When you report results, confirm them
-with the MCMC estimator.
+The fast estimator returns point estimates and bootstrap or sandwich
+uncertainty. The MCMC estimator returns posterior summaries.

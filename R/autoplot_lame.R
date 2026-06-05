@@ -63,7 +63,7 @@ autoplot.lame <- function(object,
 		    length(dim(object$BETA)) != 3L) {
 			return(.autoplot_static_coefplot(object, probs = probs, coefs = coefs))
 		}
-		# fit$BETA is [iter x p x T] under dynamic_beta
+		# fit$beta is [iter x p x t] under dynamic_beta
 		B <- object$BETA
 		if (length(dim(B)) != 3L) {
 			cli::cli_abort("{.code fit$BETA} must be a 3-D array for {.code which = \"beta\"}.")
@@ -132,7 +132,7 @@ autoplot.lame <- function(object,
 }
 
 # coefplot fallback used when which = "beta" is requested on a static
-# (non-dynamic_beta) fit. Builds a horizontal point-and-interval plot
+# (non-dynamic_beta) fit. builds a horizontal point-and-interval plot
 # from tidy(fit) so that autoplot(fit) always returns a ggplot.
 #' @noRd
 .autoplot_static_coefplot <- function(object,
@@ -173,7 +173,7 @@ autoplot.lame <- function(object,
 }
 
 # autoplot.ame: dispatch to autoplot.lame so that cross-sectional ame()
-# fits also get a ggplot from the same generic. Sharing the body means
+# fits also get a ggplot from the same generic. sharing the body means
 # autoplot(fit) returns a coefplot regardless of which constructor
 # (ame or lame) produced the fit.
 #' @rdname autoplot.lame

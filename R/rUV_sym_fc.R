@@ -17,13 +17,13 @@
 #' 
 #' U0<-matrix(rnorm(30,2),30,2) ; V0<-U0%*%diag(c(3,-2)) 
 #' E<- U0%*%t(V0) + matrix(rnorm(30^2),30,30) 
-#  rUV_sym_fc(E,U0,V0) 
+#  ruv_sym_fc(e,u0,v0) 
 #' rUV_sym_fc 
 #' 
 #' @export rUV_sym_fc
 rUV_sym_fc<-function(E,U,V,s2=1,shrink=TRUE) {
 	n<-nrow(U)
-	# random loop IDs for c++ (0-based indexing)
+	# random loop ids for c++ (0-based indexing)
 	uLoopIDs <- as.integer(rep(sample(1:n),4) - 1)
 	rUV_sym_fc_cpp(E, U, V, s2, shrink, uLoopIDs)
 }

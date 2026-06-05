@@ -1,10 +1,11 @@
 ####
 #' Simulate longitudinal networks from a fitted LAME model
 #' 
-#' Generates multiple longitudinal network realizations from the posterior 
-#' distribution of a fitted LAME (Longitudinal AME) model. This function performs
-#' posterior predictive simulation for dynamic networks, propagating both 
-#' cross-sectional and temporal uncertainty through the simulated trajectories.
+#' Generates multiple longitudinal network realizations from a fitted LAME
+#' (Longitudinal AME) model. This function performs conditional posterior
+#' predictive simulation for dynamic networks: it draws from stored MCMC samples
+#' when available and uses posterior means for latent components that were not
+#' retained.
 #' 
 #' @param object fitted model object of class "lame"
 #' @param nsim number of network trajectories to simulate (default: 100)
@@ -132,8 +133,7 @@
 #' \strong{Interpretation of Multiple Trajectories:}
 #' 
 #' Each simulated trajectory represents one possible evolution of the network
-#' consistent with the posterior distribution. Variation across trajectories
-#' captures:
+#' conditional on the stored fit. Variation across trajectories captures:
 #' \itemize{
 #'   \item Model parameter uncertainty
 #'   \item Stochastic variation in temporal evolution
@@ -156,10 +156,10 @@
 #' 
 #' \strong{Limitations:}
 #' 
-#' As with simulate.ame, multiplicative effects currently use posterior means.
-#' Full uncertainty would require storing complete MCMC chains for 
-#' \eqn{u_{i,t}, v_{j,t}} at all time points, which is memory-intensive for
-#' large networks and long time series.
+#' As with simulate.ame, multiplicative effects use posterior means unless the
+#' fit retained compatible latent-factor draws. Storing complete MCMC chains for
+#' \eqn{u_{i,t}, v_{j,t}} at all time points is memory-intensive for large
+#' networks and long time series.
 #'
 #' @examples
 #' \donttest{
@@ -217,7 +217,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 		} else if (!is.null(fit$Xlist)) {
 			n_time <- length(fit$Xlist)
 		} else {
-			n_time <- 10  # Default
+			n_time <- 10  # default
 			warning("Could not determine number of time periods from model. Using n_time=10")
 		}
 	}
@@ -225,7 +225,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 	####
 	BETA <- fit$BETA
 	VC <- fit$VC
-	# 3-D BETA storage (dynamic_beta) -- first dim is iter
+	# 3-d beta storage (dynamic_beta) -- first dim is iter
 	beta_is_dyn <- length(dim(BETA)) == 3L
 
 	# burn-in and thinning
@@ -292,7 +292,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 		})
 	}
 	
-	# verify Xlist length
+	# verify xlist length
 	if (length(Xlist) != n_time) {
 		warning("Xlist has length ", length(Xlist), " but n_time is ", n_time, 
 						". This may cause issues.")
@@ -323,8 +323,8 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 	# simulate trajectories
 	for (i in 1:nsim) {
 		s <- sample(1:n_mcmc, 1)
-		# beta_per_t: a matrix p x T (rows = coef, cols = period) for the
-		# dynamic_beta path; otherwise a constant matrix replicated across T.
+		# beta_per_t: a matrix p x t (rows = coef, cols = period) for the
+		# dynamic_beta path; otherwise a constant matrix replicated across t.
 		if (beta_is_dyn) {
 			beta_per_t <- BETA[s, , , drop = FALSE]
 			beta_per_t <- matrix(beta_per_t, nrow = dim(BETA)[2], ncol = dim(BETA)[3])
@@ -382,7 +382,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 			}
 			
 			if (!is.null(fit$U)) {
-				# dynamic U/V are 3D (n x R x T); use last slice
+				# dynamic u/v are 3d (n x r x t); use last slice
 				if (length(dim(fit$U)) == 3) {
 					U_t <- fit$U[,,dim(fit$U)[3]]
 				} else {
@@ -395,7 +395,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 						V_t <- fit$V
 					}
 				} else {
-					V_t <- U_t  # Symmetric case
+					V_t <- U_t  # symmetric case
 				}
 			}
 		} else if (start_from == "random") {
@@ -425,7 +425,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 		for (t in 1:n_time) {
 			X_t <- Xlist[[t]]
 
-			# dynamic additive effects AR(1)
+			# dynamic additive effects ar(1)
 			if (dynamic_ab && t > 1) {
 				if (bip) {
 					a_t <- rho_ab * a_t + rnorm(nA, 0, sigma_a * sqrt(1 - rho_ab^2))
@@ -440,7 +440,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 				}
 			}
 			
-			# dynamic multiplicative effects AR(1)
+			# dynamic multiplicative effects ar(1)
 			if (dynamic_uv && t > 1 && !is.null(U_t)) {
 				U_t <- rho_uv * U_t + matrix(rnorm(prod(dim(U_t)), 0,
 																					sigma_uv_innov),
@@ -484,20 +484,20 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 				EZ <- (EZ + t(EZ)) / 2
 			}
 			
-			# simulate Y
+			# simulate y
 			if (family == "binary") {
 				Y_sim <- simY_bin(EZ, rho)
 			} else if (family == "normal") {
 				Y_sim <- simY_nrm(EZ, rho, s2)
 			} else if (family == "ordinal") {
-				# simY_ord wants Y for the unique-category lookup
+				# simy_ord wants y for the unique-category lookup
 				y_for_sim <- if (is.list(fit$Y)) fit$Y[[t]] else
 					if (length(dim(fit$Y)) == 3L) fit$Y[, , t] else fit$Y
 				if (is.null(y_for_sim))
 					stop("simulate.lame: ordinal needs `fit$Y` for the category template.")
 				Y_sim <- simY_ord(EZ, rho, y_for_sim)
 			} else if (family == "rrl") {
-				# simY_rrl wants odobs (per-row observed outdegree).
+				# simy_rrl wants odobs (per-row observed outdegree).
 				y_for_sim <- if (is.list(fit$Y)) fit$Y[[t]] else
 					if (length(dim(fit$Y)) == 3L) fit$Y[, , t] else fit$Y
 				odobs_t <- if (!is.null(fit$odobs)) {
@@ -506,7 +506,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 				Y_sim <- simY_rrl(EZ, rho, odobs_t)
 			} else if (family == "poisson") {
 				# honor period_exposure on the fit; fall through to the
-				# unscaled simY_pois() path when no exposure is stored.
+				# unscaled simy_pois() path when no exposure is stored.
 				exposure_t <- if (!is.null(fit$period_exposure))
 					fit$period_exposure[min(t, length(fit$period_exposure))] else 1
 				if (isTRUE(exposure_t != 1)) {

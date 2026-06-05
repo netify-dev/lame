@@ -112,8 +112,8 @@ arguments. Defaults to the caller's frame; used internally when
 function with the user-supplied overrides forwarded; pass
 <code>nscan = K</code> on the resume call to request <code>K</code>
 additional stored draws. Both call shapes are supported. The
-legacy <code>lame_resume(path, ...)</code> form is currently the
-more robust of the two: the consolidated form re-evaluates the
+<code>lame_resume(path, ...)</code> form is safer for nested calls: the
+consolidated form re-evaluates the
 saved <code><a href="lame.html">lame()</a></code> call in <code><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame()</a></code>, which is
 the <code><a href="lame.html">lame()</a></code> frame whose required formal arguments
 (<code>Y</code>, <code>Xdyad</code>, etc.) were not supplied on the

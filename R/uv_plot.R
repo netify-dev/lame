@@ -105,8 +105,8 @@ uv_plot <- function(
 		}
 		if (is.null(U)) U <- fit$U
 		if (is.null(V)) V <- fit$V
-		# symmetric fits store the eigenmodel as U with L (V is NULL by
-		# design). Treat V as U so the rest of the routine can plot one
+		# symmetric fits store the eigenmodel as u with l (v is null by
+		# design). treat v as u so the rest of the routine can plot one
 		# common latent space for both endpoints of an undirected tie.
 		if (isTRUE(fit$symmetric) && is.null(V) && !is.null(U)) V <- U
 		is_dynamic <- FALSE
@@ -119,7 +119,7 @@ uv_plot <- function(
 			}
 			n_times <- dim(U)[3]
 			if (is.null(time_point)) {
-				time_point <- n_times  # Default to last time point
+				time_point <- n_times  # default to last time point
 				cli::cli_inform(c(
 					"i" = "Detected dynamic UV effects",
 					"*" = "Using last time point for visualization"
@@ -159,17 +159,11 @@ uv_plot <- function(
 
 	####
 
-	# treat NULL *and* zero-column / zero-row matrices as "no latent space":
-	# an R = 0 fit stores U / V as n x 0 matrices rather than NULL, so the
-	# old is.null()-only guard fell through and indexed an empty matrix
-	# ("subscript out of bounds") instead of giving the intended message.
+	# treat null and zero-size matrices as no latent space
 	.uv_empty <- function(M) is.null(M) || NCOL(M) == 0L || NROW(M) == 0L
 	if (.uv_empty(U) && .uv_empty(V)) {
 		if (!is.null(fit)) {
-			# a fit was supplied but carries no multiplicative effects: do NOT
-			# silently substitute an SVD of the raw data and label it
-			# "Multiplicative Effects" -- that fabricates a latent space the
-			# model never estimated.
+			# do not substitute a raw-data svd for an r = 0 fit
 			stop("This fit has no multiplicative effects (R = 0); there is no ",
 			     "estimated latent space to plot. Refit with R > 0, or use ",
 			     "ab_plot() for the additive effects.", call. = FALSE)
@@ -246,8 +240,8 @@ uv_plot <- function(
 			y = c(u_plot[,2], v_plot[,2]),
 			name = c(row.names, col.names),
 			type = factor(c(rep(row_type_label, n_row), rep(col_type_label, n_col))),
-			label = "",  # Initialize label column
-			magnitude = c(mu, mv),  # Store for sizing if needed
+			label = "",  # initialize label column
+			magnitude = c(mu, mv),  # store for sizing if needed
 			stringsAsFactors = FALSE
 		)
 	} else {
@@ -269,7 +263,7 @@ uv_plot <- function(
 			y = c(U_plot[,2], V_plot[,2]),
 			name = c(row.names, col.names),
 			type = factor(c(rep(row_type_label, n_row), rep(col_type_label, n_col))),
-			label = "",  # Initialize label column
+			label = "",  # initialize label column
 			stringsAsFactors = FALSE
 		)
 	}
@@ -304,7 +298,7 @@ uv_plot <- function(
 												 (max(node_data$size) - min(node_data$size) + 0.01)
 			}
 		} else {
-			node_data$size <- 3  # Default size
+			node_data$size <- 3  # default size
 		}
 	} else {
 		node_data$size <- node.size
@@ -316,7 +310,7 @@ uv_plot <- function(
 
 	if (layout == "circle") {
 		circle_df <- data.frame(
-			r = c(vscale, 1),  # Inner circle for receivers, outer for senders
+			r = c(vscale, 1),  # inner circle for receivers, outer for senders
 			type = c(paste(col_type_label, "circle"), paste(row_type_label, "circle"))
 		)
 		p <- p + 
@@ -352,7 +346,7 @@ uv_plot <- function(
 		p <- p + geom_point(aes(color = color, shape = type, size = size))
 	} else {
 		# colour and shape both encode node type -- give the shape scale the
-		# same legend name so ggplot merges them into ONE legend, not two
+		# same legend name so ggplot merges them into one legend, not two
 		p <- p + geom_point(aes(color = type, shape = type, size = size)) +
 			scale_color_manual(values = setNames(c(sender.color, receiver.color),
 																					 c(row_type_label, col_type_label)),
@@ -451,7 +445,7 @@ uv_plot_dynamic_internal <- function(fit, U, V, time_point, plot_type,
 																		 show_arrows, title, label.nodes,
 																		 label.size, colors, highlight = NULL) {
 
-	# colour-blind-safe Okabe-Ito palette (Wong 2011, Nat Methods); used when
+	# colour-blind-safe okabe-ito palette (wong 2011, nat methods); used when
 	# the actor set is small enough that distinct colours stay distinguishable
 	okabe_ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
 	               "#0072B2", "#D55E00", "#CC79A7", "#000000")
@@ -557,13 +551,13 @@ uv_plot_dynamic_internal <- function(fit, U, V, time_point, plot_type,
 			}
 		}
 		
-		# colour-by-actor; highlight subset if requested, otherwise Okabe-Ito for n <= 8
+		# colour-by-actor; highlight subset if requested, otherwise okabe-ito for n <= 8
 		n_actors <- length(unique(traj_data$node))
 		if (!is.null(highlight)) {
 			traj_data$highlight <- ifelse(traj_data$node %in% highlight,
 			                              as.character(traj_data$node),
 			                              "Other")
-			# order highlighted actors first in the legend, Other last
+			# order highlighted actors first in the legend, other last
 			lvl <- c(intersect(unique(traj_data$node), highlight), "Other")
 			traj_data$highlight <- factor(traj_data$highlight, levels = lvl)
 			n_h <- length(highlight)

@@ -30,7 +30,7 @@ function(Z,U,V,Suv,rho,s2=1,offset=0) {
 			Er<- E - U[,-r]%*%t(V[,-r]) ;  Es<- (g^2+d^2)*Er+2*g*d*t(Er)
 
 			####
-			# update U[,r]
+			# update u[,r]
 			vr<-V[,r]
 			b0<- c(Suv[r,-r]%*%solve(Suv[-r,-r]))
 			v0<- c(Suv[r,r] - b0%*%Suv[-r,r])
@@ -44,7 +44,7 @@ function(Z,U,V,Suv,rho,s2=1,offset=0) {
 			####
 
 			####
-			# update V[,r]
+			# update v[,r]
 			ur<-U[,r]
 			rv<-R+r
 			b0<- c(Suv[rv,-rv]%*%solve(Suv[-rv,-rv]))

@@ -2,15 +2,14 @@
 #' Simulate networks from a fitted AME model
 #' 
 #' @description
-#' Generates multiple network realizations from the posterior distribution of
-#' a fitted AME model. This function performs posterior predictive simulation
-#' by drawing from the full joint posterior distribution of model parameters,
-#' thereby propagating parameter uncertainty into the simulated networks.
+#' Generates multiple network realizations from a fitted AME model. This
+#' function performs conditional posterior predictive simulation: it draws from
+#' stored MCMC samples when they are available and uses posterior means for
+#' latent components that were not retained.
 #' 
-#' \strong{Key Difference from print():} While \code{print.ame} displays existing
-#' model results without computation, \code{simulate.ame} actively generates new
-#' network data by sampling from the posterior predictive distribution. This is
-#' computationally intensive and produces new datasets for analysis.
+#' Unlike \code{print.ame}, which only displays fitted quantities,
+#' \code{simulate.ame} draws new networks from the posterior predictive
+#' distribution.
 #' 
 #' @param object fitted model object of class "ame"
 #' @param nsim number of networks to simulate (default: 100)
@@ -37,7 +36,7 @@
 #'   }
 #'
 #' @details
-#' \strong{Mathematical Framework:}
+#' \strong{Model:}
 #' 
 #' The AME model represents networks through a latent variable framework:
 #' \deqn{Y_{ij} \sim F(Z_{ij})}
@@ -52,35 +51,35 @@
 #'   \item \eqn{\epsilon_{ij}}: dyadic random effects with correlation \eqn{\rho}
 #' }
 #' 
-#' \strong{Uncertainty Quantification Process:}
+#' \strong{Simulation:}
 #' 
 #' For each simulated network k = 1, ..., nsim:
 #' 
-#' 1. \strong{Parameter Sampling:} Draw parameter set \eqn{\theta^{(k)}} from MCMC chains:
+#' 1. \strong{Parameter draw:} Draw parameter set \eqn{\theta^{(k)}} from MCMC chains:
 #'    \itemize{
 #'      \item Sample iteration s uniformly from stored MCMC samples
 #'      \item Extract \eqn{\beta^{(s)}}, variance components \eqn{(v_a^{(s)}, v_b^{(s)}, v_e^{(s)}, \rho^{(s)})}
 #'    }
 #' 
-#' 2. \strong{Random Effects Generation:} Sample new random effects from posterior distributions:
+#' 2. \strong{Random effects:} Sample new random effects from posterior distributions:
 #'    \itemize{
 #'      \item \eqn{a_i^{(k)} \sim N(0, v_a^{(s)})} for i = 1, ..., n (row effects)
 #'      \item \eqn{b_j^{(k)} \sim N(0, v_b^{(s)})} for j = 1, ..., m (column effects)
-#'      \item Note: We sample fresh from the posterior variance rather than using
-#'            point estimates to properly propagate uncertainty
+#'      \item Fresh draws from the posterior variance carry random-effect
+#'            uncertainty into the simulated networks
 #'    }
 #' 
-#' 3. \strong{Latent Network Construction:} Build expected latent positions:
+#' 3. \strong{Latent network:} Build expected latent positions:
 #'    \deqn{E[Z_{ij}^{(k)}] = \beta^{(s)T} x_{ij} + a_i^{(k)} + b_j^{(k)} + \hat{u}_i^T \hat{v}_j}
 #'    where \eqn{\hat{u}_i, \hat{v}_j} are posterior mean latent factors
 #' 
-#' 4. \strong{Dyadic Correlation:} Add correlated noise structure:
+#' 4. \strong{Dyadic correlation:} Add correlated noise structure:
 #'    \deqn{Z_{ij}^{(k)} = E[Z_{ij}^{(k)}] + \epsilon_{ij}^{(k)}}
 #'    where \eqn{\epsilon} has covariance structure:
 #'    \deqn{Cov(\epsilon_{ij}, \epsilon_{ji}) = \rho^{(s)} v_e^{(s)}}
 #'    \deqn{Var(\epsilon_{ij}) = v_e^{(s)}}
 #' 
-#' 5. \strong{Observation Model:} Generate observed network based on family:
+#' 5. \strong{Observation model:} Generate the observed network:
 #'    \itemize{
 #'      \item Binary: \eqn{Y_{ij}^{(k)} = I(Z_{ij}^{(k)} > 0)}
 #'      \item Normal: \eqn{Y_{ij}^{(k)} = Z_{ij}^{(k)}}
@@ -88,7 +87,7 @@
 #'      \item Other families use appropriate link functions
 #'    }
 #' 
-#' \strong{Sources of Uncertainty:}
+#' \strong{Sources of uncertainty:}
 #' 
 #' The simulation captures three types of uncertainty:
 #' 
@@ -96,16 +95,15 @@
 #' 2. \strong{Random effect uncertainty:} Fresh draws from \eqn{N(0, v_a), N(0, v_b)} for each simulation
 #' 3. \strong{Dyadic uncertainty:} Correlated random noise \eqn{\epsilon_{ij}}
 #' 
-#' This approach provides proper posterior predictive distributions that account
-#' for all sources of uncertainty in the model. The variation across simulated
-#' networks reflects our posterior uncertainty about the data generating process.
+#' The resulting simulations propagate uncertainty from the stored parameter
+#' draws and from fresh dyadic/random-effect draws. Latent components that were
+#' not stored as MCMC draws are held at their posterior means.
 #' 
-#' \strong{Limitations:}
+#' \strong{Latent-factor draws:}
 #' 
-#' Currently, multiplicative effects (U, V) use posterior means rather than
-#' sampling from their full posterior. For complete uncertainty quantification,
-#' one would need to store and sample from the full MCMC chains of these
-#' latent factors, which would require substantial additional memory.
+#' Multiplicative effects (U, V) use posterior means unless the fit retained
+#' compatible latent-factor draws. Storing full latent-factor chains can require
+#' substantial additional memory.
 #' 
 #' \strong{Symmetric Networks:}
 #' 
@@ -172,9 +170,7 @@ simulate.ame <- function(
 	####
 	# covariates
 	if (!is.null(newdata)) {
-		# build the SAME design array the fit used (intercept slice + row/col
-		# covariates broadcast), so X aligns column-for-column with `beta`.
-		# Otherwise beta[1] (the intercept) multiplies the first covariate.
+		# build the design array the fit used so x aligns with beta
 		has_int <- "intercept" %in% colnames(BETA)
 		if (bip) {
 			Xdyad <- newdata$Xdyad
@@ -248,10 +244,8 @@ simulate.ame <- function(
 			s2 <- max(s2, 0.01)
 		}
 		
-		# additive effects: use saved posterior draws if available, else the
-		# posterior mean (APM/BPM). Drawing iid from N(0, va) -- the old
-		# behaviour -- discards the fitted degree heterogeneity and collapses
-		# reciprocity/triadic structure in the posterior-predictive networks.
+		# additive effects use saved posterior draws when available; otherwise use
+		# the fitted posterior means
 		if (!is.null(fit$a_samples)) {
 			a <- fit$a_samples[, sample.int(ncol(fit$a_samples), 1)]
 		} else if (!is.null(fit$APM) && length(fit$APM) == n_row) {
@@ -291,7 +285,7 @@ simulate.ame <- function(
 		EZ <- EZ + outer(a, b, "+")
 
 		# multiplicative effects: per-draw posterior samples if saved,
-		# else the posterior-mean U/V
+		# else the posterior-mean u/v
 		U_s <- fit$U; V_s <- fit$V
 		if (!is.null(fit$U_samples)) {
 			uidx <- sample.int(dim(fit$U_samples)[3], 1)
@@ -310,21 +304,21 @@ simulate.ame <- function(
 			EZ <- (EZ + t(EZ)) / 2
 		}
 		
-		# simulate Y
+		# simulate y
 		if (family == "binary") {
 			Y_sim <- simY_bin(EZ, rho)
 		} else if (family == "normal") {
 			Y_sim <- simY_nrm(EZ, rho, s2)
 		} else if (family == "ordinal") {
-			# simY_ord wants Y (for the unique-category lookup), not the
-			# nonexistent fit$ODM slot. Use the posterior-predictive mean
-			# or the original Y as a category template.
+			# simy_ord wants y (for the unique-category lookup), not the
+			# nonexistent fit$odm slot. use the posterior-predictive mean
+			# or the original y as a category template.
 			y_for_sim <- fit$Y %||% fit$YPM
 			if (is.null(y_for_sim)) stop("simulate.ame: ordinal needs `fit$Y` to be present.")
 			Y_sim <- simY_ord(EZ, rho, y_for_sim)
 		} else if (family == "rrl") {
-			# simY_rrl wants `odobs` (per-row observed outdegree) -- not the
-			# nonexistent fit$ODM slot. Derive it from Y when absent.
+			# simy_rrl wants `odobs` (per-row observed outdegree) -- not the
+			# nonexistent fit$odm slot. derive it from y when absent.
 			odobs <- fit$odobs %||% {
 				yy <- fit$Y %||% fit$YPM
 				if (is.null(yy)) stop("simulate.ame: rrl needs `fit$Y` or `fit$odobs`.")
@@ -346,7 +340,7 @@ simulate.ame <- function(
 			diag(Y_sim) <- NA
 		}
 		# symmetric fit -> each posterior-predictive draw must also be
-		# symmetric. EZ is already symmetrized above but simY_* draws independent
+		# symmetric. ez is already symmetrized above but simy_* draws independent
 		# noise per cell, breaking symmetry; mirror the upper triangle here.
 		if (isTRUE(symmetric) && !bip && nrow(Y_sim) == ncol(Y_sim)) {
 			ut <- upper.tri(Y_sim)

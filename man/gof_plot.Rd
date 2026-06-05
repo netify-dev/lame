@@ -81,7 +81,7 @@ effects or popularity-related covariates.
 \item{\code{dyad.dep} (Reciprocity/Mutuality)}{
 Correlation between \code{Y[i,j]} and \code{Y[j,i]}. Positive values indicate reciprocity
 (mutual ties are more likely). The AME model captures this through the
-dyadic correlation parameter rho. Poor fit here suggests the need to adjust
+dyadic correlation parameter rho. Poor fit here points to adjusting
 the dcor parameter.
 }
 \item{\code{triad.dep} (Transitivity/Clustering)}{

@@ -21,7 +21,7 @@ updated symmetric n x n latent matrix with \code{NA} on the
 diagonal.
 }
 \description{
-Symmetric-Z drop-in for \code{\link{rZ_ord_fc}}: each unordered dyad
+Symmetric-Z analogue of \code{\link{rZ_ord_fc}}: each unordered dyad
 {i, j} carries a single latent value (Z_ij = Z_ji) drawn from a
 truncated normal with mean equal to the average linear predictor
 (EZ_ij + EZ_ji) / 2 and variance 1/2 (precision 2). The lower

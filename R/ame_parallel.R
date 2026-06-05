@@ -46,8 +46,7 @@ ame_parallel <- function(
 		cli::cli_warn("Package 'parallel' not available. Running chains sequentially.")
 		cores <- 1
 	}
-	# clamp cores to the machine's logical-core count; over-subscribing
-	# is the most common silent foot-gun on shared workers
+		# clamp cores to the machine's logical-core count
 	if (cores > 1) {
 		n_logical <- tryCatch(parallel::detectCores(logical = TRUE),
 		                      error = function(e) NA_integer_)
@@ -63,8 +62,8 @@ ame_parallel <- function(
 
 	####
 	# dispatch to lame() for longitudinal data so that lame()-only args
-	# (dynamic_beta etc.) reach the right fitter. auto-detect from Y:
-	# a list or a 3-D array with > 1 slice is longitudinal.
+	# (dynamic_beta etc.) reach the right fitter. auto-detect from y:
+	# a list or a 3-d array with > 1 slice is longitudinal.
 	if (fitter == "auto") {
 		is_longitudinal <-
 			(is.list(Y) && length(Y) > 1L) ||
@@ -210,10 +209,10 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 	combined <- chain_list[[1]]
 
 	####
-	# combine BETA and VC matrices. BETA is 3-D when dynamic_beta is on
-	# ([n_iter, p, T]); use abind along the first dim for that case so
-	# the result has shape [sum(n_iter), p, T] with coefficient and period
-	# dimnames preserved from the first chain. plain rbind handles 2-D.
+	# combine beta and vc matrices. beta is 3-d when dynamic_beta is on
+	# ([n_iter, p, t]); use abind along the first dim for that case so
+	# the result has shape [sum(n_iter), p, t] with coefficient and period
+	# dimnames preserved from the first chain. plain rbind handles 2-d.
 	if(!is.null(combined$BETA)) {
 		BETA_list <- lapply(chain_list, function(x) x$BETA)
 		beta_is_dyn <- length(dim(BETA_list[[1]])) == 3L
@@ -233,9 +232,9 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 
 	if(!is.null(combined$GOF)) {
 		GOF_list <- lapply(chain_list, function(x) x$GOF)
-		# GOF on lame fits is a NAMED LIST of [stat, T] matrices, not a 3-D
+		# gof on lame fits is a named list of [stat, t] matrices, not a 3-d
 		# array. rbind() on the list-of-lists path fails; concatenate per-stat
-		# across chains instead. ame fits store GOF as a 2-D matrix [iter,
+		# across chains instead. ame fits store gof as a 2-d matrix [iter,
 		# 5/3 stats] and rbind works there.
 		if (is.list(GOF_list[[1]]) && !is.matrix(GOF_list[[1]])) {
 			combined$GOF <- lapply(names(GOF_list[[1]]), function(nm) {
@@ -272,26 +271,26 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 	####
 
 	####
-	# average posterior means across chains. The multiplicative factors U, V
-	# are identified only up to a rotation (UR, VR^{-T}) -- element-wise
-	# averaging of rotation-equivalent matrices is meaningless. Instead, pool
-	# the rotation-INVARIANT product U%*%V' across chains, then recover U/V
-	# from its SVD. If the chains' U/V truly correspond up to small rotations
+	# average posterior means across chains. the multiplicative factors u, v
+	# are identified only up to a rotation (ur, vr^{-t}) -- element-wise
+	# averaging of rotation-equivalent matrices is meaningless. instead, pool
+	# the rotation-invariant product u%*%v' across chains, then recover u/v
+	# from its svd. if the chains' u/v truly correspond up to small rotations
 	# this is exact; if they sit in different basins, the singular spectrum
-	# of the pooled product still has meaning while the individual U, V do
+	# of the pooled product still has meaning while the individual u, v do
 	# not -- the user is better off with the rotation-stable summary.
 	if(!is.null(combined$U) && !is.null(combined$V) &&
 	   ncol(combined$U) > 0L && ncol(combined$V) > 0L) {
 		U_list <- lapply(chain_list, function(x) x$U)
 		V_list <- lapply(chain_list, function(x) x$V)
-		# under dynamic_uv U/V are 3-D; preserve the time dimension by
-		# averaging element-wise instead of an SVD of the time-collapsed
+		# under dynamic_uv u/v are 3-d; preserve the time dimension by
+		# averaging element-wise instead of an svd of the time-collapsed
 		# product (which would lose the dynamics).
 		u_is_dyn <- length(dim(U_list[[1]])) == 3L
 		if (u_is_dyn) {
 			combined$U <- Reduce("+", U_list) / n_chains
 			combined$V <- Reduce("+", V_list) / n_chains
-			# UVPM analogue under dynamic_uv -- per-time UV products averaged
+			# uvpm analogue under dynamic_uv -- per-time uv products averaged
 			combined$UVPM <- Reduce("+",
 				Map(function(U, V) {
 					out <- array(0, dim = c(nrow(U), nrow(V), dim(U)[3]))
@@ -326,7 +325,7 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 		combined$BPM <- Reduce("+", BPM_list) / n_chains
 	}
 
-	# lame fits store YPM/EZ as a per-period list of matrices; ame fits
+	# lame fits store ypm/ez as a per-period list of matrices; ame fits
 	# store them as a single matrix. average element-wise either way.
 	.avg_maybe_list <- function(items, n) {
 		if (is.list(items[[1]]) && !is.matrix(items[[1]])) {
@@ -385,7 +384,7 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 #' @export
 compute_mcmc_diagnostics <- function(chain_list) {
 
-	# input contract: a list of per-chain fits, each carrying $BETA
+	# input contract: a list of per-chain fits, each carrying $beta
 	if (!is.list(chain_list) || inherits(chain_list, c("ame", "lame")) ||
 	    length(chain_list) == 0L ||
 	    !all(vapply(chain_list,
@@ -401,7 +400,7 @@ compute_mcmc_diagnostics <- function(chain_list) {
 		return(NULL)
 	}
 
-	# R-hat + ESS for one block of parameters (a list of per-chain matrices)
+	# r-hat + ess for one block of parameters (a list of per-chain matrices)
 	diag_block <- function(mats) {
 		mats <- lapply(mats, as.matrix)
 		p  <- ncol(mats[[1]])
@@ -416,9 +415,9 @@ compute_mcmc_diagnostics <- function(chain_list) {
 			vp <- ((min(ns) - 1) * W + B) / min(ns)
 			rh[j] <- if (is.finite(W) && W > 0) sqrt(vp / W) else NA_real_
 			if (requireNamespace("coda", quietly = TRUE)) {
-				# ESS on the POOLED draws: summing per-chain ESS (the old
+				# ess on the pooled draws: summing per-chain ess (the old
 				# behaviour) ignores between-chain disagreement and reports a
-				# hugely inflated ESS for non-converged chains
+				# hugely inflated ess for non-converged chains
 				es[j] <- as.numeric(coda::effectiveSize(
 					coda::mcmc(unlist(ch, use.names = FALSE))))
 			}

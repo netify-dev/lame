@@ -43,14 +43,13 @@ Data frame with columns `term`, `estimate`, `std.error`, `statistic`,
 ## Details
 
 **Note on `p.value`.** This column is included for broom compatibility
-but is *not* a frequentist p-value. It is the same approximate two-sided
-posterior tail probability \\2(1 - \Phi(\|z\|))\\ that `summary(fit)`
-reports — a rough "does the posterior exclude zero?" heuristic computed
-under a Normal approximation to the marginal posterior. The honest
-Bayesian analogues are (a) the `conf.low` / `conf.high` columns (95\\
-agreement, `mean(sign(BETA) == sign(mean(BETA)))`, which you can compute
-from `x$BETA` directly. Treat small `p.value` as "the credible interval
-is unlikely to contain 0", not as a classical significance test.
+but is *not* a classical test. It is a two-sided Normal approximation
+based on the posterior mean and marginal posterior standard deviation,
+matching the calculation in `summary(fit)`. Use it as a compact signal
+that the marginal posterior is far from zero, and report it alongside
+the `conf.low` / `conf.high` credible interval. When sign certainty
+matters, compute it directly from `x$BETA`, for example
+`mean(sign(BETA) == sign(mean(BETA)))`.
 
 Loaded as an S3 method against
 [`generics::tidy`](https://generics.r-lib.org/reference/tidy.html) when

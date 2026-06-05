@@ -1,20 +1,20 @@
-# ame_als_irls.R
+# ame_als_irls.r
 #
-# iteratively reweighted least squares (IRLS) for the non-normal families of
-# the fast AME estimator. With `non_normal_method = "irls"` the estimator
-# repeatedly rebuilds a family-specific Gaussian working response and weight
-# from the current linear predictor and refits the weighted BCD core, instead
-# of fitting a single fixed transform. The result is a fast *approximate GLM*
-# AME fit -- closer to the calibrated MCMC estimator than the one-shot
+# iteratively reweighted least squares (irls) for the non-normal families of
+# the fast ame estimator. with `non_normal_method = "irls"` the estimator
+# repeatedly rebuilds a family-specific gaussian working response and weight
+# from the current linear predictor and refits the weighted bcd core, instead
+# of fitting a single fixed transform. the result is a fast *approximate glm*
+# ame fit -- closer to the calibrated mcmc estimator than the one-shot
 # `log(y+1)` / rank-normal transforms, at a few times their cost.
 #
-# supported: binary (logit / probit link) and poisson (log link). Ordinal stays
-# on the rank-normal transform (cumulative-link IRLS is left to MCMC).
+# supported: binary (logit / probit link) and poisson (log link). ordinal stays
+# on the rank-normal transform (cumulative-link irls is left to mcmc).
 
-# --- family working-response / weight maps (elementwise, NA-propagating) -----
+# --- family working-response / weight maps (elementwise, na-propagating) -----
 
 # each map clips the link inputs (p, phi) and the working-response increment so
-# separated / sparse data cannot produce an infinite or NaN working response;
+# separated / sparse data cannot produce an infinite or nan working response;
 # the increment cap is wide enough never to bite in ordinary data.
 
 # poisson, log link:  z = eta + (y - mu)/mu ,  w = mu = exp(eta)
@@ -46,7 +46,7 @@
 	list(z = eta + delta, w = pmax(phi^2 / (p * (1 - p)), wfloor))
 }
 
-# --- family deviances (the IRLS ranking objective) --------------------------
+# --- family deviances (the irls ranking objective) --------------------------
 
 .ae_dev_poisson <- function(y, mu) {
 	mu <- pmax(mu, 1e-12)
@@ -61,13 +61,13 @@
 }
 
 # --------------------------------------------------------------------------
-# IRLS outer loop
+# irls outer loop
 # --------------------------------------------------------------------------
 
 # prep      : canonical prep list (from .ae_prepare / .ae_prep_from_canonical)
-# init      : optional warm-start state (mu, beta, a, b, U, V, L); when NULL the
+# init      : optional warm-start state (mu, beta, a, b, u, v, l); when null the
 #             loop is seeded by the one-shot transform fit
-# returns   : list(fit = best BCD fit, Z = its working response,
+# returns   : list(fit = best bcd fit, z = its working response,
 #                  dev_trace, irls_iters)
 .ae_irls_run <- function(prep, family, link, R, symmetric, max_iter, tol,
                          lowrank_method = "mm", irls_maxit = 5L,
@@ -77,7 +77,7 @@
 	Tt <- prep$Tt; nr <- prep$nr; nc <- prep$nc
 	y  <- prep$Yarr
 
-	# linear predictor array from a BCD fit
+	# linear predictor array from a bcd fit
 	eta_of <- function(f) {
 		ab <- outer(f$a, f$b, "+")
 		E  <- array(0, dim = c(nr, nc, Tt))

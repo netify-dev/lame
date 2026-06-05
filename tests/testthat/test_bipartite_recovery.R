@@ -52,13 +52,13 @@ test_that("ame() bipartite normal recovers beta and additive effects", {
 	expect_true(cor_b > 0.4,
 		info = paste("Receiver effects correlation:", round(cor_b, 3)))
 
-	# latent position recovery (UV product correlation)
-	# true UV is in original order, est UV is in sorted order
+	# latent position recovery (uv product correlation)
+	# true uv is in original order, est uv is in sorted order
 	# correlation of vectorized products is order-independent if we
 	# align both to the same actor ordering
 	true_UV = tcrossprod(dat$true_params$U[[1]], dat$true_params$V[[1]])
 	est_UV = fit$U %*% fit$G %*% t(fit$V)
-	# reorder true_UV to match sorted actor order
+	# reorder true_uv to match sorted actor order
 	row_order = match(names(fit$APM), rownames(dat$Y))
 	col_order = match(names(fit$BPM), colnames(dat$Y))
 	true_UV_aligned = true_UV[row_order, col_order]
@@ -112,7 +112,7 @@ test_that("ame() bipartite binary recovers beta and additive effects", {
 	expect_true(cor_b > 0.3,
 		info = paste("Receiver effects correlation:", round(cor_b, 3)))
 
-	# UV product correlation
+	# uv product correlation
 	true_UV = tcrossprod(dat$true_params$U[[1]], dat$true_params$V[[1]])
 	est_UV = fit$U %*% fit$G %*% t(fit$V)
 	row_order = match(names(fit$APM), rownames(dat$Y))
@@ -142,7 +142,7 @@ test_that("lame() bipartite normal recovers beta and additive effects", {
 		mode = "bipartite", seed = 789
 	)
 
-	# lame() expects Xdyad as list of matrices
+	# lame() expects xdyad as list of matrices
 	Xdyad_list = lapply(dat$Xdyad, function(x) x[,,1])
 
 	fit = lame(
@@ -231,9 +231,9 @@ test_that("lame() bipartite binary recovers beta and effects", {
 })
 
 
-test_that("lame() handles every bipartite family as first-class", {
-	# ordinal / cbin / frn / poisson / rrl are first-class bipartite
-	# families via the rectangular helpers in R/rZ_bipartite.R.
+test_that("lame() handles every supported bipartite family", {
+	# ordinal / cbin / frn / poisson / rrl use rectangular bipartite samplers
+	# families via the rectangular helpers in r/rz_bipartite.r.
 	set.seed(999L)
 	nA = 8; nB = 6
 	for (fam in c("ordinal", "cbin", "frn", "rrl", "poisson")) {

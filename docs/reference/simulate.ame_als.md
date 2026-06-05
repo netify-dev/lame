@@ -40,7 +40,7 @@ list-of-matrices per slice for a longitudinal fit).
 ## Details
 
 Caveat: ALS is a point estimator. `simulate.ame_als` therefore holds
-`mu, beta, a, b, U, V` FIXED at the point estimate and only the noise is
+`mu, beta, a, b, U, V` at the point estimate and only the noise is
 resampled. For uncertainty over the parameters themselves use
 [`ame_als_bootstrap`](https://netify-dev.github.io/lame/reference/ame_als_bootstrap.md)
 (whose replicates each carry their own resampled `Y`) and combine those.

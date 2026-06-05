@@ -1,4 +1,4 @@
-# global variables for R CMD check
+# global variables for r cmd check
 if(getRversion() >= "2.15.1") {
 	utils::globalVariables("lab")
 }
@@ -38,7 +38,7 @@ if(getRversion() >= "2.15.1") {
 #'   \item{\code{dyad.dep} (Reciprocity/Mutuality)}{
 #'     Correlation between \code{Y[i,j]} and \code{Y[j,i]}. Positive values indicate reciprocity
 #'     (mutual ties are more likely). The AME model captures this through the
-#'     dyadic correlation parameter rho. Poor fit here suggests the need to adjust
+#'     dyadic correlation parameter rho. Poor fit here points to adjusting
 #'     the dcor parameter.
 #'   }
 #'   \item{\code{triad.dep} (Transitivity/Clustering)}{
@@ -174,9 +174,9 @@ gof_plot <- function(
 	title = NULL,
 	...) {
 
-	# ame_als fits don't carry a posterior-predictive GOF chain; delegate to
+	# ame_als fits don't carry a posterior-predictive gof chain; delegate to
 	# the bootstrap-based gof_plot.ame_als helper so users get something useful
-	# instead of a class-check rejection. Forward optional als-specific args
+	# instead of a class-check rejection. forward optional als-specific args
 	# (nsim, seed) via the dots.
 	if (inherits(fit, "ame_als")) {
 		dots <- list(...)
@@ -203,9 +203,9 @@ gof_plot <- function(
 		is_bipartite <- fit$mode == "bipartite"
 	}
 	
-	# `statistics = NULL` (the default) means "use the standard panels plus any
-	# custom GOF columns"; a user-supplied vector is honoured (and may name
-	# custom columns). Unknown names are dropped with a warning rather than a
+	# `statistics = null` (the default) means "use the standard panels plus any
+	# custom gof columns"; a user-supplied vector is honoured (and may name
+	# custom columns). unknown names are dropped with a warning rather than a
 	# hard match.arg() error.
 	user_stats <- statistics
 	if(is_bipartite) {
@@ -221,7 +221,7 @@ gof_plot <- function(
 										"trans.dep" = "trans.dep")
 		default_stats <- c("sd.row", "sd.col", "dyad.dep", "triad.dep", "trans.dep")
 	}
-	# custom GOF columns (e.g. from a custom_gof function) become plottable
+	# custom gof columns (e.g. from a custom_gof function) become plottable
 	custom_cols <- character(0)
 	if (!is.null(colnames(fit$GOF))) {
 		custom_cols <- setdiff(colnames(fit$GOF), unname(stat.names))
@@ -250,7 +250,7 @@ gof_plot <- function(
 
 ####
 
-# label mapping for GOF statistics
+# label mapping for gof statistics
 gof_stat_labels <- c(
 	"sd.row" = "Sender Degree Heterogeneity",
 	"sd.col" = "Receiver Degree Heterogeneity",
@@ -339,7 +339,7 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 		# observed value plotted as a dashed-and-coloured vline so the cue
 		# survives both colour-blind viewers (linetype is the secondary
 		# encoding) and grayscale printing. shape mapping at zero-extent
-		# segments lets the colour-blind-safe Okabe-Ito red anchor a real
+		# segments lets the colour-blind-safe okabe-ito red anchor a real
 		# legend instead of relying on prose to explain it.
 		obs_df <- data.frame(value = obs_vals[stat_col], lab = "Observed")
 		p_stat <- ggplot(df, aes(x = value)) +
@@ -408,7 +408,7 @@ gof_plot_longitudinal <- function(
 	if (!is.null(fit$GOF_T)) {
 		gof_data <- fit$GOF_T
 	} else if (!is.null(fit$GOF) && is.list(fit$GOF) && !is.data.frame(fit$GOF)) {
-		# use the GOF list's actual names -- a hardcoded unipartite set would
+		# use the gof list's actual names -- a hardcoded unipartite set would
 		# omit the bipartite "four.cycles" column (and any custom statistic)
 		stat_names_full <- names(fit$GOF)
 
@@ -417,7 +417,7 @@ gof_plot_longitudinal <- function(
 		if (ncol(fit$GOF[[1]]) > 1) {
 			gof_data <- list()
 			n_time <- nrow(fit$GOF[[1]])  # number of real time periods
-			n_iter <- ncol(fit$GOF[[1]])  # number of MCMC iterations (obs + simulated)
+			n_iter <- ncol(fit$GOF[[1]])  # number of mcmc iterations (obs + simulated)
 
 			for (t in 1:n_time) {
 				# rows = iterations, cols = stats for each time period
@@ -480,7 +480,7 @@ gof_plot_longitudinal <- function(
 	# apply display labels
 	plot_data$statistic <- gof_label(plot_data$statistic)
 
-	# dual-encode the observed series (Okabe-Ito red + solid linetype with
+	# dual-encode the observed series (okabe-ito red + solid linetype with
 	# points; predictive median is grey dashed line, ribbon is grey shading)
 	# so the cue survives colour-blind viewers and grayscale printing. the
 	# colour / linetype scale provide a real legend instead of the prose-only

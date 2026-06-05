@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot.lame.R
 \name{plot.lame}
 \alias{plot.lame}
-\title{Plot comprehensive diagnostics for a LAME model fit}
+\title{Plot diagnostics for a LAME model fit}
 \usage{
 \method{plot}{lame}(
   x,
@@ -30,7 +30,7 @@ Default is c(1,2,3,4) to show main diagnostic plots.}
 \item{ask}{logical; if TRUE, user is prompted before each plot page}
 
 \item{pages}{character string specifying how to arrange plots:
-"single" = one comprehensive page (default),
+"single" = one combined page (default),
 "multiple" = separate pages for each plot type}
 
 \item{...}{additional arguments (currently not used)}
@@ -39,7 +39,7 @@ Default is c(1,2,3,4) to show main diagnostic plots.}
 NULL (invisibly). Plots are displayed as side effects.
 }
 \description{
-Creates a comprehensive set of diagnostic plots for a LAME (Longitudinal
+Creates diagnostic plots for a LAME (Longitudinal
 Additive and Multiplicative Effects) model, including MCMC diagnostics,
 parameter evolution over time, and longitudinal goodness-of-fit checks.
 This is the default plot method for LAME objects.
@@ -78,7 +78,7 @@ diag(Y_list[[1]]) <- diag(Y_list[[2]]) <- NA
 fit <- lame(Y_list, family = "normal",
             nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE)
 
-# Default comprehensive plot
+# default combined plot
 plot(fit)
 }
 }

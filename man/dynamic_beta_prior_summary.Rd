@@ -66,7 +66,7 @@ Draws \code{ndraws} sample paths of length \code{T} from the
 inverse-gamma on the innovation variance) and reports the implied
 distribution of common summary statistics: maximum absolute first
 difference, roughness (sum of squared first differences), path range, and
-correlation with time. Use this BEFORE fitting to confirm that your prior
+correlation with time. Use this before fitting to confirm that your prior
 is loose / tight enough.
 }
 \details{

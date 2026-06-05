@@ -1,9 +1,9 @@
-# centered per-actor dynamic-beta sweep. samples each subject's length-T
-# slope path under an AR(1) prior using pairwise contrasts that preserve the
+# centered per-actor dynamic-beta sweep. samples each subject's length-t
+# slope path under an ar(1) prior using pairwise contrasts that preserve the
 # per-period sum-to-zero constraint exactly.
 
 # per-period observation sufficient statistics for one actor block: precision
-# H and cross-product h per actor (row or column side).
+# h and cross-product h per actor (row or column side).
 .per_actor_suffstats_period <- function(R_t, X_t, kind, s2) {
 	mask <- is.finite(R_t) & is.finite(X_t)
 	if (kind == "row") {
@@ -16,7 +16,7 @@
 	list(H = Hs, h = hs)
 }
 
-# AR(1) path precision matrix for a length-T_per latent path.
+# ar(1) path precision matrix for a length-t_per latent path.
 .ar1_path_precision <- function(T_per, rho, sigma2) {
 	if (T_per < 1L) return(matrix(0, 0L, 0L))
 	if (T_per == 1L) return(matrix(1 / sigma2, 1L, 1L))
@@ -68,7 +68,7 @@
 	theta
 }
 
-# inverse-gamma draw of the per-actor AR(1) innovation variance.
+# inverse-gamma draw of the per-actor ar(1) innovation variance.
 .sample_sigma_actor <- function(theta, rho_actor, prior_shape = 2, prior_scale = 1) {
 	n_actors <- nrow(theta)
 	T_per <- ncol(theta)
@@ -87,7 +87,7 @@
 	1 / stats::rgamma(1L, shape = shape_post, rate = scale_post)
 }
 
-# random-walk Metropolis update of the per-actor AR(1) persistence.
+# random-walk metropolis update of the per-actor ar(1) persistence.
 .sample_rho_actor <- function(theta, sigma2, rho_current, prior_a = 2, prior_b = 2,
                               sd_prop = 0.05) {
 	T_per <- ncol(theta)

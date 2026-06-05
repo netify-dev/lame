@@ -79,7 +79,7 @@ simulate_test_network = function(
 		list(U = U, V = V)
 	}
 
-	# compute Z = intercept + beta*X + outer(a,b) + UV' + noise
+	# compute z = intercept + beta*x + outer(a,b) + uv' + noise
 	compute_Z = function(Xd, a, b, U, V) {
 		eta = beta_intercept + beta_dyad * Xd
 		eta[is.na(Xd)] = beta_intercept
@@ -91,7 +91,7 @@ simulate_test_network = function(
 		Z
 	}
 
-	# convert Z to Y via family-specific link
+	# convert z to y via family-specific link
 	Z_to_Y = function(Z, Xd) {
 		Y = switch(family,
 			"normal" = {
@@ -120,7 +120,7 @@ simulate_test_network = function(
 				Y
 			},
 			"ordinal" = {
-				# map continuous Z to 4 ordinal categories (0-3)
+				# map continuous z to 4 ordinal categories (0-3)
 				breaks = quantile(Z, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
 				Y = matrix(0L, nr, nc)
 				Y[Z > breaks[1]] = 1L
@@ -177,9 +177,9 @@ simulate_test_network = function(
 		Y
 	}
 
-	# for poisson, adjust Z computation to use log link
+	# for poisson, adjust z computation to use log link
 	compute_Z_pois = function(Xd, a, b, U, V) {
-		# for poisson, EZ is on the log scale
+		# for poisson, ez is on the log scale
 		eta = beta_intercept + beta_dyad * Xd
 		eta[is.na(Xd)] = beta_intercept
 		eta = eta + outer(a, rep(1, nc)) + outer(rep(1, nr), b)
@@ -222,7 +222,7 @@ simulate_test_network = function(
 
 		Y_list[[t]] = Y
 
-		# format covariates as 3D arrays (n x n x 1) for Xdyad
+		# format covariates as 3d arrays (n x n x 1) for xdyad
 		Xdyad_list[[t]] = array(Xd, dim = c(nr, nc, 1))
 		Xrow_list[[t]] = Xr
 		Xcol_list[[t]] = Xc
@@ -250,15 +250,15 @@ simulate_test_network = function(
 		Y_out = Y_list
 		names(Y_out) = paste0("t", seq_len(n_time))
 
-		# Xdyad: list of T 3D arrays (nr x nc x 1)
+		# xdyad: list of t 3d arrays (nr x nc x 1)
 		Xdyad_out = Xdyad_list
 		names(Xdyad_out) = paste0("t", seq_len(n_time))
 
-		# Xrow: list of T matrices (nr x 1)
+		# xrow: list of t matrices (nr x 1)
 		Xrow_out = Xrow_list
 		names(Xrow_out) = paste0("t", seq_len(n_time))
 
-		# Xcol: list of T matrices (nc x 1)
+		# xcol: list of t matrices (nc x 1)
 		Xcol_out = Xcol_list
 		names(Xcol_out) = paste0("t", seq_len(n_time))
 	}

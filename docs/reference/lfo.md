@@ -77,9 +77,9 @@ print(lfo_res)
 #> 
 #> Periods evaluated: 3 and 4
 #> Refit per leave-out: TRUE
-#> Total elpd_lfo: -17303
+#> Total elpd_lfo: -17615
 #>  period      elpd n_obs
-#>       3 -9146.394  2450
-#>       4 -8156.861  2450
+#>       3 -8501.644  2450
+#>       4 -9113.160  2450
 # }
 ```

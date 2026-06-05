@@ -23,12 +23,11 @@ ame_bipartite <- function(
 	){
 
 	#### parameter setup ####
-	# rrl is first-class for bipartite: each row
-	# i provides a permutation over receivers, which is exactly the
-	# rectangular relative-rank-list likelihood the helper in
-	# R/rZ_bipartite.R samples from.
+	# rrl uses the rectangular bipartite sampler: each row
+	# i provides a permutation over receivers, matching the
+	# rectangular relative-rank-list likelihood.
 
-	# seed locally: restore the global RNG stream on exit
+	# seed locally: restore the global rng stream on exit
 	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
 		.old_seed <- get(".Random.seed", envir = globalenv())
 		on.exit(assign(".Random.seed", .old_seed, envir = globalenv()),
@@ -86,9 +85,9 @@ ame_bipartite <- function(
 	
 	p <- p_dyad + p_row + p_col + as.numeric(intercept)
 
-	# covariate names for BETA columns. .lame_apply_suffix() (R/globals.R)
+	# covariate names for beta columns. .lame_apply_suffix() (r/globals.r)
 	# is idempotent: pre-suffixed user inputs like "gpa_dyad" are not
-	# double-suffixed, and legacy "gpa.dyad" gets upgraded.
+	# double-suffixed, and dot-style "gpa.dyad" names are normalized.
 	beta_names <- character(0)
 	if(intercept) beta_names <- c(beta_names, "intercept")
 	if(p_dyad > 0) {
@@ -107,7 +106,7 @@ ame_bipartite <- function(
 		beta_names <- c(beta_names, .lame_apply_suffix(col_nms, "col"))
 	}
 	
-	#### MCMC initialization ####
+	#### mcmc initialization ####
 	if(is.null(start_vals)) {
 		if(family == "normal") {
 			Z <- Y
@@ -119,9 +118,7 @@ ame_bipartite <- function(
 			}
 		} else if(family == "binary") {
 			Z <- matrix(rnorm(nA * nB), nA, nB)
-			# `Y == 1` produces NA where Y is NA, which then errors at
-			# "NAs are not allowed in subscripted assignments"; guard with
-			# !is.na(Y) so interior missingness leaves Z as the prior draw.
+			# guard missing cells before assigning the initial z signs
 			Z[!is.na(Y) & Y == 1] <- abs(Z[!is.na(Y) & Y == 1])
 			Z[!is.na(Y) & Y == 0] <- -abs(Z[!is.na(Y) & Y == 0])
 		} else if(family == "ordinal") {
@@ -237,8 +234,7 @@ ame_bipartite <- function(
 	BPS <- rep(0, nB)
 	YPS <- array(0, dim = c(nA, nB))
 	
-	# tracker for silent custom_gof failures: surfaces a single warning
-	# post-MCMC instead of leaving NA entries in GOF with no explanation.
+	# custom gof errors are reported once after fitting
 	.cg_tracker <- .new_custom_gof_err_tracker()
 	if(gof) {
 		n_base_stats <- 3
@@ -276,7 +272,7 @@ ame_bipartite <- function(
 		all_names <- c(base_names, custom_gof_names)
 		colnames(GOF) <- all_names
 
-		# first row stores observed GOF statistics
+		# first row stores observed gof statistics
 		GOF[1, 1:n_base_stats] <- gof_stats_bipartite(Y, warn_square = FALSE)
 		if(!is.null(custom_gof)) {
 			if(is.function(custom_gof)) {
@@ -358,13 +354,7 @@ ame_bipartite <- function(
 		}
 	}
 	
-	# rank-family bookkeeping (odobs, odmax_vec, YL) needed by the rectangular
-	# rZ_*_bip_fc samplers from R/rZ_bipartite.R. odobs is the per-row
-	# observed outdegree (length nA); odmax_vec is the per-row cap;
-	# YL is the ranked-receiver list per row (nA x max_rank). also expand
-	# odmax to a length-nA vector here so the downstream GOF simulation
-	# block (which does `odmax[i]` per row) does not silently NA-index when
-	# the user passed a scalar.
+	# rank-family bookkeeping for rectangular row constraints
 	if (family %in% c("cbin", "frn", "rrl")) {
 		odobs_bip <- apply(Y > 0, 1, sum, na.rm = TRUE)
 		odmax_vec <- if (is.null(odmax)) {
@@ -373,10 +363,9 @@ ame_bipartite <- function(
 			rep(odmax, nA)
 		} else odmax
 		odmax_vec <- pmin(odmax_vec, nB)
-		# write back the expanded vector so the existing GOF / posterior-
-		# predictive code at line ~700 indexes it as a length-nA vector
+		# write back the expanded vector for posterior prediction
 		odmax <- odmax_vec
-		# YL: per row, position of rank-1..rank-max in Y[i, ] (NA if absent)
+		# ranked receiver positions by row
 		if (family %in% c("frn", "rrl")) {
 			ymax_global <- max(Y, na.rm = TRUE)
 			if (is.finite(ymax_global) && ymax_global >= 1) {
@@ -397,7 +386,7 @@ ame_bipartite <- function(
 		odobs_bip <- NULL; odmax_vec <- NULL; YL_bip <- NULL
 	}
 
-	# rectangular Z-sample dispatch using the helpers in R/rZ_bipartite.R.
+	# rectangular z-sample dispatch
 	# ordinal / cbin / frn / rrl route through the rectangular samplers so
 	# the augmentation respects the row-cone / nomination constraints of the
 	# latent-variable model
@@ -447,7 +436,7 @@ ame_bipartite <- function(
 		matrix(0, nA, nB)
 	}
 
-	# compute EZ_cache from current parameter values
+	# compute ez_cache from current parameter values
 	EZ_cache <- matrix(0, nA, nB)
 	if(p > 0) for(k in 1:p) EZ_cache <- EZ_cache + beta[k] * X[,,k]
 	if(rvar) EZ_cache <- EZ_cache + a
@@ -466,7 +455,7 @@ ame_bipartite <- function(
 	
 	iter_save <- 0
 
-	#### MCMC loop ####
+	#### mcmc loop ####
 	for(iter in 1:(nscan + burn)) {
 		EZ_curr <- EZ_cache
 
@@ -600,14 +589,8 @@ ame_bipartite <- function(
 		}
 		
 		if(needs_s2) {
-			# residual variance update for normal / tobit / poisson. Previously
-			# this block was gated on `family == "normal"`, so tobit and poisson
-			# fits kept s2 stuck at the initial value of 1.0 (`VC$ve` was a
-			# constant for the entire chain). The latent Z is on a Gaussian
-			# scale in all three families (Z = Y for uncensored normal /
-			# uncensored tobit cells; the truncated-normal draw for censored
-			# tobit cells; the MH proposal-scale log-mean for poisson), so
-			# `Z - eta` is the right residual.
+			# update residual variance on the gaussian latent scale for
+			# normal, tobit, and poisson fits.
 			resid <- Z
 			if(p > 0) {
 				for(k in 1:p) {
@@ -630,7 +613,7 @@ ame_bipartite <- function(
 			if (rate > 0) s2 <- 1 / rgamma(1, shape, rate)
 		}
 		
-		# recompute EZ_cache from current parameter values
+		# recompute ez_cache from current parameter values
 		EZ_cache <- matrix(0, nA, nB)
 		if(p > 0) for(k in 1:p) EZ_cache <- EZ_cache + beta[k] * X[,,k]
 		if(rvar) EZ_cache <- EZ_cache + a
@@ -756,7 +739,7 @@ ame_bipartite <- function(
 						for(i in seq_along(custom_gof)) {
 							if(is.function(custom_gof[[i]])) {
 								tryCatch({
-									GOF[iter_save + 1, 3 + i] <- custom_gof[[i]](Y)
+									GOF[iter_save + 1, 3 + i] <- custom_gof[[i]](Y_sim)
 								}, error = function(e) .record_custom_gof_err(.cg_tracker, e))
 							}
 						}
@@ -816,11 +799,7 @@ ame_bipartite <- function(
 		mode = "bipartite",
 		nA = nA,
 		nB = nB,
-		# empty sampler-failure scaffold (parity with lame() / ame_unipartite);
-		# the bipartite sampler doesn't currently instrument per-step failures,
-		# but the slot is present so fit$tryErrorChecks is never NULL. The
-		# `mh_counters` alias matches the lame() / ame_unipartite() contract
-		# so downstream code can rely on it on every fit class.
+		# empty sampler-failure scaffold for shared fit accessors
 		tryErrorChecks = list(),
 		mh_counters    = list(),
 		# resolved g + prior so prior_summary() can show the actual values used
@@ -850,7 +829,7 @@ ame_bipartite <- function(
 		}
 	}
 	
-	# emit a single post-MCMC warning if the user-supplied custom_gof
+	# emit a single post-mcmc warning if the user-supplied custom_gof
 	# function raised any errors during the run.
 	if (exists(".cg_tracker", inherits = FALSE))
 		.maybe_warn_custom_gof(.cg_tracker, where = "GOF")
