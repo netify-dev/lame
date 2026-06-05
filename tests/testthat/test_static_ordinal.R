@@ -38,7 +38,7 @@ test_that("Ordinal AME with covariates works", {
 	X = matrix(rnorm(n*n), n, n)
 	diag(X) = NA
 	
-	# generate ordinal outcome influenced by X
+	# generate ordinal outcome influenced by x
 	eta = 0.5 * X
 	Z = eta + matrix(rnorm(n*n), n, n)
 	
@@ -195,7 +195,7 @@ test_that("Ordinal AME with covariates and multiplicative effects works", {
 	expect_equal(ncol(fit$U), 2)
 	expect_equal(ncol(fit$V), 2)
 	
-	# check that UVPM captures some structure
+	# check that uvpm captures some structure
 	if(!is.null(fit$UVPM)) {
 	}
 })

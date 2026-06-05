@@ -39,9 +39,8 @@ posterior. Returns a list with the per-panel fits, the pooled
 beta posterior, and the panel-specific deviations.
 }
 \details{
-This is an R-level wrapper; for a single joint MCMC the K panels
-would need to share state across iterations, which is a substantial
-sampler refactor. The wrapper is exact when the panels are
+This is an R-level wrapper. A single joint MCMC would share panel state
+across iterations, which is a substantial sampler refactor. The wrapper is exact when the panels are
 conditionally independent given beta, which is the standard
 assumption.
 }

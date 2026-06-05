@@ -1,8 +1,8 @@
 # Summary of an AME object
 
-Provides a comprehensive summary of a fitted AME (Additive and
-Multiplicative Effects) model, including parameter estimates, standard
-errors, credible intervals, and model diagnostics.
+Summarizes a fitted AME (Additive and Multiplicative Effects) model,
+including parameter estimates, standard errors, credible intervals, and
+model diagnostics.
 
 ## Usage
 

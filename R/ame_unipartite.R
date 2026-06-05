@@ -25,7 +25,7 @@ ame_unipartite <- function(
 	){
 	
 	#### parameter setup ####
-	# seed locally: restore the global RNG stream on exit so a downstream
+	# seed locally: restore the global rng stream on exit so a downstream
 	# random draw is not silently perturbed by having fit a model
 	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
 		.old_seed <- get(".Random.seed", envir = globalenv())
@@ -39,7 +39,7 @@ ame_unipartite <- function(
 
 	if(is.element(family,c("cbin","frn","rrl"))) {
 		odobs<-apply(Y>0,1,sum,na.rm=TRUE)
-		# reject NA / <=0 odmax with observed nominations
+		# reject na / <=0 odmax with observed nominations
 		if (!is.null(odmax)) {
 			if (anyNA(odmax)) {
 				cli::cli_abort(c(
@@ -65,8 +65,8 @@ ame_unipartite <- function(
 	
 	if(symmetric){ Xcol<-Xrow ; rvar<-cvar<-nvar }
 	
-	# `g` is the scalar Zellner g-prior scale. A non-scalar g doesn't match
-	# what rbeta_ab_fc() expects (XX/g with a length-p vector miscomputes
+	# `g` is the scalar zellner g-prior scale. a non-scalar g doesn't match
+	# what rbeta_ab_fc() expects (xx/g with a length-p vector miscomputes
 	# the inverse-prior matrix); reject it explicitly rather than silently
 	# producing the wrong posterior.
 	if (length(g) > 1L) {
@@ -107,9 +107,9 @@ ame_unipartite <- function(
 	pc<-length(Xcol)/n
 	pd<-length(Xdyad)/n^2
 
-	# propagate covariate missingness into Y: a dyad with a missing covariate
+	# propagate covariate missingness into y: a dyad with a missing covariate
 	# is treated as an unobserved tie (data-augmented), instead of silently
-	# imputing the covariate as 0 and biasing its coefficient. Matches lame().
+	# imputing the covariate as 0 and biasing its coefficient. matches lame().
 	if ((pr + pc + pd) > 0) {
 		n_na_before <- sum(is.na(Y))
 		Y <- .ame_propagate_cov_na(Y, Xrow, Xcol, Xdyad)
@@ -142,7 +142,7 @@ ame_unipartite <- function(
 		cli::cli_warn("An intercept is not estimable using this procedure")
 	} 
 	
-	#### Z initialization ####
+	#### z initialization ####
 	if(is.element(family,c("frn","rrl"))) {
 		ymx<-max(apply(1*(Y>0),1,sum,na.rm=TRUE))
 		YL<-NULL
@@ -199,7 +199,7 @@ ame_unipartite <- function(
 		} 
 	}
 	
-	#### MCMC initialization ####
+	#### mcmc initialization ####
 	mu<-mean(Z,na.rm=TRUE)
 	a<-if(rvar) rowMeans(Z,na.rm=TRUE) else rep(0, nrow(Z))
 	b<-if(cvar) colMeans(Z,na.rm=TRUE) else rep(0, ncol(Z))
@@ -207,8 +207,8 @@ ame_unipartite <- function(
 	ZA<-mu + outer(a,b,"+") 
 	Z[is.na(Z)]<-ZA[is.na(Z)] 
 	
-	# accumulator for in-loop sampler failures (parity with lame()). Exposed on
-	# the fit object as fit$tryErrorChecks so the user can audit silent fallbacks.
+	# accumulator for in-loop sampler failures (parity with lame()). exposed on
+	# the fit object as fit$tryerrorchecks so the user can audit silent fallbacks.
 	tryErrorChecks <- list(beta = 0L, Sab = 0L, s2 = 0L, rho = 0L, UV = 0L)
 	if(!is.null(start_vals)) {
 		if(!is.null(start_vals$beta)) beta <- start_vals$beta else beta <- rep(0,dim(X)[3])
@@ -365,7 +365,7 @@ ame_unipartite <- function(
 		custom_gof_names <- NULL
 		n_custom_stats <- 0
 		# tracker for silent custom_gof failures: count + first message,
-		# surfaced as one warning at the end of MCMC (not per iteration).
+		# surfaced as one warning at the end of mcmc (not per iteration).
 		.cg_tracker <- .new_custom_gof_err_tracker()
 		if(!is.null(custom_gof)) {
 			if(is.function(custom_gof)) {
@@ -427,7 +427,7 @@ ame_unipartite <- function(
 		custom_gof <- NULL
 	}
 	
-	#### pre-MCMC setup ####
+	#### pre-mcmc setup ####
 	names(APS)<-names(BPS)<- rownames(U)<-rownames(V)<-rownames(Y)
 
 	if(!symmetric) {
@@ -439,9 +439,9 @@ ame_unipartite <- function(
 		colnames(VC) <- c("va", "ve")
 		rb<-intercept+seq(1,pr,length=pr) ; cb<-intercept+pr+seq(1,pr,length=pr)
 		bnames<-dimnames(X)[[3]]
-		# guard against `-c(0, integer(0))` short-circuit: when intercept = FALSE
+		# guard against `-c(0, integer(0))` short-circuit: when intercept = false
 		# and pr = 0, the negative index becomes `-0` and silently empties the
-		# vector. Build the exclude index explicitly and skip the [-excl] step
+		# vector. build the exclude index explicitly and skip the [-excl] step
 		# when there is nothing to drop.
 		excl_idx <- c(if (intercept) 1L else integer(0), rb, cb)
 		bni <- if (intercept) bnames[1L] else character(0)
@@ -492,10 +492,10 @@ ame_unipartite <- function(
 		}
 	}
 	
-	# explicit-cutpoint state init (ordinal_cutpoints = "explicit"). When
-	# active we override the ordinal Z sampler to the explicit-alpha path
-	# (rZ_ord_(sym_)explicit_fc) and run a Cowles (1996) MH on alpha after
-	# each Z sweep.
+	# explicit-cutpoint state init (ordinal_cutpoints = "explicit"). when
+	# active we override the ordinal z sampler to the explicit-alpha path
+	# (rz_ord_(sym_)explicit_fc) and run a cowles (1996) mh on alpha after
+	# each z sweep.
 	ordinal_cutpoints <- match.arg(ordinal_cutpoints)
 	use_explicit_cutpoints <- (family == "ordinal" &&
 	                            identical(ordinal_cutpoints, "explicit"))
@@ -526,11 +526,11 @@ ame_unipartite <- function(
 		ALPHA <- NULL
 	}
 
-	# symmetric ordinal uses a dedicated sampler that draws Z on the upper
-	# triangle from a TN with the doubled precision (variance 1/2, mean =
-	# (EZ_ij + EZ_ji)/2) and mirrors to the lower triangle. See R/rZ_ord_sym_fc.R.
-	# When ordinal_cutpoints == "explicit", the ordinal slot is left as the
-	# default sampler; the MCMC loop overrides it inline via Y_int + alpha.
+	# symmetric ordinal uses a dedicated sampler that draws z on the upper
+	# triangle from a tn with the doubled precision (variance 1/2, mean =
+	# (ez_ij + ez_ji)/2) and mirrors to the lower triangle. see r/rz_ord_sym_fc.r.
+	# when ordinal_cutpoints == "explicit", the ordinal slot is left as the
+	# default sampler; the mcmc loop overrides it inline via y_int + alpha.
 	update_Z_fn <- switch(family,
 		normal = rZ_nrm_fc,
 		tobit = rZ_tob_fc,
@@ -588,14 +588,14 @@ ame_unipartite <- function(
 		}
 	}
 	
-	#### MCMC loop ####
+	#### mcmc loop ####
 	for (s in 1:(nscan + burn)) {
 		
 		EZ <- EZ_cache
 		rho_eff <- rho
 		Z <- if (use_explicit_cutpoints) {
-			# explicit-cutpoint ordinal: rZ_ord_(sym_)explicit_fc takes
-			# (Z, EZ, Y_int, alpha) and ignores rho (handled via the
+			# explicit-cutpoint ordinal: rz_ord_(sym_)explicit_fc takes
+			# (z, ez, y_int, alpha) and ignores rho (handled via the
 			# precision-2 / variance-1/2 convention internally).
 			if (symmetric) {
 				rZ_ord_sym_explicit_fc(Z, EZ, Y_int, alpha)
@@ -608,8 +608,8 @@ ame_unipartite <- function(
 			update_Z_fn(Z, EZ, rho_eff, Y)
 		}
 
-		# Cowles (1996) MH update on alpha, Z-marginalised. Runs after the
-		# Z sweep so EZ is current; Robbins-Monro on tau_prop only during
+		# cowles (1996) mh update on alpha, z-marginalised. runs after the
+		# z sweep so ez is current; robbins-monro on tau_prop only during
 		# burn-in to preserve the stationary distribution.
 		if (use_explicit_cutpoints) {
 			alpha_step <- sample_alpha_cowles(
@@ -632,7 +632,7 @@ ame_unipartite <- function(
 				# symmetric path: e_ij == e_ji by construction, so the
 				# rs2_fc whitening (which decorrelates a length-2 dyad pair)
 				# double-counts the degrees of freedom and gives s2 -> ve/2.
-				# Sample directly from the upper-triangle residual variance.
+				# sample directly from the upper-triangle residual variance.
 				resid <- Z - EZ
 				ut <- upper.tri(resid)
 				e <- resid[ut]; e <- e[is.finite(e)]
@@ -760,7 +760,7 @@ ame_unipartite <- function(
 			
 			if(symmetric) {
 				br<-beta[rb] ; bc<-beta[cb] ; bn<-(br+bc)/2
-				# same `-c(0, integer(0))` guard as in the colnames(BETA) build
+				# same `-c(0, integer(0))` guard as in the colnames(beta) build
 				excl_idx <- c(if (intercept) 1L else integer(0), rb, cb)
 				bint <- if (intercept) beta[1L] else numeric(0)
 				bdyad <- if (length(excl_idx) > 0L) beta[-excl_idx] else beta
@@ -781,9 +781,9 @@ ame_unipartite <- function(
 				vc_running_mean <- vc_running_mean + (c(Sab[upper.tri(Sab, diag = T)], rho, s2) - vc_running_mean) / sample_idx
 			}
 
-			# explicit-cutpoint ALPHA storage (alpha_2..alpha_{K-1}; alpha_1 = 0
-			# is the identification anchor, not stored). K = 2 has zero free
-			# cutpoints, in which case ALPHA is NULL and we skip the store.
+			# explicit-cutpoint alpha storage (alpha_2..alpha_{k-1}; alpha_1 = 0
+			# is the identification anchor, not stored). k = 2 has zero free
+			# cutpoints, in which case alpha is null and we skip the store.
 			if (use_explicit_cutpoints && !is.null(ALPHA)) {
 				ALPHA[sample_idx, ] <- alpha[-1L]
 			}
@@ -884,7 +884,7 @@ ame_unipartite <- function(
 			rm(list=c('fit','start_vals'))
 		}
 		
-	} # end MCMC   
+	} # end mcmc   
 	
 	#### output assembly ####
 	if(verbose) {
@@ -1042,9 +1042,9 @@ ame_unipartite <- function(
 		}
 	}
 
-	# emit a single post-MCMC warning if the user-supplied custom_gof
-	# function raised any errors during the run. without this the GOF
-	# matrix would carry NA entries with no indication of why.
+	# emit a single post-mcmc warning if the user-supplied custom_gof
+	# function raised any errors during the run. without this the gof
+	# matrix would carry na entries with no indication of why.
 	if (exists(".cg_tracker", inherits = FALSE))
 		.maybe_warn_custom_gof(.cg_tracker, where = "GOF")
 

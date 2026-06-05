@@ -9,9 +9,8 @@
 #' posterior. Returns a list with the per-panel fits, the pooled
 #' beta posterior, and the panel-specific deviations.
 #'
-#' This is an R-level wrapper; for a single joint MCMC the K panels
-#' would need to share state across iterations, which is a substantial
-#' sampler refactor. The wrapper is exact when the panels are
+#' This is an R-level wrapper. A single joint MCMC would share panel state
+#' across iterations, which is a substantial sampler refactor. The wrapper is exact when the panels are
 #' conditionally independent given beta, which is the standard
 #' assumption.
 #'
@@ -65,9 +64,9 @@ lame_multi <- function(Y_list, Xdyad_list, ...,
 		cli::cli_abort("{.arg Xdyad_list} must have length K = {.val {K}}.")
 	}
 
-	# fast path for K == 1 — fit a single panel and return the same slot
-	# schema as the K >= 2 path so downstream code iterating over K = 1, 2, ...
-	# does not break on the K = 1 case.
+	# fast path for k == 1 — fit a single panel and return the same slot
+	# schema as the k >= 2 path so downstream code iterating over k = 1, 2, ...
+	# does not break on the k = 1 case.
 	if (K == 1L) {
 		cli::cli_inform(c(
 			"i" = "{.fn lame_multi} with K = 1 falls through to {.fn lame}."))
@@ -84,7 +83,7 @@ lame_multi <- function(Y_list, Xdyad_list, ...,
 		beta_shared_se <- sqrt(pmax(beta_shared_var, 0))
 		n_joint_draws  <- dim(B)[1L]
 		BETA_joint     <- B
-		# K=1 -> no pooling, deviations are zero by construction
+		# k=1 -> no pooling, deviations are zero by construction
 		zero_dev <- if (is_3d) array(0, dim(beta_shared)) else
 			rep(0, length(beta_shared))
 		res <- list(
@@ -116,7 +115,7 @@ lame_multi <- function(Y_list, Xdyad_list, ...,
 		cli::cli_abort("All panel BETA arrays must have the same dimensionality.")
 	}
 	pool_out <- if (beta_dims[1L] == 3L) {
-		# [iter x p x T] per panel
+		# [iter x p x t] per panel
 		p <- dim(fits[[1L]]$BETA)[2L]
 		T_per <- dim(fits[[1L]]$BETA)[3L]
 		mean_out <- matrix(0, p, T_per)

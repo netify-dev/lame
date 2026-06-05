@@ -1,9 +1,9 @@
 # held-out link-prediction evaluator
 #
-# given a fit, a held-out mask, and the original Y, compute family-aware
-# predictive scores. AUROC + PR-AUC + Brier for binary; RMSE + MAE for
+# given a fit, a held-out mask, and the original y, compute family-aware
+# predictive scores. auroc + pr-auc + brier for binary; rmse + mae for
 # normal; mean log-likelihood for any family. user is expected to have
-# either refit on a masked Y or to pass in fitted predicted probabilities
+# either refit on a masked y or to pass in fitted predicted probabilities
 # already.
 
 #' Held-out predictive evaluation for an ame / lame fit
@@ -91,7 +91,7 @@ evaluate_heldout <- function(y_obs, y_pred, mask, family = "binary") {
 		} else if (requireNamespace("pROC", quietly = TRUE)) {
 			rr <- pROC::roc(response = y, predictor = p_c, quiet = TRUE)
 			out$auroc <- as.numeric(pROC::auc(rr))
-			# no PR-AUC without precrec
+			# no pr-auc without precrec
 		} else {
 			cli::cli_inform(c("i" = "Install {.pkg precrec} or {.pkg pROC} for AUROC / PR-AUC."))
 		}
@@ -102,8 +102,8 @@ evaluate_heldout <- function(y_obs, y_pred, mask, family = "binary") {
 		err <- y - p
 		rmse <- sqrt(mean(err^2))
 		mae <- mean(abs(err))
-		# crude mean log-density using residual SD; the real fit-level s2 is
-		# unknown to this helper. Reported with the caveat that it's a rough
+		# crude mean log-density using residual sd; the real fit-level s2 is
+		# unknown to this helper. reported with the caveat that it's a rough
 		# approximation in family = "normal" / "tobit" mode.
 		sd_resid <- max(stats::sd(err), 1e-8)
 		mean_logdens <- mean(stats::dnorm(y, mean = p, sd = sd_resid, log = TRUE))

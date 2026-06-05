@@ -1,3 +1,7 @@
+# lame 1.2.0
+
+* Cleaned up ALS support and documentation.
+
 # lame 1.1.0
 
 ## New features

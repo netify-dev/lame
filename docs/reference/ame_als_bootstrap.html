@@ -242,8 +242,9 @@ fit with <code>R &gt; 0</code> can still carry a small residual parametric-boots
 bias (the low-rank refit re-absorbs simulated noise); <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> flags
 any point estimate that falls outside its interval. A binary IRLS fit can
 carry a finite-sample (incidental-parameters) bias in the point estimator
-itself, which the bootstrap reproduces rather than removes; for the inference
-you report, confirm with the MCMC <code><a href="ame.html">ame</a></code> / <code><a href="lame.html">lame</a></code>.</p>
+itself, which the bootstrap reproduces rather than removes. The MCMC
+<code><a href="ame.html">ame</a></code> / <code><a href="lame.html">lame</a></code> path gives posterior summaries when
+that is the target.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

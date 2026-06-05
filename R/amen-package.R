@@ -3,7 +3,7 @@
 #' An extension of the 'amen' package specifically designed for longitudinal
 #' network analysis. This package provides tools for fitting Additive and
 #' Multiplicative Effects (AME) models to longitudinal/replicated relational
-#' data with several key enhancements: (1) robust handling of changing actor
+#' data with several extensions: (1) handling of changing actor
 #' compositions across time periods, allowing for networks with different sets
 #' of actors at each time point; (2) significant performance improvements through
 #' C++ implementations via Rcpp and RcppArmadillo; (3) specialized functions for
@@ -456,4 +456,3 @@ NULL
 #' (site no longer accessible).
 #' @name sheep
 NULL
-

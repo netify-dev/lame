@@ -1,7 +1,7 @@
-# memory optimization utilities for AME models
+# memory optimization utilities for ame models
 #
 # manages memory usage for large networks
-# each n x n matrix uses 8n^2 bytes (e.g., ~8MB for n=1000)
+# each n x n matrix uses 8n^2 bytes (e.g., ~8mb for n=1000)
 
 #' Optimize AME model output for memory efficiency
 #' 
@@ -24,8 +24,8 @@
 #' @export
 compact_ame <- function(fit, use_sparse_matrices = FALSE) {
 
-	# drop null entries unconditionally. when use_sparse_matrices = TRUE we
-	# additionally cast dense posterior-mean matrices to Matrix::Matrix.
+	# drop null entries unconditionally. when use_sparse_matrices = true we
+	# additionally cast dense posterior-mean matrices to matrix::matrix.
 	compact_fit <- fit
 	compact_fit <- compact_fit[!sapply(compact_fit, is.null)]
 
@@ -175,8 +175,8 @@ ame_memory_settings <- function(n_nodes, R = 2) {
 	cli::cli_text("  - Factor matrices (U,V): {.val {round(factor_size_mb, 1)}} MB")
 	
 	# memory for different options
-	full_size <- matrix_size_mb * 3 + factor_size_mb  # YPM, EZ, UVPM + factors
-	optimized_size <- matrix_size_mb + factor_size_mb  # Only YPM + factors
+	full_size <- matrix_size_mb * 3 + factor_size_mb  # ypm, ez, uvpm + factors
+	optimized_size <- matrix_size_mb + factor_size_mb  # only ypm + factors
 	
 	cli::cli_text("")
 	cli::cli_text("Memory usage by configuration:")

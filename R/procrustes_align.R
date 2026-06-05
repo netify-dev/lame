@@ -19,7 +19,7 @@
 #'   For unipartite asymmetric models, aligned independently. For bipartite
 #'   models, aligned jointly with U via the G interaction matrix.
 #' @param G Optional \code{[R_row, R_col]} interaction matrix for bipartite
-#'   models. Updated to maintain the invariant U G V'.
+#'   models, transformed to preserve the invariant U G V'.
 #' @param return_fit Logical. If TRUE and \code{object} is provided, returns
 #'   a modified copy of the fit object with aligned latent positions.
 #'   Default FALSE.
@@ -72,7 +72,7 @@
 procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
                               return_fit = FALSE, per_draw = FALSE, ...) {
 
-	# per-draw alignment: align each posterior draw's U/V trajectory independently
+	# per-draw alignment: align each posterior draw's u/v trajectory independently
 	if (isTRUE(per_draw)) {
 		U_full <- object$U_full %||% object$U_draws %||% object$U_samples
 		V_full <- object$V_full %||% object$V_draws
@@ -104,7 +104,7 @@ procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
 				fit_copy <- object
 				fit_copy$U_full_aligned <- U_aligned
 				fit_copy$V_full_aligned <- V_aligned
-				# replace mean U/V with the posterior mean of the aligned cube
+				# replace mean u/v with the posterior mean of the aligned cube
 				fit_copy$U <- apply(U_aligned, c(1, 2, 3), mean)
 				if (length(dim(V_full)) == 4L) {
 					fit_copy$V <- apply(V_aligned, c(1, 2, 3), mean)
@@ -126,7 +126,7 @@ procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
 		stop("No latent positions found. Either provide a fitted object with R > 0 or pass U directly.")
 	}
 
-	# static model (2D matrix) - nothing to align
+	# static model has nothing to align
 	if (is.matrix(U) || length(dim(U)) < 3L) {
 		cli::cli_alert_info("Latent positions are static (single time point). No alignment needed.")
 		result <- list(U = U, V = V, G = G)
@@ -144,13 +144,13 @@ procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
 	}
 
 	if (is_bip && !is.null(V) && !is.null(G)) {
-		# bipartite: joint alignment of U, V, G
+		# align row positions, column positions, and g jointly
 		aligned <- align_over_time_bip(U, V, G)
 		U_al <- aligned$U
 		V_al <- aligned$V
 		G_al <- aligned$G
 	} else {
-		# unipartite: align U (and V independently if present)
+		# align u and v independently
 		U_al <- align_over_time_unip(U)
 		V_al <- if (!is.null(V) && length(dim(V)) == 3L) {
 			align_over_time_unip(V)

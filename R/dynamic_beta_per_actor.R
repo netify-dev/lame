@@ -1,28 +1,28 @@
-# per-actor dynamic beta with exact Gaussian conditioning for the
+# per-actor dynamic beta with exact gaussian conditioning for the
 # sum-to-zero centering constraint. the path:
 #
-#   (1) For each actor i, run a univariate Carter-Kohn FFBS on the
-#       length-T path theta_{i, 1:T} given period-wise (H_i(t), h_i(t))
-#       and AR(1) hyperparameters (rho_actor, sigma_actor^2).
-#       This is the unconstrained per-actor posterior conditional on
+#   (1) for each actor i, run a univariate carter-kohn ffbs on the
+#       length-t path theta_{i, 1:t} given period-wise (h_i(t), h_i(t))
+#       and ar(1) hyperparameters (rho_actor, sigma_actor^2).
+#       this is the unconstrained per-actor posterior conditional on
 #       hyperparameters and the other actors (in the lame model, actor
 #       slopes are conditionally independent given hypers).
 #
-#   (2) Project the unconstrained sample theta* onto the sum-to-zero
-#       manifold at each period using the variance-weighted Lagrangian:
-#         theta_i(t) <- theta*_i(t) - V_i(t) / sum_j V_j(t) * sum_j theta*_j(t)
-#       where V_i(t) is the *marginal* posterior variance of theta_i(t)
-#       under the FFBS posterior. This is the exact conditioning under
+#   (2) project the unconstrained sample theta* onto the sum-to-zero
+#       manifold at each period using the variance-weighted lagrangian:
+#         theta_i(t) <- theta*_i(t) - v_i(t) / sum_j v_j(t) * sum_j theta*_j(t)
+#       where v_i(t) is the *marginal* posterior variance of theta_i(t)
+#       under the ffbs posterior. this is the exact conditioning under
 #       the block-diagonal-across-actors covariance assumption, which
 #       holds in the lame per-actor model.
 #
-# derivation: if (theta*_1, ..., theta*_n) ~ N(mu, Sigma) with
-# Sigma block-diagonal across actors (Sigma_i is the per-actor T x T
-# Carter-Kohn covariance), the conditional given sum_i theta_i = 0 is
-#   theta_i | constraint = theta*_i - Sigma_i 1 (1' Sigma 1)^{-1} 1' theta*
-# where the projection 1' theta* is the period-wise sum. Per period t:
-#   theta_i(t) = theta*_i(t) - V_i(t) * (sum_j theta*_j(t)) / sum_j V_j(t)
-# This is exact (not heuristic) under block-diagonality.
+# derivation: if (theta*_1, ..., theta*_n) ~ n(mu, sigma) with
+# sigma block-diagonal across actors (sigma_i is the per-actor t x t
+# carter-kohn covariance), the conditional given sum_i theta_i = 0 is
+#   theta_i | constraint = theta*_i - sigma_i 1 (1' sigma 1)^{-1} 1' theta*
+# where the projection 1' theta* is the period-wise sum. per period t:
+#   theta_i(t) = theta*_i(t) - v_i(t) * (sum_j theta*_j(t)) / sum_j v_j(t)
+# this is exact (not heuristic) under block-diagonality.
 
 #' Univariate Carter-Kohn FFBS for one actor's length-T slope path
 #'
@@ -53,7 +53,7 @@
 	m_prior <- 0
 	P_prior <- v_stat
 	for (t in seq_len(T_per)) {
-		# information form: P_post^{-1} = P_prior^{-1} + H[t]
+		# information form: p_post^{-1} = p_prior^{-1} + h[t]
 		P_t <- 1 / (1 / P_prior + H[t])
 		m_t <- P_t * (m_prior / P_prior + h[t])
 		m_filt[t] <- m_t
@@ -63,10 +63,10 @@
 			P_prior <- (rho^2) * P_t + s2
 		}
 	}
-	# backward sample (Carter-Kohn)
+	# backward sample (carter-kohn)
 	theta <- numeric(T_per)
 	V_marg <- numeric(T_per)  # marginal posterior variance per period
-	# draw theta[T]
+	# draw theta[t]
 	theta[T_per] <- m_filt[T_per] + sqrt(P_filt[T_per]) * stats::rnorm(1)
 	V_marg[T_per] <- P_filt[T_per]
 	if (T_per >= 2L) for (t in (T_per - 1L):1L) {

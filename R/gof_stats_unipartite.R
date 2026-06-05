@@ -45,9 +45,11 @@ gof_stats_unipartite <- function(Y) {
 	if(nrow(Y) != ncol(Y)) {
 		stop("Y must be a square matrix for unipartite networks. Use gof_stats_bipartite() for rectangular matrices.")
 	}
+	Y <- as.matrix(Y)
+	diag(Y) <- NA
 	
 	tryCatch({
-		gof <- as.vector(gof_stats_cpp(as.matrix(Y)))
+		gof <- as.vector(gof_stats_cpp(Y))
 		names(gof) <- c("sd.rowmean", "sd.colmean", "dyad.dep", "cycle.dep", "trans.dep")
 		gof[is.na(gof)] <- 0
 		return(gof)
@@ -66,9 +68,9 @@ gof_stats_unipartite <- function(Y) {
 		})
 		
 		Y.mean <- mean(Y, na.rm=TRUE)
-		E <- Y - Y.mean  # Centered matrix
-		D <- 1 * (!is.na(E))  # Indicator matrix for non-missing values
-		E[is.na(E)] <- 0  # Replace NA with 0 for matrix multiplication
+		E <- Y - Y.mean  # centered matrix
+		D <- 1 * (!is.na(E))  # indicator matrix for non-missing values
+		E[is.na(E)] <- 0  # replace na with 0 for matrix multiplication
 		Y.sd <- sd(c(Y), na.rm=TRUE)
 		
 		if(is.na(Y.sd) || Y.sd == 0) {

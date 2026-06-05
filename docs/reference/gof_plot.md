@@ -107,8 +107,8 @@ dependencies. This function implements posterior predictive checking by:
 
   Correlation between `Y[i,j]` and `Y[j,i]`. Positive values indicate
   reciprocity (mutual ties are more likely). The AME model captures this
-  through the dyadic correlation parameter rho. Poor fit here suggests
-  the need to adjust the dcor parameter.
+  through the dyadic correlation parameter rho. Poor fit here points to
+  adjusting the dcor parameter.
 
 - `triad.dep` (Transitivity/Clustering):
 

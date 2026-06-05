@@ -2,7 +2,7 @@
 % Please edit documentation in R/ame_als_methods_extra.R
 \name{gof_plot.ame_als}
 \alias{gof_plot.ame_als}
-\title{Goodness-of-fit posterior predictive check for an ame_als fit}
+\title{Goodness-of-fit check for an ame_als fit}
 \usage{
 gof_plot.ame_als(fit, nsim = 100, seed = NULL, ...)
 }
@@ -19,7 +19,7 @@ gof_plot.ame_als(fit, nsim = 100, seed = NULL, ...)
 A \code{ggplot} (or \code{patchwork}) object.
 }
 \description{
-Bootstrap-based analogue of the MCMC \code{\link{gof_plot}}: draws
+Bootstrap-style analogue of the MCMC \code{\link{gof_plot}}: draws
 \code{nsim} simulated networks from the fitted ALS model, computes the
 standard network statistics (\code{sd.rowmean}, \code{sd.colmean},
 \code{dyad.dep}, \code{cycle.dep}, \code{trans.dep} for unipartite;

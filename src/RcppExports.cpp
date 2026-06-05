@@ -280,6 +280,49 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rUV_dynamic_snap_fc_cpp
+List rUV_dynamic_snap_fc_cpp(arma::cube U_current, arma::cube V_current, const arma::cube& ET, double rho_uv, double sigma_uv, double s2, double kappa, double pi_snap, const arma::mat& delta_u_current, const arma::mat& delta_v_current, bool shrink, bool symmetric);
+RcppExport SEXP _lame_rUV_dynamic_snap_fc_cpp(SEXP U_currentSEXP, SEXP V_currentSEXP, SEXP ETSEXP, SEXP rho_uvSEXP, SEXP sigma_uvSEXP, SEXP s2SEXP, SEXP kappaSEXP, SEXP pi_snapSEXP, SEXP delta_u_currentSEXP, SEXP delta_v_currentSEXP, SEXP shrinkSEXP, SEXP symmetricSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type U_current(U_currentSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type V_current(V_currentSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type ET(ETSEXP);
+    Rcpp::traits::input_parameter< double >::type rho_uv(rho_uvSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma_uv(sigma_uvSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< double >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< double >::type pi_snap(pi_snapSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type delta_u_current(delta_u_currentSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type delta_v_current(delta_v_currentSEXP);
+    Rcpp::traits::input_parameter< bool >::type shrink(shrinkSEXP);
+    Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
+    rcpp_result_gen = Rcpp::wrap(rUV_dynamic_snap_fc_cpp(U_current, V_current, ET, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_u_current, delta_v_current, shrink, symmetric));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rUV_dynamic_t_fc_cpp
+List rUV_dynamic_t_fc_cpp(arma::cube U_current, arma::cube V_current, const arma::cube& ET, double rho_uv, double sigma_uv, double s2, double nu, arma::mat lambda_u, arma::mat lambda_v, bool shrink, bool symmetric);
+RcppExport SEXP _lame_rUV_dynamic_t_fc_cpp(SEXP U_currentSEXP, SEXP V_currentSEXP, SEXP ETSEXP, SEXP rho_uvSEXP, SEXP sigma_uvSEXP, SEXP s2SEXP, SEXP nuSEXP, SEXP lambda_uSEXP, SEXP lambda_vSEXP, SEXP shrinkSEXP, SEXP symmetricSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type U_current(U_currentSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type V_current(V_currentSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type ET(ETSEXP);
+    Rcpp::traits::input_parameter< double >::type rho_uv(rho_uvSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma_uv(sigma_uvSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< double >::type nu(nuSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type lambda_u(lambda_uSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type lambda_v(lambda_vSEXP);
+    Rcpp::traits::input_parameter< bool >::type shrink(shrinkSEXP);
+    Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
+    rcpp_result_gen = Rcpp::wrap(rUV_dynamic_t_fc_cpp(U_current, V_current, ET, rho_uv, sigma_uv, s2, nu, lambda_u, lambda_v, shrink, symmetric));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rUV_dynamic_bip_fc_cpp
 List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube, const arma::cube& E, const arma::mat& G, double rho_uv, double sigma_uv, double s2);
 RcppExport SEXP _lame_rUV_dynamic_bip_fc_cpp(SEXP U_cubeSEXP, SEXP V_cubeSEXP, SEXP ESEXP, SEXP GSEXP, SEXP rho_uvSEXP, SEXP sigma_uvSEXP, SEXP s2SEXP) {
@@ -808,6 +851,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_init_dynamic_positions", (DL_FUNC) &_lame_init_dynamic_positions, 5},
     {"_lame_sample_rho_uv", (DL_FUNC) &_lame_sample_rho_uv, 7},
     {"_lame_sample_sigma_uv", (DL_FUNC) &_lame_sample_sigma_uv, 4},
+    {"_lame_rUV_dynamic_snap_fc_cpp", (DL_FUNC) &_lame_rUV_dynamic_snap_fc_cpp, 12},
+    {"_lame_rUV_dynamic_t_fc_cpp", (DL_FUNC) &_lame_rUV_dynamic_t_fc_cpp, 11},
     {"_lame_rUV_dynamic_bip_fc_cpp", (DL_FUNC) &_lame_rUV_dynamic_bip_fc_cpp, 7},
     {"_lame_count_four_cycles_bip_cpp", (DL_FUNC) &_lame_count_four_cycles_bip_cpp, 1},
     {"_lame_compute_degrees_bip_cpp", (DL_FUNC) &_lame_compute_degrees_bip_cpp, 1},

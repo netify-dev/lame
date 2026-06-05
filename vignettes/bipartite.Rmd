@@ -44,11 +44,11 @@ The additive effects work just as in the unipartite case: $a_i$ captures how "ac
 How $G$ is handled differs between the cross-sectional and longitudinal entry points:
 
 - In **`ame()`** (cross-sectional bipartite), $G$ is initialised to a rank-truncated scaled identity and **held fixed** during MCMC. The rotation and scaling of the interaction are absorbed into $U$ and $V$, so $G$ itself is not estimated; what is identified is the overall multiplicative term $U G V'$.
-- In **`lame()`** (longitudinal bipartite), $G$ is **sampled** each iteration from its conditional Gaussian via the bipartite $G$-sampler. With `dynamic_G = FALSE` a single $G$ is shared across periods; with `dynamic_G = TRUE` a separate $G_t$ is drawn per period and returned as `fit$G_cube` (see the section on `dynamic_G` below).
+- In **`lame()`** (longitudinal bipartite), the default MCMC estimator samples $G$ each iteration from its conditional Gaussian via the bipartite $G$-sampler. With `dynamic_G = FALSE` a single $G$ is shared across periods; with `dynamic_G = TRUE` a separate $G_t$ is drawn per period and returned as `fit$G_cube` (see the section on `dynamic_G` below). The fast ALS path, `lame(..., method = "als")`, also supports `dynamic_G = TRUE` for normal, binary, and Poisson bipartite panels, including named panels where row or column actors enter or exit; it estimates a penalized point path for $G_t$ rather than sampling posterior draws.
 
 In either case, the bipartite parameterisation lets row-side latent positions ($U$, shape $n_\text{row} \times R_\text{row}$) and column-side latent positions ($V$, shape $n_\text{col} \times R_\text{col}$) be chosen at different ranks, which is the substantive flexibility users get.
 
-A few things drop away in the bipartite setting. There is no dyadic correlation parameter $\rho$, because ties are inherently directional from row to column nodes (you can't have a reciprocal tie in a student--course network). The additive effects $a$ and $b$ also have independent variances rather than a joint covariance, since they describe fundamentally different types of actors.
+A few terms are absent in the bipartite setting. There is no dyadic correlation parameter $\rho$, because ties are inherently directional from row to column nodes (you can't have a reciprocal tie in a student--course network). The additive effects $a$ and $b$ also have independent variances rather than a joint covariance, since they describe fundamentally different types of actors.
 
 ### Supported families in bipartite mode
 
@@ -65,13 +65,13 @@ Every family that works for a square network also works for a rectangular one. T
 | `rrl`     | yes | row-ranked likelihood ranks each row over column nodes; scales linearly in the row length, so long rows (`nB = 50` or larger) are routine. |
 | `poisson` | yes | rectangular MH on Z; supports the `period_exposure` offset on the longitudinal path. |
 
-The same table applies to `lame()` in bipartite mode. `dynamic_G = TRUE` is supported in `lame()`; it runs a Carter-Kohn FFBS on `vec(G_t)` under an AR(1) state-space prior and returns the posterior-mean per-period `G_t` plus a rotation-drift diagnostic that flags when apparent time variation is dominated by latent-rotation drift rather than real change. We demonstrate `dynamic_G` later in this vignette.
+The same table applies to `lame()` in bipartite mode. `dynamic_G = TRUE` is supported in `lame()`. On the default MCMC path it runs a Carter-Kohn FFBS on `vec(G_t)` under an AR(1) state-space prior and returns posterior summaries plus a rotation-drift diagnostic. On the ALS path it estimates a point path for `G_t` for the normal, binary, and Poisson families, honors separate `R_row` and `R_col` ranks, and aligns named changing-composition panels to the union row and column actor sets. Use MCMC when you need posterior draws or the rank/censored families. We demonstrate the MCMC `dynamic_G` fit later in this vignette.
 
 ### Tobit and rrl in practice
 
 Bipartite **tobit** is the right choice when your outcome is a continuous quantity that is censored at a known boundary, such as trade volume between a country and an IGO that records "no exchange" as zero rather than as missing, or a patient's reported dose of a drug they were not prescribed (also zero). The Z-sampler treats observed zeros as left-censored draws from the underlying latent intensity and propagates that censoring into the additive / multiplicative updates. Set `family = "tobit"` and supply the matrix of recorded values (zeros allowed).
 
-Bipartite **rrl** (row-ranked likelihood) is first-class in both `ame()` and `lame()`: the rectangular Z-sampler `rZ_rrl_bip_fc` in `R/rZ_bipartite.R` enforces the per-row rank cone (`Y_ij > Y_ik` implies `Z_ij > Z_ik` within row `i`) without a zero threshold and without `odmax`. The sampler scales linearly in the row length, so long rows (`nB = 50` or larger) are routine.
+Bipartite **rrl** (row-ranked likelihood) is supported in both `ame()` and `lame()`: the rectangular Z-sampler `rZ_rrl_bip_fc` in `R/rZ_bipartite.R` enforces the per-row rank cone (`Y_ij > Y_ik` implies `Z_ij > Z_ik` within row `i`) without a zero threshold and without `odmax`. The sampler scales linearly in the row length, so long rows (`nB = 50` or larger) are routine.
 
 ## Cross-Sectional Analysis with `ame()`
 
@@ -129,7 +129,7 @@ cat("Enrollment rate:", round(mean(Y_bipartite), 2), "\n")
 Fitting a bipartite model requires setting `mode = "bipartite"` and specifying the latent dimensions for each node type separately via `R_row` and `R_col`.
 
 ```{r fit_cross_sectional, message=FALSE, warning=FALSE}
-# note: burn/nscan are kept small here for fast vignette building.
+# burn and nscan are small so the vignette builds quickly
 # for real analyses, use burn >= 1000 and nscan >= 5000.
 fit_cross <- ame(
 	Y = Y_bipartite,
@@ -173,7 +173,7 @@ G_df <- data.frame(
 	Course = colnames(G_mult)[col(G_mult)],
 	Fitted = as.vector(G_mult)
 )
-# RdBu reversed (direction = -1): positive => red, negative => blue,
+# rdbu reversed (direction = -1): positive => red, negative => blue,
 # zero => white. By default scale_fill_distiller() centres white at the
 # midpoint of the DATA range, not at zero -- so we pass symmetric limits
 # c(-mx, mx) to force the white midpoint onto zero, which is the right
@@ -240,7 +240,7 @@ cat("True latent AR(1) coefficient:", true_rho, "\n")
 The simplest longitudinal model assumes that the latent positions and additive effects are constant over time. This pools all time periods together to get a single estimate of each actor's latent position, useful when you believe the underlying structure is stable and you just want more data to estimate it precisely.
 
 ```{r fit_longitudinal_static, message=FALSE, warning=FALSE}
-# note: iterations are kept small for vignette speed; use burn >= 1000
+# iterations are small so the vignette builds quickly; use burn >= 1000
 # and nscan >= 5000 for real analyses.
 fit_static <- lame(
 	Y = Y_list,
@@ -298,13 +298,15 @@ The posterior recovers the true `rho_uv = 0.9` within the 95% credible interval,
 
 ### Time-varying Interaction Matrix (`dynamic_G`)
 
-When you suspect that the way the row and column latent spaces interact is itself shifting over time, not just the actor positions, set `dynamic_G = TRUE`. `lame()` then runs a Carter-Kohn FFBS on `vec(G_t)` under an AR(1) state-space prior (the persistence and innovation variance are sampled jointly inside the loop) and attaches three outputs:
+When you suspect that the way the row and column latent spaces interact is itself shifting over time, not just the actor positions, set `dynamic_G = TRUE`. By default, `lame()` runs a Carter-Kohn FFBS on `vec(G_t)` under an AR(1) state-space prior (the persistence and innovation variance are sampled jointly inside the loop) and attaches three outputs:
 
 - `fit$G_cube` -- the final draw's per-period $G_t$ ($R_\text{row} \times R_\text{col} \times T$).
 - `fit$G_cube_post_mean` -- the posterior-mean $G_t$ averaged across all stored draws, same shape; this is the recommended summary.
 - `fit$G_cube_post_sd` -- the elementwise posterior SD across draws, same shape.
 
 The hyperparameter chains live at `fit$RHO_G` and `fit$SIGMA_G2`. A rotation-drift diagnostic (`fit$G_rotation_drift`) compares the variance of the raw $G_t$ entries to their SVD-canonicalised counterparts; when the ratio is large the apparent time variation is dominated by latent-rotation drift rather than real change in the interaction matrix.
+
+With `method = "als"`, `dynamic_G = TRUE` estimates the same per-period bilinear surface as a penalized point path for normal, binary, and Poisson panels. Named changing-composition panels are aligned to the union row and column actor sets before fitting. The object still stores `G_cube`, `G_cube_post_mean`, and `G_cube_post_sd` for compatibility with MCMC code; `G_cube_post_mean` is the point path and `G_cube_post_sd` is zero because ALS has no posterior draws. The smoothing settings are reported through `rho_G`, `RHO_G`, `SIGMA_G2`, and `lambda_G_als`.
 
 ```{r fit_dynamic_G, message=FALSE, warning=FALSE}
 fit_dynG <- lame(
@@ -358,7 +360,7 @@ trace_plot(fit_dynamic)
 A natural question is whether the dynamic model is worth the added complexity. The goodness-of-fit plots provide one way to compare: if the dynamic model's posterior-predictive distributions better cover the observed statistics, the extra flexibility is paying off. In each panel below the **observed bipartite statistic at each period appears as a solid Okabe-Ito orange (`#D55E00`) line with filled points**, the **posterior-predictive median is a dashed dark grey line**, and the **grey ribbon is the 95% posterior-predictive credible interval**; the three series are dual-encoded on colour and linetype so the comparison stays legible in greyscale and for colour-blind readers. For bipartite fits the three panels are labelled "Sender Degree Heterogeneity" (row-mean SD), "Receiver Degree Heterogeneity" (column-mean SD), and "Four Cycles", the bipartite analogue of transitivity.
 
 ```{r model_comparison, fig.height=4, fig.alt="Side-by-side goodness-of-fit panels comparing posterior predictive coverage of bipartite degree heterogeneity and four-cycle counts for the static versus dynamic model."}
-# GOF plots for each model
+# gof plots for each model
 gof_plot(fit_static)
 gof_plot(fit_dynamic)
 ```
@@ -419,7 +421,7 @@ ggplot(gof_df, aes(x = model, y = value)) +
 	)
 ```
 
-We simulated a constant interaction matrix $G$ with actor positions that drift via an AR(1) with $\rho = 0.9$ -- moderate persistence (the lag-4 autocorrelation is $0.9^4 \approx 0.66$, so the positions at the first and last period correlate only about 0.6-0.8 and do move). What is genuinely fixed is $G$, not the positions; combined with the short panel and short chains, that is why the static and dynamic models fit similarly here rather than the dynamic one clearly winning. If the boxplots overlap substantially and both cover the dashed line, the dynamic model's extra flexibility is not paying off here. In real applications where user preferences or item popularity genuinely shift over time, the dynamic model would show tighter coverage of the observed statistics.
+The simulated interaction matrix $G$ is constant, while actor positions drift via an AR(1) with $\rho = 0.9$ -- moderate persistence (the lag-4 autocorrelation is $0.9^4 \approx 0.66$, so the positions at the first and last period correlate only about 0.6-0.8 and do move). What is genuinely fixed is $G$, not the positions; combined with the short panel and short chains, that is why the static and dynamic models fit similarly here rather than the dynamic one clearly winning. If the boxplots overlap substantially and both cover the dashed line, the dynamic model's extra flexibility is not paying off here. In real applications where user preferences or item popularity genuinely shift over time, the dynamic model would show tighter coverage of the observed statistics.
 
 ### Choosing Latent Dimensions
 

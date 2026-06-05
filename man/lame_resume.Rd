@@ -39,8 +39,8 @@ restarts at 1.
 function with the user-supplied overrides forwarded; pass
 \code{nscan = K} on the resume call to request \code{K}
 additional stored draws. Both call shapes are supported. The
-legacy \code{lame_resume(path, ...)} form is currently the
-more robust of the two: the consolidated form re-evaluates the
+\code{lame_resume(path, ...)} form is safer for nested calls: the
+consolidated form re-evaluates the
 saved \code{lame()} call in \code{parent.frame()}, which is
 the \code{lame()} frame whose required formal arguments
 (\code{Y}, \code{Xdyad}, etc.) were not supplied on the

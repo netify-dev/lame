@@ -1,6 +1,6 @@
 skip_on_cran()
 
-# test xrow and xcol covariates for static Gaussian models
+# test xrow and xcol covariates for static gaussian models
 library(lame)
 library(testthat)
 
@@ -19,7 +19,7 @@ test_that("xrow/xcol work correctly for static unipartite Gaussian models", {
 	beta_col = c(0.8, 0.4)
 	intercept = 0.2
 	
-	# generate Y based on row and column effects
+	# generate y based on row and column effects
 	Y = matrix(intercept, n, n)
 	
 	# add row effects (constant across columns)
@@ -42,7 +42,7 @@ test_that("xrow/xcol work correctly for static unipartite Gaussian models", {
 						burn = 200, nscan = 800, odens = 25,
 						verbose = FALSE)
 	
-	# check dimensions of BETA
+	# check dimensions of beta
 	# should have: intercept + 2 row + 2 col = 5 coefficients
 	expect_equal(ncol(fit$BETA), 5)
 	
@@ -70,7 +70,7 @@ test_that("xrow/xcol work correctly for static unipartite Gaussian models", {
 	expect_equal(unname(beta_est[5]), beta_col[2], tolerance = 0.5,
 							label = "Column covariate 2 estimate")
 	
-	# check that X array is properly constructed
+	# check that x array is properly constructed
 	expect_false(is.null(fit$X))
 	expect_equal(dim(fit$X), c(n, n, 5))
 	
@@ -100,7 +100,7 @@ test_that("xrow/xcol work correctly for static unipartite Gaussian models", {
 	expect_equal(dim(pred), c(n, n))
 	
 	# predictions should correlate with true linear predictor
-	true_eta = Y - matrix(rnorm(n * n, 0, 0.5), n, n)  # Approximate
+	true_eta = Y - matrix(rnorm(n * n, 0, 0.5), n, n)  # approximate
 	diag(true_eta) = NA
 	corr = cor(c(true_eta), c(pred), use = "pairwise.complete.obs")
 	expect_gt(corr, 0.7, label = "Predictions should correlate with truth")
@@ -108,14 +108,14 @@ test_that("xrow/xcol work correctly for static unipartite Gaussian models", {
 
 test_that("xrow/xcol work correctly for static bipartite Gaussian models", {
 	set.seed(456)
-	nA = 20  # Row nodes
-	nB = 15  # Column nodes
+	nA = 20  # row nodes
+	nB = 15  # column nodes
 	
-	# generate row covariates (for set A)
+	# generate row covariates (for set a)
 	Xrow = matrix(rnorm(nA * 2), nA, 2)
 	colnames(Xrow) = c("rowA_cov1", "rowA_cov2")
 	
-	# generate column covariates (for set B)
+	# generate column covariates (for set b)
 	Xcol = matrix(rnorm(nB * 3), nB, 3)
 	colnames(Xcol) = c("colB_cov1", "colB_cov2", "colB_cov3")
 	
@@ -124,15 +124,15 @@ test_that("xrow/xcol work correctly for static bipartite Gaussian models", {
 	beta_col = c(0.3, 0.7, -0.2)
 	intercept = -0.1
 	
-	# generate Y based on effects
+	# generate y based on effects
 	Y = matrix(intercept, nA, nB)
 	
-	# add row effects (from set A)
+	# add row effects (from set a)
 	for(i in 1:nA) {
 		Y[i, ] = Y[i, ] + Xrow[i, 1] * beta_row[1] + Xrow[i, 2] * beta_row[2]
 	}
 	
-	# add column effects (from set B)
+	# add column effects (from set b)
 	for(j in 1:nB) {
 		Y[, j] = Y[, j] + Xcol[j, 1] * beta_col[1] + 
 							 Xcol[j, 2] * beta_col[2] + Xcol[j, 3] * beta_col[3]
@@ -148,7 +148,7 @@ test_that("xrow/xcol work correctly for static bipartite Gaussian models", {
 						burn = 200, nscan = 800, odens = 25,
 						verbose = FALSE)
 	
-	# check dimensions of BETA
+	# check dimensions of beta
 	# should have: intercept + 2 row + 3 col = 6 coefficients
 	expect_equal(ncol(fit$BETA), 6)
 	
@@ -169,7 +169,7 @@ test_that("xrow/xcol work correctly for static bipartite Gaussian models", {
 	expect_equal(beta_est[6], beta_col[3], tolerance = 0.5,
 							label = "Bipartite col cov 3")
 	
-	# check X array structure
+	# check x array structure
 	expect_false(is.null(fit$X))
 	expect_equal(dim(fit$X), c(nA, nB, 6))
 	
@@ -204,7 +204,7 @@ test_that("Mixed dyadic and nodal covariates work together", {
 	beta_col = -0.5
 	intercept = 0.0
 	
-	# generate Y
+	# generate y
 	Y = intercept + beta_dyad * Xdyad
 	
 	# add row effect

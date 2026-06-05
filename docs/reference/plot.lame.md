@@ -1,9 +1,9 @@
-# Plot comprehensive diagnostics for a LAME model fit
+# Plot diagnostics for a LAME model fit
 
-Creates a comprehensive set of diagnostic plots for a LAME (Longitudinal
-Additive and Multiplicative Effects) model, including MCMC diagnostics,
-parameter evolution over time, and longitudinal goodness-of-fit checks.
-This is the default plot method for LAME objects.
+Creates diagnostic plots for a LAME (Longitudinal Additive and
+Multiplicative Effects) model, including MCMC diagnostics, parameter
+evolution over time, and longitudinal goodness-of-fit checks. This is
+the default plot method for LAME objects.
 
 ## Usage
 
@@ -46,8 +46,8 @@ plot(
 - pages:
 
   character string specifying how to arrange plots: "single" = one
-  comprehensive page (default), "multiple" = separate pages for each
-  plot type
+  combined page (default), "multiple" = separate pages for each plot
+  type
 
 - ...:
 
@@ -118,7 +118,7 @@ diag(Y_list[[1]]) <- diag(Y_list[[2]]) <- NA
 fit <- lame(Y_list, family = "normal",
             nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE)
 
-# Default comprehensive plot
+# default combined plot
 plot(fit)
 #> ℹ Generating LAME diagnostic plots: trace, density, gof, effects
 #> ℹ Combining plots into single page layout

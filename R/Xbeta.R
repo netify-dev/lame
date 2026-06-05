@@ -12,8 +12,17 @@
 #' @export Xbeta
 Xbeta <-
 	function(X,beta) {
+		d <- dim(X)
+		if (length(d) != 3L) {
+			cli::cli_abort("{.arg X} must be a 3D array.")
+		}
 		if(length(beta) == 0) {
-			return(matrix(0, nrow=dim(X)[1], ncol=dim(X)[2]))
+			return(matrix(0, nrow=d[1], ncol=d[2]))
+		}
+		if (length(beta) != d[3L]) {
+			cli::cli_abort(c(
+				"{.arg beta} length must match the third dimension of {.arg X}.",
+				"i" = "Got length(beta) = {length(beta)} and dim(X)[3] = {d[3L]}."))
 		}
 		Xbeta_cpp(X, beta)
 	}

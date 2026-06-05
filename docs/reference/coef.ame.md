@@ -30,11 +30,11 @@ of posterior mean coefficients.
 
 ## Details
 
-For a STATIC fit (the default, and any model with
+For a static fit (the default, and any model with
 `dynamic_beta = FALSE`), coefficients are returned as a named numeric
 vector computed as `colMeans(fit$BETA)`.
 
-For a DYNAMIC fit (`lame(..., dynamic_beta = ...)` where some
+For a dynamic fit (`lame(..., dynamic_beta = ...)` where some
 coefficient is time-varying), `fit$BETA` is a 3-dimensional array
 `[n_stored, p, T]` and `coef.lame` returns a `[p, T]` matrix of
 per-period posterior means. Rownames are the coefficient names; colnames
@@ -45,7 +45,7 @@ For binary models, these are on the probit (latent) scale. Use
 [`predict.ame`](https://netify-dev.github.io/lame/reference/predict.ame.md)
 with `type = "response"` to get predicted probabilities.
 
-**What [`coef()`](https://rdrr.io/r/stats/coef.html) does NOT return.**
+**What [`coef()`](https://rdrr.io/r/stats/coef.html) does not return.**
 The multiplicative latent positions \\U\\, \\V\\ are not part of the
 coefficient vector; they live on `fit$U` and `fit$V` (or as 3-D arrays
 `[n, R, T]` when `dynamic_uv` is on). The additive sender / receiver

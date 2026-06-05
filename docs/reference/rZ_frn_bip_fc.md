@@ -1,6 +1,6 @@
 # Sample Z under bipartite fixed-rank nominations (rectangular)
 
-Rectangular drop-in for
+Rectangular analogue of
 [`rZ_frn_fc`](https://netify-dev.github.io/lame/reference/rZ_frn_fc.md).
 Row-wise rank constraints: ranked nominees are positive and ordered by
 rank; non-nominees fall below all ranked cells in the row (and below 0

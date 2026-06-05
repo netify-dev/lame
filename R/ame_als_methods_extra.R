@@ -1,7 +1,7 @@
-# ame_als_methods_extra.R
+# ame_als_methods_extra.r
 #
-# additional S3 methods for ame_als so simulate / gof_plot / ab_plot /
-# prior_summary / nobs work uniformly on MCMC and ALS fits.
+# additional s3 methods for ame_als so simulate / gof_plot / ab_plot /
+# prior_summary / nobs work uniformly on mcmc and als fits.
 
 ####
 #' Number of observed dyads in an ame_als fit
@@ -32,7 +32,7 @@ nobs.ame_als <- function(object, ...) {
 #' (where applicable).
 #'
 #' Caveat: ALS is a point estimator. \code{simulate.ame_als} therefore holds
-#' \code{mu, beta, a, b, U, V} FIXED at the point estimate and only the
+#' \code{mu, beta, a, b, U, V} at the point estimate and only the
 #' noise is resampled. For uncertainty over the parameters themselves use
 #' \code{\link{ame_als_bootstrap}} (whose replicates each carry their own
 #' resampled \code{Y}) and combine those.
@@ -58,14 +58,14 @@ simulate.ame_als <- function(object, nsim = 1, seed = NULL, ...) {
 	nr <- object$dims$n_row; nc <- object$dims$n_col
 	Tt <- object$n_time
 	family <- object$family
-	# linear-predictor base (mu + Xbeta + outer(a, b) + UV') per time slice
+	# linear-predictor base per time slice
 	EZ_list <- vector("list", Tt)
 	for (t in seq_len(Tt)) {
 		EZ_t <- object$EZ
 		if (is.list(EZ_t)) EZ_t <- EZ_t[[t]] else EZ_t <- EZ_t
 		EZ_list[[t]] <- EZ_t
 	}
-	# residual SD for normal / tobit
+	# residual sd for the gaussian response path
 	sigma_e <- sqrt(max(object$VC["ve"], 0, na.rm = TRUE))
 	sim_list <- vector("list", nsim)
 	for (s in seq_len(nsim)) {
@@ -87,7 +87,7 @@ simulate.ame_als <- function(object, nsim = 1, seed = NULL, ...) {
 			dimnames(Yt) <- list(object$row_names, object$col_names)
 			Yt_list[[t]] <- Yt
 		}
-		# cross-sectional fit (Tt == 1): return a single matrix per replicate
+		# cross-sectional fit returns a single matrix per replicate
 		sim_list[[s]] <- if (Tt == 1L) Yt_list[[1]] else Yt_list
 	}
 	out <- list(Y = sim_list, n = nsim, family = family,
@@ -100,9 +100,9 @@ simulate.ame_als <- function(object, nsim = 1, seed = NULL, ...) {
 }
 
 ####
-#' Goodness-of-fit posterior predictive check for an ame_als fit
+#' Goodness-of-fit check for an ame_als fit
 #'
-#' Bootstrap-based analogue of the MCMC \code{\link{gof_plot}}: draws
+#' Bootstrap-style analogue of the MCMC \code{\link{gof_plot}}: draws
 #' \code{nsim} simulated networks from the fitted ALS model, computes the
 #' standard network statistics (\code{sd.rowmean}, \code{sd.colmean},
 #' \code{dyad.dep}, \code{cycle.dep}, \code{trans.dep} for unipartite;
@@ -127,6 +127,11 @@ gof_plot.ame_als <- function(fit, nsim = 100, seed = NULL, ...) {
 		cli::cli_abort("{.arg fit} must be an {.cls ame_als} object.")
 	}
 	mode_arg <- fit$mode %||% "unipartite"
+	if (isTRUE(fit$longitudinal) && (fit$n_time %||% 1L) > 1L) {
+		cli::cli_warn(c(
+			"{.fn gof_plot.ame_als} uses the first time slice for longitudinal ALS fits.",
+			"i" = "For temporal fit checks, inspect slices directly or use {.fn gof_temporal} where applicable."))
+	}
 	sims <- simulate(fit, nsim = nsim, seed = seed)
 	# observed-statistic vector
 	Y_obs <- if (is.list(fit$Y)) fit$Y[[1]] else fit$Y
@@ -150,9 +155,7 @@ gof_plot.ame_als <- function(fit, nsim = 100, seed = NULL, ...) {
 	if (!requireNamespace("ggplot2", quietly = TRUE)) {
 		cli::cli_abort("Package {.pkg ggplot2} is required for {.fn gof_plot.ame_als}.")
 	}
-	# dual-encode observed cue (Okabe-Ito #D55E00 + dashed linetype) for
-	# consistency with the MCMC gof_plot; the colour-blind-safe vermillion
-	# also reads as "orange" so legend/prose match.
+	# draw the observed cue with both colour and linetype
 	ggplot2::ggplot(df, ggplot2::aes(x = .data$value)) +
 		ggplot2::geom_histogram(ggplot2::aes(fill = "Bootstrap replicates"),
 		                        bins = 30) +
@@ -167,7 +170,7 @@ gof_plot.ame_als <- function(fit, nsim = 100, seed = NULL, ...) {
 		ggplot2::scale_linetype_manual(NULL,
 		                               values = c("Observed" = "dashed")) +
 		ggplot2::facet_wrap(~ .data$statistic, scales = "free") +
-		ggplot2::labs(title = "ame_als Goodness-of-Fit (Bootstrap-Based Posterior Predictive)",
+		ggplot2::labs(title = "ame_als Goodness-of-Fit (Bootstrap-Based)",
 		              subtitle = paste0("R = ", nsim,
 		                                " parametric draws; dashed orange line = observed"),
 		              x = NULL, y = "Count") +

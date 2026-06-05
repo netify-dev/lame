@@ -1,14 +1,14 @@
-# FFBS sampler for the time-varying bipartite interaction matrix G_t.
-# State: g_t = vec(G_t) of length p = RA * RB.
-# AR(1) state-space prior:
-#   g_t = rho_G * g_{t-1} + eta_t,  eta_t ~ N(0, sigma_G^2 * I_p)
-#   g_1 ~ N(0, (sigma_G^2 / (1 - rho_G^2)) * I_p)   (stationary)
-# Observation per period:
-#   vec(E_t) = (V_t kron U_t) g_t + epsilon_t,  epsilon_t ~ N(0, s2 * I)
-# Carter-Kohn / Frühwirth-Schnatter forward filter + backward sample.
+# ffbs sampler for the time-varying bipartite interaction matrix g_t.
+# state: g_t = vec(g_t) of length p = ra * rb.
+# ar(1) state-space prior:
+#   g_t = rho_g * g_{t-1} + eta_t,  eta_t ~ n(0, sigma_g^2 * i_p)
+#   g_1 ~ n(0, (sigma_g^2 / (1 - rho_g^2)) * i_p)   (stationary)
+# observation per period:
+#   vec(e_t) = (v_t kron u_t) g_t + epsilon_t,  epsilon_t ~ n(0, s2 * i)
+# carter-kohn / frühwirth-schnatter forward filter + backward sample.
 #
-# References:
-#   Carter & Kohn (1994) Biometrika; Frühwirth-Schnatter (1994) JTSA.
+# references:
+#   carter & kohn (1994) biometrika; frühwirth-schnatter (1994) jtsa.
 
 #' Forward-filter / backward-sample for vec(G_t) under AR(1) state prior
 #'
@@ -48,26 +48,26 @@ ffbs_vecG <- function(E_cube, U_cube, V_cube, s2, rho_G, sigma_G2) {
 	for (t in seq_len(N)) {
 		U_t <- U_cube[, , t]
 		V_t <- V_cube[, , t]
-		# observation matrix H_t = V_t kron U_t (rows correspond to vec(E_t))
+		# observation matrix h_t = v_t kron u_t (rows correspond to vec(e_t))
 		H_t <- kronecker(V_t, U_t)
 		y_t <- as.numeric(E_cube[, , t])
 		ok <- is.finite(y_t)
 		if (any(ok)) {
 			Hk <- H_t[ok, , drop = FALSE]
 			yk <- y_t[ok]
-			# innovation: y - H m_prior; innovation covariance S = H P H' + s2 I
+			# innovation: y - h m_prior; innovation covariance s = h p h' + s2 i
 			# we use information-form update for numerical stability when n_obs
 			# is large compared to p
 			HtH <- crossprod(Hk)
 			Hty <- crossprod(Hk, yk)
-			# posterior precision = prior precision + HtH / s2
+			# posterior precision = prior precision + hth / s2
 			Prec_post <- safe_sympd_inverse(P_prior) + HtH / s2
-			# (information-form) posterior mean: Prec_post m = Prec_prior m_prior + Hty/s2
+			# (information-form) posterior mean: prec_post m = prec_prior m_prior + hty/s2
 			rhs <- safe_sympd_inverse(P_prior) %*% m_prior + Hty / s2
 			P_t <- safe_sympd_inverse(Prec_post)
 			m_t <- as.numeric(P_t %*% rhs)
 		} else {
-			# no obs at t (e.g. all-NA panel slice): keep prior as filter posterior
+			# no obs at t (e.g. all-na panel slice): keep prior as filter posterior
 			m_t <- m_prior
 			P_t <- P_prior
 		}
@@ -81,17 +81,17 @@ ffbs_vecG <- function(E_cube, U_cube, V_cube, s2, rho_G, sigma_G2) {
 	}
 	# backward sample
 	vecG_path <- matrix(0, p, N)
-	# draw g_N from N(m_filt_N, P_filt_N)
+	# draw g_n from n(m_filt_n, p_filt_n)
 	L_N <- safe_chol(P_filt[, , N])
 	vecG_path[, N] <- m_filt[, N] + as.numeric(L_N %*% stats::rnorm(p))
 	for (t in (N - 1L):1L) {
 		if (t < 1L) break
-		# smoothing: g_t | g_{t+1}, y_{1:N}
-		# predictive cov of g_{t+1} | y_{1:t}: P_pred = rho^2 P_t + sigma^2 I
+		# smoothing: g_t | g_{t+1}, y_{1:n}
+		# predictive cov of g_{t+1} | y_{1:t}: p_pred = rho^2 p_t + sigma^2 i
 		P_t <- P_filt[, , t]
 		m_t <- m_filt[, t]
 		P_pred <- (rho_G^2) * P_t + diag(sigma_G2, p)
-		# Kalman smoother gain: J = rho * P_t * P_pred^-1
+		# kalman smoother gain: j = rho * p_t * p_pred^-1
 		J <- rho_G * P_t %*% safe_sympd_inverse(P_pred)
 		m_smooth <- m_t + J %*% (vecG_path[, t + 1L] - rho_G * m_t)
 		P_smooth <- P_t - J %*% (rho_G * P_t)
@@ -106,15 +106,15 @@ ffbs_vecG <- function(E_cube, U_cube, V_cube, s2, rho_G, sigma_G2) {
 	list(G_cube = G_cube, vecG_path = vecG_path)
 }
 
-# safe symmetric-PD inverse with jitter ladder (mirrors safe_sympd_inverse
-# in dynamic_beta.cpp / R helpers; this is the R fallback used by the FFBS).
+# safe symmetric-pd inverse with jitter ladder (mirrors safe_sympd_inverse
+# in dynamic_beta.cpp / r helpers; this is the r fallback used by the ffbs).
 safe_sympd_inverse <- function(M, jitters = c(0, 1e-8, 1e-6, 1e-4)) {
 	for (j in jitters) {
 		Mj <- if (j > 0) M + diag(j, nrow(M)) else M
 		out <- tryCatch(chol2inv(chol(Mj)), error = function(e) NULL)
 		if (!is.null(out)) return(out)
 	}
-	# final fallback: pseudo-inverse via SVD (rare path)
+	# final fallback: pseudo-inverse via svd (rare path)
 	sv <- svd(M)
 	tol <- max(sv$d) * .Machine$double.eps * length(sv$d)
 	d_inv <- ifelse(sv$d > tol, 1 / sv$d, 0)
@@ -125,9 +125,9 @@ safe_chol <- function(M, jitters = c(0, 1e-8, 1e-6, 1e-4)) {
 	for (j in jitters) {
 		Mj <- if (j > 0) M + diag(j, nrow(M)) else M
 		out <- tryCatch(chol(Mj), error = function(e) NULL)
-		if (!is.null(out)) return(t(out))  # lower-triangular for L %*% L'
+		if (!is.null(out)) return(t(out))  # lower-triangular for l %*% l'
 	}
-	# final fallback: SVD-based factor
+	# final fallback: svd-based factor
 	sv <- svd(M)
 	d_pos <- pmax(sv$d, 0)
 	sv$u %*% diag(sqrt(d_pos), length(d_pos))
@@ -152,16 +152,16 @@ sample_rho_G_mh <- function(rho_G, vecG_path, sigma_G2, tau = 0.3) {
 	if (N < 2L) return(list(rho = rho_G, accept = FALSE))
 	z_curr <- atanh(rho_G)
 	z_prop <- z_curr + tau * stats::rnorm(1)
-	# Clamp the persistence strictly below 1. The absolute scale of vec(G_t)
-	# is only weakly identified (the model identifies U G V', not G alone),
-	# so an unclamped rho_G drifts to the unit root and the state-space prior
-	# degenerates into an unbounded random walk -- vec(G_t) then inflates by
+	# clamp the persistence strictly below 1. the absolute scale of vec(g_t)
+	# is only weakly identified (the model identifies u g v', not g alone),
+	# so an unclamped rho_g drifts to the unit root and the state-space prior
+	# degenerates into an unbounded random walk -- vec(g_t) then inflates by
 	# orders of magnitude with no change to the fitted linear predictor.
-	# Holding rho_G <= 0.98 keeps the prior stationary with finite marginal
-	# variance sigma_G2 / (1 - rho_G^2), bounding the G_t scale.
+	# holding rho_g <= 0.98 keeps the prior stationary with finite marginal
+	# variance sigma_g2 / (1 - rho_g^2), bounding the g_t scale.
 	rho_prop <- max(min(tanh(z_prop), 0.98), -0.98)
-	# log target on rho-scale = AR(1) log-prior on g + log|J|;
-	# the Fisher-z proposal is symmetric on z, so the Jacobian from
+	# log target on rho-scale = ar(1) log-prior on g + log|j|;
+	# the fisher-z proposal is symmetric on z, so the jacobian from
 	# d rho / d z = 1 - rho^2 appears once.
 	loglik <- function(rho) {
 		# stationary marginal for t = 1
@@ -215,13 +215,13 @@ sample_sigma_G2 <- function(vecG_path, rho_G, prior_shape = 2, prior_rate = 1,
 	N <- ncol(vecG_path)
 	p <- nrow(vecG_path)
 	if (p == 0L || N < 2L) return(min(1.0, v_cap_mult * max(s2_obs, 1e-8)))
-	# stationary at t = 1: g_1 ~ N(0, sigma^2 / (1 - rho^2)) ->
+	# stationary at t = 1: g_1 ~ n(0, sigma^2 / (1 - rho^2)) ->
 	# (1 - rho^2) g_1^2 ~ sigma^2 * chi^2_1 in expectation; we treat the
 	# stationary contribution as an effective sum of squares too for
 	# stability.
 	rho2 <- max(1 - rho_G^2, 1e-6)
 	ss_stat <- sum(vecG_path[, 1L]^2) * rho2
-	# innovations 2..N
+	# innovations 2..n
 	if (N >= 2L) {
 		eta <- vecG_path[, -1L, drop = FALSE] -
 			rho_G * vecG_path[, -N, drop = FALSE]

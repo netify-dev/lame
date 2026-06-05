@@ -12,12 +12,12 @@ init_bipartite_startvals <- function(
 	){
 
 	####
-	# initialize Z. for the new rank-family bipartite paths (cbin / frn / rrl)
-	# we MUST seed Z with a cone-respecting prior draw rather than leave it as
-	# NA; the row-cone samplers in R/rZ_bipartite.R sample conditional on the
-	# bounds, which are themselves a function of the surrounding Z, and a fully-
-	# NA seed produces all-NA bounds → no movement. Mirrors the cross-sectional
-	# init at R/ame_bipartite.R:117-150.
+	# initialize z. for the new rank-family bipartite paths (cbin / frn / rrl)
+	# we must seed z with a cone-respecting prior draw rather than leave it as
+	# na; the row-cone samplers in r/rz_bipartite.r sample conditional on the
+	# bounds, which are themselves a function of the surrounding z, and a fully-
+	# na seed produces all-na bounds → no movement. mirrors the cross-sectional
+	# init at r/ame_bipartite.r:117-150.
 	Z <- array(dim = c(nA, nB, T))
 
 	for(t in 1:T) {
@@ -35,10 +35,10 @@ init_bipartite_startvals <- function(
 				Z[,,t] <- Z[,,t] - z_split
 			}
 		} else if(family == "poisson") {
-			# log(Y + 1) for observed cells; the unipartite init in
-			# R/get_start_vals.R imputes NaN cells from the prior. Mirror that
-			# here so the sampler does not crash on the first sweep when Y has
-			# NA cells (which is normal for partial-observation bipartite data).
+			# log(y + 1) for observed cells; the unipartite init in
+			# r/get_start_vals.r imputes nan cells from the prior. mirror that
+			# here so the sampler does not crash on the first sweep when y has
+			# na cells (which is normal for partial-observation bipartite data).
 			Z[,,t] <- log(Yt + 1)
 			miss <- is.na(Z[,,t])
 			if (any(miss)) {
@@ -49,19 +49,19 @@ init_bipartite_startvals <- function(
 				Z[,,t] <- slice
 			}
 		} else if(family == "ordinal") {
-			# rank-normal init on observed cells, ignoring NA cells (which the
-			# downstream `rZ_ord_bip_fc` resamples from data-induced bounds)
+			# rank-normal init on observed cells, ignoring na cells (which the
+			# downstream `rz_ord_bip_fc` resamples from data-induced bounds)
 			Z[,,t] <- matrix(qnorm((Yt + 0.5) / (max(Yt, na.rm = TRUE) + 1)),
 			                  nA, nB)
 			miss <- is.na(Z[,,t])
 			if (any(miss)) Z[,,t][miss] <- stats::rnorm(sum(miss), 0, 1)
 		} else if(family == "tobit") {
 			Z[,,t] <- Yt
-			# left-censored cells (Y == 0): seed Z below zero from a half-normal
+			# left-censored cells (y == 0): seed z below zero from a half-normal
 			miss <- is.na(Z[,,t]) | (Z[,,t] == 0 & !is.na(Yt) & Yt == 0)
 			if (any(miss)) Z[,,t][miss] <- -abs(stats::rnorm(sum(miss)))
 		} else if(family == "cbin") {
-			# Y=1 → Z > 0 (half-normal); Y=0 → Z < 0; NA → unconstrained
+			# y=1 → z > 0 (half-normal); y=0 → z < 0; na → unconstrained
 			slice <- matrix(stats::rnorm(nA * nB), nA, nB)
 			pos <- !is.na(Yt) & Yt == 1
 			neg <- !is.na(Yt) & Yt == 0
@@ -70,7 +70,7 @@ init_bipartite_startvals <- function(
 			Z[,,t] <- slice
 		} else if(family == "frn") {
 			# rank-aware seed: top-ranked nominees positive and ordered;
-			# non-nominees below all nominees. Mirrors ame_bipartite.R:130-137.
+			# non-nominees below all nominees. mirrors ame_bipartite.r:130-137.
 			slice <- matrix(stats::rnorm(nA * nB), nA, nB)
 			for (i in seq_len(nA)) {
 				if (any(Yt[i, ] > 0, na.rm = TRUE)) {
@@ -274,7 +274,7 @@ list_to_array_bipartite <- function(
 	T <- length(Y_list)
 
 	####
-	# fill Y array
+	# fill y array
 	Y_array <- array(NA, c(nA, nB, T),
 		dimnames = list(rowActorSet, colActorSet, names(Y_list)))
 
@@ -293,14 +293,14 @@ list_to_array_bipartite <- function(
 	}
 	####
 
-	# delegate to the package-internal `.lame_apply_suffix()` in R/globals.R
+	# delegate to the package-internal `.lame_apply_suffix()` in r/globals.r
 	# so the suffix rule is identical across the five naming sites (this
-	# function, design_array, design_array_listwisedel, lame.R, ame_bipartite,
+	# function, design_array, design_array_listwisedel, lame.r, ame_bipartite,
 	# ame_als).
 	.bip_apply_suffix <- .lame_apply_suffix
 
 	####
-	# coerce and reorder Xdyad to match sorted actor sets
+	# coerce and reorder xdyad to match sorted actor sets
 	if(!is.null(Xdyad)) {
 		Xdyad <- .coerce_Xdyad_3d(Xdyad)
 		Xdyad_out <- vector("list", T)
@@ -309,8 +309,8 @@ list_to_array_bipartite <- function(
 			if(is.null(Xt)) { Xdyad_out[[t]] <- NULL; next }
 			pd_t <- dim(Xt)[3]
 			# append `_dyad` suffix to covariate-slice names so the resulting
-			# BETA carries the same `<name>_dyad` convention the unipartite
-			# design produces (R/design_array.R)
+			# beta carries the same `<name>_dyad` convention the unipartite
+			# design produces (r/design_array.r)
 			slice_nms <- dimnames(Xt)[[3]]
 			if (is.null(slice_nms)) slice_nms <- paste0("Xdyad", seq_len(pd_t))
 			slice_nms <- .bip_apply_suffix(slice_nms, "dyad")
@@ -332,7 +332,7 @@ list_to_array_bipartite <- function(
 	####
 
 	####
-	# reorder Xrow to match sorted row actors and convert to 3D array
+	# reorder xrow to match sorted row actors and convert to 3d array
 	if(!is.null(Xrow)) {
 		pr <- ncol(Xrow[[1]])
 		row_nms <- .bip_apply_suffix(
@@ -353,7 +353,7 @@ list_to_array_bipartite <- function(
 	####
 
 	####
-	# reorder Xcol to match sorted column actors and convert to 3D array
+	# reorder xcol to match sorted column actors and convert to 3d array
 	if(!is.null(Xcol)) {
 		pc <- ncol(Xcol[[1]])
 		col_nms <- .bip_apply_suffix(

@@ -1,17 +1,17 @@
-# Cowles (1996) Z-marginalised MH for explicit ordinal cutpoints.
-# Tests cover: (a) helper math, (b) byte-identical-default contract,
-# (c) end-to-end recovery from a probit-cutpoint DGP, (d) symmetric and
+# cowles (1996) z-marginalised mh for explicit ordinal cutpoints.
+# tests cover: (a) helper math, (b) byte-identical-default contract,
+# (c) end-to-end recovery from a probit-cutpoint dgp, (d) symmetric and
 # asymmetric paths, (e) lame() panel path, (f) bipartite fallback.
 
 test_that("log_phi_diff is numerically stable in both tails", {
 	# upper tail: both hi, lo > ~7 -- naive log(pnorm(hi) - pnorm(lo)) suffers
-	# catastrophic cancellation. Reference via survival function:
-	# log(S(lo) - S(hi)) is stable.
+	# catastrophic cancellation. reference via survival function:
+	# log(s(lo) - s(hi)) is stable.
 	hi = 8
 	lo = 7.5
 	val = lame:::log_phi_diff(hi, lo)
 	expect_true(is.finite(val))
-	# stable reference: S(lo) - S(hi), both representable as 1e-14 ish
+	# stable reference: s(lo) - s(hi), both representable as 1e-14 ish
 	ref = log(pnorm(lo, lower.tail = FALSE) - pnorm(hi, lower.tail = FALSE))
 	expect_lt(abs(val - ref), 1e-8)
 	# lower tail: both hi, lo < ~-7 -- mirror image
@@ -25,7 +25,7 @@ test_that("log_phi_diff is numerically stable in both tails", {
 	val3 = lame:::log_phi_diff(0.5, -0.5)
 	ref3 = log(pnorm(0.5) - pnorm(-0.5))
 	expect_lt(abs(val3 - ref3), 1e-10)
-	# infinite bounds: collapses to single CDF
+	# infinite bounds: collapses to single cdf
 	expect_equal(lame:::log_phi_diff(Inf, 0.5),
 	             pnorm(0.5, lower.tail = FALSE, log.p = TRUE),
 	             tolerance = 1e-12)
@@ -70,7 +70,7 @@ test_that("sample_alpha_cowles accepts/rejects sanely and preserves anchor", {
 	Y_int = matrix(findInterval(Z, c(-Inf, true_alpha, Inf)), n, n)
 	diag(Y_int) = NA
 	alpha = lame:::.init_alpha_from_data(Y_int)
-	# 200 sweeps from a reasonable RW proposal SD
+	# 200 sweeps from a reasonable rw proposal sd
 	out_alpha = matrix(NA, 200, length(alpha))
 	tau = 0.3
 	for (s in seq_len(200)) {
@@ -98,7 +98,7 @@ test_that("rZ_ord_explicit_fc respects truncation bounds", {
 	Y_int = matrix(sample(1:4, n*n, replace = TRUE), n, n); diag(Y_int) = NA
 	Z = matrix(0, n, n)
 	Z = rZ_ord_explicit_fc(Z, EZ, Y_int, alpha)
-	# every cell with Y_int = k must have Z in [af[k], af[k+1])
+	# every cell with y_int = k must have z in [af[k], af[k+1])
 	obs = which(!is.na(Y_int))
 	yi = Y_int[obs]
 	zi = Z[obs]
@@ -139,7 +139,7 @@ test_that("ordinal_cutpoints = 'data_induced' is byte-identical to default", {
 	expect_identical(f1$BETA, f2$BETA)
 	expect_identical(f1$VC, f2$VC)
 	expect_identical(f1$YPM, f2$YPM)
-	# ALPHA is NULL for data_induced
+	# alpha is null for data_induced
 	expect_null(f1$ALPHA)
 	expect_null(f2$ALPHA)
 })
@@ -194,12 +194,13 @@ test_that("ordinal_cutpoints = 'explicit' warns and falls back for bipartite", {
 		colnames(mat) = paste0("b", seq_len(nB))
 		mat
 	})
-	expect_warning(
-		fit <- lame(Y_list, family = "ordinal", mode = "bipartite",
-		            R_row = 0, R_col = 0, nscan = 30, burn = 15, odens = 5,
-		            rvar = FALSE, cvar = FALSE, verbose = FALSE,
-		            ordinal_cutpoints = "explicit"),
-		"not yet wired for bipartite")
+	expect_warning({
+		fit = lame(Y_list, family = "ordinal", mode = "bipartite",
+		           R_row = 0, R_col = 0, nscan = 30, burn = 15, odens = 5,
+		           rvar = FALSE, cvar = FALSE, verbose = FALSE,
+		           ordinal_cutpoints = "explicit")
+	},
+		"not available for bipartite ordinal fits")
 	# the fit still completes via data-induced fallback
 	expect_null(fit$ALPHA)
 })
@@ -209,10 +210,11 @@ test_that("ordinal_cutpoints = 'explicit' on non-ordinal family warns + ignores"
 	set.seed(51)
 	n = 10
 	Y = matrix(rnorm(n*n), n, n); diag(Y) = NA
-	expect_warning(
-		fit <- ame(Y, family = "normal", R = 0, nscan = 20, burn = 10, odens = 5,
-		           rvar = FALSE, cvar = FALSE, verbose = FALSE,
-		           ordinal_cutpoints = "explicit"),
+	expect_warning({
+		fit = ame(Y, family = "normal", R = 0, nscan = 20, burn = 10, odens = 5,
+		          rvar = FALSE, cvar = FALSE, verbose = FALSE,
+		          ordinal_cutpoints = "explicit")
+	},
 		"only takes effect")
 	expect_equal(fit$ordinal_cutpoints, "data_induced")
 })

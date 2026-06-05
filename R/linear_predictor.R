@@ -1,27 +1,14 @@
-# Canonical construction of the regression design for a newdata /
-# counterfactual prediction.
+# canonical regression design for newdata and counterfactual prediction
 #
-# The BETA coefficient vector has a structured layout,
-#   [intercept?, <name>_row..., <name>_col..., <name>_dyad...],
-# and the fitted design array (fit$X / per-period Xlist) carries slices in
-# the SAME order, with the intercept as a column of 1s. A recurring bug
-# class is code that re-derives beta'X by POSITION (e.g. beta[k+1] * X[,,k]),
-# which silently applies the wrong coefficient the moment a model has nodal
-# (row/col) covariates. predict.ame(), predict_distribution(), predict.lame()
-# and forecast.lame() all reconstruct beta'X from user-supplied newdata, so
-# they MUST agree on a single, name-indexed convention. This file is that
-# single source of truth.
-#
-# `newdata` supplies ONLY the dyadic covariate slices; the intercept and any
-# nodal (row/col) contributions are held at their fitted values (taken from
-# the stored design). The helper returns the FULL design array in the model's
-# canonical slice order, so the caller can then apply beta positionally --
-# which is now correct because the slices are guaranteed to line up.
+# the coefficient vector has a structured layout:
+# [intercept?, <name>_row..., <name>_col..., <name>_dyad...].
+# newdata supplies dyadic covariate slices; intercept and nodal slices are
+# held at fitted values from the stored design.
 
 #' Build the full canonical design for a newdata prediction
 #'
 #' @param newdata an \code{n x m x n_dyad} array (or \code{n x m} matrix) of
-#'   NEW dyadic covariates. If its 3rd-dim names match the model's dyadic
+#'   new dyadic covariates. If its 3rd-dim names match the model's dyadic
 #'   coefficient names they are mapped by name; otherwise the slices are
 #'   taken in order as the model's dyadic covariates.
 #' @param model_names the model's coefficient names
@@ -114,7 +101,7 @@
 #'
 #' \code{lame()} sorts actors alphabetically when it ingests a list of \code{Y}
 #' matrices (via \code{list_to_array}), so the stored additive / multiplicative
-#' effects and design slices are in SORTED actor order, which need not match the
+#' effects and design slices are in sorted actor order, which need not match the
 #' order a user later supplies in \code{newdata}. This returns the row and column
 #' actor names the fit was estimated in, tried from the most authoritative source
 #' down, so \code{newdata} can be realigned by name before prediction.

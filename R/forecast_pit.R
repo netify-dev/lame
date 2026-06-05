@@ -1,12 +1,12 @@
-# global variables for R CMD check
+# global variables for r cmd check
 if(getRversion() >= "2.15.1") {
 	utils::globalVariables("pit")
 }
 
-# probability-integral-transform (PIT) calibration check for h-step
-# forecasts from a dynamic lame() fit. for any continuous family the PIT
-# values P(Y_obs <= y | forecast) should be Uniform(0, 1) when the forecast
-# is calibrated. for discrete families we use the randomised PIT.
+# probability-integral-transform (pit) calibration check for h-step
+# forecasts from a dynamic lame() fit. for any continuous family the pit
+# values p(y_obs <= y | forecast) should be uniform(0, 1) when the forecast
+# is calibrated. for discrete families we use the randomised pit.
 
 #' Probability-integral-transform calibration check for h-step forecasts
 #'
@@ -79,7 +79,7 @@ forecast_pit <- function(fit, y_future, h = NULL, n_draws = NULL) {
 	# build h-step draw-level forecasts on the response scale
 	fc_full <- predict(fit, h = h, type = "response", by_draw = TRUE,
 	                   n_draws = n_draws)
-	# fc_full is a 4-D [n, n, h, S] array
+	# fc_full is a 4-d [n, n, h, s] array
 	S <- dim(fc_full)[4L]
 
 	pit_vec <- numeric(0)
@@ -95,7 +95,7 @@ forecast_pit <- function(fit, y_future, h = NULL, n_draws = NULL) {
 
 		pit_k <- switch(family,
 			normal = {
-				# gaussian PIT: Phi((y - mu) / sd), with sd combining draw spread and residual variance
+				# gaussian pit: phi((y - mu) / sd), with sd combining draw spread and residual variance
 				mu  <- rowMeans(fc_obs)
 				sdr <- apply(fc_obs, 1, stats::sd)
 				ve  <- if (!is.null(fit$VC)) mean(fit$VC[, ncol(fit$VC)],
@@ -113,7 +113,7 @@ forecast_pit <- function(fit, y_future, h = NULL, n_draws = NULL) {
 				stats::pnorm(y_obs, mean = mu, sd = pmax(sdy, 1e-8))
 			},
 			binary = {
-				# randomised bernoulli PIT
+				# randomised bernoulli pit
 				p_mean <- rowMeans(fc_obs)
 				p_mean <- pmin(pmax(p_mean, 1e-12), 1 - 1e-12)
 				u <- stats::runif(length(y_obs))
@@ -121,7 +121,7 @@ forecast_pit <- function(fit, y_future, h = NULL, n_draws = NULL) {
 				       (1 - p_mean) + u * p_mean)
 			},
 			poisson = {
-				# randomised poisson PIT (Czado, Gneiting & Held 2009)
+				# randomised poisson pit (czado, gneiting & held 2009)
 				lam_mean <- rowMeans(fc_obs)
 				lam_mean <- pmax(lam_mean, 1e-12)
 				u <- stats::runif(length(y_obs))
@@ -146,7 +146,7 @@ forecast_pit <- function(fit, y_future, h = NULL, n_draws = NULL) {
 		pit_vec <- c(pit_vec, pit_k)
 	}
 
-	# KS test against Uniform(0, 1)
+	# ks test against uniform(0, 1)
 	ks <- suppressWarnings(stats::ks.test(pit_vec, "punif"))
 	cover_95 <- mean(pit_vec >= 0.025 & pit_vec <= 0.975, na.rm = TRUE)
 

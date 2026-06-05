@@ -5,7 +5,7 @@
 # wrapper emits a one-time note saying so.
 
 #' @noRd
-# Halton-sequence draws for prime base b, length n, skipping the first
+# halton-sequence draws for prime base b, length n, skipping the first
 # `burn` terms (which tend to be near zero and cluster).
 .halton_seq <- function(n, base, burn = 30L) {
 	out <- numeric(n + burn)
@@ -24,7 +24,7 @@
 }
 
 #' @noRd
-# qnorm of Halton draws in (0, 1). Clips away exact 0/1 to avoid -Inf.
+# qnorm of halton draws in (0, 1). clips away exact 0/1 to avoid -inf.
 .halton_normal <- function(n, base) {
 	u <- .halton_seq(n, base)
 	u <- pmin(pmax(u, 1e-7), 1 - 1e-7)
@@ -32,20 +32,20 @@
 }
 
 #' @noRd
-# Pointwise ordinal closed-form log-lik. Cutpoints are inferred from the
-# observed Y by the empirical CDF (matching the package's own
-# ordinal-probit data-augmentation step). For ordinal categories
-# 0, 1, ..., K, cutpoint gamma_k is the (sum_{c<=k}/n) quantile of N(0,1).
+# pointwise ordinal closed-form log-lik. cutpoints are inferred from the
+# observed y by the empirical cdf (matching the package's own
+# ordinal-probit data-augmentation step). for ordinal categories
+# 0, 1, ..., k, cutpoint gamma_k is the (sum_{c<=k}/n) quantile of n(0,1).
 .ordinal_pointwise_loglik <- function(y_obs, ez_obs) {
-	# normalise y to integer 0..K
+	# normalise y to integer 0..k
 	y_int <- as.integer(round(y_obs - min(y_obs, na.rm = TRUE)))
 	K_max <- max(y_int, na.rm = TRUE)
-	# empirical CDF -> cutpoints on the probit scale
+	# empirical cdf -> cutpoints on the probit scale
 	tbl <- as.numeric(table(factor(y_int, levels = seq_len(K_max + 1L) - 1L)))
 	cdf <- cumsum(tbl) / sum(tbl)
-	# cutpoints: gamma_0 = -Inf, gamma_K = +Inf; gamma_k = qnorm(cdf[k+1])
+	# cutpoints: gamma_0 = -inf, gamma_k = +inf; gamma_k = qnorm(cdf[k+1])
 	cuts <- c(-Inf, stats::qnorm(cdf[seq_len(K_max)]), Inf)
-	# log-lik for category k: log(Phi(gamma_{k+1} - ez) - Phi(gamma_k - ez))
+	# log-lik for category k: log(phi(gamma_{k+1} - ez) - phi(gamma_k - ez))
 	up <- cuts[y_int + 2L]   # upper cutpoint for the observed category
 	lo <- cuts[y_int + 1L]
 	p <- stats::pnorm(up - ez_obs) - stats::pnorm(lo - ez_obs)
@@ -54,46 +54,46 @@
 }
 
 #' @noRd
-# Simple GHK estimator for frn/rrl: per-row, the observed ranking implies
-# an ordering of latent Z values. The pointwise log-lik (per dyad) is
-# computed by simulating Z_row given the ranking using a Halton sequence,
+# simple ghk estimator for frn/rrl: per-row, the observed ranking implies
+# an ordering of latent z values. the pointwise log-lik (per dyad) is
+# computed by simulating z_row given the ranking using a halton sequence,
 # then accumulating the per-dyad contribution.
 #
-# We approximate the per-dyad log-lik for a "rank likelihood" as
-#   log P(Z_ij in the implied interval | Z_other in their intervals)
-# where the intervals come from the observed ranking. For odmax-truncated
-# rankings (frn), unobserved dyads in a row contribute Phi at the row's
-# threshold. Returns a length-n_obs numeric vector.
+# we approximate the per-dyad log-lik for a "rank likelihood" as
+#   log p(z_ij in the implied interval | z_other in their intervals)
+# where the intervals come from the observed ranking. for odmax-truncated
+# rankings (frn), unobserved dyads in a row contribute phi at the row's
+# threshold. returns a length-n_obs numeric vector.
 #
 # this is the "observed_ghk" estimator; log of an unbiased probability
 # estimate is biased downward, with bias scaling as
-# (sd of the MC estimator)^2 / (2 * E[P]^2).
+# (sd of the mc estimator)^2 / (2 * e[p]^2).
 .ghk_rank_pointwise_loglik <- function(y_obs, ez_obs, obs_idx, family,
                                         n_mc = 64L) {
-	# Pragmatic implementation: per row, treat the ranks as defining an
-	# ordering of underlying Z's. For each observed dyad, compute the
-	# per-dyad probability that Z_ij sits in the implied interval given
-	# the ordering, via a Halton-based GHK sweep.
-	# obs_idx is a [n_obs x 3] index matrix (i, j, t). We need per-row
+	# pragmatic implementation: per row, treat the ranks as defining an
+	# ordering of underlying z's. for each observed dyad, compute the
+	# per-dyad probability that z_ij sits in the implied interval given
+	# the ordering, via a halton-based ghk sweep.
+	# obs_idx is a [n_obs x 3] index matrix (i, j, t). we need per-row
 	# computations, so group by (i, t).
 	n_obs <- length(y_obs)
 	out <- numeric(n_obs)
 	# group dyads by (sending row i, period t)
 	row_key <- paste(obs_idx[, 1], obs_idx[, 3], sep = "_")
 	row_groups <- split(seq_len(n_obs), row_key)
-	# Halton draws per row (re-used; deterministic)
+	# halton draws per row (re-used; deterministic)
 	halton_draws <- .halton_normal(n_mc, base = 2L)
 	for (grp in row_groups) {
 		yg <- y_obs[grp]
 		ezg <- ez_obs[grp]
 		# rank order: highest rank = "most observed"
-		# implied ordering of latent Z's: largest Z corresponds to top rank
+		# implied ordering of latent z's: largest z corresponds to top rank
 		ord <- order(-yg, na.last = NA)
-		# GHK sweep: simulate Z_k | Z_{k+1} > Z_k for the ranking, accumulate
-		# the per-dyad log-prob as Phi-difference.
-		# For simplicity here, we treat the per-dyad pointwise log-lik as
-		# the marginal Phi-difference under the implied threshold, with
-		# threshold values from the per-row Halton-based GHK estimate of
+		# ghk sweep: simulate z_k | z_{k+1} > z_k for the ranking, accumulate
+		# the per-dyad log-prob as phi-difference.
+		# for simplicity here, we treat the per-dyad pointwise log-lik as
+		# the marginal phi-difference under the implied threshold, with
+		# threshold values from the per-row halton-based ghk estimate of
 		# the cumulative probability of the ranking up to each position.
 		n_g <- length(grp)
 		thresh <- -Inf
@@ -101,13 +101,13 @@
 		for (k in seq_len(n_g)) {
 			idx_k <- ord[k]
 			ez_k <- ezg[idx_k]
-			# P(Z_k > thresh) under N(ez_k, 1)
+			# p(z_k > thresh) under n(ez_k, 1)
 			p_k <- stats::pnorm(thresh - ez_k, lower.tail = FALSE)
 			p_k <- pmin(pmax(p_k, 1e-12), 1 - 1e-12)
 			out[grp[idx_k]] <- log(p_k) - cum_lp + cum_lp / n_g
-			# update threshold via Halton-based truncated normal draw
+			# update threshold via halton-based truncated normal draw
 			u <- halton_draws[((k - 1L) %% n_mc) + 1L]
-			# inverse-cdf truncated above thresh (so next Z > thresh)
+			# inverse-cdf truncated above thresh (so next z > thresh)
 			lo_p <- stats::pnorm(thresh - ez_k)
 			z_draw <- ez_k + stats::qnorm(lo_p + stats::pnorm(u) * (1 - lo_p))
 			thresh <- max(thresh, z_draw, -1e6)
@@ -118,8 +118,8 @@
 }
 
 #' @noRd
-# Top-level GHK / closed-form dispatcher. Called from the in-MCMC log-lik
-# fill block. Returns a numeric vector of length(y_obs).
+# top-level ghk / closed-form dispatcher. called from the in-mcmc log-lik
+# fill block. returns a numeric vector of length(y_obs).
 .pointwise_loglik_observed_ghk <- function(y_obs, ez_obs, z_obs, obs_idx,
                                             family, s2, dyad_rho = 0,
                                             n_mc = 64L) {

@@ -6,9 +6,9 @@ library(lame)
 test_that("get_start_vals returns appropriate starting values", {
 	set.seed(6886)
 	n = 20
-	T = 1  # Single time point for simplicity
+	T = 1  # single time point for simplicity
 	
-	# binary network - need 3D array
+	# binary network - need 3d array
 	Y_bin_2d = matrix(rbinom(n*n, 1, 0.3), n, n)
 	diag(Y_bin_2d) = NA
 	Y_bin = array(Y_bin_2d, dim=c(n, n, T))
@@ -18,16 +18,16 @@ test_that("get_start_vals returns appropriate starting values", {
 		start_vals = NULL,
 		Y = Y_bin,
 		family = "binary",
-		xP = 0,  # No exogenous covariates
+		xP = 0,  # no exogenous covariates
 		rvar = TRUE,
 		cvar = TRUE,
-		R = 2  # Number of latent dimensions
+		R = 2  # number of latent dimensions
 	)
 	expect_true(is.list(starts_bin))
 	expect_true("Z" %in% names(starts_bin))
 	expect_equal(dim(starts_bin$Z), dim(Y_bin))
 	
-	# normal network - need 3D array
+	# normal network - need 3d array
 	Y_norm_2d = matrix(rnorm(n*n), n, n)
 	diag(Y_norm_2d) = NA
 	Y_norm = array(Y_norm_2d, dim=c(n, n, T))
@@ -41,7 +41,7 @@ test_that("get_start_vals returns appropriate starting values", {
 		cvar = TRUE,
 		R = 2
 	)
-	# for normal family, Z is initialized to Y but with diagonal filled in
+	# for normal family, z is initialized to y but with diagonal filled in
 	# so check dimensions and non-diagonal elements
 	expect_equal(dim(starts_norm$Z), dim(Y_norm))
 	# check that non-diagonal elements match
@@ -64,7 +64,7 @@ test_that("mhalf function works correctly", {
 	A = matrix(c(4, 2, 2, 3), 2, 2)
 	A_half = mhalf(A)
 	
-	# a_half %*% A_half should equal A
+	# a_half %*% a_half should equal a
 	A_reconstructed = A_half %*% A_half
 	expect_equal(A_reconstructed, A, tolerance = 1e-10)
 	
@@ -86,7 +86,7 @@ test_that("rSab_fc generates valid covariance samples", {
 	a = rnorm(n, 0, 1)
 	b = rnorm(n, 0, 1)
 	Sab0 = diag(2)
-	eta0 = 4  # Use 4 as minimum for proper prior
+	eta0 = 4  # use 4 as minimum for proper prior
 	
 	# generate sample with default parameters
 	Sab = rSab_fc(a, b, Sab0, eta0)
@@ -141,9 +141,9 @@ test_that("zscores function computes correct scores", {
 	# handle ties appropriately
 	y_ties = c(1, 2, 2, 3)
 	z_ties = zscores(y_ties)
-	expect_equal(z_ties[2], z_ties[3])  # Tied values should have same z-score
+	expect_equal(z_ties[2], z_ties[3])  # tied values should have same z-score
 	
-	# handle NA values
+	# handle na values
 	y_na = c(1, NA, 3, 4)
 	z_na = zscores(y_na)
 	expect_true(is.na(z_na[2]))
@@ -159,7 +159,7 @@ test_that("plotting functions run without error", {
 	# generate simple network and fit
 	Y = matrix(rbinom(n*n, 1, 0.3), n, n)
 	diag(Y) = NA
-	# add rownames so APM/BPM get names
+	# add rownames so apm/bpm get names
 	rownames(Y) = colnames(Y) = paste0("Actor", 1:n)
 	
 	fit = ame(Y, R=2, family="binary",
@@ -167,7 +167,7 @@ test_that("plotting functions run without error", {
 	
 	# test that plotting functions don't error
 	expect_no_error({
-		pdf(NULL)  # Null device to suppress actual plotting
+		pdf(NULL)  # null device to suppress actual plotting
 		
 		# test ab_plot if it exists and accepts ame objects
 		if(exists("ab_plot")) {
@@ -262,7 +262,7 @@ test_that("effective sample size calculation works", {
 	
 	# generate autocorrelated sequence with lower correlation for more stable test
 	n = 1000
-	rho = 0.5  # Lower correlation for more predictable ESS
+	rho = 0.5  # lower correlation for more predictable ess
 	x = numeric(n)
 	x[1] = rnorm(1)
 	for(i in 2:n) {
@@ -272,10 +272,10 @@ test_that("effective sample size calculation works", {
 	# test effective sample size
 	ess = coda::effectiveSize(x)
 	
-	# eSS should be less than n due to autocorrelation
+	# ess should be less than n due to autocorrelation
 	expect_lt(ess, n)
-	# with rho=0.5, ESS should be reasonable (roughly n/(1+rho) ~ 667)
-	expect_gt(ess, n/5)  # More lenient bound
+	# with rho=0.5, ess should be reasonable (roughly n/(1+rho) ~ 667)
+	expect_gt(ess, n/5)  # more lenient bound
 })
 
 test_that("array_to_list conversion works", {
@@ -299,7 +299,7 @@ test_that("array_to_list conversion works", {
 	for(t in 1:T) {
 		expect_true(is.matrix(Y_list[[t]]))
 		expect_equal(dim(Y_list[[t]]), c(n, n))
-		# array_to_list sets diagonal to NA (expected for network data)
+		# array_to_list sets diagonal to na (expected for network data)
 		Y_expected = Y_array[,,t]
 		diag(Y_expected) = NA
 		expect_equal(Y_list[[t]], Y_expected)

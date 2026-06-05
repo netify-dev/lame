@@ -1,8 +1,8 @@
 # Summary of a LAME object
 
-Provides a comprehensive summary of a fitted LAME (Longitudinal Additive
-and Multiplicative Effects) model, including parameter estimates,
-standard errors, credible intervals, and model diagnostics.
+Summarizes a fitted LAME (Longitudinal Additive and Multiplicative
+Effects) model, including parameter estimates, standard errors, credible
+intervals, and model diagnostics.
 
 ## Usage
 

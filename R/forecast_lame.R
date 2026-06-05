@@ -5,8 +5,8 @@
 
 #' @noRd
 .propagate_ar1_vec <- function(state_T, rho, sigma, h) {
-	# state_T: length-p vector of current beta at period T (one draw)
-	# rho, sigma: scalar AR(1) parameters
+	# state_t: length-p vector of current beta at period t (one draw)
+	# rho, sigma: scalar ar(1) parameters
 	# h: number of periods to forecast
 	# returns: h x p matrix of future states
 	p <- length(state_T)
@@ -21,9 +21,9 @@
 
 #' @noRd
 .propagate_per_coef <- function(state_T, rho_by_coef, sigma_by_coef, h) {
-	# state_T:        length-p vector
-	# rho_by_coef:    length-p vector of AR(1) rho values
-	# sigma_by_coef:  length-p vector of AR(1) sigma values
+	# state_t:        length-p vector
+	# rho_by_coef:    length-p vector of ar(1) rho values
+	# sigma_by_coef:  length-p vector of ar(1) sigma values
 	# returns: h x p matrix
 	p <- length(state_T)
 	out <- matrix(NA_real_, nrow = h, ncol = p)
@@ -86,8 +86,8 @@
 	           isTRUE(object$dynamic_uv)
 	if (!has_dyn) {
 		cli::cli_warn(c(
-			"Forecasting from a fit with NO dynamic components produces a constant path.",
-			"i" = "Refit with one of {.code dynamic_beta}, {.code dynamic_ab}, {.code dynamic_uv} for genuine forecasts."))
+			"Forecasting from a fit with no dynamic components produces a constant path.",
+			"i" = "Refit with one of {.code dynamic_beta}, {.code dynamic_ab}, {.code dynamic_uv} for time-varying forecasts."))
 	}
 
 	# dimensions
@@ -141,17 +141,9 @@
 		# cycle
 		X_future <- X_future[((seq_len(h) - 1L) %% length(X_future)) + 1L]
 	}
-	# Align user-supplied newdata to the model's internal design. The fitted
-	# Xlist (and therefore beta_path / BETA) carries slices in the canonical
-	# layout [intercept?, *_row, *_col, *_dyad]; a user passing `newdata`
-	# supplies only the *substantive* dyadic covariates. We rebuild the full
-	# design per horizon via the shared .build_full_design() helper -- dyad
-	# slices come from newdata (by name when labelled), the intercept + nodal
-	# (row/col) slices are held at the last observed period's fitted values --
-	# so the positional eta loop below lines up coefficient-for-slice. This is
-	# the same name-safe convention predict.ame() / predict.lame() use; the
-	# previous code only prepended an intercept and so dropped the nodal
-	# fixed effects when a forecast model also had Xrow / Xcol.
+	# align user-supplied newdata to the model's internal design
+	# dyadic slices come from newdata; intercept and nodal slices use the
+	# last observed fitted design
 	if (!is.null(newdata)) {
 		beta_names <- if (length(dim(object$BETA)) == 3L)
 			dimnames(object$BETA)[[2L]] else colnames(object$BETA)
@@ -164,7 +156,7 @@
 		})
 	}
 
-	# rho_beta / sigma_beta per draw (with the right shape). Use posterior
+	# rho_beta / sigma_beta per draw (with the right shape). use posterior
 	# mean if iteration-level matrices aren't available.
 	get_rho_sigma_beta <- function(i) {
 		if (!is.null(object$RHO_BETA) && !is.null(object$SIGMA_BETA)) {
@@ -204,7 +196,7 @@
 
 		# beta path forward
 		if (beta_is_dyn) {
-			# beta_T: last-period beta for this draw (length p)
+			# beta_t: last-period beta for this draw (length p)
 			beta_T <- object$BETA[i, , dim(object$BETA)[3L]]
 			rs <- get_rho_sigma_beta(i)
 			# expand block-level (rho, sigma) to per-coef
@@ -223,7 +215,7 @@
 				                      rs$sigma[groups],
 				                      0)
 			}
-			# mask static coefs: they don't evolve. Set rho = 1, sigma = 0.
+			# mask static coefs: they don't evolve. set rho = 1, sigma = 0.
 			static_mask <- if (!is.null(object$beta_dynamic_mask))
 				!object$beta_dynamic_mask else rep(FALSE, length(beta_T))
 			rho_by_coef[static_mask] <- 1
@@ -246,12 +238,15 @@
 		} else {
 			a_T <- object$APM
 			b_T <- object$BPM
+			# symmetric networks store a single additive effect (bpm is null)
+			if (is.null(b_T)) b_T <- a_T
+			if (is.null(a_T)) a_T <- b_T
 			a_path <- matrix(rep(a_T, h), nrow = h, byrow = TRUE)
 			b_path <- matrix(rep(b_T, h), nrow = h, byrow = TRUE)
 		}
 
-		# U, V forward. Skip UV propagation entirely when R = 0 (no latent
-		# factors): the matrices have zero columns OR the bipartite fit stores
+		# u, v forward. skip uv propagation entirely when r = 0 (no latent
+		# factors): the matrices have zero columns or the bipartite fit stores
 		# placeholder cubes with second dim 0 / 1 that the predict path cannot
 		# usefully propagate.
 		R_fit <- max(c(object$R %||% 0L,
@@ -261,18 +256,20 @@
 		          (NCOL(object$U) > 0L) && (NCOL(object$V) > 0L) &&
 		          (R_fit > 0L)
 		if (has_uv && isTRUE(object$dynamic_uv) && length(dim(object$U)) == 3L) {
+			# symmetric fits mirror v on u and may not store v as a 3d cube
+			sym_uv <- isTRUE(object$symmetric) || length(dim(object$V)) != 3L
 			U_T <- object$U[, , dim(object$U)[3L]]
-			V_T <- object$V[, , dim(object$V)[3L]]
+			V_T <- if (sym_uv) U_T else object$V[, , dim(object$V)[3L]]
 			rs_uv <- get_rho_sigma_uv(i)
-			# propagate every element independently (the AR(1) is element-wise)
+			# propagate every element independently (the ar(1) is element-wise)
 			U_path <- array(NA_real_, c(nrow(U_T), ncol(U_T), h))
 			V_path <- array(NA_real_, c(nrow(V_T), ncol(V_T), h))
 			cur_U <- U_T; cur_V <- V_T
 			for (k in seq_len(h)) {
 				cur_U <- rs_uv$rho * cur_U + matrix(stats::rnorm(prod(dim(U_T)), 0, rs_uv$sigma),
 				                                    nrow(U_T), ncol(U_T))
-				cur_V <- rs_uv$rho * cur_V + matrix(stats::rnorm(prod(dim(V_T)), 0, rs_uv$sigma),
-				                                    nrow(V_T), ncol(V_T))
+				cur_V <- if (sym_uv) cur_U else rs_uv$rho * cur_V +
+				         matrix(stats::rnorm(prod(dim(V_T)), 0, rs_uv$sigma), nrow(V_T), ncol(V_T))
 				U_path[, , k] <- cur_U
 				V_path[, , k] <- cur_V
 			}
@@ -289,7 +286,7 @@
 		# compute eta at each future period
 		for (k in seq_len(h)) {
 			eta <- matrix(0, n_a, n_b)
-			# X beta
+			# x beta
 			Xk <- X_future[[k]]
 			if (!is.null(Xk)) {
 				p_k <- if (length(dim(Xk)) == 3L) dim(Xk)[3L] else 1L
@@ -303,7 +300,7 @@
 			}
 			# a + b
 			eta <- eta + outer(a_path[k, ], b_path[k, ], "+")
-			# UV
+			# uv
 			if (!is.null(U_path) && !is.null(V_path)) {
 				Uk <- if (length(dim(U_path)) == 3L) U_path[, , k] else U_path
 				Vk <- if (length(dim(V_path)) == 3L) V_path[, , k] else V_path

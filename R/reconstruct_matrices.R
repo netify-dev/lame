@@ -24,7 +24,7 @@
 #' 
 #' @export
 reconstruct_EZ <- function(fit, X = NULL) {
-	# lame: YPM is a list, return stored EZ directly
+	# lame: ypm is a list, return stored ez directly
 	if(!is.null(fit$YPM) && is.list(fit$YPM)) {
 		if(!is.null(fit$EZ)) return(fit$EZ)
 		stop("reconstruct_EZ for lame objects requires fit$EZ to be stored")

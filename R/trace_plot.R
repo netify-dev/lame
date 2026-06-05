@@ -95,7 +95,7 @@ trace_plot <- function(
 	if (params %in% c("all", "beta") && !is.null(fit$BETA) && length(dim(fit$BETA)) >= 2L) {
 		beta_data <- fit$BETA
 		beta_is_dyn <- length(dim(beta_data)) == 3L
-		# burn / thin -- the first dim is iteration for both 2-D and 3-D
+		# burn / thin -- the first dim is iteration for both 2-d and 3-d
 		if (burn.in > 0 && burn.in < dim(beta_data)[1]) {
 			if (beta_is_dyn) beta_data <- beta_data[-(1:burn.in), , , drop = FALSE]
 			else             beta_data <- beta_data[-(1:burn.in), , drop = FALSE]
@@ -118,7 +118,7 @@ trace_plot <- function(
 		} else seq_len(dim(beta_data)[1])
 
 		if (beta_is_dyn) {
-			# 3-D BETA: emit one trace per (coef, period) combination
+			# 3-d beta: emit one trace per (coef, period) combination
 			p_  <- dim(beta_data)[2]
 			Tt_ <- dim(beta_data)[3]
 			dn <- dimnames(beta_data)

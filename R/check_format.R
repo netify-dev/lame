@@ -43,7 +43,7 @@
 check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 
 	####
-	# validate Y
+	# validate y
 	if (!is.list(Y)) {
 		cli::cli_abort(c(
 			"Y must be a list of matrices.",
@@ -68,7 +68,7 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 	N <- length(Y)
 
 	####
-	# validate Xdyad
+	# validate xdyad
 	if (!is.null(Xdyad)) {
 		if (!is.list(Xdyad)) {
 			cli::cli_abort(c(
@@ -94,7 +94,7 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 	####
 
 	####
-	# validate Xrow
+	# validate xrow
 	if (!is.null(Xrow)) {
 		if (!is.list(Xrow)) {
 			cli::cli_abort(c(
@@ -120,7 +120,7 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 	####
 
 	####
-	# validate Xcol
+	# validate xcol
 	if (!is.null(Xcol)) {
 		if (!is.list(Xcol)) {
 			cli::cli_abort(c(
@@ -146,7 +146,7 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 	####
 
 	####
-	# validate covariate dimensions match Y
+	# validate covariate dimensions match y
 	for (t in seq_along(Y)) {
 		nr = nrow(Y[[t]])
 		nc = ncol(Y[[t]])
@@ -185,7 +185,7 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 	####
 
 	####
-	# check dimension consistency within Y
+	# check dimension consistency within y
 	if (N > 1) {
 		first_nrow <- nrow(Y[[1]])
 		first_ncol <- ncol(Y[[1]])

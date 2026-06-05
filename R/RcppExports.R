@@ -243,6 +243,53 @@ sample_sigma_uv <- function(U_cube, V_cube, rho_uv, symmetric) {
     .Call(`_lame_sample_sigma_uv`, U_cube, V_cube, rho_uv, symmetric)
 }
 
+#' Update dynamic latent positions with snap-shift model selection
+#'
+#' Like rUV_dynamic_fc_cpp but, for t > 0, chooses per actor between an AR(1)
+#' drift prior and a diffuse N(0, kappa^2 I) snap prior via a Gaussian
+#' log-marginal-likelihood model selection, drawing a Bernoulli snap indicator
+#' delta and sampling the latent position from the selected posterior.
+#'
+#' @param U_current Current 3D array of U positions (n x R x T)
+#' @param V_current Current 3D array of V positions (n x R x T)
+#' @param ET 3D array of residuals (n x n x T)
+#' @param rho_uv AR(1) autoregressive parameter for the drift prior
+#' @param sigma_uv Innovation standard deviation for the drift prior
+#' @param s2 Dyadic variance
+#' @param kappa Diffuse snap-prior standard deviation (kappa^2 >> sigma_uv^2)
+#' @param pi_snap Prior snap probability
+#' @param delta_u_current Current sender-side snap indicators from the previous sweep
+#' @param delta_v_current Current receiver-side snap indicators from the previous sweep
+#' @param shrink Whether to apply shrinkage
+#' @param symmetric Whether network is symmetric
+#' @return List with updated U, V arrays and delta_u, delta_v snap indicators
+rUV_dynamic_snap_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_u_current, delta_v_current, shrink, symmetric) {
+    .Call(`_lame_rUV_dynamic_snap_fc_cpp`, U_current, V_current, ET, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_u_current, delta_v_current, shrink, symmetric)
+}
+
+#' Update dynamic latent positions with heavy-tailed (Student-t) AR(1) innovations
+#'
+#' Like rUV_dynamic_fc_cpp but each AR(1) innovation is Student-t rather than
+#' Gaussian, via a scale-mixture: the innovation for u_{t,i} has variance
+#' sigma^2 / lambda_{t,i} with lambda_{t,i} ~ Gamma(nu/2, nu/2). Provides a
+#' continuous heavy-tailed alternative to the discrete snap-shift model.
+#'
+#' @param U_current Current 3D array of U positions (n x R x T)
+#' @param V_current Current 3D array of V positions (n x R x T)
+#' @param ET 3D array of residuals (n x n x T)
+#' @param rho_uv AR(1) autoregressive parameter
+#' @param sigma_uv Innovation scale
+#' @param s2 Dyadic variance
+#' @param nu Student-t degrees of freedom
+#' @param lambda_u Current local scales for U (n x T)
+#' @param lambda_v Current local scales for V (n x T)
+#' @param shrink Whether to apply shrinkage
+#' @param symmetric Whether network is symmetric
+#' @return List with updated U, V arrays and lambda_u, lambda_v local scales
+rUV_dynamic_t_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, nu, lambda_u, lambda_v, shrink, symmetric) {
+    .Call(`_lame_rUV_dynamic_t_fc_cpp`, U_current, V_current, ET, rho_uv, sigma_uv, s2, nu, lambda_u, lambda_v, shrink, symmetric)
+}
+
 #' Bipartite dynamic UV Gibbs update
 #'
 #' Replaces the nested R loops for bipartite dynamic_uv in lame.R.

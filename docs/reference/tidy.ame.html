@@ -103,17 +103,14 @@ deviations; <code>statistic</code> is <code>estimate / std.error</code>.</p>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><strong>Note on <code>p.value</code>.</strong> This column is included for
-<span class="pkg">broom</span> compatibility but is <em>not</em> a frequentist p-value.
-It is the same approximate two-sided posterior tail probability
-\(2(1 - \Phi(|z|))\) that <code>summary(fit)</code> reports — a rough
-"does the posterior exclude zero?" heuristic computed under a Normal
-approximation to the marginal posterior. The honest Bayesian
-analogues are (a) the <code>conf.low</code> / <code>conf.high</code> columns
-(95\<!-- % credible interval) and (b) the posterior probability of sign -->
-agreement, <code>mean(sign(BETA) == sign(mean(BETA)))</code>, which you
-can compute from <code>x$BETA</code> directly. Treat small <code>p.value</code>
-as "the credible interval is unlikely to contain 0", not as a
-classical significance test.</p>
+<span class="pkg">broom</span> compatibility but is <em>not</em> a classical test. It is a
+two-sided Normal approximation based on the posterior mean and marginal
+posterior standard deviation, matching the calculation in
+<code>summary(fit)</code>. Use it as a compact signal that the marginal posterior
+is far from zero, and report it alongside the <code>conf.low</code> /
+<code>conf.high</code> credible interval. When sign certainty matters, compute it
+directly from <code>x$BETA</code>, for example
+<code>mean(sign(BETA) == sign(mean(BETA)))</code>.</p>
 <p>Loaded as an S3 method against <code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">generics::tidy</a></code> when the
 <span class="pkg">generics</span> package is available; works as
 <code>tidy(fit)</code> either way once <span class="pkg">broom</span> is loaded.</p>

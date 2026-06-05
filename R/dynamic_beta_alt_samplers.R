@@ -10,7 +10,7 @@
 #' @noRd
 .rw2_precision <- function(T_per, jitter = 1e-6) {
 	if (T_per < 3L) {
-		# RW2 requires T >= 3; fall back to a diagonal ridge so the sampler
+		# rw2 requires t >= 3; fall back to a diagonal ridge so the sampler
 		# doesn't blow up.
 		return(diag(jitter, T_per))
 	}
@@ -21,7 +21,7 @@
 		D[i, i + 2L] <- 1
 	}
 	K <- crossprod(D)
-	# rank deficient by 2; add a tiny ridge so the Cholesky succeeds
+	# rank deficient by 2; add a tiny ridge so the cholesky succeeds
 	K + diag(jitter, T_per)
 }
 
@@ -35,22 +35,22 @@
 	dst <- abs(outer(tt, tt, "-"))
 	a <- sqrt(3) * dst / length_scale
 	Sigma <- (1 + a) * exp(-a)
-	# stable inverse via Cholesky with a tiny ridge
+	# stable inverse via cholesky with a tiny ridge
 	Sigma <- Sigma + diag(jitter, T_per)
 	chol2inv(chol(Sigma))
 }
 
 #' @noRd
-# Gap-aware AR(1) precision. With strictly-increasing time positions
-# and gaps Delta_t = time_positions[t+1] - time_positions[t], the per-
+# gap-aware ar(1) precision. with strictly-increasing time positions
+# and gaps delta_t = time_positions[t+1] - time_positions[t], the per-
 # transition conditional variance is
-#   q_t = sigma^2 * (1 - rho^{2 Delta_t}) / (1 - rho^2)
-# and the transition factor is F_t = rho^{Delta_t}. The implied joint
-# precision of (beta_1, ..., beta_T) (before dividing by sigma^2) is
-# tridiagonal with the off-diagonal terms encoding -F_t / q_t per step
+#   q_t = sigma^2 * (1 - rho^{2 delta_t}) / (1 - rho^2)
+# and the transition factor is f_t = rho^{delta_t}. the implied joint
+# precision of (beta_1, ..., beta_t) (before dividing by sigma^2) is
+# tridiagonal with the off-diagonal terms encoding -f_t / q_t per step
 # and the diagonal pieces accumulating "from-prev" and "to-next" terms.
-# The returned matrix is the kind-precision K such that the prior is
-#   beta ~ N(0, sigma^2 K^{-1}).
+# the returned matrix is the kind-precision k such that the prior is
+#   beta ~ n(0, sigma^2 k^{-1}).
 .ar1_precision <- function(T_per, gaps = NULL, rho = 0, jitter = 1e-10) {
 	if (T_per < 2L) return(matrix(1, 1L, 1L))
 	if (is.null(gaps)) gaps <- rep(1, T_per - 1L)
@@ -64,13 +64,13 @@
 		Ft <- rho^dt
 		qt <- (1 - rho^(2 * dt)) / (1 - rho^2)
 		# contribution to (t, t), (t+1, t+1), (t, t+1), (t+1, t)
-		# from the term -0.5 * (beta_{t+1} - Ft * beta_t)^2 / qt
+		# from the term -0.5 * (beta_{t+1} - ft * beta_t)^2 / qt
 		K[t,     t]     <- K[t,     t]     + Ft^2 / qt
 		K[t + 1, t + 1] <- K[t + 1, t + 1] + 1 / qt
 		K[t,     t + 1] <- K[t,     t + 1] - Ft / qt
 		K[t + 1, t]     <- K[t + 1, t]     - Ft / qt
 	}
-	# stationary initial condition: beta_1 ~ N(0, v_stat) -> precision 1/v_stat
+	# stationary initial condition: beta_1 ~ n(0, v_stat) -> precision 1/v_stat
 	K[1, 1] <- K[1, 1] + 1 / v_stat
 	K + diag(jitter, T_per)
 }
@@ -92,14 +92,14 @@
 }
 
 #' @noRd
-# Build the per-period (X'X, X'r) sufficient statistics for the dynamic block.
-# Mirrors what `sample_beta_dynamic_cpp` does internally, in R, but only for
+# build the per-period (x'x, x'r) sufficient statistics for the dynamic block.
+# mirrors what `sample_beta_dynamic_cpp` does internally, in r, but only for
 # the dynamic coefficients (the static block is handled separately).
 #
-# Each (X_t, Z_t, offset_t, beta_static, X^static_t) gives a contribution
-#   r_t = Z_t - offset_t - X^static_t %*% beta_static
-#   XtX_t = X_t' X_t   (sum over observed dyads)
-#   Xty_t = X_t' r_t   (sum over observed dyads)
+# each (x_t, z_t, offset_t, beta_static, x^static_t) gives a contribution
+#   r_t = z_t - offset_t - x^static_t %*% beta_static
+#   xtx_t = x_t' x_t   (sum over observed dyads)
+#   xty_t = x_t' r_t   (sum over observed dyads)
 .sample_beta_dynamic_alt <- function(
 		Xdyn_list, Xstat_list, Z_list, offset_list,
 		beta_static, sigma_by_coef, Lambda,
@@ -136,7 +136,7 @@
 		    !is.null(Xstat_list[[t]]) && ncol(Xstat_list[[t]]) > 0L) {
 			r_t <- r_t - as.numeric(Xstat_list[[t]] %*% beta_static)
 		}
-		# observed-dyad mask: NA in Z/offset -> drop
+		# observed-dyad mask: na in z/offset -> drop
 		ok <- is.finite(r_t)
 		if (!any(ok)) {
 			XtX_by_t[[t]] <- matrix(0, p_dyn, p_dyn)
@@ -145,21 +145,16 @@
 		}
 		X_obs <- Xd_t[ok, , drop = FALSE]
 		r_obs <- r_t[ok]
-		# data precision: 1/s^2 per dyad (we DO NOT bake in dyad_rho here —
-		# this alt sampler ignores dyad-correlation for the dynamic block.
-		# When use_dyad_rho is TRUE we still produce a valid posterior
-		# *given* uncorrelated residuals, which is the same simplification
-		# the C++ FFBS makes when use_dyad_rho is FALSE. Users with strong
-		# dyad-corr who need RW2 should treat this as an approximation.)
+			# data precision is 1/s2 per dyad; this sampler ignores dyad correlation
 		XtX_by_t[[t]] <- crossprod(X_obs) / s2
 		Xtr_by_t[[t]] <- as.numeric(crossprod(X_obs, r_obs)) / s2
 	}
 
-	# joint posterior precision per dynamic coefficient k. We treat
-	# cross-coef terms as zero (diagonal Lambda) — matches the typical
-	# default path. The cross-period precision comes from the kind prior.
-	# When kind is ar1/rw1 the prior precision depends on rho; we build
-	# a per-coefficient K when rho_by_coef is supplied.
+	# joint posterior precision per dynamic coefficient k. we treat
+	# cross-coef terms as zero (diagonal lambda) — matches the typical
+	# default path. the cross-period precision comes from the kind prior.
+	# when kind is ar1/rw1 the prior precision depends on rho; we build
+	# a per-coefficient k when rho_by_coef is supplied.
 	K_prior_default <- .dynamic_beta_kind_to_prec(
 		kind, T_per, length_scale,
 		time_positions = time_positions,
@@ -170,11 +165,11 @@
 	chol_fail <- 0L
 
 	for (k in seq_len(p_dyn)) {
-		# H_k: T x T precision
-		# diagonal contribution from data per period: XtX_by_t[[t]][k,k]
-		# (we ignore cross-coef terms because Lambda is assumed diagonal)
-		# cross-period contribution: K_prior / sigma_k^2
-		# Per-coefficient K when rho varies across coefs (ar1/rw1 only)
+		# h_k: t x t precision
+		# diagonal contribution from data per period: xtx_by_t[[t]][k,k]
+		# (we ignore cross-coef terms because lambda is assumed diagonal)
+		# cross-period contribution: k_prior / sigma_k^2
+		# per-coefficient k when rho varies across coefs (ar1/rw1 only)
 		K_prior <- if (!is.null(rho_by_coef) && kind %in% c("ar1", "rw1")) {
 			.dynamic_beta_kind_to_prec(
 				kind, T_per, length_scale,
@@ -185,11 +180,11 @@
 		H_k <- diag(diag_data, T_per) + K_prior / max(sigma_by_coef[k]^2, 1e-12)
 		# data-driven precision-weighted mean
 		b_k <- vapply(Xtr_by_t, function(v) v[k], numeric(1))
-		# subtract cross-coef contributions if Lambda is non-diagonal:
+		# subtract cross-coef contributions if lambda is non-diagonal:
 		# data term adjusted by other-coef per-period draws if needed.
-		# We approximate by holding the other-coef draws at zero on the
+		# we approximate by holding the other-coef draws at zero on the
 		# first sweep; iterate to convergence below if p_dyn > 1.
-		# Sample via Cholesky: L L' = H_k
+		# sample via cholesky: l l' = h_k
 		L <- tryCatch(chol(H_k), error = function(e) NULL)
 		if (is.null(L)) {
 			# tiny ridge and retry
@@ -200,16 +195,16 @@
 				next
 			}
 		}
-		# m = H^{-1} b solved via the Cholesky (R chol returns upper-triangular)
+		# m = h^{-1} b solved via the cholesky (r chol returns upper-triangular)
 		m <- backsolve(L, forwardsolve(t(L), b_k))
-		# sample noise eps ~ N(0, H^{-1}) via L^{-T} z, z ~ N(0, I)
+		# sample noise eps ~ n(0, h^{-1}) via l^{-t} z, z ~ n(0, i)
 		z <- stats::rnorm(T_per)
 		eps <- backsolve(L, z)
 		path[, k] <- m + eps
 	}
 
-	# refine cross-coefficient terms by Gibbs sweep when p_dyn > 1, using the
-	# correlated data contribution. Two extra sweeps are enough in practice.
+	# refine cross-coefficient terms by gibbs sweep when p_dyn > 1, using the
+	# correlated data contribution. two extra sweeps are enough in practice.
 	if (p_dyn > 1L) {
 		for (sweep in seq_len(2L)) {
 			for (k in seq_len(p_dyn)) {
@@ -221,7 +216,7 @@
 				} else K_prior_default
 				diag_data <- vapply(XtX_by_t, function(M) M[k, k], numeric(1))
 				H_k <- diag(diag_data, T_per) + K_prior / max(sigma_by_coef[k]^2, 1e-12)
-				# residual data term: subtract X'X[k, -k] * beta_{-k}
+				# residual data term: subtract x'x[k, -k] * beta_{-k}
 				adj_data <- numeric(T_per)
 				for (t in seq_len(T_per)) {
 					M <- XtX_by_t[[t]]
@@ -245,19 +240,19 @@
 }
 
 # --------------------------------------------------------------------------
-# Hyperparameter update for non-AR(1) kinds: when kind is "rw2"/"matern32",
+# hyperparameter update for non-ar(1) kinds: when kind is "rw2"/"matern32",
 # rho is not meaningful. sigma^2 still has a conjugate inverse-gamma update
-# conditional on the path. The contribution to the IG posterior is
-#     shape += T/2 (or (T-2)/2 for RW2 because of rank-deficiency)
-#     scale += 0.5 * t(beta_k) K beta_k
+# conditional on the path. the contribution to the ig posterior is
+#     shape += t/2 (or (t-2)/2 for rw2 because of rank-deficiency)
+#     scale += 0.5 * t(beta_k) k beta_k
 #
-# We rely on the same prior_shape / prior_scale used elsewhere.
+# we rely on the same prior_shape / prior_scale used elsewhere.
 .sample_sigma_beta_alt <- function(beta_path, kind, length_scale = NULL,
                                     prior_shape, prior_scale) {
 	T_per <- nrow(beta_path)
 	p_dyn <- ncol(beta_path)
 	K <- .dynamic_beta_kind_to_prec(kind, T_per, length_scale)
-	# rank correction: RW2 has rank T - 2; matern32 has full rank
+	# rank correction: rw2 has rank t - 2; matern32 has full rank
 	df_per_coef <- switch(kind,
 		rw2      = max(0L, T_per - 2L),
 		matern32 = T_per,

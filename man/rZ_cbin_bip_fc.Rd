@@ -22,7 +22,7 @@ from the unconstrained prior.}
 updated nA x nB latent matrix.
 }
 \description{
-Rectangular drop-in for \code{\link{rZ_cbin_fc}}. Row-wise
+Rectangular analogue of \code{\link{rZ_cbin_fc}}. Row-wise
 constraints: \code{Y_ij = 1 => Z_ij > 0}; \code{Y_ij = 0 & odobs_i <
 odmax_i => Z_ij < 0}; nominated alters dominate non-nominated alters
 within the row. With rho ≡ 0 there is no reciprocity term.

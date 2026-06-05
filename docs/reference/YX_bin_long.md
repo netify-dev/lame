@@ -35,6 +35,6 @@ data(YX_bin_long)
 Yt <- 1 * (YX_bin_long$Y[, , 1] > 0)
 diag(Yt) <- NA
 gof_stats(Yt)
-#>   sd.rowmean   sd.colmean     dyad.dep    cycle.dep    trans.dep 
-#>  0.096876947  0.082198366  0.059190366 -0.001044981 -0.036284477 
+#>  sd.rowmean  sd.colmean    dyad.dep   cycle.dep   trans.dep 
+#> 0.098854028 0.083875884 0.039461682 0.001059680 0.003684353 
 ```

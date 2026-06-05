@@ -206,7 +206,7 @@ ame(
   cross-product). If not specified, defaults are: for `normal` family,
   `g = n * var(Y)`; for `tobit`, `g = n * var(Y) * 4`; for other
   families, `g = n` (number of non-missing dyads). Per-coefficient
-  (vector) `g` is NOT currently supported by the unipartite path – pass
+  (vector) `g` is not currently supported by the unipartite path – pass
   a scalar. *Note:* `g` is a top-level argument to `ame()`, **not** an
   element of `prior = list(...)`; passing `prior = list(g = 0.1)` is a
   no-op (warned about).
@@ -274,7 +274,8 @@ ame(
 
 - save_interval:
 
-  quantile interval indicating when to save during post burn-in phase.
+  quantile interval indicating when to save during the post-burn-in
+  period.
 
 - model.name:
 
@@ -303,7 +304,8 @@ ame(
   character: `"mcmc"` (default, the Bayesian MCMC fit) or `"als"` (the
   fast, MCMC-free iterative block coordinate descent point estimator).
   When `method = "als"`, MCMC-specific arguments (`nscan`, `burn`,
-  `odens`, `prior`, ...) are silently ignored and the call forwards to
+  `odens`, `prior`, ...) are warned about and ignored; the call forwards
+  to
   [`ame_als`](https://netify-dev.github.io/lame/reference/ame_als.md).
 
 - bootstrap:
@@ -623,8 +625,8 @@ estimable for this model.
 
 Every `family` is supported under both `mode`s. The bipartite Z-samplers
 live in `R/rZ_bipartite.R` and dispatch per family; see also the inline
-comment in `R/lame.R` (“first-class samplers as of the
-bipartite-families round”).
+comment in `R/lame.R` (the rectangular samplers live in
+`R/rZ_bipartite.R`).
 
 |            |                |               |
 |------------|----------------|---------------|
@@ -642,15 +644,11 @@ Symmetric (`symmetric = TRUE`) fits require a symmetric `Y`.
 `family = "ordinal"` with `symmetric = TRUE` is supported via the
 dedicated sampler in `R/rZ_ord_sym_fc.R`, which uses the
 symmetric-doubled precision and mirrors upper-triangle draws to the
-lower triangle so \\Z = t(Z)\\ holds at every sweep. The previous
-“ordinal
-
-- symmetric is unsupported
-
-restriction has been lifted. `rrl` + bipartite is first-class: the
-rectangular row-rank Z-sampler handles the full per-row permutation
-likelihood, and `ame()` recovers regression coefficients comparably to
-the unipartite rrl path on similarly-sized data. ”
+lower triangle so \\Z = t(Z)\\ holds at every sweep. `rrl` + bipartite
+is supported: the rectangular row-rank Z-sampler handles the full
+per-row permutation likelihood, and `ame()` recovers regression
+coefficients comparably to the unipartite rrl path on similarly-sized
+data.
 
 **Symmetric input with one triangle missing.** When `symmetric = TRUE`
 and one triangle of `Y` is fully `NA` (the user stored only the lower or
@@ -723,7 +721,7 @@ For users coming from `statnet::ergm`, the rough analogues are:
 | `nodematch("g")`              | dyadic covariate via [`nodematch`](https://netify-dev.github.io/lame/reference/nodematch.md)`(g)` into `Xdyad`                   |
 | `nodefactor("g")`             | dyadic covariate via [`nodefactor`](https://netify-dev.github.io/lame/reference/nodematch.md)`(g)` into `Xdyad` (drop one level) |
 | `absdiff("z")`                | dyadic covariate via [`absdiff`](https://netify-dev.github.io/lame/reference/nodematch.md)`(z)` into `Xdyad`                     |
-| `mutual`                      | `dcor = TRUE` -\> the `rho` parameter (probit-scale, NOT log-odds; not numerically comparable to ERGM's `mutual`)                |
+| `mutual`                      | `dcor = TRUE` -\> the `rho` parameter (probit-scale, not log-odds; not numerically comparable to ERGM's `mutual`)                |
 | `gwesp` / transitivity        | `R >= 1` multiplicative latent factors (not the same statistic)                                                                  |
 | sender activity heterogeneity | `rvar = TRUE`, gives `a_i`, `va`                                                                                                 |
 | receiver popularity heterog.  | `cvar = TRUE`, gives `b_j`, `vb`                                                                                                 |
@@ -738,9 +736,9 @@ Both `amen` and `lame` export `ame()`; loading both packages fires a
 startup warning telling you to call `lame::ame(...)` or `amen::ame(...)`
 explicitly.
 
-For default cross-sectional calls, `lame::ame()` is a drop-in
-replacement for [`amen::ame()`](https://rdrr.io/pkg/amen/man/ame.html):
-the `fit$BETA` slot is a 2-D `[n_stored, p]` matrix in both packages, so
+For default cross-sectional calls, `lame::ame()` follows the
+[`amen::ame()`](https://rdrr.io/pkg/amen/man/ame.html) interface: the
+`fit$BETA` slot is a 2-D `[n_stored, p]` matrix in both packages, so
 scripts that call `colMeans(fit$BETA)` or `apply(fit$BETA, 2, mean)`
 continue to work unchanged. `lame` additionally accepts
 `family = "binary"` (which `amen` 1.4.5 no longer accepts; `amen`
@@ -752,7 +750,7 @@ a single-period coefficient is unidentified), so the `BETA` 3-D shape
 that [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) can
 produce never arises from `ame()`. See
 [`lame`](https://netify-dev.github.io/lame/reference/lame.md) for the
-longitudinal path and the silent-aggregation hazard with old
+longitudinal path and the silent-aggregation hazard with 2-D
 `apply(fit$BETA, 2, mean)` scripts under `dynamic_beta = TRUE`.
 
 ## Notes on priors

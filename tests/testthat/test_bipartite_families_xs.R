@@ -1,8 +1,8 @@
 # cross-sectional bipartite families.
-# Mirrors test_bipartite_families.R for `lame()` but exercises the
-# `ame()` (cross-sectional) path through ame_bipartite(). The five
+# mirrors test_bipartite_families.r for `lame()` but exercises the
+# `ame()` (cross-sectional) path through ame_bipartite(). the five
 # families that used to abort or warn now route through the same
-# rectangular Z samplers from R/rZ_bipartite.R.
+# rectangular z samplers from r/rz_bipartite.r.
 
 context("cross-sectional bipartite families (ame): poisson / ordinal / cbin / frn / rrl")
 

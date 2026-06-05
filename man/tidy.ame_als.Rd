@@ -35,8 +35,8 @@ Standard errors come from the sandwich covariance
 attached to \code{x$bootstrap} when present (preferred, fully
 propagated). \code{statistic} is \code{estimate / std.error};
 \code{p.value} is the Normal-approximation two-sided tail
-\eqn{2(1 - \Phi(|z|))} - the same heuristic the MCMC \code{tidy.ame}
-uses.
+\eqn{2(1 - \Phi(|z|))} from the bootstrap or sandwich standard error. It is
+a Wald-style summary for the point estimator, not a posterior probability.
 }
 \details{
 Only the intercept and dyadic-covariate coefficients are returned,

@@ -84,6 +84,14 @@ Information criteria, posterior draws, and held-out evaluation
   : Held-out predictive evaluation for an ame / lame fit
 - [`read_log_lik()`](https://netify-dev.github.io/lame/reference/read_log_lik.md)
   : Read the per-iteration log-lik matrix back from on-disk chunks
+- [`snap_index_draws()`](https://netify-dev.github.io/lame/reference/snap_index_draws.md)
+  : Extract posterior draws of snap indices
+- [`snap_index_summary()`](https://netify-dev.github.io/lame/reference/snap_index_summary.md)
+  : Summarize posterior snap indices
+- [`snap_category_summary()`](https://netify-dev.github.io/lame/reference/snap_category_summary.md)
+  : Summarize snap indices by actor category
+- [`snap_rank_summary()`](https://netify-dev.github.io/lame/reference/snap_rank_summary.md)
+  : Summarize posterior rank uncertainty for snap years
 
 ## Tidyverse Integration
 
@@ -144,6 +152,8 @@ uncertainty
   : Fast (MCMC-free) AME estimation for a cross-sectional network
 - [`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md)
   : Fast (MCMC-free) AME estimation for a longitudinal network
+- [`lame_snap_als()`](https://netify-dev.github.io/lame/reference/lame_snap_als.md)
+  : Fast approximate dynamic snap-shift AME estimator
 - [`ame_als_bootstrap()`](https://netify-dev.github.io/lame/reference/ame_als_bootstrap.md)
   [`boot_ame()`](https://netify-dev.github.io/lame/reference/ame_als_bootstrap.md)
   : Bootstrap uncertainty for the fast AME estimator
@@ -214,7 +224,7 @@ Standard R methods for model objects
   : Simple diagnostic plot for AME model fit
 
 - [`plot(`*`<lame>`*`)`](https://netify-dev.github.io/lame/reference/plot.lame.md)
-  : Plot comprehensive diagnostics for a LAME model fit
+  : Plot diagnostics for a LAME model fit
 
 - [`coef(`*`<ame_als>`*`)`](https://netify-dev.github.io/lame/reference/coef.ame_als.md)
   : Extract coefficients from a fast AME fit
@@ -299,7 +309,7 @@ Standard R methods for model objects
   : Additive-effects plot for an ame_als fit
 
 - [`gof_plot.ame_als()`](https://netify-dev.github.io/lame/reference/gof_plot.ame_als.md)
-  : Goodness-of-fit posterior predictive check for an ame_als fit
+  : Goodness-of-fit check for an ame_als fit
 
 - [`coef(`*`<als_dynamic_beta>`*`)`](https://netify-dev.github.io/lame/reference/coef.als_dynamic_beta.md)
   : Extract beta path from a penalised-ALS object
@@ -484,6 +494,16 @@ and variance components
   : Gibbs sampling of dynamic U and V with AR(1) evolution
 - [`rUV_dynamic_fc_cpp()`](https://netify-dev.github.io/lame/reference/rUV_dynamic_fc_cpp.md)
   : Update dynamic latent positions using AR(1) process
+- [`rUV_dynamic_snap_fc()`](https://netify-dev.github.io/lame/reference/rUV_dynamic_snap_fc.md)
+  : Gibbs sampling of dynamic U and V with snap-shift dynamics
+- [`rUV_dynamic_snap_fc_cpp()`](https://netify-dev.github.io/lame/reference/rUV_dynamic_snap_fc_cpp.md)
+  : Update dynamic latent positions with snap-shift model selection
+- [`rUV_dynamic_t_fc()`](https://netify-dev.github.io/lame/reference/rUV_dynamic_t_fc.md)
+  : Gibbs sampling of dynamic U and V with heavy-tailed (Student-t)
+  innovations
+- [`rUV_dynamic_t_fc_cpp()`](https://netify-dev.github.io/lame/reference/rUV_dynamic_t_fc_cpp.md)
+  : Update dynamic latent positions with heavy-tailed (Student-t) AR(1)
+  innovations
 - [`raSab_bin_fc()`](https://netify-dev.github.io/lame/reference/raSab_bin_fc.md)
   : Simulate a and Sab from full conditional distributions under bin
   likelihood

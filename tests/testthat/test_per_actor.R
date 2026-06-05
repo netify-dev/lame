@@ -1,8 +1,8 @@
-# per-actor dynamic beta with exact Gaussian
+# per-actor dynamic beta with exact gaussian
 # conditioning for the sum-to-zero centering constraint.
-# Tests cover: (a) helper math, (b) byte-identical-default contract for
+# tests cover: (a) helper math, (b) byte-identical-default contract for
 # "center", (c) "exact_center" preserves zero-sum exactly per draw,
-# (d) end-to-end recovery on a known DGP, (e) FFBS path posterior
+# (d) end-to-end recovery on a known dgp, (e) ffbs path posterior
 # variance is correctly returned.
 
 test_that(".actor_ffbs_path returns theta and V of length T", {
@@ -41,8 +41,8 @@ test_that(".sweep_per_actor_exact produces n_actors x T zero-sum draws", {
 })
 
 test_that(".sweep_per_actor_exact collapses to zero for zero-precision case", {
-	# when H = 0 (no observation precision), the data does nothing and the
-	# prior is centered at zero. Projection should give zero (up to MC).
+	# when h = 0 (no observation precision), the data does nothing and the
+	# prior is centered at zero. projection should give zero (up to mc).
 	set.seed(41)
 	n_actors = 5; T_per = 4
 	H_mat = matrix(0.001, n_actors, T_per)  # near-zero precision
@@ -126,7 +126,7 @@ test_that("exact_center end-to-end fit produces sensible posterior summaries", {
 	expect_equal(dim(fit$theta_actor_sd), c(n, T))
 	expect_true(all(is.finite(fit$theta_actor_mean)))
 	expect_true(all(fit$theta_actor_sd >= 0))
-	# RHO_ACTOR + SIGMA_ACTOR chains run within sensible ranges
+	# rho_actor + sigma_actor chains run within sensible ranges
 	expect_true(all(abs(fit$RHO_ACTOR) < 1))
 	expect_true(all(fit$SIGMA_ACTOR > 0))
 })

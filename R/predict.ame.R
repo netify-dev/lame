@@ -51,7 +51,7 @@ predict.ame <- function(
 	m <- ifelse(object$mode == "bipartite", object$nB, ncol(object$YPM))
 	
 	# validate new covariates including the covariate-count (3rd dim), which
-	# must match the dyadic coefficients of `object$BETA` so a wrong-shape
+	# must match the dyadic coefficients of `object$beta` so a wrong-shape
 	# `newdata` is rejected rather than producing wrong predictions.
 	if(!is.null(newdata)) {
 		if(!is.array(newdata) || length(dim(newdata)) != 3) {
@@ -63,7 +63,7 @@ predict.ame <- function(
 		# number of dyadic covariate slices expected
 		beta_names <- colnames(object$BETA)
 		has_intercept <- !is.null(beta_names) && beta_names[1] == "intercept"
-		# dyadic covariates are the BETA columns ending in "_dyad" or ".dyad"
+		# dyadic covariates are the beta columns ending in "_dyad" or ".dyad"
 		n_dyad_expected <- if (is.null(beta_names)) ncol(object$BETA) - has_intercept
 		                   else sum(grepl("_dyad$|\\.dyad$", beta_names))
 		if (n_dyad_expected > 0L && dim(newdata)[3] != n_dyad_expected) {
@@ -80,14 +80,14 @@ predict.ame <- function(
 		return(predict_distribution(object, X, n_samples, include_uncertainty))
 	} else {
 		if(!is.null(X)) {
-			# linear predictor from new covariates. `X` (= newdata) carries
-			# ONLY the dyadic covariate slices; the intercept and any nodal
-			# (Xrow / Xcol) contributions are held at their fitted values.
+			# linear predictor from new covariates. `x` (= newdata) carries
+			# only the dyadic covariate slices; the intercept and any nodal
+			# (xrow / xcol) contributions are held at their fitted values.
 			# .xbeta_newdata() rebuilds the full design in the model's
 			# canonical slice order (dyad slices from newdata, the rest from
-			# fit$X) and contracts it against the named coefficient vector --
+			# fit$x) and contracts it against the named coefficient vector --
 			# the single name-safe convention shared with predict.lame() and
-			# the forecaster. (The old positional `beta[k+1]` fallback
+			# the forecaster. (the old positional `beta[k+1]` fallback
 			# silently multiplied dyadic covariates by nodal coefficients.)
 			beta_mean <- if (length(dim(object$BETA)) == 3L)
 				apply(object$BETA, 2, mean) else colMeans(object$BETA)
@@ -112,7 +112,7 @@ predict.ame <- function(
 
 			EZ <- XB
 			# apply the inverse link when type = "response"; otherwise
-			# return EZ on the link scale.
+			# return ez on the link scale.
 			if (type == "response") {
 				return(transform_to_response(EZ, object$family))
 			}
@@ -122,9 +122,9 @@ predict.ame <- function(
 				EZ <- reconstruct_EZ(object)
 				return(EZ)
 			} else {
-				# YPM is the posterior mean on the response scale, computed
-				# during MCMC by averaging simulated outcomes. returning it
-				# directly avoids Jensen's inequality bias that would arise
+				# ypm is the posterior mean on the response scale, computed
+				# during mcmc by averaging simulated outcomes. returning it
+				# directly avoids jensen's inequality bias that would arise
 				# from transforming the posterior mean of the linear predictor.
 				return(object$YPM)
 			}
@@ -146,7 +146,7 @@ predict_distribution <- function(object, X, n_samples, include_uncertainty) {
 	Y_pred <- array(NA, dim = c(n, m, n_samples))
 
 	if(include_uncertainty && !is.null(object$BETA)) {
-		# n_mcmc = number of post-burnin iterations (first dim) for both 2-D and 3-D BETA
+		# n_mcmc = number of post-burnin iterations (first dim) for both 2-d and 3-d beta
 		n_mcmc <- dim(object$BETA)[1]
 		if(n_mcmc < n_samples) {
 			cli::cli_warn("Only {.val {n_mcmc}} MCMC samples available, using all")
@@ -158,7 +158,7 @@ predict_distribution <- function(object, X, n_samples, include_uncertainty) {
 
 		for(i in 1:n_samples) {
 			if (beta_is_dyn) {
-				# for predict.ame() (cross-sectional), 3-D BETA shouldn't exist;
+				# for predict.ame() (cross-sectional), 3-d beta shouldn't exist;
 				# defensive: use period 1 of the path
 				beta <- object$BETA[sample_idx[i], , 1]
 			} else {
@@ -190,7 +190,7 @@ predict_distribution <- function(object, X, n_samples, include_uncertainty) {
 					idx <- min(i, dim(object$U_samples)[3])
 					UV <- object$U_samples[,,idx] %*% t(object$V_samples[,,idx])
 				} else {
-					# no UV samples stored, use posterior means
+					# no uv samples stored, use posterior means
 					UV <- object$U %*% t(object$V)
 				}
 				XB <- XB + UV
@@ -363,13 +363,13 @@ predict.lame <- function(object, newdata = NULL,
 	family <- object$family %||% "normal"
 
 	# forecast horizon. h > 0 delegates to .forecast_lame() which
-	# propagates the AR(1)/RW1 state-space model forward. abort on
+	# propagates the ar(1)/rw1 state-space model forward. abort on
 	# negative h so a typo does not silently return in-sample predictions.
 	if (!is.null(h) && length(h) == 1L && is.finite(h) && h < 0L) {
 		cli::cli_abort("{.arg h} must be at least 0; got {.val {h}}.")
 	}
 	if (!is.null(h) && h > 0L) {
-		# force by_draw = TRUE internally when an interval is requested so
+		# force by_draw = true internally when an interval is requested so
 		# quantiles can be summarised across draws.
 		want_interval <- identical(interval, "credible")
 		raw <- .forecast_lame(object,
@@ -410,8 +410,8 @@ predict.lame <- function(object, newdata = NULL,
 	# ---- training-data predictions ----
 	if (is.null(newdata)) {
 		if (type == "response") {
-			# match fitted.lame: YPM is the posterior mean on the response
-			# scale, avoiding Jensen bias from transforming the posterior
+			# match fitted.lame: ypm is the posterior mean on the response
+			# scale, avoiding jensen bias from transforming the posterior
 			# mean of the linear predictor
 			if (!is.null(object$YPM)) return(object$YPM)
 		}
@@ -425,7 +425,7 @@ predict.lame <- function(object, newdata = NULL,
 	}
 
 	# ---- newdata counterfactual predictions ----
-	# rebuild EZ per slice using new dyadic covariates while holding intercept,
+	# rebuild ez per slice using new dyadic covariates while holding intercept,
 	# additive effects and the multiplicative term fixed
 	if (!is.list(newdata)) {
 		cli::cli_abort("{.arg newdata} must be a list of dyadic covariate arrays, one per time slice.")
@@ -436,9 +436,9 @@ predict.lame <- function(object, newdata = NULL,
 			"{.arg newdata} has {length(newdata)} slice{?s} but the fit has {.val {n_t}}.",
 			"i" = "Supply one dyadic covariate array per time period."))
 	}
-	# beta_mean_per_t handles 3-D dynamic_beta BETA: a p x T matrix where
+	# beta_mean_per_t handles 3-d dynamic_beta beta: a p x t matrix where
 	# row k of column t is the posterior-mean coefficient k at period t. for
-	# 2-D BETA we replicate the single mean across T periods.
+	# 2-d beta we replicate the single mean across t periods.
 	if (length(dim(object$BETA)) == 3L) {
 		beta_per_t <- apply(object$BETA, c(2, 3), mean)
 		beta_names <- dimnames(object$BETA)[[2]]
@@ -455,8 +455,8 @@ predict.lame <- function(object, newdata = NULL,
 		grepl("_dyad$|\\.dyad$", beta_names)
 	}
 	n_dyad <- sum(is_dyad)
-	# build a per-time-slice U V' product; tolerate static (2D), dynamic (3D),
-	# absent (NULL), and zero-column R=0 cases
+	# build a per-time-slice u v' product; tolerate static (2d), dynamic (3d),
+	# absent (null), and zero-column r=0 cases
 	UVPM <- if (!is.null(object$U) && !is.null(object$V) &&
 	            ncol(object$U) > 0 && ncol(object$V) > 0) {
 		if (length(dim(object$U)) == 3L) {
@@ -468,16 +468,16 @@ predict.lame <- function(object, newdata = NULL,
 		}
 	} else NULL
 	# the fitted per-period design (intercept + nodal + dyad slices, canonical
-	# order) used to hold the intercept and any Xrow / Xcol contributions
-	# fixed while only the dyadic covariates change. May be a per-period list
-	# (f$X), or NULL for a dyad-only fit where .build_full_design synthesises
+	# order) used to hold the intercept and any xrow / xcol contributions
+	# fixed while only the dyadic covariates change. may be a per-period list
+	# (f$x), or null for a dyad-only fit where .build_full_design synthesises
 	# the intercept slice itself.
 	fitted_design_list <- object$X
 	# lame sorts actors alphabetically on ingest, so the stored additive /
-	# multiplicative effects are in sorted order. Realign each newdata array to
+	# multiplicative effects are in sorted order. realign each newdata array to
 	# that order by name (no-op when names already match or are absent) before
 	# building the design, otherwise a user passing newdata in the original
-	# actor order is silently misaligned against a_t / b_t / UVPM.
+	# actor order is silently misaligned against a_t / b_t / uvpm.
 	actor_order <- .fit_actor_order(object)
 	ez_new <- vector("list", n_t)
 	for (t in seq_len(n_t)) {
@@ -489,7 +489,7 @@ predict.lame <- function(object, newdata = NULL,
 		# name-safe full-design reconstruction: dyad slices from newdata, the
 		# intercept + nodal (row/col) slices held at their fitted values. uses
 		# the same helper as predict.ame() and the forecaster so the nodal
-		# beta'X is included for fits with Xrow / Xcol.
+		# beta'x is included for fits with xrow / xcol.
 		Xfull_t <- .build_full_design(Xn, beta_names, fd_t, n_row, n_col)
 		xb <- matrix(0, n_row, n_col)
 		for (k in seq_len(dim(Xfull_t)[3L])) xb <- xb + beta_per_t[k, t] * Xfull_t[, , k]
@@ -545,13 +545,13 @@ residuals.lame <- function(object, type = c("response", "pearson"), ...) {
 		Y <- object$YPM
 	}
 
-	# convert 3D array to list of matrices if needed
+	# convert 3d array to list of matrices if needed
 	if(is.array(Y) && length(dim(Y)) == 3) {
 		n_time <- dim(Y)[3]
 		Y <- lapply(seq_len(n_time), function(t) Y[,,t])
 	}
 
-	# lame stores Y and YPM as lists
+	# lame stores y and ypm as lists
 	s2 <- mean(object$VC[, ncol(object$VC)])
 
 	mapply(function(y, ypm) {

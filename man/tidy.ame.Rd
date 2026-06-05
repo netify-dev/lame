@@ -35,17 +35,14 @@ deviations; \code{statistic} is \code{estimate / std.error}.
 }
 \details{
 \strong{Note on \code{p.value}.} This column is included for
-\pkg{broom} compatibility but is \emph{not} a frequentist p-value.
-It is the same approximate two-sided posterior tail probability
-\eqn{2(1 - \Phi(|z|))} that \code{summary(fit)} reports — a rough
-"does the posterior exclude zero?" heuristic computed under a Normal
-approximation to the marginal posterior. The honest Bayesian
-analogues are (a) the \code{conf.low} / \code{conf.high} columns
-(95\\% credible interval) and (b) the posterior probability of sign
-agreement, \code{mean(sign(BETA) == sign(mean(BETA)))}, which you
-can compute from \code{x$BETA} directly. Treat small \code{p.value}
-as "the credible interval is unlikely to contain 0", not as a
-classical significance test.
+\pkg{broom} compatibility but is \emph{not} a classical test. It is a
+two-sided Normal approximation based on the posterior mean and marginal
+posterior standard deviation, matching the calculation in
+\code{summary(fit)}. Use it as a compact signal that the marginal posterior
+is far from zero, and report it alongside the \code{conf.low} /
+\code{conf.high} credible interval. When sign certainty matters, compute it
+directly from \code{x$BETA}, for example
+\code{mean(sign(BETA) == sign(mean(BETA)))}.
 
 Loaded as an S3 method against \code{generics::tidy} when the
 \pkg{generics} package is available; works as

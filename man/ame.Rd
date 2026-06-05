@@ -133,7 +133,7 @@ coefficients (\code{beta ~ N(0, g * sigma^2 * solve(XtX))} where
 \code{XtX} is the design cross-product). If not specified, defaults are:
 for \code{normal} family, \code{g = n * var(Y)}; for \code{tobit},
 \code{g = n * var(Y) * 4}; for other families, \code{g = n} (number of
-non-missing dyads). Per-coefficient (vector) \code{g} is NOT currently
+non-missing dyads). Per-coefficient (vector) \code{g} is not currently
 supported by the unipartite path -- pass a scalar.
 \emph{Note:} \code{g} is a top-level argument to \code{ame()},
 \strong{not} an element of \code{prior = list(...)}; passing
@@ -173,7 +173,7 @@ live trace panels. Default \code{FALSE}.}
 
 \item{out_file}{character vector indicating name and path in which file should be stored if periodic_save is selected. For example, on an Apple OS out_file="~/Desktop/ameFit.rda".}
 
-\item{save_interval}{quantile interval indicating when to save during post burn-in phase.}
+\item{save_interval}{quantile interval indicating when to save during the post-burn-in period.}
 
 \item{model.name}{optional string for model selection output}
 
@@ -189,8 +189,8 @@ Recommended only for truly sparse networks (< 10\% non-zero entries).}
 \item{method}{character: \code{"mcmc"} (default, the Bayesian MCMC fit) or
 \code{"als"} (the fast, MCMC-free iterative block coordinate descent point
 estimator). When \code{method = "als"}, MCMC-specific arguments (\code{nscan},
-\code{burn}, \code{odens}, \code{prior}, ...) are silently ignored and the
-call forwards to \code{\link{ame_als}}.}
+\code{burn}, \code{odens}, \code{prior}, ...) are warned about and ignored;
+the call forwards to \code{\link{ame_als}}.}
 
 \item{bootstrap}{integer (only used when \code{method = "als"}): number of
 bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N > 0}
@@ -409,7 +409,7 @@ The linear predictor \eqn{\eta} represents \eqn{\log(\lambda)} where \eqn{\lambd
 Every \code{family} is supported under
 both \code{mode}s. The bipartite Z-samplers live in \code{R/rZ_bipartite.R}
 and dispatch per family; see also the inline comment in \code{R/lame.R}
-(\dQuote{first-class samplers as of the bipartite-families round}).
+(the rectangular samplers live in \code{R/rZ_bipartite.R}).
 
 \tabular{lll}{
 \strong{family}  \tab \strong{unipartite} \tab \strong{bipartite} \cr
@@ -427,13 +427,10 @@ Symmetric (\code{symmetric = TRUE}) fits require a symmetric \code{Y}.
 \code{family = "ordinal"} with \code{symmetric = TRUE} is supported via the
 dedicated sampler in \code{R/rZ_ord_sym_fc.R}, which uses the
 symmetric-doubled precision and mirrors upper-triangle draws to the lower
-triangle so \eqn{Z = t(Z)} holds at every sweep. The previous \dQuote{ordinal
-\itemize{
-\item symmetric is unsupported} restriction has been lifted. \code{rrl} +
-bipartite is first-class: the rectangular row-rank Z-sampler handles the
+triangle so \eqn{Z = t(Z)} holds at every sweep. \code{rrl} + bipartite is
+supported: the rectangular row-rank Z-sampler handles the
 full per-row permutation likelihood, and \code{ame()} recovers regression
 coefficients comparably to the unipartite rrl path on similarly-sized data.
-}
 
 \strong{Symmetric input with one triangle missing.} When
 \code{symmetric = TRUE} and one triangle of \code{Y} is fully \code{NA}
@@ -505,7 +502,7 @@ For users coming from \code{statnet::ergm}, the rough analogues are:
 \code{nodematch("g")}         \tab dyadic covariate via \code{\link{nodematch}(g)} into \code{Xdyad} \cr
 \code{nodefactor("g")}        \tab dyadic covariate via \code{\link{nodefactor}(g)} into \code{Xdyad} (drop one level) \cr
 \code{absdiff("z")}           \tab dyadic covariate via \code{\link{absdiff}(z)} into \code{Xdyad} \cr
-\code{mutual}                 \tab \code{dcor = TRUE} -> the \code{rho} parameter (probit-scale, NOT log-odds; not numerically comparable to ERGM's \code{mutual}) \cr
+\code{mutual}                 \tab \code{dcor = TRUE} -> the \code{rho} parameter (probit-scale, not log-odds; not numerically comparable to ERGM's \code{mutual}) \cr
 \code{gwesp} / transitivity   \tab \code{R >= 1} multiplicative latent factors (not the same statistic) \cr
 sender activity heterogeneity \tab \code{rvar = TRUE}, gives \code{a_i}, \code{va} \cr
 receiver popularity heterog.  \tab \code{cvar = TRUE}, gives \code{b_j}, \code{vb} \cr
@@ -521,8 +518,8 @@ Both \code{amen} and \code{lame} export \code{ame()}; loading both
 packages fires a startup warning telling you to call
 \code{lame::ame(...)} or \code{amen::ame(...)} explicitly.
 
-For default cross-sectional calls, \code{lame::ame()} is a drop-in
-replacement for \code{amen::ame()}: the \code{fit$BETA} slot is a
+For default cross-sectional calls, \code{lame::ame()} follows the
+\code{amen::ame()} interface: the \code{fit$BETA} slot is a
 2-D \code{[n_stored, p]} matrix in both packages, so scripts that
 call \code{colMeans(fit$BETA)} or \code{apply(fit$BETA, 2, mean)}
 continue to work unchanged. \code{lame} additionally accepts
@@ -535,7 +532,7 @@ The cross-sectional path has no \code{dynamic_beta} option (an
 AR(1) prior on a single-period coefficient is unidentified), so the
 \code{BETA} 3-D shape that \code{lame()} can produce never arises
 from \code{ame()}. See \code{\link{lame}} for the longitudinal path
-and the silent-aggregation hazard with old \code{apply(fit$BETA, 2, mean)}
+and the silent-aggregation hazard with 2-D \code{apply(fit$BETA, 2, mean)}
 scripts under \code{dynamic_beta = TRUE}.
 }
 

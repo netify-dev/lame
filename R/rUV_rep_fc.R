@@ -46,7 +46,7 @@ rUV_rep_fc <-
 			Es.t<-apply(Er.t,2,get.Es,g,d)
 
 			####
-			# update U[,r]
+			# update u[,r]
 			vr<-V[,r]
 			b0<- c(Suv[r,-r]%*%solve(Suv[-r,-r]))
 			v0<- c(Suv[r,r] - b0%*%Suv[-r,r])
@@ -62,7 +62,7 @@ rUV_rep_fc <-
 			####
 
 			####
-			# update V[,r]
+			# update v[,r]
 			ur<-U[,r]
 			rv<-R+r
 			b0<- c(Suv[rv,-rv]%*%solve(Suv[-rv,-rv]))

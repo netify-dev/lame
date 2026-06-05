@@ -1,10 +1,10 @@
 # Simulate longitudinal networks from a fitted LAME model
 
-Generates multiple longitudinal network realizations from the posterior
-distribution of a fitted LAME (Longitudinal AME) model. This function
-performs posterior predictive simulation for dynamic networks,
-propagating both cross-sectional and temporal uncertainty through the
-simulated trajectories.
+Generates multiple longitudinal network realizations from a fitted LAME
+(Longitudinal AME) model. This function performs conditional posterior
+predictive simulation for dynamic networks: it draws from stored MCMC
+samples when available and uses posterior means for latent components
+that were not retained.
 
 ## Usage
 
@@ -224,8 +224,8 @@ family
 **Interpretation of Multiple Trajectories:**
 
 Each simulated trajectory represents one possible evolution of the
-network consistent with the posterior distribution. Variation across
-trajectories captures:
+network conditional on the stored fit. Variation across trajectories
+captures:
 
 - Model parameter uncertainty
 
@@ -250,10 +250,10 @@ over time, reflecting increasing uncertainty in longer-term forecasts.
 
 **Limitations:**
 
-As with simulate.ame, multiplicative effects currently use posterior
-means. Full uncertainty would require storing complete MCMC chains for
-\\u\_{i,t}, v\_{j,t}\\ at all time points, which is memory-intensive for
-large networks and long time series.
+As with simulate.ame, multiplicative effects use posterior means unless
+the fit retained compatible latent-factor draws. Storing complete MCMC
+chains for \\u\_{i,t}, v\_{j,t}\\ at all time points is memory-intensive
+for large networks and long time series.
 
 ## Author
 

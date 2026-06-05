@@ -3,11 +3,11 @@
 #' Returns posterior means of regression coefficients from a fitted AME or
 #' LAME model.
 #'
-#' For a STATIC fit (the default, and any model with \code{dynamic_beta = FALSE}),
+#' For a static fit (the default, and any model with \code{dynamic_beta = FALSE}),
 #' coefficients are returned as a named numeric vector computed as
 #' \code{colMeans(fit$BETA)}.
 #'
-#' For a DYNAMIC fit (\code{lame(..., dynamic_beta = ...)} where some
+#' For a dynamic fit (\code{lame(..., dynamic_beta = ...)} where some
 #' coefficient is time-varying), \code{fit$BETA} is a 3-dimensional array
 #' \code{[n_stored, p, T]} and \code{coef.lame} returns a \code{[p, T]}
 #' matrix of per-period posterior means. Rownames are the coefficient names;
@@ -18,7 +18,7 @@
 #' \code{\link{predict.ame}} with \code{type = "response"} to get predicted
 #' probabilities.
 #'
-#' \strong{What \code{coef()} does NOT return.} The multiplicative latent
+#' \strong{What \code{coef()} does not return.} The multiplicative latent
 #' positions \eqn{U}, \eqn{V} are not part of the coefficient vector;
 #' they live on \code{fit$U} and \code{fit$V} (or as 3-D arrays
 #' \code{[n, R, T]} when \code{dynamic_uv} is on). The additive
@@ -43,12 +43,12 @@ coef.ame <- function(object, ...) {
 	if(is.null(object$BETA)) {
 		return(numeric(0))
 	}
-	# dynamic_beta storage is 3-D [iter x p x T]; return p x T matrix of
+	# dynamic_beta storage is 3-d [iter x p x t]; return p x t matrix of
 	# per-period posterior-mean coefficients with rownames = coef, colnames = period
 	if (length(dim(object$BETA)) == 3L) {
 		if (dim(object$BETA)[1] == 0L) return(numeric(0))
 		out <- apply(object$BETA, c(2, 3), mean)
-		# preserve dimnames from BETA
+		# preserve dimnames from beta
 		dn <- dimnames(object$BETA)
 		if (!is.null(dn)) {
 			rownames(out) <- dn[[2]]
@@ -85,8 +85,8 @@ vcov.ame <- function(object, ...) {
 	if(is.null(object$BETA)) {
 		return(matrix(NA, 0, 0))
 	}
-	# dynamic_beta storage: 3-D [iter x p x T] -- collapse to [iter x (p*T)]
-	# so cov() returns a (p*T) x (p*T) covariance with combined coef[t] names
+	# dynamic_beta storage: 3-d [iter x p x t] -- collapse to [iter x (p*t)]
+	# so cov() returns a (p*t) x (p*t) covariance with combined coef[t] names
 	if (length(dim(object$BETA)) == 3L) {
 		B <- object$BETA
 		if (dim(B)[1] < 2L) {
@@ -161,7 +161,7 @@ confint.ame <- function(object, parm = NULL, level = 0.95, ...) {
 	probs <- c(alpha, 1 - alpha)
 	pct <- paste0(round(probs * 100, 1), "%")
 
-	# 3-D BETA: each row of the CI table is one coef[t] combination.
+	# 3-d beta: each row of the ci table is one coef[t] combination.
 	# loop time-outer, coef-inner so the row order matches what
 	# vcov.ame() and as_draws.ame() produce (both built from
 	# outer(nms_p, nms_t) in column-major / time-outer order), keeping
@@ -203,7 +203,7 @@ confint.ame <- function(object, parm = NULL, level = 0.95, ...) {
 			}
 			return(all_ci[parm, , drop = FALSE])
 		} else if(is.numeric(parm)) {
-			# positional indexing applies to BETA rows only
+			# positional indexing applies to beta rows only
 			return(beta_ci[parm, , drop = FALSE])
 		}
 	}

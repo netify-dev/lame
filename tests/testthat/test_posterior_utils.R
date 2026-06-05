@@ -46,7 +46,7 @@ test_that("simulate_posterior works for beta coefficients", {
 	# check values are numeric
 	expect_true(all(is.finite(beta_post)))
 	
-	# check mean is close to MCMC mean
+	# check mean is close to mcmc mean
 	beta_mcmc_mean = colMeans(fit$BETA)
 	beta_sim_mean = colMeans(beta_post)
 	expect_equal(beta_sim_mean, beta_mcmc_mean, tolerance = 0.5)
@@ -76,7 +76,7 @@ test_that("simulate_posterior errors for UV without saved samples", {
 	Y = matrix(rnorm(n * n), n, n)
 	diag(Y) = NA
 
-	# fit model without saving UV samples
+	# fit model without saving uv samples
 	fit = ame(Y, R = R, burn = 100, nscan = 500, verbose = FALSE)
 
 	# should error — no saved samples available
@@ -192,12 +192,12 @@ test_that("posterior functions work for bipartite networks", {
 	beta_post = suppressWarnings(
 		simulate_posterior(fit, "beta", n_samples = 20)
 	)
-	expect_lte(nrow(beta_post), 20)  # May have fewer if not enough MCMC samples
-	expect_gt(nrow(beta_post), 0)    # But should have some
+	expect_lte(nrow(beta_post), 20)  # may have fewer if not enough mcmc samples
+	expect_gt(nrow(beta_post), 0)    # but should have some
 	
 	# check quantiles work
 	beta_quants = posterior_quantiles(fit, "beta")
-	expect_equal(nrow(beta_quants), 3)  # Default 3 quantiles
+	expect_equal(nrow(beta_quants), 3)  # default 3 quantiles
 })
 
 test_that("simulate_Y_posterior generates reasonable predictions", {

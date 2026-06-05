@@ -29,7 +29,7 @@ function(Z,Sab,rho,X=NULL,s2=1,offset=0,iV0=NULL,m0=NULL,g=length(Z)) {
 	####
 
 	####
-	# precompute X statistics
+	# precompute x statistics
 	if(is.null(attributes(X)$XX)) {
 		X<-precomputeX(X)
 		warning("Summary statistics of X are not precomputed. ",
@@ -38,7 +38,7 @@ function(Z,Sab,rho,X=NULL,s2=1,offset=0,iV0=NULL,m0=NULL,g=length(Z)) {
 	####
 
 	####
-	# assign X statistics
+	# assign x statistics
 	Xr<-attributes(X)$Xr
 	Xc<-attributes(X)$Xc
 	mX<-attributes(X)$mX

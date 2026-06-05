@@ -50,7 +50,7 @@ test_that("ame() unipartite normal recovers beta and additive effects", {
 	expect_true(cor_b > 0.3,
 		info = paste("Receiver effects correlation:", round(cor_b, 3)))
 
-	# UV product correlation
+	# uv product correlation
 	true_UV = tcrossprod(dat$true_params$U[[1]], dat$true_params$V[[1]])
 	est_UV = fit$U %*% t(fit$V)
 	row_order = match(sorted_names, orig_names)

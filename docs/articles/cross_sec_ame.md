@@ -56,12 +56,11 @@ cat("Network density:", round(mean(Y, na.rm = TRUE), 3), "\n")
 Notice the `na.rm = TRUE` calls: network data often has missing entries
 (the diagonal is `NA` because self-ties are undefined, and some dyads
 may be unobserved). The model handles missing values internally via data
-augmentation, so you do not need to impute them yourself. Just leave
-`NA`s in the matrix and pass it directly. The same applies to missing
-*covariates*: a few `NA`s in the node attributes (here `race` and
-`grade` have a handful) propagate to the dyads built from them, and
-[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) simply
-treats those dyads as unobserved and reports how many it data-augmented.
+augmentation, so `NA`s can stay in the matrix. The same applies to
+missing *covariates*: a few `NA`s in the node attributes (here `race`
+and `grade` have a handful) propagate to the dyads built from them, and
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) treats
+those dyads as unobserved and reports how many it data-augmented.
 
 Before modeling, let’s look at the basic structure. How much do students
 vary in their number of friends?
@@ -285,39 +284,37 @@ linear predictor, so the marginal effect after integrating them out is
 smaller again by a factor of $1/\sqrt{1 + V_{\text{RE}}}$; (ii) the
 right number to report depends on whether you want the effect at the
 sample mean, the average effect across observed dyads, or the effect at
-specific covariate values. **For any serious interpretation, do not use
-the $0.4 \times \beta$ shortcut. Compute the quantity you actually want
-with `predict(fit, type = "response")` and contrast predicted
-probabilities under counterfactual covariate settings.**
+specific covariate values. For interpretation, compute the quantity you
+want with `predict(fit, type = "response")` and contrast predicted
+probabilities under counterfactual covariate settings.
 
 ## Did the Sampler Converge?
 
-Since the model is estimated via MCMC (Markov chain Monte Carlo), we
-need to verify that the sampler explored the posterior distribution
-thoroughly. The `trace_plot` function is the first tool to reach for.
+Since the model is estimated via MCMC (Markov chain Monte Carlo), trace
+plots are the first check that the sampler explored the posterior
+distribution thoroughly.
 
 ``` r
 trace_plot(fit, params = "beta", ncol = 3)
 ```
 
-![MCMC trace and density plots for each regression coefficient: trace
-plots should look like fuzzy caterpillars around a stable mean and the
-density plots should appear smooth and
-unimodal.](cross_sec_ame_files/figure-html/trace-plots-1.png)
+![MCMC trace and density plots for each regression coefficient; stable
+traces fluctuate around a steady mean and the density plots are smooth
+and unimodal.](cross_sec_ame_files/figure-html/trace-plots-1.png)
 
-**What to look for:** The trace plots (top) should look like “fuzzy
-caterpillars” bouncing around a stable mean. If you see long trends, the
-chain hasn’t converged. The density plots (bottom) should be smooth and
-unimodal. With 80 post-burn-in samples most coefficients mix well; the
-slow ones at this seed are `grade_diff`, whose effective sample size
-drops to single digits, and – typically the worse of the two across runs
-– `rho`, the reciprocity parameter that is chronically the
-slowest-mixing term in these fits. Read this as a *mixing* problem, not
-an *estimate* problem: `grade_diff`’s point estimate is stable from run
-to run even when its ESS is low, and its near-twin `same_grade` mixes
-fine, so the poor mixing here is a quirk of this seed rather than a
+**What to look for:** The trace plots (top) should fluctuate around a
+stable mean. If you see long trends, the chain has not converged. The
+density plots (bottom) should be smooth and unimodal. With 80
+post-burn-in samples most coefficients mix well; the slow ones at this
+seed are `grade_diff`, whose effective sample size drops to single
+digits, and – typically the worse of the two across runs – `rho`, the
+reciprocity parameter that is chronically the slowest-mixing term in
+these fits. Read this as a *mixing* problem, not an *estimate* problem:
+`grade_diff`’s point estimate is stable from run to run even when its
+ESS is low, and its near-twin `same_grade` mixes fine, so the poor
+mixing here comes from this short run and seed rather than a
 collinearity breakdown. Both `grade_diff` and `rho` call for a longer or
-multi-chain run before you quote their uncertainty.
+multi-chain run before quoting their uncertainty.
 
 ### Numerical convergence diagnostics: `posterior::as_draws()`
 
@@ -380,9 +377,9 @@ not `grade_diff`, is the worst-mixing parameter – this fit’s seed simply
 pushes `grade_diff` to the very bottom). A single-chain fit like this
 one reports within-chain split-$\widehat{R}$, which is informative about
 within-chain non-stationarity but not about between-chain disagreement;
-run four chains (next subsection) before trusting either of those two.
+the four-chain fit below gives the cross-chain check.
 
-### Honest between-chain $\widehat{R}$: `ame_parallel(n_chains = 4)`
+### Between-chain $\widehat{R}$: `ame_parallel(n_chains = 4)`
 
 For real convergence assessment, run four chains from different seeds
 and let
@@ -609,28 +606,24 @@ Read the table the same way you would read
 statistic a `pp_p_right` near 0 means the simulated networks rarely hit
 the observed value from below, i.e. the model under-predicts that
 quantity; a value near 1 means it over-predicts. On Add Health the raw
-`triangles` count actually comes back reasonably well covered
-(`pp_p_right` around 0.25 in our run): the AME fit absorbs much of the
-triangle pressure through clustering of $u_{i}$ and through the joint
-scale of the additive effects, so the raw count is in the predictive
-distribution even though the model has no `gwesp`-style change statistic
-in the likelihood. `two_path` is driven by the marginal degree
-distribution and the additive effects, so it is also usually well
-covered (`pp_p_right` around 0.4 here). The diagnostic that exposes the
-structural gap is the ratio: the `trans_ratio` (triangles / two-paths)
-is the unweighted clustering coefficient ERGM users recognise from
+`triangles` count comes back reasonably well covered (`pp_p_right`
+around 0.25 in our run): the AME fit absorbs much of the triangle
+pressure through clustering of $u_{i}$ and through the joint scale of
+the additive effects, so the raw count is in the predictive distribution
+even though the model has no `gwesp`-style change statistic in the
+likelihood. `two_path` is driven by the marginal degree distribution and
+the additive effects, so it is also usually well covered (`pp_p_right`
+around 0.4 here). The structural gap shows up in the ratio: the
+`trans_ratio` (triangles / two-paths) is the unweighted clustering
+coefficient ERGM users recognise from
 [`sna::gtrans`](https://rdrr.io/pkg/sna/man/gtrans.html), and on this
 network it comes back with `pp_p_right` close to zero (around 0.05 in
-our run). That is the right scalar summary of what
-`gwesp(decay = 0, fixed = TRUE)` targets, and it is the place to read
-the under-prediction story: the model gets the absolute scale of
+our run). That is the scalar summary targeted by
+`gwesp(decay = 0, fixed = TRUE)`: the model gets the absolute scale of
 triangle counts roughly right but does not concentrate triangles per
 two-path the way the data do. The `deg_cor` is degree assortativity: AME
 captures some of it through the sender-receiver covariance (`cab`), but
 the rest reflects higher-order structure outside the dyadic likelihood.
-This diagnostic is what tells you whether your application is in AME
-territory (covariates + heterogeneity + reciprocity) or in ERGM
-territory (clustering / `gwesp` is the substantive target).
 
 ## Visualizing the Latent Space
 
@@ -769,15 +762,14 @@ cat("AUROC:", round(auroc, 3), "\n",
 ### Held-out link prediction
 
 Reporting accuracy / AUC on the same dyads the model was fit on is
-**in-sample** fit, not predictive performance. For an honest held-out
+**in-sample** fit, not predictive performance. For a held-out
 evaluation, mask a random subset of dyads to `NA` before fitting (the
 AME sampler handles `NA` entries via data augmentation, so the masked
 dyads are excluded from the likelihood), then score
 `predict(fit, type = "response")` on the held-out indices. Stratify the
 split on `Y` so the test set has both classes; on a density-0.1 network
-a naive 10% mask leaves you with very few positive test dyads, so use
-stratified sampling and quote the test-set positive count alongside the
-AUC.
+a naive 10% mask leaves very few positive test dyads, so report the
+test-set positive count with the AUC.
 
 ``` r
 # 80/20 stratified mask of off-diagonal dyads

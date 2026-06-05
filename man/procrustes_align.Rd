@@ -27,7 +27,7 @@ For unipartite asymmetric models, aligned independently. For bipartite
 models, aligned jointly with U via the G interaction matrix.}
 
 \item{G}{Optional \code{[R_row, R_col]} interaction matrix for bipartite
-models. Updated to maintain the invariant U G V'.}
+models, transformed to preserve the invariant U G V'.}
 
 \item{return_fit}{Logical. If TRUE and \code{object} is provided, returns
 a modified copy of the fit object with aligned latent positions.

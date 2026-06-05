@@ -17,7 +17,7 @@ rZ_ord_bip_fc(Z, EZ, Y)
 updated nA x nB latent matrix.
 }
 \description{
-Rectangular drop-in for \code{\link{rZ_ord_fc}}. Cutpoints are
+Rectangular analogue of \code{\link{rZ_ord_fc}}. Cutpoints are
 data-induced (the boundary between rank \code{w} and rank \code{w+1}
 is the maximum Z in rank \code{w} and minimum Z in rank \code{w+1}),
 matching the existing unipartite convention. With rho ≡ 0 in

@@ -1,6 +1,6 @@
 # Sample Z under bipartite censored binary nominations (rectangular)
 
-Rectangular drop-in for
+Rectangular analogue of
 [`rZ_cbin_fc`](https://netify-dev.github.io/lame/reference/rZ_cbin_fc.md).
 Row-wise constraints: `Y_ij = 1 => Z_ij > 0`;
 `Y_ij = 0 & odobs_i < odmax_i => Z_ij < 0`; nominated alters dominate

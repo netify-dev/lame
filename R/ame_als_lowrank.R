@@ -1,16 +1,16 @@
-# ame_als_lowrank.R
+# ame_als_lowrank.r
 #
-# multiplicative (low-rank) block solvers for the fast AME estimator.
+# multiplicative (low-rank) block solvers for the fast ame estimator.
 #
-# the default is the weighted majorize-minimize (MM) update. `lowrank_method`
+# the default is the weighted majorize-minimize (mm) update. `lowrank_method`
 # = "als" or "hybrid" select an alternating-least-squares solver that converges
-# faster than MM when the per-dyad weights c_ij are very unbalanced (a sparse
-# or strongly unbalanced longitudinal panel). ALS is available for directed and
-# bipartite models; symmetric (eigenmodel) fits fall back to MM, where the
-# same-actor-on-both-sides indefinite structure makes a plain ALS unstable.
+# faster than mm when the per-dyad weights c_ij are very unbalanced (a sparse
+# or strongly unbalanced longitudinal panel). als is available for directed and
+# bipartite models; symmetric (eigenmodel) fits fall back to mm, where the
+# same-actor-on-both-sides indefinite structure makes a plain als unstable.
 #
 # all three solvers minimise the same weighted low-rank objective
-#   sum_ij c_ij (Rbar_ij - O_ij)^2 ,  rank(O) <= R
+#   sum_ij c_ij (rbar_ij - o_ij)^2 ,  rank(o) <= r
 # (the time-averaged form of the multiplicative sub-problem), so each is a
 # monotone, objective-non-increasing low-rank update.
 
@@ -52,8 +52,8 @@
 	list(U = U, V = V, L = L, Omat = Omat)
 }
 
-# rebalance U, V so the two factors carry equal scale, without changing U V'.
-# ALS can otherwise let one factor grow and the other shrink (the U G, V G^-T
+# rebalance u, v so the two factors carry equal scale, without changing u v'.
+# als can otherwise let one factor grow and the other shrink (the u g, v g^-t
 # gauge freedom), which makes the per-row systems progressively worse scaled.
 .ae_rebalance_uv <- function(U, V) {
 	R <- ncol(U)
@@ -65,10 +65,10 @@
 	     V = qr.Q(qv) %*% sweep(sv$v, 2, dd, "*"))
 }
 
-# weighted alternating least squares (directed / bipartite). Holding V fixed,
-# each row u_i is the exact weighted-LS minimiser
-#   u_i = (sum_j c_ij v_j v_j')^+ (sum_j c_ij Rbar_ij v_j) ;
-# symmetrically for V. Every row/column block is an exact conditional minimiser,
+# weighted alternating least squares (directed / bipartite). holding v fixed,
+# each row u_i is the exact weighted-ls minimiser
+#   u_i = (sum_j c_ij v_j v_j')^+ (sum_j c_ij rbar_ij v_j) ;
+# symmetrically for v. every row/column block is an exact conditional minimiser,
 # so the weighted low-rank objective is non-increasing across sweeps.
 .ae_lowrank_als <- function(Rbar, C, obs_dyad, R, U_init, V_init,
                             maxit = 25L, tol = 1e-6) {
@@ -90,7 +90,7 @@
 			V[j, ] <- .ae_safe_solve(crossprod(U, cj * U),
 			                         crossprod(U, cj * Rb0[, j]))
 		}
-		# rebalance the factor scales (leaves U V' unchanged)
+		# rebalance the factor scales (leaves u v' unchanged)
 		rb <- .ae_rebalance_uv(U, V); U <- rb$U; V <- rb$V
 		obj_new <- .ae_lowrank_obj(tcrossprod(U, V), Rbar, C, obs_dyad)
 		done <- (obj_old - obj_new) / max(1, obj_old) < tol
@@ -102,18 +102,18 @@
 }
 
 # dispatch the multiplicative-block update on `method`. "als"/"hybrid" are
-# directed/bipartite only -- symmetric fits always use MM.
+# directed/bipartite only -- symmetric fits always use mm.
 .ae_lowrank_update <- function(Omat, Rbar, C, obs_dyad, R, symmetric, method) {
 	if (method == "mm" || symmetric) {
 		return(.ae_lowrank_mm(Omat, Rbar, C, obs_dyad, R, symmetric))
 	}
-	# ALS from O = 0 is a fixed point (zero factors stay zero), so seed it with
-	# one MM step for a robust spectral start
+	# als from o = 0 is a fixed point (zero factors stay zero), so seed it with
+	# one mm step for a robust spectral start
 	seed <- .ae_lowrank_mm(Omat, Rbar, C, obs_dyad, R, symmetric, maxit = 1L)
 	als  <- .ae_lowrank_als(Rbar, C, obs_dyad, R, seed$U, seed$V)
 	if (method == "als") return(als)
-	# hybrid: also run the full MM and keep whichever objective is lower, so the
-	# hybrid result is never worse than the baseline MM
+	# hybrid: also run the full mm and keep whichever objective is lower, so the
+	# hybrid result is never worse than the baseline mm
 	mm <- .ae_lowrank_mm(Omat, Rbar, C, obs_dyad, R, symmetric)
 	if (als$obj <= .ae_lowrank_obj(mm$Omat, Rbar, C, obs_dyad)) als else mm
 }

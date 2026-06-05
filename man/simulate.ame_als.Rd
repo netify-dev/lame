@@ -30,7 +30,7 @@ family-appropriate noise distribution. Returned object has class
 }
 \details{
 Caveat: ALS is a point estimator. \code{simulate.ame_als} therefore holds
-\code{mu, beta, a, b, U, V} FIXED at the point estimate and only the
+\code{mu, beta, a, b, U, V} at the point estimate and only the
 noise is resampled. For uncertainty over the parameters themselves use
 \code{\link{ame_als_bootstrap}} (whose replicates each carry their own
 resampled \code{Y}) and combine those.

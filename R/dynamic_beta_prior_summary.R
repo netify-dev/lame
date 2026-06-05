@@ -9,7 +9,7 @@
 #' inverse-gamma on the innovation variance) and reports the implied
 #' distribution of common summary statistics: maximum absolute first
 #' difference, roughness (sum of squared first differences), path range, and
-#' correlation with time. Use this BEFORE fitting to confirm that your prior
+#' correlation with time. Use this before fitting to confirm that your prior
 #' is loose / tight enough.
 #'
 #' For \code{kind = "ar1"}, \code{rho_mean}/\code{rho_sd} are translated to a
@@ -84,8 +84,8 @@ dynamic_beta_prior_summary <- function(
 	}
 	if (!is.null(seed)) set.seed(seed)
 
-	# AR(1) only: translate (rho_mean, rho_sd) to Beta(a, b) on the
-	# standardised rho. Uses the method-of-moments inversion:
+	# ar(1) only: translate (rho_mean, rho_sd) to beta(a, b) on the
+	# standardised rho. uses the method-of-moments inversion:
 	#   m_z = (rho_mean - rho_lower) / (rho_upper - rho_lower)
 	#   s_z = rho_sd / (rho_upper - rho_lower)
 	#   kappa = m_z(1 - m_z)/s_z^2 - 1
@@ -109,7 +109,7 @@ dynamic_beta_prior_summary <- function(
 	sigma <- rep(NA_real_, ndraws)
 
 	for (m in seq_len(ndraws)) {
-		# sample sigma from IG(shape, scale): var = scale / Gamma(shape, 1)
+		# sample sigma from ig(shape, scale): var = scale / gamma(shape, 1)
 		s2 <- sigma_scale / stats::rgamma(1, shape = sigma_shape, rate = 1)
 		sigma[m] <- sqrt(s2)
 
@@ -142,7 +142,7 @@ dynamic_beta_prior_summary <- function(
 				}
 			}
 		} else {
-			# matern32: draw from continuous-time Matérn-3/2 GP with marginal
+			# matern32: draw from continuous-time matérn-3/2 gp with marginal
 			# variance sigma^2 and length scale matern32_length_scale.
 			# k(d) = sigma^2 * (1 + sqrt(3) d / l) * exp(-sqrt(3) d / l)
 			rho[m] <- NA_real_

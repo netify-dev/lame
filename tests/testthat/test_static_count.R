@@ -1,6 +1,6 @@
 skip_on_cran()
 
-# static count (Poisson) models
+# static count (poisson) models
 
 library(lame)
 library(testthat)
@@ -12,7 +12,7 @@ sim_count_ame = function(seed, n, mu, beta, gamma=NULL,
 	set.seed(seed)
 	
 	# generate covariates
-	xw = matrix(rnorm(n*2, 0, 0.5), n, 2)  # Smaller variance for stability
+	xw = matrix(rnorm(n*2, 0, 0.5), n, 2)  # smaller variance for stability
 	X = tcrossprod(xw[,1])
 	diag(X) = NA
 	
@@ -32,7 +32,7 @@ sim_count_ame = function(seed, n, mu, beta, gamma=NULL,
 		eta = eta + outer(a_true, rep(1, n)) + outer(rep(1, n), b_true)
 	}
 	
-	# add multiplicative effects if R > 0
+	# add multiplicative effects if r > 0
 	U_true = V_true = NULL
 	if(R > 0) {
 		U_true = matrix(rnorm(n*R, 0, 0.5), n, R)
@@ -40,13 +40,13 @@ sim_count_ame = function(seed, n, mu, beta, gamma=NULL,
 		eta = eta + tcrossprod(U_true, V_true)
 	}
 	
-	# generate count outcome via Poisson
+	# generate count outcome via poisson
 	lambda = exp(eta)
-	lambda[lambda > 50] = 50  # Cap to avoid numerical issues
+	lambda[lambda > 50] = 50  # cap to avoid numerical issues
 	Y = matrix(suppressWarnings(rpois(n*n, as.vector(lambda))), n, n)
 	diag(Y) = NA
 	
-	# fit AME model
+	# fit ame model
 	fit = ame(Y, Xdyad=X, R=R, family="poisson",
 						rvar=rvar, cvar=cvar, dcor=FALSE,
 						burn=burn, nscan=nscan, 
@@ -123,8 +123,8 @@ test_that("Poisson AME with covariates only has calibrated confidence intervals"
 	mu_coverage = mean(sapply(results, function(x) x$mu_covered))
 	
 	# check calibration (relaxed for count data)
-	expect_gt(beta_coverage, 0.75)  # Further relaxed for count models
-	expect_gte(mu_coverage, 0.70)  # Intercept harder to estimate in count models
+	expect_gt(beta_coverage, 0.75)  # further relaxed for count models
+	expect_gte(mu_coverage, 0.70)  # intercept harder to estimate in count models
 	
 	# check bias
 	beta_bias = mean(sapply(results, function(x) x$beta_hat)) - beta_true
@@ -194,13 +194,13 @@ test_that("Poisson AME with full model recovers true parameters", {
 	n = 40
 	mu_true = 0.3
 	beta_true = 0.4
-	gamma_true = 0.3  # Unobserved covariate
+	gamma_true = 0.3  # unobserved covariate
 	R_true = 2
 	
 	# generate data
 	xw = matrix(rnorm(n*2, 0, 0.5), n, 2)
 	X = tcrossprod(xw[,1])
-	W = tcrossprod(xw[,2])  # Unobserved
+	W = tcrossprod(xw[,2])  # unobserved
 	diag(X) = NA
 	diag(W) = NA
 	
@@ -222,7 +222,7 @@ test_that("Poisson AME with full model recovers true parameters", {
 	Y = matrix(suppressWarnings(rpois(n*n, as.vector(lambda))), n, n)
 	diag(Y) = NA
 	
-	# fit full AME model
+	# fit full ame model
 	fit = ame(Y, Xdyad=X, R=R_true, family="poisson",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
 						burn=500, nscan=2000, verbose = FALSE)
@@ -241,8 +241,8 @@ test_that("Poisson AME with full model recovers true parameters", {
 	expect_equal(ncol(fit$U), R_true)
 	expect_equal(ncol(fit$V), R_true)
 	
-	# for Poisson, EZ is on log scale and can be negative
-	# check YPM (response scale) is non-negative instead
+		# for poisson, ez is on log scale and can be negative
+		# ypm on the response scale is non-negative
 	expect_true(all(fit$YPM >= 0, na.rm=TRUE),
 							info = "YPM (response scale) should be non-negative for Poisson")
 })
@@ -263,16 +263,16 @@ test_that("Poisson AME handles overdispersed count data", {
 	lambda = exp(eta)
 	
 	# add overdispersion via negative binomial
-	# (Poisson model should still work, just with larger variance)
+	# (poisson model should still work, just with larger variance)
 	Y = matrix(suppressWarnings(rnbinom(n*n, mu=as.vector(lambda), size=2)), n, n)
 	diag(Y) = NA
 	
 	# check overdispersion
 	var_Y = var(c(Y), na.rm=TRUE)
 	mean_Y = mean(Y, na.rm=TRUE)
-	expect_gt(var_Y, mean_Y)  # Variance > mean indicates overdispersion
+	expect_gt(var_Y, mean_Y)  # variance > mean indicates overdispersion
 	
-	# fit Poisson model (should handle overdispersion via random effects)
+	# fit poisson model (should handle overdispersion via random effects)
 	fit = ame(Y, Xdyad=X, R=1, family="poisson",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
 						burn=400, nscan=1500, verbose = FALSE)
@@ -284,7 +284,7 @@ test_that("Poisson AME handles overdispersed count data", {
 	# random effects should capture extra variation
 	if(!is.null(fit$APM) && !is.null(fit$BPM)) {
 		var_random = var(c(fit$APM)) + var(c(fit$BPM))
-		expect_gt(var_random, 0.001)  # Should be non-zero
+		expect_gt(var_random, 0.001)  # should be non-zero
 	}
 })
 
@@ -310,18 +310,18 @@ test_that("Poisson AME handles sparse count networks", {
 						burn=300, nscan=1200, verbose = FALSE)
 	
 	expect_true(!is.null(fit$BETA))
-	expect_lt(median(fit$BETA[,1]), 1)  # Low intercept for sparse network
+	expect_lt(median(fit$BETA[,1]), 1)  # low intercept for sparse network
 	
-	# for sparse Poisson networks, EZ (log scale) will be very negative
+	# for sparse poisson networks, ez (log scale) will be very negative
 	# this is correct behavior - sparse means low lambda, thus negative log(lambda)
 	EZ = reconstruct_EZ(fit)
 	if(!is.null(EZ)) {
-		# for sparse networks, we expect mostly negative EZ values
+		# for sparse networks, we expect mostly negative ez values
 		expect_true(mean(EZ, na.rm=TRUE) < 0, 
 								info = "Sparse networks should have negative mean on log scale")
 	}
 	
-	# but YPM should still be non-negative
+	# but ypm should still be non-negative
 	expect_true(all(fit$YPM >= 0, na.rm=TRUE),
 							info = "YPM (response scale) should be non-negative")
 })
@@ -350,7 +350,7 @@ test_that("Poisson AME handles zero-inflated patterns", {
 	
 	# should still produce reasonable estimates
 	beta_est = median(fit$BETA[,2])
-	expect_lt(abs(beta_est - 0.3), 0.4)  # More tolerance due to zero-inflation
+	expect_lt(abs(beta_est - 0.3), 0.4)  # more tolerance due to zero-inflation
 })
 
 test_that("Poisson AME mean-variance relationship", {
@@ -371,7 +371,7 @@ test_that("Poisson AME mean-variance relationship", {
 						burn=300, nscan=1200, verbose = FALSE)
 	
 	# check that higher predictions have higher uncertainty
-	# (natural property of Poisson)
+	# (natural property of poisson)
 	pred_means = reconstruct_EZ(fit)
 	
 	if(!is.null(pred_means) && !all(is.na(pred_means))) {
@@ -383,7 +383,7 @@ test_that("Poisson AME mean-variance relationship", {
 		mean_low = mean(pred_means[low_pred_idx], na.rm=TRUE)
 		
 		if(is.finite(mean_high) && is.finite(mean_low)) {
-			expect_gt(mean_high, mean_low)  # High predictions > low predictions
+			expect_gt(mean_high, mean_low)  # high predictions > low predictions
 		}
 	}
 })

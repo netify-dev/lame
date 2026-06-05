@@ -8,7 +8,7 @@
 }
 \arguments{
 \item{newdata}{an \code{n x m x n_dyad} array (or \code{n x m} matrix) of
-NEW dyadic covariates. If its 3rd-dim names match the model's dyadic
+new dyadic covariates. If its 3rd-dim names match the model's dyadic
 coefficient names they are mapped by name; otherwise the slices are
 taken in order as the model's dyadic covariates.}
 

@@ -72,6 +72,9 @@ arma::mat Xbeta_bip_cpp(const arma::cube& X, const arma::vec& beta) {
   const int nA = X.n_rows;
   const int nB = X.n_cols;
   const int p = beta.n_elem;
+  if (p != static_cast<int>(X.n_slices)) {
+    Rcpp::stop("length(beta) must match dim(X)[3].");
+  }
 
   arma::mat result(nA, nB, fill::zeros);
   for(int k = 0; k < p; k++) {

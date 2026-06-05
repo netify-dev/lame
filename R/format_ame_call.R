@@ -10,8 +10,8 @@ format_ame_call <- function(fit) {
 	call_str <- "Y ~ "
 
 	####
-	# add covariates if present. bipartite fits don't set fit$X_names but DO set
-	# colnames(fit$BETA); read that as a fallback so the Call line shows the
+	# add covariates if present. bipartite fits don't set fit$x_names but do set
+	# colnames(fit$beta); read that as a fallback so the call line shows the
 	# real covariates rather than only "a[i] + b[j]".
 	x_names <- if (!is.null(fit$X_names) && length(fit$X_names) > 0) {
 		fit$X_names
@@ -48,8 +48,8 @@ format_ame_call <- function(fit) {
 	if(!is.null(fit$rvar) && fit$rvar) effects <- c(effects, "a[i]")
 	if(!is.null(fit$cvar) && fit$cvar) effects <- c(effects, "b[j]")
 	if(!is.null(fit$dcor) && fit$dcor) effects <- c(effects, "rho*e[ji]")
-	# bipartite fits store R_row / R_col separately and may leave R unset; surface
-	# the multiplicative term in either case so the printed Call matches the fit
+	# bipartite fits store r_row / r_col separately and may leave r unset; surface
+	# the multiplicative term in either case so the printed call matches the fit
 	is_bipartite <- identical(fit$mode, "bipartite")
 	if (is_bipartite) {
 		rr <- if (!is.null(fit$R_row)) fit$R_row else if (!is.null(fit$R)) fit$R else 0

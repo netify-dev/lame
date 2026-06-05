@@ -1,15 +1,15 @@
-# ame_als_multistart.R
+# ame_als_multistart.r
 #
-# multi-start optimisation for the fast AME estimator. For R > 0 the
+# multi-start optimisation for the fast ame estimator. for r > 0 the
 # multiplicative low-rank objective is non-convex, so block coordinate descent
 # can land in different local optima depending on the starting factors.
-# `multistart = "cheap"` / "full" runs the BCD from several starts -- the
+# `multistart = "cheap"` / "full" runs the bcd from several starts -- the
 # deterministic cold start plus random low-rank starts -- and keeps the
-# lowest-SSE fit, with a diagnostic when the starts disagree.
+# lowest-sse fit, with a diagnostic when the starts disagree.
 #
-# the random starts use `seed` for reproducibility and the global RNG state is
+# the random starts use `seed` for reproducibility and the global rng state is
 # restored afterwards, so the estimator stays deterministic given `seed` and
-# does not mutate the caller's RNG stream.
+# does not mutate the caller's rng stream.
 
 .ae_multistart_fit <- function(Z, X, R, symmetric, max_iter, tol,
                                lowrank_method, linear_solver,
@@ -28,12 +28,12 @@
 		d  <- dim(Z); nr <- d[1]; nc <- d[2]
 		sdZ <- stats::sd(Z[is.finite(Z)])
 		if (!is.finite(sdZ) || sdZ == 0) sdZ <- 1
-		# size the random factors so the multiplicative term u_i' v_j has SD
-		# about 0.5 sd(Z): with iid N(0, sc^2) entries, sd(u' v) = sqrt(R) sc^2,
-		# so sc = sqrt(0.5 sd(Z) / sqrt(R))
+		# size the random factors so the multiplicative term u_i' v_j has sd
+		# about 0.5 sd(z): with iid n(0, sc^2) entries, sd(u' v) = sqrt(r) sc^2,
+		# so sc = sqrt(0.5 sd(z) / sqrt(r))
 		sc <- sqrt(0.5 * sdZ / sqrt(R))
 
-		# save / restore the caller's RNG stream
+		# save / restore the caller's rng stream
 		had_seed <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
 		old_seed <- if (had_seed) {
 			get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)

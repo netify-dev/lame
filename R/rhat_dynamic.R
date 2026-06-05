@@ -47,7 +47,7 @@
 rhat_dynamic_beta <- function(fit_list, coefs = NULL) {
 	# common slip: passing a single fit object directly (either an `ame`
 	# or `lame` fit). detect this and point the user at ame_parallel() or
-	# running lame() under multiple seeds. the R-hat statistic is defined
+	# running lame() under multiple seeds. the r-hat statistic is defined
 	# only across chains so it cannot be computed from one fit.
 	if (inherits(fit_list, "lame") || inherits(fit_list, "ame")) {
 		cli::cli_abort(c(
@@ -97,12 +97,12 @@ rhat_dynamic_beta <- function(fit_list, coefs = NULL) {
 		k <- match(coefs[i], coef_nms)
 		if (is.na(k)) next
 
-		# extract [m chains] x [n iter] x [T] for this coef
+		# extract [m chains] x [n iter] x [t] for this coef
 		paths <- vapply(fit_list, function(f) f$BETA[, k, , drop = TRUE],
 		                matrix(0, n_iter, T_per))
-		# paths is [n_iter, T, m]
+		# paths is [n_iter, t, m]
 		if (length(dim(paths)) == 2L) {
-			# T == 1 collapsed
+			# t == 1 collapsed
 			paths <- array(paths, c(n_iter, 1L, m))
 		}
 
@@ -127,7 +127,7 @@ rhat_dynamic_beta <- function(fit_list, coefs = NULL) {
 		eig <- max(Re(eigen(solve(W, V), only.values = TRUE)$values))
 		out$rhat_mvt[i] <- sqrt(eig)
 
-		# univariate per-(k, t) for comparison: split-R-hat manually
+		# univariate per-(k, t) for comparison: split-r-hat manually
 		rhats_t <- numeric(T_per)
 		for (t in seq_len(T_per)) {
 			x_ct <- paths[, t, , drop = TRUE]
@@ -144,7 +144,7 @@ rhat_dynamic_beta <- function(fit_list, coefs = NULL) {
 	if (is.null(dim(x_mat))) return(NA_real_)
 	n <- nrow(x_mat); m <- ncol(x_mat)
 	if (n < 4L || m < 2L) return(NA_real_)
-	# split each chain in half (split-R-hat)
+	# split each chain in half (split-r-hat)
 	half <- floor(n / 2L)
 	splits <- vector("list", 2L * m)
 	for (c in seq_len(m)) {

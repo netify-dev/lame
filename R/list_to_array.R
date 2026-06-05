@@ -1,4 +1,4 @@
-# coerce a 2D dyadic covariate into a 3D array with 1 slice
+# coerce a 2d dyadic covariate into a 3d array with 1 slice
 .as_3d_array <- function(M, name = "X1") {
 	if (is.null(M)) return(NULL)
 	if (length(dim(M)) == 3L) return(M)
@@ -15,7 +15,7 @@
 	stop("Xdyad element must be matrix or 3D array")
 }
 
-# coerce every time-slice to a 3D array, naming 3rd dim if missing
+# coerce every time-slice to a 3d array, naming 3rd dim if missing
 .coerce_Xdyad_3d <- function(Xdyad) {
 	if (is.null(Xdyad)) return(NULL)
 	lapply(seq_along(Xdyad), function(t) {
@@ -56,8 +56,8 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 	####
 
 	####
-	# convert Y into array format. A slice without row/column names cannot be
-	# placed by name -- rather than silently producing an all-NA array, fall
+	# convert y into array format. a slice without row/column names cannot be
+	# placed by name -- rather than silently producing an all-na array, fall
 	# back to positional placement (assuming the slice is already in `actors`
 	# order) or error if the dimensions do not even match.
 	tmp <- array(NA, dim=c(n,n,N),
@@ -79,7 +79,7 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 	####
 
 	####
-	# coerce and convert Xdyad
+	# coerce and convert xdyad
 	Xdyad <- .coerce_Xdyad_3d(Xdyad)
 
 	if(!is.null(Xdyad)){
@@ -101,7 +101,7 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 	####
 
 	####
-	# convert Xrow
+	# convert xrow
 	if(!is.null(Xrow)){
 		tmp <- array(NA, dim=c(n, dim(Xrow[[1]])[2], N),
 			dimnames=list( actors, colnames(Xrow[[1]]), pdLabs) )
@@ -115,7 +115,7 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 	####
 
 	####
-	# convert Xcol
+	# convert xcol
 	if(!is.null(Xcol)){
 		tmp <- array(NA, dim=c(n, dim(Xcol[[1]])[2], N),
 			dimnames=list( actors, colnames(Xcol[[1]]), pdLabs) )

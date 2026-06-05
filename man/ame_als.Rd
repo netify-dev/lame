@@ -43,11 +43,11 @@ array of dyadic covariates, or \code{NULL}.}
 multiplicative term \eqn{u_i'v_j} is a flexible high-variance regressor
 that can correlate with the dyadic covariates, so the estimated
 \code{beta} can shift -- and occasionally change sign -- as \code{R}
-increases. Validate against an \code{R = 0} fit and the MCMC
-\code{\link{ame}}/\code{\link{lame}} before reporting.}
+increases. Comparing against an \code{R = 0} fit is a useful check on
+whether the covariate story is being driven by the latent rank.}
 
-\item{family}{one of \code{"normal"}, \code{"binary"}, \code{"poisson"},
-\code{"ordinal"}.}
+\item{family}{one of \code{"normal"}, \code{"binary"}, or
+\code{"poisson"}. The rank and censoring families are MCMC-only.}
 
 \item{mode}{\code{"unipartite"} (square) or \code{"bipartite"} (rectangular).}
 
@@ -67,26 +67,17 @@ bipartite models (symmetric fits always use \code{"mm"}). All three
 minimise the same objective, so the point estimate is unchanged for
 balanced data.}
 
-\item{non_normal_method}{for the non-normal families, \code{"irls"}
+\item{non_normal_method}{for the non-normal ALS families, \code{"irls"}
 (default for \code{binary}/\code{poisson}) runs iteratively reweighted
-least squares -- a fast approximate GLM AME fit with coefficients on
-the calibrated link scale (Poisson log, binary logit/probit).
-\code{"transform"} fits a single fixed Gaussian working response
-(\code{log(y+1)} for Poisson, rank-normal scores for binary/ordinal);
-its coefficients are on an uncalibrated rank scale -- good for
-direction/ranking of effects, not for magnitudes. \strong{For ordinal
-data the transform path attenuates \eqn{\beta} toward zero (classical
-discretisation bias); prefer \code{"em"} when \eqn{\beta} is an effect-size
-estimand.} \code{"em"} (for \code{ordinal}, opt-in; default for
-\code{tobit}) runs a deterministic EM outer loop that maximises the
-observed ordinal log-likelihood, jointly estimating cutpoints
-(returned on \code{fit$alpha}, anchored at \code{alpha[1] = 0}) and the
-regression block; the surrogate is monotone non-decreasing across EM
-iterations. \code{"irls"} is supported for \code{binary}/\code{poisson};
-\code{ordinal} accepts \code{"transform"} (default, back-compat) or
-\code{"em"}. A directed \code{R > 0} IRLS fit uses the hybrid low-rank
-solver internally (the IRLS weights are unbalanced). Uncertainty for
-any of these is the bootstrap.}
+least squares, giving a fast approximate GLM AME fit with coefficients on
+the requested link scale (Poisson log, binary logit/probit).
+\code{"transform"} fits one fixed Gaussian working response
+(\code{log(y+1)} for Poisson, rank-normal scores for binary); its
+coefficients are on an uncalibrated working scale and are mainly useful
+for direction/ranking checks. A directed \code{R > 0} IRLS fit uses the
+hybrid low-rank solver internally because the IRLS weights are unbalanced.
+Uncertainty for either path comes from the bootstrap or sandwich
+covariance.}
 
 \item{link}{link for \code{non_normal_method = "irls"} with a \code{binary}
 family: \code{"probit"} (default; matches \code{\link{ame}}/\code{\link{lame}})
@@ -185,43 +176,14 @@ fit reports non-convergence.
 For \code{family = "normal"} this is a least-squares (Gaussian maximum-
 likelihood) fit --- the exact global solution when \code{R = 0}, and a
 local optimum of the non-convex low-rank objective when \code{R > 0}.
-For \code{"binary"}, \code{"poisson"} and
-\code{"ordinal"} the same algorithm is run on a Gaussian working response
-(the latent transforms \code{ame()} uses to initialise its sampler): a fast
-\emph{approximation} suitable for exploration and starting values. For
-\code{"tobit"} an EM outer loop replaces censored cells with their
-truncated-normal conditional mean and the BCD M-step is warm-started from
-the previous iterate (see the \dQuote{Tobit attenuation} section below for
-the documented \eqn{\sigma^2} bias and the moderate-to-heavy censoring
-regimes where the point estimates of \eqn{\beta} can drift noticeably from
-the MCMC estimator). For calibrated family-specific inference, use the
-MCMC estimator \code{\link{ame}}. The remaining censoring/rank families
-(\code{"cbin"}, \code{"frn"}, \code{"rrl"}) are not supported and raise
-an informative error.
-}
-\section{Tobit attenuation}{
-
-The EM-ALS path for \code{family = "tobit"} is a deterministic generalised
-EM that imputes censored \eqn{Z_{ij}} on the truncated-normal mean
-\eqn{\eta_{ij} - \sigma\,\phi(-\eta_{ij}/\sigma)/\Phi(-\eta_{ij}/\sigma)} and
-refits the BCD low-rank fit on the imputed working response. The reported
-\eqn{\sigma^2} carries a downward (attenuation) bias that scales with the
-censoring fraction: the additive sender/receiver effects \eqn{a_i, b_j}
-absorb part of the censored signal during the M-step, leaving the
-residual scale smaller than the truth. In the package's own internal
-simulations (\eqn{n = 80}, dyadic covariate, true \eqn{\sigma^2 = 1}) the
-reported \eqn{\sigma^2} runs roughly 0.2-0.7 at 50\\% censoring and below
-0.1 at 80\\% censoring, while the MCMC tobit recovers \eqn{\sigma^2}
-essentially without bias. The censored-cell EM also drifts the intercept
-and the dyadic slope: in the same simulation EM-ALS gives
-\eqn{(\hat\mu, \hat\beta_\mathrm{dyad}) \approx (-1.4, 0.31)} at 50\\%
-censoring and \eqn{(-0.9, 0.03)} at 80\\% censoring (truth
-\eqn{(0, 0.5)} and \eqn{(-1.5, 0.5)} respectively), while MCMC tobit on
-the same draws gives \eqn{(0.11, 0.47)} and \eqn{(-1.28, 0.42)}. Treat the
-EM-ALS tobit point estimates as fast exploratory summaries; use
-\code{\link{ame}(..., family = "tobit")} for calibrated point and
-interval estimates. The EM iteration count and \eqn{\sigma^2} are
-surfaced on the fit as \code{$em_iters} and \code{$sigma2}.
+For \code{"binary"} and \code{"poisson"}, the estimator uses an IRLS
+working-response path by default, so coefficients are on the requested
+link scale (binary probit/logit, Poisson log). The fixed-transform path is
+still available as a faster exploratory score, but its coefficients are not
+calibrated effect sizes. Censoring and rank families
+(\code{"ordinal"}, \code{"tobit"}, \code{"cbin"}, \code{"frn"},
+\code{"rrl"}) are not supported by ALS and raise an informative error; use
+\code{\link{ame}} or \code{\link{lame}} for those likelihoods.
 
 \strong{Row/column (node) covariates.} A node covariate broadcasts to a
 per-actor constant, which is collinear with the additive sender/receiver
@@ -277,29 +239,39 @@ working-response approximation used for the non-normal families leaves a
 Hessian-based variance miscalibrated. The bootstrap side-steps both, so it is
 preferred here.)
 }
+\section{Coverage relative to \code{\link{ame}} / \code{\link{lame}}}{
 
-\section{Limitations vs. \code{\link{ame}} / \code{\link{lame}}}{
-
-The ALS estimator is a fast, frequentist point estimator. It is not a
-drop-in replacement for the MCMC estimators -- the following features
-apply to MCMC only:
+The ALS estimator is a fast, frequentist point estimator. It covers most
+static AME workflows, and the top-level \code{lame(..., method = "als")}
+dispatcher covers several dynamic workflows, but posterior-specific features
+still require the MCMC estimator:
 \itemize{
-\item \strong{Families.} ALS supports \code{normal}, \code{binary},
-\code{poisson}, \code{ordinal} (transform or EM), and \code{tobit}
-(EM only; see the \dQuote{Tobit attenuation} section for the
-documented \eqn{\sigma^2} downward bias and the censoring regimes
-where the point estimates drift from the MCMC estimator). It does
-\strong{not} support \code{cbin}, \code{frn}, \code{rrl}; for those,
-fall back to \code{\link{ame}} / \code{\link{lame}}. The
-\code{bootstrap = N} option is \strong{not} calibrated for
-\code{family = "tobit"} -- the parametric simulator falls through to
-the binary/probit branch, producing degenerate 0/1 resamples and
-coefficient bootstraps collapsed near zero. Use the MCMC tobit for
-uncertainty quantification.
-\item \strong{Dynamic effects.} \code{\link{lame_als}} fits a STATIC
-model pooled across time slices. There is no \code{dynamic_uv},
-\code{dynamic_ab}, \code{dynamic_G}, or \code{dynamic_beta}.
-\code{lame(..., method = "als")} warns and ignores those arguments.
+\item \strong{Families.} ALS supports \code{normal}, \code{binary}, and
+\code{poisson}. For \code{ordinal}, \code{tobit}, \code{cbin},
+\code{frn}, and \code{rrl}, fall back to \code{\link{ame}} /
+\code{\link{lame}}.
+\item \strong{Dynamic effects.} \code{\link{lame_als}} itself fits a
+static model pooled across time slices. The top-level dispatcher
+\code{lame(..., method = "als")} routes supported dynamic requests to a
+dynamic point estimator for normal, binary, and Poisson panels,
+including named panels where actors enter or exit: \code{dynamic_ab},
+selected intercept/dyadic/node
+\code{dynamic_beta}, and AR(1) or Student-t \code{dynamic_uv} for
+directed, symmetric, and bipartite panels. The snap-only
+\code{dynamic_uv = TRUE, dynamic_uv_kind = "snap"} case routes to
+\code{\link{lame_snap_als}} for supported normal unipartite and
+bipartite panels.
+Node-covariate coefficients use the same orthogonal additive-effect
+decomposition as \code{\link{lame_als}}; dynamic node coefficients use
+period-specific node values when selected by \code{dynamic_beta}, while
+static node coefficients use per-actor means. Bipartite \code{dynamic_G}
+is available on the dynamic ALS path for normal, binary, and Poisson
+panels. Changing actor composition requires row and column names on every
+slice so actors can be aligned; smoothing penalties are broken across
+actor-entry gaps. Rank/censored dynamic families remain on the MCMC path. Static
+\code{ame_als()} / \code{lame_als()} fits still use a
+single latent rank \code{R}; the dynamic bipartite ALS dispatcher
+honours separate \code{R_row} and \code{R_col} values.
 \item \strong{Priors.} ALS has no priors. \code{prior = list(...)} and
 \code{g = ...} are MCMC-only; the dispatcher \code{ame(..., method = "als")}
 warns and ignores them.

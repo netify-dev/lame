@@ -61,10 +61,12 @@ void test_rbeta_inputs(
   Rcpp::Rcout << "After loop:" << std::endl;
   Rcpp::Rcout << "  lb has NaN: " << lb.has_nan() << std::endl;
   Rcpp::Rcout << "  Qb has NaN: " << Qb.has_nan() << std::endl;
-  if(!lb.has_nan()) {
+  if(!lb.has_nan() && p >= 3) {
     Rcpp::Rcout << "  lb first 3: " << lb(0) << " " << lb(1) << " " << lb(2) << std::endl;
+  } else if (!lb.has_nan() && p > 0) {
+    Rcpp::Rcout << "  lb: " << lb.t();
   }
-  if(!Qb.has_nan()) {
+  if(!Qb.has_nan() && p > 0) {
     Rcpp::Rcout << "  Qb(0,0): " << Qb(0,0) << std::endl;
   }
 }

@@ -66,8 +66,7 @@ design_array<-function(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n,warn=TRUE
 	####
 	# dyadic covariates
 	if(pd>0)                                                {
-		# capture the covariate name BEFORE the pd==1 rebuild, which would
-		# otherwise drop the 3rd-dimension name (-> coefficient "Xdyad1_dyad")
+		# capture the covariate name before the single-slice rebuild
 		dyad_names <- dimnames(Xdyad)[[3]]
 		if(pd==1){ Xdyad<-array(Xdyad,dim=c(n,n,pd)) }
 		X[,,pr+pc+1:pd]<-Xdyad

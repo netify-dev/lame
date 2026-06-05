@@ -1,15 +1,15 @@
-# ame_als.R
+# ame_als.r
 #
-# fast, MCMC-free point estimation for the AME model via iterative block
+# fast, mcmc-free point estimation for the ame model via iterative block
 # coordinate descent.
 #
-# the estimation algorithm is adapted from the Social Influence Regression
-# (SIR) estimator of Hoff & Minhas --- the "iterative block coordinate descent"
-# method described in Minhas & Hoff (2025), "Decomposing Network Dynamics:
-# Social Influence Regression", Political Analysis --- and implemented in
-# sir::sir_alsfit() (nicknamed "ALS" in that package). The estimator here is
+# the estimation algorithm is adapted from the social influence regression
+# (sir) estimator of hoff & minhas --- the "iterative block coordinate descent"
+# method described in minhas & hoff (2025), "decomposing network dynamics:
+# social influence regression", political analysis --- and implemented in
+# sir::sir_alsfit() (nicknamed "als" in that package). the estimator here is
 # a port/adaptation of that algorithm to the additive-and-multiplicative
-# effects (AME) model; it is not original lame methodology.
+# effects (ame) model; it is not original lame methodology.
 
 # --------------------------------------------------------------------------
 # internal helpers
@@ -18,9 +18,9 @@
 # null-default
 .ae_default <- function(x, y) if (is.null(x) || length(x) == 0L) y else x
 
-# pairwise, NA-aware symmetrization of a square matrix. Unlike (M + t(M))/2,
-# this does not propagate NA: a dyad observed in only one direction keeps its
-# observed value (mirrored), and only dyads missing in both directions stay NA.
+# pairwise, na-aware symmetrization of a square matrix. unlike (m + t(m))/2,
+# this does not propagate na: a dyad observed in only one direction keeps its
+# observed value (mirrored), and only dyads missing in both directions stay na.
 .ae_symmetrize <- function(M) {
 	Mt <- t(M)
 	out <- M
@@ -31,12 +31,12 @@
 	out
 }
 
-# solve a symmetric normal-equations system A x = b by eigendecomposition,
-# dropping directions with negligible eigenvalues. A is always a cross-product
-# here (X'X, D'WD), so symmetric positive-semidefinite. returns the minimum-norm
-# least-squares solution: stable for an exactly singular A (where solve() errors)
-# and for a near-singular A (where solve() returns a finite but inflated answer).
-# MASS::ginv() is a fallback only if eigen() itself fails on a non-finite matrix.
+# solve a symmetric normal-equations system a x = b by eigendecomposition,
+# dropping directions with negligible eigenvalues. a is always a cross-product
+# here (x'x, d'wd), so symmetric positive-semidefinite. returns the minimum-norm
+# least-squares solution: stable for an exactly singular a (where solve() errors)
+# and for a near-singular a (where solve() returns a finite but inflated answer).
+# mass::ginv() is a fallback only if eigen() itself fails on a non-finite matrix.
 .ae_safe_solve <- function(A, bvec) {
 	A <- (A + t(A)) / 2
 	eg <- tryCatch(eigen(A, symmetric = TRUE), error = function(e) NULL)
@@ -53,20 +53,20 @@
 	as.numeric(Qk %*% (crossprod(Qk, bvec) / lam[keep]))
 }
 
-# families the BCD estimator supports
+# families the bcd estimator supports
 .ae_supported_families <- c("normal", "binary", "poisson")
 
 # identify a node-covariate effect by an explicit orthogonality constraint.
-# A node covariate broadcasts to a per-actor constant, collinear with the
+# a node covariate broadcasts to a per-actor constant, collinear with the
 # additive sender/receiver effect, so its coefficient is not identified by the
-# objective alone. We regress the raw additive effect `e` on [1, W] and report
+# objective alone. we regress the raw additive effect `e` on [1, w] and report
 # the slope coefficients (the between-actor regression coefficients) and the
-# residual `e - [1,W]g` -- the identified additive heterogeneity, orthogonal to
-# 1 and to W. This is the standard estimand under the assumption that the
+# residual `e - [1,w]g` -- the identified additive heterogeneity, orthogonal to
+# 1 and to w. this is the standard estimand under the assumption that the
 # additive effect is uncorrelated with the node covariate.
 #
 # `active` (0/1 per actor) excludes actors with no observed dyads: their
-# additive effect is not identified (the BCD pins it to 0), so they must not
+# additive effect is not identified (the bcd pins it to 0), so they must not
 # enter the between-actor regression, where they would otherwise pull the
 # intercept and slopes toward an arbitrary value.
 .ae_decompose <- function(e, W, active = NULL) {
@@ -82,9 +82,9 @@
 	list(intercept = g[1], beta = bcoef, resid = as.numeric(e - D %*% g))
 }
 
-# connected components of the observed-dyad graph (union-find). Returns the
-# component label of each row and column node. Unipartite: rows and columns are
-# the same n actors, so the two label vectors coincide. Bipartite: a graph over
+# connected components of the observed-dyad graph (union-find). returns the
+# component label of each row and column node. unipartite: rows and columns are
+# the same n actors, so the two label vectors coincide. bipartite: a graph over
 # the n_row + n_col distinct nodes.
 .ae_components <- function(obs_count, bip) {
 	nr <- nrow(obs_count); ncc <- ncol(obs_count)
@@ -124,12 +124,12 @@
 # number of connected components (thin wrapper, kept for call-site clarity)
 .ae_n_components <- function(obs_count, bip) .ae_components(obs_count, bip)$n
 
-# fit-preserving per-component additive gauge (directed networks only). On a
+# fit-preserving per-component additive gauge (directed networks only). on a
 # disconnected observed-dyad graph each component has a free shift
-# a_i += d, b_j -= d that leaves every fitted value unchanged. We pin d per
+# a_i += d, b_j -= d that leaves every fitted value unchanged. we pin d per
 # component to the precision-weighted minimum-norm value, so the reported a, b
 # -- and hence va, vb and the node-covariate regression -- are reproducible
-# rather than an artdefact of the optimisation path. (Symmetric models have no
+# rather than an artdefact of the optimisation path. (symmetric models have no
 # such per-component freedom: a_i + a_j is not invariant to a one-sided shift.)
 .ae_component_gauge <- function(a, b, comp, w_row, w_col) {
 	if (comp$n <= 1L) return(list(a = a, b = b))
@@ -144,10 +144,10 @@
 	list(a = a, b = b)
 }
 
-# map an observed-outcome array to a Gaussian working response on the latent
-# scale. For "normal" this is exact; for the discrete families it uses the
+# map an observed-outcome array to a gaussian working response on the latent
+# scale. for "normal" this is exact; for the discrete families it uses the
 # same latent transforms ame()/lame() use to initialize their samplers
-# (see get_start_vals.R) --- a fast, documented approximation.
+# (see get_start_vals.r) --- a fast, documented approximation.
 .ae_working_response <- function(Yarr, family) {
 	d <- dim(Yarr)
 	if (family == "normal") {
@@ -157,7 +157,7 @@
 		return(log(Yarr + 1))
 	}
 	# binary: rank-based normal scores, computed within each slice. ordinal
-	# is not supported by ALS; ordinal inference goes through the MCMC path.
+	# is not supported by als; ordinal inference goes through the mcmc path.
 	Z <- array(NA_real_, dim = d)
 	for (t in seq_len(d[3])) {
 		Yt <- Yarr[, , t]
@@ -180,38 +180,286 @@
 .ae_dyad_to_3d <- function(x, nr, nc) {
 	if (is.null(x)) return(NULL)
 	if (length(dim(x)) == 3L) return(x)
-	if (is.matrix(x)) return(array(x, dim = c(nrow(x), ncol(x), 1L)))
+	if (is.matrix(x)) {
+		dn <- dimnames(x)
+		out <- array(x, dim = c(nrow(x), ncol(x), 1L))
+		dimnames(out) <- list(
+			if (!is.null(dn)) dn[[1L]] else NULL,
+			if (!is.null(dn)) dn[[2L]] else NULL,
+			NULL)
+		return(out)
+	}
 	cli::cli_abort("Each {.arg Xdyad} element must be a matrix or a 3D array.")
+}
+
+.ae_check_names <- function(nm, arg, slice, margin) {
+	if (is.null(nm)) {
+		cli::cli_abort(c(
+			"Changing actor composition requires named network slices.",
+			"i" = "{.arg {arg}} slice {slice} is missing {margin} names."))
+	}
+	if (anyNA(nm) || any(!nzchar(nm)) || anyDuplicated(nm)) {
+		cli::cli_abort(c(
+			"{.arg {arg}} slice {slice} has invalid {margin} names.",
+			"i" = "Actor names must be unique, non-missing, and non-empty."))
+	}
+	nm
+}
+
+.ae_union_names <- function(nms) {
+	unique(unlist(nms, use.names = FALSE))
+}
+
+.ae_covariate_names <- function(x, p, prefix) {
+	nm <- colnames(as.matrix(x))
+	if (is.null(nm)) paste0(prefix, seq_len(p)) else nm
+}
+
+.ae_xdyad_list_for_balance <- function(Xdyad, Tt) {
+	if (is.null(Xdyad)) return(NULL)
+	if (is.array(Xdyad) && length(dim(Xdyad)) == 4L) {
+		cli::cli_abort(c(
+			"Changing actor composition with dyadic covariates requires {.arg Xdyad} as a per-period list.",
+			"i" = "A 4D array has one fixed actor layout, so it cannot be aligned to changing actor sets."))
+	}
+	if (is.array(Xdyad) && length(dim(Xdyad)) == 3L && !is.list(Xdyad)) {
+		cli::cli_abort(c(
+			"{.arg Xdyad} for changing-composition longitudinal ALS is ambiguous as a 3D array.",
+			"i" = "Supply a list of {Tt} matrices/arrays, one per time slice."))
+	}
+	if (!is.list(Xdyad)) Xdyad <- list(Xdyad)
+	if (length(Xdyad) != Tt) {
+		cli::cli_abort("{.arg Xdyad} must have one entry per time slice ({Tt}).")
+	}
+	lapply(Xdyad, .ae_dyad_to_3d, nr = NA_integer_, nc = NA_integer_)
+}
+
+.ae_node_list_for_balance <- function(Xn, Tt, arg) {
+	if (is.null(Xn)) return(NULL)
+	if (!is.list(Xn)) Xn <- list(Xn)
+	if (length(Xn) != Tt) {
+		cli::cli_abort("{.arg {arg}} must have one entry per time slice ({Tt}).")
+	}
+	lapply(Xn, as.matrix)
+}
+
+.ae_match_cov_names <- function(got, expected, arg, slice, margin) {
+	if (is.null(got)) return(expected)
+	if (!setequal(got, expected)) {
+		cli::cli_abort(c(
+			"{.arg {arg}} slice {slice} has {margin} names that do not match {.arg Y}.",
+			"i" = "Covariates must be named with the same actors as the corresponding network slice."))
+	}
+	got
+}
+
+.ae_balance_longitudinal_inputs <- function(Ylist, Xdyad, Xrow, Xcol, bip) {
+	Tt <- length(Ylist)
+	dims <- vapply(Ylist, function(y) paste(dim(y), collapse = "x"), character(1))
+	same_dims <- all(dims == dims[1L])
+	rnames <- lapply(Ylist, rownames)
+	cnames <- lapply(Ylist, colnames)
+	all_named <- all(vapply(seq_len(Tt), function(t) {
+		!is.null(rnames[[t]]) && !is.null(cnames[[t]])
+	}, logical(1)))
+	any_named <- any(vapply(seq_len(Tt), function(t) {
+		!is.null(rnames[[t]]) || !is.null(cnames[[t]])
+	}, logical(1)))
+	names_same <- all_named && all(vapply(seq_len(Tt), function(t) {
+		identical(rnames[[t]], rnames[[1L]]) &&
+			identical(cnames[[t]], cnames[[1L]])
+	}, logical(1)))
+	unipartite_margin_mismatch <- !bip && all_named &&
+		any(vapply(seq_len(Tt), function(t) {
+			!identical(rnames[[t]], cnames[[t]])
+		}, logical(1)))
+	row_sets_same <- all_named && all(vapply(seq_len(Tt), function(t) {
+		setequal(rnames[[t]], rnames[[1L]])
+	}, logical(1)))
+	col_sets_same <- all_named && all(vapply(seq_len(Tt), function(t) {
+		setequal(cnames[[t]], cnames[[1L]])
+	}, logical(1)))
+	actor_sets_change <- !same_dims || (all_named && !(row_sets_same && col_sets_same))
+	needs_balance <- !same_dims || (all_named && !names_same) ||
+		unipartite_margin_mismatch
+
+	if (!needs_balance) {
+		if (any_named && !all_named) {
+			cli::cli_warn(c(
+				"Some network slices have actor names and others do not.",
+				"i" = "ALS will use positional matching because the dimensions are fixed; give every slice names to align by actor."))
+		}
+		nr <- nrow(Ylist[[1L]])
+		nc <- ncol(Ylist[[1L]])
+		time_names <- .ae_default(names(Ylist), paste0("t", seq_len(Tt)))
+		row_presence <- matrix(TRUE, nr, Tt,
+		                       dimnames = list(rownames(Ylist[[1L]]), time_names))
+		col_presence <- matrix(TRUE, nc, Tt,
+		                       dimnames = list(colnames(Ylist[[1L]]), time_names))
+		return(list(
+			Y = Ylist, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
+			changing_composition = FALSE,
+			row_presence = row_presence,
+			col_presence = col_presence,
+			actor_presence = if (!bip && nr == nc) row_presence else NULL))
+	}
+
+	if (!all_named) {
+		cli::cli_abort(c(
+			"Changing actor composition requires row and column names on every network slice.",
+			"i" = "Slice dimensions or actor names differ across time, so actors must be matched by name."))
+	}
+	for (t in seq_len(Tt)) {
+		rnames[[t]] <- .ae_check_names(rnames[[t]], "Y", t, "row")
+		cnames[[t]] <- .ae_check_names(cnames[[t]], "Y", t, "column")
+		if (!bip && !setequal(rnames[[t]], cnames[[t]])) {
+			cli::cli_abort(c(
+				"Unipartite changing-composition panels require the same row and column actor set within each slice.",
+				"i" = "Slice {t} has row and column names that do not match."))
+		}
+	}
+
+	row_names <- .ae_union_names(rnames)
+	col_names <- if (bip) .ae_union_names(cnames) else row_names
+	time_names <- .ae_default(names(Ylist), paste0("t", seq_len(Tt)))
+	nr <- length(row_names)
+	nc <- length(col_names)
+	row_presence <- matrix(FALSE, nr, Tt, dimnames = list(row_names, time_names))
+	col_presence <- matrix(FALSE, nc, Tt, dimnames = list(col_names, time_names))
+
+	Ybal <- vector("list", Tt)
+	names(Ybal) <- names(Ylist)
+	for (t in seq_len(Tt)) {
+		yt <- as.matrix(Ylist[[t]])
+		storage.mode(yt) <- "double"
+		out <- matrix(NA_real_, nr, nc, dimnames = list(row_names, col_names))
+		ri <- match(rnames[[t]], row_names)
+		ci <- match(cnames[[t]], col_names)
+		out[ri, ci] <- yt
+		Ybal[[t]] <- out
+		row_presence[ri, t] <- TRUE
+		col_presence[ci, t] <- TRUE
+	}
+
+	Xdyad_bal <- NULL
+	if (!is.null(Xdyad)) {
+		Xd <- .ae_xdyad_list_for_balance(Xdyad, Tt)
+		pd1 <- dim(Xd[[1L]])[3L]
+		dn1 <- dimnames(Xd[[1L]])
+		xn <- if (length(dn1) >= 3L && !is.null(dn1[[3L]])) {
+			dn1[[3L]]
+		} else paste0("dyad", seq_len(pd1))
+		Xdyad_bal <- vector("list", Tt)
+		names(Xdyad_bal) <- names(Ylist)
+		for (t in seq_len(Tt)) {
+			xt <- Xd[[t]]
+			dd <- dim(xt)
+			if (dd[1L] != nrow(Ylist[[t]]) || dd[2L] != ncol(Ylist[[t]])) {
+				cli::cli_abort(c(
+					"{.arg Xdyad} dimensions must match {.arg Y} before actor-set balancing.",
+					"i" = "Y slice {t} is {nrow(Ylist[[t]])}x{ncol(Ylist[[t]])}; Xdyad slice {t} is {dd[1L]}x{dd[2L]}."))
+			}
+			if (dd[3L] != pd1) {
+				cli::cli_abort(c(
+					"All {.arg Xdyad} slices must hold the same number of covariates.",
+					"i" = "Slice 1 has {pd1}; slice {t} has {dd[3L]}."))
+			}
+			dn <- dimnames(xt)
+			xdn <- if (length(dn) >= 3L) dn[[3L]] else NULL
+			if (!is.null(xdn) && !identical(xdn, xn)) {
+				cli::cli_abort(c(
+					"All {.arg Xdyad} slices must have the same covariate names in the same order.",
+					"i" = "Slice {t} has different covariate names than slice 1."))
+			}
+			xr <- if (length(dn) >= 1L) dn[[1L]] else NULL
+			xc <- if (length(dn) >= 2L) dn[[2L]] else NULL
+			xr <- .ae_match_cov_names(xr, rnames[[t]], "Xdyad", t, "row")
+			xc <- .ae_match_cov_names(xc, cnames[[t]], "Xdyad", t, "column")
+			out <- array(0, dim = c(nr, nc, pd1),
+			             dimnames = list(row_names, col_names, xn))
+			out[match(xr, row_names), match(xc, col_names), ] <- xt
+			Xdyad_bal[[t]] <- out
+		}
+	}
+
+	pad_node <- function(Xn, arg, actor_names_t, actor_union, prefix) {
+		if (is.null(Xn)) return(NULL)
+		Xn <- .ae_node_list_for_balance(Xn, Tt, arg)
+		p1 <- ncol(Xn[[1L]])
+		xn <- .ae_covariate_names(Xn[[1L]], p1, prefix)
+		out_list <- vector("list", Tt)
+		names(out_list) <- names(Ylist)
+		for (t in seq_len(Tt)) {
+			xt <- as.matrix(Xn[[t]])
+			if (nrow(xt) != length(actor_names_t[[t]]) || ncol(xt) != p1) {
+				cli::cli_abort(c(
+					"{.arg {arg}} dimensions must match the corresponding {.arg Y} actor margin before balancing.",
+					"i" = "Slice {t} should be {length(actor_names_t[[t]])} x {p1}; got {nrow(xt)} x {ncol(xt)}."))
+			}
+			got_cols <- colnames(xt)
+			if (!is.null(got_cols) && !identical(got_cols, xn)) {
+				cli::cli_abort(c(
+					"All {.arg {arg}} slices must have the same covariate columns.",
+					"i" = "Slice {t} has different column names than slice 1."))
+			}
+			xr <- rownames(xt)
+			xr <- .ae_match_cov_names(xr, actor_names_t[[t]], arg, t, "actor")
+			out <- matrix(NA_real_, length(actor_union), p1,
+			              dimnames = list(actor_union, xn))
+			out[match(xr, actor_union), ] <- xt
+			out_list[[t]] <- out
+		}
+		out_list
+	}
+	Xrow_bal <- pad_node(Xrow, "Xrow", rnames, row_names, "row")
+	Xcol_bal <- pad_node(Xcol, "Xcol", cnames, col_names, "col")
+
+	list(
+		Y = Ybal, Xdyad = Xdyad_bal, Xrow = Xrow_bal, Xcol = Xcol_bal,
+		changing_composition = isTRUE(actor_sets_change),
+		row_presence = row_presence,
+		col_presence = col_presence,
+		actor_presence = if (!bip) row_presence else NULL)
 }
 
 # build the canonical representation of the covariates.
 #
-# dyadic covariates become the design array X (n_row x n_col x pd x T) used by
-# the block coordinate descent. Row/column (node) covariates are kept SEPARATE
-# as per-actor matrices W_row (n_row x pr) and W_col (n_col x pc): a node
+# dyadic covariates become the design array x (n_row x n_col x pd x t) used by
+# the block coordinate descent. row/column (node) covariates are kept separate
+# as per-actor matrices w_row (n_row x pr) and w_col (n_col x pc): a node
 # covariate broadcasts to a per-actor constant, which is collinear with the
 # additive sender/receiver effect, so its coefficient is not identified by the
-# objective. It is identified instead by an explicit orthogonality constraint
+# objective. it is identified instead by an explicit orthogonality constraint
 # (the additive effect is taken orthogonal to the node covariates) and is
-# estimated post-hoc in .ae_assemble() as a between-actor regression. A
-# time-varying node covariate is summarised by its per-actor mean over time
-# (the static ALS model carries one coefficient per covariate).
-.ae_build_design <- function(Xdyad, Xrow, Xcol, nr, nc, Tt) {
-	# --- dyadic covariates -> design array X ---
+# estimated post-hoc in .ae_assemble() as a between-actor regression. dynamic
+# als can let the coefficient and, when requested, the node-covariate values
+# vary by period. static node coefficients still use the per-actor mean over
+# time.
+.ae_build_design <- function(Xdyad, Xrow, Xcol, nr, nc, Tt,
+                             node_time_policy = c("mean", "dynamic", "quiet"),
+                             row_presence = NULL, col_presence = NULL) {
+	node_time_policy <- match.arg(node_time_policy)
+	# --- dyadic covariates -> design array x ---
 	dcols <- list(); dnms <- character(0)
 	if (!is.null(Xdyad)) {
 		pd <- dim(Xdyad[[1]])[3]
 		dn0 <- dimnames(Xdyad[[1]])
 		dnm <- if (length(dn0) >= 3L) dn0[[3]] else NULL
+		raw_dnm <- .ae_default(dnm, paste0("dyad", seq_len(pd)))
+		for (t in seq_len(Tt)) {
+			dnt <- dimnames(Xdyad[[t]])
+			dnmt <- if (length(dnt) >= 3L) dnt[[3]] else NULL
+			if (!is.null(dnmt) && !identical(dnmt, raw_dnm)) {
+				cli::cli_abort(c(
+					"All {.arg Xdyad} slices must have the same covariate names in the same order.",
+					"i" = "Slice {t} has different covariate names than slice 1."))
+			}
+		}
 		for (k in seq_len(pd)) {
 			arr <- array(0, dim = c(nr, nc, Tt))
 			for (t in seq_len(Tt)) arr[, , t] <- Xdyad[[t]][, , k]
 			dcols[[length(dcols) + 1L]] <- arr
-			# match the MCMC suffix convention: dyadic covariates get the
-			# "_dyad" suffix idempotently so downstream code filtering by
-			# name resolves the same way across ALS and MCMC fits. The
-			# package-internal `.lame_apply_suffix()` handles both pre-suffixed
-			# user inputs and legacy `.dyad` upgrades.
+				# match the mcmc suffix convention for dyadic covariates
 			base_nm <- .ae_default(dnm[k], paste0("dyad", k))
 			dnms <- c(dnms, .lame_apply_suffix(base_nm, "dyad"))
 		}
@@ -219,7 +467,7 @@
 	pd <- length(dcols)
 	X <- array(0, dim = c(nr, nc, pd, Tt))
 	for (k in seq_len(pd)) X[, , k, ] <- dcols[[k]]
-	# NAs in covariates are treated as 0 (matching design_array); warn when any
+	# nas in covariates are treated as 0 (matching design_array); warn when any
 	# appear off the diagonal, where 0 is a genuine modelling assumption
 	if (pd > 0) {
 		n_na <- sum(is.na(X))
@@ -238,55 +486,79 @@
 	X[is.na(X)] <- 0
 	if (pd > 0) dimnames(X) <- list(NULL, NULL, dnms, NULL)
 
-	# --- node covariates -> per-actor means ---
-	node_means <- function(Xn, n, suffix, lbl) {
+	# --- node covariates -> per-actor means plus optional period arrays ---
+	node_means <- function(Xn, n, suffix, lbl, presence = NULL) {
 		if (is.null(Xn)) return(NULL)
 		p <- ncol(as.matrix(Xn[[1]]))
 		nm0 <- colnames(as.matrix(Xn[[1]]))
 		W <- matrix(0, n, p)
+		W_arr <- array(0, dim = c(n, p, length(Xn)))
 		varies <- FALSE
+		user_missing <- FALSE
 		for (k in seq_len(p)) {
 			vals <- matrix(
 				vapply(Xn, function(m) as.matrix(m)[, k], numeric(n)),
 				n, length(Xn))
+			miss <- !is.finite(vals)
+			if (!is.null(presence) && all(dim(presence) == dim(vals))) {
+				miss <- miss & presence
+			}
+			if (any(miss)) user_missing <- TRUE
 			W[, k] <- rowMeans(vals, na.rm = TRUE)
+			W_arr[, k, ] <- vals
 			# detect within-actor (over-time) variation that the per-actor mean
-			# discards: the ALS model is static and carries one coefficient
+			# discards: the als model is static and carries one coefficient
 			if (length(Xn) > 1L && !varies) {
 				within <- mean(apply(vals, 1, stats::sd, na.rm = TRUE),
 				               na.rm = TRUE)
 				if (is.finite(within) && within > 1e-8) varies <- TRUE
 			}
 		}
-		if (varies) {
-			cli::cli_warn(c(
-				"A {lbl} covariate varies within actor across time slices.",
-				"i" = "The ALS estimator is static: each node covariate is summarised by its per-actor mean over time, so within-actor variation is discarded.",
-				"i" = "For time-varying node effects use {.fn lame} (MCMC)."))
+		if (varies && !identical(node_time_policy, "quiet")) {
+			msg <- if (identical(node_time_policy, "dynamic")) {
+				c(
+					"A {lbl} covariate varies within actor across time slices.",
+					"i" = "Dynamic ALS uses period-specific node values for node coefficients selected by {.arg dynamic_beta}.",
+					"i" = "Static node coefficients still use the per-actor mean.")
+			} else {
+				c(
+					"A {lbl} covariate varies within actor across time slices.",
+					"i" = "ALS summarises each node covariate by its per-actor mean, so within-actor covariate changes are not used.",
+					"i" = "Use {.fn lame} with {.arg method = \"als\"} and a node block in {.arg dynamic_beta} for period-specific node values on the dynamic ALS path.")
+			}
+			cli::cli_warn(msg)
 		}
-		if (any(!is.finite(W))) {
+		if (user_missing || any(!is.finite(W))) {
 			cli::cli_warn("Missing values in node covariates were replaced with 0.")
 		}
 		W[!is.finite(W)] <- 0
-		# idempotent suffix application: pre-suffixed inputs and legacy
-		# `.row`/`.col` are normalised rather than double-suffixed
+		W_arr[!is.finite(W_arr)] <- 0
+			# apply row/col suffixes without double-suffixing existing names
 		base_nm <- .ae_default(nm0, paste0(lbl, seq_len(p)))
 		colnames(W) <- .lame_apply_suffix(base_nm, sub("^_", "", suffix))
-		W
+		dimnames(W_arr) <- list(NULL, colnames(W), NULL)
+		list(mean = W, arr = W_arr)
 	}
-	W_row <- node_means(Xrow, nr, "_row", "row")
-	W_col <- node_means(Xcol, nc, "_col", "col")
+	row_node <- node_means(Xrow, nr, "_row", "row", row_presence)
+	col_node <- node_means(Xcol, nc, "_col", "col", col_presence)
+	W_row <- if (is.null(row_node)) NULL else row_node$mean
+	W_col <- if (is.null(col_node)) NULL else col_node$mean
+	W_row_arr <- if (is.null(row_node)) NULL else row_node$arr
+	W_col_arr <- if (is.null(col_node)) NULL else col_node$arr
 
 	list(X = X, p_dyad = pd, x_names_dyad = dnms,
-	     W_row = W_row, W_col = W_col)
+	     W_row = W_row, W_col = W_col,
+	     W_row_arr = W_row_arr, W_col_arr = W_col_arr)
 }
 
 # normalize raw user inputs into the canonical representation:
-#   Yarr  : n_row x n_col x T   (unipartite diagonal blanked to NA)
-#   X     : n_row x n_col x p x T
-.ae_prepare <- function(Y, Xdyad, Xrow, Xcol, mode, longitudinal) {
+#   yarr  : n_row x n_col x t   (unipartite diagonal blanked to na)
+#   x     : n_row x n_col x p x t
+.ae_prepare <- function(Y, Xdyad, Xrow, Xcol, mode, longitudinal,
+                        node_time_policy = c("mean", "dynamic", "quiet")) {
+	node_time_policy <- match.arg(node_time_policy)
 
-	# --- Y to a list of matrices ---
+	# --- y to a list of matrices ---
 	if (longitudinal) {
 		if (is.array(Y) && length(dim(Y)) == 3L) {
 			Ylist <- lapply(seq_len(dim(Y)[3]), function(t) Y[, , t])
@@ -309,25 +581,36 @@
 	Tt <- length(Ylist)
 	if (Tt < 1L) cli::cli_abort("{.arg Y} contains no network slices.")
 
+	bip <- identical(mode, "bipartite")
+	panel <- .ae_balance_longitudinal_inputs(Ylist, Xdyad, Xrow, Xcol, bip)
+	Ylist <- panel$Y
+	Xdyad <- panel$Xdyad
+	Xrow <- panel$Xrow
+	Xcol <- panel$Xcol
+
 	nr <- nrow(Ylist[[1]]); nc <- ncol(Ylist[[1]])
 	rn1 <- rownames(Ylist[[1]]); cn1 <- colnames(Ylist[[1]])
 	for (t in seq_len(Tt)) {
+		rnt_check <- rownames(Ylist[[t]])
+		cnt_check <- colnames(Ylist[[t]])
+		if (!is.null(rnt_check)) {
+			.ae_check_names(rnt_check, "Y", t, "row")
+		}
+		if (!is.null(cnt_check)) {
+			.ae_check_names(cnt_check, "Y", t, "column")
+		}
 		if (nrow(Ylist[[t]]) != nr || ncol(Ylist[[t]]) != nc) {
 			cli::cli_abort(c(
 				"All network slices must share the same dimensions.",
-				"i" = "Slice 1 is {nr}x{nc} but slice {t} is {nrow(Ylist[[t]])}x{ncol(Ylist[[t]])}.",
-				"i" = "Changing actor compositions are not supported by the ALS estimator; use {.fn lame} (MCMC)."))
+				"i" = "Slice 1 is {nr}x{nc} but slice {t} is {nrow(Ylist[[t]])}x{ncol(Ylist[[t]])}."))
 		}
-		# guard against silent actor misalignment: same-sized slices whose
-		# named actors differ would be treated positionally and give wrong results
 		if (longitudinal && t > 1L) {
 			rnt <- rownames(Ylist[[t]]); cnt <- colnames(Ylist[[t]])
 			if ((!is.null(rn1) && !is.null(rnt) && !identical(rnt, rn1)) ||
 			    (!is.null(cn1) && !is.null(cnt) && !identical(cnt, cn1))) {
 				cli::cli_abort(c(
-					"All network slices must have the same actors in the same order.",
-					"i" = "Slice {t} has different row/column names than slice 1.",
-					"i" = "Changing actor compositions are not supported by the ALS estimator; use {.fn lame} (MCMC)."))
+					"Network slices were not aligned to a common actor order.",
+					"i" = "This is an internal input-preparation error; please report it."))
 			}
 		}
 	}
@@ -336,11 +619,21 @@
 	col_names <- .ae_default(colnames(Ylist[[1]]), paste0("col", seq_len(nc)))
 	time_names <- .ae_default(names(Ylist), paste0("t", seq_len(Tt)))
 
-	bip <- identical(mode, "bipartite")
-	# a unipartite network has a single node set: row and column actors coincide
-	if (!bip) col_names <- row_names
+	# a square unipartite network has a single node set: row and column actors
+	# coincide. rectangular inputs are left alone so the caller can raise the
+	# intended mode/dimension error after preparation.
+	if (!bip && nr == nc) col_names <- row_names
+	if (!is.null(panel$row_presence)) {
+		dimnames(panel$row_presence) <- list(row_names, time_names)
+	}
+	if (!is.null(panel$col_presence)) {
+		dimnames(panel$col_presence) <- list(col_names, time_names)
+	}
+	if (!bip && nr == nc && !is.null(panel$actor_presence)) {
+		dimnames(panel$actor_presence) <- list(row_names, time_names)
+	}
 
-	# --- Y to canonical array, blank unipartite diagonal ---
+	# --- y to canonical array, blank unipartite diagonal ---
 	Yarr <- array(NA_real_, dim = c(nr, nc, Tt))
 	for (t in seq_len(Tt)) {
 		yt <- as.matrix(Ylist[[t]])
@@ -348,8 +641,9 @@
 		if (!bip) diag(yt) <- NA_real_
 		Yarr[, , t] <- yt
 	}
+	dimnames(Yarr) <- list(row_names, col_names, time_names)
 
-	# warn on a time slice with no observed (non-NA, off-diagonal) entries: it
+	# warn on a time slice with no observed (non-na, off-diagonal) entries: it
 	# contributes nothing to the fit and usually signals a data problem
 	if (Tt > 1L) {
 		empty <- which(vapply(seq_len(Tt),
@@ -369,7 +663,7 @@
 		} else if (is.array(Xd) && length(dim(Xd)) == 4L) {
 			Xd <- lapply(seq_len(dim(Xd)[4]), function(t) Xd[, , , t])
 		} else if (is.array(Xd) && length(dim(Xd)) == 3L && !is.list(Xd)) {
-			# a 3D array is ambiguous for a longitudinal fit (is the 3rd
+			# a 3d array is ambiguous for a longitudinal fit (is the 3rd
 			# dimension covariates or time?) -- ask for an unambiguous form
 			cli::cli_abort(c(
 				"{.arg Xdyad} for {.fn lame_als} is a 3D array, which is ambiguous.",
@@ -395,6 +689,46 @@
 	Xdyad <- norm_dyad(Xdyad)
 	Xrow  <- norm_node(Xrow, "Xrow")
 	Xcol  <- norm_node(Xcol, "Xcol")
+
+	y_has_row_names <- !is.null(rownames(Ylist[[1L]]))
+	y_has_col_names <- !is.null(colnames(Ylist[[1L]]))
+	align_dyad_slice <- function(xt, t) {
+		dn <- dimnames(xt)
+		xr <- if (length(dn) >= 1L) dn[[1L]] else NULL
+		xc <- if (length(dn) >= 2L) dn[[2L]] else NULL
+		if (is.null(xr) && is.null(xc)) return(xt)
+		if (!y_has_row_names || !y_has_col_names) return(xt)
+		if (is.null(xr) || is.null(xc)) {
+			cli::cli_abort(c(
+				"{.arg Xdyad} slice {t} has incomplete dyad names.",
+				"i" = "Provide both row and column names, or provide neither and use the same order as {.arg Y}."))
+		}
+		.ae_match_cov_names(xr, row_names, "Xdyad", t, "row")
+		.ae_match_cov_names(xc, col_names, "Xdyad", t, "column")
+		xt[row_names, col_names, , drop = FALSE]
+	}
+	align_node_slice <- function(xn, expected, arg, t, margin, y_named) {
+		got <- rownames(xn)
+		if (is.null(got)) return(xn)
+		if (!y_named) return(xn)
+		.ae_match_cov_names(got, expected, arg, t, margin)
+		xn[expected, , drop = FALSE]
+	}
+	if (!is.null(Xdyad)) {
+		Xdyad <- lapply(seq_len(Tt), function(t) align_dyad_slice(Xdyad[[t]], t))
+	}
+	if (!is.null(Xrow)) {
+		Xrow <- lapply(seq_len(Tt), function(t) {
+			align_node_slice(Xrow[[t]], row_names, "Xrow", t, "row",
+			                 y_has_row_names)
+		})
+	}
+	if (!is.null(Xcol)) {
+		Xcol <- lapply(seq_len(Tt), function(t) {
+			align_node_slice(Xcol[[t]], col_names, "Xcol", t, "column",
+			                 y_has_col_names)
+		})
+	}
 
 	if (!is.null(Xdyad)) {
 		pd1 <- dim(Xdyad[[1]])[3]
@@ -433,13 +767,37 @@
 		}
 	}
 
-	des <- .ae_build_design(Xdyad, Xrow, Xcol, nr, nc, Tt)
+	des <- .ae_build_design(Xdyad, Xrow, Xcol, nr, nc, Tt,
+	                        node_time_policy = node_time_policy,
+	                        row_presence = panel$row_presence,
+	                        col_presence = panel$col_presence)
+	if (!is.null(des$X) && length(dim(des$X)) == 4L) {
+		dimnames(des$X) <- list(row_names, col_names,
+		                        dimnames(des$X)[[3L]], time_names)
+	}
+	if (!is.null(des$W_row)) rownames(des$W_row) <- row_names
+	if (!is.null(des$W_col)) rownames(des$W_col) <- col_names
+	if (!is.null(des$W_row_arr)) {
+		dimnames(des$W_row_arr) <- list(row_names,
+		                                dimnames(des$W_row_arr)[[2L]],
+		                                time_names)
+	}
+	if (!is.null(des$W_col_arr)) {
+		dimnames(des$W_col_arr) <- list(col_names,
+		                                dimnames(des$W_col_arr)[[2L]],
+		                                time_names)
+	}
 
 	list(Yarr = Yarr, X = des$X, p_dyad = des$p_dyad,
 	     x_names_dyad = des$x_names_dyad,
 	     W_row = des$W_row, W_col = des$W_col,
+	     W_row_arr = des$W_row_arr, W_col_arr = des$W_col_arr,
 	     nr = nr, nc = nc, Tt = Tt, bip = bip,
-	     row_names = row_names, col_names = col_names, time_names = time_names)
+	     row_names = row_names, col_names = col_names, time_names = time_names,
+	     changing_composition = panel$changing_composition,
+	     row_presence = panel$row_presence,
+	     col_presence = panel$col_presence,
+	     actor_presence = panel$actor_presence)
 }
 
 # --------------------------------------------------------------------------
@@ -450,8 +808,8 @@
 #   [ diag(cnt_row)  wsum         ] [a]   [base_rs]
 #   [ wsum'          diag(cnt_col)] [b] = [base_cs]
 # (symmetric models collapse to (diag(cnt_row) + wsum) a = base_rs, b = a).
-# used as an exact fallback when the Gauss-Seidel sweep crawls under strongly
-# unbalanced observation weights (an IRLS fit). the non-symmetric system is
+# used as an exact fallback when the gauss-seidel sweep crawls under strongly
+# unbalanced observation weights (an irls fit). the non-symmetric system is
 # rank-deficient by one (the a_i + b_j gauge); a symmetric-eigen pseudo-inverse
 # returns the minimum-norm solution, which the caller re-centres anyway and
 # which stays well-defined on disconnected observed-dyad graphs.
@@ -482,9 +840,9 @@
 	list(a = a, b = b)
 }
 
-# Z       : n_row x n_col x T Gaussian working response (NA = unobserved)
-# X       : n_row x n_col x p x T design array
-# returns : list(mu, beta, a, b, U, V, L, Omat, sse, iterations, converged,
+# z       : n_row x n_col x t gaussian working response (na = unobserved)
+# x       : n_row x n_col x p x t design array
+# returns : list(mu, beta, a, b, u, v, l, omat, sse, iterations, converged,
 #                dev_history)
 .ae_bcd_fit <- function(Z, X, R, symmetric, max_iter, tol,
                         init = NULL, lowrank_method = "mm",
@@ -513,7 +871,7 @@
 	Zf <- Z; Zf[!mask] <- 0
 
 	# per-cell observation weights: unit by default (so every block reduces
-	# exactly to the unweighted estimator), family working weights under IRLS
+	# exactly to the unweighted estimator), family working weights under irls
 	Warr <- array(0, dim = d)
 	if (is.null(weights)) {
 		Warr[mask] <- 1
@@ -561,8 +919,8 @@
 	Xb <- xbeta_arr(beta)
 
 	# precompute the regression-block solver for the augmented design
-	# [intercept | dyadic covariates]. The design and the observation mask are
-	# fixed across iterations, so the factorisation (X'WX eigen, or QR of the
+	# [intercept | dyadic covariates]. the design and the observation mask are
+	# fixed across iterations, so the factorisation (x'wx eigen, or qr of the
 	# observed design) is built once; only the right-hand side is recomputed.
 	pa  <- p + 1L
 	lin <- .ae_linsolver(linear_solver, X, mask, Warr, nr, nc, Tt, p)
@@ -585,14 +943,14 @@
 
 		ab <- outer(a, b, "+")
 
-		# --- block: intercept + regression coefficients (joint OLS) ---
+		# --- block: intercept + regression coefficients (joint ols) ---
 		# solved jointly so a constant covariate is detected as collinear with
-		# the intercept rather than aliased across two separate blocks. The
+		# the intercept rather than aliased across two separate blocks. the
 		# precomputed `lin` solver maps the residual target to (mu, beta).
-		resid_arr <- Zf - c(ab) - c(Omat)          # broadcast ab, Omat over t
+		resid_arr <- Zf - c(ab) - c(Omat)          # broadcast ab, omat over t
 		coef_mb <- lin$solve(resid_arr)
 		# change in the gauge-invariant coefficients (mu, beta) since last sweep;
-		# used as a secondary convergence signal alongside the SSE plateau
+		# used as a secondary convergence signal alongside the sse plateau
 		coef_delta <- max(abs(coef_mb - coef_mb_old))
 		coef_mb_old <- coef_mb
 		mu   <- coef_mb[1]
@@ -600,7 +958,7 @@
 		Xb   <- xbeta_arr(beta)
 
 		# --- block: additive sender/receiver effects (a, b) ---
-		# weighted residual not involving a or b (Warr is 0 off the mask)
+		# weighted residual not involving a or b (warr is 0 off the mask)
 		base_a <- array(0, dim = c(nr, nc, Tt))
 		for (t in seq_len(Tt)) {
 			base_a[, , t] <- Warr[, , t] *
@@ -608,10 +966,10 @@
 		}
 		base_rs <- apply(base_a, 1, sum)
 		base_cs <- apply(base_a, 2, sum)
-		# inner Gauss-Seidel sweeps to a tolerance. Each update averages over
-		# OBSERVED cells only (a_i = mean_{obs j,t}(base - b_j)), so the missing
+		# inner gauss-seidel sweeps to a tolerance. each update averages over
+		# observed cells only (a_i = mean_{obs j,t}(base - b_j)), so the missing
 		# diagonal is handled exactly and every sub-step is an exact conditional
-		# minimizer. The fixed point solves the two-way additive normal
+		# minimizer. the fixed point solves the two-way additive normal
 		# equations exactly; the residual check below certifies it was reached.
 		# symmetric models use the native single-vector recursion, whose fixed
 		# point (diag(cnt) + wsum) a = base_rs is the exact minimizer of the
@@ -631,15 +989,15 @@
 			if (max(abs(a - a_prev)) < 1e-10 &&
 			    max(abs(b - b_prev)) < 1e-10) break
 		}
-		# residual certificate: the Gauss-Seidel fixed point solves the two-way
+		# residual certificate: the gauss-seidel fixed point solves the two-way
 		# normal equations, so a non-negligible residual flags the sweep cap
 		# being hit short of the exact additive minimizer
 		ra <- cnt_row * a + as.vector(wsum %*% b) - base_rs
 		rb <- cnt_col * b + as.vector(crossprod(wsum, a)) - base_cs
 		ra[cnt_row == 0] <- 0; rb[cnt_col == 0] <- 0
 		add_scale <- max(1, max(abs(base_rs)), max(abs(base_cs)))
-		# Gauss-Seidel can crawl when the observation weights are strongly
-		# unbalanced (an IRLS fit); fall back to an exact direct solve of the
+		# gauss-seidel can crawl when the observation weights are strongly
+		# unbalanced (an irls fit); fall back to an exact direct solve of the
 		# additive normal equations so a, b are the true minimiser regardless
 		if (max(max(abs(ra)), max(abs(rb))) > 1e-6 * add_scale) {
 			adir <- .ae_additive_solve(base_rs, base_cs, wsum,
@@ -649,7 +1007,7 @@
 			rb <- cnt_col * b + as.vector(crossprod(wsum, a)) - base_cs
 			ra[cnt_row == 0] <- 0; rb[cnt_col == 0] <- 0
 		}
-		# the flag reflects the FINAL outer iteration's additive block
+		# the flag reflects the final outer iteration's additive block
 		add_converged <- max(max(abs(ra)), max(abs(rb))) <= 1e-6 * add_scale
 		# sum-to-zero identification: fold the removed grand mean into mu so
 		# centering does not change the fitted values
@@ -658,15 +1016,15 @@
 		b <- b - mean(b)
 		ab <- outer(a, b, "+")
 
-		# --- block: multiplicative latent factors (U, V) ---
+		# --- block: multiplicative latent factors (u, v) ---
 		# minimise the time-averaged weighted low-rank objective
-		#   sum_ij c_ij (Rbar_ij - O_ij)^2 ,  rank(O) <= R,
+		#   sum_ij c_ij (rbar_ij - o_ij)^2 ,  rank(o) <= r,
 		# where c_ij = wsum[i,j] is the (weighted) number of observed slices for
-		# dyad (i,j) and Rbar is the weighted per-dyad mean residual.
+		# dyad (i,j) and rbar is the weighted per-dyad mean residual.
 		# `lowrank_method` selects the inner solver -- weighted majorise-
 		# minimise ("mm", the default) or alternating least squares ("als" /
-		# "hybrid"); each is a monotone, objective-non-increasing update. See
-		# .ae_lowrank_update() in ame_als_lowrank.R.
+		# "hybrid"); each is a monotone, objective-non-increasing update. see
+		# .ae_lowrank_update() in ame_als_lowrank.r.
 		if (R > 0) {
 			res_sum <- matrix(0, nr, nc)
 			for (t in seq_len(Tt)) {
@@ -688,10 +1046,10 @@
 			sse <- sse + sum(Warr[, , t] * r^2)
 		}
 		dev_history <- c(dev_history, sse)
-		# skip the relative-change test on the first sweep (sse_old is still Inf).
-		# require BOTH a residual-SSE plateau AND stable (mu, beta): the second
-		# guard rules out a flat-SSE saddle along which the coefficients still
-		# drift. The coefficient tolerance is relative and loose, so it never
+		# skip the relative-change test on the first sweep (sse_old is still inf).
+		# require both a residual-sse plateau and stable (mu, beta): the second
+		# guard rules out a flat-sse saddle along which the coefficients still
+		# drift. the coefficient tolerance is relative and loose, so it never
 		# blocks a genuine convergence.
 		coef_stable <- coef_delta <= tol * 100 * (max(abs(coef_mb)) + 1e-8)
 		if (iter > 1L && is.finite(sse) && coef_stable &&
@@ -709,12 +1067,12 @@
 	     dev_history = dev_history)
 }
 
-# assemble the fitted-model object from a BCD solution
+# assemble the fitted-model object from a bcd solution
 .ae_assemble <- function(fit, prep, family, mode, symmetric, R,
                          longitudinal, call, Zwork = NULL, link = NULL) {
 
 	nr <- prep$nr; nc <- prep$nc; Tt <- prep$Tt
-	# `Zwork` (the IRLS final working response) overrides the one-shot transform
+	# `zwork` (the irls final working response) overrides the one-shot transform
 	Z  <- if (is.null(Zwork)) .ae_working_response(prep$Yarr, family) else Zwork
 	# the symmetric fit minimises against a symmetrised working response;
 	# symmetrise here too so residuals / ve match the fitted objective
@@ -731,16 +1089,16 @@
 	U <- fit$U; V <- fit$V; L <- fit$L
 	Omat <- fit$Omat
 
-	# --- identification: gauge the multiplicative term O to be double-centered ---
-	# the additive term a_i + b_j and the rank-R multiplicative term u_i' v_j are
-	# not separately identified for R > 0: a broadcast (row- or column-constant)
+	# --- identification: gauge the multiplicative term o to be double-centered ---
+	# the additive term a_i + b_j and the rank-r multiplicative term u_i' v_j are
+	# not separately identified for r > 0: a broadcast (row- or column-constant)
 	# component can sit in either (a 1' is rank 1, so a pure sender effect can be
-	# absorbed by a column of U with the matching column of V constant). We impose
-	# the standard AME gauge by double-centering O (zero row and column means) and
+	# absorbed by a column of u with the matching column of v constant). we impose
+	# the standard ame gauge by double-centering o (zero row and column means) and
 	# folding its row means into the sender effect, its column means into the
-	# receiver effect and its grand mean into mu. This is fit-preserving (EZ is
-	# unchanged) and makes the reported a, b, U, V unique given the fit ---
-	# independent of which BCD fixed point was reached.
+	# receiver effect and its grand mean into mu. this is fit-preserving (ez is
+	# unchanged) and makes the reported a, b, u, v unique given the fit ---
+	# independent of which bcd fixed point was reached.
 	if (R > 0 && !is.null(Omat)) {
 		rmn <- rowMeans(Omat); cmn <- colMeans(Omat); gmn <- mean(Omat)
 		Omat <- Omat - outer(rmn, rep(1, nc)) - outer(rep(1, nr), cmn) + gmn
@@ -751,9 +1109,9 @@
 		mu <- mu + mean(a_raw) + mean(b_raw)
 		a_raw <- a_raw - mean(a_raw)
 		b_raw <- b_raw - mean(b_raw)
-		# recompute U, V (or U, L) from the now double-centered O. Double-centering
-		# cannot raise rank, so O still has rank <= R and this factorisation is
-		# exact (O = U V', or U L U' when symmetric).
+		# recompute u, v (or u, l) from the now double-centered o. double-centering
+		# cannot raise rank, so o still has rank <= r and this factorisation is
+		# exact (o = u v', or u l u' when symmetric).
 		if (symmetric) {
 			eg <- eigen((Omat + t(Omat)) / 2, symmetric = TRUE)
 			idx <- order(abs(eg$values), decreasing = TRUE)[seq_len(R)]
@@ -782,7 +1140,7 @@
 	active_col <- as.numeric(cnt_col > 0)
 	# on a disconnected observed graph each component has a free a_i += d,
 	# b_j -= d shift; pin it to the precision-weighted minimum-norm value so the
-	# reported a, b are reproducible. Directed networks only -- a symmetric
+	# reported a, b are reproducible. directed networks only -- a symmetric
 	# a_i + a_j has no per-component freedom.
 	if (!symmetric) {
 		comp <- .ae_components(obs_count, prep$bip)
@@ -792,7 +1150,7 @@
 		}
 	}
 
-	# --- linear predictor (link scale), from the RAW additive effects ---
+	# --- linear predictor (link scale), from the raw additive effects ---
 	EZ <- vector("list", Tt)
 	ab_raw <- outer(a_raw, b_raw, "+")
 	resid_list <- vector("list", Tt)
@@ -812,9 +1170,9 @@
 	ve <- if (ve_den > 0) ve_num / ve_den else NA_real_
 
 	# --- identify node-covariate coefficients by the orthogonality constraint ---
-	# A node covariate broadcasts to a per-actor constant, collinear with the
+	# a node covariate broadcasts to a per-actor constant, collinear with the
 	# additive effect; beta_row/beta_col are the between-actor regression
-	# coefficients and a/b the residual heterogeneity orthogonal to them. This
+	# coefficients and a/b the residual heterogeneity orthogonal to them. this
 	# is a fit-preserving reparameterisation of the raw additive effects.
 	if (symmetric) {
 		W_node <- prep$W_row
@@ -835,9 +1193,9 @@
 	names(a) <- prep$row_names
 	names(b) <- prep$col_names
 
-	# --- variance components (VC columns mirror ame()/lame()) ---
+	# --- variance components (vc columns mirror ame()/lame()) ---
 	# va/vb are empirical variances of the (covariate-orthogonal) additive
-	# effects -- not identical to a random-effect variance component. Isolated
+	# effects -- not identical to a random-effect variance component. isolated
 	# actors (no observed dyad) have an unidentified additive effect and are
 	# excluded from the variance summaries.
 	va <- if (sum(active_row) > 1) stats::var(a[active_row == 1]) else NA_real_
@@ -874,7 +1232,7 @@
 	VC <- c(va = va, cab = cab, vb = vb, rho = rho, ve = ve)
 
 	# --- response-scale fitted values; blank the unipartite diagonal ---
-	# IRLS fits carry a genuine GLM `link`; the transform path keeps its own
+	# irls fits carry a genuine glm `link`; the transform path keeps its own
 	# inverse maps (poisson log1p, binary probit-type latent)
 	fitted_list <- vector("list", Tt)
 	for (t in seq_len(Tt)) {
@@ -931,30 +1289,44 @@
 		residuals = resid_list,
 		iterations = fit$iterations, converged = fit$converged,
 		deviance = fit$sse, dev_history = fit$dev_history,
-		n_time = Tt,
-		dims = list(n_row = nr, n_col = nc, p = length(beta)),
-		row_names = prep$row_names, col_names = prep$col_names,
-		x_names = names(beta), time_names = prep$time_names,
-		Y = prep$Yarr, X = prep$X, W_row = prep$W_row, W_col = prep$W_col,
+			n_time = Tt,
+			dims = list(n_row = nr, n_col = nc, p = length(beta)),
+			row_names = prep$row_names, col_names = prep$col_names,
+			x_names = names(beta), time_names = prep$time_names,
+			Y = prep$Yarr, X = prep$X, W_row = prep$W_row, W_col = prep$W_col,
+			changing_composition = isTRUE(prep$changing_composition),
+			row_presence = prep$row_presence,
+			col_presence = prep$col_presence,
+			actor_presence = prep$actor_presence,
+			dynamic_uv = FALSE, dynamic_ab = FALSE, dynamic_beta = FALSE,
+		dynamic_G = FALSE,
+		dynamic = list(
+			uv = FALSE, uv_kind = NULL,
+			ab = FALSE,
+			beta = FALSE, beta_kind = NULL,
+			G = FALSE,
+			snap_model_estimated = FALSE,
+			t_model_estimated = FALSE,
+			mode = mode),
 		meta = list(
 			sampler = "bcd",
 			algorithm = "iterative block coordinate descent (Hoff & Minhas SIR estimator)",
 			uncertainty_available = FALSE,
 			approximation_note = approx_note)
 	)
-	# longitudinal fits inherit from "lame_als" so the lame_als-specific S3
+	# longitudinal fits inherit from "lame_als" so the lame_als-specific s3
 	# methods (tidy.lame_als / glance.lame_als / update.lame_als) dispatch
 	# correctly; both subclasses inherit from "ame_als" so the existing
-	# generic S3 methods keep working
+	# generic s3 methods keep working
 	class(out) <- if (isTRUE(longitudinal)) c("lame_als", "ame_als") else "ame_als"
 	out
 }
 
 # attach a bootstrap result to a freshly-fit ame_als / lame_als object so
-# the unified `bootstrap = N` argument can return point + intervals in one call
+# the unified `bootstrap = n` argument can return point + intervals in one call
 .ae_attach_bootstrap <- function(fit, R_boot, type, block_length, seed,
                                  verbose) {
-	# warn early for tiny R; the existing post-fit n_valid<10 warning catches
+	# warn early for tiny r; the existing post-fit n_valid<10 warning catches
 	# replicate failures, this one warns just on the user-requested count
 	if (R_boot < 30L) {
 		cli::cli_warn(c(
@@ -963,7 +1335,7 @@
 	}
 	# suppress the bootstrap function's own "too few replicates" warn when we
 	# already pre-warned above -- otherwise the user sees two warnings about
-	# the same condition. Other warnings from ame_als_bootstrap still surface.
+	# the same condition. other warnings from ame_als_bootstrap still surface.
 	bt <- withCallingHandlers(
 		ame_als_bootstrap(fit, R = R_boot, type = type,
 		                  block_length = block_length, seed = seed,
@@ -991,7 +1363,9 @@
                     max_iter, tol, verbose, seed, longitudinal, call,
                     lowrank_method = "mm", non_normal_method = "irls",
                     link = "probit", linear_solver = "eigen",
-                    multistart = "none") {
+                    multistart = "none",
+                    node_time_policy = c("mean", "dynamic", "quiet")) {
+	node_time_policy <- match.arg(node_time_policy)
 
 	# accept short amen-era family spellings as aliases (parity with ame() / lame())
 	amen_aliases <- c(nrm = "normal", bin = "binary", ord = "ordinal",
@@ -1016,10 +1390,10 @@
 	mode <- match.arg(mode, c("unipartite", "bipartite"))
 	# the block coordinate descent is deterministic; `seed` is accepted only
 	# for signature parity with ame()/lame() and is intentionally not used (so
-	# the routine does not mutate the global RNG state).
+	# the routine does not mutate the global rng state).
 
-	# Y must be numeric and free of Inf/NaN -- otherwise a non-numeric Y is
-	# silently coerced to NA and Inf is silently treated as missing
+	# y must be numeric and free of inf/nan -- otherwise a non-numeric y is
+	# silently coerced to na and inf is silently treated as missing
 	y_vals <- if (is.list(Y)) unlist(Y, use.names = FALSE) else Y
 	if (!is.numeric(y_vals) && !is.logical(y_vals)) {
 		cli::cli_abort("{.arg Y} must be numeric.")
@@ -1029,8 +1403,8 @@
 			"{.arg Y} contains infinite or NaN values.",
 			"i" = "Only finite values and {.val NA} (missing) are allowed."))
 	}
-	# reject Inf / NaN in covariates: otherwise node_means' rowMeans propagates
-	# Inf into the design and the resulting non-finite cells get zero-filled
+	# reject inf / nan in covariates: otherwise node_means' rowmeans propagates
+	# inf into the design and the resulting non-finite cells get zero-filled
 	# silently (mislabelled as "missing values" in the warning)
 	for (cov_nm in c("Xdyad", "Xrow", "Xcol")) {
 		cov_val <- get(cov_nm)
@@ -1046,7 +1420,8 @@
 		}
 	}
 
-	prep <- .ae_prepare(Y, Xdyad, Xrow, Xcol, mode, longitudinal)
+	prep <- .ae_prepare(Y, Xdyad, Xrow, Xcol, mode, longitudinal,
+	                    node_time_policy = node_time_policy)
 
 	if (mode == "unipartite" && prep$nr != prep$nc) {
 		cli::cli_abort(c(
@@ -1060,7 +1435,7 @@
 	if (symmetric && prep$nr != prep$nc) {
 		cli::cli_abort("Symmetric models require a square network.")
 	}
-	# verify Y is actually symmetric -- otherwise the estimator silently
+	# verify y is actually symmetric -- otherwise the estimator silently
 	# averages the upper and lower triangles and discards the asymmetry
 	if (symmetric && prep$nr == prep$nc) {
 		for (t in seq_len(prep$Tt)) {
@@ -1143,7 +1518,7 @@
 		cli::cli_text("Family: {.field {family}}{ifelse(symmetric, ' (symmetric)', '')} | Covariates: {p_total}")
 	}
 
-	# ALS / hybrid low-rank solvers are directed/bipartite only
+	# als / hybrid low-rank solvers are directed/bipartite only
 	if (symmetric && lowrank_method != "mm" && R > 0) {
 		cli::cli_warn(c(
 			"{.arg lowrank_method} = {.val {lowrank_method}} is not available for symmetric models.",
@@ -1151,15 +1526,15 @@
 		lowrank_method <- "mm"
 	}
 
-	# IRLS is the default for binary / poisson. tobit and ordinal are not
-	# supported by ALS; their inference goes through the MCMC ame() / lame()
+	# irls is the default for binary / poisson. tobit and ordinal are not
+	# supported by als; their inference goes through the mcmc ame() / lame()
 	# path.
 	use_irls <- identical(non_normal_method, "irls") &&
 		family %in% c("binary", "poisson")
 	eff_link <- if (family == "poisson") "log" else link
-	# IRLS produces strongly unbalanced working weights; the majorise-minimise
-	# low-rank solver converges too slowly under them, so a directed R > 0 IRLS
-	# fit uses the hybrid (ALS) solver instead
+	# irls produces strongly unbalanced working weights; the majorise-minimise
+	# low-rank solver converges too slowly under them, so a directed r > 0 irls
+	# fit uses the hybrid (als) solver instead
 	if (use_irls && R > 0L && !symmetric && lowrank_method == "mm") {
 		lowrank_method <- "hybrid"
 	}
@@ -1188,7 +1563,7 @@
 				"i" = "The lowest-SSE fit was kept; with R > 0 the optimum is not unique."))
 		}
 	} else {
-		# nudge multi-start when R > 0 (nonconvex objective)
+		# nudge multi-start when r > 0 (nonconvex objective)
 		if (R > 0L && multistart == "none" && verbose) {
 			cli::cli_inform(c(
 				"i" = "Single-start ALS at {.code R = {R}}. The latent objective is nonconvex.",
@@ -1230,7 +1605,7 @@
 	out$link <- if (use_irls) eff_link else NULL
 	out$linear_solver <- linear_solver
 	out$multistart <- multistart
-	# final IRLS weights (NULL = unit weights); used by the weighted sandwich
+	# final irls weights (null = unit weights); used by the weighted sandwich
 	out$obs_weights <- if (use_irls) ir$W else NULL
 	if (!is.null(fit$multistart_sse)) {
 		out$multistart_sse <- fit$multistart_sse
@@ -1278,42 +1653,14 @@
 #' For \code{family = "normal"} this is a least-squares (Gaussian maximum-
 #' likelihood) fit --- the exact global solution when \code{R = 0}, and a
 #' local optimum of the non-convex low-rank objective when \code{R > 0}.
-#' For \code{"binary"}, \code{"poisson"} and
-#' \code{"ordinal"} the same algorithm is run on a Gaussian working response
-#' (the latent transforms \code{ame()} uses to initialise its sampler): a fast
-#' \emph{approximation} suitable for exploration and starting values. For
-#' \code{"tobit"} an EM outer loop replaces censored cells with their
-#' truncated-normal conditional mean and the BCD M-step is warm-started from
-#' the previous iterate (see the \dQuote{Tobit attenuation} section below for
-#' the documented \eqn{\sigma^2} bias and the moderate-to-heavy censoring
-#' regimes where the point estimates of \eqn{\beta} can drift noticeably from
-#' the MCMC estimator). For calibrated family-specific inference, use the
-#' MCMC estimator \code{\link{ame}}. The remaining censoring/rank families
-#' (\code{"cbin"}, \code{"frn"}, \code{"rrl"}) are not supported and raise
-#' an informative error.
-#'
-#' @section Tobit attenuation:
-#' The EM-ALS path for \code{family = "tobit"} is a deterministic generalised
-#' EM that imputes censored \eqn{Z_{ij}} on the truncated-normal mean
-#' \eqn{\eta_{ij} - \sigma\,\phi(-\eta_{ij}/\sigma)/\Phi(-\eta_{ij}/\sigma)} and
-#' refits the BCD low-rank fit on the imputed working response. The reported
-#' \eqn{\sigma^2} carries a downward (attenuation) bias that scales with the
-#' censoring fraction: the additive sender/receiver effects \eqn{a_i, b_j}
-#' absorb part of the censored signal during the M-step, leaving the
-#' residual scale smaller than the truth. In the package's own internal
-#' simulations (\eqn{n = 80}, dyadic covariate, true \eqn{\sigma^2 = 1}) the
-#' reported \eqn{\sigma^2} runs roughly 0.2-0.7 at 50\% censoring and below
-#' 0.1 at 80\% censoring, while the MCMC tobit recovers \eqn{\sigma^2}
-#' essentially without bias. The censored-cell EM also drifts the intercept
-#' and the dyadic slope: in the same simulation EM-ALS gives
-#' \eqn{(\hat\mu, \hat\beta_\mathrm{dyad}) \approx (-1.4, 0.31)} at 50\%
-#' censoring and \eqn{(-0.9, 0.03)} at 80\% censoring (truth
-#' \eqn{(0, 0.5)} and \eqn{(-1.5, 0.5)} respectively), while MCMC tobit on
-#' the same draws gives \eqn{(0.11, 0.47)} and \eqn{(-1.28, 0.42)}. Treat the
-#' EM-ALS tobit point estimates as fast exploratory summaries; use
-#' \code{\link{ame}(..., family = "tobit")} for calibrated point and
-#' interval estimates. The EM iteration count and \eqn{\sigma^2} are
-#' surfaced on the fit as \code{$em_iters} and \code{$sigma2}.
+#' For \code{"binary"} and \code{"poisson"}, the estimator uses an IRLS
+#' working-response path by default, so coefficients are on the requested
+#' link scale (binary probit/logit, Poisson log). The fixed-transform path is
+#' still available as a faster exploratory score, but its coefficients are not
+#' calibrated effect sizes. Censoring and rank families
+#' (\code{"ordinal"}, \code{"tobit"}, \code{"cbin"}, \code{"frn"},
+#' \code{"rrl"}) are not supported by ALS and raise an informative error; use
+#' \code{\link{ame}} or \code{\link{lame}} for those likelihoods.
 #'
 #' \strong{Row/column (node) covariates.} A node covariate broadcasts to a
 #' per-actor constant, which is collinear with the additive sender/receiver
@@ -1379,10 +1726,10 @@
 #'   multiplicative term \eqn{u_i'v_j} is a flexible high-variance regressor
 #'   that can correlate with the dyadic covariates, so the estimated
 #'   \code{beta} can shift -- and occasionally change sign -- as \code{R}
-#'   increases. Validate against an \code{R = 0} fit and the MCMC
-#'   \code{\link{ame}}/\code{\link{lame}} before reporting.
-#' @param family one of \code{"normal"}, \code{"binary"}, \code{"poisson"},
-#'   \code{"ordinal"}.
+#'   increases. Comparing against an \code{R = 0} fit is a useful check on
+#'   whether the covariate story is being driven by the latent rank.
+#' @param family one of \code{"normal"}, \code{"binary"}, or
+#'   \code{"poisson"}. The rank and censoring families are MCMC-only.
 #' @param mode \code{"unipartite"} (square) or \code{"bipartite"} (rectangular).
 #' @param symmetric logical; fit a symmetric (undirected) model. Unipartite only.
 #' @param max_iter maximum number of block coordinate descent iterations (default 200).
@@ -1396,26 +1743,17 @@
 #'   bipartite models (symmetric fits always use \code{"mm"}). All three
 #'   minimise the same objective, so the point estimate is unchanged for
 #'   balanced data.
-#' @param non_normal_method for the non-normal families, \code{"irls"}
+#' @param non_normal_method for the non-normal ALS families, \code{"irls"}
 #'   (default for \code{binary}/\code{poisson}) runs iteratively reweighted
-#'   least squares -- a fast approximate GLM AME fit with coefficients on
-#'   the calibrated link scale (Poisson log, binary logit/probit).
-#'   \code{"transform"} fits a single fixed Gaussian working response
-#'   (\code{log(y+1)} for Poisson, rank-normal scores for binary/ordinal);
-#'   its coefficients are on an uncalibrated rank scale -- good for
-#'   direction/ranking of effects, not for magnitudes. \strong{For ordinal
-#'   data the transform path attenuates \eqn{\beta} toward zero (classical
-#'   discretisation bias); prefer \code{"em"} when \eqn{\beta} is an effect-size
-#'   estimand.} \code{"em"} (for \code{ordinal}, opt-in; default for
-#'   \code{tobit}) runs a deterministic EM outer loop that maximises the
-#'   observed ordinal log-likelihood, jointly estimating cutpoints
-#'   (returned on \code{fit$alpha}, anchored at \code{alpha[1] = 0}) and the
-#'   regression block; the surrogate is monotone non-decreasing across EM
-#'   iterations. \code{"irls"} is supported for \code{binary}/\code{poisson};
-#'   \code{ordinal} accepts \code{"transform"} (default, back-compat) or
-#'   \code{"em"}. A directed \code{R > 0} IRLS fit uses the hybrid low-rank
-#'   solver internally (the IRLS weights are unbalanced). Uncertainty for
-#'   any of these is the bootstrap.
+#'   least squares, giving a fast approximate GLM AME fit with coefficients on
+#'   the requested link scale (Poisson log, binary logit/probit).
+#'   \code{"transform"} fits one fixed Gaussian working response
+#'   (\code{log(y+1)} for Poisson, rank-normal scores for binary); its
+#'   coefficients are on an uncalibrated working scale and are mainly useful
+#'   for direction/ranking checks. A directed \code{R > 0} IRLS fit uses the
+#'   hybrid low-rank solver internally because the IRLS weights are unbalanced.
+#'   Uncertainty for either path comes from the bootstrap or sandwich
+#'   covariance.
 #' @param link link for \code{non_normal_method = "irls"} with a \code{binary}
 #'   family: \code{"probit"} (default; matches \code{\link{ame}}/\code{\link{lame}})
 #'   or \code{"logit"}. \code{poisson} always uses the log link;
@@ -1487,27 +1825,38 @@
 #' @param bootstrap_seed optional integer seed for the bootstrap (the point
 #'   fit uses \code{seed}).
 #'
-#' @section Limitations vs. \code{\link{ame}} / \code{\link{lame}}:
-#' The ALS estimator is a fast, frequentist point estimator. It is not a
-#' drop-in replacement for the MCMC estimators -- the following features
-#' apply to MCMC only:
+#' @section Coverage relative to \code{\link{ame}} / \code{\link{lame}}:
+#' The ALS estimator is a fast, frequentist point estimator. It covers most
+#' static AME workflows, and the top-level \code{lame(..., method = "als")}
+#' dispatcher covers several dynamic workflows, but posterior-specific features
+#' still require the MCMC estimator:
 #' \itemize{
-#'   \item \strong{Families.} ALS supports \code{normal}, \code{binary},
-#'     \code{poisson}, \code{ordinal} (transform or EM), and \code{tobit}
-#'     (EM only; see the \dQuote{Tobit attenuation} section for the
-#'     documented \eqn{\sigma^2} downward bias and the censoring regimes
-#'     where the point estimates drift from the MCMC estimator). It does
-#'     \strong{not} support \code{cbin}, \code{frn}, \code{rrl}; for those,
-#'     fall back to \code{\link{ame}} / \code{\link{lame}}. The
-#'     \code{bootstrap = N} option is \strong{not} calibrated for
-#'     \code{family = "tobit"} -- the parametric simulator falls through to
-#'     the binary/probit branch, producing degenerate 0/1 resamples and
-#'     coefficient bootstraps collapsed near zero. Use the MCMC tobit for
-#'     uncertainty quantification.
-#'   \item \strong{Dynamic effects.} \code{\link{lame_als}} fits a STATIC
-#'     model pooled across time slices. There is no \code{dynamic_uv},
-#'     \code{dynamic_ab}, \code{dynamic_G}, or \code{dynamic_beta}.
-#'     \code{lame(..., method = "als")} warns and ignores those arguments.
+#'   \item \strong{Families.} ALS supports \code{normal}, \code{binary}, and
+#'     \code{poisson}. For \code{ordinal}, \code{tobit}, \code{cbin},
+#'     \code{frn}, and \code{rrl}, fall back to \code{\link{ame}} /
+#'     \code{\link{lame}}.
+#'   \item \strong{Dynamic effects.} \code{\link{lame_als}} itself fits a
+#'     static model pooled across time slices. The top-level dispatcher
+	#'     \code{lame(..., method = "als")} routes supported dynamic requests to a
+	#'     dynamic point estimator for normal, binary, and poisson panels,
+	#'     including named panels where actors enter or exit: \code{dynamic_ab},
+	#'     selected intercept/dyadic/node
+#'     \code{dynamic_beta}, and AR(1) or Student-t \code{dynamic_uv} for
+#'     directed, symmetric, and bipartite panels. The snap-only
+#'     \code{dynamic_uv = TRUE, dynamic_uv_kind = "snap"} case routes to
+#'     \code{\link{lame_snap_als}} for supported normal unipartite and
+#'     bipartite panels.
+#'     Node-covariate coefficients use the same orthogonal additive-effect
+#'     decomposition as \code{\link{lame_als}}; dynamic node coefficients use
+#'     period-specific node values when selected by \code{dynamic_beta}, while
+	#'     static node coefficients use per-actor means. bipartite \code{dynamic_g}
+	#'     is available on the dynamic als path for normal, binary, and poisson
+	#'     panels. changing actor composition requires row and column names on every
+	#'     slice so actors can be aligned; smoothing penalties are broken across
+	#'     actor-entry gaps. rank/censored dynamic families remain on the mcmc path. static
+#'     \code{ame_als()} / \code{lame_als()} fits still use a
+#'     single latent rank \code{R}; the dynamic bipartite ALS dispatcher
+#'     honours separate \code{R_row} and \code{R_col} values.
 #'   \item \strong{Priors.} ALS has no priors. \code{prior = list(...)} and
 #'     \code{g = ...} are MCMC-only; the dispatcher \code{ame(..., method = "als")}
 #'     warns and ignores them.
@@ -1585,11 +1934,11 @@ ame_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 #' not original \pkg{lame} methodology. See \code{\link{ame_als}} for the
 #' algorithm details.
 #'
-#' @param Y a list of \code{T} relational matrices, or a 3D array
-#'   \code{[n_row, n_col, T]}. All slices must share the same dimensions and,
-#'   if the matrices carry row/column names, the same actors in the same
-#'   order (the ALS estimator does not handle changing actor
-#'   compositions; use \code{\link{lame}} for that).
+	#' @param y a list of \code{t} relational matrices, or a 3d array
+	#'   \code{[n_row, n_col, t]}. a named list may have changing actor
+	#'   composition; every slice must carry row and column names so actors can be
+	#'   aligned to the union panel. unnamed lists and arrays are treated
+	#'   positionally and must have one fixed layout.
 #' @param Xdyad a list of \code{T} dyadic covariate matrices/arrays, or \code{NULL}.
 #' @param Xrow a list of \code{T} row/sender covariate matrices, or \code{NULL}.
 #' @param Xcol a list of \code{T} column/receiver covariate matrices, or \code{NULL}.
@@ -1605,6 +1954,8 @@ ame_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 #'
 #' @seealso \code{\link{ame_als}}, \code{\link{ame_als_bootstrap}},
 #'   \code{\link{lame}} for the full MCMC estimator,
+#'   \code{\link{lame_snap_als}} for the approximate dynamic snap-shift
+#'   point estimator,
 #'   \code{\link{als_dynamic_beta}} for a regression-only smoother
 #'   that estimates \emph{only} a time-varying \eqn{\beta_t} (no
 #'   \eqn{a, b, U, V}; not a special case of this function).
@@ -1657,7 +2008,7 @@ lame_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 }
 
 # --------------------------------------------------------------------------
-# S3 methods for ame_als objects
+# s3 methods for ame_als objects
 # --------------------------------------------------------------------------
 
 #' Extract coefficients from a fast AME fit
@@ -1690,7 +2041,7 @@ fitted.ame_als <- function(object, ...) {
 	if (isTRUE(object$longitudinal)) object$fitted else object$fitted[[1]]
 }
 
-# inverse link: map a linear predictor EZ to the response scale
+# inverse link: map a linear predictor ez to the response scale
 .ae_link_inverse <- function(ez, family, link) {
 	if (!is.null(link)) {
 		switch(paste(family, link),
@@ -1765,8 +2116,8 @@ residuals.ame_als <- function(object, type = c("response", "working"), ...) {
 predict.ame_als <- function(object, newdata = NULL,
                                 type = c("response", "link"), ...) {
 	type <- match.arg(type)
-	# catch MCMC-only predict args and abort with a clear message. `h`
-	# absorbed via `...` would otherwise be ignored on an ALS fit (which
+	# catch mcmc-only predict args and abort with a clear message. `h`
+	# absorbed via `...` would otherwise be ignored on an als fit (which
 	# has no dynamic state to propagate) and silently return fitted values.
 	dots <- list(...)
 	dot_names <- names(dots)
@@ -1782,33 +2133,111 @@ predict.ame_als <- function(object, newdata = NULL,
 			"i" = "For uncertainty on an ALS fit, run {.fn ame_als_bootstrap} or pass {.arg bootstrap} to {.fn ame_als}."))
 	}
 	EZ <- object$EZ
-	if (!is.null(newdata)) {
-		X_old  <- object$X
-		p_dyad <- dim(X_old)[3]
-		if (p_dyad == 0L) {
-			cli::cli_abort("This fit has no dyadic covariates; {.arg newdata} cannot be applied.")
-		}
-		Xn <- newdata
-		if (is.matrix(Xn)) Xn <- array(Xn, c(dim(Xn), 1L, 1L))
-		if (length(dim(Xn)) == 3L) Xn <- array(Xn, c(dim(Xn), 1L))
-		if (!identical(dim(Xn), dim(X_old))) {
-			cli::cli_abort(c(
-				"{.arg newdata} must match the fitted dyadic design dimensions.",
-				"i" = "Expected [{paste(dim(X_old), collapse = ', ')}], got [{paste(dim(Xn), collapse = ', ')}]."))
-		}
-		beta_dyad <- object$beta[seq_len(p_dyad)]
-		EZ <- lapply(seq_len(object$n_time), function(t) {
+		if (!is.null(newdata)) {
+			X_old  <- object$X
+			p_dyad <- dim(X_old)[3]
+			if (p_dyad == 0L) {
+				cli::cli_abort("This fit has no dyadic covariates; {.arg newdata} cannot be applied.")
+			}
+			Xn <- newdata
+			row_target <- dimnames(X_old)[[1L]]
+			col_target <- dimnames(X_old)[[2L]]
+			cov_target <- dimnames(X_old)[[3L]]
+			align_covariate_names <- function(xt, got, t) {
+				if (is.null(got) || is.null(cov_target)) return(xt)
+				if (setequal(got, cov_target)) {
+					return(xt[, , cov_target, drop = FALSE])
+				}
+				got_suffixed <- .lame_apply_suffix(got, "dyad")
+				if (setequal(got_suffixed, cov_target)) {
+					xt <- xt[, , match(cov_target, got_suffixed), drop = FALSE]
+					dimnames(xt)[[3L]] <- cov_target
+					return(xt)
+				}
+				cli::cli_abort(c(
+					"{.arg newdata} slice {t} has dyadic-covariate names that do not match the fit.",
+					"i" = "Use the same covariate names as the fitted {.arg Xdyad}."))
+			}
+			align_newdata_slice <- function(xt, t) {
+				xt <- .ae_dyad_to_3d(xt, nr = dim(X_old)[1L], nc = dim(X_old)[2L])
+				dd <- dim(xt)
+				if (dd[1L] != dim(X_old)[1L] || dd[2L] != dim(X_old)[2L] ||
+				    dd[3L] != p_dyad) {
+					cli::cli_abort(c(
+						"{.arg newdata} slice {t} must match the fitted dyadic design.",
+						"i" = "Expected [{paste(dim(X_old)[1:3], collapse = ', ')}], got [{paste(dd, collapse = ', ')}]."))
+				}
+				dn <- dimnames(xt)
+				xr <- if (length(dn) >= 1L) dn[[1L]] else NULL
+				xc <- if (length(dn) >= 2L) dn[[2L]] else NULL
+				xk <- if (length(dn) >= 3L) dn[[3L]] else NULL
+				if (!is.null(xr) && !is.null(row_target)) {
+					.ae_match_cov_names(xr, row_target, "newdata", t, "row")
+					xt <- xt[row_target, , , drop = FALSE]
+				}
+				if (!is.null(xc) && !is.null(col_target)) {
+					.ae_match_cov_names(xc, col_target, "newdata", t, "column")
+					xt <- xt[, col_target, , drop = FALSE]
+				}
+				xt <- align_covariate_names(xt, xk, t)
+				dimnames(xt) <- dimnames(X_old)[1:3]
+				xt
+			}
+			if (is.list(Xn) && !is.data.frame(Xn)) {
+				if (length(Xn) != object$n_time) {
+					cli::cli_abort("{.arg newdata} must have one dyadic covariate entry per time slice ({object$n_time}).")
+				}
+				Xlist <- lapply(seq_len(object$n_time), function(t) align_newdata_slice(Xn[[t]], t))
+				Xarr <- array(NA_real_, dim = dim(X_old), dimnames = dimnames(X_old))
+				for (t in seq_len(object$n_time)) Xarr[, , , t] <- Xlist[[t]]
+				Xn <- Xarr
+			} else {
+				if (is.matrix(Xn)) Xn <- array(Xn, c(dim(Xn), 1L, 1L))
+				if (length(dim(Xn)) == 3L) Xn <- array(Xn, c(dim(Xn), 1L))
+			}
+			if (!identical(dim(Xn), dim(X_old))) {
+				cli::cli_abort(c(
+					"{.arg newdata} must match the fitted dyadic design dimensions.",
+					"i" = "Expected [{paste(dim(X_old), collapse = ', ')}], got [{paste(dim(Xn), collapse = ', ')}]."))
+			}
+			dn <- dimnames(Xn)
+			if (!is.null(dn[[1L]]) && !is.null(row_target)) {
+				.ae_match_cov_names(dn[[1L]], row_target, "newdata", "all", "row")
+				Xn <- Xn[row_target, , , , drop = FALSE]
+			}
+			if (!is.null(dn[[2L]]) && !is.null(col_target)) {
+				.ae_match_cov_names(dn[[2L]], col_target, "newdata", "all", "column")
+				Xn <- Xn[, col_target, , , drop = FALSE]
+			}
+			if (!is.null(dn[[3L]]) && !is.null(cov_target)) {
+				got <- dn[[3L]]
+				if (setequal(got, cov_target)) {
+					Xn <- Xn[, , cov_target, , drop = FALSE]
+				} else {
+					got_suffixed <- .lame_apply_suffix(got, "dyad")
+					if (!setequal(got_suffixed, cov_target)) {
+						cli::cli_abort(c(
+							"{.arg newdata} dyadic-covariate names do not match the fit.",
+							"i" = "Use the same covariate names as the fitted {.arg Xdyad}."))
+					}
+					Xn <- Xn[, , match(cov_target, got_suffixed), , drop = FALSE]
+					dimnames(Xn)[[3L]] <- cov_target
+				}
+			}
+			beta_dyad <- object$beta[seq_len(p_dyad)]
+			EZ <- lapply(seq_len(object$n_time), function(t) {
 			xb_old <- xb_new <- matrix(0, object$dims$n_row, object$dims$n_col)
 			for (k in seq_len(p_dyad)) {
 				xb_old <- xb_old + beta_dyad[k] * X_old[, , k, t]
 				xb_new <- xb_new + beta_dyad[k] * Xn[, , k, t]
 			}
 			ez <- object$EZ[[t]] - xb_old + xb_new
-			dimnames(ez) <- dimnames(object$EZ[[t]])
-			ez
-		})
-	}
-	pred <- if (type == "link") EZ else {
+				dimnames(ez) <- dimnames(object$EZ[[t]])
+				ez
+			})
+			names(EZ) <- object$time_names %||% names(object$EZ)
+		}
+		pred <- if (type == "link") EZ else {
 		lapply(EZ, function(ez) .ae_link_inverse(ez, object$family, object$link))
 	}
 	if (isTRUE(object$longitudinal)) pred else pred[[1]]
@@ -1872,14 +2301,15 @@ print.ame_als <- function(x, digits = 4, ...) {
 	cli::cli_text("Family: {.field {x$family}} | Mode: {.field {x$mode}}{ifelse(x$symmetric, ' (symmetric)', '')} | R = {x$R}")
 	cli::cli_text("Network: {x$dims$n_row} x {x$dims$n_col}, {x$n_time} time slice{?s}")
 	cli::cli_text("Converged: {.val {x$converged}} in {x$iterations} iteration{?s}")
-	# loud notice: ALS is always static, even on a longitudinal panel
+	# loud notice: lame_als() is static even on a longitudinal panel.
 	if (!is.null(x$n_time) && x$n_time > 1L) {
 		cli::cli_alert_warning(c(
 			"This is a {.strong STATIC} fit pooled across {x$n_time} time periods: ",
 			"{.code U}, {.code V}, {.code a}, {.code b} do not vary by time. ",
-			"The ALS estimator has no dynamic option; use {.fn lame} ",
-			"(MCMC) with {.code dynamic_uv = TRUE} / {.code dynamic_ab = TRUE} ",
-			"for time-varying latent positions."))
+			"For a dynamic point fit, call {.fn lame} with {.code method = \"als\"} ",
+			"and dynamic arguments such as {.code dynamic_uv = TRUE}, ",
+			"{.code dynamic_ab = TRUE}, or {.code dynamic_beta = ...}. ",
+			"Use {.code method = \"mcmc\"} when you need posterior draws or an unsupported family."))
 	}
 	cli::cli_text("")
 	cli::cli_text("{.strong Coefficients:}")
@@ -1909,9 +2339,9 @@ print.ame_als <- function(x, digits = 4, ...) {
 #' @method summary ame_als
 #' @export
 summary.ame_als <- function(object, ...) {
-	# Build the regression-coefficient table. When a bootstrap is
+	# build the regression-coefficient table. when a bootstrap is
 	# attached (i.e. uncertainty is available), merge the per-coefficient
-	# SE / CI columns into the same table users see at the top of the
+	# se / ci columns into the same table users see at the top of the
 	# summary printout — without this, users have to call confint()
 	# separately and miss the obvious join.
 	bs <- object$bootstrap
@@ -1920,7 +2350,7 @@ summary.ame_als <- function(object, ...) {
 		!is.null(bs$point_est)
 	if (have_bs) {
 		# `bs$param_names` lines up with bs$point_est / bs$se / bs$ci_lo /
-		# bs$ci_hi. Match these to object$coefficients by name.
+		# bs$ci_hi. match these to object$coefficients by name.
 		coef_nms <- names(object$coefficients)
 		match_idx <- match(coef_nms, bs$param_names)
 		tab <- cbind(
@@ -1967,8 +2397,10 @@ print.summary.ame_als <- function(x, digits = 4, ...) {
 		cli::cli_alert_warning(c(
 			"This is a {.strong STATIC} fit pooled across {x$n_time} time periods: ",
 			"{.code U}, {.code V}, {.code a}, {.code b} do not vary by time. ",
-			"ALS has no dynamic option; use {.fn lame} (MCMC) with ",
-			"{.code dynamic_uv = TRUE} / {.code dynamic_ab = TRUE} for time-varying effects."))
+			"For a dynamic point fit, call {.fn lame} with {.code method = \"als\"} ",
+			"and dynamic arguments such as {.code dynamic_uv = TRUE}, ",
+			"{.code dynamic_ab = TRUE}, or {.code dynamic_beta = ...}. ",
+			"Use {.code method = \"mcmc\"} when you need posterior draws or an unsupported family."))
 	}
 	cli::cli_rule()
 	cli::cli_text("{.strong Regression coefficients}")

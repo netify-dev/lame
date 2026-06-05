@@ -1,16 +1,13 @@
-# essential tests for cran — runs in under 2 minutes
-# this file does NOT use skip_on_cran() so it always runs
-# full suite (1900+ tests) runs via devtools::test() locally
-# to run only cran tests: devtools::check(env_vars = c(NOT_CRAN = "false"))
+# essential cran checks
+# this file runs without skip_on_cran()
+# run the larger suite locally with devtools::test()
 
 # minimal mcmc settings for speed
 burn = 5
 nscan = 25
 odens = 5
 
-# -------------------------------------------------------
-# ame: unipartite binary
-# -------------------------------------------------------
+# ame unipartite binary
 
 test_that("ame fits a unipartite binary model", {
 	set.seed(6886)
@@ -29,9 +26,7 @@ test_that("ame fits a unipartite binary model", {
 	expect_true(all(is.finite(fit$BETA)))
 })
 
-# -------------------------------------------------------
-# ame: unipartite normal with covariates
-# -------------------------------------------------------
+# ame normal with covariates
 
 test_that("ame fits a normal model with covariates", {
 	set.seed(6886)
@@ -53,9 +48,7 @@ test_that("ame fits a normal model with covariates", {
 	expect_true(all(is.finite(coef(fit))))
 })
 
-# -------------------------------------------------------
-# ame: bipartite binary
-# -------------------------------------------------------
+# ame bipartite binary
 
 test_that("ame fits a bipartite binary model", {
 	set.seed(6886)
@@ -76,9 +69,7 @@ test_that("ame fits a bipartite binary model", {
 	expect_equal(length(fit$BPM), nB)
 })
 
-# -------------------------------------------------------
-# lame: longitudinal binary
-# -------------------------------------------------------
+# lame longitudinal binary
 
 test_that("lame fits a longitudinal binary model", {
 	set.seed(6886)
@@ -100,9 +91,7 @@ test_that("lame fits a longitudinal binary model", {
 	expect_equal(length(fit$EZ), n_time)
 })
 
-# -------------------------------------------------------
-# lame: dynamic effects
-# -------------------------------------------------------
+# lame dynamic effects
 
 test_that("lame fits with dynamic_uv and dynamic_ab", {
 	set.seed(6886)
@@ -122,13 +111,34 @@ test_that("lame fits with dynamic_uv and dynamic_ab", {
 	expect_s3_class(fit, "lame")
 	expect_true(isTRUE(fit$dynamic_uv))
 	expect_true(isTRUE(fit$dynamic_ab))
-	# u should be 3D for dynamic models
+	# u is a cube for dynamic models
 	expect_equal(length(dim(fit$U)), 3)
 })
 
-# -------------------------------------------------------
-# lame: bipartite longitudinal
-# -------------------------------------------------------
+test_that("front-door ALS dynamic routes run quickly", {
+	set.seed(6886)
+	n = 5; n_time = 2
+	Y_list = lapply(seq_len(n_time), function(t) {
+		Y = matrix(rnorm(n * n), n, n)
+		diag(Y) = NA
+		rownames(Y) = colnames(Y) = paste0("n", seq_len(n))
+		Y
+	})
+
+	fit_dyn = suppressWarnings(lame(
+		Y_list, R = 0, family = "normal", method = "als",
+		dynamic_ab = TRUE, als_max_iter = 2, verbose = FALSE))
+	expect_s3_class(fit_dyn, "lame_dynamic_als")
+
+	fit_snap = suppressWarnings(lame(
+		Y_list, R = 1, family = "normal", method = "als",
+		dynamic_uv = TRUE, dynamic_uv_kind = "snap",
+		als_max_iter = 2, verbose = FALSE))
+	expect_s3_class(fit_snap, "lame_snap_als")
+	expect_true(all(is.na(fit_snap$snap_prob[, 1L])))
+})
+
+# lame bipartite longitudinal
 
 test_that("lame fits a bipartite longitudinal model", {
 	set.seed(6886)
@@ -149,9 +159,7 @@ test_that("lame fits a bipartite longitudinal model", {
 	expect_equal(fit$mode, "bipartite")
 })
 
-# -------------------------------------------------------
-# s3 methods: coef, vcov, confint, summary, predict, fitted, residuals
-# -------------------------------------------------------
+# s3 methods
 
 test_that("s3 methods work on ame objects", {
 	set.seed(6886)
@@ -164,34 +172,27 @@ test_that("s3 methods work on ame objects", {
 		burn = burn, nscan = nscan, odens = odens,
 		verbose = FALSE)
 
-	# coef
 	b = coef(fit)
 	expect_true(is.numeric(b))
 	expect_true(length(b) > 0)
 
-	# vcov
 	v = vcov(fit)
 	expect_true(is.matrix(v))
 	expect_equal(nrow(v), length(b))
 
-	# confint
 	ci = confint(fit)
 	expect_equal(nrow(ci), length(b))
 	expect_true(all(ci[, 2] >= ci[, 1]))
 
-	# summary
 	s = summary(fit)
 	expect_s3_class(s, "summary.ame")
 
-	# predict
 	pred = predict(fit, type = "response")
 	expect_equal(dim(pred), dim(Y))
 
-	# fitted
 	f = fitted(fit)
 	expect_equal(dim(f), dim(Y))
 
-	# residuals
 	r = residuals(fit)
 	expect_equal(dim(r), dim(Y))
 })
@@ -224,9 +225,7 @@ test_that("s3 methods work on lame objects", {
 	expect_equal(length(pred), n_time)
 })
 
-# -------------------------------------------------------
 # simulate
-# -------------------------------------------------------
 
 test_that("simulate works for ame and lame", {
 	set.seed(6886)
@@ -245,9 +244,7 @@ test_that("simulate works for ame and lame", {
 	expect_true(all(sims$Y[[1]] %in% c(0, 1, NA)))
 })
 
-# -------------------------------------------------------
-# plotting functions (smoke tests)
-# -------------------------------------------------------
+# plotting functions
 
 test_that("plotting functions produce ggplot objects", {
 	set.seed(6886)
@@ -273,9 +270,7 @@ test_that("plotting functions produce ggplot objects", {
 	expect_true(inherits(p4, "gg"))
 })
 
-# -------------------------------------------------------
-# latent_positions and procrustes_align
-# -------------------------------------------------------
+# latent positions
 
 test_that("latent_positions returns tidy data frame", {
 	set.seed(6886)
@@ -296,9 +291,7 @@ test_that("latent_positions returns tidy data frame", {
 	expect_true("type" %in% names(lp))
 })
 
-# -------------------------------------------------------
 # input validation
-# -------------------------------------------------------
 
 test_that("ame rejects non-square Y for unipartite", {
 	Y = matrix(1, 5, 3)
@@ -306,16 +299,12 @@ test_that("ame rejects non-square Y for unipartite", {
 })
 
 test_that("check_format validates lame inputs", {
-	# y must be a list
 	expect_error(check_format(Y = matrix(1, 5, 5)))
-	# covariate length must match
 	Y_list = list(matrix(1, 5, 5), matrix(1, 5, 5))
 	expect_error(check_format(Y = Y_list, Xdyad = list(matrix(1, 5, 5))))
 })
 
-# -------------------------------------------------------
-# gof and gof_stats
-# -------------------------------------------------------
+# gof helpers
 
 test_that("gof_stats returns named vector", {
 	set.seed(6886)
@@ -325,6 +314,16 @@ test_that("gof_stats returns named vector", {
 	expect_true(is.numeric(stats))
 	expect_true(length(stats) >= 4)
 	expect_true("sd.rowmean" %in% names(stats))
+})
+
+test_that("gof_stats ignores unipartite diagonal values", {
+	set.seed(6886)
+	Y = matrix(rnorm(100), 10, 10)
+	diag(Y) = NA
+	Y_diag = Y
+	diag(Y_diag) = seq(1000, 10000, length.out = nrow(Y_diag))
+
+	expect_equal(gof_stats(Y_diag), gof_stats(Y), tolerance = 1e-12)
 })
 
 test_that("gof_stats_bipartite returns named vector", {
@@ -349,6 +348,22 @@ test_that("bipartite ame GOF first row is observed", {
 
 	obs = gof_stats(Y, mode = "bipartite")
 	expect_equal(unname(fit$GOF[1, ]), unname(obs))
+})
+
+test_that("bipartite ame list custom_gof uses simulated networks", {
+	set.seed(6886)
+	nA = 8; nB = 7
+	Y = matrix(rnorm(nA * nB), nA, nB)
+	rownames(Y) = paste0("R", 1:nA)
+	colnames(Y) = paste0("C", 1:nB)
+
+	fit = ame(Y, mode = "bipartite", R = 0, family = "normal",
+		burn = burn, nscan = nscan, odens = odens, gof = TRUE,
+		custom_gof = list(total = function(Y) sum(Y, na.rm = TRUE)),
+		verbose = FALSE)
+
+	expect_true("total" %in% colnames(fit$GOF))
+	expect_true(any(abs(fit$GOF[-1, "total"] - fit$GOF[1, "total"]) > 1e-8))
 })
 
 # -------------------------------------------------------

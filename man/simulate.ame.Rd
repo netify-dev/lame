@@ -49,18 +49,17 @@ A list with components:
 }
 }
 \description{
-Generates multiple network realizations from the posterior distribution of
-a fitted AME model. This function performs posterior predictive simulation
-by drawing from the full joint posterior distribution of model parameters,
-thereby propagating parameter uncertainty into the simulated networks.
+Generates multiple network realizations from a fitted AME model. This
+function performs conditional posterior predictive simulation: it draws from
+stored MCMC samples when they are available and uses posterior means for
+latent components that were not retained.
 
-\strong{Key Difference from print():} While \code{print.ame} displays existing
-model results without computation, \code{simulate.ame} actively generates new
-network data by sampling from the posterior predictive distribution. This is
-computationally intensive and produces new datasets for analysis.
+Unlike \code{print.ame}, which only displays fitted quantities,
+\code{simulate.ame} draws new networks from the posterior predictive
+distribution.
 }
 \details{
-\strong{Mathematical Framework:}
+\strong{Model:}
 
 The AME model represents networks through a latent variable framework:
 \deqn{Y_{ij} \sim F(Z_{ij})}
@@ -75,31 +74,31 @@ Components:
 \item \eqn{\epsilon_{ij}}: dyadic random effects with correlation \eqn{\rho}
 }
 
-\strong{Uncertainty Quantification Process:}
+\strong{Simulation:}
 
 For each simulated network k = 1, ..., nsim:
 \enumerate{
-\item \strong{Parameter Sampling:} Draw parameter set \eqn{\theta^{(k)}} from MCMC chains:
+\item \strong{Parameter draw:} Draw parameter set \eqn{\theta^{(k)}} from MCMC chains:
 \itemize{
 \item Sample iteration s uniformly from stored MCMC samples
 \item Extract \eqn{\beta^{(s)}}, variance components \eqn{(v_a^{(s)}, v_b^{(s)}, v_e^{(s)}, \rho^{(s)})}
 }
-\item \strong{Random Effects Generation:} Sample new random effects from posterior distributions:
+\item \strong{Random effects:} Sample new random effects from posterior distributions:
 \itemize{
 \item \eqn{a_i^{(k)} \sim N(0, v_a^{(s)})} for i = 1, ..., n (row effects)
 \item \eqn{b_j^{(k)} \sim N(0, v_b^{(s)})} for j = 1, ..., m (column effects)
-\item Note: We sample fresh from the posterior variance rather than using
-point estimates to properly propagate uncertainty
+\item Fresh draws from the posterior variance carry random-effect
+uncertainty into the simulated networks
 }
-\item \strong{Latent Network Construction:} Build expected latent positions:
+\item \strong{Latent network:} Build expected latent positions:
 \deqn{E[Z_{ij}^{(k)}] = \beta^{(s)T} x_{ij} + a_i^{(k)} + b_j^{(k)} + \hat{u}_i^T \hat{v}_j}
 where \eqn{\hat{u}_i, \hat{v}_j} are posterior mean latent factors
-\item \strong{Dyadic Correlation:} Add correlated noise structure:
+\item \strong{Dyadic correlation:} Add correlated noise structure:
 \deqn{Z_{ij}^{(k)} = E[Z_{ij}^{(k)}] + \epsilon_{ij}^{(k)}}
 where \eqn{\epsilon} has covariance structure:
 \deqn{Cov(\epsilon_{ij}, \epsilon_{ji}) = \rho^{(s)} v_e^{(s)}}
 \deqn{Var(\epsilon_{ij}) = v_e^{(s)}}
-\item \strong{Observation Model:} Generate observed network based on family:
+\item \strong{Observation model:} Generate the observed network:
 \itemize{
 \item Binary: \eqn{Y_{ij}^{(k)} = I(Z_{ij}^{(k)} > 0)}
 \item Normal: \eqn{Y_{ij}^{(k)} = Z_{ij}^{(k)}}
@@ -108,7 +107,7 @@ where \eqn{\epsilon} has covariance structure:
 }
 }
 
-\strong{Sources of Uncertainty:}
+\strong{Sources of uncertainty:}
 
 The simulation captures three types of uncertainty:
 \enumerate{
@@ -117,16 +116,15 @@ The simulation captures three types of uncertainty:
 \item \strong{Dyadic uncertainty:} Correlated random noise \eqn{\epsilon_{ij}}
 }
 
-This approach provides proper posterior predictive distributions that account
-for all sources of uncertainty in the model. The variation across simulated
-networks reflects our posterior uncertainty about the data generating process.
+The resulting simulations propagate uncertainty from the stored parameter
+draws and from fresh dyadic/random-effect draws. Latent components that were
+not stored as MCMC draws are held at their posterior means.
 
-\strong{Limitations:}
+\strong{Latent-factor draws:}
 
-Currently, multiplicative effects (U, V) use posterior means rather than
-sampling from their full posterior. For complete uncertainty quantification,
-one would need to store and sample from the full MCMC chains of these
-latent factors, which would require substantial additional memory.
+Multiplicative effects (U, V) use posterior means unless the fit retained
+compatible latent-factor draws. Storing full latent-factor chains can require
+substantial additional memory.
 
 \strong{Symmetric Networks:}
 

@@ -32,7 +32,7 @@ sim_binary_ame = function(seed, n, mu, beta, gamma=NULL,
 		eta = eta + outer(a_true, rep(1, n)) + outer(rep(1, n), b_true)
 	}
 	
-	# add multiplicative effects if R > 0
+	# add multiplicative effects if r > 0
 	U_true = V_true = NULL
 	if(R > 0) {
 		U_true = matrix(rnorm(n*R, 0, 1), n, R)
@@ -41,11 +41,11 @@ sim_binary_ame = function(seed, n, mu, beta, gamma=NULL,
 	}
 	
 	# generate binary outcome via probit link
-	Z = eta + matrix(rnorm(n*n), n, n)  # Add standard normal noise
-	Y = 1 * (Z > 0)  # Binary outcome
+	Z = eta + matrix(rnorm(n*n), n, n)  # add standard normal noise
+	Y = 1 * (Z > 0)  # binary outcome
 	diag(Y) = NA
 	
-	# fit AME model
+	# fit ame model
 	fit = ame(Y, Xdyad=X, R=R, family="binary",
 						rvar=rvar, cvar=cvar, dcor=FALSE,
 						burn=burn, nscan=nscan, 
@@ -176,7 +176,7 @@ test_that("Binary AME with additive effects recovers true parameters", {
 		a_cor = cor(a_true, fit$APM, use='pairwise.complete.obs')
 		b_cor = cor(b_true, fit$BPM, use='pairwise.complete.obs')
 		
-		expect_gt(a_cor, 0.4)  # Slightly lower threshold for binary
+		expect_gt(a_cor, 0.4)  # slightly lower threshold for binary
 		expect_gt(b_cor, 0.4)
 	}
 })
@@ -190,13 +190,13 @@ test_that("Binary AME with full model recovers true parameters", {
 	n = 50
 	mu_true = -0.2
 	beta_true = 0.8
-	gamma_true = 0.6  # Unobserved covariate
+	gamma_true = 0.6  # unobserved covariate
 	R_true = 2
 	
 	# generate data
 	xw = matrix(rnorm(n*2), n, 2)
 	X = tcrossprod(xw[,1])
-	W = tcrossprod(xw[,2])  # Unobserved
+	W = tcrossprod(xw[,2])  # unobserved
 	diag(X) = NA
 	diag(W) = NA
 	
@@ -217,7 +217,7 @@ test_that("Binary AME with full model recovers true parameters", {
 	Y = 1 * (Z > 0)
 	diag(Y) = NA
 	
-	# fit full AME model
+	# fit full ame model
 	fit = ame(Y, Xdyad=X, R=R_true, family="binary",
 						rvar=TRUE, cvar=TRUE, dcor=FALSE,
 						burn=500, nscan=2000, verbose = FALSE)
@@ -247,7 +247,7 @@ test_that("Multiplicative effects reduce bias in binary models", {
 	n = 50
 	mu_true = 0
 	beta_true = 1
-	gamma_true = 1.2  # Strong unobserved effect
+	gamma_true = 1.2  # strong unobserved effect
 	
 	# generate data with unobserved confounder
 	xw = matrix(rnorm(n*2), n, 2)
@@ -261,12 +261,12 @@ test_that("Multiplicative effects reduce bias in binary models", {
 	Y = 1 * (Z > 0)
 	diag(Y) = NA
 	
-	# fit model WITHOUT multiplicative effects
+	# fit model without multiplicative effects
 	fit_no_uv = ame(Y, Xdyad=X, R=0, family="binary",
 									rvar=FALSE, cvar=FALSE, dcor=FALSE,
 									burn=400, nscan=1500, verbose = FALSE)
 	
-	# fit model WITH multiplicative effects
+	# fit model with multiplicative effects
 	fit_with_uv = ame(Y, Xdyad=X, R=2, family="binary",
 										rvar=FALSE, cvar=FALSE, dcor=FALSE,
 										burn=400, nscan=1500, verbose = FALSE)
@@ -274,7 +274,7 @@ test_that("Multiplicative effects reduce bias in binary models", {
 	beta_no_uv = median(fit_no_uv$BETA[,2])
 	beta_with_uv = median(fit_with_uv$BETA[,2])
 	
-	# model with UV should have less bias
+	# model with uv should have less bias
 	bias_no_uv = abs(beta_no_uv - beta_true)
 	bias_with_uv = abs(beta_with_uv - beta_true)
 	
@@ -282,7 +282,7 @@ test_that("Multiplicative effects reduce bias in binary models", {
 	# but be lenient given model complexity
 	expect_lt(bias_with_uv, bias_no_uv + 0.3)
 	
-	# check that UV captures the unobserved structure
+	# check that uv captures the unobserved structure
 	if(!is.null(fit_with_uv$UVPM)) {
 		cor_W = cor(c(W), c(fit_with_uv$UVPM), use='pairwise.complete.obs')
 		expect_gt(cor_W, 0.2)
@@ -306,7 +306,7 @@ test_that("Binary AME handles sparse and dense networks", {
 									 burn=200, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit_sparse$BETA))
-	expect_lt(median(fit_sparse$BETA[,1]), 0)  # Intercept should be negative
+	expect_lt(median(fit_sparse$BETA[,1]), 0)  # intercept should be negative
 	
 	# test dense network
 	Y_dense = matrix(1, n, n)
@@ -317,7 +317,7 @@ test_that("Binary AME handles sparse and dense networks", {
 									burn=200, nscan=800, verbose = FALSE)
 	
 	expect_true(!is.null(fit_dense$BETA))
-	expect_gt(median(fit_dense$BETA[,1]), 0)  # Intercept should be positive
+	expect_gt(median(fit_dense$BETA[,1]), 0)  # intercept should be positive
 })
 
 test_that("Binary AME predictions are probabilities", {
@@ -334,7 +334,7 @@ test_that("Binary AME predictions are probabilities", {
 	fit = ame(Y, Xdyad=X, R=1, family="binary",
 						burn=200, nscan=800, verbose = FALSE)
 	
-	# check GOF if available
+	# check gof if available
 	if(!is.null(fit$GOF)) {
 		expect_true(nrow(fit$GOF) > 0)
 	}

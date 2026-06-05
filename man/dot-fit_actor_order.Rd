@@ -16,7 +16,7 @@ a list with \code{rows} and \code{cols} character vectors (or
 \description{
 \code{lame()} sorts actors alphabetically when it ingests a list of \code{Y}
 matrices (via \code{list_to_array}), so the stored additive / multiplicative
-effects and design slices are in SORTED actor order, which need not match the
+effects and design slices are in sorted actor order, which need not match the
 order a user later supplies in \code{newdata}. This returns the row and column
 actor names the fit was estimated in, tried from the most authoritative source
 down, so \code{newdata} can be realigned by name before prediction.

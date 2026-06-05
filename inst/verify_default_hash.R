@@ -1,12 +1,12 @@
 #!/usr/bin/env Rscript
 # byte-identical-default verifier. each fit is run with default arguments
-# so any change to the legacy mcmc kernel flips the hash. results are
-# written to inst/verify_phase_hash_results.csv; exit code signals pass
+# so any change to the base mcmc kernel flips the hash. results are
+# written to inst/verify_default_hash_results.csv; exit code signals pass
 # (0) or fail (1). a one-line stderr summary is emitted for ci pipes.
 #
 # usage:
-#   Rscript inst/verify_phase_hash.R baseline   # record current hashes
-#   Rscript inst/verify_phase_hash.R verify     # check against baseline
+#   rscript inst/verify_default_hash.r baseline
+#   rscript inst/verify_default_hash.r verify
 
 suppressMessages({
 	library(lame)
@@ -80,8 +80,8 @@ build_matrix = function() {
 main = function(mode) {
 	pkg_root = tryCatch(rprojroot::find_root(rprojroot::is_r_package),
 	                    error = function(e) ".")
-	baseline_path = file.path(pkg_root, "inst", "verify_phase_hash_baseline.rds")
-	results_path = file.path(pkg_root, "inst", "verify_phase_hash_results.csv")
+	baseline_path = file.path(pkg_root, "inst", "verify_default_hash_baseline.rds")
+	results_path = file.path(pkg_root, "inst", "verify_default_hash_results.csv")
 	current = build_matrix()
 	utils::write.csv(current, results_path, row.names = FALSE)
 
@@ -101,7 +101,7 @@ main = function(mode) {
 		               by = c("cfg", "seed"),
 		               suffixes = c("_base", "_now"))
 		mismatch = merged[merged$hash_base != merged$hash_now, ]
-		mismatch_path = file.path(pkg_root, "inst", "verify_phase_hash_mismatches.csv")
+		mismatch_path = file.path(pkg_root, "inst", "verify_default_hash_mismatches.csv")
 		utils::write.csv(mismatch, mismatch_path, row.names = FALSE)
 		if (nrow(mismatch) == 0L) {
 			writeLines(sprintf("ALL_HASHES_MATCH (%d configs)", nrow(merged)),
@@ -112,7 +112,7 @@ main = function(mode) {
 		           con = stderr())
 		quit(status = 1L)
 	}
-	stop("usage: Rscript inst/verify_phase_hash.R [baseline|verify]")
+	stop("usage: Rscript inst/verify_default_hash.R [baseline|verify]")
 }
 
 args = commandArgs(trailingOnly = TRUE)

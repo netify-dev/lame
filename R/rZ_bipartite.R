@@ -1,27 +1,27 @@
-# bipartite (rectangular) versions of the family Z-sampling helpers.
+# bipartite (rectangular) versions of the family z-sampling helpers.
 #
-# the unipartite-asymmetric samplers in rZ_<family>_fc.R hardcode the
-# square n x n assumption: they split Z into upper/lower triangles,
+# the unipartite-asymmetric samplers in rz_<family>_fc.r hardcode the
+# square n x n assumption: they split z into upper/lower triangles,
 # couple each (i,j) with its reciprocal (j,i) through `rho` and a
-# transposed term `t(Z)`, and sample the diagonal separately. None of
-# that applies bipartite: Y is nA x nB rectangular, there is no
-# "reciprocal cell" (no t(Z) term), there is no diagonal, and rho is
+# transposed term `t(z)`, and sample the diagonal separately. none of
+# that applies bipartite: y is na x nb rectangular, there is no
+# "reciprocal cell" (no t(z) term), there is no diagonal, and rho is
 # always 0 (the bipartite path drops dyadic correlation).
 #
 # each rectangular sampler below mirrors its unipartite sibling's
 # constraint structure but drops the triangle / diagonal / rho machinery.
-# Conditional draws are independent truncated normals once the row-level
+# conditional draws are independent truncated normals once the row-level
 # rank-cone constraints (for cbin/frn/rrl) have been resolved.
 #
 # the cutpoint convention for `ordinal` matches the existing unipartite
 # helper: cutpoints are *data-induced* (the boundaries are the order
-# statistics of Z within adjacent rank classes), not separately
-# parameterised. This keeps the bipartite path consistent with the
+# statistics of z within adjacent rank classes), not separately
+# parameterised. this keeps the bipartite path consistent with the
 # square ordinal sampler the rest of the codebase assumes.
 
 #' Sample Z under bipartite Poisson (rectangular MH step)
 #'
-#' Rectangular drop-in for \code{\link{rZ_pois_fc}}. Each \code{(i,j)}
+#' Rectangular analogue of \code{\link{rZ_pois_fc}}. Each \code{(i,j)}
 #' cell is updated independently with a Metropolis-Hastings step on
 #' the Poisson log-link; there is no upper/lower-triangle coupling and
 #' no diagonal because the bipartite Y is \code{nA x nB} with disjoint
@@ -42,10 +42,10 @@ rZ_pois_bip_fc <- function(Z, EZ, s2, Y, log_exposure = 0) {
 	nA <- nrow(Z); nB <- ncol(Z)
 	# propose
 	Zp <- Z + matrix(stats::rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-	# log-prior under N(EZ, s2)
+	# log-prior under n(ez, s2)
 	lp_curr <- -0.5 / s2 * (Z  - EZ)^2
 	lp_prop <- -0.5 / s2 * (Zp - EZ)^2
-	# log-likelihood: Poisson(exp(Z + log_exposure)); guarded against
+	# log-likelihood: poisson(exp(z + log_exposure)); guarded against
 	# overflow at exp(z) when z is large
 	obs <- !is.na(Y)
 	mu_curr <- exp(pmin(Z  + log_exposure, 30))
@@ -59,8 +59,8 @@ rZ_pois_bip_fc <- function(Z, EZ, s2, Y, log_exposure = 0) {
 	lh <- log(matrix(stats::runif(nA * nB), nA, nB))
 	accept <- lr > lh
 	Z[accept] <- Zp[accept]
-	# resample NA cells from the prior (parity with rZ_pois_fc_cpp behaviour
-	# for missing cells; uninformative draws keep EZ-conditional bookkeeping
+	# resample na cells from the prior (parity with rz_pois_fc_cpp behaviour
+	# for missing cells; uninformative draws keep ez-conditional bookkeeping
 	# valid downstream)
 	if (any(!obs)) {
 		Z[!obs] <- stats::rnorm(sum(!obs), EZ[!obs], sqrt(s2))
@@ -71,7 +71,7 @@ rZ_pois_bip_fc <- function(Z, EZ, s2, Y, log_exposure = 0) {
 
 #' Sample Z under bipartite ordinal data (rectangular)
 #'
-#' Rectangular drop-in for \code{\link{rZ_ord_fc}}. Cutpoints are
+#' Rectangular analogue of \code{\link{rZ_ord_fc}}. Cutpoints are
 #' data-induced (the boundary between rank \code{w} and rank \code{w+1}
 #' is the maximum Z in rank \code{w} and minimum Z in rank \code{w+1}),
 #' matching the existing unipartite convention. With rho ≡ 0 in
@@ -106,7 +106,7 @@ rZ_ord_bip_fc <- function(Z, EZ, Y) {
 
 #' Sample Z under bipartite censored binary nominations (rectangular)
 #'
-#' Rectangular drop-in for \code{\link{rZ_cbin_fc}}. Row-wise
+#' Rectangular analogue of \code{\link{rZ_cbin_fc}}. Row-wise
 #' constraints: \code{Y_ij = 1 => Z_ij > 0}; \code{Y_ij = 0 & odobs_i <
 #' odmax_i => Z_ij < 0}; nominated alters dominate non-nominated alters
 #' within the row. With rho ≡ 0 there is no reciprocity term.
@@ -125,9 +125,9 @@ rZ_cbin_bip_fc <- function(Z, EZ, Y, odmax, odobs) {
 	for (y in sample(0:1)) {
 		if (y == 1L) {
 			ub_mat <- matrix(Inf, nA, nB)
-			# the lower bound for a Y=1 cell is the max Z among Y=0 cells in the
+			# the lower bound for a y=1 cell is the max z among y=0 cells in the
 			# same row (so nominees dominate non-nominees), with floor 0. rows
-			# with no Y=0 cells yield max(numeric(0)) = -Inf, then the pmax(., 0)
+			# with no y=0 cells yield max(numeric(0)) = -inf, then the pmax(., 0)
 			# floor makes lb = 0 anyway, which is what we want
 			z_zeros <- Z - (Y != 0) * (Inf ^ (Y != 0))
 			lbm_row <- suppressWarnings(apply(z_zeros, 1, max, na.rm = TRUE))
@@ -137,9 +137,9 @@ rZ_cbin_bip_fc <- function(Z, EZ, Y, odmax, odobs) {
 			z_ones <- Z + (Y != 1) * (Inf ^ (Y != 1))
 			ubm_row <- suppressWarnings(apply(z_ones, 1, min, na.rm = TRUE))
 			ub_mat <- matrix(ubm_row, nA, nB)
-			# saturated rows: non-nominees cap below the min nominee Z;
+			# saturated rows: non-nominees cap below the min nominee z;
 			# unsaturated rows: non-nominees are < 0. defensively guard
-			# against NA from rows where odmax or odobs is missing.
+			# against na from rows where odmax or odobs is missing.
 			unsat <- odobs < odmax
 			unsat[is.na(unsat)] <- FALSE
 			if (any(unsat)) {
@@ -151,14 +151,14 @@ rZ_cbin_bip_fc <- function(Z, EZ, Y, odmax, odobs) {
 		up[is.na(up)] <- FALSE
 		ez <- EZ[up]
 		lb <- lb_mat[up]; ub <- ub_mat[up]
-		# guard against degenerate (lb >= ub) caused by Inf/-Inf edge cases
+		# guard against degenerate (lb >= ub) caused by inf/-inf edge cases
 		ok <- is.finite(ez) & (ub > lb)
 		if (any(ok)) {
 			z_curr <- Z[up]
 			# truncated-normal draw on (lb, ub). a finite bound far in the
 			# tail makes both pnorm() values saturate to 0 or 1, so qnorm() of
-			# the runif() draw would be +/-Inf. clamp the probabilities into
-			# the open unit interval so the draw stays finite (at most ~7 SD
+			# the runif() draw would be +/-inf. clamp the probabilities into
+			# the open unit interval so the draw stays finite (at most ~7 sd
 			# from ez); no-op in the common case.
 			eps <- 1e-12
 			plo <- pmin(pmax(stats::pnorm(lb[ok] - ez[ok]), eps), 1 - eps)
@@ -168,7 +168,7 @@ rZ_cbin_bip_fc <- function(Z, EZ, Y, odmax, odobs) {
 			Z[up] <- z_curr
 		}
 	}
-	# NA cells: unconstrained draw from the prior
+	# na cells: unconstrained draw from the prior
 	if (any(is.na(Y))) {
 		miss <- is.na(Y)
 		Z[miss] <- stats::rnorm(sum(miss), EZ[miss], 1)
@@ -179,7 +179,7 @@ rZ_cbin_bip_fc <- function(Z, EZ, Y, odmax, odobs) {
 
 #' Sample Z under bipartite fixed-rank nominations (rectangular)
 #'
-#' Rectangular drop-in for \code{\link{rZ_frn_fc}}. Row-wise rank
+#' Rectangular analogue of \code{\link{rZ_frn_fc}}. Row-wise rank
 #' constraints: ranked nominees are positive and ordered by rank;
 #' non-nominees fall below all ranked cells in the row (and below 0
 #' when the row is unsaturated). With rho ≡ 0 the unipartite triangle
@@ -212,9 +212,9 @@ rZ_frn_bip_fc <- function(Z, EZ, Y, YL, odmax, odobs) {
 			if (y <= 0L) {
 				lbm <- rep(-Inf, nA)
 			} else {
-				# y == 1: lower bound for the top-ranked cell is the max Z among
+				# y == 1: lower bound for the top-ranked cell is the max z among
 				# non-nominees in the row, floored at 0. rows with no non-nominees
-				# yield max(numeric(0)) = -Inf which the pmax(., 0) lifts to 0.
+				# yield max(numeric(0)) = -inf which the pmax(., 0) lifts to 0.
 				lbm <- pmax(0, suppressWarnings(apply(Z - (Y2 != 0) * (Inf ^ (Y2 != 0)), 1, max,
 				                                       na.rm = TRUE)))
 			}
@@ -238,7 +238,7 @@ rZ_frn_bip_fc <- function(Z, EZ, Y, YL, odmax, odobs) {
 
 		up <- Y2 == y
 		if (!any(up)) next
-		# row index of each TRUE cell, then map to its row-level bounds
+		# row index of each true cell, then map to its row-level bounds
 		row_idx <- row(Z)[up]
 		lb <- lbm[row_idx]; ub <- ubm[row_idx]
 		ez <- EZ[up]
@@ -247,8 +247,8 @@ rZ_frn_bip_fc <- function(Z, EZ, Y, YL, odmax, odobs) {
 			z_curr <- Z[up]
 			# truncated-normal draw on (lb, ub). a finite bound far in the
 			# tail makes both pnorm() values saturate to 0 or 1, so qnorm() of
-			# the runif() draw would be +/-Inf. clamp the probabilities into
-			# the open unit interval so the draw stays finite (at most ~7 SD
+			# the runif() draw would be +/-inf. clamp the probabilities into
+			# the open unit interval so the draw stays finite (at most ~7 sd
 			# from ez); no-op in the common case.
 			eps <- 1e-12
 			plo <- pmin(pmax(stats::pnorm(lb[ok] - ez[ok]), eps), 1 - eps)
@@ -264,7 +264,7 @@ rZ_frn_bip_fc <- function(Z, EZ, Y, YL, odmax, odobs) {
 
 #' Sample Z under bipartite relative-rank list (rectangular)
 #'
-#' Rectangular drop-in for \code{\link{rZ_rrl_fc}}. Row-wise full
+#' Rectangular analogue of \code{\link{rZ_rrl_fc}}. Row-wise full
 #' ordering: cells with higher rank have higher Z within the row.
 #' No 0-threshold and no \code{odmax}. With rho ≡ 0 the unipartite
 #' triangle coupling drops out.
@@ -318,8 +318,8 @@ rZ_rrl_bip_fc <- function(Z, EZ, Y, YL) {
 			z_curr <- Z[up]
 			# truncated-normal draw on (lb, ub). a finite bound far in the
 			# tail makes both pnorm() values saturate to 0 or 1, so qnorm() of
-			# the runif() draw would be +/-Inf. clamp the probabilities into
-			# the open unit interval so the draw stays finite (at most ~7 SD
+			# the runif() draw would be +/-inf. clamp the probabilities into
+			# the open unit interval so the draw stays finite (at most ~7 sd
 			# from ez); no-op in the common case.
 			eps <- 1e-12
 			plo <- pmin(pmax(stats::pnorm(lb[ok] - ez[ok]), eps), 1 - eps)

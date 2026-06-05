@@ -8,11 +8,11 @@
 get_EZ_dynamic_ab <- function(Xlist, beta, a_mat, b_mat, U, V, N,
                               bip = FALSE, G = NULL, nA = NULL, nB = NULL) {
 	if (bip) {
-		# bipartite path: use get_EZ_bip_cpp
+		# bipartite path: use get_ez_bip_cpp
 		nA <- nA %||% nrow(a_mat)
 		nB <- nB %||% nrow(b_mat)
 
-		# build base cube from X * beta
+		# build base cube from x * beta
 		base_cube <- array(0, dim = c(nA, nB, N))
 		for (t in 1:N) {
 			if (length(beta) > 0 && !is.null(Xlist[[t]])) {

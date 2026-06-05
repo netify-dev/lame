@@ -72,7 +72,7 @@ latent_positions.lame <- function(object, align = TRUE, ...) {
 #' @method latent_positions ame_als
 #' @export
 latent_positions.ame_als <- function(object, align = FALSE, ...) {
-	# the fast estimator's U/V are static; posterior_sd is NA (no samples)
+	# the fast estimator's u/v are static; posterior_sd is na (no samples)
 	.extract_latent_positions(object, align = align)
 }
 
@@ -98,7 +98,7 @@ latent_positions.ame_als <- function(object, align = FALSE, ...) {
 	is_symmetric <- isTRUE(object$symmetric)
 	is_bip <- identical(object$mode, "bipartite")
 
-	# apply Procrustes alignment if requested
+	# apply procrustes alignment if requested
 	if (align && length(dim(U)) == 3L) {
 		aligned <- procrustes_align(object = object)
 		U <- aligned$U
@@ -106,7 +106,7 @@ latent_positions.ame_als <- function(object, align = FALSE, ...) {
 		G <- aligned$G
 	}
 
-	# compute posterior SDs from samples if available
+	# compute posterior sds from samples if available
 	U_sd <- .compute_posterior_sd(object$U_samples)
 	V_sd <- .compute_posterior_sd(object$V_samples)
 
@@ -120,7 +120,7 @@ latent_positions.ame_als <- function(object, align = FALSE, ...) {
 		out <- rbind(u_df, v_df)
 	}
 
-	# tell users why posterior_sd is NA (samples weren't saved)
+	# tell users why posterior_sd is na (samples weren't saved)
 	if (nrow(out) > 0L && all(is.na(out$posterior_sd))) {
 		cli::cli_inform(c(
 			"i" = "{.code posterior_sd} is {.val NA} because U/V samples were not saved.",
@@ -131,19 +131,19 @@ latent_positions.ame_als <- function(object, align = FALSE, ...) {
 	out
 }
 
-# compute element-wise posterior SD from a 3D samples array [n, R, n_samples]
+# compute element-wise posterior sd from a 3d samples array [n, r, n_samples]
 .compute_posterior_sd <- function(samples) {
 	if (is.null(samples)) return(NULL)
 	if (length(dim(samples)) != 3L) return(NULL)
-	# apply SD across the samples dimension (3rd dim)
+	# apply sd across the samples dimension (3rd dim)
 	apply(samples, c(1, 2), sd, na.rm = TRUE)
 }
 
-# convert a 2D matrix or 3D array to tidy data frame
-# sd_array: optional matrix [n, R] of posterior SDs (same shape as 2D x)
+# convert a 2d matrix or 3d array to tidy data frame
+# sd_array: optional matrix [n, r] of posterior sds (same shape as 2d x)
 .array_to_df <- function(x, type, sd_array = NULL) {
 	if (is.matrix(x) || length(dim(x)) == 2L) {
-		# static: [n, R]
+		# static: [n, r]
 		actors <- rownames(x)
 		if (is.null(actors)) actors <- paste0("node", seq_len(nrow(x)))
 		R <- ncol(x)
@@ -168,7 +168,7 @@ latent_positions.ame_als <- function(object, align = FALSE, ...) {
 		})
 		do.call(rbind, dfs)
 	} else if (length(dim(x)) == 3L) {
-		# dynamic: [n, R, T]
+		# dynamic: [n, r, t]
 		actors <- dimnames(x)[[1]]
 		if (is.null(actors)) actors <- paste0("node", seq_len(dim(x)[1]))
 		time_labels <- dimnames(x)[[3]]

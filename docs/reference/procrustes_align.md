@@ -43,8 +43,8 @@ procrustes_align(
 
 - G:
 
-  Optional `[R_row, R_col]` interaction matrix for bipartite models.
-  Updated to maintain the invariant U G V'.
+  Optional `[R_row, R_col]` interaction matrix for bipartite models,
+  transformed to preserve the invariant U G V'.
 
 - return_fit:
 

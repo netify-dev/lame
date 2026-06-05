@@ -1,15 +1,15 @@
-# ame_als_sandwich.R
+# ame_als_sandwich.r
 #
 # analytic (sandwich) covariance for the dyadic regression coefficients of a
-# fast AME fit. This is a fast, closed-form alternative to the bootstrap for
+# fast ame fit. this is a fast, closed-form alternative to the bootstrap for
 # (intercept, dyadic-covariate) standard errors.
 #
 # it is a *conditional* sandwich: the additive effects a, b and the
-# multiplicative term O are treated as fixed offsets, so it captures sampling
+# multiplicative term o are treated as fixed offsets, so it captures sampling
 # variability of (mu, beta) given the estimated network structure but not the
-# uncertainty in a, b, U, V themselves. It is therefore anti-conservative --
+# uncertainty in a, b, u, v themselves. it is therefore anti-conservative --
 # the bootstrap (ame_als_bootstrap) remains the recommended uncertainty
-# tool, and the only one for a, b, U, V and the variance components.
+# tool, and the only one for a, b, u, v and the variance components.
 
 #' Sandwich covariance for the regression coefficients of a fast AME fit
 #'
@@ -50,11 +50,11 @@
 #' @export
 vcov.ame_als <- function(object, cluster = c("dyad", "none"), ...) {
 	cluster <- match.arg(cluster)
-	# the sandwich is honest only on the surrogate Gaussian working likelihood.
-	# for the non-Gaussian families (binary-transform, poisson-transform) it
+	# the sandwich is honest only on the surrogate gaussian working likelihood.
+	# for the non-gaussian families (binary-transform, poisson-transform) it
 	# is anti-conservative because it conditions on the transformed working
 	# response and ignores the estimation uncertainty in the additive
-	# effects. The bootstrap is the recommended uncertainty for those fits.
+	# effects. the bootstrap is the recommended uncertainty for those fits.
 	if (object$family %in% c("binary", "poisson") &&
 	    is.null(object$bootstrap)) {
 		cli::cli_warn(c(
@@ -73,7 +73,7 @@ vcov.ame_als <- function(object, cluster = c("dyad", "none"), ...) {
 		cli::cli_abort("This fit carries no residuals; refit with the current {.pkg lame}.")
 	}
 
-	# observation weights: unit for a normal/transform fit, the final IRLS
+	# observation weights: unit for a normal/transform fit, the final irls
 	# weights otherwise (so the sandwich matches the estimating equation solved)
 	W_arr <- object$obs_weights
 
@@ -104,15 +104,15 @@ vcov.ame_als <- function(object, cluster = c("dyad", "none"), ...) {
 		cli::cli_abort("Too few observed cells for a sandwich covariance.")
 	}
 
-	B  <- crossprod(D, w * D)                # bread D'WD
+	B  <- crossprod(D, w * D)                # bread d'wd
 	score <- D * (w * e)                     # weighted score contributions
 	M  <- if (cluster == "dyad") {
 		Sg <- rowsum(score, g)               # per-dyad score sums
 		crossprod(Sg)
 	} else {
-		crossprod(score)                     # HC0 meat
+		crossprod(score)                     # hc0 meat
 	}
-	# B^- via symmetric eigendecomposition (robust to a rank-deficient design)
+	# b^- via symmetric eigendecomposition (robust to a rank-deficient design)
 	eg  <- eigen((B + t(B)) / 2, symmetric = TRUE)
 	thr <- max(eg$values, 0) * sqrt(.Machine$double.eps)
 	keep <- eg$values > thr
@@ -128,7 +128,7 @@ vcov.ame_als <- function(object, cluster = c("dyad", "none"), ...) {
 
 	# the conditional sandwich is defined for the dyadic-cell regression only;
 	# node-covariate coefficients are identified from the additive effects and
-	# are not covered. Name them explicitly rather than dropping them silently.
+	# are not covered. name them explicitly rather than dropping them silently.
 	omitted <- setdiff(names(object$coefficients), nm)
 	if (length(omitted) > 0) {
 		cli::cli_inform(c(
@@ -170,9 +170,9 @@ confint.ame_als <- function(object, parm = NULL, level = 0.95, ...) {
 		cli::cli_abort("{.arg level} must be a single number in (0, 1).")
 	}
 	# unified bootstrap path: if the fit was produced via
-	# ame_als(..., bootstrap = N) or otherwise has a `$bootstrap` slot,
+	# ame_als(..., bootstrap = n) or otherwise has a `$bootstrap` slot,
 	# return the bootstrap intervals (fully propagated) instead of the
-	# anti-conservative sandwich Wald intervals.
+	# anti-conservative sandwich wald intervals.
 	if (!is.null(object$bootstrap)) {
 		return(stats::confint(object$bootstrap, parm = parm, level = level, ...))
 	}

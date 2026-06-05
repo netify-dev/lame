@@ -58,7 +58,7 @@ get_design_rep <- function(Y=Y, Xdyad, Xrow, Xcol, actorSet, intercept, n, N, pr
 	####
 
 	####
-	# add NAs from design array to Y
+	# add nas from design array to y
 	if( (pr + pc + pd) > 0){
 		for(t in 1:N){
 			for(p in 1:dim(X)[3]){
@@ -70,7 +70,7 @@ get_design_rep <- function(Y=Y, Xdyad, Xrow, Xcol, actorSet, intercept, n, N, pr
 	####
 
 	####
-	# turn NAs in design array to zero
+	# turn nas in design array to zero
 	X[is.na(X)]<-0
 	####
 

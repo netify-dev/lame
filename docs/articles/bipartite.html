@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-05-28</h4>
+            <h4 data-toc-skip class="date">2026-06-04</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/HEAD/vignettes/bipartite.Rmd" class="external-link"><code>vignettes/bipartite.Rmd</code></a></small>
       <div class="d-none name"><code>bipartite.Rmd</code></div>
@@ -150,16 +150,22 @@ itself is not estimated; what is identified is the overall
 multiplicative term
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>G</mi><mi>V</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">U G V'</annotation></semantics></math>.</li>
 <li>In <strong><code><a href="../reference/lame.html">lame()</a></code></strong> (longitudinal bipartite),
+the default MCMC estimator samples
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
-is <strong>sampled</strong> each iteration from its conditional Gaussian
-via the bipartite
+each iteration from its conditional Gaussian via the bipartite
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>-sampler.
 With <code>dynamic_G = FALSE</code> a single
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
 is shared across periods; with <code>dynamic_G = TRUE</code> a separate
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>t</mi></msub><annotation encoding="application/x-tex">G_t</annotation></semantics></math>
 is drawn per period and returned as <code>fit$G_cube</code> (see the
-section on <code>dynamic_G</code> below).</li>
+section on <code>dynamic_G</code> below). The fast ALS path,
+<code>lame(..., method = "als")</code>, also supports
+<code>dynamic_G = TRUE</code> for normal, binary, and Poisson bipartite
+panels, including named panels where row or column actors enter or exit;
+it estimates a penalized point path for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>t</mi></msub><annotation encoding="application/x-tex">G_t</annotation></semantics></math>
+rather than sampling posterior draws.</li>
 </ul>
 <p>In either case, the bipartite parameterisation lets row-side latent
 positions
@@ -172,7 +178,7 @@ shape
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mtext mathvariant="normal">col</mtext></msub><mo>×</mo><msub><mi>R</mi><mtext mathvariant="normal">col</mtext></msub></mrow><annotation encoding="application/x-tex">n_\text{col} \times R_\text{col}</annotation></semantics></math>)
 be chosen at different ranks, which is the substantive flexibility users
 get.</p>
-<p>A few things drop away in the bipartite setting. There is no dyadic
+<p>A few terms are absent in the bipartite setting. There is no dyadic
 correlation parameter
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>,
 because ties are inherently directional from row to column nodes (you
@@ -254,13 +260,16 @@ offset on the longitudinal path.</td>
 </tbody>
 </table>
 <p>The same table applies to <code><a href="../reference/lame.html">lame()</a></code> in bipartite mode.
-<code>dynamic_G = TRUE</code> is supported in <code><a href="../reference/lame.html">lame()</a></code>; it
-runs a Carter-Kohn FFBS on <code>vec(G_t)</code> under an AR(1)
-state-space prior and returns the posterior-mean per-period
-<code>G_t</code> plus a rotation-drift diagnostic that flags when
-apparent time variation is dominated by latent-rotation drift rather
-than real change. We demonstrate <code>dynamic_G</code> later in this
-vignette.</p>
+<code>dynamic_G = TRUE</code> is supported in <code><a href="../reference/lame.html">lame()</a></code>. On
+the default MCMC path it runs a Carter-Kohn FFBS on
+<code>vec(G_t)</code> under an AR(1) state-space prior and returns
+posterior summaries plus a rotation-drift diagnostic. On the ALS path it
+estimates a point path for <code>G_t</code> for the normal, binary, and
+Poisson families, honors separate <code>R_row</code> and
+<code>R_col</code> ranks, and aligns named changing-composition panels
+to the union row and column actor sets. Use MCMC when you need posterior
+draws or the rank/censored families. We demonstrate the MCMC
+<code>dynamic_G</code> fit later in this vignette.</p>
 </div>
 <div class="section level3">
 <h3 id="tobit-and-rrl-in-practice">Tobit and rrl in practice<a class="anchor" aria-label="anchor" href="#tobit-and-rrl-in-practice"></a>
@@ -274,7 +283,7 @@ observed zeros as left-censored draws from the underlying latent
 intensity and propagates that censoring into the additive /
 multiplicative updates. Set <code>family = "tobit"</code> and supply the
 matrix of recorded values (zeros allowed).</p>
-<p>Bipartite <strong>rrl</strong> (row-ranked likelihood) is first-class
+<p>Bipartite <strong>rrl</strong> (row-ranked likelihood) is supported
 in both <code><a href="../reference/ame.html">ame()</a></code> and <code><a href="../reference/lame.html">lame()</a></code>: the rectangular
 Z-sampler <code>rZ_rrl_bip_fc</code> in <code>R/rZ_bipartite.R</code>
 enforces the per-row rank cone (<code>Y_ij &gt; Y_ik</code> implies
@@ -352,7 +361,7 @@ enrollment.</p>
 each node type separately via <code>R_row</code> and
 <code>R_col</code>.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># note: burn/nscan are kept small here for fast vignette building.</span></span>
+<code class="sourceCode R"><span><span class="co"># burn and nscan are small so the vignette builds quickly</span></span>
 <span><span class="co"># for real analyses, use burn &gt;= 1000 and nscan &gt;= 5000.</span></span>
 <span><span class="va">fit_cross</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span></span>
 <span>    Y <span class="op">=</span> <span class="va">Y_bipartite</span>,</span>
@@ -442,7 +451,7 @@ directly:</p>
 <span>    Course <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/col.html" class="external-link">col</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span><span class="op">]</span>,</span>
 <span>    Fitted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co"># RdBu reversed (direction = -1): positive =&gt; red, negative =&gt; blue,</span></span>
+<span><span class="co"># rdbu reversed (direction = -1): positive =&gt; red, negative =&gt; blue,</span></span>
 <span><span class="co"># zero =&gt; white. By default scale_fill_distiller() centres white at the</span></span>
 <span><span class="co"># midpoint of the DATA range, not at zero -- so we pass symmetric limits</span></span>
 <span><span class="co"># c(-mx, mx) to force the white midpoint onto zero, which is the right</span></span>
@@ -552,7 +561,7 @@ together to get a single estimate of each actor’s latent position,
 useful when you believe the underlying structure is stable and you just
 want more data to estimate it precisely.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># note: iterations are kept small for vignette speed; use burn &gt;= 1000</span></span>
+<code class="sourceCode R"><span><span class="co"># iterations are small so the vignette builds quickly; use burn &gt;= 1000</span></span>
 <span><span class="co"># and nscan &gt;= 5000 for real analyses.</span></span>
 <span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
@@ -686,7 +695,7 @@ refreshing each period.</p>
 </h3>
 <p>When you suspect that the way the row and column latent spaces
 interact is itself shifting over time, not just the actor positions, set
-<code>dynamic_G = TRUE</code>. <code><a href="../reference/lame.html">lame()</a></code> then runs a
+<code>dynamic_G = TRUE</code>. By default, <code><a href="../reference/lame.html">lame()</a></code> runs a
 Carter-Kohn FFBS on <code>vec(G_t)</code> under an AR(1) state-space
 prior (the persistence and innovation variance are sampled jointly
 inside the loop) and attaches three outputs:</p>
@@ -711,6 +720,17 @@ across draws, same shape.</li>
 entries to their SVD-canonicalised counterparts; when the ratio is large
 the apparent time variation is dominated by latent-rotation drift rather
 than real change in the interaction matrix.</p>
+<p>With <code>method = "als"</code>, <code>dynamic_G = TRUE</code>
+estimates the same per-period bilinear surface as a penalized point path
+for normal, binary, and Poisson panels. Named changing-composition
+panels are aligned to the union row and column actor sets before
+fitting. The object still stores <code>G_cube</code>,
+<code>G_cube_post_mean</code>, and <code>G_cube_post_sd</code> for
+compatibility with MCMC code; <code>G_cube_post_mean</code> is the point
+path and <code>G_cube_post_sd</code> is zero because ALS has no
+posterior draws. The smoothing settings are reported through
+<code>rho_G</code>, <code>RHO_G</code>, <code>SIGMA_G2</code>, and
+<code>lambda_G_als</code>.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_dynG</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
@@ -795,7 +815,7 @@ panels are labelled “Sender Degree Heterogeneity” (row-mean SD),
 “Receiver Degree Heterogeneity” (column-mean SD), and “Four Cycles”, the
 bipartite analogue of transitivity.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># GOF plots for each model</span></span>
+<code class="sourceCode R"><span><span class="co"># gof plots for each model</span></span>
 <span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">)</span></span></code></pre></div>
 <p><img src="bipartite_files/figure-html/model_comparison-1.png" class="r-plt" alt="Side-by-side goodness-of-fit panels comparing posterior predictive coverage of bipartite degree heterogeneity and four-cycle counts for the static versus dynamic model." width="100%" style="display: block; margin: auto;"></p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
@@ -860,9 +880,9 @@ in unipartite networks).</p>
 <span>        strip.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"white"</span>, hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span>    <span class="op">)</span></span></code></pre></div>
 <p><img src="bipartite_files/figure-html/model_comparison_boxplot-1.png" class="r-plt" alt="Boxplots of posterior predictive bipartite statistics (row-mean SD, column-mean SD, four cycles) faceted by static and dynamic models, with horizontal reference lines at observed values." width="100%" style="display: block; margin: auto;"></p>
-<p>We simulated a constant interaction matrix
+<p>The simulated interaction matrix
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
-with actor positions that drift via an AR(1) with
+is constant, while actor positions drift via an AR(1) with
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ρ</mi><mo>=</mo><mn>0.9</mn></mrow><annotation encoding="application/x-tex">\rho = 0.9</annotation></semantics></math>
 – moderate persistence (the lag-4 autocorrelation is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>0.9</mn><mn>4</mn></msup><mo>≈</mo><mn>0.66</mn></mrow><annotation encoding="application/x-tex">0.9^4 \approx 0.66</annotation></semantics></math>,
