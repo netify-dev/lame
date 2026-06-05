@@ -1,6 +1,6 @@
 # Sample Z under symmetric ordinal data (square symmetric matrix)
 
-Symmetric-Z drop-in for
+Symmetric-Z analogue of
 [`rZ_ord_fc`](https://netify-dev.github.io/lame/reference/rZ_ord_fc.md):
 each unordered dyad i, j carries a single latent value (Z_ij = Z_ji)
 drawn from a truncated normal with mean equal to the average linear

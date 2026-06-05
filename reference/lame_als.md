@@ -49,11 +49,10 @@ lame_als(
 - Y:
 
   a list of `T` relational matrices, or a 3D array `[n_row, n_col, T]`.
-  All slices must share the same dimensions and, if the matrices carry
-  row/column names, the same actors in the same order (the ALS estimator
-  does not handle changing actor compositions; use
-  [`lame`](https://netify-dev.github.io/lame/reference/lame.md) for
-  that).
+  A named list may have changing actor composition; every slice must
+  carry row and column names so actors can be aligned to the union
+  panel. Unnamed lists and arrays are treated positionally and must have
+  one fixed layout.
 
 - Xdyad:
 
@@ -73,14 +72,14 @@ lame_als(
   covariate coefficients are conditional on this choice.** The
   multiplicative term \\u_i'v_j\\ is a flexible high-variance regressor
   that can correlate with the dyadic covariates, so the estimated `beta`
-  can shift – and occasionally change sign – as `R` increases. Validate
-  against an `R = 0` fit and the MCMC
-  [`ame`](https://netify-dev.github.io/lame/reference/ame.md)/[`lame`](https://netify-dev.github.io/lame/reference/lame.md)
-  before reporting.
+  can shift – and occasionally change sign – as `R` increases. Comparing
+  against an `R = 0` fit is a useful check on whether the covariate
+  story is being driven by the latent rank.
 
 - family:
 
-  one of `"normal"`, `"binary"`, `"poisson"`, `"ordinal"`.
+  one of `"normal"`, `"binary"`, or `"poisson"`. The rank and censoring
+  families are MCMC-only.
 
 - mode:
 
@@ -111,25 +110,16 @@ lame_als(
 
 - non_normal_method:
 
-  for the non-normal families, `"irls"` (default for `binary`/`poisson`)
-  runs iteratively reweighted least squares – a fast approximate GLM AME
-  fit with coefficients on the calibrated link scale (Poisson log,
-  binary logit/probit). `"transform"` fits a single fixed Gaussian
-  working response (`log(y+1)` for Poisson, rank-normal scores for
-  binary/ordinal); its coefficients are on an uncalibrated rank scale –
-  good for direction/ranking of effects, not for magnitudes. **For
-  ordinal data the transform path attenuates \\\beta\\ toward zero
-  (classical discretisation bias); prefer `"em"` when \\\beta\\ is an
-  effect-size estimand.** `"em"` (for `ordinal`, opt-in; default for
-  `tobit`) runs a deterministic EM outer loop that maximises the
-  observed ordinal log-likelihood, jointly estimating cutpoints
-  (returned on `fit$alpha`, anchored at `alpha[1] = 0`) and the
-  regression block; the surrogate is monotone non-decreasing across EM
-  iterations. `"irls"` is supported for `binary`/`poisson`; `ordinal`
-  accepts `"transform"` (default, back-compat) or `"em"`. A directed
-  `R > 0` IRLS fit uses the hybrid low-rank solver internally (the IRLS
-  weights are unbalanced). Uncertainty for any of these is the
-  bootstrap.
+  for the non-normal ALS families, `"irls"` (default for
+  `binary`/`poisson`) runs iteratively reweighted least squares, giving
+  a fast approximate GLM AME fit with coefficients on the requested link
+  scale (Poisson log, binary logit/probit). `"transform"` fits one fixed
+  Gaussian working response (`log(y+1)` for Poisson, rank-normal scores
+  for binary); its coefficients are on an uncalibrated working scale and
+  are mainly useful for direction/ranking checks. A directed `R > 0`
+  IRLS fit uses the hybrid low-rank solver internally because the IRLS
+  weights are unbalanced. Uncertainty for either path comes from the
+  bootstrap or sandwich covariance.
 
 - link:
 
@@ -210,6 +200,8 @@ coordinate descent estimator adapted here originates with that work
 [`ame_als_bootstrap`](https://netify-dev.github.io/lame/reference/ame_als_bootstrap.md),
 [`lame`](https://netify-dev.github.io/lame/reference/lame.md) for the
 full MCMC estimator,
+[`lame_snap_als`](https://netify-dev.github.io/lame/reference/lame_snap_als.md)
+for the approximate dynamic snap-shift point estimator,
 [`als_dynamic_beta`](https://netify-dev.github.io/lame/reference/als_dynamic_beta.md)
 for a regression-only smoother that estimates *only* a time-varying
 \\\beta_t\\ (no \\a, b, U, V\\; not a special case of this function).

@@ -27,6 +27,7 @@ lame(
   dynamic_G = FALSE,
   dynamic_beta = FALSE,
   dynamic_beta_kind = c("ar1", "rw1", "rw2", "matern32"),
+  dynamic_uv_kind = c("ar1", "snap", "t"),
   family = "normal",
   intercept = !is.element(family, c("rrl", "ordinal")),
   symmetric = FALSE,
@@ -48,6 +49,7 @@ lame(
   save_log_lik = FALSE,
   log_lik_path = NULL,
   log_lik_chunk_size = 10000L,
+  keep_snap_draws = c("none", "summary", "draws", "chunked"),
   freeze_call = FALSE,
   dynamic_beta_pool = c("none", "rho", "sigma", "both"),
   dynamic_beta_per_actor = NULL,
@@ -62,6 +64,9 @@ lame(
   log_lik_method = c("observed_exact", "observed_ghk", "augmented"),
   ordinal_cutpoints = c("data_induced", "explicit"),
   method = c("mcmc", "als"),
+  als_stability = c("none", "quick", "validation"),
+  als_max_iter = 200L,
+  als_tol = NULL,
   bootstrap = 0L,
   bootstrap_type = c("parametric", "block"),
   bootstrap_block_length = 1L,
@@ -130,18 +135,8 @@ lame(
 
 - dynamic_uv:
 
-  logical: fit dynamic multiplicative effects (latent factors) that
-  evolve over time using AR(1) processes. When TRUE, the latent
-  positions U and V become time-varying, following \\U\_{i,t} =
-  \rho\_{uv} U\_{i,t-1} + \epsilon\_{i,t}\\, where epsilon follows N(0,
-  sigma_uv^2). This allows actors' positions in latent social space to
-  drift smoothly over time, capturing evolving network structure and
-  community dynamics. Inspired by dynamic latent space models (Sewell
-  and Chen 2015, "Latent Space Models for Dynamic Networks", JASA;
-  Durante and Dunson 2014, "Nonparametric Bayes Dynamic Modeling of
-  Relational Data", Biometrika). The implementation uses efficient
-  blocked Gibbs sampling with C++ acceleration for scalability. Default
-  FALSE.
+  logical: fit dynamic multiplicative effects (latent factors). The
+  transition model is selected by `dynamic_uv_kind`. Default `FALSE`.
 
 - dynamic_ab:
 
@@ -161,11 +156,13 @@ lame(
 - dynamic_G:
 
   logical (bipartite only). When TRUE the bipartite interaction matrix
-  \\G\\ is sampled per period and returned as `fit$G_cube`, an
-  \\R\_\text{row} \times R\_\text{col} \times T\\ array. The static
-  \\G\\ (single matrix) is the default and is the recommended choice;
-  `dynamic_G = TRUE` is experimental and emits a one-line note at the
-  start of the run. Unipartite fits ignore this argument with a warning.
+  \\G_t\\ in \\U_t G_t V_t'\\ varies by period and is returned as
+  `fit$G_cube`, an \\R\_\text{row} \times R\_\text{col} \times T\\
+  array. MCMC fits also return posterior summaries for this cube; ALS
+  fits return the penalized point path using the same storage names. The
+  marginal bilinear predictor is identified under the package's
+  canonicalization conventions, while individual entries of \\G_t\\ can
+  move under equivalent rotations and scalings of \\U_t\\ and \\V_t\\.
   Default FALSE.
 
 - dynamic_beta:
@@ -197,10 +194,14 @@ lame(
   current static-block beta and on (a, b, U, V). When the intercept or a
   nodal coefficient is dynamic, a sum-to-zero contrast basis is applied
   to the additive-effect sampler to keep \\a_i + intercept_t\\
-  identified. Requires at least 2 time periods, ignored for the ALS
-  estimator (`method = "als"`), and unavailable for the intercept when
-  `family = "ordinal"` or `"rrl"` (or for row-nodal coefficients with
-  `family = "rrl"`). Default FALSE.
+  identified. Requires at least 2 time periods. With `method = "als"`,
+  selected intercept, dyadic, row-node, and column-node coefficients are
+  supported on normal, binary, and Poisson panels, including named
+  panels where actors enter or exit. Dynamic ALS uses period-specific
+  `Xrow` or `Xcol` values for selected dynamic node coefficients; static
+  node coefficients still use per-actor means. Dynamic intercepts are
+  unavailable when `family = "ordinal"` or `"rrl"` (and row-nodal
+  coefficients are unavailable with `family = "rrl"`). Default FALSE.
 
 - dynamic_beta_kind:
 
@@ -219,6 +220,21 @@ lame(
   `"matern32"` use an R-level joint Gaussian sampler and run
   substantially slower per iteration than the C++ FFBS used for `"ar1"`
   / `"rw1"` (roughly 2-4x on n = 100, T = 10).
+
+- dynamic_uv_kind:
+
+  Character string selecting the transition model for dynamic
+  multiplicative latent positions when `dynamic_uv = TRUE`. `"ar1"` uses
+  Gaussian AR(1) drift, `"snap"` uses a mixture of AR(1) drift and
+  discontinuous reset transitions, and `"t"` uses heavy-tailed Student-t
+  innovations represented by local transition scales. On the MCMC path,
+  `"snap"` and `"t"` are currently supported for unipartite directed and
+  symmetric models only. With `method = "als"`, `"snap"` is also
+  supported for normal bipartite panels when it is the only dynamic
+  block and \\G\\ is static. With `method = "als"`, `"t"` is supported
+  for bipartite normal, binary, and Poisson panels. ALS Student-t
+  dynamic UV fits attach the final local transition-weight matrices as
+  `fit$lambda_u` and `fit$lambda_v`.
 
 - family:
 
@@ -411,7 +427,8 @@ lame(
 
 - save_interval:
 
-  quantile interval indicating when to save during post burn-in phase.
+  quantile interval indicating when to save during the post-burn-in
+  period.
 
 - model.name:
 
@@ -439,6 +456,17 @@ lame(
   Larger chunks mean fewer files (and one `readBin` per chunk on read)
   but more memory during MCMC. Default `10000L`.
 
+- keep_snap_draws:
+
+  controls storage of post-burn-in MCMC snap-shift indicators when
+  `dynamic_uv = TRUE` and `dynamic_uv_kind = "snap"`. `"none"` keeps
+  only the posterior mean snap probabilities. `"summary"` stores
+  cell-level count, mean, and variance summaries. `"draws"` stores
+  retained binary indicator arrays as `fit$snap_draws` and, for directed
+  fits, `fit$snap_draws_v`, with dimensions draw x actor x time and
+  first period set to `NA`. `"chunked"` currently stores the same arrays
+  in memory and labels the storage mode for downstream tooling.
+
 - freeze_call:
 
   logical: if `TRUE`, store a snapshot of the evaluated `Y`, `Xdyad`,
@@ -449,21 +477,22 @@ lame(
 
 - dynamic_beta_pool:
 
-  one of `"none"` (default), `"rho"`, `"sigma"`, or `"both"`. Stable
-  argument name for a hierarchical pooling prior on the per-block
-  \\\rho_b\\ and / or \\\sigma_b\\ dynamic hyperparameters. The value is
-  recorded on the fit so future-phase samplers and downstream tooling
-  can read it uniformly; the hierarchical sampler ships in a later
-  release, at which point non-`"none"` values will take effect.
+  one of `"none"` (default), `"rho"`, `"sigma"`, or `"both"`. When two
+  or more coefficient blocks are dynamic, non-`"none"` values update
+  shared hyperparameters across blocks for the selected persistence and
+  / or innovation-scale component. With a single dynamic block the value
+  is recorded but there is no other block to pool against.
 
 - dynamic_beta_per_actor:
 
-  optional, one of `NULL` (default), `"row"`, or `"col"`. **Currently a
-  wired:** the argument is validated and stored on the fit, but the
-  in-loop sampler is not yet wired. For per-actor time-varying slopes
-  today, fit a standard `lame()` and then call
-  [`per_actor_slopes`](https://netify-dev.github.io/lame/reference/per_actor_slopes.md)`(fit, kind, covariate_idx, lambda)`
-  for the post-MCMC penalised-LS estimate.
+  optional, one of `NULL` (default), `"row"`, or `"col"`. When
+  non-`NULL`, fits actor-specific time-varying deviations for one dyadic
+  covariate on the selected margin. The default
+  `per_actor_identifiability = "center"` keeps the population
+  coefficient in `coef(fit)` and enforces a per-period sum-to-zero
+  constraint on the actor deviations. Draws are stored in
+  `fit$THETA_ACTOR` when retained; summary mode stores
+  `fit$theta_actor_mean` and `fit$theta_actor_sd`.
 
 - per_actor_covariate_idx:
 
@@ -475,7 +504,8 @@ lame(
   one of `"center"` (default) or `"drop_population"`. `"center"`
   preserves the population coefficient and constrains per-actor
   deviations to sum to zero per period via pairwise contrast FFBS.
-  Reserved API for the `"drop_population"` mode (not yet wired).
+  `"drop_population"` is reserved and currently falls back to
+  `"center"`.
 
 - keep_per_actor:
 
@@ -488,8 +518,9 @@ lame(
 
   optional numeric vector of length \\T\\ giving observation times.
   Default `NULL` treats periods as equally spaced. Strictly-increasing
-  values are required when supplied. The gap-aware AR(1) update ships in
-  a later release; the value is recorded on the fit.
+  values are required when supplied. Unequal gaps scale the AR(1) / RW1
+  transition variance and are also used by the RW2 and Matérn 3/2
+  dynamic-beta precision builders.
 
 - period_exposure:
 
@@ -526,12 +557,11 @@ lame(
   one of `"observed_exact"` (default), `"observed_ghk"`, or
   `"augmented"`. Selects the argument for selecting which pointwise
   log-lik is stored on `fit$log_lik`. `"observed_exact"` uses the
-  closed-form marginal log-likelihood (currently wired for normal,
-  binary, cbin, tobit, poisson, ordinal). `"observed_ghk"` is a stable
-  api stub for the GHK Monte Carlo marginal on cbin/frn/rrl/ordinal that
-  ships in a later release; it falls back to `"augmented"` now and emits
-  a one-line note. `"augmented"` uses the augmented- data
-  Gaussian-on-\\Z\\ contribution.
+  closed-form marginal log-likelihood for normal, binary, cbin, tobit,
+  poisson, and ordinal fits. `"observed_ghk"` uses a randomized-Halton
+  GHK Monte Carlo marginal for rank-family fits (`"frn"` and `"rrl"`)
+  and the exact observed likelihood when no GHK step is needed.
+  `"augmented"` uses the augmented-data Gaussian-on-\\Z\\ contribution.
 
 - ordinal_cutpoints:
 
@@ -543,12 +573,48 @@ lame(
 - method:
 
   character: `"mcmc"` (default, the Bayesian MCMC fit) or `"als"` (the
-  fast, MCMC-free iterative block coordinate descent point estimator;
-  pooled-static over time). When `method = "als"`, MCMC- and
-  dynamics-specific arguments (`nscan`, `burn`, `odens`, `prior`,
-  `dynamic_uv`, `dynamic_ab`, ...) are silently ignored and the call
-  forwards to
-  [`lame_als`](https://netify-dev.github.io/lame/reference/lame_als.md).
+  fast, MCMC-free point-estimation path). With no dynamic arguments,
+  `method = "als"` uses the pooled-static
+  [`lame_als`](https://netify-dev.github.io/lame/reference/lame_als.md)
+  estimator. For normal, binary, and Poisson panels, `method = "als"`
+  also supports a dynamic penalized point-estimation path for
+  `dynamic_ab`, selected `dynamic_beta`, smooth AR(1) `dynamic_uv` in
+  directed, symmetric, and bipartite panels, bipartite `dynamic_G`, and
+  Student-t `dynamic_uv` in directed, symmetric, and bipartite panels.
+  The snap-only `dynamic_uv = TRUE, dynamic_uv_kind = "snap"` case
+  routes to
+  [`lame_snap_als`](https://netify-dev.github.io/lame/reference/lame_snap_als.md)
+  for supported normal unipartite and bipartite panels. Node-covariate
+  coefficients use the same orthogonal additive-effect decomposition as
+  [`lame_als`](https://netify-dev.github.io/lame/reference/lame_als.md);
+  dynamic node coefficients use period-specific node values when
+  selected by `dynamic_beta`, while static node coefficients use
+  per-actor means. Named changing-composition panels are aligned to the
+  union actor set and actor-entry gaps break the dynamic smoothing
+  penalties. Posterior draws, rank/censored families, and bipartite
+  snap-shift fits with node covariates, dynamic coefficients, or dynamic
+  `G_t` are not handled by the snap ALS shortcut.
+
+- als_stability:
+
+  character (only used when `method = "als"` and a dynamic ALS path is
+  selected): `"none"` (default), `"quick"`, or `"validation"`. The
+  non-`"none"` presets rerun the dynamic ALS fit from jittered starts
+  and attach `fit$stability`. Smooth dynamic ALS fits report
+  fitted-surface and coefficient-path differences across starts; snap
+  ALS fits report snap-score, snap-class, top-period, and fitted-surface
+  differences.
+
+- als_max_iter:
+
+  positive integer (only used when `method = "als"`): maximum
+  block-coordinate iterations for the ALS fit. Default `200`.
+
+- als_tol:
+
+  optional positive scalar (only used when `method = "als"`):
+  convergence tolerance for the ALS objective and fitted values. `NULL`
+  keeps each ALS estimator's built-in default.
 
 - bootstrap:
 
@@ -692,12 +758,21 @@ particularly useful for understanding how network structure evolves over
 time.
 
 *Dynamic Multiplicative Effects (dynamic_uv=TRUE):* The latent factors U
-and V evolve according to AR(1) processes: \$\$U\_{i,k,t} = \rho\_{uv}
-U\_{i,k,t-1} + \epsilon\_{i,k,t}\$\$ where \\\epsilon\_{i,k,t} \sim N(0,
-\sigma\_{uv}^2)\\, i indexes actors, k indexes latent dimensions, and t
-indexes time. The parameter \\\rho\_{uv}\\ controls temporal persistence
-(values near 1 indicate slow evolution). This captures time-varying
-homophily, latent community structure, and transitivity dynamics.
+and V evolve according to the transition selected by `dynamic_uv_kind`.
+The default `"ar1"` model uses Gaussian AR(1) drift: \$\$U\_{i,k,t} =
+\rho\_{uv} U\_{i,k,t-1} + \epsilon\_{i,k,t}\$\$ where
+\\\epsilon\_{i,k,t} \sim N(0, \sigma\_{uv}^2)\\, i indexes actors, k
+indexes latent dimensions, and t indexes time. The parameter
+\\\rho\_{uv}\\ controls temporal persistence (values near 1 indicate
+slow evolution). This captures time-varying homophily, latent community
+structure, and transitivity dynamics. The `"snap"` transition uses a
+mixture of AR(1) drift and discontinuous reset transitions, while `"t"`
+uses heavy-tailed Student-t innovations represented by local transition
+scales. On the MCMC path, snap and t transitions are supported for
+unipartite directed and symmetric models. With `method = "als"`,
+Student-t dynamic UV is also supported for bipartite normal, binary, and
+Poisson panels, and snap ALS is supported for normal unipartite and
+bipartite panels, including named panels where actors enter or exit.
 
 Key references:
 
@@ -717,15 +792,9 @@ receiver (b) effects evolve as: \$\$a\_{i,t} = \rho\_{ab} a\_{i,t-1} +
 \sigma\_{ab}^2)\\. This models time-varying individual activity levels
 (outdegree) and popularity (indegree).
 
-Applications include:
-
-- Tracking changes in node centrality over time
-
-- Identifying emerging influential actors
-
-- Detecting declining activity patterns
-
-- Modeling life-cycle effects in social networks
+Dynamic additive effects are useful when sender activity and receiver
+popularity change over time rather than staying fixed across the whole
+panel.
 
 *Prior Specification for Dynamic Parameters:*
 
@@ -743,11 +812,12 @@ Applications include:
 
 *Computational Considerations:*
 
-- Dynamic effects increase computation by ~30-50\\
+- Dynamic effects increase computation by roughly 30 to 50 percent per
+  iteration
 
 - Memory usage scales as O(n*R*T) for dynamic_uv, O(n\*T) for dynamic_ab
 
-- C++ implementation provides ~70\\
+- C++ implementation is substantially faster than a pure R loop
 
 - Convergence diagnostics: Monitor rho and sigma parameters carefully
 
@@ -800,16 +870,15 @@ row and column nodes respectively.
 \$\$V\_{j,k,t} = \rho\_{uv} V\_{j,k,t-1} + \eta\_{j,k,t}\$\$ where i
 indexes row nodes, j indexes column nodes, k indexes latent dimensions.
 
-When `dynamic_G = TRUE` the bipartite interaction matrix \\G_t\\ is
-sampled per period via the bipartite \\G\\-sampler (a separate
-\\R\_\text{row} \times R\_\text{col}\\ matrix at every time slice) and
-returned as `fit$G_cube`. This is experimental: the canonicalisation
-that absorbs rotation and scaling into \\(U, V)\\ is enforced per
-period, so the marginal \\U_t G_t V_t'\\ linear predictor is identified
-even though the individual \\G_t\\ entries are not. Always sanity-check
-against a `dynamic_G = FALSE` fit before relying on per-period \\G_t\\
-estimates. `dynamic_G = TRUE` is bipartite only and is ignored (with a
-warning) for unipartite networks.
+When `dynamic_G = TRUE` the bipartite interaction matrix \\G_t\\ varies
+by period (a separate \\R\_\text{row} \times R\_\text{col}\\ matrix at
+every time slice) and is returned as `fit$G_cube`. The MCMC estimator
+samples \\G_t\\ with a Carter-Kohn/FFBS update; `method = "als"`
+estimates a penalized point path for normal, binary, and Poisson
+bipartite panels, including named changing-composition panels. The
+marginal \\U_t G_t V_t'\\ linear predictor is the identified object;
+individual \\G_t\\ entries can shift under equivalent rotations and
+scalings of \\U_t\\ and \\V_t\\. `dynamic_G = TRUE` is bipartite only.
 
 *Key Differences from Unipartite Models:*
 
@@ -859,12 +928,13 @@ variable represents the log mean of the Poisson distribution.
 cross-sectional models,
 [`lame_als`](https://netify-dev.github.io/lame/reference/lame_als.md)
 for the fast MCMC-free point estimator,
+[`lame_snap_als`](https://netify-dev.github.io/lame/reference/lame_snap_als.md)
+for the approximate dynamic snap-shift point estimator,
 [`als_dynamic_beta`](https://netify-dev.github.io/lame/reference/als_dynamic_beta.md)
 for a regression-only penalised smoother on the time-varying coefficient
 path,
 [`lame_resume`](https://netify-dev.github.io/lame/reference/lame_resume.md)
-for the legacy resume entry point (equivalent to
-`lame(resume_from = path)`),
+for resuming saved checkpoints,
 [`gof`](https://netify-dev.github.io/lame/reference/gof.md) for post-hoc
 goodness-of-fit computation,
 [`gof_plot`](https://netify-dev.github.io/lame/reference/gof_plot.md)

@@ -55,16 +55,15 @@ per-iteration posterior draws of the innovation **standard deviation**
 $`\sigma_{uv}`$ (so `mean(fit$sigma_uv)` is the posterior-mean SD and
 `mean(fit$sigma_uv)^2` recovers the innovation variance). Under the
 stationary AR(1), the implied marginal variance is
-$`\sigma_{uv}^2 / (1 - \rho_{uv}^2)`$. This matters whenever you write
-your own simulation code to generate test data, because supplying the
-*marginal* SD to [`rnorm()`](https://rdrr.io/r/stats/Normal.html) in the
-recurrence yields a process whose marginal variance is too large by a
-factor of $`1/(1 - \rho_{uv}^2)`$. The autoregressive parameter
+$`\sigma_{uv}^2 / (1 - \rho_{uv}^2)`$. This matters when simulation code
+supplies an SD to [`rnorm()`](https://rdrr.io/r/stats/Normal.html) in
+the recurrence: using the *marginal* SD makes the process too variable
+by a factor of $`1/(1 - \rho_{uv}^2)`$. The autoregressive parameter
 $`\rho_{uv}`$ controls how persistent the positions are. A value close
 to 1 means positions change slowly, as last year’s position is a strong
 predictor of this year’s. A value close to 0 means positions are
 essentially re-drawn each period. In practice, $`\rho_{uv}`$ is
-estimated from the data, so you don’t need to choose it yourself.
+estimated from the data.
 
 This is useful when you believe the underlying community structure is
 evolving: alliances shift, social groups re-form, trading blocs realign.
@@ -158,8 +157,7 @@ You can pass `dynamic_beta` in five forms:
 When the intercept (or a nodal coefficient) is included in
 `dynamic_beta`, the additive-effects sampler imposes a sum-to-zero
 constraint on `a` (and `b`) so that the intercept and the additive
-effects remain jointly identified. This happens automatically; you don’t
-need to do anything.
+effects remain jointly identified. This happens automatically.
 
 The AR(1) hyperparameters $`\rho_\beta`$ and $`\sigma_\beta^2`$ have
 their own priors:
@@ -200,7 +198,7 @@ fit_db <- lame(Y_db, Xdyad = X_db_arr,
                nscan = 200, burn = 50, odens = 5,
                dynamic_beta = "dyad", verbose = FALSE)
 
-# fit$BETA is now a 3-D array [n_stored x p x T]
+# fit$BETA is a 3-D array [n_stored x p x T]
 dim(fit_db$BETA)
 #> [1] 40  2  5
 
@@ -238,7 +236,7 @@ any time variation the user was trying to recover. Two safe patterns:
 
 ``` r
 
-# detect the shape before applying old code
+# check the shape before summarising coefficients
 if (length(dim(fit_db$BETA)) == 3L) {
     # 3-D: take posterior mean over the iteration margin -> [p, T]
     pm <- apply(fit_db$BETA, c(2, 3), mean)
@@ -294,7 +292,7 @@ matrix regardless.
 
 ``` r
 
-# RW1: random walk, rho pinned at 1 (for permanent drift)
+# rw1: random walk, rho pinned at 1
 fit_rw1 <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
                 nscan = 200, burn = 50, odens = 5,
                 dynamic_beta = "dyad", dynamic_beta_kind = "rw1",
@@ -307,7 +305,7 @@ round(coef(fit_rw1), 3)
 
 ``` r
 
-# RW2: smooth with curvature (second-order random walk)
+# rw2: smooth with curvature
 fit_rw2 <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
                 nscan = 200, burn = 50, odens = 5,
                 dynamic_beta = "dyad", dynamic_beta_kind = "rw2",
@@ -320,7 +318,7 @@ round(coef(fit_rw2), 3)
 
 ``` r
 
-# Matern 3/2: smooth GP with a length-scale knob
+# matern 3/2: smooth gp with a length-scale knob
 fit_m32 <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
                 nscan = 200, burn = 50, odens = 5,
                 dynamic_beta = "dyad", dynamic_beta_kind = "matern32",
@@ -430,7 +428,7 @@ fit_pa <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
                nscan = 200, burn = 50, odens = 5, verbose = FALSE)
 str(fit_pa$theta_actor_mean)   # n_actors x T posterior-mean deviations
 
-# The per-period sum-to-zero constraint is enforced exactly:
+# check the per-period sum-to-zero constraint
 colSums(fit_pa$theta_actor_mean)   # ~ 0 0 0 0 0
 ```
 
@@ -448,7 +446,7 @@ colSums(fit_pa$theta_actor_mean)   # ~ 0 0 0 0 0
 
 #### Diagnosing your dynamic fit
 
-After fitting, two helpers are available before you trust the path:
+After fitting, two helpers summarize the coefficient path:
 
 - `summary(fit)`: prints the *Dynamic coefficients per period* block
   (mentioned above) and the per-block posterior-mean `rho_beta`. The
@@ -463,12 +461,12 @@ After fitting, two helpers are available before you trust the path:
   diagnostic. Computes the maximum first-difference $`|\Delta \beta_t|`$
   scaled by $`\sigma_\beta`$, compares it to a prior-null reference
   built by resampling $`(\rho, \sigma)`$ from the posterior, and reports
-  a heuristic Bayes factor per coefficient. Large values (≥5) flag
-  coefficients with abrupt breaks. Documented as a heuristic, not a
-  formal BF.
+  a tail-ratio score in the historical `bf` column. Large values (≥5)
+  flag coefficients with abrupt breaks. This is a heuristic diagnostic,
+  not a marginal-likelihood Bayes factor.
 
 Worked example on the simulated linear-ramp data above (no real break is
-present, so we expect modest BFs):
+present, so we expect modest scores):
 
 ``` r
 
@@ -478,41 +476,30 @@ detect_change_point(fit_db, threshold_bf = 5)
 ```
 
 Each row reports the largest one-period change for one coefficient, the
-BF heuristic, and a flag. The diagnostic is deliberately conservative:
-it fires only when a jump is large *relative to what the AR(1) prior can
-absorb*. A modest planted break such as
+tail-ratio score, and a flag. The diagnostic is deliberately
+conservative: it fires only when a jump is large *relative to what the
+AR(1) prior can absorb*. A modest planted break such as
 `beta_t_true = c(rep(-0.5, 3), rep(1.0, 2))` does **not** reliably trip
-it: at $`T = 5`$ the BF is small and noisy run to run (often 0-2,
+it: at $`T = 5`$ the score is small and noisy run to run (often 0-2,
 occasionally clearing the threshold of 5), because the sampler can widen
 $`\sigma_\beta`$ to absorb a single step. Only a stark break
 (e.g. `c(rep(-2, 3), rep(2, 2))`) pushes the scaled first-difference
-reliably past the prior reference (BF roughly 6-16 across runs, always
-clearing the threshold of 5). On the smooth linear ramp here the BF is
-0, well inside the “bare mention” bin, exactly as it should be on a
-process with no abrupt jump – and a reminder (see the cautions below)
-that this heuristic needs a longer panel before it can be read
-seriously.
+reliably past the prior reference (scores roughly 6-16 across runs,
+always clearing the threshold of 5). On the smooth linear ramp here the
+score is 0, as expected for a process with no abrupt jump.
 
-Interpret the `bf` column on (a heuristic version of) the Kass-Raftery
-scale: $`\text{BF} \lesssim 3`$ is “not worth more than a bare mention”
-(no break evidence), $`3 \le \text{BF} < 10`$ is “substantial” evidence
-for a single-period jump the AR(1) prior cannot easily generate, and
-$`\text{BF} \ge 10`$ is “strong” evidence. Note the construction:
-`bf = Pr(M_post > m_star) / 0.05` where `m_star` is the 95% quantile of
-the prior null, so the heuristic is **bounded above by 20**; the
-original Kass-Raftery “decisive” cell ($`\ge 100`$) is unreachable by
-design, and a value at or near 20 should be read as “the posterior
-almost never visits values the prior would tolerate”, not as a literal
-Bayes factor against a model with a planted change-point. On the
-linear-ramp data above there is no planted break, so all coefficients
-should land in the bare-mention bin. The `t_hat` column points to
-*where* the largest scaled jump sits in posterior; treat it as a flag
-for visual inspection of the coefficient trajectory, not a formal
-break-time estimate. Two cautions: (i) “BF” here is a Monte-Carlo
-tail-mass ratio against the AR(1) prior, not a marginal-likelihood ratio
-between competing models, so do not quote it as decisive evidence in a
-paper; (ii) with five periods the BF is unstable run-to-run, refit with
-a longer panel before reading it seriously.
+Interpret the `bf` column as a bounded tail-ratio score: values below 3
+are weak, values from 3 to 10 suggest a jump worth inspecting, and
+values above 10 indicate a jump the AR(1) prior has difficulty
+generating. The construction is `bf = Pr(M_post > m_star) / 0.05`, where
+`m_star` is the 95% quantile of the prior null, so the score is
+**bounded above by 20**. A value at or near 20 means the posterior path
+almost never looks as smooth as the prior reference, not that a separate
+change-point model has a formal Bayes factor of 20. The `t_hat` column
+points to *where* the largest scaled jump sits in posterior; treat it as
+a flag for visual inspection of the coefficient trajectory, not a formal
+break-time estimate. With very short panels, the score can be unstable
+run to run.
 
 For prior elicitation *before* fitting, see
 `dynamic_beta_prior_summary(T = 10, kind = "ar1", rho_mean = 0.8, rho_sd = 0.15)`.
@@ -568,11 +555,10 @@ to miss.
 earns its keep when the substantive statistic itself drifts – a network
 whose density or reciprocity climbs over time. There a static fit that
 cannot track the drift lands `p_pp` near 0, and the printed
-“incompatible” verdict is the diagnostic telling you to add
-`dynamic_beta` (or `dynamic_ab` / `dynamic_uv`) before trusting any
-time-averaged summary. To probe whether a *coefficient* trends, use the
-per-period `coef(fit)`, the change-point diagnostic, or a
-static-vs-dynamic LOO comparison.
+“incompatible” verdict points toward `dynamic_beta` (or `dynamic_ab` /
+`dynamic_uv`) when interpreting time-averaged summaries. To probe
+whether a *coefficient* trends, use the per-period `coef(fit)`, the
+change-point diagnostic, or a static-vs-dynamic LOO comparison.
 
 #### Inspecting the priors actually in effect: `prior_summary()`
 
@@ -795,7 +781,7 @@ exposure offsets).
 
 ``` r
 
-# Poisson fit with period_exposure = c(1, 5, 25, 100):
+# poisson fit with period_exposure = c(1, 5, 25, 100)
 # pass the future exposure explicitly when h > 0:
 fc_pois <- predict(fit_pois, h = 2, type = "response",
                    newexposure = c(200, 400))
@@ -955,7 +941,7 @@ for(t in 1:n_per) {
     Y_dyn[[t]] <- Y_t
 }
 
-# note: iterations are kept small for vignette speed.
+# iterations are small so the vignette builds quickly
 # use burn >= 1000 and nscan >= 5000 for real analyses.
 fit_dyn_real <- lame(Y_dyn, R = 2,
     dynamic_uv = TRUE, dynamic_ab = TRUE,
@@ -1228,10 +1214,10 @@ gof_comparison <- rbind(
 )
 round(gof_comparison, 3)
 #>            sd.rowmean sd.colmean dyad.dep cycle.dep trans.dep
-#> Static          0.900      0.983    0.500     0.617     0.317
-#> Dynamic_UV      0.983      1.000    0.433     0.717     0.450
-#> Dynamic_AB      1.000      0.967    0.950     0.433     0.283
-#> Full            0.867      0.917    0.950     0.250     0.283
+#> Static          0.883      0.983    0.550     0.583     0.433
+#> Dynamic_UV      0.950      0.983    0.417     0.633     0.383
+#> Dynamic_AB      1.000      0.967    0.950     0.650     0.367
+#> Full            0.867      0.917    0.950     0.467     0.267
 ```
 
 Since the data were generated without temporal structure, the dynamic
@@ -1245,7 +1231,7 @@ expecting identical numbers or values pinned near 0.5.
 
 **Use `dynamic_ab`** when you suspect actors’ overall activity levels
 change over time. This is common in many settings: countries go through
-isolationist vs. interventionist phases, users churn in and out of
+isolationist vs. interventionist periods, users churn in and out of
 platforms, students become more or less engaged across semesters.
 
 **Use `dynamic_uv`** when you suspect the underlying community structure
@@ -1334,12 +1320,12 @@ lp <- latent_positions(fit_null, align = TRUE)
 #> This message is displayed once per session.
 head(lp)
 #>     actor dimension time       value posterior_sd type
-#> 1  Actor1         1    1 -0.24807856           NA    U
-#> 2 Actor10         1    1 -0.01872938           NA    U
-#> 3 Actor11         1    1  0.02719916           NA    U
+#> 1  Actor1         1    1 -0.24807855           NA    U
+#> 2 Actor10         1    1 -0.01872939           NA    U
+#> 3 Actor11         1    1  0.02719917           NA    U
 #> 4 Actor12         1    1  0.09072103           NA    U
-#> 5 Actor13         1    1  0.02235869           NA    U
-#> 6 Actor14         1    1 -0.05799677           NA    U
+#> 5 Actor13         1    1  0.02235868           NA    U
+#> 6 Actor14         1    1 -0.05799678           NA    U
 ```
 
 This data frame is ready for `ggplot2` if you want to build custom

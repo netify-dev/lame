@@ -44,8 +44,8 @@ extends this framework in several directions:
   [`simulate()`](https://rdrr.io/r/stats/simulate.html) work as you
   would expect from any R model object.
 
-The package is part of the `netify-verse`, so it works seamlessly with
-the [`netify`](https://netify-dev.github.io/netify/) package for data
+The package is part of the `netify-verse`, and it works with the
+[`netify`](https://netify-dev.github.io/netify/) package for data
 preparation.
 
 ### Migrating from `amen`
@@ -60,7 +60,7 @@ differences for old `amen` scripts:
 
 | Topic | `amen::ame()` | [`lame::ame()`](https://netify-dev.github.io/lame/reference/ame.md) / [`lame::lame()`](https://netify-dev.github.io/lame/reference/lame.md) | Old code breaks? |
 |----|----|----|----|
-| Family strings | `"nrm"`, `"bin"`, `"ord"`, `"cbin"`, `"frn"`, `"rrl"`, `"tobit"` | `"normal"`, `"binary"`, `"ordinal"`, `"cbin"`, `"frn"`, `"rrl"`, `"tobit"`, `"poisson"` | No for [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) / [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) (short forms `"nrm"`, `"bin"`, `"ord"`, `"pois"`, `"tob"` are accepted as aliases via [`cli::cli_inform()`](https://cli.r-lib.org/reference/cli_abort.html) – two informational lines per call, recommending the full name; old scripts run unchanged). For [`ame_als()`](https://netify-dev.github.io/lame/reference/ame_als.md) / [`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md) (MCMC-free estimator) the same short aliases (`"nrm"`, `"bin"`, `"ord"`, `"pois"`, `"tob"`) are accepted with an informational message, but the estimator *supports* only `"normal"`, `"binary"`, and `"poisson"`. The censoring / rank families `"ordinal"`, `"tobit"`, `"cbin"`, `"frn"`, and `"rrl"` are rejected with a clear error directing you to [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) / [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) (MCMC), which is the calibrated path for those families. |
+| Family strings | `"nrm"`, `"bin"`, `"ord"`, `"cbin"`, `"frn"`, `"rrl"`, `"tobit"` | `"normal"`, `"binary"`, `"ordinal"`, `"cbin"`, `"frn"`, `"rrl"`, `"tobit"`, `"poisson"` | No for [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) / [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) (short forms `"nrm"`, `"bin"`, `"ord"`, `"pois"`, `"tob"` are accepted as aliases via [`cli::cli_inform()`](https://cli.r-lib.org/reference/cli_abort.html) – two informational lines per call, recommending the full name; old scripts run unchanged). For [`ame_als()`](https://netify-dev.github.io/lame/reference/ame_als.md) / [`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md) (MCMC-free estimator) the same short aliases (`"nrm"`, `"bin"`, `"ord"`, `"pois"`, `"tob"`) are accepted with an informational message, but the estimator *supports* only `"normal"`, `"binary"`, and `"poisson"`. The censoring / rank families `"ordinal"`, `"tobit"`, `"cbin"`, `"frn"`, and `"rrl"` are rejected with a direct error pointing to [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) / [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) (MCMC), which is the posterior-sampling path for those families. |
 | Bipartite rank | single `R` | `R` (square) or separate `R_row` / `R_col` (bipartite); single `R` still accepted | No (old `R` calls work; `R_row` / `R_col` is new) |
 | Verbosity flag | `print = TRUE/FALSE` | `verbose = TRUE/FALSE` | No (deprecation warning) |
 | `fit$BETA` shape (static) | `[n_stored, p]` matrix | `[n_stored, p]` matrix | No (identical) |
@@ -109,7 +109,7 @@ n <- nrow(dutchcollege$Y)
 T_all <- dim(dutchcollege$Y)[3]
 actor_names <- sprintf("S%02d", seq_len(n))
 
-# binarize and drop the cold-start wave (T = 1 has almost no ties)
+# binarize and drop the cold-start wave (t = 1 has almost no ties)
 Y <- lapply(2:T_all, function(t) {
     Yt <- (dutchcollege$Y[, , t] > 0) * 1
     diag(Yt) <- NA
@@ -206,16 +206,16 @@ summary(fit)
 #> Regression coefficients:
 #> ------------------------
 #>                   Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept           -2.876    1.211  -2.375   0.018   -5.244   -0.586   *
-#> male_row             0.942    0.418   2.251   0.024    0.214    1.759   *
-#> smoker_row          -0.951     0.34  -2.792   0.005   -1.583   -0.309  **
-#> program_row          0.499    0.232   2.151   0.031    0.059    0.952   *
-#> male_col             0.993    0.268   3.708       0    0.447    1.512 ***
-#> smoker_col          -0.063    0.217   -0.29   0.772   -0.527    0.342    
+#> intercept           -2.869    1.208  -2.376   0.018   -5.241   -0.572   *
+#> male_row             0.939    0.417   2.251   0.024    0.212    1.761   *
+#> smoker_row          -0.951     0.34  -2.799   0.005   -1.583   -0.311  **
+#> program_row          0.497    0.231   2.153   0.031    0.059    0.947   *
+#> male_col             0.991    0.267   3.708       0    0.446    1.516 ***
+#> smoker_col          -0.062    0.217  -0.286   0.775   -0.525    0.341    
 #> program_col          0.149    0.145   1.028   0.304   -0.111    0.437    
-#> same_male_dyad       0.447    0.059   7.633       0    0.334    0.563 ***
-#> same_smoker_dyad     0.142    0.056   2.524   0.012    0.035    0.243   *
-#> same_program_dyad    0.577    0.053  10.919       0    0.465     0.67 ***
+#> same_male_dyad       0.446    0.058   7.654       0    0.333    0.566 ***
+#> same_smoker_dyad     0.143    0.056   2.551   0.011    0.037    0.244   *
+#> same_program_dyad    0.577    0.053  10.948       0    0.472    0.669 ***
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
@@ -223,10 +223,10 @@ summary(fit)
 #> Variance components:
 #> -------------------
 #>     Estimate StdError
-#> va     0.801    0.220
-#> cab    0.292    0.107
-#> vb     0.269    0.079
-#> rho    0.319    0.042
+#> va     0.797    0.217
+#> cab    0.291    0.107
+#> vb     0.268    0.078
+#> rho    0.321    0.042
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
@@ -252,7 +252,7 @@ c(intercept     = unname(bhat["intercept"]),
   centroid_lp   = centroid_lp,
   qnorm_density = qnorm(mean(unlist(Y), na.rm = TRUE)))
 #>     intercept   centroid_lp qnorm_density 
-#>   -2.87566856   -0.08326723    0.00842291
+#>   -2.86919980   -0.08283855    0.00842291
 ```
 
 The intercept itself is strongly negative, but the predictor at the
@@ -289,10 +289,10 @@ than the exception.
 
 ### Checking Convergence
 
-Because the model is estimated via MCMC, we need to verify that the
-sampler has converged before trusting the results. The `trace_plot`
-function shows the sampled values over iterations (top panels) and the
-corresponding posterior densities (bottom panels) for each parameter.
+The model is estimated via MCMC, so trace plots and posterior-density
+plots are useful checks. The `trace_plot` function shows the sampled
+values over iterations (top panels) and the corresponding posterior
+densities (bottom panels) for each parameter.
 
 ``` r
 
@@ -305,29 +305,16 @@ fuzzy-caterpillar traces around a stable mean and smooth unimodal
 densities together indicate the chain has
 converged.](lame-overview_files/figure-html/overview-trace-1.png)
 
-What to look for: trace plots should bounce around a stable mean without
-long-term trends or sticky regions, and density plots should be smooth
-and unimodal. Numerically, the conventional Stan-era targets are
-**split-$`\hat R`$ \< 1.01** for every monitored parameter and **bulk /
-tail ESS $`\ge`$ 400 per chain** (so $`\ge`$ 1600 with 4 chains);
-$`\hat R`$ between 1.01 and 1.05 is a yellow flag, anything $`\ge`$ 1.1
-means you should not trust the posterior summaries yet and need a longer
-run.
+Trace plots should bounce around a stable mean without long-term trends
+or sticky regions, and density plots should be smooth and unimodal.
+Numerically, common MCMC checks are **split-$`\hat R`$ \< 1.01** for
+monitored parameters and **bulk / tail ESS $`\ge`$ 400 per chain**.
 
-With 400 stored samples the regression coefficients mix well at this
-seed (split-$`\hat R \le 1.01`$ for every coefficient; bulk ESS in the
-low hundreds, lowest for the weakly-identified `same_smoker_dyad`). The
-variance components mix more slowly: in the `summarise_draws` table
-below, `va` (the sender variance) carries the highest $`\hat R`$ and the
-lowest ESS here. Which parameter mixes worst is itself seed-dependent in
-a single short chain – on other runs `rho` or a dyadic coefficient can
-be the slow one, and a coefficient $`\hat R`$ can drift above 1.05 – so
-read one chain’s $`\hat R`$/ESS as indicative, not definitive. For a
-paper, run several independently initialised chains at greater length
-(`burn >= 2000, nscan >= 10000`) and check $`\hat R`$ across them. The
-point estimates are stable here; it is the uncertainty on the
-slow-mixing variance and reciprocity parameters that needs the longer
-multi-chain run before quoting.
+With 400 stored samples, the regression coefficients mix well at this
+seed. The variance components mix more slowly: in the `summarise_draws`
+table below, `va` carries the highest $`\hat R`$ and the lowest ESS.
+Which parameter mixes worst is seed-dependent in a short chain, so treat
+this fit as a compact worked example rather than a final diagnostic run.
 
 ### Bayesian-ecosystem diagnostics: `posterior::as_draws()`
 
@@ -361,20 +348,20 @@ posterior::summarise_draws(draws)              # rhat, ess_bulk, ess_tail per pa
 #> # A tibble: 15 × 10
 #>    variable            mean  median     sd    mad      q5    q95   rhat ess_bulk
 #>    <chr>              <dbl>   <dbl>  <dbl>  <dbl>   <dbl>  <dbl>  <dbl>    <dbl>
-#>  1 intercept        -2.88   -2.83   1.21   1.23   -4.86   -0.889  1.00    378.  
-#>  2 male_row          0.942   0.930  0.418  0.443   0.309   1.67   1.00    462.  
-#>  3 smoker_row       -0.951  -0.921  0.340  0.312  -1.53   -0.421  1.00    352.  
-#>  4 program_row       0.499   0.508  0.232  0.219   0.117   0.880  0.998   357.  
-#>  5 male_col          0.993   0.985  0.268  0.234   0.559   1.44   0.998   466.  
-#>  6 smoker_col       -0.0630 -0.0653 0.217  0.216  -0.396   0.273  1.00    303.  
-#>  7 program_col       0.149   0.157  0.145  0.143  -0.0833  0.387  1.00    371.  
-#>  8 same_male_dyad    0.447   0.445  0.0585 0.0534  0.352   0.545  1.01    319.  
-#>  9 same_smoker_dyad  0.142   0.145  0.0563 0.0573  0.0458  0.238  1.00     74.6 
-#> 10 same_program_dy…  0.577   0.579  0.0529 0.0505  0.487   0.659  1.01    202.  
-#> 11 va                0.801   0.765  0.220  0.201   0.515   1.24   1.11      7.37
-#> 12 cab               0.292   0.277  0.107  0.0954  0.145   0.481  1.05     22.4 
-#> 13 vb                0.269   0.255  0.0785 0.0726  0.159   0.418  1.01    209.  
-#> 14 rho               0.319   0.323  0.0419 0.0428  0.245   0.380  0.998    92.9 
+#>  1 intercept        -2.87   -2.81   1.21   1.22   -4.88   -0.870  1.00    378.  
+#>  2 male_row          0.939   0.923  0.417  0.443   0.319   1.66   1.000   462.  
+#>  3 smoker_row       -0.951  -0.918  0.340  0.317  -1.53   -0.418  1.00    348.  
+#>  4 program_row       0.497   0.507  0.231  0.217   0.114   0.885  0.998   359.  
+#>  5 male_col          0.991   0.987  0.267  0.234   0.560   1.44   0.998   460.  
+#>  6 smoker_col       -0.0620 -0.0658 0.217  0.218  -0.397   0.276  1.00    306.  
+#>  7 program_col       0.149   0.158  0.145  0.143  -0.0797  0.387  1.00    368.  
+#>  8 same_male_dyad    0.446   0.445  0.0583 0.0542  0.351   0.546  1.00    333.  
+#>  9 same_smoker_dyad  0.143   0.147  0.0561 0.0540  0.0461  0.236  1.00     75.7 
+#> 10 same_program_dy…  0.577   0.580  0.0527 0.0507  0.488   0.659  1.00    200.  
+#> 11 va                0.797   0.761  0.217  0.198   0.514   1.23   1.10      8.02
+#> 12 cab               0.291   0.277  0.107  0.0939  0.145   0.477  1.05     25.3 
+#> 13 vb                0.268   0.255  0.0784 0.0730  0.160   0.419  1.01    201.  
+#> 14 rho               0.321   0.324  0.0424 0.0441  0.250   0.385  1.000   114.  
 #> 15 ve                1       1      0      0       1       1     NA        NA   
 #> # ℹ 1 more variable: ess_tail <dbl>
 ```
@@ -507,7 +494,7 @@ A `p_pp` of 0 on `density` says the static fit cannot reproduce the
 empirical net densification slope (about +0.025 per period in our run);
 that is the expected diagnostic for a fit without `dynamic_beta` or
 time-varying covariates and is consistent with the per-period mass shift
-we already see in
+in
 [`gof_plot()`](https://netify-dev.github.io/lame/reference/gof_plot.md).
 The reciprocity check tells the same story in the opposite direction:
 the static fit also rejects the observed reciprocity slope (`p_pp` near
@@ -518,10 +505,10 @@ model parameters that are constant across periods cannot reproduce
 period-to-period drift in either marginal quantity. The companion
 diagnostic
 [`detect_change_point()`](https://netify-dev.github.io/lame/reference/detect_change_point.md)
-reports a heuristic Bayes factor comparing the posterior path of each
-`dynamic_beta` coefficient to its AR(1) prior null. It requires a fit
-with `dynamic_beta` active and is therefore not applicable to the static
-fit shown here; the worked example lives in the [Dynamic
+reports a heuristic tail-ratio score comparing the posterior path of
+each `dynamic_beta` coefficient to its AR(1) prior null. It requires a
+fit with `dynamic_beta` active and is therefore not applicable to the
+static fit shown here; the worked example lives in the [Dynamic
 Effects](https://netify-dev.github.io/lame/articles/dynamic_effects.md)
 vignette.
 
@@ -585,12 +572,12 @@ lp <- latent_positions(fit)
 #> This message is displayed once per session.
 head(lp)
 #>   actor dimension time      value posterior_sd type
-#> 1   S01         1    1 -1.3221503           NA    U
-#> 2   S02         1    1 -0.1265842           NA    U
-#> 3   S03         1    1  0.2892898           NA    U
-#> 4   S04         1    1  0.3994624           NA    U
-#> 5   S05         1    1  0.5052358           NA    U
-#> 6   S06         1    1  0.8591990           NA    U
+#> 1   S01         1    1 -1.3214083           NA    U
+#> 2   S02         1    1 -0.1260811           NA    U
+#> 3   S03         1    1  0.2875313           NA    U
+#> 4   S04         1    1  0.3985233           NA    U
+#> 5   S05         1    1  0.5024891           NA    U
+#> 6   S06         1    1  0.8535405           NA    U
 ```
 
 Each row gives one actor’s position on one latent dimension at one time
@@ -620,7 +607,7 @@ interpretable:
 aligned <- procrustes_align(fit)
 #> ℹ Latent positions are static (single time point). No alignment needed.
 str(aligned$U)
-#>  num [1:32, 1] -1.322 -0.127 0.289 0.399 0.505 ...
+#>  num [1:32, 1] -1.321 -0.126 0.288 0.399 0.502 ...
 #>  - attr(*, "dimnames")=List of 2
 #>   ..$ : chr [1:32] "S01" "S02" "S03" "S04" ...
 #>   ..$ : NULL
@@ -675,8 +662,8 @@ fit <- lame(
 
 ### Exit: `tidy()`, `autoplot()`, `prediction_draws_long()`
 
-The rest of the round-trip runs against the `fit` object we already
-built from the Dutch-college data above (no `netify` install needed):
+The rest of the round-trip runs against the `fit` object built from the
+Dutch-college data above (no `netify` install needed):
 
 ``` r
 
@@ -690,16 +677,16 @@ tidy(fit)
 #> # A tibble: 10 × 7
 #>    term              estimate std.error statistic  p.value conf.low conf.high
 #>    <chr>                <dbl>     <dbl>     <dbl>    <dbl>    <dbl>     <dbl>
-#>  1 intercept          -2.88      1.21      -2.37  1.76e- 2  -5.24      -0.586
-#>  2 male_row            0.942     0.418      2.25  2.44e- 2   0.214      1.76 
-#>  3 smoker_row         -0.951     0.340     -2.79  5.23e- 3  -1.58      -0.309
-#>  4 program_row         0.499     0.232      2.15  3.15e- 2   0.0589     0.952
-#>  5 male_col            0.993     0.268      3.71  2.09e- 4   0.447      1.51 
-#>  6 smoker_col         -0.0630    0.217     -0.290 7.72e- 1  -0.527      0.342
+#>  1 intercept          -2.87      1.21      -2.38  1.75e- 2  -5.24      -0.572
+#>  2 male_row            0.939     0.417      2.25  2.44e- 2   0.212      1.76 
+#>  3 smoker_row         -0.951     0.340     -2.80  5.12e- 3  -1.58      -0.311
+#>  4 program_row         0.497     0.231      2.15  3.13e- 2   0.0592     0.947
+#>  5 male_col            0.991     0.267      3.71  2.09e- 4   0.446      1.52 
+#>  6 smoker_col         -0.0620    0.217     -0.286 7.75e- 1  -0.525      0.341
 #>  7 program_col         0.149     0.145      1.03  3.04e- 1  -0.111      0.437
-#>  8 same_male_dyad      0.447     0.0585     7.63  2.29e-14   0.334      0.563
-#>  9 same_smoker_dyad    0.142     0.0563     2.52  1.16e- 2   0.0346     0.243
-#> 10 same_program_dyad   0.577     0.0529    10.9   0          0.465      0.670
+#>  8 same_male_dyad      0.446     0.0583     7.65  1.95e-14   0.333      0.566
+#>  9 same_smoker_dyad    0.143     0.0561     2.55  1.07e- 2   0.0369     0.244
+#> 10 same_program_dyad   0.577     0.0527    10.9   0          0.472      0.669
 ```
 
 ### Coefficient tables: `glance()` + `tidy()` -\> `modelsummary` / `gt` / `kableExtra`
@@ -744,26 +731,26 @@ modelsummary::modelsummary(
 
 |                   | Dutch college      |
 |-------------------|--------------------|
-| intercept         | -2.876             |
-|                   | \[-5.244, -0.586\] |
-| male_row          | 0.942              |
-|                   | \[0.214, 1.759\]   |
+| intercept         | -2.869             |
+|                   | \[-5.241, -0.572\] |
+| male_row          | 0.939              |
+|                   | \[0.212, 1.761\]   |
 | smoker_row        | -0.951             |
-|                   | \[-1.583, -0.309\] |
-| program_row       | 0.499              |
-|                   | \[0.059, 0.952\]   |
-| male_col          | 0.993              |
-|                   | \[0.447, 1.512\]   |
-| smoker_col        | -0.063             |
-|                   | \[-0.527, 0.342\]  |
+|                   | \[-1.583, -0.311\] |
+| program_row       | 0.497              |
+|                   | \[0.059, 0.947\]   |
+| male_col          | 0.991              |
+|                   | \[0.446, 1.516\]   |
+| smoker_col        | -0.062             |
+|                   | \[-0.525, 0.341\]  |
 | program_col       | 0.149              |
 |                   | \[-0.111, 0.437\]  |
-| same_male_dyad    | 0.447              |
-|                   | \[0.334, 0.563\]   |
-| same_smoker_dyad  | 0.142              |
-|                   | \[0.035, 0.243\]   |
+| same_male_dyad    | 0.446              |
+|                   | \[0.333, 0.566\]   |
+| same_smoker_dyad  | 0.143              |
+|                   | \[0.037, 0.244\]   |
 | same_program_dyad | 0.577              |
-|                   | \[0.465, 0.670\]   |
+|                   | \[0.472, 0.669\]   |
 | Num.Obs.          | 5952               |
 | n_actors          | 32                 |
 | n_periods         | 6                  |
@@ -801,26 +788,26 @@ modelsummary::modelsummary(
 
 |                   | AME (R = 1)        | Additive only (R = 0) |
 |-------------------|--------------------|-----------------------|
-| intercept         | -2.876             | -2.692                |
-|                   | \[-5.244, -0.586\] | \[-5.185, -0.409\]    |
-| male_row          | 0.942              | 0.915                 |
-|                   | \[0.214, 1.759\]   | \[0.128, 1.698\]      |
+| intercept         | -2.869             | -2.693                |
+|                   | \[-5.241, -0.572\] | \[-5.172, -0.408\]    |
+| male_row          | 0.939              | 0.915                 |
+|                   | \[0.212, 1.761\]   | \[0.133, 1.698\]      |
 | smoker_row        | -0.951             | -0.853                |
-|                   | \[-1.583, -0.309\] | \[-1.506, -0.199\]    |
-| program_row       | 0.499              | 0.498                 |
-|                   | \[0.059, 0.952\]   | \[0.040, 0.983\]      |
-| male_col          | 0.993              | 0.974                 |
-|                   | \[0.447, 1.512\]   | \[0.501, 1.456\]      |
-| smoker_col        | -0.063             | -0.094                |
-|                   | \[-0.527, 0.342\]  | \[-0.501, 0.347\]     |
+|                   | \[-1.583, -0.311\] | \[-1.508, -0.199\]    |
+| program_row       | 0.497              | 0.498                 |
+|                   | \[0.059, 0.947\]   | \[0.040, 0.981\]      |
+| male_col          | 0.991              | 0.973                 |
+|                   | \[0.446, 1.516\]   | \[0.501, 1.457\]      |
+| smoker_col        | -0.062             | -0.094                |
+|                   | \[-0.525, 0.341\]  | \[-0.499, 0.347\]     |
 | program_col       | 0.149              | 0.104                 |
-|                   | \[-0.111, 0.437\]  | \[-0.164, 0.388\]     |
-| same_male_dyad    | 0.447              | 0.412                 |
-|                   | \[0.334, 0.563\]   | \[0.296, 0.520\]      |
-| same_smoker_dyad  | 0.142              | 0.191                 |
-|                   | \[0.035, 0.243\]   | \[0.107, 0.274\]      |
+|                   | \[-0.111, 0.437\]  | \[-0.161, 0.387\]     |
+| same_male_dyad    | 0.446              | 0.412                 |
+|                   | \[0.333, 0.566\]   | \[0.298, 0.521\]      |
+| same_smoker_dyad  | 0.143              | 0.191                 |
+|                   | \[0.037, 0.244\]   | \[0.108, 0.275\]      |
 | same_program_dyad | 0.577              | 0.594                 |
-|                   | \[0.465, 0.670\]   | \[0.502, 0.684\]      |
+|                   | \[0.472, 0.669\]   | \[0.501, 0.684\]      |
 | Num.Obs.          | 5952               | 5952                  |
 | n_actors          | 32                 | 32                    |
 | n_periods         | 6                  | 6                     |
@@ -969,9 +956,9 @@ pdl |>
 #> # A tibble: 3 × 6
 #>   actor_i actor_j period_label  p_hat            lo    hi
 #>   <chr>   <chr>   <chr>         <dbl>         <dbl> <dbl>
-#> 1 S01     S02     t2           0.0197 0.00000000202 0.140
-#> 2 S01     S02     t3           0.0197 0.00000000202 0.140
-#> 3 S01     S02     t4           0.0197 0.00000000202 0.140
+#> 1 S01     S02     t2           0.0199 0.00000000237 0.138
+#> 2 S01     S02     t3           0.0199 0.00000000237 0.138
+#> 3 S01     S02     t4           0.0199 0.00000000237 0.138
 ```
 
 Because the `.chain` / `.iteration` / `.draw` / `.value` columns already
@@ -1115,11 +1102,11 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1     posterior_1.7.0 ggplot2_4.0.3   lame_1.1.0     
+#> [1] dplyr_1.2.1     posterior_1.7.0 ggplot2_4.0.3   lame_1.2.0     
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] gtable_0.3.6          tensorA_0.36.2.1      bayestestR_0.18.1    
-#>  [4] xfun_0.57             bslib_0.11.0          insight_1.5.1        
+#>  [4] xfun_0.58             bslib_0.11.0          insight_1.5.1        
 #>  [7] ggrepel_0.9.8         lattice_0.22-9        vctrs_0.7.3          
 #> [10] tools_4.6.0           generics_0.1.4        datawizard_1.3.1     
 #> [13] parallel_4.6.0        tibble_3.3.1          pkgconfig_2.0.3      

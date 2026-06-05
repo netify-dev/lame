@@ -128,7 +128,7 @@ data(YX_nrm)
 # Auto-detect unipartite
 gof_stats(YX_nrm$Y) 
 #> sd.rowmean sd.colmean   dyad.dep  cycle.dep  trans.dep 
-#> 0.92646818 0.27555881 0.66792884 0.06139376 0.07380099 
+#> 0.93582644 0.27834223 0.65987298 0.03557144 0.04263373 
 
 # Explicitly specify mode for square bipartite
 # Y_bip <- matrix(rnorm(100), 10, 10) # 10x10 bipartite

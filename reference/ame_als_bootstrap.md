@@ -146,10 +146,10 @@ refit re-absorbs simulated noise);
 [`summary()`](https://rdrr.io/r/base/summary.html) flags any point
 estimate that falls outside its interval. A binary IRLS fit can carry a
 finite-sample (incidental-parameters) bias in the point estimator
-itself, which the bootstrap reproduces rather than removes; for the
-inference you report, confirm with the MCMC
+itself, which the bootstrap reproduces rather than removes. The MCMC
 [`ame`](https://netify-dev.github.io/lame/reference/ame.md) /
-[`lame`](https://netify-dev.github.io/lame/reference/lame.md).
+[`lame`](https://netify-dev.github.io/lame/reference/lame.md) path gives
+posterior summaries when that is the target.
 
 ## References
 

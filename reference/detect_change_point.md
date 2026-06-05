@@ -3,12 +3,12 @@
 For each dynamic coefficient in a `dynamic_beta` fit, compares the
 posterior distribution of the maximum scaled first-difference \\M =
 \max_t \|\beta_t - \beta\_{t-1}\| / \sigma\_\beta\\ to a Monte-Carlo
-approximation of the same statistic under the AR(1) prior. A
-“change-point-flavored” Bayes factor is reported as \\BF = \Pr(M^{post}
-\> m^\*) / 0.05\\, where \\m^\*\\ is the 95\\ quantile of \\M^{prior}\\.
-**This is a heuristic, not a real Bayes factor.** Use it to surface
-posterior temporal jumps that the AR(1) prior cannot comfortably
-accommodate.
+approximation of the same statistic under the AR(1) prior. The returned
+`bf` column is the tail-ratio score \\\Pr(M^{post} \> m^\*) / 0.05\\,
+where \\m^\*\\ is the 95\\ quantile of \\M^{prior}\\. It is kept under
+the historical column name for compatibility, but it is not a
+marginal-likelihood Bayes factor. Use it to surface posterior temporal
+jumps that the AR(1) prior cannot comfortably accommodate.
 
 ## Usage
 
@@ -49,7 +49,7 @@ detect_change_point(
 ## Value
 
 A data frame with one row per dynamic coefficient: `coef`, `bf` (the
-heuristic Bayes factor), `m_post_mean` (posterior mean of \\M\\),
+heuristic tail-ratio score), `m_post_mean` (posterior mean of \\M\\),
 `m_prior_q95` (95\\ \\M\\), `t_hat` (period of the largest scaled jump),
 `warn` (logical, `bf > threshold_bf`).
 

@@ -75,5 +75,5 @@ Y <- matrix(rnorm(100), 10, 10)
 diag(Y) <- NA
 gof_stats_unipartite(Y)
 #>  sd.rowmean  sd.colmean    dyad.dep   cycle.dep   trans.dep 
-#>  0.32845961  0.22928950 -0.13519888 -0.06194189  0.05897162 
+#>  0.36495512  0.25476611 -0.13706030 -0.06728765  0.04291549 
 ```

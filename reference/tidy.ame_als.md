@@ -8,8 +8,9 @@ sandwich covariance
 by default, or from the bootstrap object attached to `x$bootstrap` when
 present (preferred, fully propagated). `statistic` is
 `estimate / std.error`; `p.value` is the Normal-approximation two-sided
-tail \\2(1 - \Phi(\|z\|))\\ - the same heuristic the MCMC `tidy.ame`
-uses.
+tail \\2(1 - \Phi(\|z\|))\\ from the bootstrap or sandwich standard
+error. It is a Wald-style summary for the point estimator, not a
+posterior probability.
 
 ## Usage
 

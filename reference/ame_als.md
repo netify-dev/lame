@@ -63,14 +63,14 @@ ame_als(
   covariate coefficients are conditional on this choice.** The
   multiplicative term \\u_i'v_j\\ is a flexible high-variance regressor
   that can correlate with the dyadic covariates, so the estimated `beta`
-  can shift – and occasionally change sign – as `R` increases. Validate
-  against an `R = 0` fit and the MCMC
-  [`ame`](https://netify-dev.github.io/lame/reference/ame.md)/[`lame`](https://netify-dev.github.io/lame/reference/lame.md)
-  before reporting.
+  can shift – and occasionally change sign – as `R` increases. Comparing
+  against an `R = 0` fit is a useful check on whether the covariate
+  story is being driven by the latent rank.
 
 - family:
 
-  one of `"normal"`, `"binary"`, `"poisson"`, `"ordinal"`.
+  one of `"normal"`, `"binary"`, or `"poisson"`. The rank and censoring
+  families are MCMC-only.
 
 - mode:
 
@@ -101,25 +101,16 @@ ame_als(
 
 - non_normal_method:
 
-  for the non-normal families, `"irls"` (default for `binary`/`poisson`)
-  runs iteratively reweighted least squares – a fast approximate GLM AME
-  fit with coefficients on the calibrated link scale (Poisson log,
-  binary logit/probit). `"transform"` fits a single fixed Gaussian
-  working response (`log(y+1)` for Poisson, rank-normal scores for
-  binary/ordinal); its coefficients are on an uncalibrated rank scale –
-  good for direction/ranking of effects, not for magnitudes. **For
-  ordinal data the transform path attenuates \\\beta\\ toward zero
-  (classical discretisation bias); prefer `"em"` when \\\beta\\ is an
-  effect-size estimand.** `"em"` (for `ordinal`, opt-in; default for
-  `tobit`) runs a deterministic EM outer loop that maximises the
-  observed ordinal log-likelihood, jointly estimating cutpoints
-  (returned on `fit$alpha`, anchored at `alpha[1] = 0`) and the
-  regression block; the surrogate is monotone non-decreasing across EM
-  iterations. `"irls"` is supported for `binary`/`poisson`; `ordinal`
-  accepts `"transform"` (default, back-compat) or `"em"`. A directed
-  `R > 0` IRLS fit uses the hybrid low-rank solver internally (the IRLS
-  weights are unbalanced). Uncertainty for any of these is the
-  bootstrap.
+  for the non-normal ALS families, `"irls"` (default for
+  `binary`/`poisson`) runs iteratively reweighted least squares, giving
+  a fast approximate GLM AME fit with coefficients on the requested link
+  scale (Poisson log, binary logit/probit). `"transform"` fits one fixed
+  Gaussian working response (`log(y+1)` for Poisson, rank-normal scores
+  for binary); its coefficients are on an uncalibrated working scale and
+  are mainly useful for direction/ranking checks. A directed `R > 0`
+  IRLS fit uses the hybrid low-rank solver internally because the IRLS
+  weights are unbalanced. Uncertainty for either path comes from the
+  bootstrap or sandwich covariance.
 
 - link:
 
@@ -239,44 +230,16 @@ converge, so raise `max_iter` if the fit reports non-convergence.
 For `family = "normal"` this is a least-squares (Gaussian maximum-
 likelihood) fit — the exact global solution when `R = 0`, and a local
 optimum of the non-convex low-rank objective when `R > 0`. For
-`"binary"`, `"poisson"` and `"ordinal"` the same algorithm is run on a
-Gaussian working response (the latent transforms
-[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) uses to
-initialise its sampler): a fast *approximation* suitable for exploration
-and starting values. For `"tobit"` an EM outer loop replaces censored
-cells with their truncated-normal conditional mean and the BCD M-step is
-warm-started from the previous iterate (see the “Tobit attenuation”
-section below for the documented \\\sigma^2\\ bias and the
-moderate-to-heavy censoring regimes where the point estimates of
-\\\beta\\ can drift noticeably from the MCMC estimator). For calibrated
-family-specific inference, use the MCMC estimator
-[`ame`](https://netify-dev.github.io/lame/reference/ame.md). The
-remaining censoring/rank families (`"cbin"`, `"frn"`, `"rrl"`) are not
-supported and raise an informative error.
-
-## Tobit attenuation
-
-The EM-ALS path for `family = "tobit"` is a deterministic generalised EM
-that imputes censored \\Z\_{ij}\\ on the truncated-normal mean
-\\\eta\_{ij} -
-\sigma\\\phi(-\eta\_{ij}/\sigma)/\Phi(-\eta\_{ij}/\sigma)\\ and refits
-the BCD low-rank fit on the imputed working response. The reported
-\\\sigma^2\\ carries a downward (attenuation) bias that scales with the
-censoring fraction: the additive sender/receiver effects \\a_i, b_j\\
-absorb part of the censored signal during the M-step, leaving the
-residual scale smaller than the truth. In the package's own internal
-simulations (\\n = 80\\, dyadic covariate, true \\\sigma^2 = 1\\) the
-reported \\\sigma^2\\ runs roughly 0.2-0.7 at 50\\ 0.1 at 80\\
-essentially without bias. The censored-cell EM also drifts the intercept
-and the dyadic slope: in the same simulation EM-ALS gives \\(\hat\mu,
-\hat\beta\_\mathrm{dyad}) \approx (-1.4, 0.31)\\ at 50\\ censoring and
-\\(-0.9, 0.03)\\ at 80\\ \\(0, 0.5)\\ and \\(-1.5, 0.5)\\ respectively),
-while MCMC tobit on the same draws gives \\(0.11, 0.47)\\ and \\(-1.28,
-0.42)\\. Treat the EM-ALS tobit point estimates as fast exploratory
-summaries; use
-[`ame`](https://netify-dev.github.io/lame/reference/ame.md)`(..., family = "tobit")`
-for calibrated point and interval estimates. The EM iteration count and
-\\\sigma^2\\ are surfaced on the fit as `$em_iters` and `$sigma2`.
+`"binary"` and `"poisson"`, the estimator uses an IRLS working-response
+path by default, so coefficients are on the requested link scale (binary
+probit/logit, Poisson log). The fixed-transform path is still available
+as a faster exploratory score, but its coefficients are not calibrated
+effect sizes. Censoring and rank families (`"ordinal"`, `"tobit"`,
+`"cbin"`, `"frn"`, `"rrl"`) are not supported by ALS and raise an
+informative error; use
+[`ame`](https://netify-dev.github.io/lame/reference/ame.md) or
+[`lame`](https://netify-dev.github.io/lame/reference/lame.md) for those
+likelihoods.
 
 **Row/column (node) covariates.** A node covariate broadcasts to a
 per-actor constant, which is collinear with the additive sender/receiver
@@ -334,31 +297,43 @@ working-response approximation used for the non-normal families leaves a
 Hessian-based variance miscalibrated. The bootstrap side-steps both, so
 it is preferred here.)
 
-## Limitations vs. [`ame`](https://netify-dev.github.io/lame/reference/ame.md) / [`lame`](https://netify-dev.github.io/lame/reference/lame.md)
+## Coverage relative to [`ame`](https://netify-dev.github.io/lame/reference/ame.md) / [`lame`](https://netify-dev.github.io/lame/reference/lame.md)
 
-The ALS estimator is a fast, frequentist point estimator. It is not a
-drop-in replacement for the MCMC estimators – the following features
-apply to MCMC only:
+The ALS estimator is a fast, frequentist point estimator. It covers most
+static AME workflows, and the top-level `lame(..., method = "als")`
+dispatcher covers several dynamic workflows, but posterior-specific
+features still require the MCMC estimator:
 
-- **Families.** ALS supports `normal`, `binary`, `poisson`, `ordinal`
-  (transform or EM), and `tobit` (EM only; see the “Tobit attenuation”
-  section for the documented \\\sigma^2\\ downward bias and the
-  censoring regimes where the point estimates drift from the MCMC
-  estimator). It does **not** support `cbin`, `frn`, `rrl`; for those,
-  fall back to
+- **Families.** ALS supports `normal`, `binary`, and `poisson`. For
+  `ordinal`, `tobit`, `cbin`, `frn`, and `rrl`, fall back to
   [`ame`](https://netify-dev.github.io/lame/reference/ame.md) /
-  [`lame`](https://netify-dev.github.io/lame/reference/lame.md). The
-  `bootstrap = N` option is **not** calibrated for `family = "tobit"` –
-  the parametric simulator falls through to the binary/probit branch,
-  producing degenerate 0/1 resamples and coefficient bootstraps
-  collapsed near zero. Use the MCMC tobit for uncertainty
-  quantification.
+  [`lame`](https://netify-dev.github.io/lame/reference/lame.md).
 
 - **Dynamic effects.**
   [`lame_als`](https://netify-dev.github.io/lame/reference/lame_als.md)
-  fits a STATIC model pooled across time slices. There is no
-  `dynamic_uv`, `dynamic_ab`, `dynamic_G`, or `dynamic_beta`.
-  `lame(..., method = "als")` warns and ignores those arguments.
+  itself fits a static model pooled across time slices. The top-level
+  dispatcher `lame(..., method = "als")` routes supported dynamic
+  requests to a dynamic point estimator for normal, binary, and Poisson
+  panels, including named panels where actors enter or exit:
+  `dynamic_ab`, selected intercept/dyadic/node `dynamic_beta`, and AR(1)
+  or Student-t `dynamic_uv` for directed, symmetric, and bipartite
+  panels. The snap-only `dynamic_uv = TRUE, dynamic_uv_kind = "snap"`
+  case routes to
+  [`lame_snap_als`](https://netify-dev.github.io/lame/reference/lame_snap_als.md)
+  for supported normal unipartite and bipartite panels. Node-covariate
+  coefficients use the same orthogonal additive-effect decomposition as
+  [`lame_als`](https://netify-dev.github.io/lame/reference/lame_als.md);
+  dynamic node coefficients use period-specific node values when
+  selected by `dynamic_beta`, while static node coefficients use
+  per-actor means. Bipartite `dynamic_G` is available on the dynamic ALS
+  path for normal, binary, and Poisson panels. Changing actor
+  composition requires row and column names on every slice so actors can
+  be aligned; smoothing penalties are broken across actor-entry gaps.
+  Rank/censored dynamic families remain on the MCMC path. Static
+  `ame_als()` /
+  [`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md)
+  fits still use a single latent rank `R`; the dynamic bipartite ALS
+  dispatcher honours separate `R_row` and `R_col` values.
 
 - **Priors.** ALS has no priors. `prior = list(...)` and `g = ...` are
   MCMC-only; the dispatcher `ame(..., method = "als")` warns and ignores

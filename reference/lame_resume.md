@@ -49,9 +49,9 @@ A fitted `lame` object.
 **Equivalent consolidated entry point.** `lame(resume_from = path, ...)`
 short-circuits to this function with the user-supplied overrides
 forwarded; pass `nscan = K` on the resume call to request `K` additional
-stored draws. Both call shapes are supported. The legacy
-`lame_resume(path, ...)` form is currently the more robust of the two:
-the consolidated form re-evaluates the saved
+stored draws. Both call shapes are supported. The
+`lame_resume(path, ...)` form is safer for nested calls: the
+consolidated form re-evaluates the saved
 [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) call in
 [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html), which is the
 [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) frame

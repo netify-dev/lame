@@ -23,5 +23,5 @@ The format is: List of 2 \$ Y: num \[1:100, 1:100\] NA 0 0 0 1 0 0 0 0 3
 data(YX_frn)
 gof_stats(YX_frn$Y) 
 #>  sd.rowmean  sd.colmean    dyad.dep   cycle.dep   trans.dep 
-#> 0.214793558 0.151227002 0.544713565 0.005015426 0.010577213 
+#> 0.216963190 0.152754547 0.544539588 0.008276425 0.015688679 
 ```

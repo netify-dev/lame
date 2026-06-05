@@ -15,7 +15,7 @@ implementation by Peter Hoff."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -242,7 +242,7 @@ coefficients (<code>beta ~ N(0, g * sigma^2 * solve(XtX))</code> where
 <code>XtX</code> is the design cross-product). If not specified, defaults are:
 for <code>normal</code> family, <code>g = n * var(Y)</code>; for <code>tobit</code>,
 <code>g = n * var(Y) * 4</code>; for other families, <code>g = n</code> (number of
-non-missing dyads). Per-coefficient (vector) <code>g</code> is NOT currently
+non-missing dyads). Per-coefficient (vector) <code>g</code> is not currently
 supported by the unipartite path – pass a scalar.
 <em>Note:</em> <code>g</code> is a top-level argument to <code>ame()</code>,
 <strong>not</strong> an element of <code>prior = list(...)</code>; passing
@@ -306,7 +306,7 @@ live trace panels. Default <code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-save-interval">save_interval<a class="anchor" aria-label="anchor" href="#arg-save-interval"></a></dt>
-<dd><p>quantile interval indicating when to save during post burn-in phase.</p></dd>
+<dd><p>quantile interval indicating when to save during the post-burn-in period.</p></dd>
 
 
 <dt id="arg-model-name">model.name<a class="anchor" aria-label="anchor" href="#arg-model-name"></a></dt>
@@ -334,8 +334,8 @@ Recommended only for truly sparse networks (&lt; 10% non-zero entries).</p></dd>
 <dd><p>character: <code>"mcmc"</code> (default, the Bayesian MCMC fit) or
 <code>"als"</code> (the fast, MCMC-free iterative block coordinate descent point
 estimator). When <code>method = "als"</code>, MCMC-specific arguments (<code>nscan</code>,
-<code>burn</code>, <code>odens</code>, <code>prior</code>, ...) are silently ignored and the
-call forwards to <code><a href="ame_als.html">ame_als</a></code>.</p></dd>
+<code>burn</code>, <code>odens</code>, <code>prior</code>, ...) are warned about and ignored;
+the call forwards to <code><a href="ame_als.html">ame_als</a></code>.</p></dd>
 
 
 <dt id="arg-bootstrap">bootstrap<a class="anchor" aria-label="anchor" href="#arg-bootstrap"></a></dt>
@@ -562,18 +562,15 @@ The linear predictor \(\eta\) represents \(\log(\lambda)\) where \(\lambda\) is 
 <p>Every <code>family</code> is supported under
 both <code>mode</code>s. The bipartite Z-samplers live in <code>R/rZ_bipartite.R</code>
 and dispatch per family; see also the inline comment in <code>R/lame.R</code>
-(“first-class samplers as of the bipartite-families round”).</p>
+(the rectangular samplers live in <code>R/rZ_bipartite.R</code>).</p>
 <table class="table table"><tr><td><strong>family</strong></td><td><strong>unipartite</strong></td><td><strong>bipartite</strong></td></tr><tr><td>normal</td><td>yes</td><td>yes</td></tr><tr><td>binary</td><td>yes</td><td>yes</td></tr><tr><td>tobit</td><td>yes</td><td>yes</td></tr><tr><td>ordinal</td><td>yes</td><td>yes</td></tr><tr><td>cbin</td><td>yes</td><td>yes</td></tr><tr><td>frn</td><td>yes</td><td>yes</td></tr><tr><td>poisson</td><td>yes</td><td>yes</td></tr><tr><td>rrl</td><td>yes</td><td>yes</td></tr></table><p>Symmetric (<code>symmetric = TRUE</code>) fits require a symmetric <code>Y</code>.
 <code>family = "ordinal"</code> with <code>symmetric = TRUE</code> is supported via the
 dedicated sampler in <code>R/rZ_ord_sym_fc.R</code>, which uses the
 symmetric-doubled precision and mirrors upper-triangle draws to the lower
-triangle so \(Z = t(Z)\) holds at every sweep. The previous “ordinal
-</p><ul><li><p>symmetric is unsupported</p></li>
-</ul> restriction has been lifted. <code>rrl</code> +
-bipartite is first-class: the rectangular row-rank Z-sampler handles the
+triangle so \(Z = t(Z)\) holds at every sweep. <code>rrl</code> + bipartite is
+supported: the rectangular row-rank Z-sampler handles the
 full per-row permutation likelihood, and <code>ame()</code> recovers regression
-coefficients comparably to the unipartite rrl path on similarly-sized data.
-”
+coefficients comparably to the unipartite rrl path on similarly-sized data.</p>
 <p><strong>Symmetric input with one triangle missing.</strong> When
 <code>symmetric = TRUE</code> and one triangle of <code>Y</code> is fully <code>NA</code>
 (the user stored only the lower or upper triangle), the symmetry validator
@@ -634,7 +631,7 @@ what is the effect of dyadic covariate X?", reach for AME. The
     <h2 id="ergm-to-ame-translation">ERGM to AME translation<a class="anchor" aria-label="anchor" href="#ergm-to-ame-translation"></a></h2>
 
 
-<p>For users coming from <code>statnet::ergm</code>, the rough analogues are:</p><table class="table table"><tr><td><strong>ERGM term</strong></td><td><strong>AME analogue</strong></td></tr><tr><td><code>edges</code></td><td><code>intercept</code> (probit link, not logit)</td></tr><tr><td><code>nodecov("x")</code></td><td><code>Xrow = x</code> or <code>Xcol = x</code></td></tr><tr><td><code>nodematch("g")</code></td><td>dyadic covariate via <code><a href="nodematch.html">nodematch</a>(g)</code> into <code>Xdyad</code></td></tr><tr><td><code>nodefactor("g")</code></td><td>dyadic covariate via <code><a href="nodematch.html">nodefactor</a>(g)</code> into <code>Xdyad</code> (drop one level)</td></tr><tr><td><code>absdiff("z")</code></td><td>dyadic covariate via <code><a href="nodematch.html">absdiff</a>(z)</code> into <code>Xdyad</code></td></tr><tr><td><code>mutual</code></td><td><code>dcor = TRUE</code> -&gt; the <code>rho</code> parameter (probit-scale, NOT log-odds; not numerically comparable to ERGM's <code>mutual</code>)</td></tr><tr><td><code>gwesp</code> / transitivity</td><td><code>R &gt;= 1</code> multiplicative latent factors (not the same statistic)</td></tr><tr><td>sender activity heterogeneity</td><td><code>rvar = TRUE</code>, gives <code>a_i</code>, <code>va</code></td></tr><tr><td>receiver popularity heterog.</td><td><code>cvar = TRUE</code>, gives <code>b_j</code>, <code>vb</code></td></tr></table><p>For <code>family = "binary"</code> the link is probit, so the intercept is on the
+<p>For users coming from <code>statnet::ergm</code>, the rough analogues are:</p><table class="table table"><tr><td><strong>ERGM term</strong></td><td><strong>AME analogue</strong></td></tr><tr><td><code>edges</code></td><td><code>intercept</code> (probit link, not logit)</td></tr><tr><td><code>nodecov("x")</code></td><td><code>Xrow = x</code> or <code>Xcol = x</code></td></tr><tr><td><code>nodematch("g")</code></td><td>dyadic covariate via <code><a href="nodematch.html">nodematch</a>(g)</code> into <code>Xdyad</code></td></tr><tr><td><code>nodefactor("g")</code></td><td>dyadic covariate via <code><a href="nodematch.html">nodefactor</a>(g)</code> into <code>Xdyad</code> (drop one level)</td></tr><tr><td><code>absdiff("z")</code></td><td>dyadic covariate via <code><a href="nodematch.html">absdiff</a>(z)</code> into <code>Xdyad</code></td></tr><tr><td><code>mutual</code></td><td><code>dcor = TRUE</code> -&gt; the <code>rho</code> parameter (probit-scale, not log-odds; not numerically comparable to ERGM's <code>mutual</code>)</td></tr><tr><td><code>gwesp</code> / transitivity</td><td><code>R &gt;= 1</code> multiplicative latent factors (not the same statistic)</td></tr><tr><td>sender activity heterogeneity</td><td><code>rvar = TRUE</code>, gives <code>a_i</code>, <code>va</code></td></tr><tr><td>receiver popularity heterog.</td><td><code>cvar = TRUE</code>, gives <code>b_j</code>, <code>vb</code></td></tr></table><p>For <code>family = "binary"</code> the link is probit, so the intercept is on the
 probit scale; do not compare it to an ERGM <code>edges</code> estimate by simple
 arithmetic.</p>
     </div>
@@ -645,8 +642,8 @@ arithmetic.</p>
 <p>Both <code>amen</code> and <code>lame</code> export <code>ame()</code>; loading both
 packages fires a startup warning telling you to call
 <code>lame::ame(...)</code> or <code>amen::ame(...)</code> explicitly.</p>
-<p>For default cross-sectional calls, <code>lame::ame()</code> is a drop-in
-replacement for <code>amen::ame()</code>: the <code>fit$BETA</code> slot is a
+<p>For default cross-sectional calls, <code>lame::ame()</code> follows the
+<code>amen::ame()</code> interface: the <code>fit$BETA</code> slot is a
 2-D <code>[n_stored, p]</code> matrix in both packages, so scripts that
 call <code>colMeans(fit$BETA)</code> or <code>apply(fit$BETA, 2, mean)</code>
 continue to work unchanged. <code>lame</code> additionally accepts
@@ -658,7 +655,7 @@ argument is deprecated in favour of <code>verbose</code>; calls that pass
 AR(1) prior on a single-period coefficient is unidentified), so the
 <code>BETA</code> 3-D shape that <code><a href="lame.html">lame()</a></code> can produce never arises
 from <code>ame()</code>. See <code><a href="lame.html">lame</a></code> for the longitudinal path
-and the silent-aggregation hazard with old <code>apply(fit$BETA, 2, mean)</code>
+and the silent-aggregation hazard with 2-D <code>apply(fit$BETA, 2, mean)</code>
 scripts under <code>dynamic_beta = TRUE</code>.</p>
     </div>
     <div class="section level2">

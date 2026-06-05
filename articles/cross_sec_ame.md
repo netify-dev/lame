@@ -57,12 +57,11 @@ cat("Network density:", round(mean(Y, na.rm = TRUE), 3), "\n")
 Notice the `na.rm = TRUE` calls: network data often has missing entries
 (the diagonal is `NA` because self-ties are undefined, and some dyads
 may be unobserved). The model handles missing values internally via data
-augmentation, so you do not need to impute them yourself. Just leave
-`NA`s in the matrix and pass it directly. The same applies to missing
-*covariates*: a few `NA`s in the node attributes (here `race` and
-`grade` have a handful) propagate to the dyads built from them, and
-[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) simply
-treats those dyads as unobserved and reports how many it data-augmented.
+augmentation, so `NA`s can stay in the matrix. The same applies to
+missing *covariates*: a few `NA`s in the node attributes (here `race`
+and `grade` have a handful) propagate to the dyads built from them, and
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) treats
+those dyads as unobserved and reports how many it data-augmented.
 
 Before modeling, let’s look at the basic structure. How much do students
 vary in their number of friends?
@@ -214,15 +213,15 @@ summary(fit)
 #> Regression coefficients:
 #> ------------------------
 #>                  Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept          -3.485    1.095  -3.182   0.001   -5.894   -1.711  **
-#> female_row         -0.524    0.303   -1.73   0.084   -1.128   -0.002   .
-#> grade_row           0.064    0.085   0.762   0.446   -0.062    0.248    
-#> female_col         -0.387    0.277  -1.395   0.163   -0.898    0.081    
-#> grade_col           0.275    0.059   4.629       0    0.142    0.364 ***
-#> same_female_dyad    0.187    0.182   1.023   0.306   -0.163    0.519    
-#> same_race_dyad     -0.085    0.264  -0.322   0.748     -0.5    0.409    
-#> same_grade_dyad     0.169    0.261   0.648   0.517   -0.338     0.65    
-#> grade_diff_dyad    -0.602    0.101  -5.966       0   -0.783   -0.409 ***
+#> intercept          -3.485    1.097  -3.177   0.001   -5.894   -1.611  **
+#> female_row         -0.524    0.303  -1.727   0.084   -1.128   -0.002   .
+#> grade_row           0.065    0.085   0.763   0.445   -0.062    0.248    
+#> female_col         -0.386    0.277  -1.393   0.164   -0.898    0.081    
+#> grade_col           0.275    0.059   4.624       0    0.142    0.364 ***
+#> same_female_dyad    0.187    0.183    1.02   0.308   -0.163    0.519    
+#> same_race_dyad     -0.085    0.264  -0.321   0.748     -0.5    0.409    
+#> same_grade_dyad     0.169    0.261   0.645   0.519   -0.338     0.65    
+#> grade_diff_dyad    -0.602    0.101   -5.96       0   -0.783   -0.409 ***
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
@@ -231,9 +230,9 @@ summary(fit)
 #> -------------------
 #>     Estimate StdError
 #> va     0.404    0.135
-#> cab    0.031    0.091
+#> cab    0.032    0.091
 #> vb     0.236    0.084
-#> rho    0.832    0.078
+#> rho    0.829    0.085
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
@@ -289,40 +288,38 @@ predictor, so the marginal effect after integrating them out is smaller
 again by a factor of $`1/\sqrt{1 + V_\text{RE}}`$; (ii) the right number
 to report depends on whether you want the effect at the sample mean, the
 average effect across observed dyads, or the effect at specific
-covariate values. **For any serious interpretation, do not use the
-$`0.4 \times \beta`$ shortcut. Compute the quantity you actually want
-with `predict(fit, type = "response")` and contrast predicted
-probabilities under counterfactual covariate settings.**
+covariate values. For interpretation, compute the quantity you want with
+`predict(fit, type = "response")` and contrast predicted probabilities
+under counterfactual covariate settings.
 
 ## Did the Sampler Converge?
 
-Since the model is estimated via MCMC (Markov chain Monte Carlo), we
-need to verify that the sampler explored the posterior distribution
-thoroughly. The `trace_plot` function is the first tool to reach for.
+Since the model is estimated via MCMC (Markov chain Monte Carlo), trace
+plots are the first check that the sampler explored the posterior
+distribution thoroughly.
 
 ``` r
 
 trace_plot(fit, params = "beta", ncol = 3)
 ```
 
-![MCMC trace and density plots for each regression coefficient: trace
-plots should look like fuzzy caterpillars around a stable mean and the
-density plots should appear smooth and
-unimodal.](cross_sec_ame_files/figure-html/trace-plots-1.png)
+![MCMC trace and density plots for each regression coefficient; stable
+traces fluctuate around a steady mean and the density plots are smooth
+and unimodal.](cross_sec_ame_files/figure-html/trace-plots-1.png)
 
-**What to look for:** The trace plots (top) should look like “fuzzy
-caterpillars” bouncing around a stable mean. If you see long trends, the
-chain hasn’t converged. The density plots (bottom) should be smooth and
-unimodal. With 80 post-burn-in samples most coefficients mix well; the
-slow ones at this seed are `grade_diff`, whose effective sample size
-drops to single digits, and – typically the worse of the two across runs
-– `rho`, the reciprocity parameter that is chronically the
-slowest-mixing term in these fits. Read this as a *mixing* problem, not
-an *estimate* problem: `grade_diff`’s point estimate is stable from run
-to run even when its ESS is low, and its near-twin `same_grade` mixes
-fine, so the poor mixing here is a quirk of this seed rather than a
+**What to look for:** The trace plots (top) should fluctuate around a
+stable mean. If you see long trends, the chain has not converged. The
+density plots (bottom) should be smooth and unimodal. With 80
+post-burn-in samples most coefficients mix well; the slow ones at this
+seed are `grade_diff`, whose effective sample size drops to single
+digits, and – typically the worse of the two across runs – `rho`, the
+reciprocity parameter that is chronically the slowest-mixing term in
+these fits. Read this as a *mixing* problem, not an *estimate* problem:
+`grade_diff`’s point estimate is stable from run to run even when its
+ESS is low, and its near-twin `same_grade` mixes fine, so the poor
+mixing here comes from this short run and seed rather than a
 collinearity breakdown. Both `grade_diff` and `rho` call for a longer or
-multi-chain run before you quote their uncertainty.
+multi-chain run before quoting their uncertainty.
 
 ### Numerical convergence diagnostics: `posterior::as_draws()`
 
@@ -354,19 +351,19 @@ posterior::summarise_draws(draws)              # mean, sd, q5, q95, rhat,
 #> # A tibble: 14 × 10
 #>    variable           mean  median     sd    mad      q5     q95   rhat ess_bulk
 #>    <chr>             <dbl>   <dbl>  <dbl>  <dbl>   <dbl>   <dbl>  <dbl>    <dbl>
-#>  1 intercept       -3.48   -3.38   1.10   0.940  -5.30   -1.72    0.991    79.3 
-#>  2 female_row      -0.524  -0.527  0.303  0.261  -1.03   -0.0846  1.000    66.0 
-#>  3 grade_row        0.0644  0.0591 0.0846 0.0858 -0.0521  0.231   0.991    66.2 
-#>  4 female_col      -0.387  -0.367  0.277  0.266  -0.859   0.0281  0.989    74.1 
-#>  5 grade_col        0.275   0.278  0.0593 0.0541  0.186   0.359   0.998    58.0 
-#>  6 same_female_dy…  0.187   0.180  0.182  0.178  -0.143   0.502   1.01     67.1 
-#>  7 same_race_dyad  -0.0850 -0.0921 0.264  0.272  -0.461   0.334   1.03     80.3 
+#>  1 intercept       -3.49   -3.38   1.10   0.940  -5.30   -1.72    0.991    77.1 
+#>  2 female_row      -0.524  -0.527  0.303  0.261  -1.03   -0.0552  1.000    66.0 
+#>  3 grade_row        0.0645  0.0591 0.0846 0.0858 -0.0521  0.231   0.991    66.7 
+#>  4 female_col      -0.386  -0.367  0.277  0.266  -0.850   0.0281  0.989    73.8 
+#>  5 grade_col        0.275   0.278  0.0594 0.0541  0.186   0.359   1.00     57.5 
+#>  6 same_female_dy…  0.187   0.180  0.183  0.178  -0.143   0.502   1.01     67.4 
+#>  7 same_race_dyad  -0.0849 -0.0921 0.264  0.272  -0.466   0.334   1.03     80.2 
 #>  8 same_grade_dyad  0.169   0.195  0.261  0.276  -0.258   0.619   1.03     94.7 
-#>  9 grade_diff_dyad -0.602  -0.592  0.101  0.108  -0.765  -0.463   1.12      7.62
-#> 10 va               0.404   0.380  0.135  0.136   0.223   0.650   0.992    80.6 
-#> 11 cab              0.0308  0.0201 0.0909 0.0853 -0.114   0.179   0.988    69.7 
-#> 12 vb               0.236   0.226  0.0838 0.0785  0.128   0.394   1.00     56.1 
-#> 13 rho              0.832   0.860  0.0780 0.0719  0.688   0.925   1.08      9.47
+#>  9 grade_diff_dyad -0.602  -0.592  0.101  0.108  -0.769  -0.463   1.12      7.63
+#> 10 va               0.404   0.380  0.135  0.136   0.223   0.654   0.994    81.3 
+#> 11 cab              0.0315  0.0215 0.0910 0.0867 -0.108   0.179   0.988    70.4 
+#> 12 vb               0.236   0.226  0.0838 0.0785  0.128   0.394   1.00     56.0 
+#> 13 rho              0.829   0.860  0.0849 0.0719  0.626   0.925   1.07      9.71
 #> 14 ve               1       1      0      0       1       1      NA        NA   
 #> # ℹ 1 more variable: ess_tail <dbl>
                                                # ess_bulk, ess_tail per param
@@ -386,9 +383,9 @@ chronically slow-mixing term across seeds (on a typical run it, not
 pushes `grade_diff` to the very bottom). A single-chain fit like this
 one reports within-chain split-$`\hat R`$, which is informative about
 within-chain non-stationarity but not about between-chain disagreement;
-run four chains (next subsection) before trusting either of those two.
+the four-chain fit below gives the cross-chain check.
 
-### Honest between-chain $`\hat R`$: `ame_parallel(n_chains = 4)`
+### Between-chain $`\hat R`$: `ame_parallel(n_chains = 4)`
 
 For real convergence assessment, run four chains from different seeds
 and let
@@ -607,8 +604,8 @@ data.frame(
     pp_p_right = round(mapply(pp_right, obs, as.data.frame(sim)), 3)
 )[c("triangles", "two_path", "trans_ratio", "deg_cor"), ]
 #>                    stat observed sim_mean pp_p_right
-#> triangles     triangles  239.000  182.880       0.24
-#> two_path       two_path  493.000  472.400       0.40
+#> triangles     triangles  239.000  183.060       0.24
+#> two_path       two_path  493.000  472.940       0.42
 #> trans_ratio trans_ratio    0.485    0.370       0.06
 #> deg_cor         deg_cor    0.564    0.414       0.32
 ```
@@ -617,27 +614,23 @@ Read the table the same way you would read `ergm::gof()`. For each
 statistic a `pp_p_right` near 0 means the simulated networks rarely hit
 the observed value from below, i.e. the model under-predicts that
 quantity; a value near 1 means it over-predicts. On Add Health the raw
-`triangles` count actually comes back reasonably well covered
-(`pp_p_right` around 0.25 in our run): the AME fit absorbs much of the
-triangle pressure through clustering of $`u_i`$ and through the joint
-scale of the additive effects, so the raw count is in the predictive
-distribution even though the model has no `gwesp`-style change statistic
-in the likelihood. `two_path` is driven by the marginal degree
-distribution and the additive effects, so it is also usually well
-covered (`pp_p_right` around 0.4 here). The diagnostic that exposes the
-structural gap is the ratio: the `trans_ratio` (triangles / two-paths)
-is the unweighted clustering coefficient ERGM users recognise from
-`sna::gtrans`, and on this network it comes back with `pp_p_right` close
-to zero (around 0.05 in our run). That is the right scalar summary of
-what `gwesp(decay = 0, fixed = TRUE)` targets, and it is the place to
-read the under-prediction story: the model gets the absolute scale of
-triangle counts roughly right but does not concentrate triangles per
-two-path the way the data do. The `deg_cor` is degree assortativity: AME
-captures some of it through the sender-receiver covariance (`cab`), but
-the rest reflects higher-order structure outside the dyadic likelihood.
-This diagnostic is what tells you whether your application is in AME
-territory (covariates + heterogeneity + reciprocity) or in ERGM
-territory (clustering / `gwesp` is the substantive target).
+`triangles` count comes back reasonably well covered (`pp_p_right`
+around 0.25 in our run): the AME fit absorbs much of the triangle
+pressure through clustering of $`u_i`$ and through the joint scale of
+the additive effects, so the raw count is in the predictive distribution
+even though the model has no `gwesp`-style change statistic in the
+likelihood. `two_path` is driven by the marginal degree distribution and
+the additive effects, so it is also usually well covered (`pp_p_right`
+around 0.4 here). The structural gap shows up in the ratio: the
+`trans_ratio` (triangles / two-paths) is the unweighted clustering
+coefficient ERGM users recognise from `sna::gtrans`, and on this network
+it comes back with `pp_p_right` close to zero (around 0.05 in our run).
+That is the scalar summary targeted by `gwesp(decay = 0, fixed = TRUE)`:
+the model gets the absolute scale of triangle counts roughly right but
+does not concentrate triangles per two-path the way the data do. The
+`deg_cor` is degree assortativity: AME captures some of it through the
+sender-receiver covariance (`cab`), but the rest reflects higher-order
+structure outside the dyadic likelihood.
 
 ## Visualizing the Latent Space
 
@@ -781,15 +774,14 @@ cat("AUROC:", round(auroc, 3), "\n",
 ### Held-out link prediction
 
 Reporting accuracy / AUC on the same dyads the model was fit on is
-**in-sample** fit, not predictive performance. For an honest held-out
+**in-sample** fit, not predictive performance. For a held-out
 evaluation, mask a random subset of dyads to `NA` before fitting (the
 AME sampler handles `NA` entries via data augmentation, so the masked
 dyads are excluded from the likelihood), then score
 `predict(fit, type = "response")` on the held-out indices. Stratify the
 split on `Y` so the test set has both classes; on a density-0.1 network
-a naive 10% mask leaves you with very few positive test dyads, so use
-stratified sampling and quote the test-set positive count alongside the
-AUC.
+a naive 10% mask leaves very few positive test dyads, so report the
+test-set positive count with the AUC.
 
 ``` r
 

@@ -24,5 +24,5 @@ data(YX_bin)
 gof_stats(YX_bin$Y) 
 #> Note: Square matrix assumed to be unipartite. Use mode='bipartite' for square bipartite networks.
 #> sd.rowmean sd.colmean   dyad.dep  cycle.dep  trans.dep 
-#> 0.04927874 0.03068428 0.52475273 0.01596157 0.01788281 
+#> 0.04977650 0.03099423 0.52449087 0.01984067 0.02400606 
 ```

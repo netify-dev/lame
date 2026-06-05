@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-05-28</h4>
+            <h4 data-toc-skip class="date">2026-06-05</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/fast_estimation.Rmd" class="external-link"><code>vignettes/fast_estimation.Rmd</code></a></small>
       <div class="d-none name"><code>fast_estimation.Rmd</code></div>
@@ -98,9 +98,9 @@ intervals</li>
 <p>z_ij = mu + beta’x_ij + a_i + b_j + u_i’v_j + e_ij</p>
 <p>by <strong>iterative block coordinate descent</strong> rather than
 Gibbs sampling. It is typically tens to hundreds of times faster than
-<code><a href="../reference/ame.html">ame()</a></code>, and the point estimates are usually close. Use it to
-explore; use <code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> for the inference
-you report.</p>
+<code><a href="../reference/ame.html">ame()</a></code>, and the point estimates are usually close. Use it
+when a point estimate is enough; use <code><a href="../reference/ame.html">ame()</a></code> /
+<code><a href="../reference/lame.html">lame()</a></code> when the target is a posterior summary.</p>
 <div class="section level3">
 <h3 id="wall-clock-benchmark">Wall-clock benchmark<a class="anchor" aria-label="anchor" href="#wall-clock-benchmark"></a>
 </h3>
@@ -152,10 +152,10 @@ reasonable n.</p>
 </table>
 <p>These ranges are wide on purpose: under a single-threaded BLAS on a
 virtualised host, the small-n speed ratios we have measured are several
-times larger than the “≈ 30×” figure quoted in earlier docs, because the
-MCMC’s per-iteration overhead is fixed and the ALS solve is nearly free
-at n ≤ 100. Treat the ratio as “ALS finishes before MCMC’s burn-in”
-rather than a number to plan against.</p>
+times larger than the “≈ 30×” figure in older docs, because the MCMC’s
+per-iteration overhead is fixed and the ALS solve is nearly free at n ≤
+100. Treat the ratio as “ALS finishes before MCMC’s burn-in” rather than
+a number to plan against.</p>
 <p>For binary/poisson the <strong>point-estimate</strong> speedup ratio
 is much smaller (often only 3-10× on small networks) because the IRLS
 path runs 3-5 reweighting iterations per fit, and because the MCMC
@@ -170,8 +170,9 @@ n = 50, we measured ≈ 135 s — slower than the equivalent MCMC fit. If
 you only need the point estimate, skip the bootstrap
 (<code>bootstrap = 0</code>, the default) and use the sandwich
 <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>/<code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code> on the fit. If you need
-calibrated intervals at scale, <code><a href="../reference/ame.html">ame()</a></code> MCMC is often the
-cheaper option even though it samples for thousands of iterations.</p>
+interval estimates at scale, compare the bootstrap cost with a regular
+<code><a href="../reference/ame.html">ame()</a></code> MCMC run; for some binary networks the MCMC fit is
+cheaper.</p>
 <p>To benchmark on your own hardware:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
@@ -189,21 +190,20 @@ cheaper option even though it samples for thousands of iterations.</p>
 <div class="section level3">
 <h3 id="what-als-can-do-vs--what-only-mcmc-does">What ALS can do vs. what only MCMC does<a class="anchor" aria-label="anchor" href="#what-als-can-do-vs--what-only-mcmc-does"></a>
 </h3>
-<p>ALS is a fast point estimator, not a drop-in replacement for the
-Bayesian MCMC fits. The current coverage is:</p>
-<table style="width:100%;" class="table">
+<p>ALS is a fast point estimator. It covers most static AME workflows
+and several dynamic workflows, while posterior-specific features still
+require the Bayesian MCMC fits. The current coverage is:</p>
+<table class="table">
 <colgroup>
-<col width="43%">
-<col width="27%">
-<col width="28%">
+<col width="46%">
+<col width="29%">
+<col width="24%">
 </colgroup>
 <thead><tr class="header">
 <th>Capability</th>
 <th>
 <code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> (MCMC)</th>
-<th>
-<code><a href="../reference/ame_als.html">ame_als()</a></code> / <code><a href="../reference/lame_als.html">lame_als()</a></code>
-</th>
+<th>Fast point estimators</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
@@ -286,7 +286,7 @@ Bayesian MCMC fits. The current coverage is:</p>
 <tr class="odd">
 <td><code>gof_plot</code></td>
 <td>posterior predictive</td>
-<td>bootstrap-based</td>
+<td>bootstrap-based GOF check</td>
 </tr>
 <tr class="even">
 <td>
@@ -302,14 +302,43 @@ Bayesian MCMC fits. The current coverage is:</p>
 </tr>
 <tr class="even">
 <td>
-<code>dynamic_uv</code> / <code>dynamic_ab</code> (AR(1))</td>
+<code>dynamic_ab</code> / selected <code>dynamic_beta</code>
+</td>
 <td>yes</td>
-<td><strong>no (static pooled)</strong></td>
+<td>normal, binary, and Poisson panels via dynamic ALS; named
+changing-composition panels are aligned</td>
+</tr>
+<tr class="odd">
+<td>Dynamic node-covariate coefficient paths</td>
+<td>yes</td>
+<td>period-specific node values when selected by
+<code>dynamic_beta</code>; static node effects use actor means</td>
+</tr>
+<tr class="even">
+<td>
+<code>dynamic_uv</code> (smooth AR(1) / t)</td>
+<td>yes</td>
+<td>AR(1) and t for directed, symmetric, and bipartite panels</td>
+</tr>
+<tr class="odd">
+<td><code>dynamic_G</code></td>
+<td>yes</td>
+<td>bipartite normal, binary, and Poisson panels via dynamic ALS; named
+changing-composition panels are aligned</td>
+</tr>
+<tr class="even">
+<td><code>dynamic_uv_kind = "snap"</code></td>
+<td>yes</td>
+<td>
+<code><a href="../reference/lame_snap_als.html">lame_snap_als()</a></code> for normal unipartite and bipartite
+panels</td>
 </tr>
 <tr class="odd">
 <td>Custom priors (<code>prior = list(...)</code>, <code>g</code>)</td>
 <td>yes</td>
-<td><strong>no (no priors)</strong></td>
+<td>no Bayesian priors; dynamic ALS reads selected
+<code>prior$rho_*_mean</code> and <code>prior$lambda_*_als</code> values
+as smoothing controls</td>
 </tr>
 <tr class="even">
 <td>Multi-chain (<code>n_chains</code>, via
@@ -345,15 +374,34 @@ edges:</p>
 <ul>
 <li>
 <code>nscan</code> / <code>burn</code> / <code>odens</code> /
-<code>prior</code> / <code>g</code> are accepted-then-ignored with a
-warning by both <code>ame(method = "als")</code> and
+<code>g</code> are accepted-then-ignored with a warning by both
+<code>ame(method = "als")</code> and
 <code>lame(method = "als")</code>.</li>
-<li>The longitudinal-only arguments (<code>dynamic_uv</code>,
-<code>dynamic_ab</code>, <code>dynamic_beta</code>,
-<code>time_index</code>, …) are warned-and-ignored by
-<code>lame(method = "als")</code>, but passing them to
+<li>The static ALS dispatcher warns and ignores MCMC tuning arguments
+such as <code>nscan</code>, <code>burn</code>, <code>odens</code>, prior
+settings not used by the fast path, and <code>g</code>. Dynamic ALS has
+no posterior priors, but it does use selected entries in
+<code>prior</code> as deterministic smoothing controls
+(<code>prior$rho_ab_mean</code>, <code>prior$rho_beta_mean</code>,
+<code>prior$rho_uv_mean</code>, <code>prior$rho_G_mean</code>, and
+<code>prior$lambda_*_als</code>). Dynamic requests are stricter:
+supported <code>dynamic_ab</code>, selected <code>dynamic_beta</code>,
+AR(1) or t <code>dynamic_uv</code>, and bipartite <code>dynamic_G</code>
+requests route to dynamic ALS for normal, binary, and Poisson panels.
+Named changing-composition panels are aligned to the union actor set and
+actor-entry gaps break the smoothing penalties. Student-t dynamic UV
+fits attach final local transition-weight matrices as
+<code>fit$lambda_u</code> and <code>fit$lambda_v</code>.
+<code>lame(method = "als", dynamic_uv = TRUE, dynamic_uv_kind = "snap")</code>
+routes to <code><a href="../reference/lame_snap_als.html">lame_snap_als()</a></code> for supported normal unipartite
+and bipartite panels; unsupported dynamic stacks raise a specific error
+rather than being silently ignored. Use <code>als_max_iter</code>,
+<code>als_tol</code>, and <code>als_stability</code> for longer dynamic
+ALS runs and start-sensitivity checks.</li>
+<li>Passing longitudinal-only arguments such as <code>dynamic_uv</code>,
+<code>dynamic_ab</code>, or <code>dynamic_beta</code> to
 <code><a href="../reference/ame.html">ame()</a></code> (cross-sectional) raises the usual “longitudinal-only
-argument” <em>error</em> before ALS runs, because they are not valid
+argument” error before ALS runs, because they are not valid
 <code><a href="../reference/ame.html">ame()</a></code> arguments at all.</li>
 <li>
 <code>n_chains</code> is an <code><a href="../reference/ame.html">ame()</a></code> /
@@ -492,7 +540,8 @@ with both engines and overlay the coefficient intervals. With a
 calibrated link (<code>non_normal_method = "irls"</code> for binary, the
 default) the ALS bootstrap should give a coefficient story qualitatively
 similar to the MCMC posterior on cases the model fits well; large
-discrepancies are a signal to use MCMC for inference.</p>
+differences mean the posterior fit is the better reference for that
+dataset.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># wrap Xd into a 3-D array with an explicit slice name so the ALS and MCMC</span></span>
 <span><span class="co"># paths produce identical coefficient names (the auto-naming default differs</span></span>
@@ -505,8 +554,7 @@ discrepancies are a signal to use MCMC for inference.</p>
 <span><span class="va">fb_b</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame_als.html">ame_als</a></span><span class="op">(</span><span class="va">Yb</span>, Xdyad <span class="op">=</span> <span class="va">Xd_arr</span>, R <span class="op">=</span> <span class="fl">0</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>                verbose <span class="op">=</span> <span class="cn">FALSE</span>, bootstrap <span class="op">=</span> <span class="fl">100</span>, bootstrap_seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># fit the same data with MCMC, short chain (this is a 40-actor binary</span></span>
-<span><span class="co"># fit; sub-second wall-clock for a 200-sample posterior summary)</span></span>
+<span><span class="co"># fit the same data with MCMC using a short chain for a quick comparison</span></span>
 <span><span class="va">fit_mcmc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span><span class="va">Yb</span>, Xdyad <span class="op">=</span> <span class="va">Xd_arr</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>                burn <span class="op">=</span> <span class="fl">200</span>, nscan <span class="op">=</span> <span class="fl">1000</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span>, gof <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -544,8 +592,7 @@ discrepancies are a signal to use MCMC for inference.</p>
 <p><img src="fast_estimation_files/figure-html/als-vs-mcmc-1.png" class="r-plt" alt="Side-by-side coefficient plot comparing the ALS bootstrap and MCMC posterior on the same binary network. Each coefficient (intercept and the single dyadic covariate) has two horizontal intervals: one for the ALS bootstrap, one for the MCMC posterior. A dashed vertical line at zero marks the no-effect reference; intervals on the same side of zero and with overlapping range indicate the two estimators agree." width="672"></p>
 <p>Two intervals on the same side of zero with substantial overlap means
 ALS is a fine point estimate for that coefficient; intervals that
-disagree on sign or location are a flag to invest the MCMC budget for
-that fit.</p>
+disagree on sign or location point to the MCMC fit for that dataset.</p>
 </div>
 </div>
 <div class="section level2">
@@ -597,8 +644,8 @@ fit.</p>
 </tr>
 </tbody>
 </table>
-<p>The fast estimator is for exploration. When you report results,
-confirm them with the MCMC estimator.</p>
+<p>The fast estimator returns point estimates and bootstrap or sandwich
+uncertainty. The MCMC estimator returns posterior summaries.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

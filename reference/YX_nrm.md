@@ -23,6 +23,6 @@ The format is: List of 2 \$ Y: num \[1:100, 1:100\] NA -4.05 -0.181
 data(YX_nrm)
 gof_stats(YX_nrm$Y)
 #> sd.rowmean sd.colmean   dyad.dep  cycle.dep  trans.dep 
-#> 0.92646818 0.27555881 0.66792884 0.06139376 0.07380099 
+#> 0.93582644 0.27834223 0.65987298 0.03557144 0.04263373 
 
 ```

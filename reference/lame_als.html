@@ -29,7 +29,7 @@ algorithm details."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -116,10 +116,10 @@ algorithm details.</p>
 
 <dl><dt id="arg-y">Y<a class="anchor" aria-label="anchor" href="#arg-y"></a></dt>
 <dd><p>a list of <code>T</code> relational matrices, or a 3D array
-<code>[n_row, n_col, T]</code>. All slices must share the same dimensions and,
-if the matrices carry row/column names, the same actors in the same
-order (the ALS estimator does not handle changing actor
-compositions; use <code><a href="lame.html">lame</a></code> for that).</p></dd>
+<code>[n_row, n_col, T]</code>. A named list may have changing actor
+composition; every slice must carry row and column names so actors can be
+aligned to the union panel. Unnamed lists and arrays are treated
+positionally and must have one fixed layout.</p></dd>
 
 
 <dt id="arg-xdyad">Xdyad<a class="anchor" aria-label="anchor" href="#arg-xdyad"></a></dt>
@@ -140,13 +140,13 @@ compositions; use <code><a href="lame.html">lame</a></code> for that).</p></dd>
 multiplicative term \(u_i'v_j\) is a flexible high-variance regressor
 that can correlate with the dyadic covariates, so the estimated
 <code>beta</code> can shift – and occasionally change sign – as <code>R</code>
-increases. Validate against an <code>R = 0</code> fit and the MCMC
-<code><a href="ame.html">ame</a></code>/<code><a href="lame.html">lame</a></code> before reporting.</p></dd>
+increases. Comparing against an <code>R = 0</code> fit is a useful check on
+whether the covariate story is being driven by the latent rank.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>one of <code>"normal"</code>, <code>"binary"</code>, <code>"poisson"</code>,
-<code>"ordinal"</code>.</p></dd>
+<dd><p>one of <code>"normal"</code>, <code>"binary"</code>, or
+<code>"poisson"</code>. The rank and censoring families are MCMC-only.</p></dd>
 
 
 <dt id="arg-mode">mode<a class="anchor" aria-label="anchor" href="#arg-mode"></a></dt>
@@ -178,26 +178,17 @@ balanced data.</p></dd>
 
 
 <dt id="arg-non-normal-method">non_normal_method<a class="anchor" aria-label="anchor" href="#arg-non-normal-method"></a></dt>
-<dd><p>for the non-normal families, <code>"irls"</code>
+<dd><p>for the non-normal ALS families, <code>"irls"</code>
 (default for <code>binary</code>/<code>poisson</code>) runs iteratively reweighted
-least squares – a fast approximate GLM AME fit with coefficients on
-the calibrated link scale (Poisson log, binary logit/probit).
-<code>"transform"</code> fits a single fixed Gaussian working response
-(<code>log(y+1)</code> for Poisson, rank-normal scores for binary/ordinal);
-its coefficients are on an uncalibrated rank scale – good for
-direction/ranking of effects, not for magnitudes. <strong>For ordinal
-data the transform path attenuates \(\beta\) toward zero (classical
-discretisation bias); prefer <code>"em"</code> when \(\beta\) is an effect-size
-estimand.</strong> <code>"em"</code> (for <code>ordinal</code>, opt-in; default for
-<code>tobit</code>) runs a deterministic EM outer loop that maximises the
-observed ordinal log-likelihood, jointly estimating cutpoints
-(returned on <code>fit$alpha</code>, anchored at <code>alpha[1] = 0</code>) and the
-regression block; the surrogate is monotone non-decreasing across EM
-iterations. <code>"irls"</code> is supported for <code>binary</code>/<code>poisson</code>;
-<code>ordinal</code> accepts <code>"transform"</code> (default, back-compat) or
-<code>"em"</code>. A directed <code>R &gt; 0</code> IRLS fit uses the hybrid low-rank
-solver internally (the IRLS weights are unbalanced). Uncertainty for
-any of these is the bootstrap.</p></dd>
+least squares, giving a fast approximate GLM AME fit with coefficients on
+the requested link scale (Poisson log, binary logit/probit).
+<code>"transform"</code> fits one fixed Gaussian working response
+(<code>log(y+1)</code> for Poisson, rank-normal scores for binary); its
+coefficients are on an uncalibrated working scale and are mainly useful
+for direction/ranking checks. A directed <code>R &gt; 0</code> IRLS fit uses the
+hybrid low-rank solver internally because the IRLS weights are unbalanced.
+Uncertainty for either path comes from the bootstrap or sandwich
+covariance.</p></dd>
 
 
 <dt id="arg-link">link<a class="anchor" aria-label="anchor" href="#arg-link"></a></dt>
@@ -275,6 +266,8 @@ coordinate descent estimator adapted here originates with that work
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="ame_als.html">ame_als</a></code>, <code><a href="ame_als_bootstrap.html">ame_als_bootstrap</a></code>,
 <code><a href="lame.html">lame</a></code> for the full MCMC estimator,
+<code><a href="lame_snap_als.html">lame_snap_als</a></code> for the approximate dynamic snap-shift
+point estimator,
 <code><a href="als_dynamic_beta.html">als_dynamic_beta</a></code> for a regression-only smoother
 that estimates <em>only</em> a time-varying \(\beta_t\) (no
 \(a, b, U, V\); not a special case of this function).</p></div>

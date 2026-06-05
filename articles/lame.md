@@ -113,7 +113,7 @@ Y_list <- lapply(periods, function(yr) {
 })
 names(Y_list) <- as.character(periods)
 
-# Xdyad: one [n, n, 1] array per period, third-dim name = covariate name
+# xdyad: one [n, n, 1] array per period, third-dim name = covariate name
 Xdyad_list <- lapply(periods, function(yr) {
     m  <- matrix(0, n, n, dimnames = list(actors, actors))
     d  <- dat[dat$year == yr, , drop = FALSE]
@@ -204,7 +204,7 @@ true_beta      <- 0.7
 
 # zero-padded names sort the same way alphabetically as positionally,
 # so `lame()`'s internal alphabetic actor sort leaves the row order
-# unchanged. with names like "N1","N10","N2",... the sort reorders the
+# actor order can change with names like "N1","N10","N2",...
 # actors (N1, N10, N2, ...); the fit is still correct as long as Y and
 # the X arrays share the same names, but the stored output comes back in
 # the sorted order, not your input order.
@@ -245,7 +245,7 @@ fit <- lame(
     odens = 10,             # thinning
     verbose = FALSE,        # suppress the progress bar / iteration log
     plot = FALSE            # don't pop up live MCMC diagnostic plots during sampling
-                            # (note: `lame()` draws live diagnostics when plot = TRUE;
+                            # `lame()` draws live diagnostics when plot = TRUE;
                             #  `ame()` accepts plot = for signature parity but ignores it
                             #  -- the single-period sampler has no live plotting)
 )
@@ -269,8 +269,8 @@ summary(fit)
 #> Regression coefficients:
 #> ------------------------
 #>                 Estimate StdError z_value p_value CI_lower CI_upper    
-#> intercept         -1.105    0.087 -12.767       0   -1.245   -0.912 ***
-#> similarity_dyad    0.754     0.05  15.101       0    0.658    0.841 ***
+#> intercept         -1.107    0.086   -12.8       0   -1.245   -0.915 ***
+#> similarity_dyad    0.755     0.05  15.071       0    0.654    0.841 ***
 #> ---
 #> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
@@ -281,7 +281,7 @@ summary(fit)
 #> va     0.080    0.028
 #> cab   -0.004    0.019
 #> vb     0.074    0.022
-#> rho   -0.130    0.087
+#> rho   -0.135    0.093
 #> ve     1.000    0.000
 #>   (va = sender, cab = sender-receiver covariance, vb = receiver,
 #>    rho = dyadic correlation, ve = residual variance)
@@ -333,13 +333,13 @@ explicit dimnames are safer.
 # regression coefficients (posterior means)
 coef(fit)
 #>       intercept similarity_dyad 
-#>      -1.1050394       0.7542629
+#>      -1.1065454       0.7550219
 
 # 95% credible intervals
 confint(fit)
 #>                       2.5%      97.5%
-#> intercept       -1.2452117 -0.9123551
-#> similarity_dyad  0.6575347  0.8412236
+#> intercept       -1.2452112 -0.9150417
+#> similarity_dyad  0.6544237  0.8412236
 
 # broom-style one-row-per-coefficient frame; ships with lame so it works
 # without broom installed and dispatches through broom::tidy(fit) when
@@ -350,8 +350,8 @@ tidy(fit)
 #> # A tibble: 2 × 7
 #>   term            estimate std.error statistic p.value conf.low conf.high
 #>   <chr>              <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
-#> 1 intercept         -1.11     0.0866     -12.8       0   -1.25     -0.912
-#> 2 similarity_dyad    0.754    0.0499      15.1       0    0.658     0.841
+#> 1 intercept         -1.11     0.0865     -12.8       0   -1.25     -0.915
+#> 2 similarity_dyad    0.755    0.0501      15.1       0    0.654     0.841
 glance(fit)
 #> # A tibble: 1 × 13
 #>    nobs n_actors n_row_actors n_col_actors n_periods n_stored family mode      R
@@ -373,7 +373,7 @@ dim(Y_hat[[1]])                    # 25 x 25
 #> [1] 25 25
 cat("Predicted probability range:",
         round(range(unlist(Y_hat), na.rm = TRUE), 3), "\n")
-#> Predicted probability range: 0 0.98
+#> Predicted probability range: 0 0.97
 
 # residuals: same list-of-matrices shape, observed minus predicted
 resid_list <- residuals(fit)
@@ -504,7 +504,7 @@ fit_cs <- ame(
 
 coef(fit_cs)
 #>       intercept similarity_dyad 
-#>      -1.1742315       0.7408774
+#>      -1.1772019       0.7421418
 ```
 
 The output and methods are the same. The difference is that
@@ -708,11 +708,9 @@ wall-clock limit, pass `max_seconds = S` and `checkpoint_path = "X.rds"`
 to [`lame()`](https://netify-dev.github.io/lame/reference/lame.md). The
 sampler writes a checkpoint every `checkpoint_every = 100L` iterations
 (override per fit) and terminates cleanly when the wall clock hits `S`,
-leaving `fit$terminated_early = TRUE`. Pick up exactly where you left
-off by passing `resume_from = "X.rds"` to
-[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) (the
-legacy `lame_resume("X.rds", nscan_more = 500)` is still supported and
-produces an identical fit):
+leaving `fit$terminated_early = TRUE`. Continue from the saved call by
+passing `resume_from = "X.rds"` to
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md):
 
 ``` r
 
@@ -729,29 +727,25 @@ if (isTRUE(fit1$terminated_early)) {
     # consolidated entry point; `nscan` on the resume call is
     # treated as `nscan_more` (additional stored draws).
     fit2 <- lame(resume_from = ck, nscan = 2000)
-    # equivalent legacy form:
-    # fit2 <- lame_resume(ck, nscan_more = 2000)
-}
+        # same helper form
+        # fit2 <- lame_resume(ck, nscan_more = 2000)
+    }
 ```
 
 The continuation reseeds the RNG from the checkpoint and re-invokes
 [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) with the
 original call arguments (with `burn = 0` so the continuation does not
 re-pay burn-in). The chain restarts from default prior-driven start
-values rather than the checkpoint’s posterior means, so allow a short
-re-equilibration before treating the continuation samples as drawn from
-the same neighbourhood. (Inspect `fit2$BETA[1:50, ]` to see the warm-up
-tail.)
+values rather than the checkpoint’s posterior means, so give it a short
+re-equilibration period before using the continuation samples as part of
+the same chain. (Inspect `fit2$BETA[1:50, ]` to see the warm-up tail.)
 
-Two caveats for iterative resume cycles. First, `resume_from` does not
-currently honour user overrides for `checkpoint_path` or `max_seconds`:
-both are stripped before re-evaluating the saved call, so a chain of
-resumes cannot itself be checkpointed or time-budgeted through this
-argument (open both with the original
-[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) call if
-you need a long chain of resumes). Second, the continuation runs with
-`burn = 0`; `verbose = TRUE` works on the resume call (it shows the
-sampling progress bar without a burn-in phase).
+Two caveats for iterative resume cycles. First, saved `checkpoint_path`
+and `max_seconds` values are stripped before re-evaluating the saved
+call; pass new values on the resume call if the continuation should also
+checkpoint or stop on a wall-clock budget. Second, the continuation runs
+with `burn = 0`; `verbose = TRUE` works on the resume call (it shows the
+sampling progress bar without a burn-in period).
 
 **3. K-panel joint posterior:
 [`lame_multi()`](https://netify-dev.github.io/lame/reference/lame_multi.md).**
@@ -764,9 +758,9 @@ posterior:
 
 ``` r
 
-# Each Y_panel* is itself a list (or 3-D array) of T per-panel networks
+# each y_panel* is itself a list or 3-D array of per-panel networks
 # -- i.e. the input to lame() for that panel on its own. Likewise each
-# X_panel* is a list of T dyadic covariate arrays. Passing a bare matrix
+# x_panel* is a list of dyadic covariate arrays. passing a bare matrix
 # per panel will error from lame().
 fit_multi <- lame_multi(
     Y_list     = list(Y_panel1, Y_panel2, Y_panel3),

@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2026-05-28</h4>
+            <h4 data-toc-skip class="date">2026-06-05</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/dynamic_effects.Rmd" class="external-link"><code>vignettes/dynamic_effects.Rmd</code></a></small>
       <div class="d-none name"><code>dynamic_effects.Rmd</code></div>
@@ -144,10 +144,9 @@ posterior draws of the innovation <strong>standard deviation</strong>
 <code>mean(fit$sigma_uv)^2</code> recovers the innovation variance).
 Under the stationary AR(1), the implied marginal variance is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msubsup><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\sigma_{uv}^2 / (1 - \rho_{uv}^2)</annotation></semantics></math>.
-This matters whenever you write your own simulation code to generate
-test data, because supplying the <em>marginal</em> SD to
-<code><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm()</a></code> in the recurrence yields a process whose marginal
-variance is too large by a factor of
+This matters when simulation code supplies an SD to <code><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm()</a></code>
+in the recurrence: using the <em>marginal</em> SD makes the process too
+variable by a factor of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msubsup><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">1/(1 - \rho_{uv}^2)</annotation></semantics></math>.
 The autoregressive parameter
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><annotation encoding="application/x-tex">\rho_{uv}</annotation></semantics></math>
@@ -156,7 +155,7 @@ positions change slowly, as last year’s position is a strong predictor
 of this year’s. A value close to 0 means positions are essentially
 re-drawn each period. In practice,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><annotation encoding="application/x-tex">\rho_{uv}</annotation></semantics></math>
-is estimated from the data, so you don’t need to choose it yourself.</p>
+is estimated from the data.</p>
 <p>This is useful when you believe the underlying community structure is
 evolving: alliances shift, social groups re-form, trading blocs
 realign.</p>
@@ -280,7 +279,7 @@ coefficient name from <code>colnames(fit$BETA)</code>.</li>
 <code>dynamic_beta</code>, the additive-effects sampler imposes a
 sum-to-zero constraint on <code>a</code> (and <code>b</code>) so that
 the intercept and the additive effects remain jointly identified. This
-happens automatically; you don’t need to do anything.</p>
+happens automatically.</p>
 <p>The AR(1) hyperparameters
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
 and
@@ -322,7 +321,7 @@ covariate’s effect grows linearly over time, and fit with
 <span>               nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>               dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># fit$BETA is now a 3-D array [n_stored x p x T]</span></span>
+<span><span class="co"># fit$BETA is a 3-D array [n_stored x p x T]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">$</span><span class="va">BETA</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 40  2  5</span></span>
 <span></span>
@@ -359,7 +358,7 @@ code expected, and the silent collapse can survive into downstream plots
 as a single “average effect” that hides any time variation the user was
 trying to recover. Two safe patterns:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># detect the shape before applying old code</span></span>
+<code class="sourceCode R"><span><span class="co"># check the shape before summarising coefficients</span></span>
 <span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">$</span><span class="va">BETA</span><span class="op">)</span><span class="op">)</span> <span class="op">==</span> <span class="fl">3L</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="co"># 3-D: take posterior mean over the iteration margin -&gt; [p, T]</span></span>
 <span>    <span class="va">pm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">$</span><span class="va">BETA</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>, <span class="va">mean</span><span class="op">)</span></span>
@@ -415,7 +414,7 @@ kind. Each call swaps only the <code>dynamic_beta_kind</code> argument;
 <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> returns the same <code>p x T</code> matrix
 regardless.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># RW1: random walk, rho pinned at 1 (for permanent drift)</span></span>
+<code class="sourceCode R"><span><span class="co"># rw1: random walk, rho pinned at 1</span></span>
 <span><span class="va">fit_rw1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>, family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>                nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>, dynamic_beta_kind <span class="op">=</span> <span class="st">"rw1"</span>,</span>
@@ -425,7 +424,7 @@ regardless.</p>
 <span><span class="co">#&gt; intercept -0.006 -0.006 -0.006 -0.006 -0.006</span></span>
 <span><span class="co">#&gt; X1_dyad   -0.478 -0.122  0.223  0.627  0.988</span></span></code></pre></div>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># RW2: smooth with curvature (second-order random walk)</span></span>
+<code class="sourceCode R"><span><span class="co"># rw2: smooth with curvature</span></span>
 <span><span class="va">fit_rw2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>, family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>                nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>, dynamic_beta_kind <span class="op">=</span> <span class="st">"rw2"</span>,</span>
@@ -435,7 +434,7 @@ regardless.</p>
 <span><span class="co">#&gt; intercept -0.007 -0.007 -0.007 -0.007 -0.007</span></span>
 <span><span class="co">#&gt; X1_dyad   -0.480 -0.130  0.232  0.624  1.001</span></span></code></pre></div>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Matern 3/2: smooth GP with a length-scale knob</span></span>
+<code class="sourceCode R"><span><span class="co"># matern 3/2: smooth gp with a length-scale knob</span></span>
 <span><span class="va">fit_m32</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>, family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>                nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>, dynamic_beta_kind <span class="op">=</span> <span class="st">"matern32"</span>,</span>
@@ -551,7 +550,7 @@ stored in <code>fit$THETA_ACTOR</code> (a
 <span>               nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fit_pa</span><span class="op">$</span><span class="va">theta_actor_mean</span><span class="op">)</span>   <span class="co"># n_actors x T posterior-mean deviations</span></span>
 <span></span>
-<span><span class="co"># The per-period sum-to-zero constraint is enforced exactly:</span></span>
+<span><span class="co"># check the per-period sum-to-zero constraint</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colSums</a></span><span class="op">(</span><span class="va">fit_pa</span><span class="op">$</span><span class="va">theta_actor_mean</span><span class="op">)</span>   <span class="co"># ~ 0 0 0 0 0</span></span></code></pre></div>
 <blockquote>
 <p><strong>Known dimnames gap.</strong> <code>theta_actor_mean</code> is
@@ -570,8 +569,7 @@ numerically zero at every period.</p>
 <div class="section level4">
 <h4 id="diagnosing-your-dynamic-fit">Diagnosing your dynamic fit<a class="anchor" aria-label="anchor" href="#diagnosing-your-dynamic-fit"></a>
 </h4>
-<p>After fitting, two helpers are available before you trust the
-path:</p>
+<p>After fitting, two helpers summarize the coefficient path:</p>
 <ul>
 <li>
 <code>summary(fit)</code>: prints the <em>Dynamic coefficients per
@@ -594,61 +592,46 @@ scaled by
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\sigma_\beta</annotation></semantics></math>,
 compares it to a prior-null reference built by resampling
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mi>ρ</mi><mo>,</mo><mi>σ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\rho, \sigma)</annotation></semantics></math>
-from the posterior, and reports a heuristic Bayes factor per
-coefficient. Large values (≥5) flag coefficients with abrupt breaks.
-Documented as a heuristic, not a formal BF.</li>
+from the posterior, and reports a tail-ratio score in the historical
+<code>bf</code> column. Large values (≥5) flag coefficients with abrupt
+breaks. This is a heuristic diagnostic, not a marginal-likelihood Bayes
+factor.</li>
 </ul>
 <p>Worked example on the simulated linear-ramp data above (no real break
-is present, so we expect modest BFs):</p>
+is present, so we expect modest scores):</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/detect_change_point.html">detect_change_point</a></span><span class="op">(</span><span class="va">fit_db</span>, threshold_bf <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="co">#&gt;      coef bf m_post_mean m_prior_q95 t_hat  warn</span></span>
 <span><span class="co">#&gt; 1 X1_dyad  0   0.7085288    2.814472     4 FALSE</span></span></code></pre></div>
 <p>Each row reports the largest one-period change for one coefficient,
-the BF heuristic, and a flag. The diagnostic is deliberately
+the tail-ratio score, and a flag. The diagnostic is deliberately
 conservative: it fires only when a jump is large <em>relative to what
 the AR(1) prior can absorb</em>. A modest planted break such as
 <code>beta_t_true = c(rep(-0.5, 3), rep(1.0, 2))</code> does
 <strong>not</strong> reliably trip it: at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">T = 5</annotation></semantics></math>
-the BF is small and noisy run to run (often 0-2, occasionally clearing
-the threshold of 5), because the sampler can widen
+the score is small and noisy run to run (often 0-2, occasionally
+clearing the threshold of 5), because the sampler can widen
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\sigma_\beta</annotation></semantics></math>
 to absorb a single step. Only a stark break
 (e.g. <code>c(rep(-2, 3), rep(2, 2))</code>) pushes the scaled
-first-difference reliably past the prior reference (BF roughly 6-16
+first-difference reliably past the prior reference (scores roughly 6-16
 across runs, always clearing the threshold of 5). On the smooth linear
-ramp here the BF is 0, well inside the “bare mention” bin, exactly as it
-should be on a process with no abrupt jump – and a reminder (see the
-cautions below) that this heuristic needs a longer panel before it can
-be read seriously.</p>
-<p>Interpret the <code>bf</code> column on (a heuristic version of) the
-Kass-Raftery scale:
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">BF</mtext><mo>≲</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">\text{BF} \lesssim 3</annotation></semantics></math>
-is “not worth more than a bare mention” (no break evidence),
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mo>≤</mo><mtext mathvariant="normal">BF</mtext><mo>&lt;</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">3 \le \text{BF} &lt; 10</annotation></semantics></math>
-is “substantial” evidence for a single-period jump the AR(1) prior
-cannot easily generate, and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">BF</mtext><mo>≥</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">\text{BF} \ge 10</annotation></semantics></math>
-is “strong” evidence. Note the construction:
-<code>bf = Pr(M_post &gt; m_star) / 0.05</code> where
-<code>m_star</code> is the 95% quantile of the prior null, so the
-heuristic is <strong>bounded above by 20</strong>; the original
-Kass-Raftery “decisive” cell
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>100</mn></mrow><annotation encoding="application/x-tex">\ge 100</annotation></semantics></math>)
-is unreachable by design, and a value at or near 20 should be read as
-“the posterior almost never visits values the prior would tolerate”, not
-as a literal Bayes factor against a model with a planted change-point.
-On the linear-ramp data above there is no planted break, so all
-coefficients should land in the bare-mention bin. The <code>t_hat</code>
-column points to <em>where</em> the largest scaled jump sits in
-posterior; treat it as a flag for visual inspection of the coefficient
-trajectory, not a formal break-time estimate. Two cautions: (i) “BF”
-here is a Monte-Carlo tail-mass ratio against the AR(1) prior, not a
-marginal-likelihood ratio between competing models, so do not quote it
-as decisive evidence in a paper; (ii) with five periods the BF is
-unstable run-to-run, refit with a longer panel before reading it
-seriously.</p>
+ramp here the score is 0, as expected for a process with no abrupt
+jump.</p>
+<p>Interpret the <code>bf</code> column as a bounded tail-ratio score:
+values below 3 are weak, values from 3 to 10 suggest a jump worth
+inspecting, and values above 10 indicate a jump the AR(1) prior has
+difficulty generating. The construction is
+<code>bf = Pr(M_post &gt; m_star) / 0.05</code>, where
+<code>m_star</code> is the 95% quantile of the prior null, so the score
+is <strong>bounded above by 20</strong>. A value at or near 20 means the
+posterior path almost never looks as smooth as the prior reference, not
+that a separate change-point model has a formal Bayes factor of 20. The
+<code>t_hat</code> column points to <em>where</em> the largest scaled
+jump sits in posterior; treat it as a flag for visual inspection of the
+coefficient trajectory, not a formal break-time estimate. With very
+short panels, the score can be unstable run to run.</p>
 <p>For prior elicitation <em>before</em> fitting, see
 <code>dynamic_beta_prior_summary(T = 10, kind = "ar1", rho_mean = 0.8, rho_sd = 0.15)</code>.
 It simulates paths from the prior so you can check the implied max
@@ -702,12 +685,12 @@ trend in the network mean for either model to miss.</p>
 <p><code><a href="../reference/gof_temporal.html">gof_temporal()</a></code> earns its keep when the substantive
 statistic itself drifts – a network whose density or reciprocity climbs
 over time. There a static fit that cannot track the drift lands
-<code>p_pp</code> near 0, and the printed “incompatible” verdict is the
-diagnostic telling you to add <code>dynamic_beta</code> (or
-<code>dynamic_ab</code> / <code>dynamic_uv</code>) before trusting any
-time-averaged summary. To probe whether a <em>coefficient</em> trends,
-use the per-period <code>coef(fit)</code>, the change-point diagnostic,
-or a static-vs-dynamic LOO comparison.</p>
+<code>p_pp</code> near 0, and the printed “incompatible” verdict points
+toward <code>dynamic_beta</code> (or <code>dynamic_ab</code> /
+<code>dynamic_uv</code>) when interpreting time-averaged summaries. To
+probe whether a <em>coefficient</em> trends, use the per-period
+<code>coef(fit)</code>, the change-point diagnostic, or a
+static-vs-dynamic LOO comparison.</p>
 </div>
 <div class="section level4">
 <h4 id="inspecting-the-priors-actually-in-effect-prior_summary">Inspecting the priors actually in effect:
@@ -949,7 +932,7 @@ original <code>Y</code>. If <code>newexposure</code> is omitted, the
 forecast reuses the last observed <code>period_exposure</code> value
 (and falls back to 1 for fits that did not use exposure offsets).</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Poisson fit with period_exposure = c(1, 5, 25, 100):</span></span>
+<code class="sourceCode R"><span><span class="co"># poisson fit with period_exposure = c(1, 5, 25, 100)</span></span>
 <span><span class="co"># pass the future exposure explicitly when h &gt; 0:</span></span>
 <span><span class="va">fc_pois</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_pois</span>, h <span class="op">=</span> <span class="fl">2</span>, type <span class="op">=</span> <span class="st">"response"</span>,</span>
 <span>                   newexposure <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fl">400</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
@@ -1111,7 +1094,7 @@ density (roughly 30%) after a negative intercept.</p>
 <span>    <span class="va">Y_dyn</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">Y_t</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="co"># note: iterations are kept small for vignette speed.</span></span>
+<span><span class="co"># iterations are small so the vignette builds quickly</span></span>
 <span><span class="co"># use burn &gt;= 1000 and nscan &gt;= 5000 for real analyses.</span></span>
 <span><span class="va">fit_dyn_real</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_dyn</span>, R <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>    dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -1338,10 +1321,10 @@ good fit.</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">gof_comparison</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            sd.rowmean sd.colmean dyad.dep cycle.dep trans.dep</span></span>
-<span><span class="co">#&gt; Static          0.900      0.983    0.500     0.617     0.317</span></span>
-<span><span class="co">#&gt; Dynamic_UV      0.983      1.000    0.433     0.717     0.450</span></span>
-<span><span class="co">#&gt; Dynamic_AB      1.000      0.967    0.950     0.433     0.283</span></span>
-<span><span class="co">#&gt; Full            0.867      0.917    0.950     0.250     0.283</span></span></code></pre></div>
+<span><span class="co">#&gt; Static          0.883      0.983    0.550     0.583     0.433</span></span>
+<span><span class="co">#&gt; Dynamic_UV      0.950      0.983    0.417     0.633     0.383</span></span>
+<span><span class="co">#&gt; Dynamic_AB      1.000      0.967    0.950     0.650     0.367</span></span>
+<span><span class="co">#&gt; Full            0.867      0.917    0.950     0.467     0.267</span></span></code></pre></div>
 <p>Since the data were generated without temporal structure, the dynamic
 specifications should not systematically out-fit the static model. With
 short chains and a small panel these posterior-predictive p-values are
@@ -1354,7 +1337,7 @@ expecting identical numbers or values pinned near 0.5.</p>
 </h2>
 <p><strong>Use <code>dynamic_ab</code></strong> when you suspect actors’
 overall activity levels change over time. This is common in many
-settings: countries go through isolationist vs. interventionist phases,
+settings: countries go through isolationist vs. interventionist periods,
 users churn in and out of platforms, students become more or less
 engaged across semesters.</p>
 <p><strong>Use <code>dynamic_uv</code></strong> when you suspect the
@@ -1438,12 +1421,12 @@ default for <code>lame</code> objects):</p>
 <span><span class="co">#&gt; <span style="color: #555555;">This message is displayed once per session.</span></span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     actor dimension time       value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1  Actor1         1    1 -0.24807856           NA    U</span></span>
-<span><span class="co">#&gt; 2 Actor10         1    1 -0.01872938           NA    U</span></span>
-<span><span class="co">#&gt; 3 Actor11         1    1  0.02719916           NA    U</span></span>
+<span><span class="co">#&gt; 1  Actor1         1    1 -0.24807855           NA    U</span></span>
+<span><span class="co">#&gt; 2 Actor10         1    1 -0.01872939           NA    U</span></span>
+<span><span class="co">#&gt; 3 Actor11         1    1  0.02719917           NA    U</span></span>
 <span><span class="co">#&gt; 4 Actor12         1    1  0.09072103           NA    U</span></span>
-<span><span class="co">#&gt; 5 Actor13         1    1  0.02235869           NA    U</span></span>
-<span><span class="co">#&gt; 6 Actor14         1    1 -0.05799677           NA    U</span></span></code></pre></div>
+<span><span class="co">#&gt; 5 Actor13         1    1  0.02235868           NA    U</span></span>
+<span><span class="co">#&gt; 6 Actor14         1    1 -0.05799678           NA    U</span></span></code></pre></div>
 <p>This data frame is ready for <code>ggplot2</code> if you want to
 build custom trajectory plots (e.g., highlighting specific actors or
 overlaying external events).</p>

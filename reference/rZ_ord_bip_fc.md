@@ -1,6 +1,6 @@
 # Sample Z under bipartite ordinal data (rectangular)
 
-Rectangular drop-in for
+Rectangular analogue of
 [`rZ_ord_fc`](https://netify-dev.github.io/lame/reference/rZ_ord_fc.md).
 Cutpoints are data-induced (the boundary between rank `w` and rank `w+1`
 is the maximum Z in rank `w` and minimum Z in rank `w+1`), matching the

@@ -1,6 +1,6 @@
-# Goodness-of-fit posterior predictive check for an ame_als fit
+# Goodness-of-fit check for an ame_als fit
 
-Bootstrap-based analogue of the MCMC
+Bootstrap-style analogue of the MCMC
 [`gof_plot`](https://netify-dev.github.io/lame/reference/gof_plot.md):
 draws `nsim` simulated networks from the fitted ALS model, computes the
 standard network statistics (`sd.rowmean`, `sd.colmean`, `dyad.dep`,

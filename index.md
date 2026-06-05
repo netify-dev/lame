@@ -30,10 +30,11 @@ directions: (1)
 [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) fits
 *panel* networks (the same actors observed at multiple time points) with
 time-varying effects; (2) it supports *bipartite* (rectangular) networks
-like students-by-courses alongside the more familiar unipartite (square)
-case; (3) the MCMC sampler is written in C++ (via Rcpp / RcppArmadillo)
-so it scales to the network sizes typical in political-science
-applications; (4) the fitted object exposes the usual
+— such as countries-by-international-organisations (which states belong
+to which IGOs) — alongside the more familiar unipartite (square) case;
+(3) the MCMC sampler is written in C++ (via Rcpp / RcppArmadillo) so it
+scales to the network sizes typical in political-science applications;
+(4) the fitted object exposes the usual
 [`coef()`](https://rdrr.io/r/stats/coef.html),
 [`vcov()`](https://rdrr.io/r/stats/vcov.html),
 [`confint()`](https://rdrr.io/r/stats/confint.html),
@@ -45,20 +46,52 @@ plugs into the rest of the R modelling ecosystem the same way
 [`lm()`](https://rdrr.io/r/stats/lm.html) or
 [`glm()`](https://rdrr.io/r/stats/glm.html) does.
 
-If terms like *probit*, *latent space*, or *AR(1)* are new to you, do
-not worry: the
-[`vignette("lame")`](https://netify-dev.github.io/lame/articles/lame.md)
-walk-through introduces each one in context. You do not need to fully
-internalise the math to fit a first model.
+**Two ways to estimate the same model.** Alongside the Bayesian MCMC
+sampler, `lame` ships a fast, **MCMC-free point estimator**,
+[`ame_als()`](https://netify-dev.github.io/lame/reference/ame_als.md) /
+[`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md),
+adapted from the **Social Influence Regression (SIR)** estimator of
+Minhas & Hoff (2025). It fits the same additive-and-multiplicative
+structure by iterative block coordinate descent (alternating least
+squares / IRLS) for the normal, binary, and Poisson families, with
+parametric-bootstrap or sandwich standard errors and the usual S3
+methods. Use it for data exploration, model screening, starting values,
+or large networks; use the MCMC path
+([`ame()`](https://netify-dev.github.io/lame/reference/ame.md) /
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md)) when
+you need a full posterior or the rank/censored families. For
+longitudinal normal, binary, and Poisson panels, including named panels
+where actors enter or exit, `lame(..., method = "als")` has a dynamic
+point-estimation path for time-varying additive effects, selected
+regression coefficients, AR(1) latent factors in directed, symmetric,
+and bipartite panels, Student-t latent-factor drift in directed,
+symmetric, and bipartite panels, and bipartite dynamic `G`. For normal
+unipartite and bipartite snap-shift panels,
+[`lame_snap_als()`](https://netify-dev.github.io/lame/reference/lame_snap_als.md)
+gives a fast ALS snap score using sequential alignment and lower-tail
+drift updates by default.
 
-Two functions form the public API.
-[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) fits
-cross-sectional networks.
-[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) fits
-longitudinal networks and adds dynamic additive, multiplicative, and
-(optionally) regression-coefficient effects through autoregressive
-processes. Both support unipartite (square) and bipartite (rectangular)
-network structures.
+If terms like *probit*, *latent space*, or *AR(1)* are new to you, the
+[`vignette("lame")`](https://netify-dev.github.io/lame/articles/lame.md)
+walk-through introduces each one in context before the first fit.
+
+Five estimators form the core public API.
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) and
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) fit
+cross-sectional and longitudinal networks via Bayesian MCMC;
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md)
+additionally adds dynamic additive, multiplicative, and (optionally)
+regression-coefficient effects through autoregressive processes.
+[`ame_als()`](https://netify-dev.github.io/lame/reference/ame_als.md)
+and
+[`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md)
+are their fast, MCMC-free static counterparts (see [Fast (MCMC-free)
+estimation](#fast-mcmc-free-estimation)), while
+`lame(..., method = "als")` routes supported dynamic requests to the
+dynamic ALS point-estimation path.
+[`lame_snap_als()`](https://netify-dev.github.io/lame/reference/lame_snap_als.md)
+is a separate fast approximate estimator for dynamic snap-shift latent
+positions in normal unipartite and bipartite panels.
 
 ## Installation
 
@@ -76,9 +109,9 @@ devtools::install_github(
 ```
 
 `build_vignettes = TRUE` is recommended: the package ships long-form
-vignettes (`vignette(package = "lame")` after install) and they need to
-be built locally. The first install may take a few minutes while the
-`Rcpp` / `RcppArmadillo` C++ code compiles.
+vignettes (`vignette(package = "lame")` after install), which are built
+locally during install. The first install may take a few minutes while
+the `Rcpp` / `RcppArmadillo` C++ code compiles.
 
 ## Quick Start
 
@@ -86,7 +119,7 @@ be built locally. The first install may take a few minutes while the
 
 library(lame)
 
-# Load example data: a single cross-section to start.
+# load example data
 # `YX_bin` is a synthetic dataset bundled with the package containing a
 # 100-actor binary network and 8 dyadic covariates. `data("YX_bin")`
 # puts the list `YX_bin` into your environment; run `?YX_bin` for the
@@ -96,7 +129,7 @@ str(YX_bin, max.level = 1)        # list of 2: Y (100x100), X (100x100x8)
 Y      <- YX_bin$Y                # 100 x 100 binary "sociomatrix":
                                   #   rows = senders, cols = receivers,
                                   #   entries 0/1, diagonal NA (self-ties undefined)
-# The bundled YX_bin$X array carries a literal "intercept" slice (all 1s)
+# the bundled YX_bin$X array carries a literal "intercept" slice
 # as its first slice, because the package's worked-example tradition is
 # to include it explicitly. `ame()` adds its own intercept by default
 # (the `intercept = TRUE` argument), so we drop the redundant slice here
@@ -105,8 +138,8 @@ Xdyad  <- YX_bin$X[, , -1]        # 100 x 100 x 7 array of dyadic covariates
 # the third dim of a 3-D Xdyad array names the covariates (one slice each):
 dimnames(Xdyad)[[3]]              # prints: "rgpa" "rsmoke" "cgpa" "csmoke" ...
 
-# Fit a cross-sectional AME model on one snapshot.
-# Defaults below are sized for a "real" fit, not a smoke test: nscan = 4000
+# fit a cross-sectional ame model on one snapshot
+# defaults below are sized for a real fit: nscan = 4000
 # with odens = 10 gives ~400 stored draws, which is enough to read trace
 # plots and credible intervals. Drop to nscan = 500 only if you just want
 # to see the function run.
@@ -122,7 +155,7 @@ fit <- ame(
 )
 
 summary(fit)              # Coefficients, variance components, GOF
-# Always sanity-check convergence on a fresh fit:
+# Check convergence on a fresh fit:
 trace_plot(fit)           # one panel per parameter
 # gof_plot(fit)           # posterior-predictive GOF
 ```
@@ -247,17 +280,17 @@ NA into the wrong cells. The
 
 ### Coming from ERGM?
 
-`lame` is not a drop-in replacement for `ergm` and the two models make
-different dependence assumptions. ERGM specifies a joint distribution
-over the whole adjacency matrix and uses terms like `gwesp`, `triangle`,
-and `kstar` (via *change statistics*) to encode unconditional
-higher-order dependence among ties. AME instead assumes **conditional
-dyadic independence**: given the sender effects `a_i`, receiver effects
-`b_j`, latent positions `u_i, v_j`, dyadic correlation `rho`, and
-covariates, the dyads are independent. Higher-order structure
-(clustering, transitivity, degree heterogeneity) is captured
-*indirectly* through these random effects when you integrate them out.
-Practical consequences:
+`lame` is not an `ergm` substitute and the two models make different
+dependence assumptions. ERGM specifies a joint distribution over the
+whole adjacency matrix and uses terms like `gwesp`, `triangle`, and
+`kstar` (via *change statistics*) to encode unconditional higher-order
+dependence among ties. AME instead assumes **conditional dyadic
+independence**: given the sender effects `a_i`, receiver effects `b_j`,
+latent positions `u_i, v_j`, dyadic correlation `rho`, and covariates,
+the dyads are independent. Higher-order structure (clustering,
+transitivity, degree heterogeneity) is captured *indirectly* through
+these random effects when you integrate them out. Practical
+consequences:
 
 - AME does not suffer the model-degeneracy failure modes of
   triangle-heavy ERGMs.
@@ -300,10 +333,10 @@ Xdyad <- array(
 
 For a single cross-section use `ame(Y, ...)`; for a panel use
 `lame(list(Y_t1, Y_t2, ...), ...)`. For undirected networks pass
-`symmetric = TRUE`; for two-mode/rectangular data (students × courses,
-donors × candidates) pass `mode = "bipartite"`. `Xrow` / `Xcol` accept
-either a numeric matrix or a `data.frame`; `Xdyad` must be a 3-D
-`n × n × p` numeric array.
+`symmetric = TRUE`; for two-mode/rectangular data (countries ×
+international organisations, states × treaties) pass
+`mode = "bipartite"`. `Xrow` / `Xcol` accept either a numeric matrix or
+a `data.frame`; `Xdyad` must be a 3-D `n × n × p` numeric array.
 
 All eight families are supported under both modes; pick the family that
 matches your tie type (continuous, binary, ordered categories, counts,
@@ -321,11 +354,10 @@ censored, rank lists). For symmetric (undirected) networks pass
 | frn     | yes        | yes       | no (row-cone is directed) |
 | rrl     | yes        | yes       | no (row-cone is directed) |
 
-The four bipartite rank-and-count families (`ordinal`, `cbin`, `frn`,
-`poisson`, plus first-class `rrl` on bipartite) and symmetric `ordinal`
-were first-class as of the v5-post / v6 release. Earlier releases
-errored on these cells; the [`vignette("bipartite")`](#documentation)
-walk-through covers each.
+Every family works under both modes, including the rank-and-count
+families (`ordinal`, `cbin`, `frn`, `rrl`, `poisson`) on bipartite
+networks and symmetric `ordinal`; the
+[`vignette("bipartite")`](#documentation) walk-through covers each.
 
 ### Dynamic Effects
 
@@ -462,41 +494,79 @@ gof_plot(fit)                                       # Goodness-of-fit
 - **Checkpoint and resume**:
   `lame(..., checkpoint_path = "X.rds", max_seconds = T)` writes a
   checkpoint when the wall-clock budget expires; resume with either
-  `lame(resume_from = "X.rds", nscan = K)` or the legacy
+  `lame(resume_from = "X.rds", nscan = K)` or
   `lame_resume("X.rds", nscan_more = K)`.
 
 ### Fast (MCMC-free) estimation
 
+[`ame_als()`](https://netify-dev.github.io/lame/reference/ame_als.md)
+and
+[`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md)
+are a fast, MCMC-free point estimator for the
+additive-and-multiplicative model, **adapted from the Social Influence
+Regression (SIR) estimator of Minhas & Hoff (2025)** — the iterative
+block coordinate descent method introduced in *Decomposing Network
+Dynamics: Social Influence Regression* and implemented in the
+[`sir`](https://github.com/netify-dev/sir) package. It is a port and
+adaptation of that estimator to the AME model, not original `lame`
+methodology.
+
 - **[`ame_als()`](https://netify-dev.github.io/lame/reference/ame_als.md)
   /
   [`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md)**:
-  fast AME point estimates via iterative block coordinate descent,
-  typically much faster than the MCMC estimator since it returns point
-  estimates rather than a posterior sample. Useful for data exploration,
-  model screening, and starting values. **Family scope**: `normal`,
-  `binary`, `poisson`. For `tobit`, `ordinal`, `cbin`, `frn`, `rrl` use
-  the MCMC path; an earlier EM-ALS extension to `tobit` / `ordinal` was
-  removed after audit work showed the bootstrap arm inherited an
-  attenuation bias from the EM initialisation.
+  fast AME point estimates via iterative block coordinate descent
+  (alternating least squares / IRLS), typically much faster than the
+  MCMC sampler since they return point estimates rather than a posterior
+  sample. Useful for data exploration, model screening, starting values,
+  and large networks. **Family scope**: `normal`, `binary`, `poisson`;
+  for `tobit`, `ordinal`, `cbin`, `frn`, `rrl` use the MCMC path.
+- **`lame(..., method = "als")` with dynamic effects**: for normal,
+  binary, and Poisson panels, the dispatcher can fit dynamic additive
+  effects, selected dynamic regression coefficients, AR(1) and
+  t-transition dynamic `U`/`V` in directed, symmetric, and bipartite
+  panels, and bipartite dynamic `G`. These are penalized point
+  estimates. Student-t dynamic UV fits attach final local
+  transition-weight matrices as `fit$lambda_u` and `fit$lambda_v`. Use
+  `als_max_iter`, `als_tol`, and `als_stability` when a dynamic ALS fit
+  needs a longer run or start-sensitivity check. Node-covariate
+  coefficients use the same orthogonal additive-effect decomposition as
+  [`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md);
+  dynamic node coefficients use period-specific node values when
+  selected by `dynamic_beta`, while static node coefficients use
+  per-actor means. Named changing-composition panels are aligned to the
+  union actor set, with smoothing penalties broken across actor-entry
+  gaps. Rank/censored families still use the MCMC path. Static ALS fits
+  still use a single latent rank `R`; dynamic bipartite ALS honors
+  separate `R_row` and `R_col` values.
+- **[`lame_snap_als()`](https://netify-dev.github.io/lame/reference/lame_snap_als.md)**:
+  fast dynamic snap-shift point estimator for normal unipartite and
+  bipartite longitudinal networks. It returns dynamic `U`/`V`, `rho_uv`,
+  `sigma_uv`, `pi_snap`, `snap_prob`, and transition diagnostics. In
+  bipartite fits it uses a static `G` matrix and reports separate row-
+  and column-side snap scores. The same path is available from the
+  unified front door with
+  `lame(..., method = "als", dynamic_uv = TRUE, dynamic_uv_kind = "snap")`.
+  The default uses sequential initialization and lower-tail drift
+  updates so broad ruptures are not absorbed as high-variance drift.
+  `snap_prob` is an ALS snap score, not a Bayesian posterior
+  probability. Read it through rankings, heuristic 0.5 classifications,
+  and the stability diagnostics; `fit$convergence$max_snap_stable` and
+  `fit$convergence$unstable_transitions` show actor-periods that are
+  still moving. Snap ALS does not estimate node covariates, dynamic
+  coefficients, or dynamic `G`.
 - **[`ame_als_bootstrap()`](https://netify-dev.github.io/lame/reference/ame_als_bootstrap.md)**:
   block and parametric bootstrap standard errors and confidence
   intervals for the fast estimator. The one-shot path
   `ame_als(..., bootstrap = N)` attaches the bootstrap to the fit;
   `tidy(fit)` / `confint(fit)` use the bootstrap intervals when present,
   the sandwich (`vcov.ame_als`) otherwise.
-- The estimation algorithm is **adapted from the Social Influence
-  Regression (SIR) estimator of Hoff & Minhas**, the “iterative block
-  coordinate descent” method introduced in Minhas & Hoff (2025),
-  *Decomposing Network Dynamics: Social Influence Regression*, and
-  implemented in `sir::sir_alsfit()`. It is a port and adaptation of
-  that estimator to the AME model, not original `lame` methodology.
 
 ## Documentation
 
 | Vignette | Topic |
 |----|----|
 | [`vignette("lame")`](https://netify-dev.github.io/lame/articles/lame.md) | 5-minute getting-started with a small simulated panel |
-| [`vignette("lame-overview")`](https://netify-dev.github.io/lame/articles/lame-overview.md) | Full tour on the bundled TIES sanctions data (35 countries × 4 years) |
+| [`vignette("lame-overview")`](https://netify-dev.github.io/lame/articles/lame-overview.md) | Full tour on the bundled Dutch college friendship data |
 | [`vignette("cross_sec_ame")`](https://netify-dev.github.io/lame/articles/cross_sec_ame.md) | Cross-sectional AME on the Add Health friendship network |
 | [`vignette("bipartite")`](https://netify-dev.github.io/lame/articles/bipartite.md) | Two-mode networks (cross-sectional + longitudinal) |
 | [`vignette("dynamic_effects")`](https://netify-dev.github.io/lame/articles/dynamic_effects.md) | `dynamic_uv` / `dynamic_ab` / `dynamic_beta` with the AR(1) / RW1 / RW2 / Matérn 3/2 decision tree |
@@ -553,7 +623,7 @@ If you use `lame` in your research, please cite:
   title = {lame: Longitudinal Additive and Multiplicative Effects Models for Networks},
   author = {Cassy Dorff and Shahryar Minhas and Tosin Salau},
   year = {2026},
-  note = {R package version 1.0.0},
+  note = {R package version 1.1.0},
   url = {https://github.com/netify-dev/lame},
 }
 ```

@@ -1,7 +1,7 @@
 # Simple diagnostic plot for AME model fit
 
 Provides a quick visual summary of an AME model fit, focusing on key
-convergence diagnostics. For comprehensive diagnostics, use the specific
+convergence diagnostics. For more detailed diagnostics, use the specific
 plotting functions: trace_plot(), gof_plot(), ab_plot(), and uv_plot().
 
 ## Usage

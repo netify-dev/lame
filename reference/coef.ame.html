@@ -9,7 +9,7 @@ LAME model."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,10 +81,10 @@ LAME model.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>For a STATIC fit (the default, and any model with <code>dynamic_beta = FALSE</code>),
+    <p>For a static fit (the default, and any model with <code>dynamic_beta = FALSE</code>),
 coefficients are returned as a named numeric vector computed as
 <code>colMeans(fit$BETA)</code>.</p>
-<p>For a DYNAMIC fit (<code>lame(..., dynamic_beta = ...)</code> where some
+<p>For a dynamic fit (<code>lame(..., dynamic_beta = ...)</code> where some
 coefficient is time-varying), <code>fit$BETA</code> is a 3-dimensional array
 <code>[n_stored, p, T]</code> and <code>coef.lame</code> returns a <code>[p, T]</code>
 matrix of per-period posterior means. Rownames are the coefficient names;
@@ -93,7 +93,7 @@ Static coefficients in a dynamic fit are constant across the columns.</p>
 <p>For binary models, these are on the probit (latent) scale. Use
 <code><a href="predict.ame.html">predict.ame</a></code> with <code>type = "response"</code> to get predicted
 probabilities.</p>
-<p><strong>What <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> does NOT return.</strong> The multiplicative latent
+<p><strong>What <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> does not return.</strong> The multiplicative latent
 positions \(U\), \(V\) are not part of the coefficient vector;
 they live on <code>fit$U</code> and <code>fit$V</code> (or as 3-D arrays
 <code>[n, R, T]</code> when <code>dynamic_uv</code> is on). The additive

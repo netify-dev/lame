@@ -108,6 +108,7 @@
 <url><loc>https://netify-dev.github.io/lame/reference/lame_multi.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/lame_parallel.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/lame_resume.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/lame_snap_als.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/latent_positions.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/lazegalaw.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/ldZgbme.html</loc></url>
@@ -156,6 +157,10 @@
 <url><loc>https://netify-dev.github.io/lame/reference/rUV_dynamic_bip_fc_cpp.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rUV_dynamic_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rUV_dynamic_fc_cpp.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/rUV_dynamic_snap_fc.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/rUV_dynamic_snap_fc_cpp.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/rUV_dynamic_t_fc.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/rUV_dynamic_t_fc_cpp.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rUV_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rUV_rep_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rUV_sym_fc.html</loc></url>
@@ -227,6 +232,10 @@
 <url><loc>https://netify-dev.github.io/lame/reference/simulate.lame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/simulate_posterior.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/sm2el.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/snap_category_summary.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/snap_index_draws.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/snap_index_summary.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/snap_rank_summary.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/summary.ame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/summary.ame.sim.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/summary.ame_als.html</loc></url>

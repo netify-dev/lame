@@ -23,10 +23,11 @@ z_ij = mu + beta’x_ij + a_i + b_j + u_i’v_j + e_ij
 by **iterative block coordinate descent** rather than Gibbs sampling. It
 is typically tens to hundreds of times faster than
 [`ame()`](https://netify-dev.github.io/lame/reference/ame.md), and the
-point estimates are usually close. Use it to explore; use
+point estimates are usually close. Use it when a point estimate is
+enough; use
 [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) /
-[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) for the
-inference you report.
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) when the
+target is a posterior summary.
 
 ### Wall-clock benchmark
 
@@ -50,10 +51,10 @@ before MCMC finishes its burn-in for any reasonable n.
 
 These ranges are wide on purpose: under a single-threaded BLAS on a
 virtualised host, the small-n speed ratios we have measured are several
-times larger than the “≈ 30×” figure quoted in earlier docs, because the
-MCMC’s per-iteration overhead is fixed and the ALS solve is nearly free
-at n ≤ 100. Treat the ratio as “ALS finishes before MCMC’s burn-in”
-rather than a number to plan against.
+times larger than the “≈ 30×” figure in older docs, because the MCMC’s
+per-iteration overhead is fixed and the ALS solve is nearly free at n ≤
+100. Treat the ratio as “ALS finishes before MCMC’s burn-in” rather than
+a number to plan against.
 
 For binary/poisson the **point-estimate** speedup ratio is much smaller
 (often only 3-10× on small networks) because the IRLS path runs 3-5
@@ -70,10 +71,10 @@ slower than the equivalent MCMC fit. If you only need the point
 estimate, skip the bootstrap (`bootstrap = 0`, the default) and use the
 sandwich
 [`vcov()`](https://rdrr.io/r/stats/vcov.html)/[`confint()`](https://rdrr.io/r/stats/confint.html)
-on the fit. If you need calibrated intervals at scale,
-[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) MCMC is
-often the cheaper option even though it samples for thousands of
-iterations.
+on the fit. If you need interval estimates at scale, compare the
+bootstrap cost with a regular
+[`ame()`](https://netify-dev.github.io/lame/reference/ame.md) MCMC run;
+for some binary networks the MCMC fit is cheaper.
 
 To benchmark on your own hardware:
 
@@ -94,10 +95,11 @@ cat("ALS:  ", round(t_als["elapsed"], 2), "s\n",
 
 ### What ALS can do vs. what only MCMC does
 
-ALS is a fast point estimator, not a drop-in replacement for the
-Bayesian MCMC fits. The current coverage is:
+ALS is a fast point estimator. It covers most static AME workflows and
+several dynamic workflows, while posterior-specific features still
+require the Bayesian MCMC fits. The current coverage is:
 
-| Capability | [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) / [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) (MCMC) | [`ame_als()`](https://netify-dev.github.io/lame/reference/ame_als.md) / [`lame_als()`](https://netify-dev.github.io/lame/reference/lame_als.md) |
+| Capability | [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) / [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) (MCMC) | Fast point estimators |
 |----|----|----|
 | Families: normal, binary | yes | yes |
 | Family: poisson | yes | yes |
@@ -113,11 +115,15 @@ Bayesian MCMC fits. The current coverage is:
 | `summary`, `print`, `latent_positions` | yes | yes |
 | `nobs` | yes | yes |
 | `simulate` | yes | yes |
-| `gof_plot` | posterior predictive | bootstrap-based |
+| `gof_plot` | posterior predictive | bootstrap-based GOF check |
 | `ab_plot`, `uv_plot` | yes | yes |
 | `prior_summary` | yes | yes (reports “no priors”) |
-| `dynamic_uv` / `dynamic_ab` (AR(1)) | yes | **no (static pooled)** |
-| Custom priors (`prior = list(...)`, `g`) | yes | **no (no priors)** |
+| `dynamic_ab` / selected `dynamic_beta` | yes | normal, binary, and Poisson panels via dynamic ALS; named changing-composition panels are aligned |
+| Dynamic node-covariate coefficient paths | yes | period-specific node values when selected by `dynamic_beta`; static node effects use actor means |
+| `dynamic_uv` (smooth AR(1) / t) | yes | AR(1) and t for directed, symmetric, and bipartite panels |
+| `dynamic_G` | yes | bipartite normal, binary, and Poisson panels via dynamic ALS; named changing-composition panels are aligned |
+| `dynamic_uv_kind = "snap"` | yes | [`lame_snap_als()`](https://netify-dev.github.io/lame/reference/lame_snap_als.md) for normal unipartite and bipartite panels |
+| Custom priors (`prior = list(...)`, `g`) | yes | no Bayesian priors; dynamic ALS reads selected `prior$rho_*_mean` and `prior$lambda_*_als` values as smoothing controls |
 | Multi-chain (`n_chains`, via `ame_parallel`) | yes | no (use `bootstrap = N`) |
 | `posterior_opts` (save U/V/a/b samples) | yes | no (point estimator) |
 | `trace_plot` (Rhat / ESS) | yes | no (deterministic) |
@@ -127,15 +133,32 @@ When you call the unified front door with MCMC-only arguments, the ALS
 dispatcher warns and lists exactly which ones it ignored – for the
 arguments each entry point actually accepts. Two caveats on the edges:
 
-- `nscan` / `burn` / `odens` / `prior` / `g` are accepted-then-ignored
-  with a warning by both `ame(method = "als")` and
-  `lame(method = "als")`.
-- The longitudinal-only arguments (`dynamic_uv`, `dynamic_ab`,
-  `dynamic_beta`, `time_index`, …) are warned-and-ignored by
-  `lame(method = "als")`, but passing them to
+- `nscan` / `burn` / `odens` / `g` are accepted-then-ignored with a
+  warning by both `ame(method = "als")` and `lame(method = "als")`.
+- The static ALS dispatcher warns and ignores MCMC tuning arguments such
+  as `nscan`, `burn`, `odens`, prior settings not used by the fast path,
+  and `g`. Dynamic ALS has no posterior priors, but it does use selected
+  entries in `prior` as deterministic smoothing controls
+  (`prior$rho_ab_mean`, `prior$rho_beta_mean`, `prior$rho_uv_mean`,
+  `prior$rho_G_mean`, and `prior$lambda_*_als`). Dynamic requests are
+  stricter: supported `dynamic_ab`, selected `dynamic_beta`, AR(1) or t
+  `dynamic_uv`, and bipartite `dynamic_G` requests route to dynamic ALS
+  for normal, binary, and Poisson panels. Named changing-composition
+  panels are aligned to the union actor set and actor-entry gaps break
+  the smoothing penalties. Student-t dynamic UV fits attach final local
+  transition-weight matrices as `fit$lambda_u` and `fit$lambda_v`.
+  `lame(method = "als", dynamic_uv = TRUE, dynamic_uv_kind = "snap")`
+  routes to
+  [`lame_snap_als()`](https://netify-dev.github.io/lame/reference/lame_snap_als.md)
+  for supported normal unipartite and bipartite panels; unsupported
+  dynamic stacks raise a specific error rather than being silently
+  ignored. Use `als_max_iter`, `als_tol`, and `als_stability` for longer
+  dynamic ALS runs and start-sensitivity checks.
+- Passing longitudinal-only arguments such as `dynamic_uv`,
+  `dynamic_ab`, or `dynamic_beta` to
   [`ame()`](https://netify-dev.github.io/lame/reference/ame.md)
-  (cross-sectional) raises the usual “longitudinal-only argument”
-  *error* before ALS runs, because they are not valid
+  (cross-sectional) raises the usual “longitudinal-only argument” error
+  before ALS runs, because they are not valid
   [`ame()`](https://netify-dev.github.io/lame/reference/ame.md)
   arguments at all.
 - `n_chains` is an
@@ -287,8 +310,8 @@ A useful sanity check on the fast estimator is to fit the same data with
 both engines and overlay the coefficient intervals. With a calibrated
 link (`non_normal_method = "irls"` for binary, the default) the ALS
 bootstrap should give a coefficient story qualitatively similar to the
-MCMC posterior on cases the model fits well; large discrepancies are a
-signal to use MCMC for inference.
+MCMC posterior on cases the model fits well; large differences mean the
+posterior fit is the better reference for that dataset.
 
 ``` r
 
@@ -303,8 +326,7 @@ Xd_arr <- array(Xd, dim = c(nrow(Xd), ncol(Xd), 1),
 fb_b <- ame_als(Yb, Xdyad = Xd_arr, R = 0, family = "binary",
                 verbose = FALSE, bootstrap = 100, bootstrap_seed = 1)
 
-# fit the same data with MCMC, short chain (this is a 40-actor binary
-# fit; sub-second wall-clock for a 200-sample posterior summary)
+# fit the same data with MCMC using a short chain for a quick comparison
 fit_mcmc <- ame(Yb, Xdyad = Xd_arr, family = "binary", R = 0,
                 burn = 200, nscan = 1000, odens = 5,
                 verbose = FALSE, plot = FALSE, gof = FALSE,
@@ -351,8 +373,7 @@ agree.](fast_estimation_files/figure-html/als-vs-mcmc-1.png)
 
 Two intervals on the same side of zero with substantial overlap means
 ALS is a fine point estimate for that coefficient; intervals that
-disagree on sign or location are a flag to invest the MCMC budget for
-that fit.
+disagree on sign or location point to the MCMC fit for that dataset.
 
 ## Longitudinal data
 
@@ -386,5 +407,5 @@ coef(lf)
 | Bootstrap standard errors / intervals | [`ame_als_bootstrap()`](https://netify-dev.github.io/lame/reference/ame_als_bootstrap.md) |
 | Calibrated posterior inference | [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) / [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) |
 
-The fast estimator is for exploration. When you report results, confirm
-them with the MCMC estimator.
+The fast estimator returns point estimates and bootstrap or sandwich
+uncertainty. The MCMC estimator returns posterior summaries.

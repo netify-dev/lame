@@ -53,11 +53,16 @@ longitudinal entry points:
   itself is not estimated; what is identified is the overall
   multiplicative term $`U G V'`$.
 - In **[`lame()`](https://netify-dev.github.io/lame/reference/lame.md)**
-  (longitudinal bipartite), $`G`$ is **sampled** each iteration from its
-  conditional Gaussian via the bipartite $`G`$-sampler. With
-  `dynamic_G = FALSE` a single $`G`$ is shared across periods; with
-  `dynamic_G = TRUE` a separate $`G_t`$ is drawn per period and returned
-  as `fit$G_cube` (see the section on `dynamic_G` below).
+  (longitudinal bipartite), the default MCMC estimator samples $`G`$
+  each iteration from its conditional Gaussian via the bipartite
+  $`G`$-sampler. With `dynamic_G = FALSE` a single $`G`$ is shared
+  across periods; with `dynamic_G = TRUE` a separate $`G_t`$ is drawn
+  per period and returned as `fit$G_cube` (see the section on
+  `dynamic_G` below). The fast ALS path, `lame(..., method = "als")`,
+  also supports `dynamic_G = TRUE` for normal, binary, and Poisson
+  bipartite panels, including named panels where row or column actors
+  enter or exit; it estimates a penalized point path for $`G_t`$ rather
+  than sampling posterior draws.
 
 In either case, the bipartite parameterisation lets row-side latent
 positions ($`U`$, shape $`n_\text{row} \times R_\text{row}`$) and
@@ -65,7 +70,7 @@ column-side latent positions ($`V`$, shape
 $`n_\text{col} \times R_\text{col}`$) be chosen at different ranks,
 which is the substantive flexibility users get.
 
-A few things drop away in the bipartite setting. There is no dyadic
+A few terms are absent in the bipartite setting. There is no dyadic
 correlation parameter $`\rho`$, because ties are inherently directional
 from row to column nodes (you can’t have a reciprocal tie in a
 student–course network). The additive effects $`a`$ and $`b`$ also have
@@ -93,12 +98,15 @@ no reciprocal-cell coupling in a bipartite graph). The supported set:
 The same table applies to
 [`lame()`](https://netify-dev.github.io/lame/reference/lame.md) in
 bipartite mode. `dynamic_G = TRUE` is supported in
-[`lame()`](https://netify-dev.github.io/lame/reference/lame.md); it runs
-a Carter-Kohn FFBS on `vec(G_t)` under an AR(1) state-space prior and
-returns the posterior-mean per-period `G_t` plus a rotation-drift
-diagnostic that flags when apparent time variation is dominated by
-latent-rotation drift rather than real change. We demonstrate
-`dynamic_G` later in this vignette.
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md). On the
+default MCMC path it runs a Carter-Kohn FFBS on `vec(G_t)` under an
+AR(1) state-space prior and returns posterior summaries plus a
+rotation-drift diagnostic. On the ALS path it estimates a point path for
+`G_t` for the normal, binary, and Poisson families, honors separate
+`R_row` and `R_col` ranks, and aligns named changing-composition panels
+to the union row and column actor sets. Use MCMC when you need posterior
+draws or the rank/censored families. We demonstrate the MCMC `dynamic_G`
+fit later in this vignette.
 
 ### Tobit and rrl in practice
 
@@ -112,7 +120,7 @@ that censoring into the additive / multiplicative updates. Set
 `family = "tobit"` and supply the matrix of recorded values (zeros
 allowed).
 
-Bipartite **rrl** (row-ranked likelihood) is first-class in both
+Bipartite **rrl** (row-ranked likelihood) is supported in both
 [`ame()`](https://netify-dev.github.io/lame/reference/ame.md) and
 [`lame()`](https://netify-dev.github.io/lame/reference/lame.md): the
 rectangular Z-sampler `rZ_rrl_bip_fc` in `R/rZ_bipartite.R` enforces the
@@ -190,7 +198,7 @@ specifying the latent dimensions for each node type separately via
 
 ``` r
 
-# note: burn/nscan are kept small here for fast vignette building.
+# burn and nscan are small so the vignette builds quickly
 # for real analyses, use burn >= 1000 and nscan >= 5000.
 fit_cross <- ame(
     Y = Y_bipartite,
@@ -279,7 +287,7 @@ G_df <- data.frame(
     Course = colnames(G_mult)[col(G_mult)],
     Fitted = as.vector(G_mult)
 )
-# RdBu reversed (direction = -1): positive => red, negative => blue,
+# rdbu reversed (direction = -1): positive => red, negative => blue,
 # zero => white. By default scale_fill_distiller() centres white at the
 # midpoint of the DATA range, not at zero -- so we pass symmetric limits
 # c(-mx, mx) to force the white midpoint onto zero, which is the right
@@ -387,7 +395,7 @@ want more data to estimate it precisely.
 
 ``` r
 
-# note: iterations are kept small for vignette speed; use burn >= 1000
+# iterations are small so the vignette builds quickly; use burn >= 1000
 # and nscan >= 5000 for real analyses.
 fit_static <- lame(
     Y = Y_list,
@@ -527,11 +535,11 @@ than refreshing each period.
 
 When you suspect that the way the row and column latent spaces interact
 is itself shifting over time, not just the actor positions, set
-`dynamic_G = TRUE`.
-[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) then
-runs a Carter-Kohn FFBS on `vec(G_t)` under an AR(1) state-space prior
-(the persistence and innovation variance are sampled jointly inside the
-loop) and attaches three outputs:
+`dynamic_G = TRUE`. By default,
+[`lame()`](https://netify-dev.github.io/lame/reference/lame.md) runs a
+Carter-Kohn FFBS on `vec(G_t)` under an AR(1) state-space prior (the
+persistence and innovation variance are sampled jointly inside the loop)
+and attaches three outputs:
 
 - `fit$G_cube` – the final draw’s per-period $`G_t`$
   ($`R_\text{row} \times R_\text{col} \times T`$).
@@ -545,6 +553,16 @@ rotation-drift diagnostic (`fit$G_rotation_drift`) compares the variance
 of the raw $`G_t`$ entries to their SVD-canonicalised counterparts; when
 the ratio is large the apparent time variation is dominated by
 latent-rotation drift rather than real change in the interaction matrix.
+
+With `method = "als"`, `dynamic_G = TRUE` estimates the same per-period
+bilinear surface as a penalized point path for normal, binary, and
+Poisson panels. Named changing-composition panels are aligned to the
+union row and column actor sets before fitting. The object still stores
+`G_cube`, `G_cube_post_mean`, and `G_cube_post_sd` for compatibility
+with MCMC code; `G_cube_post_mean` is the point path and
+`G_cube_post_sd` is zero because ALS has no posterior draws. The
+smoothing settings are reported through `rho_G`, `RHO_G`, `SIGMA_G2`,
+and `lambda_G_als`.
 
 ``` r
 
@@ -640,7 +658,7 @@ fits the three panels are labelled “Sender Degree Heterogeneity”
 
 ``` r
 
-# GOF plots for each model
+# gof plots for each model
 gof_plot(fit_static)
 ```
 
@@ -726,13 +744,13 @@ column-mean SD, four cycles) faceted by static and dynamic models, with
 horizontal reference lines at observed
 values.](bipartite_files/figure-html/model_comparison_boxplot-1.png)
 
-We simulated a constant interaction matrix $`G`$ with actor positions
-that drift via an AR(1) with $`\rho = 0.9`$ – moderate persistence (the
-lag-4 autocorrelation is $`0.9^4 \approx 0.66`$, so the positions at the
-first and last period correlate only about 0.6-0.8 and do move). What is
-genuinely fixed is $`G`$, not the positions; combined with the short
-panel and short chains, that is why the static and dynamic models fit
-similarly here rather than the dynamic one clearly winning. If the
+The simulated interaction matrix $`G`$ is constant, while actor
+positions drift via an AR(1) with $`\rho = 0.9`$ – moderate persistence
+(the lag-4 autocorrelation is $`0.9^4 \approx 0.66`$, so the positions
+at the first and last period correlate only about 0.6-0.8 and do move).
+What is genuinely fixed is $`G`$, not the positions; combined with the
+short panel and short chains, that is why the static and dynamic models
+fit similarly here rather than the dynamic one clearly winning. If the
 boxplots overlap substantially and both cover the dashed line, the
 dynamic model’s extra flexibility is not paying off here. In real
 applications where user preferences or item popularity genuinely shift

@@ -17,7 +17,7 @@ family-appropriate noise distribution. Returned object has class
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -100,7 +100,7 @@ one list-of-matrices per slice for a longitudinal fit).</p>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Caveat: ALS is a point estimator. <code>simulate.ame_als</code> therefore holds
-<code>mu, beta, a, b, U, V</code> FIXED at the point estimate and only the
+<code>mu, beta, a, b, U, V</code> at the point estimate and only the
 noise is resampled. For uncertainty over the parameters themselves use
 <code><a href="ame_als_bootstrap.html">ame_als_bootstrap</a></code> (whose replicates each carry their own
 resampled <code>Y</code>) and combine those.</p>
