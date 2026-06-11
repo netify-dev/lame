@@ -64,6 +64,70 @@
 	sqrt(1 / rgamma(1, shape = shape, rate = 1 / scale))
 }
 
+.lame_safe_inv_gamma <- function(shape, rate, current = NULL,
+		min_value = 1e-8, max_value = Inf) {
+	if (!is.finite(shape) || !is.finite(rate) || shape <= 0 || rate <= 0) {
+		return(current %||% min_value)
+	}
+	gdraw <- rgamma(1, shape = shape, rate = rate)
+	if (!is.finite(gdraw) || gdraw <= 0) {
+		return(current %||% min_value)
+	}
+	out <- 1 / gdraw
+	if (!is.finite(out) || out <= 0) {
+		return(current %||% min_value)
+	}
+	pmin(pmax(out, min_value), max_value)
+}
+
+.lame_expand_rho <- function(rho, n_time) {
+	rho <- as.numeric(rho)
+	if (length(rho) == n_time) {
+		out <- rho
+	} else if (length(rho) == 1L) {
+		out <- rep(rho, n_time)
+	} else {
+		r0 <- mean(rho[is.finite(rho)], na.rm = TRUE)
+		if (!is.finite(r0)) r0 <- 0
+		out <- rep(r0, n_time)
+	}
+	out[!is.finite(out)] <- 0
+	pmax(-0.99, pmin(0.99, out))
+}
+
+.lame_rho_at <- function(rho, t) {
+	if (length(rho) <= 1L) as.numeric(rho)[1L] else as.numeric(rho)[t]
+}
+
+.lame_rho_scalar <- function(rho) {
+	r <- mean(as.numeric(rho)[is.finite(rho)], na.rm = TRUE)
+	if (!is.finite(r)) r <- 0
+	max(min(r, 0.99), -0.99)
+}
+
+.lame_sample_s2_dynamic_rho <- function(E, rho, current = NULL) {
+	n_time <- dim(E)[3]
+	if (is.null(n_time) || nrow(E) != ncol(E)) return(current %||% 1)
+	ss <- 0
+	count <- 0
+	for (t in seq_len(n_time)) {
+		rt <- E[, , t]
+		ut <- upper.tri(rt)
+		e1 <- rt[ut]
+		e2 <- t(rt)[ut]
+		ok <- is.finite(e1) & is.finite(e2)
+		if (!any(ok)) next
+		r <- .lame_rho_at(rho, t)
+		if (!is.finite(r)) r <- 0
+		r <- max(min(r, 0.99), -0.99)
+		den <- 1 - r * r
+		ss <- ss + sum((e1[ok]^2 - 2 * r * e1[ok] * e2[ok] + e2[ok]^2) / den)
+		count <- count + 2L * sum(ok)
+	}
+	if (!is.finite(ss) || count <= 0L) return(current %||% 1)
+	1 / rgamma(1, shape = (count + 1) / 2, rate = (ss + 1) / 2)
+}
+
 .lame_sample_rho_uv_t_weighted <- function(U_cube, V_cube, sigma_uv, rho_current,
 		symmetric, lambda_u, lambda_v = NULL, prior_mean = 0.9, prior_sd = 0.1) {
 	n_time <- dim(U_cube)[3]
@@ -106,7 +170,7 @@
 }
 
 .lame_sample_sigma_uv_t_weighted <- function(U_cube, V_cube, rho_uv, sigma_current,
-		symmetric, lambda_u, lambda_v = NULL, prior_shape = 2, prior_scale = 1) {
+			symmetric, lambda_u, lambda_v = NULL, prior_shape = 2, prior_scale = 1) {
 	n_time <- dim(U_cube)[3]
 	n_rank <- dim(U_cube)[2]
 	if(is.null(n_time) || n_time < 2 || is.null(lambda_u)) return(sigma_current)
@@ -145,6 +209,52 @@
 	shape <- count / 2 + prior_shape
 	scale <- ss / 2 + prior_scale
 	sqrt(1 / rgamma(1, shape = shape, rate = 1 / scale))
+}
+
+.lame_center_ab_state <- function(a, b, beta, intercept = TRUE, symmetric = FALSE) {
+	if (isTRUE(symmetric) || length(a) == 0L || length(b) == 0L) {
+		return(list(a = a, b = b, beta = beta))
+	}
+	af <- is.finite(a)
+	bf <- is.finite(b)
+	if (!any(af) || !any(bf)) {
+		return(list(a = a, b = b, beta = beta))
+	}
+	ma <- mean(a[af])
+	mb <- mean(b[bf])
+	if (!is.finite(ma)) ma <- 0
+	if (!is.finite(mb)) mb <- 0
+	a[af] <- a[af] - ma
+	b[bf] <- b[bf] - mb
+	if (isTRUE(intercept) && length(beta) > 0L && is.finite(beta[1L])) {
+		beta[1L] <- beta[1L] + ma + mb
+	}
+	list(a = a, b = b, beta = beta)
+}
+
+.lame_uv_ok <- function(U, V, max_abs = Inf) {
+	if (is.null(U) || is.null(V)) return(FALSE)
+	if (!all(is.finite(U)) || !all(is.finite(V))) return(FALSE)
+	if (is.finite(max_abs) && max(abs(c(U, V)), na.rm = TRUE) > max_abs) {
+		return(FALSE)
+	}
+	TRUE
+}
+
+.lame_shrink_sparse_ab <- function(a, b, row_obs, col_obs, min_obs = 0,
+			symmetric = FALSE) {
+	if (isTRUE(symmetric) || !is.finite(min_obs) || min_obs <= 1) {
+		return(list(a = a, b = b))
+	}
+	if (length(a) == length(row_obs)) {
+		wr <- pmin(1, pmax(0, row_obs / min_obs))
+		a <- a * wr
+	}
+	if (length(b) == length(col_obs)) {
+		wc <- pmin(1, pmax(0, col_obs / min_obs))
+		b <- b * wc
+	}
+	list(a = a, b = b)
 }
 
 #' AME model fitting routine for longitudinal relational data
@@ -356,6 +466,13 @@
 #' under the package's canonicalization conventions, while individual entries
 #' of \eqn{G_t} can move under equivalent rotations and scalings of
 #' \eqn{U_t} and \eqn{V_t}. Default FALSE.
+#' @param dynamic_rho logical. For directed unipartite normal models, allow the
+#' residual dyadic reciprocity parameter \eqn{\rho_t} to vary by period instead
+#' of using one pooled dyadic correlation across the whole panel. MCMC fits store
+#' per-draw paths in \code{fit$RHO} and the posterior mean path in
+#' \code{fit$rho_path}. ALS dynamic fits report a residual \code{rho_path} that
+#' can be passed to MCMC with \code{\link{als_start_vals}}. Default
+#' \code{FALSE}.
 #' @param dynamic_uv_kind Character string selecting the transition model for
 #' dynamic multiplicative latent positions when \code{dynamic_uv = TRUE}.
 #' \code{"ar1"} uses Gaussian AR(1) drift, \code{"snap"} uses a mixture of
@@ -435,6 +552,9 @@
 #'         impose stronger shrinkage on the latent factors.}
 #'   \item{etaab}{Prior degrees of freedom for covariance of additive effects 
 #'         (default: 4 + 3 \\* n/100). Controls shrinkage of row/column random effects.}
+#'   \item{ab_min_observed}{Minimum observed sender/receiver cells used before a
+#'         static additive effect is left unshrunk (default: max(10, T)). Actors
+#'         with less support are pulled toward the prior mean for that role.}
 #'   \item{rho_uv_mean}{For dynamic_uv=TRUE: Prior mean for UV AR(1) parameter 
 #'         (default: 0.9). Values close to 1 indicate high temporal persistence.}
 #'   \item{rho_uv_sd}{For dynamic_uv=TRUE: Prior SD for UV AR(1) parameter 
@@ -443,6 +563,10 @@
 #'         prior on UV innovation variance (default: 2).}
 #'   \item{sigma_uv_scale}{For dynamic_uv=TRUE: Scale parameter for inverse-gamma 
 #'         prior on UV innovation variance (default: 1).}
+#'   \item{uv_max_abs}{For dynamic_uv=TRUE: loose bound on the raw latent
+#'         coordinate scale after the product-preserving normalization step
+#'         (default: 50). This guards the unidentified coordinate scale without
+#'         changing the fitted \eqn{U_t V_t'} bilinear term.}
 #'   \item{rho_ab_mean}{For dynamic_ab=TRUE: Prior mean for additive effects AR(1) 
 #'         parameter (default: 0.8). Controls temporal smoothness of sender/receiver effects.}
 #'   \item{rho_ab_sd}{For dynamic_ab=TRUE: Prior SD for additive effects AR(1) 
@@ -532,7 +656,8 @@
 #' @param bootstrap_seed optional integer seed for the bootstrap.
 #' @param print Deprecated. Use \code{verbose} instead.
 #' @param gof logical: calculate goodness of fit statistics?
-#' @param start_vals list of parameter starting values for the MCMC chain
+#' @param start_vals list of parameter starting values for the MCMC chain.
+#'   Use \code{\link{als_start_vals}} to start MCMC from an ALS fit.
 #' @param periodic_save logical: indicating whether to periodically save MCMC results
 #' @param out_file character vector indicating name and path in which file should be stored if periodic_save is selected. For example, on an Apple OS out_file="~/Desktop/ameFit.rda".
 #' @param save_interval quantile interval indicating when to save during the post-burn-in period.
@@ -731,7 +856,7 @@ lame <- function(
 		R = 0, R_row = NULL, R_col = NULL,  # separate ranks for bipartite
 		mode = c("unipartite", "bipartite"),  # network mode
 		dynamic_uv = FALSE, dynamic_ab = FALSE, dynamic_G = FALSE,
-		dynamic_beta = FALSE,
+		dynamic_beta = FALSE, dynamic_rho = FALSE,
 		dynamic_beta_kind = c("ar1", "rw1", "rw2", "matern32"),
 		dynamic_uv_kind = c("ar1", "snap", "t"),
 		family = "normal",
@@ -762,7 +887,7 @@ lame <- function(
 			ordinal_cutpoints = c("data_induced", "explicit"),
 			method = c("mcmc", "als"),
 			als_stability = c("none", "quick", "validation"),
-			als_max_iter = 200L,
+			als_max_iter = 1000L,
 			als_tol = NULL,
 			bootstrap = 0L,
 		bootstrap_type = c("parametric", "block"),
@@ -879,6 +1004,11 @@ lame <- function(
 			"i" = "Set {.arg dynamic_uv = TRUE} or leave {.arg dynamic_uv_kind} at {.val ar1}."))
 	}
 	dynamic_uv_kind_requested <- dynamic_uv_kind
+	if (!is.logical(dynamic_rho) || length(dynamic_rho) != 1L || is.na(dynamic_rho)) {
+		cli::cli_abort("{.arg dynamic_rho} must be TRUE or FALSE.")
+	}
+	dynamic_beta_requested_global <- !is.null(dynamic_beta) &&
+	    !(is.logical(dynamic_beta) && length(dynamic_beta) == 1L && isFALSE(dynamic_beta))
 	# rw2 and matern32 use the joint gaussian sampler
 
 	# choose the static, dynamic, or snap point estimator
@@ -963,6 +1093,7 @@ lame <- function(
 		if (isTRUE(dynamic_uv)) dyn_requested <- c(dyn_requested, "dynamic_uv")
 		if (isTRUE(dynamic_ab)) dyn_requested <- c(dyn_requested, "dynamic_ab")
 		if (isTRUE(dynamic_G)) dyn_requested <- c(dyn_requested, "dynamic_G")
+		if (isTRUE(dynamic_rho)) dyn_requested <- c(dyn_requested, "dynamic_rho")
 		if (dynamic_beta_requested) {
 			dyn_requested <- c(dyn_requested, "dynamic_beta")
 		}
@@ -1049,7 +1180,7 @@ lame <- function(
 	if (identical(log_lik_method, "observed_ghk")) {
 		# the ghk marginal log-likelihood is a monte carlo estimate and
 		# log of an unbiased probability estimate is biased downward; surface
-		# the caveat once per fit.
+		# that once per fit.
 		cli::cli_inform(c(
 			"i" = "{.arg log_lik_method} = {.val observed_ghk}: GHK Monte Carlo marginal for rank/ordinal families.",
 			"!" = "The log of an unbiased probability estimate is biased downward; treat this as a Monte Carlo estimate."))
@@ -1182,6 +1313,7 @@ lame <- function(
 	# all-na row / col guard: a slice with an entirely na row or column
 	# would otherwise abort the bipartite-binary z sampler deep in the
 	# stack. surface as a clean error.
+	.lame_empty_periods <- list()
 	.lame_check_all_na <- function(Y_per, t_label) {
 		if (is.null(Y_per)) return(invisible())
 		drow <- apply(Y_per, 1, function(r) all(is.na(r) | !is.finite(r)))
@@ -1194,9 +1326,9 @@ lame <- function(
 						"x" = "The bipartite {.val {family}} sampler cannot proceed with rows/columns that have no observed data.",
 						"i" = "Drop the empty actor(s) from {.arg Y} (and matching covariates) before fitting, or use {.val normal} family."))
 				}
-				cli::cli_inform(c(
-					"i" = "{.arg Y[[{t_label}]]} has {sum(drow)} fully-unobserved row{?s} and {sum(dcol)} fully-unobserved column{?s}.",
-					"i" = "Their additive effects will be pooled with the prior for that period."))
+				.lame_empty_periods[[length(.lame_empty_periods) + 1L]] <<-
+					data.frame(period = t_label, rows = sum(drow), cols = sum(dcol),
+					           stringsAsFactors = FALSE)
 			}
 		} else {
 			# unipartite: drop the diagonal na from the all-na judgement
@@ -1205,14 +1337,29 @@ lame <- function(
 			dcol_ex <- vapply(seq_len(ncol(Y_per)), function(j)
 				all(is.na(Y_per[-j, j]) | !is.finite(Y_per[-j, j])), logical(1))
 			if (any(drow_ex) || any(dcol_ex)) {
-				cli::cli_inform(c(
-					"i" = "{.arg Y[[{t_label}]]} has {sum(drow_ex)} fully-unobserved row{?s} and {sum(dcol_ex)} fully-unobserved column{?s}.",
-					"i" = "Their additive effects will be pooled with the prior for that period."))
+				.lame_empty_periods[[length(.lame_empty_periods) + 1L]] <<-
+					data.frame(period = t_label, rows = sum(drow_ex), cols = sum(dcol_ex),
+					           stringsAsFactors = FALSE)
 			}
 		}
 	}
 	for (.t in seq_along(Y)) {
 		.lame_check_all_na(Y[[.t]], if (!is.null(names(Y))) names(Y)[.t] else as.character(.t))
+	}
+	if (length(.lame_empty_periods) > 0L) {
+		.empty_summary <- do.call(rbind, .lame_empty_periods)
+		first_periods <- paste(utils::head(.empty_summary$period, 5L), collapse = ", ")
+		n_empty <- nrow(.empty_summary)
+		row_max <- max(.empty_summary$rows)
+		col_max <- max(.empty_summary$cols)
+		period_word <- if (n_empty == 1L) "period" else "periods"
+		row_word <- if (row_max == 1L) "row" else "rows"
+		col_word <- if (col_max == 1L) "column" else "columns"
+		period_label <- if (n_empty == 1L) "First affected period" else "First affected periods"
+		period_suffix <- if (n_empty > 5L) " ..." else ""
+		cli::cli_inform(c(
+			"i" = "{.arg Y} has fully-unobserved rows or columns in {n_empty} {period_word}; largest count is {row_max} {row_word} and {col_max} {col_word}.",
+			"i" = "{period_label}: {first_periods}{period_suffix}. Their additive effects are pooled with the prior in those periods."))
 	}
 	# binary/cbin threshold via 1*(y>0); warn when counts are collapsed
 	if (family %in% c("binary", "cbin")) {
@@ -1238,10 +1385,23 @@ lame <- function(
 			"i" = "Most iterations will be discarded; consider {.arg burn} <= {.arg nscan}."))
 	}
 	# ar(1) dynamics need at least two time slices to be identified
-	if ((isTRUE(dynamic_uv) || isTRUE(dynamic_ab)) && length(Y) < 2L) {
+	if ((isTRUE(dynamic_uv) || isTRUE(dynamic_ab) || isTRUE(dynamic_rho)) && length(Y) < 2L) {
 		cli::cli_abort(c(
-			"{.arg dynamic_uv}/{.arg dynamic_ab} = TRUE require at least 2 time periods.",
+			"{.arg dynamic_uv}, {.arg dynamic_ab}, and {.arg dynamic_rho} require at least 2 time periods.",
 			"i" = "Got {length(Y)} slice{?s}; use {.fn ame} for a single cross-section, or supply more periods."))
+	}
+	if (isTRUE(dynamic_rho)) {
+		if (isTRUE(bip) || isTRUE(symmetric) || !isTRUE(dcor)) {
+			cli::cli_abort("{.arg dynamic_rho} is for directed unipartite models with {.arg dcor = TRUE}.")
+		}
+		if (!identical(family, "normal")) {
+			cli::cli_abort("{.arg dynamic_rho} currently supports {.code family = \"normal\"}.")
+		}
+		if (isTRUE(dynamic_beta_requested_global)) {
+			cli::cli_abort(c(
+				"{.arg dynamic_rho} is not yet combined with {.arg dynamic_beta}.",
+				"i" = "Fit time-varying reciprocity with static coefficients, or keep {.arg dynamic_beta} and scalar {.code rho}."))
+		}
 	}
 	# dynamic_beta needs at least two periods, like the other dynamics
 	if (!is.null(dynamic_beta) &&
@@ -1255,9 +1415,11 @@ lame <- function(
 	if (length(prior) > 0L && !is.null(names(prior))) {
 		known_prior <- c("Sab0", "eta0", "etaab", "Suv0", "kappa0",
 		                 "s20", "s2u0",
+		                 "ab_min_observed",
 		                 "rho_uv_mean", "rho_uv_sd",
 		                 "rho_ab_mean", "rho_ab_sd",
 		                 "sigma_uv_shape", "sigma_uv_scale",
+		                 "uv_max_abs",
 		                 "sigma_ab_shape", "sigma_ab_scale",
 		                 "rho_beta_mean", "rho_beta_sd",
 		                 "sigma_beta_shape", "sigma_beta_scale",
@@ -1498,7 +1660,11 @@ lame <- function(
 	if(family=="tobit") {
 		Y[Y < 0 & !is.na(Y)] <- 0
 	}
-	
+
+	ab_obs_mask <- is.finite(Y)
+	.lame_row_obs_ab <- apply(ab_obs_mask, 1L, sum)
+	.lame_col_obs_ab <- apply(ab_obs_mask, 2L, sum)
+
 	# observed and max outdegrees
 	if(is.element(family,c("cbin","frn","rrl")) ){
 		odobs<-apply(Y>0,c(1,3),sum,na.rm=TRUE)
@@ -1793,8 +1959,9 @@ lame <- function(
 	} else if(is.null(prior$eta0)) {
 		prior$eta0 <- round(4+3*n/100)
 	}
-	
+
 	if(is.null(prior$etaab)) { prior$etaab <- prior$eta0 }
+	if(is.null(prior$ab_min_observed)) { prior$ab_min_observed <- max(10, N) }
 	
 	# dynamic uv needs the relevant multiplicative ranks
 	.dyn_uv_has_rank <- isTRUE(dynamic_uv) && .lame_has_uv_rank(bip, R, RA, RB)
@@ -1805,6 +1972,7 @@ lame <- function(
 		if(is.null(prior$rho_uv_sd)) { prior$rho_uv_sd <- 0.1 }
 		if(is.null(prior$sigma_uv_shape)) { prior$sigma_uv_shape <- 2 }
 		if(is.null(prior$sigma_uv_scale)) { prior$sigma_uv_scale <- 1 }
+		if(is.null(prior$uv_max_abs)) { prior$uv_max_abs <- 50 }
 		# snap-shift jump scale and beta prior on the snap rate
 		if(identical(dynamic_uv_kind, "snap")) {
 			if(is.null(prior$snap_kappa)) { prior$snap_kappa <- 2 }
@@ -1867,6 +2035,16 @@ lame <- function(
 			V <- V_full
 		}
 		G <- startValsObj$G  # rectangular interaction matrix
+		G_expected_dim <- c(max(1L, RA), max(1L, RB))
+		if(is.null(G) || length(G) == 0L ||
+		   is.null(dim(G)) ||
+		   !all(dim(G) == G_expected_dim) || !all(is.finite(G))) {
+			G <- if(RA > 0 && RB > 0) {
+				diag(min(RA, RB), RA, RB)
+			} else {
+				matrix(0, max(1L, RA), max(1L, RB))
+			}
+		}
 		# dynamic_g starts with one g per
 		# period, seeded from the static g.
 		# rho_g + sigma_g2 are the ar(1) hyperparameters for the
@@ -1896,13 +2074,18 @@ lame <- function(
 		G <- NULL  # no g matrix for unipartite
 		
 		# symmetric models don't use rho (dyadic correlation)
-		if(symmetric) {
-			rho <- 0
-			use_rho <- FALSE
-		} else {
-			use_rho <- TRUE
+			if(symmetric) {
+				rho <- 0
+				use_rho <- FALSE
+			} else {
+				use_rho <- TRUE
+			}
+			if (isTRUE(dynamic_rho)) {
+				rho <- .lame_expand_rho(rho, N)
+			} else {
+				rho <- mean(.lame_expand_rho(rho, N), na.rm = TRUE)
+			}
 		}
-	}
 
 	# ordinal_cutpoints == "explicit" state. y_int is the integer-recoded
 	# ordinal array (1..k), alpha is the length-(k-1) free-cutpoint vector
@@ -1978,7 +2161,33 @@ lame <- function(
 		          else 0.8
 		sigma_ab <- if (!is.null(startValsObj$sigma_ab)) startValsObj$sigma_ab
 		            else 0.1
+		if (!symmetric) {
+			ab_shift <- numeric(N)
+			for (tt in seq_len(N)) {
+				af <- is.finite(a_mat[, tt])
+				bf <- is.finite(b_mat[, tt])
+				ma <- if (any(af)) mean(a_mat[af, tt]) else 0
+				mb <- if (any(bf)) mean(b_mat[bf, tt]) else 0
+				if (!is.finite(ma)) ma <- 0
+				if (!is.finite(mb)) mb <- 0
+				a_mat[af, tt] <- a_mat[af, tt] - ma
+				b_mat[bf, tt] <- b_mat[bf, tt] - mb
+				ab_shift[tt] <- ma + mb
+			}
+			if (isTRUE(intercept) && length(beta) > 0L && is.finite(beta[1L])) {
+				beta[1L] <- beta[1L] + mean(ab_shift, na.rm = TRUE)
+			}
+		}
 	} else {
+		ab_centered <- .lame_center_ab_state(a, b, beta, intercept, symmetric)
+		a <- ab_centered$a
+		b <- ab_centered$b
+		beta <- ab_centered$beta
+		ab_sparse <- .lame_shrink_sparse_ab(
+			a, b, .lame_row_obs_ab, .lame_col_obs_ab,
+			prior$ab_min_observed, symmetric)
+		a <- ab_sparse$a
+		b <- ab_sparse$b
 		a_mat <- NULL
 		b_mat <- NULL
 		rho_ab <- NULL
@@ -2004,6 +2213,8 @@ lame <- function(
 			U_cube <- U
 			V_cube <- V
 		}
+		U <- matrix(U_cube[, , 1L], nrow = n_u, ncol = R_u)
+		V <- matrix(V_cube[, , 1L], nrow = n_v, ncol = R_v)
 		# initialize ar(1) parameters. when neither start_vals nor a user prior
 		# pins rho_uv, use 0.9 (the documented default prior mean) so the first
 		# uv sweep enforces persistence; otherwise an unset prior collapses
@@ -2036,6 +2247,7 @@ lame <- function(
 		s2=0, betaAB=0, rho=0, UV=0, Z=0, beta=0,
 		rho_sigma_beta=0,   # dynamic_beta hyperparameter updates
 		beta_static=0,      # static-block solve in dynamic_ab bipartite path
+		ab=0,               # dynamic additive finite-state repairs
 		pool=0,             # hierarchical pooling mh step
 		G=0                 # g update
 	)
@@ -2409,11 +2621,17 @@ lame <- function(
 		rho_by_coef <- numeric(0); sigma_by_coef <- numeric(0)
 		group_id <- integer(0)
 		beta_dyn_path <- NULL; beta_static <- NULL
-		beta0_mean <- NULL; beta0_cov <- NULL
-		RHO_BETA <- NULL; SIGMA_BETA <- NULL
-	}
+			beta0_mean <- NULL; beta0_cov <- NULL
+			RHO_BETA <- NULL; SIGMA_BETA <- NULL
+		}
+		if (isTRUE(dynamic_rho)) {
+			RHO <- matrix(NA_real_, nrow = nscan/odens, ncol = N,
+			              dimnames = list(NULL, pdLabs %||% paste0("t", seq_len(N))))
+		} else {
+			RHO <- NULL
+		}
 
-	# log_lik storage. with save_log_lik = true the pointwise log-likelihood
+		# log_lik storage. with save_log_lik = true the pointwise log-likelihood
 	# is recorded at each stored mcmc iteration so that loo::loo() / waic()
 	# can be computed afterwards. the in-memory matrix is
 	# [nscan/odens x n_obs] where n_obs is the number of observed dyads
@@ -2637,7 +2855,9 @@ lame <- function(
 
 		if(dynamic_ab) {
 			# use dynamic helper to compute ez with time-varying additive effects
-			EZ <- get_EZ_dynamic_ab(Xlist_tmp, beta_for_EZ, a_mat, b_mat, U, V, N,
+			EZ <- get_EZ_dynamic_ab(Xlist_tmp, beta_for_EZ, a_mat, b_mat,
+			                        if(.dyn_uv_has_rank) U_cube else U,
+			                        if(.dyn_uv_has_rank) V_cube else V, N,
 			                        bip = bip, G = G, nA = nA, nB = nB)
 		} else {
 			if(bip) {
@@ -2691,7 +2911,10 @@ lame <- function(
 			} else {
 				ab_mat <- outer(a, b,"+")
 				storage.mode(ab_mat) <- "double"
-				EZ <- get_EZ_cpp( Xlist_tmp, beta_for_EZ, ab_mat, U, V )
+				EZ <- get_EZ_unip_time(Xlist_tmp, beta_for_EZ, ab_mat,
+				                       if(.dyn_uv_has_rank) U_cube else U,
+				                       if(.dyn_uv_has_rank) V_cube else V,
+				                       N)
 			}
 		}
 		# add per-period x*beta contribution when dynamic_beta is on (no-op
@@ -2699,18 +2922,26 @@ lame <- function(
 		if (beta_dyn$any && !is.null(Xbeta_cube_iter)) {
 			EZ <- EZ + Xbeta_cube_iter
 		}
-		# batch c++ z sampling where possible
-		if(family == "normal") {
-			# single c++ call for all t time periods
-			Z_batch <- try(rZ_nrm_batch_cpp(Z, EZ, rho, s2, Y), silent = TRUE)
-			if(!inherits(Z_batch, 'try-error')) {
-				Z <- Z_batch$Z
-				E.nrm <- Z_batch$E_nrm
-			} else {
-				# fallback: per-t r sampling
-				for(t in 1:N) { Z[,,t] <- rZ_nrm_fc(Z[,,t], EZ[,,t], rho, s2, Y[,,t]); E.nrm[,,t] <- Z[,,t] - EZ[,,t] }
-				tryErrorChecks$Z <- tryErrorChecks$Z + 1
-			}
+			# batch c++ z sampling where possible
+			if(family == "normal") {
+				if (isTRUE(dynamic_rho)) {
+					for(t in 1:N) {
+						rho_t <- .lame_rho_at(rho, t)
+						Z[,,t] <- rZ_nrm_fc(Z[,,t], EZ[,,t], rho_t, s2, Y[,,t])
+						E.nrm[,,t] <- Z[,,t] - EZ[,,t]
+					}
+				} else {
+					# single c++ call for all t time periods
+					Z_batch <- try(rZ_nrm_batch_cpp(Z, EZ, rho, s2, Y), silent = TRUE)
+					if(!inherits(Z_batch, 'try-error')) {
+						Z <- Z_batch$Z
+						E.nrm <- Z_batch$E_nrm
+					} else {
+						# fallback: per-t r sampling
+						for(t in 1:N) { Z[,,t] <- rZ_nrm_fc(Z[,,t], EZ[,,t], rho, s2, Y[,,t]); E.nrm[,,t] <- Z[,,t] - EZ[,,t] }
+						tryErrorChecks$Z <- tryErrorChecks$Z + 1
+					}
+				}
 		} else if(family == "tobit" && bip && rho == 0) {
 				# bipartite tobit z sampling uses the batch c++ path when available
 			Z_new <- tryCatch(rZ_tob_bip_batch_cpp(Z, EZ, s2, Y),
@@ -2842,13 +3073,17 @@ lame <- function(
 				n_obs <- sum(!is.na(resid_all))
 				ss <- sum(resid_all^2, na.rm = TRUE)
 				s2 <- 1/rgamma(1, (1 + n_obs)/2, (1 + ss)/2)
-			} else {
-				s2New<-try(
-					rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2))),
-					silent=TRUE)
-				if(!inherits(s2New, 'try-error')){ s2 <- s2New } else { tryErrorChecks$s2<-tryErrorChecks$s2+1 }
+				} else {
+					s2New<-try({
+						if (isTRUE(dynamic_rho)) {
+							.lame_sample_s2_dynamic_rho(E.nrm, rho, current = s2)
+						} else {
+							rs2_rep_fc_cpp(E.nrm,solve(matrix(c(1,rho,rho,1),2,2)))
+						}
+					}, silent=TRUE)
+					if(!inherits(s2New, 'try-error')){ s2 <- s2New } else { tryErrorChecks$s2<-tryErrorChecks$s2+1 }
+				}
 			}
-		}
 		
 		# update beta, a b with g-prior
 		if (beta_dyn$any) {
@@ -3314,7 +3549,9 @@ lame <- function(
 				# compute ez without a/b for residual construction
 				zero_a <- matrix(0, nA, N)
 				zero_b <- matrix(0, nB, N)
-				EZ_no_ab <- get_EZ_dynamic_ab(Xlist, beta, zero_a, zero_b, U, V, N,
+				EZ_no_ab <- get_EZ_dynamic_ab(Xlist, beta, zero_a, zero_b,
+				                              if(.dyn_uv_has_rank) U_cube else U,
+				                              if(.dyn_uv_has_rank) V_cube else V, N,
 				                              bip = TRUE, G = G, nA = nA, nB = nB)
 
 				# update beta via c++ (bipartite conjugate update)
@@ -3340,16 +3577,21 @@ lame <- function(
 				}
 
 				# recompute ez_no_ab after beta changes
-				EZ_no_ab <- get_EZ_dynamic_ab(Xlist, beta, zero_a, zero_b, U, V, N,
+				EZ_no_ab <- get_EZ_dynamic_ab(Xlist, beta, zero_a, zero_b,
+				                              if(.dyn_uv_has_rank) U_cube else U,
+				                              if(.dyn_uv_has_rank) V_cube else V, N,
 				                              bip = TRUE, G = G, nA = nA, nB = nB)
 			} else if( (pr+pc+pd+intercept)>0 ){
 				# unipartite dynamic_ab: use rbeta_ab_rep_fc_cpp
-				EZ_no_ab <- get_EZ_cpp(Xlist, beta, outer(rep(0,n), rep(0,n), "+"), U, V)
+				EZ_no_ab <- get_EZ_unip_time(Xlist, beta, outer(rep(0,n), rep(0,n), "+"),
+				                             if(.dyn_uv_has_rank) U_cube else U,
+				                             if(.dyn_uv_has_rank) V_cube else V, N)
 
 				a_avg <- rowMeans(a_mat)
 				b_avg <- rowMeans(b_mat)
 
-				iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
+					rho_eff <- .lame_rho_scalar(rho)
+					iSe2<-mhalf(solve(matrix(c(1,rho_eff,rho_eff,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
 				tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
 				if(k > 0) {
 					if(k == 1) {
@@ -3361,7 +3603,13 @@ lame <- function(
 					G_eig <- matrix(0, nrow=2, ncol=1)
 					k <- 1
 				}
-				Z_temp <- sweep(Z,c(1,2),U%*%t(V))
+				if(.dyn_uv_has_rank) {
+					UV_base <- array(0, dim = dim(Z))
+					for(t in seq_len(N)) UV_base[, , t] <- U_cube[, , t] %*% t(V_cube[, , t])
+					Z_temp <- Z - UV_base
+				} else {
+					Z_temp <- sweep(Z,c(1,2),U%*%t(V))
+				}
 				na_mask <- is.na(Z_temp)
 				Z_temp[na_mask] <- 0
 
@@ -3378,16 +3626,22 @@ lame <- function(
 				} else {
 					tryErrorChecks$betaAB <- tryErrorChecks$betaAB + 1
 				}
-				EZ_no_ab <- get_EZ_cpp(Xlist, beta, outer(rep(0,n), rep(0,n), "+"), U, V)
+				EZ_no_ab <- get_EZ_unip_time(Xlist, beta, outer(rep(0,n), rep(0,n), "+"),
+				                             if(.dyn_uv_has_rank) U_cube else U,
+				                             if(.dyn_uv_has_rank) V_cube else V, N)
 			} else {
 				# no covariates: ez_no_ab is just uv
 				if(bip) {
 					zero_a <- matrix(0, nA, N)
 					zero_b <- matrix(0, nB, N)
-					EZ_no_ab <- get_EZ_dynamic_ab(Xlist, beta, zero_a, zero_b, U, V, N,
+					EZ_no_ab <- get_EZ_dynamic_ab(Xlist, beta, zero_a, zero_b,
+					                              if(.dyn_uv_has_rank) U_cube else U,
+					                              if(.dyn_uv_has_rank) V_cube else V, N,
 					                              bip = TRUE, G = G, nA = nA, nB = nB)
 				} else {
-					EZ_no_ab <- get_EZ_cpp(Xlist, beta, outer(rep(0,n), rep(0,n), "+"), U, V)
+					EZ_no_ab <- get_EZ_unip_time(Xlist, beta, outer(rep(0,n), rep(0,n), "+"),
+					                             if(.dyn_uv_has_rank) U_cube else U,
+					                             if(.dyn_uv_has_rank) V_cube else V, N)
 				}
 			}
 
@@ -3395,101 +3649,169 @@ lame <- function(
 			if(bip) {
 				# bipartite: a (na x t) and b (nb x t) have different dims,
 				# so update each separately via conjugate normal gibbs steps
-				var_innov <- sigma_ab^2
+				var_innov <- max(sigma_ab^2, 1e-8)
+				s2_floor_ab <- max(s2, 1e-8)
 				for(t in 1:N) {
 					resid_t <- Z[,,t] - EZ_no_ab[,,t]
-					resid_t[is.na(resid_t)] <- 0
+					resid_t[!is.finite(resid_t)] <- NA_real_
 
 					# prior from ar(1)
 					for(i in 1:nA) {
-						pm <- if(t == 1) 0 else rho_ab * a_mat[i, t-1]
-						if(t < N) pm <- 0.5*(pm + rho_ab * a_mat[i, t+1])
-						pprec <- if(t == 1) (1 - rho_ab^2)/var_innov else 1/var_innov
-						if(t < N) pprec <- pprec * 2
-						dprec <- nB / Sab[1,1]
+						prev_a <- if(t > 1 && is.finite(a_mat[i, t-1])) a_mat[i, t-1] else 0
+						next_a <- if(t < N && is.finite(a_mat[i, t+1])) a_mat[i, t+1] else 0
+						if(N == 1L) {
+							pprec <- 1 / var_innov
+							pm <- 0
+						} else if(t == 1L) {
+							pprec <- 1 / var_innov
+							pm <- rho_ab * next_a
+						} else if(t == N) {
+							pprec <- 1 / var_innov
+							pm <- rho_ab * prev_a
+						} else {
+							pprec <- (1 + rho_ab^2) / var_innov
+							pm <- rho_ab * (prev_a + next_a) / (1 + rho_ab^2)
+						}
+						row_obs <- sum(is.finite(resid_t[i, ]))
+						row_sum <- sum(resid_t[i, ], na.rm = TRUE)
+						dprec <- row_obs / s2_floor_ab
 						post_prec <- pprec + dprec
-						post_mean <- (pprec*pm + dprec*mean(resid_t[i,], na.rm=TRUE)) / post_prec
-						a_mat[i,t] <- rnorm(1, post_mean, 1/sqrt(post_prec))
+						post_mean <- (pprec * pm + row_sum / s2_floor_ab) / post_prec
+						if (is.finite(post_prec) && post_prec > 0 &&
+						    is.finite(post_mean)) {
+							a_mat[i,t] <- rnorm(1, post_mean, 1 / sqrt(post_prec))
+						} else {
+							a_mat[i,t] <- pm
+							tryErrorChecks$ab <- tryErrorChecks$ab + 1L
+						}
 					}
 					# update resid for b step
 					for(i in 1:nA) resid_t[i,] <- resid_t[i,] - a_mat[i,t]
 					for(j in 1:nB) {
-						pm <- if(t == 1) 0 else rho_ab * b_mat[j, t-1]
-						if(t < N) pm <- 0.5*(pm + rho_ab * b_mat[j, t+1])
-						pprec <- if(t == 1) (1 - rho_ab^2)/var_innov else 1/var_innov
-						if(t < N) pprec <- pprec * 2
-						dprec <- nA / Sab[2,2]
+						prev_b <- if(t > 1 && is.finite(b_mat[j, t-1])) b_mat[j, t-1] else 0
+						next_b <- if(t < N && is.finite(b_mat[j, t+1])) b_mat[j, t+1] else 0
+						if(N == 1L) {
+							pprec <- 1 / var_innov
+							pm <- 0
+						} else if(t == 1L) {
+							pprec <- 1 / var_innov
+							pm <- rho_ab * next_b
+						} else if(t == N) {
+							pprec <- 1 / var_innov
+							pm <- rho_ab * prev_b
+						} else {
+							pprec <- (1 + rho_ab^2) / var_innov
+							pm <- rho_ab * (prev_b + next_b) / (1 + rho_ab^2)
+						}
+						col_obs <- sum(is.finite(resid_t[, j]))
+						col_sum <- sum(resid_t[, j], na.rm = TRUE)
+						dprec <- col_obs / s2_floor_ab
 						post_prec <- pprec + dprec
-						post_mean <- (pprec*pm + dprec*mean(resid_t[,j], na.rm=TRUE)) / post_prec
-						b_mat[j,t] <- rnorm(1, post_mean, 1/sqrt(post_prec))
+						post_mean <- (pprec * pm + col_sum / s2_floor_ab) / post_prec
+						if (is.finite(post_prec) && post_prec > 0 &&
+						    is.finite(post_mean)) {
+							b_mat[j,t] <- rnorm(1, post_mean, 1 / sqrt(post_prec))
+						} else {
+							b_mat[j,t] <- pm
+							tryErrorChecks$ab <- tryErrorChecks$ab + 1L
+						}
 					}
 				}
-			} else {
-				ab_update <- sample_dynamic_ab_cpp(a_mat, b_mat, Z, EZ_no_ab,
-				                                   rho_ab, sigma_ab, Sab, symmetric)
-				a_mat <- ab_update$a
-				b_mat <- ab_update$b
-			}
+				} else {
+					ab_update <- sample_dynamic_ab_cpp(a_mat, b_mat, Z, EZ_no_ab,
+					                                   rho_ab, sigma_ab, Sab, symmetric)
+					a_mat <- ab_update$a
+					b_mat <- ab_update$b
+				}
+				if (any(!is.finite(a_mat))) {
+					a_mat[!is.finite(a_mat)] <- 0
+					tryErrorChecks$ab <- tryErrorChecks$ab + 1L
+				}
+				if (any(!is.finite(b_mat))) {
+					b_mat[!is.finite(b_mat)] <- 0
+					tryErrorChecks$ab <- tryErrorChecks$ab + 1L
+				}
+				if (!symmetric) {
+					ab_shift <- numeric(N)
+					for (tt in seq_len(N)) {
+						af <- is.finite(a_mat[, tt])
+						bf <- is.finite(b_mat[, tt])
+						ma <- if (any(af)) mean(a_mat[af, tt]) else 0
+						mb <- if (any(bf)) mean(b_mat[bf, tt]) else 0
+						if (!is.finite(ma)) ma <- 0
+						if (!is.finite(mb)) mb <- 0
+						a_mat[af, tt] <- a_mat[af, tt] - ma
+						b_mat[bf, tt] <- b_mat[bf, tt] - mb
+						ab_shift[tt] <- ma + mb
+					}
+					if (isTRUE(intercept) && length(beta) > 0L && is.finite(beta[1L])) {
+						beta[1L] <- beta[1L] + mean(ab_shift, na.rm = TRUE)
+					}
+				}
 
-			a <- a_mat[,1]
-			b <- b_mat[,1]
+				a <- a_mat[,1]
+				b <- b_mat[,1]
 
 			# update ar(1) parameters periodically (including during burn-in)
-			if(s %% 20 == 0) {
-				if(bip) {
-					# bipartite: a (na x t) and b (nb x t) have different row counts,
-					# so compute sufficient stats in r rather than c++ which assumes same n
-					sp <- 0; ssl <- 0; ssc <- 0
-					for(i in 1:nA) for(t in 2:N) {
-						sp <- sp + a_mat[i,t]*a_mat[i,t-1]
-						ssl <- ssl + a_mat[i,t-1]^2
-						ssc <- ssc + a_mat[i,t]^2
-					}
-					for(j in 1:nB) for(t in 2:N) {
-						sp <- sp + b_mat[j,t]*b_mat[j,t-1]
-						ssl <- ssl + b_mat[j,t-1]^2
-						ssc <- ssc + b_mat[j,t]^2
-					}
-					# mh step for rho_ab
-					rho_prop <- rnorm(1, rho_ab, 0.1)
-					if(abs(rho_prop) < 1) {
-						ll_c <- -0.5*(ssc - 2*rho_ab*sp + rho_ab^2*ssl) / sigma_ab^2
-						ll_p <- -0.5*(ssc - 2*rho_prop*sp + rho_prop^2*ssl) / sigma_ab^2
-						lp_c <- -0.5*log(1 - rho_ab^2)
-						lp_p <- -0.5*log(1 - rho_prop^2)
-						if(log(runif(1)) < (ll_p + lp_p) - (ll_c + lp_c)) rho_ab <- rho_prop
-					}
-					# inverse-gamma for sigma_ab
-					# bipartite dynamic_ab: same ig(sigma_ab_shape, sigma_ab_scale) prior
-					# the unipartite c++ path uses. defaults match the historical "+1/+1".
-					ig_shape <- prior$sigma_ab_shape %||% 2
-					ig_scale <- prior$sigma_ab_scale %||% 1
-					cnt <- (nA + nB) * (N - 1)
-					ss_resid <- 0
-					for(i in 1:nA) for(t in 2:N) ss_resid <- ss_resid + (a_mat[i,t] - rho_ab*a_mat[i,t-1])^2
-					for(j in 1:nB) for(t in 2:N) ss_resid <- ss_resid + (b_mat[j,t] - rho_ab*b_mat[j,t-1])^2
-					sigma_ab <- sqrt(1/rgamma(1, shape = ig_shape + cnt/2,
-					                            rate  = ig_scale + ss_resid/2))
-					# bipartite rho_ab still uses a conjugate normal full-conditional
-					# (matching the rho_uv structure above)
-					pmean_ab <- prior$rho_ab_mean %||% 0.8
-					psd_ab   <- prior$rho_ab_sd   %||% 0.15
-					prior_prec_ab <- 1 / (psd_ab * psd_ab)
-					sigma2_inv_ab <- 1 / (sigma_ab * sigma_ab)
-					sp_ab <- 0; ssl_ab <- 0
-					for(i in 1:nA) for(t in 2:N) {
-						sp_ab  <- sp_ab  + a_mat[i,t]   * a_mat[i,t-1]
-						ssl_ab <- ssl_ab + a_mat[i,t-1] * a_mat[i,t-1]
-					}
-					for(j in 1:nB) for(t in 2:N) {
-						sp_ab  <- sp_ab  + b_mat[j,t]   * b_mat[j,t-1]
-						ssl_ab <- ssl_ab + b_mat[j,t-1] * b_mat[j,t-1]
-					}
-					var_post_ab  <- 1 / (ssl_ab * sigma2_inv_ab + prior_prec_ab)
-					mean_post_ab <- var_post_ab * (sp_ab * sigma2_inv_ab +
-					                               pmean_ab * prior_prec_ab)
-					rho_ab <- max(-0.99, min(0.99,
-					                          rnorm(1, mean_post_ab, sqrt(var_post_ab))))
+				if(s %% 20 == 0) {
+					if(bip) {
+						# bipartite a and b have different row counts, so compute
+						# ar(1) sufficient statistics in r.
+						ig_shape <- prior$sigma_ab_shape %||% 2
+						ig_scale <- prior$sigma_ab_scale %||% 1
+						cnt <- 0L
+						ss_resid <- 0
+						for(i in 1:nA) for(t in 2:N) {
+							innov <- a_mat[i,t] - rho_ab*a_mat[i,t-1]
+							if (is.finite(innov)) {
+								ss_resid <- ss_resid + innov^2
+								cnt <- cnt + 1L
+							}
+						}
+						for(j in 1:nB) for(t in 2:N) {
+							innov <- b_mat[j,t] - rho_ab*b_mat[j,t-1]
+							if (is.finite(innov)) {
+								ss_resid <- ss_resid + innov^2
+								cnt <- cnt + 1L
+							}
+						}
+						sigma2_ab_new <- .lame_safe_inv_gamma(
+							shape = ig_shape + cnt / 2,
+							rate = ig_scale + ss_resid / 2,
+							current = sigma_ab^2,
+							min_value = 1e-8)
+						if (is.finite(sigma2_ab_new) && sigma2_ab_new > 0) {
+							sigma_ab <- sqrt(sigma2_ab_new)
+						} else {
+							tryErrorChecks$ab <- tryErrorChecks$ab + 1L
+						}
+
+						pmean_ab <- prior$rho_ab_mean %||% 0.8
+						psd_ab   <- prior$rho_ab_sd   %||% 0.15
+						prior_prec_ab <- 1 / (psd_ab * psd_ab)
+						sigma2_inv_ab <- 1 / (sigma_ab * sigma_ab)
+						sp_ab <- 0
+						ssl_ab <- 0
+						for(i in 1:nA) for(t in 2:N) {
+							if (is.finite(a_mat[i,t]) && is.finite(a_mat[i,t-1])) {
+								sp_ab  <- sp_ab  + a_mat[i,t]   * a_mat[i,t-1]
+								ssl_ab <- ssl_ab + a_mat[i,t-1] * a_mat[i,t-1]
+							}
+						}
+						for(j in 1:nB) for(t in 2:N) {
+							if (is.finite(b_mat[j,t]) && is.finite(b_mat[j,t-1])) {
+								sp_ab  <- sp_ab  + b_mat[j,t]   * b_mat[j,t-1]
+								ssl_ab <- ssl_ab + b_mat[j,t-1] * b_mat[j,t-1]
+							}
+						}
+						var_post_ab  <- 1 / (ssl_ab * sigma2_inv_ab + prior_prec_ab)
+						mean_post_ab <- var_post_ab * (sp_ab * sigma2_inv_ab +
+						                               pmean_ab * prior_prec_ab)
+						if (is.finite(var_post_ab) && var_post_ab > 0 &&
+						    is.finite(mean_post_ab)) {
+							rho_ab <- max(-0.99, min(0.99,
+							                          rnorm(1, mean_post_ab, sqrt(var_post_ab))))
+						}
 				} else {
 					# unipartite c++ path: forward user-set priors on rho_ab and sigma_ab
 					pmean_ab <- prior$rho_ab_mean %||% 0.8
@@ -3527,7 +3849,8 @@ lame <- function(
 					}
 				)
 			} else if( (pr+pc+pd+intercept)>0 ){
-				iSe2<-mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
+					rho_eff <- .lame_rho_scalar(rho)
+					iSe2<-mhalf(solve(matrix(c(1,rho_eff,rho_eff,1),2,2)*s2)) ; Sabs<-iSe2%*%Sab%*%iSe2
 				tmp<-eigen(Sabs) ; k<-sum(zapsmall(tmp$val)>0 )
 				if(k > 0) {
 					if(k == 1) {
@@ -3554,31 +3877,50 @@ lame <- function(
 					silent = FALSE)
 			} else {
 				betaABCalc <- try(
-					rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, rho, X, s2),
+						rbeta_ab_rep_fc(sweep(Z,c(1,2),U%*%t(V)), Sab, .lame_rho_scalar(rho), X, s2),
 					silent = FALSE)
 			}
-			if(!inherits(betaABCalc, 'try-error')){
-				beta <- c(betaABCalc$beta)
-				a <- c(betaABCalc$a) * rvar
-				b <- c(betaABCalc$b) * cvar
-				if(symmetric){ a<-b<-(a+b)/2 }
-			} else { 
-				# silent fallback when betaab calculation fails
-				tryErrorChecks$betaAB<-tryErrorChecks$betaAB+1  
+				if(!inherits(betaABCalc, 'try-error')){
+					beta <- c(betaABCalc$beta)
+					a <- c(betaABCalc$a) * rvar
+					b <- c(betaABCalc$b) * cvar
+					if(symmetric){ a<-b<-(a+b)/2 }
+					ab_centered <- .lame_center_ab_state(a, b, beta, intercept, symmetric)
+					a <- ab_centered$a
+					b <- ab_centered$b
+					beta <- ab_centered$beta
+					ab_sparse <- .lame_shrink_sparse_ab(
+						a, b, .lame_row_obs_ab, .lame_col_obs_ab,
+						prior$ab_min_observed, symmetric)
+					a <- ab_sparse$a
+					b <- ab_sparse$b
+				} else {
+					# silent fallback when betaab calculation fails
+					tryErrorChecks$betaAB<-tryErrorChecks$betaAB+1
 			}
 		}
 		
 		# update sab using unified function
 		if(bip) {
+			a_sab <- if(dynamic_ab && exists("a_mat")) as.numeric(a_mat) else a
+			b_sab <- if(dynamic_ab && exists("b_mat")) as.numeric(b_mat) else b
+			a_sab <- a_sab[is.finite(a_sab)]
+			b_sab <- b_sab[is.finite(b_sab)]
 			if(rvar) {
-				Sab[1,1] <- 1/rgamma(1, (prior$etaab + nA)/2, 
-														 (prior$etaab*prior$Sab0[1,1] + sum(a^2))/2)
+				Sab[1,1] <- .lame_safe_inv_gamma(
+					shape = (prior$etaab + length(a_sab)) / 2,
+					rate = (prior$etaab * prior$Sab0[1,1] + sum(a_sab^2)) / 2,
+					current = Sab[1,1],
+					min_value = 1e-8)
 			}
 			if(cvar) {
-				Sab[2,2] <- 1/rgamma(1, (prior$etaab + nB)/2, 
-														 (prior$etaab*prior$Sab0[2,2] + sum(b^2))/2)
+				Sab[2,2] <- .lame_safe_inv_gamma(
+					shape = (prior$etaab + length(b_sab)) / 2,
+					rate = (prior$etaab * prior$Sab0[2,2] + sum(b_sab^2)) / 2,
+					current = Sab[2,2],
+					min_value = 1e-8)
 			}
-			Sab[1,2] <- Sab[2,1] <- 0  # no covariance for bipartite
+			Sab[1,2] <- Sab[2,1] <- 0  # bipartite row and column effects are separate
 		} else {
 			Sab <- rSab_fc(a, b, Sab0=prior$Sab0/prior$etaab, eta0=prior$etaab, 
 										 rvar=rvar, cvar=cvar, symmetric=symmetric)
@@ -3594,13 +3936,29 @@ lame <- function(
 			}
 			beta_for_EZ <- if (beta_dyn$any) numeric(length(beta)) else beta
 			if(dynamic_ab) {
-				E.T <- Z - get_EZ_dynamic_ab(Xlist, beta_for_EZ, a_mat, b_mat, U, V, N,
+				E.T <- Z - get_EZ_dynamic_ab(Xlist, beta_for_EZ, a_mat, b_mat,
+				                             if(.dyn_uv_has_rank) U_cube else U,
+				                             if(.dyn_uv_has_rank) V_cube else V, N,
 				                             bip = bip, G = G, nA = nA, nB = nB)
 			} else {
-				E.T <- Z - get_EZ_cpp( Xlist, beta_for_EZ, outer(a, b,"+"), U, V )
+				E.T <- Z - get_EZ_unip_time(Xlist, beta_for_EZ, outer(a, b,"+"),
+				                            if(.dyn_uv_has_rank) U_cube else U,
+				                            if(.dyn_uv_has_rank) V_cube else V,
+				                            N)
 			}
 			if (beta_dyn$any && !is.null(Xbeta_cube_iter)) E.T <- E.T - Xbeta_cube_iter
-			rhoNew<-try( rrho_mh_rep_cpp(E.T, rho,s2), silent=TRUE )
+			if (isTRUE(dynamic_rho)) {
+				rhoNew <- try({
+					rho_path_new <- .lame_expand_rho(rho, N)
+					for (t in seq_len(N)) {
+						E_slice <- array(E.T[,,t], dim = c(dim(E.T)[1:2], 1L))
+						rho_path_new[t] <- rrho_mh_rep_cpp(E_slice, rho_path_new[t], s2)
+					}
+					.lame_expand_rho(rho_path_new, N)
+				}, silent = TRUE)
+			} else {
+				rhoNew<-try( rrho_mh_rep_cpp(E.T, rho,s2), silent=TRUE )
+			}
 			if(!inherits(rhoNew, 'try-error')){ rho<-rhoNew } else { tryErrorChecks$rho<-tryErrorChecks$rho+1 }
 		}
 		
@@ -3644,38 +4002,54 @@ lame <- function(
 
 				E <- Z - get_EZ_bip_cpp(base_cube, a_mat_temp, b_mat_temp, U_zero, V_zero, G)
 			} else {
-				E <- Z - get_EZ_cpp( Xlist, beta_for_EZ, outer(a, b,"+"), U*0, V*0 )
+				E <- Z - get_EZ_unip_time(Xlist, beta_for_EZ, outer(a, b,"+"),
+				                          U * 0, V * 0, N)
 			}
 			if (beta_dyn$any && !is.null(Xbeta_cube_iter)) E <- E - Xbeta_cube_iter
 			shrink<- (s>.5*burn)
 			
 			if(dynamic_uv) {
+				uv_max_abs_iter <- as.numeric(prior$uv_max_abs %||% Inf)
+				if (!is.finite(uv_max_abs_iter) || uv_max_abs_iter <= 0) {
+					uv_max_abs_iter <- Inf
+				}
 				if(bip) {
 					if(!identical(dynamic_uv_kind, "ar1")) {
 						cli::cli_abort(c(
 							"Internal dynamic-UV dispatch error.",
 							"x" = "Bipartite dynamic UV can only use {.val ar1}; got {.val {dynamic_uv_kind}}."))
 					}
-					# bipartite dynamic uv via c++
+					U_prev <- U_cube
+					V_prev <- V_cube
 					UV_try <- tryCatch(
 						rUV_dynamic_bip_fc_cpp(U_cube, V_cube, E, G,
 						                       rho_uv, sigma_uv, s2),
 						error = function(e) NULL
 					)
+					if((is.null(UV_try) ||
+					    !.lame_uv_ok(UV_try$U, UV_try$V, uv_max_abs_iter)) &&
+					   is.finite(sigma_uv) && sigma_uv < 0.1) {
+						# if the innovation scale gets too tight, the conditional
+						# precision can become numerically brittle. retry with a
+						# small floor, but keep the sampled sigma_uv value.
+						UV_try <- tryCatch(
+							rUV_dynamic_bip_fc_cpp(U_cube, V_cube, E, G,
+							                       rho_uv, 0.1, s2),
+							error = function(e) NULL
+						)
+					}
 
 					if(!is.null(UV_try) &&
-						   all(is.finite(UV_try$U)) && all(is.finite(UV_try$V))) {
+						   .lame_uv_ok(UV_try$U, UV_try$V, uv_max_abs_iter)) {
 						U_cube <- UV_try$U; V_cube <- UV_try$V
 						U <- apply(U_cube, c(1,2), mean)
 						V <- apply(V_cube, c(1,2), mean)
 					} else {
 						tryErrorChecks$UV <- tryErrorChecks$UV + 1
+						U_cube <- U_prev; V_cube <- V_prev
 						UV_try <- NULL  # ensure ar(1) guard treats this as failure
 					}
 
-					# ar(1) hyperparameter updates for bipartite: route through
-					# the same c++ samplers used by the unipartite path so the
-					# bipartite case picks up the user-set prior.
 					if(!is.null(UV_try) && s %% 10 == 0) {
 						pmean_uv <- prior$rho_uv_mean %||% 0.9
 						psd_uv   <- prior$rho_uv_sd   %||% 0.1
@@ -3683,20 +4057,27 @@ lame <- function(
 						                        symmetric = FALSE,
 						                        prior_mean = pmean_uv,
 						                        prior_sd   = psd_uv)
-						sigma_uv <- sample_sigma_uv(U_cube, V_cube, rho_uv,
-						                            symmetric = FALSE)
+						delta_none <- matrix(0, nrow(U_cube), dim(U_cube)[3L])
+						delta_none_v <- matrix(0, nrow(V_cube), dim(V_cube)[3L])
+						sigma_uv <- .lame_sample_sigma_uv_drift_only(
+							U_cube, V_cube, rho_uv, sigma_uv, FALSE,
+							delta_none, delta_none_v,
+							prior$sigma_uv_shape, prior$sigma_uv_scale
+						)
 					}
-					} else {
-						# unipartite dynamic uv update: ar(1) drift or snap-shift
-						if(identical(dynamic_uv_kind, "snap")) {
-							if(is.null(delta_uv)) { delta_uv <- matrix(0, n, N) }
-							if(is.null(delta_uv_v)) { delta_uv_v <- matrix(0, n, N) }
-							UV <- try(
-								rUV_dynamic_snap_fc_cpp(U_cube, V_cube, E, rho_uv, sigma_uv, s2,
-									prior$snap_kappa, pi_snap, delta_uv, delta_uv_v,
-									shrink, symmetric),
-								silent = FALSE)
-						} else if(identical(dynamic_uv_kind, "t")) {
+				} else {
+					U_prev <- U_cube
+					V_prev <- V_cube
+					uv_update_ok <- FALSE
+					if(identical(dynamic_uv_kind, "snap")) {
+						if(is.null(delta_uv)) { delta_uv <- matrix(0, n, N) }
+						if(is.null(delta_uv_v)) { delta_uv_v <- matrix(0, n, N) }
+						UV <- try(
+							rUV_dynamic_snap_fc_cpp(U_cube, V_cube, E, rho_uv, sigma_uv, s2,
+								prior$snap_kappa, pi_snap, delta_uv, delta_uv_v,
+								shrink, symmetric),
+							silent = FALSE)
+					} else if(identical(dynamic_uv_kind, "t")) {
 						UV <- try(
 							rUV_dynamic_t_fc_cpp(U_cube, V_cube, E, rho_uv, sigma_uv, s2,
 								prior$t_nu, lambda_u, lambda_v, shrink, symmetric),
@@ -3709,12 +4090,17 @@ lame <- function(
 					if(inherits(UV, 'try-error')){
 						UV <- list(U=U_cube, V=V_cube)
 						tryErrorChecks$UV<-tryErrorChecks$UV+1
+					} else if(!.lame_uv_ok(UV$U, UV$V, uv_max_abs_iter)) {
+						U_cube <- U_prev
+						V_cube <- V_prev
+						UV <- list(U=U_prev, V=V_prev)
+						tryErrorChecks$UV<-tryErrorChecks$UV+1
 					} else {
+						uv_update_ok <- TRUE
 						U_cube <- UV$U
 						V_cube <- UV$V
 						U <- apply(U_cube, c(1,2), mean)
 						V <- apply(V_cube, c(1,2), mean)
-						# snap indicators and beta-conjugate snap-rate update
 						if(identical(dynamic_uv_kind, "snap")) {
 							delta_uv <- UV$delta_u
 							delta_uv_v <- UV$delta_v
@@ -3730,42 +4116,46 @@ lame <- function(
 						}
 					}
 
-					# update ar(1) parameters (only if uv sampling succeeded). forward
-					# the user-set normal(rho_uv_mean, rho_uv_sd^2) prior to the c++
-					# sampler instead of the historical hard-coded n(0,1).
-						if(!inherits(UV, 'try-error') && s %% 10 == 0) {
-							pmean_uv <- prior$rho_uv_mean %||% 0.9
-							psd_uv   <- prior$rho_uv_sd   %||% 0.1
-							if(identical(dynamic_uv_kind, "snap") && !is.null(delta_uv)) {
-								rho_uv <- .lame_sample_rho_uv_drift_only(
-									U_cube, V_cube, sigma_uv, rho_uv, symmetric,
-									delta_uv, delta_uv_v,
-									prior_mean = pmean_uv, prior_sd = psd_uv
-								)
-								sigma_uv <- .lame_sample_sigma_uv_drift_only(
-									U_cube, V_cube, rho_uv, sigma_uv, symmetric,
-									delta_uv, delta_uv_v,
-									prior$sigma_uv_shape, prior$sigma_uv_scale
-								)
-							} else if(identical(dynamic_uv_kind, "t") && !is.null(lambda_u)) {
-								rho_uv <- .lame_sample_rho_uv_t_weighted(
-									U_cube, V_cube, sigma_uv, rho_uv, symmetric,
-									lambda_u, lambda_v,
-									prior_mean = pmean_uv, prior_sd = psd_uv
-								)
-								sigma_uv <- .lame_sample_sigma_uv_t_weighted(
-									U_cube, V_cube, rho_uv, sigma_uv, symmetric,
-									lambda_u, lambda_v,
-									prior$sigma_uv_shape, prior$sigma_uv_scale
-								)
-							} else {
-								rho_uv <- sample_rho_uv(U_cube, V_cube, sigma_uv, rho_uv,
-								                        symmetric,
-								                        prior_mean = pmean_uv,
-								                        prior_sd   = psd_uv)
-								sigma_uv <- sample_sigma_uv(U_cube, V_cube, rho_uv, symmetric)
-							}
+					if(isTRUE(uv_update_ok) && s %% 10 == 0) {
+						pmean_uv <- prior$rho_uv_mean %||% 0.9
+						psd_uv   <- prior$rho_uv_sd   %||% 0.1
+						if(identical(dynamic_uv_kind, "snap") && !is.null(delta_uv)) {
+							rho_uv <- .lame_sample_rho_uv_drift_only(
+								U_cube, V_cube, sigma_uv, rho_uv, symmetric,
+								delta_uv, delta_uv_v,
+								prior_mean = pmean_uv, prior_sd = psd_uv
+							)
+							sigma_uv <- .lame_sample_sigma_uv_drift_only(
+								U_cube, V_cube, rho_uv, sigma_uv, symmetric,
+								delta_uv, delta_uv_v,
+								prior$sigma_uv_shape, prior$sigma_uv_scale
+							)
+						} else if(identical(dynamic_uv_kind, "t") && !is.null(lambda_u)) {
+							rho_uv <- .lame_sample_rho_uv_t_weighted(
+								U_cube, V_cube, sigma_uv, rho_uv, symmetric,
+								lambda_u, lambda_v,
+								prior_mean = pmean_uv, prior_sd = psd_uv
+							)
+							sigma_uv <- .lame_sample_sigma_uv_t_weighted(
+								U_cube, V_cube, rho_uv, sigma_uv, symmetric,
+								lambda_u, lambda_v,
+								prior$sigma_uv_shape, prior$sigma_uv_scale
+							)
+						} else {
+							rho_uv <- sample_rho_uv(U_cube, V_cube, sigma_uv, rho_uv,
+							                        symmetric,
+							                        prior_mean = pmean_uv,
+							                        prior_sd   = psd_uv)
+							delta_none <- matrix(0, nrow(U_cube), dim(U_cube)[3L])
+							delta_none_v <- if (symmetric) NULL else
+								matrix(0, nrow(V_cube), dim(V_cube)[3L])
+							sigma_uv <- .lame_sample_sigma_uv_drift_only(
+								U_cube, V_cube, rho_uv, sigma_uv, symmetric,
+								delta_none, delta_none_v,
+								prior$sigma_uv_shape, prior$sigma_uv_scale
+							)
 						}
+					}
 				}
 			} else {
 				# standard static uv update
@@ -3842,15 +4232,16 @@ lame <- function(
 													 s2/dim(E)[3], shrink, symLoopIDs[[s]]-1), silent=TRUE )
 					if(inherits(UV, 'try-error')){ UV <- list(U=U,V=V) ; tryErrorChecks$UV<-tryErrorChecks$UV+1 }
 					U<-UV$U ; V<-UV$V
-				} else if(!symmetric) {
-					UV <- try(
-						rUV_rep_fc_cpp(E, U, V, rho, s2,
-													 mhalf(solve(matrix(c(1,rho,rho,1),2,2)*s2)),
-													 maxmargin=1e-6, shrink, asymLoopIDs[[s]]-1 ), silent = TRUE )
-					if(inherits(UV, 'try-error')){
-						UV <- try(rUV_rep_fc(E, U, V, rho, s2, shrink), silent = TRUE)
-						if(inherits(UV, 'try-error')){ UV <- list(U=U,V=V) ; tryErrorChecks$UV<-tryErrorChecks$UV+1 }
-					}
+					} else if(!symmetric) {
+						rho_eff <- .lame_rho_scalar(rho)
+						UV <- try(
+							rUV_rep_fc_cpp(E, U, V, rho_eff, s2,
+														 mhalf(solve(matrix(c(1,rho_eff,rho_eff,1),2,2)*s2)),
+														 maxmargin=1e-6, shrink, asymLoopIDs[[s]]-1 ), silent = TRUE )
+						if(inherits(UV, 'try-error')){
+							UV <- try(rUV_rep_fc(E, U, V, rho_eff, s2, shrink), silent = TRUE)
+							if(inherits(UV, 'try-error')){ UV <- list(U=U,V=V) ; tryErrorChecks$UV<-tryErrorChecks$UV+1 }
+						}
 					U<-UV$U ; V<-UV$V
 				}
 			}
@@ -3909,14 +4300,30 @@ lame <- function(
 					# reporting.
 					G <- apply(G_cube, c(1, 2), mean)
 				} else {
+					G_prev <- G
+					if(is.null(G_prev) || length(G_prev) == 0L ||
+					   is.null(dim(G_prev)) ||
+					   !all(dim(G_prev) == c(RA, RB)) || !all(is.finite(G_prev))) {
+						G_prev <- if(RA > 0 && RB > 0) {
+							diag(min(RA, RB), RA, RB)
+						} else {
+							matrix(0, max(1L, RA), max(1L, RB))
+						}
+					}
 					G_new <- tryCatch(
 						sample_G_bip_cpp(E, U_3d, V_3d, lambdaG = 1.0, s2 = rep(s2, N)),
 						error = function(e) {
 							tryErrorChecks$G <<- tryErrorChecks$G + 1L
-							G
+							G_prev
 						}
 					)
-					G <- G_new
+					if(!is.null(G_new) && all(dim(G_new) == c(RA, RB)) &&
+					   all(is.finite(G_new))) {
+						G <- G_new
+					} else {
+						G <- G_prev
+						tryErrorChecks$G <- tryErrorChecks$G + 1L
+					}
 				}
 			}
 		}
@@ -4044,24 +4451,28 @@ lame <- function(
 			}
 
 			# store beta and vc - asymmetric case
-			if(!symmetric){
-				if (beta_dyn$any) {
-					BETA[iter, , ] <- t(beta_path_now_store)  # p x t slot
-				} else {
-					BETA[iter,]<-beta
+				if(!symmetric){
+					if (beta_dyn$any) {
+						BETA[iter, , ] <- t(beta_path_now_store)  # p x t slot
+					} else {
+						BETA[iter,]<-beta
+					}
+					rho_store <- if (isTRUE(dynamic_rho)) mean(rho, na.rm = TRUE) else rho
+					VC[iter,]<- c(Sab[upper.tri(Sab, diag = T)], rho_store,s2)
 				}
-				VC[iter,]<- c(Sab[upper.tri(Sab, diag = T)], rho,s2)
-			}
 
 			# store dynamic parameters
 			if(dynamic_ab && !is.null(rho_ab)) {
 				RHO_AB[iter] <- rho_ab
 				if (!is.null(sigma_ab)) SIGMA_AB[iter] <- sigma_ab
 			}
-			if(dynamic_uv && !is.null(rho_uv)) {
-				RHO_UV[iter] <- rho_uv
-				if (!is.null(sigma_uv)) SIGMA_UV[iter] <- sigma_uv
-			}
+				if(dynamic_uv && !is.null(rho_uv)) {
+					RHO_UV[iter] <- rho_uv
+					if (!is.null(sigma_uv)) SIGMA_UV[iter] <- sigma_uv
+				}
+				if (isTRUE(dynamic_rho) && !is.null(RHO)) {
+					RHO[iter, ] <- .lame_expand_rho(rho, N)
+				}
 			if(dynamic_uv && identical(dynamic_uv_kind, "snap") && !is.null(pi_snap)) {
 				PI_SNAP[iter] <- pi_snap
 			}
@@ -4105,9 +4516,9 @@ lame <- function(
 					# fit$log_lik_meta if it exists; otherwise default 0.
 					ll_row <- .pointwise_loglik_observed_ghk_rank(
 						y_obs = y_obs, ez_obs = ez_obs,
-						z_obs = Z[obs_idx], obs_idx = obs_idx,
-						family = family, s2 = s2,
-						dyad_rho = if (is.null(rho)) 0 else rho,
+							z_obs = Z[obs_idx], obs_idx = obs_idx,
+							family = family, s2 = s2,
+							dyad_rho = if (is.null(rho)) 0 else .lame_rho_scalar(rho),
 						halton_shift = .lame_log_lik_halton_shift %||% 0)
 				} else if (family == "normal") {
 					ll_row <- dnorm(y_obs, mean = ez_obs, sd = sqrt(s2), log = TRUE)
@@ -4168,6 +4579,11 @@ lame <- function(
 
 			# update posterior sums of random effects
 			if(.dyn_uv_has_rank && !is.null(U_cube) && !is.null(V_cube)) {
+				if (!.lame_uv_ok(U_cube, V_cube, Inf)) {
+					U_cube[!is.finite(U_cube)] <- 0
+					V_cube[!is.finite(V_cube)] <- 0
+					tryErrorChecks$UV <- tryErrorChecks$UV + 1L
+				}
 				U_SUM <- U_SUM + U_cube
 				V_SUM <- V_SUM + V_cube
 				if(exists("U_SUM_SQ")) { U_SUM_SQ <- U_SUM_SQ + U_cube^2 }
@@ -4234,17 +4650,18 @@ lame <- function(
 			if(!bip) {
 				# reuse ez from earlier in the iteration
 				dimnames(EZ) <- dimnames(Y)
-				Ys <- EZ*0
-				for (t in 1:N) {
-					if(symmetric){ EZ[,,t]<-(EZ[,,t]+t(EZ[,,t]))/2 }
-					
-					if(family=="binary"){ Ys[,,t]<-simY_bin(EZ[,,t],rho) }
-					if(family=="cbin"){ Ys[,,t]<-1*(simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t])>0)}
-					if(family=="frn"){ Ys[,,t]<-simY_frn(EZ[,,t],rho,odmax,YO=Y[,,t]) }
-					if(family=="rrl"){ Ys[,,t]<-simY_rrl(EZ[,,t],rho,odobs,YO=Y[,,t] ) }
-					if(family=="normal"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho,s2) }
-					if(family=="tobit"){ Ys[,,t]<-simY_tob(EZ[,,t],rho,s2) }
-					if(family=="ordinal"){ Ys[,,t]<-simY_ord(EZ[,,t],rho,Y[,,t]) }
+					Ys <- EZ*0
+					for (t in 1:N) {
+						if(symmetric){ EZ[,,t]<-(EZ[,,t]+t(EZ[,,t]))/2 }
+						rho_t <- if (isTRUE(dynamic_rho)) .lame_rho_at(rho, t) else rho
+						
+						if(family=="binary"){ Ys[,,t]<-simY_bin(EZ[,,t],rho_t) }
+						if(family=="cbin"){ Ys[,,t]<-1*(simY_frn(EZ[,,t],rho_t,odmax,YO=Y[,,t])>0)}
+						if(family=="frn"){ Ys[,,t]<-simY_frn(EZ[,,t],rho_t,odmax,YO=Y[,,t]) }
+						if(family=="rrl"){ Ys[,,t]<-simY_rrl(EZ[,,t],rho_t,odobs,YO=Y[,,t] ) }
+						if(family=="normal"){ Ys[,,t]<-simY_nrm(EZ[,,t],rho_t,s2) }
+						if(family=="tobit"){ Ys[,,t]<-simY_tob(EZ[,,t],rho_t,s2) }
+						if(family=="ordinal"){ Ys[,,t]<-simY_ord(EZ[,,t],rho_t,Y[,,t]) }
 					if(family=="poisson"){
 						# route through the exposure-aware simulate when
 						# exposures are non-trivial; otherwise the unscaled
@@ -4376,10 +4793,12 @@ lame <- function(
 														 dynamic_beta = beta_dyn$any,
 														 beta_dynamic_mask = beta_dyn$mask,
 														 beta_dynamic_groups = beta_dyn$groups,
-														 rho_beta   = rho_beta_by_group,
-														 sigma_beta = sigma_beta_by_group,
-														 RHO_BETA   = RHO_BETA,
-														 SIGMA_BETA = SIGMA_BETA)
+															 rho_beta   = rho_beta_by_group,
+															 sigma_beta = sigma_beta_by_group,
+															 RHO_BETA   = RHO_BETA,
+															 SIGMA_BETA = SIGMA_BETA,
+															 dynamic_rho = dynamic_rho,
+															 RHO = if (isTRUE(dynamic_rho)) RHO[seq_len(iter), , drop = FALSE] else NULL)
 				save(fit, file=out_file) ; rm(list=c('fit','start_vals'))
 			}
 			
@@ -4403,10 +4822,12 @@ lame <- function(
 																		 model.name=model.name, U=current_U, V=current_V,
 																		 dynamic_uv=dynamic_uv, dynamic_ab=dynamic_ab, bip=bip,
 																		 rho_ab=if(dynamic_ab) RHO_AB[1:iter] else NULL,
-																		 rho_uv=if(dynamic_uv) RHO_UV[1:iter] else NULL,
-																		 family=family, odmax=odmax, nA=if(bip) nA else NULL,
-																		 nB=if(bip) nB else NULL, n_time=N,
-																		 G=if(bip) G else NULL)
+																			 rho_uv=if(dynamic_uv) RHO_UV[1:iter] else NULL,
+																			 family=family, odmax=odmax, nA=if(bip) nA else NULL,
+																			 nB=if(bip) nB else NULL, n_time=N,
+																			 G=if(bip) G else NULL,
+																			 dynamic_rho = dynamic_rho,
+																			 RHO = if (isTRUE(dynamic_rho)) RHO[1:iter, , drop = FALSE] else NULL)
 					class(temp_fit) <- "lame"
 					suppressMessages(plot(temp_fit, which=c(1,2), pages="single"))
 				}, silent=TRUE)
@@ -4496,14 +4917,40 @@ lame <- function(
 	}
 
 	# save start_vals for future model runs
+	if(.dyn_uv_has_rank && !.lame_uv_ok(U_cube, V_cube, Inf)) {
+		U_cube[!is.finite(U_cube)] <- 0
+		V_cube[!is.finite(V_cube)] <- 0
+		tryErrorChecks$UV <- tryErrorChecks$UV + 1L
+	}
 	if(dynamic_ab) {
-		start_vals <- list( Z=Z, beta=beta, a=a_mat, b=b_mat, U=U, V=V, rho=rho, s2=s2, Sab=Sab,
-											rho_ab=rho_ab, sigma_ab=sigma_ab)
+		if (exists("a_mat") && any(!is.finite(a_mat))) {
+			a_mat[!is.finite(a_mat)] <- 0
+			tryErrorChecks$ab <- tryErrorChecks$ab + 1L
+		}
+		if (exists("b_mat") && any(!is.finite(b_mat))) {
+			b_mat[!is.finite(b_mat)] <- 0
+			tryErrorChecks$ab <- tryErrorChecks$ab + 1L
+		}
+	}
+	if(.dyn_uv_has_rank && dynamic_ab) {
+		start_vals <- list(Z=Z, beta=beta, a=a_mat, b=b_mat,
+		                   U=U_cube, V=V_cube, rho=rho, s2=s2, Sab=Sab,
+		                   rho_uv=rho_uv, sigma_uv=sigma_uv,
+		                   rho_ab=rho_ab, sigma_ab=sigma_ab)
+	} else if(.dyn_uv_has_rank) {
+		start_vals <- list(Z=Z, beta=beta, a=a, b=b,
+		                   U=U_cube, V=V_cube, rho=rho, s2=s2, Sab=Sab,
+		                   rho_uv=rho_uv, sigma_uv=sigma_uv)
+	} else if(dynamic_ab) {
+		start_vals <- list(Z=Z, beta=beta, a=a_mat, b=b_mat,
+		                   U=U, V=V, rho=rho, s2=s2, Sab=Sab,
+		                   rho_ab=rho_ab, sigma_ab=sigma_ab)
 	} else {
-		start_vals <- list( Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab)
+		start_vals <- list(Z=Z, beta=beta, a=a, b=b,
+		                   U=U, V=V, rho=rho, s2=s2, Sab=Sab)
 	}
 	# store g in start_vals for bipartite
-	if(bip && !is.null(G)) start_vals$G <- G
+	if(bip && !is.null(G)) start_vals$G <- if(isTRUE(dynamic_G) && !is.null(G_cube)) G_cube else G
 	
 	if(!is.null(model.name)) {
 		# count effective parameters
@@ -4553,9 +5000,11 @@ lame <- function(
 											 beta_dynamic_mask = beta_dyn$mask,
 											 beta_dynamic_groups = beta_dyn$groups,
 											 rho_beta   = rho_beta_by_group,
-											 sigma_beta = sigma_beta_by_group,
-											 RHO_BETA   = RHO_BETA,
-											 SIGMA_BETA = SIGMA_BETA)
+												 sigma_beta = sigma_beta_by_group,
+												 RHO_BETA   = RHO_BETA,
+												 SIGMA_BETA = SIGMA_BETA,
+												 dynamic_rho = dynamic_rho,
+												 RHO = RHO)
 	# attach the log-likelihood matrix so loo.lame() can find it
 	if (!is.null(LOG_LIK)) {
 		fit$log_lik <- LOG_LIK
@@ -4774,7 +5223,6 @@ lame <- function(
 
 	####
 	# scalar typing hygiene
-	if (!is.null(fit$RHO)) fit$RHO <- as.numeric(fit$RHO)
 	if (!is.null(fit$s2))  fit$s2  <- as.numeric(fit$s2)
 	####
 

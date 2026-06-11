@@ -338,7 +338,7 @@ if (!is.null(fit_dynG$G_cube_post_mean)) {
 }
 ```
 
-If the Frobenius norms across periods are nearly identical (and the static-G fit GOF is comparable), there is no real evidence of time-varying interaction structure and you should stick with `dynamic_G = FALSE`. If they drift substantially and the static-G fit shows worse GOF coverage, the time-varying $G_t$ is doing meaningful work. The rotation-drift diagnostic is the second sanity check: if the ratio is above ~5, the apparent variation across $G_t$ slices is mostly U/V rotation rather than real temporal change, and the canonical reporting in `G_cube_post_mean` is the honest summary.
+If the Frobenius norms across periods are nearly identical (and the static-G fit GOF is comparable), there is no real evidence of time-varying interaction structure and you should stick with `dynamic_G = FALSE`. If they drift substantially and the static-G fit shows worse GOF coverage, the time-varying $G_t$ is doing meaningful work. The rotation-drift diagnostic is the second sanity check: if the ratio is above ~5, the apparent variation across $G_t$ slices is mostly U/V rotation rather than real temporal change, and the canonical reporting in `G_cube_post_mean` is the right summary.
 
 ### Visualizing Temporal Evolution
 

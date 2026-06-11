@@ -43,6 +43,10 @@
 #' @param RHO_BETA matrix of per-iteration rho_beta draws (rows = MCMC draw,
 #'   cols = dynamic block).
 #' @param SIGMA_BETA matrix of per-iteration sigma_beta draws.
+#' @param dynamic_rho logical indicating whether residual dyadic reciprocity
+#'   varies by period.
+#' @param RHO matrix of per-iteration, per-period dyadic reciprocity draws.
+#' @param rho_path numeric vector of period-specific dyadic reciprocity values.
 #' @return Fitted AME object
 #' @author Shahryar Minhas
 #' @export get_fit_object
@@ -59,8 +63,9 @@ get_fit_object <- function(
 	Y_obs=NULL, G=NULL,
 	dynamic_beta=FALSE,
 	beta_dynamic_mask=NULL, beta_dynamic_groups=NULL,
-	rho_beta=NULL, sigma_beta=NULL,
-	RHO_BETA=NULL, SIGMA_BETA=NULL
+		rho_beta=NULL, sigma_beta=NULL,
+		RHO_BETA=NULL, SIGMA_BETA=NULL,
+		dynamic_rho=FALSE, RHO=NULL, rho_path=NULL
 ){
 	# detect 3-d beta (= dynamic_beta path). when 3-d, the per-period
 	# posterior-mean beta is apply(beta, c(2,3), mean) (p x t); the time-mean
@@ -412,28 +417,35 @@ get_fit_object <- function(
 			YPM=YPM,GOF=GOF, start_vals=start_vals, tryErrorChecks=tryErrorChecks,
 			model.name=model.name, family=family, symmetric=symmetric, odmax=odmax,
 			mode=if(bip) "bipartite" else "unipartite")
-		if(dynamic_ab && is.matrix(APM)) {
-			fit$a_dynamic <- APM
-			fit$APM <- APM_avg
+			if(dynamic_ab && is.matrix(APM)) {
+				fit$a_dynamic <- APM
+				fit$APM <- APM_avg
+			}
+			if(!is.null(rho_ab)) fit$rho_ab <- rho_ab
+			if(!is.null(rho_uv)) fit$rho_uv <- rho_uv
 		}
-		if(!is.null(rho_ab)) fit$rho_ab <- rho_ab
-		if(!is.null(rho_uv)) fit$rho_uv <- rho_uv
-	}
 	if(!symmetric){
 		fit <- list(
 			BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,UVPM=UVPM,EZ=EZ,
 			YPM=YPM,GOF=GOF, start_vals=start_vals, tryErrorChecks=tryErrorChecks,
 			model.name=model.name, family=family, symmetric=symmetric, odmax=odmax,
 			mode=if(bip) "bipartite" else "unipartite")
-		if(dynamic_ab && is.matrix(APM)) {
-			fit$a_dynamic <- APM
-			fit$b_dynamic <- BPM
-			fit$APM <- APM_avg
-			fit$BPM <- BPM_avg
+			if(dynamic_ab && is.matrix(APM)) {
+				fit$a_dynamic <- APM
+				fit$b_dynamic <- BPM
+				fit$APM <- APM_avg
+				fit$BPM <- BPM_avg
+			}
+			if(!is.null(rho_ab)) fit$rho_ab <- rho_ab
+			if(!is.null(rho_uv)) fit$rho_uv <- rho_uv
 		}
-		if(!is.null(rho_ab)) fit$rho_ab <- rho_ab
-		if(!is.null(rho_uv)) fit$rho_uv <- rho_uv
-	}
+		fit$dynamic_rho <- isTRUE(dynamic_rho)
+		if (!is.null(RHO)) {
+			fit$RHO <- RHO
+			fit$rho_path <- colMeans(RHO, na.rm = TRUE)
+		} else if (!is.null(rho_path)) {
+			fit$rho_path <- rho_path
+		}
 	if(!is.null(Y_obs)) fit$Y <- Y_obs
 	if(bip) {
 		fit$nA <- nA

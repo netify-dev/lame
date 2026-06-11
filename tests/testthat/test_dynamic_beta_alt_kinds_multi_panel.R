@@ -54,7 +54,7 @@ test_that("log_lik_method default is observed_exact", {
 	expect_identical(fit$log_lik_method, "observed_exact")
 })
 
-test_that("log_lik_method = 'observed_ghk' emits the bias-caveat note", {
+test_that("log_lik_method = 'observed_ghk' emits the bias note", {
 	expect_message(.fit_dynamic_beta_alt(ll_method = "observed_ghk", suppress_messages = FALSE),
 	               "biased downward")
 })

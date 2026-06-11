@@ -103,8 +103,8 @@ evaluate_heldout <- function(y_obs, y_pred, mask, family = "binary") {
 		rmse <- sqrt(mean(err^2))
 		mae <- mean(abs(err))
 		# crude mean log-density using residual sd; the real fit-level s2 is
-		# unknown to this helper. reported with the caveat that it's a rough
-		# approximation in family = "normal" / "tobit" mode.
+		# unknown to this helper, so this is only a rough approximation in
+		# family = "normal" / "tobit" mode.
 		sd_resid <- max(stats::sd(err), 1e-8)
 		mean_logdens <- mean(stats::dnorm(y, mean = p, sd = sd_resid, log = TRUE))
 		return(data.frame(n_eval = n_eval, rmse = rmse, mae = mae,

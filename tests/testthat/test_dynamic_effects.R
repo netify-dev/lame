@@ -548,6 +548,60 @@ test_that("combined dynamic_ab + dynamic_uv runs", {
 	}
 })
 
+test_that("bipartite binary dynamic_ab plus dynamic_uv stays finite", {
+	skip_on_cran()
+
+	set.seed(123)
+	n_users = 15
+	n_items = 12
+	n_periods = 5
+	R = 2
+	true_rho = 0.9
+
+	U_array = array(0, dim = c(n_users, R, n_periods))
+	V_array = array(0, dim = c(n_items, R, n_periods))
+	U_array[, , 1] = matrix(rnorm(n_users * R), n_users, R)
+	V_array[, , 1] = matrix(rnorm(n_items * R), n_items, R)
+	for(t in 2:n_periods) {
+		U_array[, , t] = true_rho * U_array[, , t-1] +
+			sqrt(1 - true_rho^2) * matrix(rnorm(n_users * R), n_users, R)
+		V_array[, , t] = true_rho * V_array[, , t-1] +
+			sqrt(1 - true_rho^2) * matrix(rnorm(n_items * R), n_items, R)
+	}
+
+	G_long = diag(c(1.2, -0.8), R)
+	Y_list = vector("list", n_periods)
+	for(t in 1:n_periods) {
+		eta = U_array[, , t] %*% G_long %*% t(V_array[, , t])
+		prob = pnorm(eta)
+		Y_list[[t]] = matrix(rbinom(n_users * n_items, 1, as.vector(prob)),
+		                     n_users, n_items)
+	}
+
+	fit = lame(
+		Y = Y_list, mode = "bipartite", R_row = 2, R_col = 2,
+		family = "binary", dynamic_uv = TRUE, dynamic_ab = TRUE,
+		burn = 100, nscan = 500, odens = 5,
+		verbose = FALSE, gof = FALSE,
+		seed = 6886
+	)
+
+	expect_s3_class(fit, "lame")
+	expect_true(all(is.finite(fit$U)))
+	expect_true(all(is.finite(fit$V)))
+	expect_true(all(is.finite(fit$VC)))
+	expect_true(all(is.finite(fit$sigma_uv)))
+	expect_true(all(is.finite(fit$sigma_ab)))
+	expect_true(all(is.finite(fit$start_vals$U)))
+	expect_true(all(is.finite(fit$start_vals$V)))
+	expect_true(all(is.finite(fit$G)))
+	expect_true(all(is.finite(fit$start_vals$G)))
+	total_iters = 600
+	expect_lt(fit$tryErrorChecks$UV, 0.05 * total_iters)
+	expect_lt(fit$tryErrorChecks$G, 0.05 * total_iters)
+	expect_equal(fit$tryErrorChecks$ab, 0)
+})
+
 # rho parameter properties
 
 test_that("rho parameters are properly bounded", {

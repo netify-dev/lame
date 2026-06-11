@@ -138,7 +138,7 @@ MCMC fits. The current coverage is:
 
 When you call the unified front door with MCMC-only arguments, the ALS
 dispatcher warns and lists exactly which ones it ignored -- for the
-arguments each entry point actually accepts. Two caveats on the edges:
+arguments each entry point actually accepts. Two notes on the edges:
 
 - `nscan` / `burn` / `odens` / `g` are accepted-then-ignored with a warning
   by both `ame(method = "als")` and `lame(method = "als")`.

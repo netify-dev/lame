@@ -21,17 +21,18 @@ of \code{nsim} simulated outcome arrays (one matrix for a cross-section,
 one list-of-matrices per slice for a longitudinal fit).
 }
 \description{
-Posterior-predictive equivalent for the fast ALS estimator: draws \code{nsim}
-replicates of \code{Y} from the parametric model implied by the fitted
+Draws \code{nsim} replicates of \code{Y} from the fitted ALS mean structure:
 \code{mu}, \code{beta}, \code{a}, \code{b}, \code{U}, \code{V}, and the
-family-appropriate noise distribution. Returned object has class
+family-appropriate noise distribution. For directed unipartite normal and
+binary fits, reciprocal dyads use the fitted residual \code{rho}. The returned
+object has class
 \code{"ame.sim"} so it is compatible with \code{plot_ppc_*}-style consumers
 (where applicable).
 }
 \details{
-Caveat: ALS is a point estimator. \code{simulate.ame_als} therefore holds
-\code{mu, beta, a, b, U, V} at the point estimate and only the
-noise is resampled. For uncertainty over the parameters themselves use
+ALS is a point estimator. \code{simulate.ame_als} holds
+\code{mu, beta, a, b, U, V} at the point estimate and resamples the noise.
+For uncertainty over the parameters themselves, use
 \code{\link{ame_als_bootstrap}} (whose replicates each carry their own
-resampled \code{Y}) and combine those.
+resampled \code{Y}) and combine those simulations.
 }

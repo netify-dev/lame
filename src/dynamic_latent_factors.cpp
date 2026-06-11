@@ -6,6 +6,37 @@
 using namespace Rcpp;
 using namespace arma;
 
+static void balance_dynamic_uv_scale(arma::cube& U, arma::cube& V, bool symmetric) {
+  if(symmetric) {
+    V = U;
+    return;
+  }
+
+  const int R = U.n_cols;
+  const int T = U.n_slices;
+  for(int r = 0; r < R; r++) {
+    double ss_u = 0.0;
+    double ss_v = 0.0;
+    for(int t = 0; t < T; t++) {
+      ss_u += arma::dot(U.slice(t).col(r), U.slice(t).col(r));
+      ss_v += arma::dot(V.slice(t).col(r), V.slice(t).col(r));
+    }
+    if(ss_u <= 1e-24 || ss_v <= 1e-24 ||
+       !std::isfinite(ss_u) || !std::isfinite(ss_v)) {
+      continue;
+    }
+
+    double scale = std::pow(ss_v / ss_u, 0.25);
+    if(!std::isfinite(scale)) continue;
+    scale = std::max(1e-6, std::min(1e6, scale));
+
+    for(int t = 0; t < T; t++) {
+      U.slice(t).col(r) *= scale;
+      V.slice(t).col(r) /= scale;
+    }
+  }
+}
+
 //' Update dynamic latent positions using AR(1) process
 //'
 //' @param U_current Current 3D array of U positions (n x R x T)
@@ -147,6 +178,8 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
     }
   }
 
+  balance_dynamic_uv_scale(U_new, V_new, symmetric);
+
   return List::create(Named("U") = U_new, Named("V") = V_new);
 }
 
@@ -197,8 +230,6 @@ double sample_rho_uv(const arma::cube& U_cube, const arma::cube& V_cube,
                      double sigma_uv, double rho_current, bool symmetric,
                      double prior_mean = 0.0, double prior_sd = 1.0) {
 
-  const int n = U_cube.n_rows;
-  const int R = U_cube.n_cols;
   const int T = U_cube.n_slices;
 
   double sum_yt_yt1 = 0.0;
@@ -478,6 +509,8 @@ List rUV_dynamic_snap_fc_cpp(arma::cube U_current, arma::cube V_current,
     }
   }
 
+  balance_dynamic_uv_scale(U_new, V_new, symmetric);
+
   return List::create(Named("U") = U_new, Named("V") = V_new,
                       Named("delta_u") = delta_u, Named("delta_v") = delta_v);
 }
@@ -631,6 +664,8 @@ List rUV_dynamic_t_fc_cpp(arma::cube U_current, arma::cube V_current,
       }
     }
   }
+
+  balance_dynamic_uv_scale(U_new, V_new, symmetric);
 
   return List::create(Named("U") = U_new, Named("V") = V_new,
                       Named("lambda_u") = lambda_u_new, Named("lambda_v") = lambda_v_new);

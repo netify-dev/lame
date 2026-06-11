@@ -329,9 +329,15 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 			warning("No posterior predictive samples available for GOF plots")
 			next
 		}
+
+		pred_stat <- as.numeric(pred_vals[, stat_col])
+		pred_stat <- pred_stat[is.finite(pred_stat)]
+		if (length(pred_stat) == 0L || !is.finite(obs_vals[stat_col])) {
+			next
+		}
 		
 		df <- data.frame(
-			value = as.vector(pred_vals[, stat_col]),
+			value = pred_stat,
 			statistic = stat,
 			stringsAsFactors = FALSE
 		)
@@ -370,9 +376,11 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 
 	####
 
-	if (length(plot_list) == 1) {
-		p <- plot_list[[1]]
-	} else {
+		if (length(plot_list) == 0L) {
+			cli::cli_abort("No finite GOF values are available to plot.")
+		} else if (length(plot_list) == 1) {
+			p <- plot_list[[1]]
+		} else {
 		if (requireNamespace("patchwork", quietly = TRUE)) {
 			p <- patchwork::wrap_plots(plot_list, ncol = ncol)
 		} else if (requireNamespace("gridExtra", quietly = TRUE)) {
@@ -455,29 +463,47 @@ gof_plot_longitudinal <- function(
 	n_time <- length(gof_data)
 	plot_data <- data.frame()
 	
-	for (t in 1:n_time) {
-		gof_t <- gof_data[[t]]
-		obs_t <- gof_t[1, ]
-		pred_t <- gof_t[-1, , drop = FALSE]
-		
-		for (stat in statistics) {
-			stat_col <- stat.names[stat]
+		for (t in 1:n_time) {
+			gof_t <- gof_data[[t]]
+			obs_t <- gof_t[1, ]
+			pred_t <- gof_t[-1, , drop = FALSE]
 
-			plot_data <- rbind(plot_data, data.frame(
-				time = t,
-				statistic = stat,
-				observed = obs_t[stat_col],
-				median = median(pred_t[, stat_col]),
-				lower = quantile(pred_t[, stat_col], alpha),
-				upper = quantile(pred_t[, stat_col], 1 - alpha),
-				stringsAsFactors = FALSE
-			))
+			for (stat in statistics) {
+				if (stat %in% names(stat.names)) {
+					stat_col <- stat.names[stat]
+				} else {
+					stat_col <- stat
+				}
+				if (!stat_col %in% colnames(gof_t)) {
+					next
+				}
+
+				pred_stat <- as.numeric(pred_t[, stat_col])
+				pred_stat <- pred_stat[is.finite(pred_stat)]
+				obs_val <- as.numeric(obs_t[stat_col])
+				if (length(pred_stat) == 0L || !is.finite(obs_val)) {
+					next
+				}
+
+				plot_data <- rbind(plot_data, data.frame(
+					time = t,
+					statistic = stat,
+					observed = obs_val,
+					median = median(pred_stat),
+					lower = quantile(pred_stat, alpha, names = FALSE),
+					upper = quantile(pred_stat, 1 - alpha, names = FALSE),
+					stringsAsFactors = FALSE
+				))
+			}
 		}
-	}
 
-	####
+		####
 
-	# apply display labels
+		if (nrow(plot_data) == 0L) {
+			cli::cli_abort("No finite GOF values are available to plot.")
+		}
+
+		# apply display labels
 	plot_data$statistic <- gof_label(plot_data$statistic)
 
 	# dual-encode the observed series (okabe-ito red + solid linetype with

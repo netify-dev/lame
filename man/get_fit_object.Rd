@@ -39,7 +39,10 @@ get_fit_object(
   rho_beta = NULL,
   sigma_beta = NULL,
   RHO_BETA = NULL,
-  SIGMA_BETA = NULL
+  SIGMA_BETA = NULL,
+  dynamic_rho = FALSE,
+  RHO = NULL,
+  rho_path = NULL
 )
 }
 \arguments{
@@ -119,6 +122,13 @@ standard deviations.}
 cols = dynamic block).}
 
 \item{SIGMA_BETA}{matrix of per-iteration sigma_beta draws.}
+
+\item{dynamic_rho}{logical indicating whether residual dyadic reciprocity
+varies by period.}
+
+\item{RHO}{matrix of per-iteration, per-period dyadic reciprocity draws.}
+
+\item{rho_path}{numeric vector of period-specific dyadic reciprocity values.}
 }
 \value{
 Fitted AME object

@@ -1,6 +1,11 @@
 # lame 1.2.0
 
 * Cleaned up ALS support and documentation.
+* Raised the `lame(method = "als")` iteration cap and exposed dynamic ALS
+  convergence component traces.
+* Stabilized dynamic-UV MCMC by normalizing the raw `U`/`V` coordinate scale,
+  centering additive row/column effects, pooling very sparse additive effects
+  toward the prior mean, and carrying ALS fits into MCMC with `als_start_vals()`.
 
 # lame 1.1.0
 

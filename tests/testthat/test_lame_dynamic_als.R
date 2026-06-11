@@ -24,6 +24,18 @@ test_that("lame method als fits Gaussian dynamic additive effects", {
 	expect_lt(max(abs(colMeans(fit$a_dynamic))), 1e-8)
 	expect_lt(max(abs(colMeans(fit$b_dynamic))), 1e-8)
 	expect_equal(length(fitted(fit)), Tt)
+	conv_trace = fit$diagnostics$convergence_trace
+	expect_s3_class(conv_trace, "data.frame")
+	expect_named(
+		conv_trace,
+		c("iter", "objective", "relative_objective_delta",
+		  "max_fitted_delta", "max_parameter_delta")
+	)
+	expect_equal(nrow(conv_trace), fit$iterations)
+	expect_equal(utils::tail(conv_trace$objective, 1L), fit$deviance)
+	expect_equal(fit$diagnostics$last_max_fitted_delta,
+	             utils::tail(conv_trace$max_fitted_delta, 1L))
+	expect_equal(fit$diagnostics$convergence_tolerance, 5e-5)
 })
 
 test_that("dynamic ALS fits symmetric dynamic additive effects", {
@@ -79,6 +91,113 @@ test_that("lame method als fits selected dynamic dyadic beta", {
 	expect_equal(length(dim(fit$BETA)), 3L)
 	expect_gt(diff(range(cf["trade_dyad", ])), 1)
 	expect_gt(stats::cor(cf["trade_dyad", ], beta_true), 0.95)
+})
+
+test_that("dynamic ALS can warm-start dynamic UV MCMC", {
+	set.seed(901)
+	n = 7L
+	Tt = 3L
+	R = 1L
+	actors = paste0("a", seq_len(n))
+	Y = vector("list", Tt)
+	for (t in seq_len(Tt)) {
+		u = sin(t / 2) * seq(-1, 1, length.out = n)
+		v = cos(t / 3) * rev(seq(-1, 1, length.out = n))
+		Yt = 0.1 + tcrossprod(matrix(u, ncol = 1), matrix(v, ncol = 1)) +
+			matrix(rnorm(n * n, 0, 0.2), n, n)
+		diag(Yt) = NA
+		rownames(Yt) = colnames(Yt) = actors
+		Y[[t]] = Yt
+	}
+	names(Y) = paste0("t", seq_len(Tt))
+
+	fit_als = lame(Y, family = "normal", R = R, dynamic_uv = TRUE,
+	               method = "als", verbose = FALSE)
+	start = als_start_vals(fit_als, jitter = 0.01, seed = 902)
+	fit_mcmc = lame(Y, family = "normal", R = R, dynamic_uv = TRUE,
+	                start_vals = start, nscan = 20, burn = 5, odens = 5,
+	                gof = FALSE, verbose = FALSE, seed = 903,
+	                prior = list(uv_max_abs = 10))
+
+	expect_s3_class(fit_mcmc, "lame")
+	expect_equal(dim(start$U), c(n, R, Tt))
+	expect_equal(dim(start$V), c(n, R, Tt))
+	expect_equal(dim(fit_mcmc$start_vals$U), c(n, R, Tt))
+	expect_equal(dim(fit_mcmc$start_vals$V), c(n, R, Tt))
+	expect_true("rho_uv" %in% names(fit_mcmc$start_vals))
+	expect_true("sigma_uv" %in% names(fit_mcmc$start_vals))
+	expect_lt(abs(mean(fit_mcmc$APM)), 1e-8)
+	expect_lt(abs(mean(fit_mcmc$BPM)), 1e-8)
+	expect_lte(max(abs(c(fit_mcmc$start_vals$U, fit_mcmc$start_vals$V))), 10)
+})
+
+test_that("dynamic ALS reports residual reciprocity for directed normal panels", {
+	set.seed(22)
+	n = 9L
+	Tt = 4L
+	rho_true = 0.5
+	Y = vector("list", Tt)
+	for (t in seq_len(Tt)) {
+		Yt = matrix(NA_real_, n, n)
+		a = seq(-0.7, 0.7, length.out = n) + rnorm(n, 0, 0.05)
+		b = rev(a) + rnorm(n, 0, 0.05)
+		for (i in seq_len(n - 1L)) {
+			for (j in (i + 1L):n) {
+				z1 = rnorm(1, 0, 0.25)
+				z2 = rnorm(1, 0, 0.25)
+				Yt[i, j] = 0.2 + a[i] + b[j] + z1
+				Yt[j, i] = 0.2 + a[j] + b[i] +
+					rho_true * z1 + sqrt(1 - rho_true^2) * z2
+			}
+		}
+		Y[[t]] = Yt
+	}
+
+	fit = lame(Y, family = "normal", R = 0, method = "als",
+	           dynamic_ab = TRUE, als_max_iter = 200,
+	           als_tol = 1e-4, verbose = FALSE, seed = 23)
+	start = als_start_vals(fit)
+
+	expect_true(isTRUE(fit$converged))
+	expect_true(is.finite(fit$VC["rho"]))
+	expect_gt(fit$VC["rho"], 0.25)
+	expect_equal(length(fit$rho_path), Tt)
+	expect_equal(unname(start$rho), unname(fit$rho_path))
+})
+
+test_that("dynamic rho MCMC stores a per-period reciprocity path", {
+	set.seed(30)
+	n = 8L
+	Tt = 5L
+	actors = paste0("n", seq_len(n))
+	rho_true = seq(0.1, 0.7, length.out = Tt)
+	Y = vector("list", Tt)
+	for (t in seq_len(Tt)) {
+		Yt = matrix(NA_real_, n, n, dimnames = list(actors, actors))
+		a = rnorm(n, 0, 0.3)
+		b = rnorm(n, 0, 0.3)
+		for (i in seq_len(n - 1L)) {
+			for (j in (i + 1L):n) {
+				z1 = rnorm(1, 0, 0.4)
+				z2 = rnorm(1, 0, 0.4)
+				Yt[i, j] = 0.1 + a[i] + b[j] + z1
+				Yt[j, i] = 0.1 + a[j] + b[i] +
+					rho_true[t] * z1 + sqrt(1 - rho_true[t]^2) * z2
+			}
+		}
+		Y[[t]] = Yt
+	}
+	names(Y) = paste0("t", seq_len(Tt))
+
+	fit = lame(Y, R = 1, family = "normal", dynamic_uv = TRUE,
+	           dynamic_rho = TRUE, nscan = 40, burn = 20,
+	           odens = 5, gof = TRUE, verbose = FALSE, seed = 31)
+
+	expect_true(isTRUE(fit$dynamic_rho))
+	expect_equal(dim(fit$RHO), c(8L, Tt))
+	expect_equal(length(fit$rho_path), Tt)
+	expect_equal(length(fit$start_vals$rho), Tt)
+	expect_true(all(is.finite(fit$rho_path)))
 })
 
 test_that("dynamic ALS fits symmetric dynamic dyadic beta", {

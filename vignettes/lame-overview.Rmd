@@ -518,7 +518,7 @@ closed-form pointwise log-likelihood (`normal`, `binary`, `cbin`,
 are directly comparable to a `loo()` result from a probit-link `brms`
 fit on the same data, modulo $\hat R$ and ESS being satisfactory on
 the `lame` Gibbs sampler. For `frn` and `rrl`, see the
-`log_lik_method = "observed_ghk"` caveat in
+`log_lik_method = "observed_ghk"` note in
 [Dynamic Effects](dynamic_effects.html#loo-waic-via-save_log_lik-true).
 
 ## Reproducibility: `sessionInfo()` and `renv.lock`

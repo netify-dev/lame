@@ -24,18 +24,19 @@ nobs.ame_als <- function(object, ...) {
 ####
 #' Simulate networks from a fitted ame_als model
 #'
-#' Posterior-predictive equivalent for the fast ALS estimator: draws \code{nsim}
-#' replicates of \code{Y} from the parametric model implied by the fitted
+#' Draws \code{nsim} replicates of \code{Y} from the fitted ALS mean structure:
 #' \code{mu}, \code{beta}, \code{a}, \code{b}, \code{U}, \code{V}, and the
-#' family-appropriate noise distribution. Returned object has class
+#' family-appropriate noise distribution. For directed unipartite normal and
+#' binary fits, reciprocal dyads use the fitted residual \code{rho}. The returned
+#' object has class
 #' \code{"ame.sim"} so it is compatible with \code{plot_ppc_*}-style consumers
 #' (where applicable).
 #'
-#' Caveat: ALS is a point estimator. \code{simulate.ame_als} therefore holds
-#' \code{mu, beta, a, b, U, V} at the point estimate and only the
-#' noise is resampled. For uncertainty over the parameters themselves use
+#' ALS is a point estimator. \code{simulate.ame_als} holds
+#' \code{mu, beta, a, b, U, V} at the point estimate and resamples the noise.
+#' For uncertainty over the parameters themselves, use
 #' \code{\link{ame_als_bootstrap}} (whose replicates each carry their own
-#' resampled \code{Y}) and combine those.
+#' resampled \code{Y}) and combine those simulations.
 #'
 #' @param object an \code{ame_als} fit.
 #' @param nsim integer; number of replicates to simulate (default 1).
@@ -58,6 +59,27 @@ simulate.ame_als <- function(object, nsim = 1, seed = NULL, ...) {
 	nr <- object$dims$n_row; nc <- object$dims$n_col
 	Tt <- object$n_time
 	family <- object$family
+	rho <- as.numeric(object$VC["rho"] %||% 0)
+	if (!is.finite(rho) || isTRUE(object$symmetric) ||
+	    identical(object$mode, "bipartite") || nr != nc) {
+		rho <- 0
+	}
+	rho <- max(min(rho, 0.999), -0.999)
+	draw_error <- function(sd = 1) {
+		E <- matrix(stats::rnorm(nr * nc, 0, sd), nr, nc)
+		if (abs(rho) > 1e-12) {
+			for (i in seq_len(nr - 1L)) {
+				for (j in (i + 1L):nr) {
+					z1 <- stats::rnorm(1)
+					z2 <- stats::rnorm(1)
+					E[i, j] <- sd * z1
+					E[j, i] <- sd * (rho * z1 + sqrt(1 - rho^2) * z2)
+				}
+			}
+		}
+		if (nr == nc) diag(E) <- NA_real_
+		E
+	}
 	# linear-predictor base per time slice
 	EZ_list <- vector("list", Tt)
 	for (t in seq_len(Tt)) {
@@ -70,12 +92,12 @@ simulate.ame_als <- function(object, nsim = 1, seed = NULL, ...) {
 	sim_list <- vector("list", nsim)
 	for (s in seq_len(nsim)) {
 		Yt_list <- vector("list", Tt)
-		for (t in seq_len(Tt)) {
-			EZ_t <- EZ_list[[t]]
-			Yt <- switch(family,
-				normal  = EZ_t + matrix(stats::rnorm(nr * nc, 0, sigma_e), nr, nc),
-				binary  = 1 * (EZ_t + matrix(stats::rnorm(nr * nc), nr, nc) > 0),
-				ordinal = EZ_t + matrix(stats::rnorm(nr * nc), nr, nc),
+			for (t in seq_len(Tt)) {
+				EZ_t <- EZ_list[[t]]
+				Yt <- switch(family,
+					normal  = EZ_t + draw_error(sigma_e),
+					binary  = 1 * (EZ_t + draw_error(1) > 0),
+					ordinal = EZ_t + draw_error(1),
 				poisson = matrix(stats::rpois(nr * nc, lambda = pmax(exp(EZ_t), 0)),
 				                  nr, nc),
 				EZ_t)
@@ -111,10 +133,9 @@ simulate.ame_als <- function(object, nsim = 1, seed = NULL, ...) {
 #' values.
 #'
 #' Uses \code{\link{simulate.ame_als}} for the replicates and is therefore
-#' subject to the same caveat: the noise is resampled, but the point estimates
-#' of \code{mu, beta, a, b, U, V} are held fixed. The MCMC \code{gof_plot.ame}
-#' integrates over the posterior of those parameters too, so the ALS GOF is a
-#' weaker check.
+#' conditional on the fitted point estimates: the noise is resampled, but
+#' \code{mu, beta, a, b, U, V} are held fixed. The MCMC \code{gof_plot.ame}
+#' also averages over posterior movement in those parameters.
 #'
 #' @param fit an \code{ame_als} fit.
 #' @param nsim integer; number of replicates (default 100).

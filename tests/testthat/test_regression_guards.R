@@ -88,6 +88,24 @@ test_that("uv_plot / autoplot give a clean message on an R = 0 fit", {
 	expect_error(uv_plot(fit0), "no multiplicative effects|R = 0")
 })
 
+test_that("gof_plot ignores missing longitudinal predictive draws", {
+	skip_if_not_installed("ggplot2")
+
+	gof_list = list(
+		sd.rowmean = matrix(c(1, 2, 3, 1.1, NA, 3.2, 0.9, NaN, 2.8),
+		                    nrow = 3, byrow = FALSE),
+		sd.colmean = matrix(c(1, 2, 3, 1.2, 1.8, NA, 0.8, 2.1, NaN),
+		                    nrow = 3, byrow = FALSE),
+		four.cycles = matrix(c(10, 12, 14, 11, NA, 15, 9, 13, NaN),
+		                     nrow = 3, byrow = FALSE)
+	)
+	fit = list(GOF = gof_list, mode = "bipartite")
+	class(fit) = c("lame", "ame")
+
+	p = gof_plot(fit)
+	expect_s3_class(p, "ggplot")
+})
+
 # the dynamic_beta divergence safeguard keeps coef() finite and warns on
 # near-separable sparse binary data, and leaves a well-identified normal fit
 # unaffected (the clip never binds).

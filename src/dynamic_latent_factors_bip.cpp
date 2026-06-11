@@ -5,6 +5,42 @@
 using namespace arma;
 using namespace Rcpp;
 
+static inline bool vec_is_finite(const arma::vec& x) {
+  return x.is_finite();
+}
+
+static inline void replace_nonfinite(arma::cube& x) {
+  arma::uvec bad = arma::find_nonfinite(x);
+  if(bad.n_elem > 0) x.elem(bad).zeros();
+}
+
+static inline void balance_dynamic_bip_uv_scale(arma::cube& U, arma::cube& V) {
+  const int R = std::min((int)U.n_cols, (int)V.n_cols);
+  const int T = std::min((int)U.n_slices, (int)V.n_slices);
+
+  for(int r = 0; r < R; r++) {
+    double ss_u = 0.0;
+    double ss_v = 0.0;
+    for(int t = 0; t < T; t++) {
+      ss_u += arma::dot(U.slice(t).col(r), U.slice(t).col(r));
+      ss_v += arma::dot(V.slice(t).col(r), V.slice(t).col(r));
+    }
+    if(ss_u <= 1e-24 || ss_v <= 1e-24 ||
+       !std::isfinite(ss_u) || !std::isfinite(ss_v)) {
+      continue;
+    }
+
+    double scale = std::pow(ss_v / ss_u, 0.25);
+    if(!std::isfinite(scale)) continue;
+    scale = std::max(1e-6, std::min(1e6, scale));
+
+    for(int t = 0; t < T; t++) {
+      U.slice(t).col(r) *= scale;
+      V.slice(t).col(r) /= scale;
+    }
+  }
+}
+
 // Fast 2x2 symmetric positive definite inverse (direct formula)
 // For R=2, this avoids LAPACK overhead entirely
 static inline arma::mat inv_sympd_small(const arma::mat& A) {
@@ -78,6 +114,14 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
   const int RB = V_cube.n_cols;
   const int T = U_cube.n_slices;
 
+  replace_nonfinite(U_cube);
+  replace_nonfinite(V_cube);
+  if(!G.is_finite() || !std::isfinite(rho_uv) ||
+     !std::isfinite(sigma_uv) || sigma_uv <= 0 ||
+     !std::isfinite(s2) || s2 <= 0) {
+    return List::create(Named("U") = U_cube, Named("V") = V_cube);
+  }
+
   // ar(1) prior terms need s2 scaling to match the s2-parameterized
   // posterior: prec = W'W + s2*(ar terms), var = s2 * inv(prec)
   const double sigma2_inv = 1.0 / (sigma_uv * sigma_uv);
@@ -101,6 +145,7 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
     arma::mat E_all_U = E_t * W_t;
 
     for(int i = 0; i < nA; i++) {
+      arma::rowvec old_row = U_cube.slice(t).row(i);
       arma::vec ei = E_all_U.row(i).t();
       arma::mat prec = WtW;
 
@@ -114,11 +159,20 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
       }
       prec.diag() += 1.0;
 
-      arma::mat iprec = inv_sympd_small(prec);
-      arma::vec mu_i = iprec * ei;
-      arma::mat ch = chol_lower_small(s2 * iprec);
-      arma::vec z(RA, fill::randn);
-      U_cube.slice(t).row(i) = (mu_i + ch * z).t();
+      try {
+        arma::mat iprec = inv_sympd_small(prec);
+        arma::vec mu_i = iprec * ei;
+        arma::mat ch = chol_lower_small(s2 * iprec);
+        arma::vec z(RA, fill::randn);
+        arma::vec draw = mu_i + ch * z;
+        if(vec_is_finite(draw)) {
+          U_cube.slice(t).row(i) = draw.t();
+        } else {
+          U_cube.slice(t).row(i) = old_row;
+        }
+      } catch(...) {
+        U_cube.slice(t).row(i) = old_row;
+      }
     }
 
     // V update: Q_t = U_t * G (nA x RB)
@@ -130,6 +184,7 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
     arma::mat E_all_V = E_t.t() * Q_t;
 
     for(int j = 0; j < nB; j++) {
+      arma::rowvec old_row = V_cube.slice(t).row(j);
       arma::vec ej = E_all_V.row(j).t();
       arma::mat prec = QtQ;
 
@@ -143,13 +198,26 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
       }
       prec.diag() += 1.0;
 
-      arma::mat iprec = inv_sympd_small(prec);
-      arma::vec mu_j = iprec * ej;
-      arma::mat ch = chol_lower_small(s2 * iprec);
-      arma::vec z(RB, fill::randn);
-      V_cube.slice(t).row(j) = (mu_j + ch * z).t();
+      try {
+        arma::mat iprec = inv_sympd_small(prec);
+        arma::vec mu_j = iprec * ej;
+        arma::mat ch = chol_lower_small(s2 * iprec);
+        arma::vec z(RB, fill::randn);
+        arma::vec draw = mu_j + ch * z;
+        if(vec_is_finite(draw)) {
+          V_cube.slice(t).row(j) = draw.t();
+        } else {
+          V_cube.slice(t).row(j) = old_row;
+        }
+      } catch(...) {
+        V_cube.slice(t).row(j) = old_row;
+      }
     }
   }
+
+  replace_nonfinite(U_cube);
+  replace_nonfinite(V_cube);
+  balance_dynamic_bip_uv_scale(U_cube, V_cube);
 
   return List::create(Named("U") = U_cube, Named("V") = V_cube);
 }

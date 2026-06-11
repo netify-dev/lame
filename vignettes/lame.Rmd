@@ -496,7 +496,7 @@ means, so give it a short re-equilibration period before using the
 continuation samples as part of the same chain. (Inspect
 `fit2$BETA[1:50, ]` to see the warm-up tail.)
 
-Two caveats for iterative resume cycles. First, saved `checkpoint_path`
+Two notes for iterative resume cycles. First, saved `checkpoint_path`
 and `max_seconds` values are stripped before re-evaluating the saved
 call; pass new values on the resume call if the continuation should also
 checkpoint or stop on a wall-clock budget. Second, the continuation runs

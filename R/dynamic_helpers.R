@@ -5,6 +5,31 @@
 #' Compute expected values with dynamic additive effects
 #' @keywords internal
 #' @noRd
+get_EZ_unip_time <- function(Xlist, beta, ab, U, V, N = NULL) {
+	U_is_dynamic <- length(dim(U)) == 3L
+	V_is_dynamic <- length(dim(V)) == 3L
+	ab_is_dynamic <- length(dim(ab)) == 3L
+	if (!U_is_dynamic && !V_is_dynamic && !ab_is_dynamic) {
+		return(get_EZ_cpp(Xlist, beta, ab, U, V))
+	}
+	if (is.null(N)) {
+		N <- if (U_is_dynamic) dim(U)[3L] else if (V_is_dynamic) dim(V)[3L] else dim(ab)[3L]
+	}
+	nr <- if (U_is_dynamic) dim(U)[1L] else nrow(U)
+	nc <- if (V_is_dynamic) dim(V)[1L] else nrow(V)
+	out <- array(0, dim = c(nr, nc, N))
+	for (t in seq_len(N)) {
+		Ut <- if (U_is_dynamic) matrix(U[, , t], nrow = nr) else U
+		Vt <- if (V_is_dynamic) matrix(V[, , t], nrow = nc) else V
+		abt <- if (ab_is_dynamic) ab[, , t] else ab
+		out[, , t] <- get_EZ_cpp(list(Xlist[[t]]), beta, abt, Ut, Vt)[, , 1L]
+	}
+	out
+}
+
+#' Compute expected values with dynamic additive effects
+#' @keywords internal
+#' @noRd
 get_EZ_dynamic_ab <- function(Xlist, beta, a_mat, b_mat, U, V, N,
                               bip = FALSE, G = NULL, nA = NULL, nB = NULL) {
 	if (bip) {
@@ -48,7 +73,9 @@ get_EZ_dynamic_ab <- function(Xlist, beta, a_mat, b_mat, U, V, N,
 		EZ <- array(0, dim = c(nrow(a_mat), nrow(a_mat), N))
 		for (t in 1:N) {
 			ab_t <- outer(a_mat[,t], b_mat[,t], "+")
-			EZ[,,t] <- get_EZ_cpp(list(Xlist[[t]]), beta, ab_t, U, V)[,,1]
+			Ut <- if (length(dim(U)) == 3L) matrix(U[, , t], nrow = dim(U)[1L]) else U
+			Vt <- if (length(dim(V)) == 3L) matrix(V[, , t], nrow = dim(V)[1L]) else V
+			EZ[,,t] <- get_EZ_cpp(list(Xlist[[t]]), beta, ab_t, Ut, Vt)[,,1]
 		}
 	}
 

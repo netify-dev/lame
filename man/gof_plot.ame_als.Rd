@@ -29,8 +29,7 @@ values.
 }
 \details{
 Uses \code{\link{simulate.ame_als}} for the replicates and is therefore
-subject to the same caveat: the noise is resampled, but the point estimates
-of \code{mu, beta, a, b, U, V} are held fixed. The MCMC \code{gof_plot.ame}
-integrates over the posterior of those parameters too, so the ALS GOF is a
-weaker check.
+conditional on the fitted point estimates: the noise is resampled, but
+\code{mu, beta, a, b, U, V} are held fixed. The MCMC \code{gof_plot.ame}
+also averages over posterior movement in those parameters.
 }

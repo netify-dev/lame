@@ -1445,7 +1445,8 @@
                         lowrank_method, link = NULL, Zwork = NULL,
                         obs_weights = NULL, irls_trace = NULL,
                         stability = NULL,
-                        transition_u = NULL, transition_v = NULL) {
+                        transition_u = NULL, transition_v = NULL,
+                        convergence_trace = NULL, tol = NULL) {
 	nr <- prep$nr
 	nc <- prep$nc
 	Tt <- prep$Tt
@@ -1511,6 +1512,31 @@
 		mean(.lda_presence_col_cov(a_mat, b_mat, prep$row_presence, prep$col_presence),
 		     na.rm = TRUE)
 	rho <- 0
+	rho_path <- NULL
+	if (!prep$bip && !symmetric) {
+		rho_path <- rep(NA_real_, Tt)
+		names(rho_path) <- prep$time_names
+		e_ij <- numeric(0)
+		e_ji <- numeric(0)
+		for (t in seq_len(Tt)) {
+			rt <- resid_list[[t]]
+			ut <- upper.tri(rt)
+			e_t <- rt[ut]
+			et_t <- t(rt)[ut]
+			ok_t <- is.finite(e_t) & is.finite(et_t)
+			if (sum(ok_t) > 2L) {
+				rho_path[t] <- suppressWarnings(stats::cor(e_t[ok_t], et_t[ok_t]))
+				if (!is.finite(rho_path[t])) rho_path[t] <- NA_real_
+			}
+			e_ij <- c(e_ij, e_t)
+			e_ji <- c(e_ji, et_t)
+		}
+		ok <- is.finite(e_ij) & is.finite(e_ji)
+		if (sum(ok) > 2L) {
+			rho <- suppressWarnings(stats::cor(e_ij[ok], e_ji[ok]))
+			if (!is.finite(rho)) rho <- 0
+		}
+	}
 	VC <- c(va = va, cab = cab, vb = vb, rho = rho, ve = ve)
 
 	coef_names <- rownames(coef_path)
@@ -1592,6 +1618,8 @@
 		dynamic_ab = isTRUE(dynamic_ab),
 		dynamic_beta = isTRUE(beta_dyn$any),
 		dynamic_G = isTRUE(dynamic_G),
+		dynamic_rho = !is.null(rho_path) && length(rho_path) > 1L,
+		rho_path = rho_path,
 		rho_uv = if (isTRUE(dynamic_uv)) rho_uv else NULL,
 		sigma_uv = NULL,
 		rho_G = if (isTRUE(dynamic_G)) rho_g else NULL,
@@ -1625,6 +1653,7 @@
 			diagnostics = list(
 				converged = converged,
 				objective = objective_trace,
+				convergence_trace = convergence_trace,
 				objective_label = objective_label,
 				objective_increases = objective_increases,
 				max_objective_increase = max_objective_increase,
@@ -1637,7 +1666,18 @@
 			} else NA_real_,
 			max_objective_delta = if (length(objective_trace) > 1L)
 				max(abs(diff(objective_trace))) else NA_real_,
-				message = if (converged) "Converged" else "Stopped at max_iter before the objective tolerance was reached."
+			last_max_fitted_delta = if (!is.null(convergence_trace) &&
+			                            nrow(convergence_trace) > 0L) {
+				utils::tail(convergence_trace$max_fitted_delta, 1L)
+			} else NA_real_,
+			last_max_parameter_delta = if (!is.null(convergence_trace) &&
+			                               nrow(convergence_trace) > 0L) {
+				utils::tail(convergence_trace$max_parameter_delta, 1L)
+			} else NA_real_,
+			convergence_tolerance = tol,
+			fitted_value_tolerance = if (!is.null(tol)) sqrt(tol) else NA_real_,
+			fitted_value_delta_scope = "observed_cells",
+			message = if (converged) "Converged" else "Stopped at max_iter before the convergence criteria were reached."
 			),
 		meta = list(
 			sampler = "dynamic_als",
@@ -2100,7 +2140,15 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	transition_v <- NULL
 	transition_a <- .lda_transition_from_presence(prep$row_presence)
 	transition_b <- .lda_transition_from_presence(prep$col_presence)
+	fit_mask <- is.finite(Z) & is.finite(W) & W > 0
 	objective_trace <- numeric(0)
+	convergence_trace <- data.frame(
+		iter = integer(0),
+		objective = numeric(0),
+		relative_objective_delta = numeric(0),
+		max_fitted_delta = numeric(0),
+		max_parameter_delta = numeric(0)
+	)
 	converged <- FALSE
 	old_eta <- NULL
 	for (iter in seq_len(max_iter)) {
@@ -2268,10 +2316,14 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 		                    symmetric = symmetric, beta_dyn = beta_dyn)
 		max_eta_delta <- if (is.null(old_eta)) Inf else {
 			max(vapply(seq_len(prep$Tt), function(t) {
-				max(abs(eta_now[[t]] - old_eta[[t]]), na.rm = TRUE)
+				ok <- fit_mask[, , t]
+				if (!any(ok)) return(0)
+				max(abs(eta_now[[t]][ok] - old_eta[[t]][ok]), na.rm = TRUE)
 			}, numeric(1)))
 		}
 		old_eta <- eta_now
+		rel_obj <- NA_real_
+		param_delta <- NA_real_
 		if (iter > 1L) {
 			rel_obj <- abs(objective_trace[iter - 1L] - obj) /
 				max(1, abs(objective_trace[iter - 1L]))
@@ -2284,9 +2336,20 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 					.lda_max_abs(G_cube - G_old) else 0,
 				if (!isTRUE(dynamic_G) && !is.null(G_static) && !is.null(G_old))
 					.lda_max_abs(G_static - G_old) else 0)
+		}
+		convergence_trace <- rbind(
+			convergence_trace,
+			data.frame(
+				iter = iter,
+				objective = obj,
+				relative_objective_delta = rel_obj,
+				max_fitted_delta = max_eta_delta,
+				max_parameter_delta = param_delta
+			)
+		)
+		if (iter > 1L) {
 			if (is.finite(rel_obj) && rel_obj < tol &&
-			    is.finite(max_eta_delta) && max_eta_delta < sqrt(tol) &&
-			    param_delta < sqrt(tol)) {
+			    is.finite(max_eta_delta) && max_eta_delta < sqrt(tol)) {
 				converged <- TRUE
 				break
 			}
@@ -2302,8 +2365,8 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	}
 	if (!converged) {
 		cli::cli_warn(c(
-			"{.fn lame_dynamic_als} did not meet the objective and fitted-value convergence criteria.",
-			"i" = "Inspect {.code fit$diagnostics$objective}; increase {.arg max_iter} if the trace is still moving."))
+			"{.fn lame_dynamic_als} did not meet the objective and observed fitted-value convergence criteria.",
+			"i" = "Inspect {.code fit$diagnostics$convergence_trace}; increase {.arg max_iter} if the trace is still moving."))
 	}
 	dynamic_objective_diff <- diff(objective_trace)
 	dynamic_objective_increase_tol <- tol * (abs(utils::head(objective_trace, -1L)) + 1)
@@ -2342,7 +2405,9 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	                       link = if (identical(family, "normal")) NULL else link,
 	                       Zwork = Z, obs_weights = W, irls_trace = irls_trace,
 	                       transition_u = transition_u,
-	                       transition_v = transition_v)
+	                       transition_v = transition_v,
+	                       convergence_trace = convergence_trace,
+	                       tol = tol)
 	if (!identical(stability, "none")) {
 		fit_out$stability <- .lda_dynamic_stability(
 			fit_out, starts = stability, seed = seed, call_args = call_args)

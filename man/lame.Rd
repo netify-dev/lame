@@ -21,6 +21,7 @@ lame(
   dynamic_ab = FALSE,
   dynamic_G = FALSE,
   dynamic_beta = FALSE,
+  dynamic_rho = FALSE,
   dynamic_beta_kind = c("ar1", "rw1", "rw2", "matern32"),
   dynamic_uv_kind = c("ar1", "snap", "t"),
   family = "normal",
@@ -60,7 +61,7 @@ lame(
   ordinal_cutpoints = c("data_induced", "explicit"),
   method = c("mcmc", "als"),
   als_stability = c("none", "quick", "validation"),
-  als_max_iter = 200L,
+  als_max_iter = 1000L,
   als_tol = NULL,
   bootstrap = 0L,
   bootstrap_type = c("parametric", "block"),
@@ -122,6 +123,14 @@ using the same storage names. The marginal bilinear predictor is identified
 under the package's canonicalization conventions, while individual entries
 of \eqn{G_t} can move under equivalent rotations and scalings of
 \eqn{U_t} and \eqn{V_t}. Default FALSE.}
+
+\item{dynamic_rho}{logical. For directed unipartite normal models, allow the
+residual dyadic reciprocity parameter \eqn{\rho_t} to vary by period instead
+of using one pooled dyadic correlation across the whole panel. MCMC fits store
+per-draw paths in \code{fit$RHO} and the posterior mean path in
+\code{fit$rho_path}. ALS dynamic fits report a residual \code{rho_path} that
+can be passed to MCMC with \code{\link{als_start_vals}}. Default
+\code{FALSE}.}
 
 \item{dynamic_beta}{logical, character, integer, or logical-vector flag
 selecting which regression coefficients evolve over time via independent
@@ -209,6 +218,9 @@ control correlation between row and column effects.}
 impose stronger shrinkage on the latent factors.}
 \item{etaab}{Prior degrees of freedom for covariance of additive effects
 (default: 4 + 3 \\* n/100). Controls shrinkage of row/column random effects.}
+\item{ab_min_observed}{Minimum observed sender/receiver cells used before a
+static additive effect is left unshrunk (default: max(10, T)). Actors with
+less support are pulled toward the prior mean for that role.}
 \item{rho_uv_mean}{For dynamic_uv=TRUE: Prior mean for UV AR(1) parameter
 (default: 0.9). Values close to 1 indicate high temporal persistence.}
 \item{rho_uv_sd}{For dynamic_uv=TRUE: Prior SD for UV AR(1) parameter
@@ -217,6 +229,10 @@ impose stronger shrinkage on the latent factors.}
 prior on UV innovation variance (default: 2).}
 \item{sigma_uv_scale}{For dynamic_uv=TRUE: Scale parameter for inverse-gamma
 prior on UV innovation variance (default: 1).}
+\item{uv_max_abs}{For dynamic_uv=TRUE: loose bound on the raw latent
+coordinate scale after the product-preserving normalization step
+(default: 50). This guards the unidentified coordinate scale without
+changing the fitted \eqn{U_t V_t'} bilinear term.}
 \item{rho_ab_mean}{For dynamic_ab=TRUE: Prior mean for additive effects AR(1)
 parameter (default: 0.8). Controls temporal smoothness of sender/receiver effects.}
 \item{rho_ab_sd}{For dynamic_ab=TRUE: Prior SD for additive effects AR(1)
@@ -273,7 +289,8 @@ control.}
 
 \item{gof}{logical: calculate goodness of fit statistics?}
 
-\item{start_vals}{list of parameter starting values for the MCMC chain}
+\item{start_vals}{list of parameter starting values for the MCMC chain.
+Use \code{\link{als_start_vals}} to start MCMC from an ALS fit.}
 
 \item{periodic_save}{logical: indicating whether to periodically save MCMC results}
 
