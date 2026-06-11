@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2026-06-05</h4>
+            <h4 data-toc-skip class="date">2026-06-11</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/dynamic_effects.Rmd" class="external-link"><code>vignettes/dynamic_effects.Rmd</code></a></small>
       <div class="d-none name"><code>dynamic_effects.Rmd</code></div>
@@ -329,7 +329,7 @@ covariate’s effect grows linearly over time, and fit with
 <span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                     t1           t2           t3           t4           t5</span></span>
 <span><span class="co">#&gt; intercept -0.008086411 -0.008086411 -0.008086411 -0.008086411 -0.008086411</span></span>
-<span><span class="co">#&gt; X1_dyad   -0.475585013 -0.126231556  0.229613231  0.625957779  0.997500051</span></span>
+<span><span class="co">#&gt; X1_dyad   -0.475585012 -0.126231558  0.229613231  0.625957779  0.997500052</span></span>
 <span></span>
 <span><span class="co"># confint() returns one row per coef[t] with 95% credible interval</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">)</span>, <span class="fl">8</span><span class="op">)</span></span>
@@ -337,11 +337,11 @@ covariate’s effect grows linearly over time, and fit with
 <span><span class="co">#&gt; intercept[t1] -0.02780649  0.006971105</span></span>
 <span><span class="co">#&gt; X1_dyad[t1]   -0.54245212 -0.431430480</span></span>
 <span><span class="co">#&gt; intercept[t2] -0.02780649  0.006971105</span></span>
-<span><span class="co">#&gt; X1_dyad[t2]   -0.17701452 -0.058029029</span></span>
+<span><span class="co">#&gt; X1_dyad[t2]   -0.17701452 -0.058029030</span></span>
 <span><span class="co">#&gt; intercept[t3] -0.02780649  0.006971105</span></span>
 <span><span class="co">#&gt; X1_dyad[t3]    0.17688772  0.287365069</span></span>
 <span><span class="co">#&gt; intercept[t4] -0.02780649  0.006971105</span></span>
-<span><span class="co">#&gt; X1_dyad[t4]    0.56717597  0.672599140</span></span></code></pre></div>
+<span><span class="co">#&gt; X1_dyad[t4]    0.56717597  0.672599139</span></span></code></pre></div>
 <p><strong>Migration warning for <code>amen</code> /
 static-<code>lame</code> users.</strong> Under <code>amen::ame()</code>
 and any static <code>lame</code> fit, <code>fit$BETA</code> is a 2-D
@@ -731,8 +731,8 @@ via <code>lame_parallel()</code> and
 </h4>
 <p>A single chain only ever buys you within-chain
 split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>.
-For an honest between-chain diagnostic on the per-period coefficient
-path, run four parallel chains with different seeds and call
+For a between-chain diagnostic on the per-period coefficient path, run
+four parallel chains with different seeds and call
 <code><a href="../reference/rhat_dynamic_beta.html">rhat_dynamic_beta()</a></code> on the per-chain fit list:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_list_db</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame_parallel.html">lame_parallel</a></span><span class="op">(</span></span>
@@ -992,7 +992,7 @@ S3 methods that hand the stored matrix to
 <span><span class="co">#&gt;    (0.38, 1]   (bad)      370   35.2%   &lt;NA&gt;    </span></span>
 <span><span class="co">#&gt;     (1, Inf)   (very bad)   9    0.9%   &lt;NA&gt;    </span></span>
 <span><span class="co">#&gt; See help('pareto-k-diagnostic') for details.</span></span></code></pre></div>
-<p>One important caveat for cross-software comparisons. For six families
+<p>One important detail for cross-software comparisons. For six families
 – <code>normal</code>, <code>binary</code>, <code>cbin</code>,
 <code>tobit</code>, <code>poisson</code>, <code>ordinal</code> – the
 stored pointwise log-likelihood is the <strong>exact family-specific Y
@@ -1112,13 +1112,13 @@ density (roughly 30%) after a negative intercept.</p>
 <span><span class="co">#&gt; Time periods: 5 </span></span>
 <span><span class="co">#&gt; Family: binary </span></span>
 <span><span class="co">#&gt; Mode: unipartite </span></span>
-<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.943 )</span></span>
-<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.542 )</span></span>
+<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.85 )</span></span>
+<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.277 )</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept   -0.746    0.148  -5.031       0   -1.027   -0.452 ***</span></span>
+<span><span class="co">#&gt; intercept   -0.799    0.089  -8.951       0   -0.998   -0.627 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -1126,10 +1126,10 @@ density (roughly 30%) after a negative intercept.</p>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.120    0.097</span></span>
-<span><span class="co">#&gt; cab    0.058    0.087</span></span>
-<span><span class="co">#&gt; vb     0.134    0.081</span></span>
-<span><span class="co">#&gt; rho    0.201    0.116</span></span>
+<span><span class="co">#&gt; va     0.061    0.017</span></span>
+<span><span class="co">#&gt; cab   -0.005    0.013</span></span>
+<span><span class="co">#&gt; vb     0.073    0.021</span></span>
+<span><span class="co">#&gt; rho   -0.013    0.067</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
@@ -1206,13 +1206,13 @@ uninformative.</p>
 <span><span class="co">#&gt; Time periods: 5 </span></span>
 <span><span class="co">#&gt; Family: binary </span></span>
 <span><span class="co">#&gt; Mode: unipartite </span></span>
-<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.741 )</span></span>
-<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.536 )</span></span>
+<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.762 )</span></span>
+<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.279 )</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept   -0.879    0.158  -5.556       0   -1.176   -0.651 ***</span></span>
+<span><span class="co">#&gt; intercept   -0.889    0.066 -13.428       0   -1.023   -0.779 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -1220,10 +1220,10 @@ uninformative.</p>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.078    0.042</span></span>
-<span><span class="co">#&gt; cab    0.028    0.040</span></span>
-<span><span class="co">#&gt; vb     0.080    0.042</span></span>
-<span><span class="co">#&gt; rho    0.211    0.080</span></span>
+<span><span class="co">#&gt; va     0.053    0.014</span></span>
+<span><span class="co">#&gt; cab    0.002    0.009</span></span>
+<span><span class="co">#&gt; vb     0.055    0.017</span></span>
+<span><span class="co">#&gt; rho    0.091    0.048</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
@@ -1231,9 +1231,9 @@ uninformative.</p>
 settings:</p>
 <div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Independent data rho_uv:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_null</span><span class="op">$</span><span class="va">rho_uv</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Independent data rho_uv: 0.741</span></span>
+<span><span class="co">#&gt; Independent data rho_uv: 0.762</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Correlated data rho_uv:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_dyn_real</span><span class="op">$</span><span class="va">rho_uv</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Correlated data rho_uv: 0.943</span></span></code></pre></div>
+<span><span class="co">#&gt; Correlated data rho_uv: 0.85</span></span></code></pre></div>
 <p>With only 5 time periods you might expect the prior to dominate, and
 yet the posterior means above can be substantially different from each
 other and from the prior centre of 0.95. The correlated fit lands in the
@@ -1248,7 +1248,7 @@ will not always pull a clearly nonsensical posterior back toward 1, and
 the strength of that pull depends on the data. With even a modest panel
 the AR(1) parameter is identifiable enough to do real work, but the
 posterior mean is not a substitute for inspecting the trajectory plots,
-which remain the more honest diagnostic than the point estimate of
+which are more informative than the point estimate of
 <code>rho_uv</code> alone (compare the coherent paths above with the
 erratic paths below).</p>
 <div class="section level3">
@@ -1321,10 +1321,10 @@ good fit.</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">gof_comparison</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            sd.rowmean sd.colmean dyad.dep cycle.dep trans.dep</span></span>
-<span><span class="co">#&gt; Static          0.883      0.983    0.550     0.583     0.433</span></span>
-<span><span class="co">#&gt; Dynamic_UV      0.950      0.983    0.417     0.633     0.383</span></span>
-<span><span class="co">#&gt; Dynamic_AB      1.000      0.967    0.950     0.650     0.367</span></span>
-<span><span class="co">#&gt; Full            0.867      0.917    0.950     0.467     0.267</span></span></code></pre></div>
+<span><span class="co">#&gt; Static          0.883      0.983    0.550     0.583     0.350</span></span>
+<span><span class="co">#&gt; Dynamic_UV      0.950      1.000    0.400     0.567     0.333</span></span>
+<span><span class="co">#&gt; Dynamic_AB      0.967      1.000    0.617     0.617     0.300</span></span>
+<span><span class="co">#&gt; Full            0.967      1.000    0.417     0.483     0.367</span></span></code></pre></div>
 <p>Since the data were generated without temporal structure, the dynamic
 specifications should not systematically out-fit the static model. With
 short chains and a small panel these posterior-predictive p-values are
@@ -1386,12 +1386,12 @@ positions to the previous one:</p>
 <code class="sourceCode R"><span><span class="co"># align latent positions across time</span></span>
 <span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/procrustes_align.html">procrustes_align</a></span><span class="op">(</span><span class="va">fit_null</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">$</span><span class="va">U</span><span class="op">)</span>  <span class="co"># 3D array: actors x dimensions x time</span></span>
-<span><span class="co">#&gt;  num [1:30, 1:2, 1:5] -0.2481 -0.0187 0.0272 0.0907 0.0224 ...</span></span>
+<span><span class="co">#&gt;  num [1:30, 1:2, 1:5] -0.3654 -0.0926 -0.0292 0.1137 0.0769 ...</span></span>
 <span><span class="co">#&gt;  - attr(*, "dimnames")=List of 3</span></span>
 <span><span class="co">#&gt;   ..$ : chr [1:30] "Actor1" "Actor10" "Actor11" "Actor12" ...</span></span>
 <span><span class="co">#&gt;   ..$ : NULL</span></span>
 <span><span class="co">#&gt;   ..$ : NULL</span></span></code></pre></div>
-<p><strong>Methodological caveat.</strong> By default,
+<p><strong>Methodological note.</strong> By default,
 <code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> aligns the
 <strong>posterior-mean</strong> trajectory <code>fit$U</code> (an
 <code>n x R x T</code> array of posterior means) across time only. The
@@ -1407,9 +1407,9 @@ is not currently persisted by either <code><a href="../reference/ame.html">ame()
 informational note and falls back to mean-trajectory alignment on every
 fit today; full per-draw alignment is a planned extension. In the
 meantime, for dynamic latent positions the trajectory view
-(<code>uv_plot(plot_type = "trajectory")</code>) is the more honest
-visualisation than per-period credible intervals on the raw
-<code>U_t</code> entries.</p>
+(<code>uv_plot(plot_type = "trajectory")</code>) is more appropriate
+than per-period credible intervals on the raw <code>U_t</code>
+entries.</p>
 <p>You can also extract aligned positions as a tidy data frame using
 <code><a href="../reference/latent_positions.html">latent_positions()</a></code> with <code>align = TRUE</code> (the
 default for <code>lame</code> objects):</p>
@@ -1421,12 +1421,12 @@ default for <code>lame</code> objects):</p>
 <span><span class="co">#&gt; <span style="color: #555555;">This message is displayed once per session.</span></span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     actor dimension time       value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1  Actor1         1    1 -0.24807855           NA    U</span></span>
-<span><span class="co">#&gt; 2 Actor10         1    1 -0.01872939           NA    U</span></span>
-<span><span class="co">#&gt; 3 Actor11         1    1  0.02719917           NA    U</span></span>
-<span><span class="co">#&gt; 4 Actor12         1    1  0.09072103           NA    U</span></span>
-<span><span class="co">#&gt; 5 Actor13         1    1  0.02235868           NA    U</span></span>
-<span><span class="co">#&gt; 6 Actor14         1    1 -0.05799678           NA    U</span></span></code></pre></div>
+<span><span class="co">#&gt; 1  Actor1         1    1 -0.36543172           NA    U</span></span>
+<span><span class="co">#&gt; 2 Actor10         1    1 -0.09262749           NA    U</span></span>
+<span><span class="co">#&gt; 3 Actor11         1    1 -0.02918548           NA    U</span></span>
+<span><span class="co">#&gt; 4 Actor12         1    1  0.11366041           NA    U</span></span>
+<span><span class="co">#&gt; 5 Actor13         1    1  0.07688091           NA    U</span></span>
+<span><span class="co">#&gt; 6 Actor14         1    1 -0.02060994           NA    U</span></span></code></pre></div>
 <p>This data frame is ready for <code>ggplot2</code> if you want to
 build custom trajectory plots (e.g., highlighting specific actors or
 overlaying external events).</p>
@@ -1438,9 +1438,9 @@ overlaying external events).</p>
 <p>Outside the
 dynamic-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
 Rhat workflow above, the same parallel wrapper is the recommended way to
-(a) get an honest between-chain Rhat on <strong>any</strong> parameter
-and (b) cut wall-clock time roughly linearly in <code>n_chains</code>
-when you have idle cores. <code><a href="../reference/ame_parallel.html">ame_parallel()</a></code> auto-dispatches to
+(a) get a between-chain Rhat on <strong>any</strong> parameter and (b)
+cut wall-clock time roughly linearly in <code>n_chains</code> when you
+have idle cores. <code><a href="../reference/ame_parallel.html">ame_parallel()</a></code> auto-dispatches to
 <code><a href="../reference/ame.html">ame()</a></code> for cross-sectional data and <code><a href="../reference/lame.html">lame()</a></code> for
 a list / 3-D array; <code><a href="../reference/lame_parallel.html">lame_parallel()</a></code> is a thin wrapper that
 forces the longitudinal fitter. Both accept the full <code><a href="../reference/ame.html">ame()</a></code>

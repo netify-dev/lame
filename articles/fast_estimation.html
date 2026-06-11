@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-06-05</h4>
+            <h4 data-toc-skip class="date">2026-06-11</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/fast_estimation.Rmd" class="external-link"><code>vignettes/fast_estimation.Rmd</code></a></small>
       <div class="d-none name"><code>fast_estimation.Rmd</code></div>
@@ -369,8 +369,7 @@ as smoothing controls</td>
 </table>
 <p>When you call the unified front door with MCMC-only arguments, the
 ALS dispatcher warns and lists exactly which ones it ignored – for the
-arguments each entry point actually accepts. Two caveats on the
-edges:</p>
+arguments each entry point actually accepts. Two notes on the edges:</p>
 <ul>
 <li>
 <code>nscan</code> / <code>burn</code> / <code>odens</code> /
@@ -560,11 +559,23 @@ dataset.</p>
 <span>                verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span>, gof <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>                seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># tidy both; the term names match, and the four columns we select</span></span>
-<span><span class="co"># (term, estimate, conf.low, conf.high) are common to both engines</span></span>
-<span><span class="co"># (ALS tidy adds an extra se_source column, which we drop here)</span></span>
-<span><span class="va">als_tdy</span>  <span class="op">&lt;-</span> <span class="fu">broom</span><span class="fu">::</span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">fb_b</span><span class="op">)</span></span>
-<span><span class="va">mcmc_tdy</span> <span class="op">&lt;-</span> <span class="fu">broom</span><span class="fu">::</span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">fit_mcmc</span><span class="op">)</span></span>
+<span><span class="co"># collect the common coefficient interval columns without relying on</span></span>
+<span><span class="co"># vignette-time s3 dispatch through broom</span></span>
+<span><span class="va">coef_interval_table</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">est</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span>    <span class="va">ci</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span>    <span class="va">terms</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://generics.r-lib.org/reference/setops.html" class="external-link">intersect</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">est</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">ci</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>        term <span class="op">=</span> <span class="va">terms</span>,</span>
+<span>        estimate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">est</span><span class="op">[</span><span class="va">terms</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>        conf.low <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">ci</span><span class="op">[</span><span class="va">terms</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>        conf.high <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">ci</span><span class="op">[</span><span class="va">terms</span>, <span class="fl">2</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>        row.names <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>    <span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">als_tdy</span>  <span class="op">&lt;-</span> <span class="fu">coef_interval_table</span><span class="op">(</span><span class="va">fb_b</span><span class="op">)</span></span>
+<span><span class="va">mcmc_tdy</span> <span class="op">&lt;-</span> <span class="fu">coef_interval_table</span><span class="op">(</span><span class="va">fit_mcmc</span><span class="op">)</span></span>
 <span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span>estimator <span class="op">=</span> <span class="st">"ALS bootstrap"</span>,</span>
 <span>          <span class="va">als_tdy</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"term"</span>, <span class="st">"estimate"</span>, <span class="st">"conf.low"</span>, <span class="st">"conf.high"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span>,</span>

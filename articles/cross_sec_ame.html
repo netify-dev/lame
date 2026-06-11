@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-06-05</h4>
+            <h4 data-toc-skip class="date">2026-06-11</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/cross_sec_ame.Rmd" class="external-link"><code>vignettes/cross_sec_ame.Rmd</code></a></small>
       <div class="d-none name"><code>cross_sec_ame.Rmd</code></div>
@@ -781,7 +781,7 @@ effects receive more nominations.</p>
 <p>The model gives you predicted probabilities for every possible tie,
 including unobserved ones. This is useful for link prediction (who is
 likely to become friends?) and for understanding the model’s fit at the
-dyad level. A caveat: for sparse networks (density below 0.1), raw
+dyad level. One detail: for sparse networks (density below 0.1), raw
 accuracy can be misleadingly high because predicting “no tie” for every
 dyad already gets most predictions right. Focus on the off-diagonal
 cells of the confusion matrix to see how well the model distinguishes
@@ -833,15 +833,14 @@ lift over that baseline is what’s meaningful. For this friendship
 network with density ~13% the baseline is ~0.87, so the relevant
 question is whether the model’s accuracy is materially above 0.87, not
 whether it crosses 0.5.</p>
-<p>For serious link prediction, the area under the ROC curve (AUC)
-evaluates the model’s ability to rank true ties above non-ties across
-all thresholds rather than relying on a single cutpoint. The
-<code>pROC</code> and <code>precrec</code> packages compute both ROC and
-PR-AUC from <code>pred_resp</code>. For sparse networks the PR-AUC is
-the more honest summary. A useless model that always predicts “no tie”
-already has AUROC near 0.5 but PR-AUC near the network density, so the
-gap between PR-AUC and density is the metric of substantive
-interest.</p>
+<p>For link prediction, the area under the ROC curve (AUC) evaluates the
+model’s ability to rank true ties above non-ties across all thresholds
+rather than relying on a single cutpoint. The <code>pROC</code> and
+<code>precrec</code> packages compute both ROC and PR-AUC from
+<code>pred_resp</code>. For sparse networks the PR-AUC is often the more
+useful summary. A model that always predicts “no tie” already has AUROC
+near 0.5 but PR-AUC near the network density, so the gap between PR-AUC
+and density is the metric of substantive interest.</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># pROC: ROC curve and AUROC</span></span>
 <span><span class="co"># install.packages("pROC")</span></span>
@@ -903,8 +902,8 @@ AUC.</p>
 <span><span class="co"># columns: n_eval, auroc, auprc, brier, logloss</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Test dyads:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">test_idx</span><span class="op">)</span>,</span>
 <span>    <span class="st">" | positives:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">Y</span><span class="op">[</span><span class="va">test_idx</span><span class="op">]</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
-<p>Two ML caveats. (1) The actor identities are the same in train and
-test (only some of their dyads are masked); this is a
+<p>Two details on the ML split. (1) The actor identities are the same in
+train and test (only some of their dyads are masked); this is a
 <em>transductive</em> link-prediction split, not an inductive one. The
 latent positions
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>i</mi></msub><mo>,</mo><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i, v_j</annotation></semantics></math>

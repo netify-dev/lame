@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -87,7 +87,10 @@
 <span>  rho_beta <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  sigma_beta <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  RHO_BETA <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  SIGMA_BETA <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  SIGMA_BETA <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  dynamic_rho <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  RHO <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  rho_path <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -240,6 +243,19 @@ cols = dynamic block).</p></dd>
 
 <dt id="arg-sigma-beta">SIGMA_BETA<a class="anchor" aria-label="anchor" href="#arg-sigma-beta"></a></dt>
 <dd><p>matrix of per-iteration sigma_beta draws.</p></dd>
+
+
+<dt id="arg-dynamic-rho">dynamic_rho<a class="anchor" aria-label="anchor" href="#arg-dynamic-rho"></a></dt>
+<dd><p>logical indicating whether residual dyadic reciprocity
+varies by period.</p></dd>
+
+
+<dt id="arg-rho">RHO<a class="anchor" aria-label="anchor" href="#arg-rho"></a></dt>
+<dd><p>matrix of per-iteration, per-period dyadic reciprocity draws.</p></dd>
+
+
+<dt id="arg-rho-path">rho_path<a class="anchor" aria-label="anchor" href="#arg-rho-path"></a></dt>
+<dd><p>numeric vector of period-specific dyadic reciprocity values.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,8 +46,15 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.2.1" id="lame-121">lame 1.2.1<a class="anchor" aria-label="anchor" href="#lame-121"></a></h2>
+<ul><li>Added <code><a href="../reference/als_start_vals.html">als_start_vals()</a></code> to the pkgdown reference index so the website builds cleanly.</li>
+<li>Documented the ALS-to-MCMC workflow for dynamic fits.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.2.0" id="lame-120">lame 1.2.0<a class="anchor" aria-label="anchor" href="#lame-120"></a></h2>
 <ul><li>Cleaned up ALS support and documentation.</li>
+<li>Raised the <code>lame(method = "als")</code> iteration cap and exposed dynamic ALS convergence component traces.</li>
+<li>Stabilized dynamic-UV MCMC by normalizing the raw <code>U</code>/<code>V</code> coordinate scale, centering additive row/column effects, pooling very sparse additive effects toward the prior mean, and carrying ALS fits into MCMC with <code><a href="../reference/als_start_vals.html">als_start_vals()</a></code>.</li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.1.0" id="lame-110">lame 1.1.0<a class="anchor" aria-label="anchor" href="#lame-110"></a></h2>
