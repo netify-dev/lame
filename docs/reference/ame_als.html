@@ -21,7 +21,7 @@ adaptation, not original lame methodology.'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -360,7 +360,7 @@ still require the MCMC estimator:</p><ul><li><p><strong>Families.</strong> ALS s
 <li><p><strong>Dynamic effects.</strong> <code><a href="lame_als.html">lame_als</a></code> itself fits a
 static model pooled across time slices. The top-level dispatcher
 <code>lame(..., method = "als")</code> routes supported dynamic requests to a
-dynamic point estimator for normal, binary, and Poisson panels,
+dynamic point estimator for normal, binary, and poisson panels,
 including named panels where actors enter or exit: <code>dynamic_ab</code>,
 selected intercept/dyadic/node
 <code>dynamic_beta</code>, and AR(1) or Student-t <code>dynamic_uv</code> for
@@ -371,11 +371,11 @@ bipartite panels.
 Node-covariate coefficients use the same orthogonal additive-effect
 decomposition as <code><a href="lame_als.html">lame_als</a></code>; dynamic node coefficients use
 period-specific node values when selected by <code>dynamic_beta</code>, while
-static node coefficients use per-actor means. Bipartite <code>dynamic_G</code>
-is available on the dynamic ALS path for normal, binary, and Poisson
-panels. Changing actor composition requires row and column names on every
+static node coefficients use per-actor means. bipartite <code>dynamic_g</code>
+is available on the dynamic als path for normal, binary, and poisson
+panels. changing actor composition requires row and column names on every
 slice so actors can be aligned; smoothing penalties are broken across
-actor-entry gaps. Rank/censored dynamic families remain on the MCMC path. Static
+actor-entry gaps. rank/censored dynamic families remain on the mcmc path. static
 <code>ame_als()</code> / <code><a href="lame_als.html">lame_als()</a></code> fits still use a
 single latent rank <code>R</code>; the dynamic bipartite ALS dispatcher
 honours separate <code>R_row</code> and <code>R_col</code> values.</p></li>

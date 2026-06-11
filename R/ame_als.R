@@ -1934,11 +1934,11 @@ ame_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 #' not original \pkg{lame} methodology. See \code{\link{ame_als}} for the
 #' algorithm details.
 #'
-	#' @param y a list of \code{t} relational matrices, or a 3d array
-	#'   \code{[n_row, n_col, t]}. a named list may have changing actor
-	#'   composition; every slice must carry row and column names so actors can be
-	#'   aligned to the union panel. unnamed lists and arrays are treated
-	#'   positionally and must have one fixed layout.
+#' @param Y a list of \code{t} relational matrices, or a 3d array
+#'   \code{[n_row, n_col, t]}. A named list may have changing actor
+#'   composition; every slice must carry row and column names so actors can be
+#'   aligned to the union panel. Unnamed lists and arrays are treated
+#'   positionally and must have one fixed layout.
 #' @param Xdyad a list of \code{T} dyadic covariate matrices/arrays, or \code{NULL}.
 #' @param Xrow a list of \code{T} row/sender covariate matrices, or \code{NULL}.
 #' @param Xcol a list of \code{T} column/receiver covariate matrices, or \code{NULL}.

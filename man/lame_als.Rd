@@ -29,8 +29,8 @@ lame_als(
 )
 }
 \arguments{
-\item{Y}{a list of \code{T} relational matrices, or a 3D array
-\code{[n_row, n_col, T]}. A named list may have changing actor
+\item{Y}{a list of \code{t} relational matrices, or a 3d array
+\code{[n_row, n_col, t]}. A named list may have changing actor
 composition; every slice must carry row and column names so actors can be
 aligned to the union panel. Unnamed lists and arrays are treated
 positionally and must have one fixed layout.}

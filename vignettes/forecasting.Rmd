@@ -99,10 +99,12 @@ fit <- lame(
 )
 
 # the recovered per-period coefficient tracks the simulated path
-round(coef(fit)["trade_dyad", ], 3)
+coef_path <- coef(fit)
+trade_row <- grep("^trade[._]dyad$|trade", rownames(coef_path), value = TRUE)[1]
+round(coef_path[trade_row, ], 3)
 ```
 
-The recovered `trade_dyad` path tracks the simulated truth, and (as we
+The recovered trade coefficient path tracks the simulated truth, and (as we
 confirm in Step 5) the posterior on $\rho_\beta$ sits comfortably below
 1, so the forecast is well-posed.
 

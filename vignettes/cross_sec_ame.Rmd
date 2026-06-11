@@ -359,7 +359,7 @@ cat("\nAccuracy:", round(accuracy, 3),
 
 The accuracy by itself flatters the model: a "predict the modal class" baseline already gets the printed baseline value, and the model's lift over that baseline is what's meaningful. For this friendship network with density ~13% the baseline is ~0.87, so the relevant question is whether the model's accuracy is materially above 0.87, not whether it crosses 0.5.
 
-For serious link prediction, the area under the ROC curve (AUC) evaluates the model's ability to rank true ties above non-ties across all thresholds rather than relying on a single cutpoint. The `pROC` and `precrec` packages compute both ROC and PR-AUC from `pred_resp`. For sparse networks the PR-AUC is the more honest summary. A useless model that always predicts "no tie" already has AUROC near 0.5 but PR-AUC near the network density, so the gap between PR-AUC and density is the metric of substantive interest.
+For link prediction, the area under the ROC curve (AUC) evaluates the model's ability to rank true ties above non-ties across all thresholds rather than relying on a single cutpoint. The `pROC` and `precrec` packages compute both ROC and PR-AUC from `pred_resp`. For sparse networks the PR-AUC is often the more useful summary. A model that always predicts "no tie" already has AUROC near 0.5 but PR-AUC near the network density, so the gap between PR-AUC and density is the metric of substantive interest.
 
 ```{r auc-eval, eval = FALSE}
 # pROC: ROC curve and AUROC

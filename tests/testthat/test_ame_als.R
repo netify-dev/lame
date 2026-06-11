@@ -139,12 +139,12 @@ test_that("non-normal families recover the coefficient sign", {
 })
 
 # ==========================================================================
-# input validation / honest errors
+# input validation / clear errors
 # ==========================================================================
 
 test_that("unsupported families raise informative errors", {
 	# tobit / ordinal inference goes through mcmc; cbin / frn / rrl have no
-	# honest als likelihood.
+	# als likelihood used by this estimator.
 	d = sim_ame(n = 15, Tt = 1, seed = 17)
 	for (fam in c("tobit", "ordinal", "cbin", "frn", "rrl")) {
 		expect_error(

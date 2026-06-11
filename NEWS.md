@@ -1,3 +1,9 @@
+# lame 1.2.1
+
+* Added `als_start_vals()` to the pkgdown reference index so the website builds
+  cleanly.
+* Documented the ALS-to-MCMC workflow for dynamic fits.
+
 # lame 1.2.0
 
 * Cleaned up ALS support and documentation.

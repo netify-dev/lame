@@ -50,7 +50,7 @@
 #' @export
 vcov.ame_als <- function(object, cluster = c("dyad", "none"), ...) {
 	cluster <- match.arg(cluster)
-	# the sandwich is honest only on the surrogate gaussian working likelihood.
+	# the sandwich is tied to the surrogate gaussian working likelihood.
 	# for the non-gaussian families (binary-transform, poisson-transform) it
 	# is anti-conservative because it conditions on the transformed working
 	# response and ignores the estimation uncertainty in the additive

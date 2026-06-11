@@ -124,14 +124,6 @@ under the package's canonicalization conventions, while individual entries
 of \eqn{G_t} can move under equivalent rotations and scalings of
 \eqn{U_t} and \eqn{V_t}. Default FALSE.}
 
-\item{dynamic_rho}{logical. For directed unipartite normal models, allow the
-residual dyadic reciprocity parameter \eqn{\rho_t} to vary by period instead
-of using one pooled dyadic correlation across the whole panel. MCMC fits store
-per-draw paths in \code{fit$RHO} and the posterior mean path in
-\code{fit$rho_path}. ALS dynamic fits report a residual \code{rho_path} that
-can be passed to MCMC with \code{\link{als_start_vals}}. Default
-\code{FALSE}.}
-
 \item{dynamic_beta}{logical, character, integer, or logical-vector flag
 selecting which regression coefficients evolve over time via independent
 AR(1) processes. Default FALSE keeps every coefficient static (the
@@ -164,6 +156,14 @@ coefficients still use per-actor means. Dynamic intercepts are
 unavailable when \code{family = "ordinal"} or \code{"rrl"}
 (and row-nodal coefficients are unavailable with \code{family = "rrl"}).
 Default FALSE.}
+
+\item{dynamic_rho}{logical. For directed unipartite normal models, allow the
+residual dyadic reciprocity parameter \eqn{\rho_t} to vary by period instead
+of using one pooled dyadic correlation across the whole panel. MCMC fits store
+per-draw paths in \code{fit$RHO} and the posterior mean path in
+\code{fit$rho_path}. ALS dynamic fits report a residual \code{rho_path} that
+can be passed to MCMC with \code{\link{als_start_vals}}. Default
+\code{FALSE}.}
 
 \item{dynamic_beta_kind}{character: state-space prior on the dynamic
 coefficient block(s). \code{"ar1"} (default) gives mean-reverting
@@ -219,8 +219,8 @@ impose stronger shrinkage on the latent factors.}
 \item{etaab}{Prior degrees of freedom for covariance of additive effects
 (default: 4 + 3 \\* n/100). Controls shrinkage of row/column random effects.}
 \item{ab_min_observed}{Minimum observed sender/receiver cells used before a
-static additive effect is left unshrunk (default: max(10, T)). Actors with
-less support are pulled toward the prior mean for that role.}
+static additive effect is left unshrunk (default: max(10, T)). Actors
+with less support are pulled toward the prior mean for that role.}
 \item{rho_uv_mean}{For dynamic_uv=TRUE: Prior mean for UV AR(1) parameter
 (default: 0.9). Values close to 1 indicate high temporal persistence.}
 \item{rho_uv_sd}{For dynamic_uv=TRUE: Prior SD for UV AR(1) parameter

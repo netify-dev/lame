@@ -546,8 +546,8 @@ per chunk. Override the per-file column width with
 
 **5. Multi-chain diagnostics: `lame_parallel()` and
 `rhat_dynamic_beta()`.** Single-chain $\hat R$ is a within-chain
-split statistic only. For an honest between-chain $\hat R$, run K
-chains with different seeds via
+split statistic only. For a between-chain $\hat R$, run K chains with
+different seeds via
 `lame_parallel(..., n_chains = 4, combine_method = "list")`, then
 call `rhat_dynamic_beta()` on the returned list to get both the
 multivariate (Brooks-Gelman) $\hat R$ on the length-T coefficient
@@ -561,10 +561,10 @@ silent foot-gun on shared workers. The pooled-chain fit
 gives per-`coef[t]` `ess_bulk` / `ess_tail`. The full demo lives in
 `vignettes/dynamic_effects.Rmd`.
 
-**6. Held-out predictive scoring: `evaluate_heldout()`.** For
-honest predictive validation, mask a random subset of dyads to `NA`
-in `Y`, refit (the sampler imputes `NA` cells via data augmentation),
-then score the masked cells with `evaluate_heldout(y_obs, y_pred,
+**6. Held-out predictive scoring: `evaluate_heldout()`.** To check
+held-out prediction, mask a random subset of dyads to `NA` in `Y`,
+refit (the sampler imputes `NA` cells via data augmentation), then
+score the masked cells with `evaluate_heldout(y_obs, y_pred,
 mask, family = "binary")`. The helper picks the right rule from the
 family: AUROC / PR-AUC / Brier / log-loss for `binary` / `cbin`,
 RMSE / MAE / mean log-density for `normal` / `tobit`, and RMSE +

@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -120,18 +120,18 @@
 <span><span class="co"># plots and credible intervals. Drop to nscan = 500 only if you just want</span></span>
 <span><span class="co"># to see the function run.</span></span>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ame.html">ame</a></span><span class="op">(</span></span>
-<span>  Y       <span class="op">=</span> <span class="va">Y</span>,            <span class="co"># n × n network matrix</span></span>
-<span>  Xdyad   <span class="op">=</span> <span class="va">Xdyad</span>,        <span class="co"># Dyadic covariates (n × n × p array)</span></span>
-<span>  family  <span class="op">=</span> <span class="st">"binary"</span>,     <span class="co"># Outcome family</span></span>
-<span>  R       <span class="op">=</span> <span class="fl">2</span>,            <span class="co"># Latent dimensions (multiplicative effects, see ?ame)</span></span>
-<span>  burn    <span class="op">=</span> <span class="fl">500</span>,          <span class="co"># Burn-in iterations (discarded)</span></span>
-<span>  nscan   <span class="op">=</span> <span class="fl">4000</span>,         <span class="co"># Post-burn iterations</span></span>
-<span>  odens   <span class="op">=</span> <span class="fl">10</span>,           <span class="co"># Thinning: keep every odens-th iter -&gt; ~400 stored draws</span></span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>         <span class="co"># Silent (drop for a live progress bar)</span></span>
+<span>  Y       <span class="op">=</span> <span class="va">Y</span>,            <span class="co"># n x n network matrix</span></span>
+<span>  Xdyad   <span class="op">=</span> <span class="va">Xdyad</span>,        <span class="co"># dyadic covariates (n x n x p array)</span></span>
+<span>  family  <span class="op">=</span> <span class="st">"binary"</span>,     <span class="co"># outcome family</span></span>
+<span>  R       <span class="op">=</span> <span class="fl">2</span>,            <span class="co"># latent dimensions (multiplicative effects, see ?ame)</span></span>
+<span>  burn    <span class="op">=</span> <span class="fl">500</span>,          <span class="co"># burn-in iterations, discarded</span></span>
+<span>  nscan   <span class="op">=</span> <span class="fl">4000</span>,         <span class="co"># post-burn iterations</span></span>
+<span>  odens   <span class="op">=</span> <span class="fl">10</span>,           <span class="co"># thinning: keep every odens-th iter, about 400 draws</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>         <span class="co"># quiet fit; drop this for a live progress bar</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>              <span class="co"># Coefficients, variance components, GOF</span></span>
-<span><span class="co"># Check convergence on a fresh fit:</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>              <span class="co"># coefficients, variance components, gof</span></span>
+<span><span class="co"># check convergence on a fresh fit:</span></span>
 <span><span class="fu"><a href="reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>           <span class="co"># one panel per parameter</span></span>
 <span><span class="co"># gof_plot(fit)           # posterior-predictive GOF</span></span></code></pre></div>
 <p><strong>What is <code>R</code>?</strong> <code>R</code> is the dimension of the multiplicative-effects latent space, a small space where each actor gets coordinates that say “who I tend to tie to” beyond what the covariates and sender / receiver effects explain. <code>R = 0</code> fits the additive part only (sender + receiver + dyadic correlation); <code>R = 2</code> adds a 2-D latent space that captures higher-order structure like <em>homophily</em> (similar actors tying to each other), clustering, and transitivity (friends of friends are friends). The package warns if <code>R &gt; floor(n/3)</code> because high-rank latent factors can absorb structure that belongs to the additive effects. Start with <code>R = 2</code> for a first fit; try <code>R = 0, 1, 2, 3</code> and compare <code><a href="reference/gof_plot.html">gof_plot()</a></code> panels to pick a value. See <code><a href="reference/ame.html">?ame</a></code> for math and guidance.</p>
@@ -286,7 +286,7 @@
 </h3>
 <p>The key extension in <code>lame</code> is time-varying network effects:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Fit model with dynamic effects (builds on fit_long and the panel above)</span></span>
+<code class="sourceCode R"><span><span class="co"># fit model with dynamic effects, building on fit_long and the panel above</span></span>
 <span><span class="va">fit_dynamic</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>  Y <span class="op">=</span> <span class="va">Y</span>,</span>
 <span>  Xdyad <span class="op">=</span> <span class="va">Xdyad</span>,</span>
@@ -312,17 +312,17 @@
 <h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
 </h2>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Additive effects (sender/receiver)</span></span>
-<span><span class="fu"><a href="reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"sender"</span><span class="op">)</span>                    <span class="co"># Static effects</span></span>
-<span><span class="fu"><a href="reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span>     <span class="co"># Dynamic over time</span></span>
+<code class="sourceCode R"><span><span class="co"># additive effects (sender/receiver)</span></span>
+<span><span class="fu"><a href="reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"sender"</span><span class="op">)</span>                    <span class="co"># static effects</span></span>
+<span><span class="fu"><a href="reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span>     <span class="co"># dynamic over time</span></span>
 <span></span>
-<span><span class="co"># Multiplicative effects (latent factors)</span></span>
-<span><span class="fu"><a href="reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>                                       <span class="co"># Static latent positions</span></span>
-<span><span class="fu"><a href="reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span>     <span class="co"># Dynamic trajectories</span></span>
+<span><span class="co"># multiplicative effects (latent factors)</span></span>
+<span><span class="fu"><a href="reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>                                       <span class="co"># static latent positions</span></span>
+<span><span class="fu"><a href="reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span>     <span class="co"># dynamic trajectories</span></span>
 <span></span>
-<span><span class="co"># Diagnostics</span></span>
-<span><span class="fu"><a href="reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>                                     <span class="co"># MCMC convergence</span></span>
-<span><span class="fu"><a href="reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>                                       <span class="co"># Goodness-of-fit</span></span></code></pre></div>
+<span><span class="co"># diagnostics</span></span>
+<span><span class="fu"><a href="reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>                                     <span class="co"># mcmc convergence</span></span>
+<span><span class="fu"><a href="reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>                                       <span class="co"># goodness of fit</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>

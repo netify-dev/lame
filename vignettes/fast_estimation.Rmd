@@ -266,11 +266,23 @@ fit_mcmc <- ame(Yb, Xdyad = Xd_arr, family = "binary", R = 0,
                 verbose = FALSE, plot = FALSE, gof = FALSE,
                 seed = 1)
 
-# tidy both; the term names match, and the four columns we select
-# (term, estimate, conf.low, conf.high) are common to both engines
-# (ALS tidy adds an extra se_source column, which we drop here)
-als_tdy  <- broom::tidy(fb_b)
-mcmc_tdy <- broom::tidy(fit_mcmc)
+# collect the common coefficient interval columns without relying on
+# vignette-time s3 dispatch through broom
+coef_interval_table <- function(fit) {
+    est <- coef(fit)
+    ci <- confint(fit)
+    terms <- intersect(names(est), rownames(ci))
+    data.frame(
+        term = terms,
+        estimate = unname(est[terms]),
+        conf.low = unname(ci[terms, 1]),
+        conf.high = unname(ci[terms, 2]),
+        row.names = NULL
+    )
+}
+
+als_tdy  <- coef_interval_table(fb_b)
+mcmc_tdy <- coef_interval_table(fit_mcmc)
 df <- rbind(
     cbind(estimator = "ALS bootstrap",
           als_tdy[, c("term", "estimate", "conf.low", "conf.high")]),

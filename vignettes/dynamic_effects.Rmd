@@ -274,7 +274,7 @@ prior_summary(fit_db)
 
 #### Multi-chain $\hat R$ via `lame_parallel()` and `rhat_dynamic_beta()`
 
-A single chain only ever buys you within-chain split-$\hat R$. For an honest between-chain diagnostic on the per-period coefficient path, run four parallel chains with different seeds and call `rhat_dynamic_beta()` on the per-chain fit list:
+A single chain only ever buys you within-chain split-$\hat R$. For a between-chain diagnostic on the per-period coefficient path, run four parallel chains with different seeds and call `rhat_dynamic_beta()` on the per-chain fit list:
 
 ```{r rhat-dynamic-demo, eval = requireNamespace("posterior", quietly = TRUE)}
 fit_list_db <- lame_parallel(
@@ -524,7 +524,7 @@ prior centred near 1 will not always pull a clearly nonsensical posterior back
 toward 1, and the strength of that pull depends on the data. With even a modest
 panel the AR(1) parameter is identifiable enough to do real work, but the
 posterior mean is not a substitute for inspecting the trajectory plots, which
-remain the more honest diagnostic than the point estimate of `rho_uv` alone
+are more informative than the point estimate of `rho_uv` alone
 (compare the coherent paths above with the erratic paths below).
 
 ### Visualizing the Null Case
@@ -630,7 +630,7 @@ This data frame is ready for `ggplot2` if you want to build custom trajectory pl
 
 ## Parallel chains with `ame_parallel()` / `lame_parallel()`
 
-Outside the dynamic-$\beta$ Rhat workflow above, the same parallel wrapper is the recommended way to (a) get an honest between-chain Rhat on **any** parameter and (b) cut wall-clock time roughly linearly in `n_chains` when you have idle cores. `ame_parallel()` auto-dispatches to `ame()` for cross-sectional data and `lame()` for a list / 3-D array; `lame_parallel()` is a thin wrapper that forces the longitudinal fitter. Both accept the full `ame()` / `lame()` argument list via `...`.
+Outside the dynamic-$\beta$ Rhat workflow above, the same parallel wrapper is the recommended way to (a) get a between-chain Rhat on **any** parameter and (b) cut wall-clock time roughly linearly in `n_chains` when you have idle cores. `ame_parallel()` auto-dispatches to `ame()` for cross-sectional data and `lame()` for a list / 3-D array; `lame_parallel()` is a thin wrapper that forces the longitudinal fitter. Both accept the full `ame()` / `lame()` argument list via `...`.
 
 ```{r parallel-worked-example, eval = FALSE}
 # 4 chains, one per core, pooled into a single fit.

@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2026-06-04</h4>
+            <h4 data-toc-skip class="date">2026-06-11</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/HEAD/vignettes/forecasting.Rmd" class="external-link"><code>vignettes/forecasting.Rmd</code></a></small>
       <div class="d-none name"><code>forecasting.Rmd</code></div>
@@ -171,11 +171,13 @@ we show it failing.</p>
 <span><span class="co">#&gt; Note: Square matrix assumed to be unipartite. Use mode='bipartite' for square bipartite networks.</span></span>
 <span></span>
 <span><span class="co"># the recovered per-period coefficient tracks the simulated path</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">[</span><span class="st">"trade_dyad"</span>, <span class="op">]</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="va">coef_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="va">trade_row</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"^trade[._]dyad$|trade"</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">coef_path</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">coef_path</span><span class="op">[</span><span class="va">trade_row</span>, <span class="op">]</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    t1    t2    t3    t4    t5    t6 </span></span>
-<span><span class="co">#&gt; 0.913 0.867 0.587 0.532 0.532 0.519</span></span></code></pre></div>
-<p>The recovered <code>trade_dyad</code> path tracks the simulated
-truth, and (as we confirm in Step 5) the posterior on
+<span><span class="co">#&gt; 0.913 0.867 0.587 0.532 0.531 0.519</span></span></code></pre></div>
+<p>The recovered trade coefficient path tracks the simulated truth, and
+(as we confirm in Step 5) the posterior on
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
 sits comfortably below 1, so the forecast is well-posed.</p>
 <p>A quick diagnostic: <code>summary(fit)</code> prints the per-block
@@ -204,7 +206,7 @@ and is the right prior for permanent-drift coefficients.</p>
 <span><span class="va">fc_resp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
 <span><span class="co"># binary: each entry is a posterior-mean predicted probability</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="va">fc_resp</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.02417271 0.89431247</span></span>
+<span><span class="co">#&gt; [1] 0.02416641 0.89436915</span></span>
 <span></span>
 <span><span class="co"># by_draw = TRUE returns the full [n, n, h, n_draws] array</span></span>
 <span><span class="va">fc_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span>, by_draw <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -216,9 +218,9 @@ and is the right prior for permanent-drift coefficients.</p>
 <span><span class="va">fc_ci</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span>, interval <span class="op">=</span> <span class="st">"credible"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fc_ci</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>         <span class="co"># list($lower, $median, $upper), each n x n</span></span>
 <span><span class="co">#&gt; List of 3</span></span>
-<span><span class="co">#&gt;  $ lower : num [1:30, 1:30] 0.00243 0.03421 0.00524 0.05889 0.10498 ...</span></span>
-<span><span class="co">#&gt;  $ median: num [1:30, 1:30] 0.0964 0.0475 0.1608 0.1226 0.154 ...</span></span>
-<span><span class="co">#&gt;  $ upper : num [1:30, 1:30] 0.6033 0.0637 0.736 0.2268 0.2097 ...</span></span></code></pre></div>
+<span><span class="co">#&gt;  $ lower : num [1:30, 1:30] 0.00243 0.03424 0.00523 0.05901 0.10495 ...</span></span>
+<span><span class="co">#&gt;  $ median: num [1:30, 1:30] 0.097 0.0475 0.1614 0.1229 0.1543 ...</span></span>
+<span><span class="co">#&gt;  $ upper : num [1:30, 1:30] 0.6032 0.0635 0.7355 0.2271 0.21 ...</span></span></code></pre></div>
 <p>The typical cell of <code>fc_ci[[1]]</code> carries an informative
 <code>lower</code> / <code>median</code> / <code>upper</code> triple – a
 genuine sub-interval of [0, 1] rather than the whole range, because the
@@ -291,7 +293,7 @@ match the original <code>dimnames(Xdyad[[1]])[[3]]</code> from the fit
 <span><span class="va">delta_h3</span> <span class="op">&lt;-</span> <span class="va">fc_up</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span> <span class="op">-</span> <span class="va">fc_cf</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">delta_h3</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. </span></span>
-<span><span class="co">#&gt; -0.04954  0.04330  0.08606  0.07467  0.10922  0.13965</span></span></code></pre></div>
+<span><span class="co">#&gt; -0.04955  0.04331  0.08604  0.07468  0.10923  0.13965</span></span></code></pre></div>
 <p>The trade coefficient is positive and mean-reverting, so a one-unit
 increase in <code>trade</code> raises the posterior-mean cooperation
 probability at <code>h = 3</code> on average (the mean and median of
@@ -417,10 +419,10 @@ leave-future-out CV:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Periods evaluated: <span style="color: #0000BB;">5</span> and <span style="color: #0000BB;">6</span></span></span>
 <span><span class="co">#&gt; Refit per leave-out: <span style="color: #0000BB;">TRUE</span></span></span>
-<span><span class="co">#&gt; Total elpd_lfo: <span style="color: #0000BB;">-1173.8</span></span></span>
+<span><span class="co">#&gt; Total elpd_lfo: <span style="color: #0000BB;">-1173.7</span></span></span>
 <span><span class="co">#&gt;  period      elpd n_obs</span></span>
-<span><span class="co">#&gt;       5 -580.6145   870</span></span>
-<span><span class="co">#&gt;       6 -593.1495   870</span></span></code></pre></div>
+<span><span class="co">#&gt;       5 -580.7807   870</span></span>
+<span><span class="co">#&gt;       6 -592.9636   870</span></span></code></pre></div>
 <p>The <code>nscan = 200, burn = 50, odens = 5</code> settings inside
 <code><a href="../reference/lfo.html">lfo()</a></code> are chosen so the vignette builds in well under a
 minute on a laptop. They give <code>200 / 5 = 40</code> stored draws per
@@ -474,8 +476,8 @@ well-calibrated forecast produces PIT values that are Uniform(0, 1).</p>
 <span><span class="co">#&gt; • Family: <span style="color: #0000BB;">"binary"</span></span></span>
 <span><span class="co">#&gt; • Forecast horizon: <span style="color: #0000BB;">1</span></span></span>
 <span><span class="co">#&gt; • Held-out dyads: <span style="color: #0000BB;">870</span></span></span>
-<span><span class="co">#&gt; • KS stat vs Uniform(0,1): <span style="color: #0000BB;">0.0393</span></span></span>
-<span><span class="co">#&gt; • KS p-value: <span style="color: #0000BB;">0.136</span></span></span>
+<span><span class="co">#&gt; • KS stat vs Uniform(0,1): <span style="color: #0000BB;">0.0395</span></span></span>
+<span><span class="co">#&gt; • KS p-value: <span style="color: #0000BB;">0.133</span></span></span>
 <span><span class="co">#&gt; • Fraction in [0.025, 0.975]: <span style="color: #0000BB;">0.932</span> (expect <span style="color: #0000BB;">0.95</span>)</span></span>
 <span><span class="co">#&gt; PIT values are consistent with Uniform(0, 1) at the 5% level.</span></span></code></pre></div>
 <p>(<code>fit_train</code> is fit on only five periods, so its

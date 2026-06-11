@@ -66,18 +66,18 @@ dimnames(Xdyad)[[3]]              # prints: "rgpa" "rsmoke" "cgpa" "csmoke" ...
 # plots and credible intervals. Drop to nscan = 500 only if you just want
 # to see the function run.
 fit <- ame(
-  Y       = Y,            # n × n network matrix
-  Xdyad   = Xdyad,        # Dyadic covariates (n × n × p array)
-  family  = "binary",     # Outcome family
-  R       = 2,            # Latent dimensions (multiplicative effects, see ?ame)
-  burn    = 500,          # Burn-in iterations (discarded)
-  nscan   = 4000,         # Post-burn iterations
-  odens   = 10,           # Thinning: keep every odens-th iter -> ~400 stored draws
-  verbose = FALSE         # Silent (drop for a live progress bar)
+  Y       = Y,            # n x n network matrix
+  Xdyad   = Xdyad,        # dyadic covariates (n x n x p array)
+  family  = "binary",     # outcome family
+  R       = 2,            # latent dimensions (multiplicative effects, see ?ame)
+  burn    = 500,          # burn-in iterations, discarded
+  nscan   = 4000,         # post-burn iterations
+  odens   = 10,           # thinning: keep every odens-th iter, about 400 draws
+  verbose = FALSE         # quiet fit; drop this for a live progress bar
 )
 
-summary(fit)              # Coefficients, variance components, GOF
-# Check convergence on a fresh fit:
+summary(fit)              # coefficients, variance components, gof
+# check convergence on a fresh fit:
 trace_plot(fit)           # one panel per parameter
 # gof_plot(fit)           # posterior-predictive GOF
 ```
@@ -262,7 +262,7 @@ networks and symmetric `ordinal`; the
 The key extension in `lame` is time-varying network effects:
 
 ```r
-# Fit model with dynamic effects (builds on fit_long and the panel above)
+# fit model with dynamic effects, building on fit_long and the panel above
 fit_dynamic <- lame(
   Y = Y,
   Xdyad = Xdyad,
@@ -293,17 +293,17 @@ posterior; `predict(..., interval = "credible")` returns the per-period
 ## Visualization
 
 ```r
-# Additive effects (sender/receiver)
-ab_plot(fit, effect = "sender")                    # Static effects
-ab_plot(fit_dynamic, plot_type = "trajectory")     # Dynamic over time
+# additive effects (sender/receiver)
+ab_plot(fit, effect = "sender")                    # static effects
+ab_plot(fit_dynamic, plot_type = "trajectory")     # dynamic over time
 
-# Multiplicative effects (latent factors)
-uv_plot(fit)                                       # Static latent positions
-uv_plot(fit_dynamic, plot_type = "trajectory")     # Dynamic trajectories
+# multiplicative effects (latent factors)
+uv_plot(fit)                                       # static latent positions
+uv_plot(fit_dynamic, plot_type = "trajectory")     # dynamic trajectories
 
-# Diagnostics
-trace_plot(fit)                                     # MCMC convergence
-gof_plot(fit)                                       # Goodness-of-fit
+# diagnostics
+trace_plot(fit)                                     # mcmc convergence
+gof_plot(fit)                                       # goodness of fit
 ```
 
 ## Key Features

@@ -253,7 +253,7 @@ still require the MCMC estimator:
 \item \strong{Dynamic effects.} \code{\link{lame_als}} itself fits a
 static model pooled across time slices. The top-level dispatcher
 \code{lame(..., method = "als")} routes supported dynamic requests to a
-dynamic point estimator for normal, binary, and Poisson panels,
+dynamic point estimator for normal, binary, and poisson panels,
 including named panels where actors enter or exit: \code{dynamic_ab},
 selected intercept/dyadic/node
 \code{dynamic_beta}, and AR(1) or Student-t \code{dynamic_uv} for
@@ -264,11 +264,11 @@ bipartite panels.
 Node-covariate coefficients use the same orthogonal additive-effect
 decomposition as \code{\link{lame_als}}; dynamic node coefficients use
 period-specific node values when selected by \code{dynamic_beta}, while
-static node coefficients use per-actor means. Bipartite \code{dynamic_G}
-is available on the dynamic ALS path for normal, binary, and Poisson
-panels. Changing actor composition requires row and column names on every
+static node coefficients use per-actor means. bipartite \code{dynamic_g}
+is available on the dynamic als path for normal, binary, and poisson
+panels. changing actor composition requires row and column names on every
 slice so actors can be aligned; smoothing penalties are broken across
-actor-entry gaps. Rank/censored dynamic families remain on the MCMC path. Static
+actor-entry gaps. rank/censored dynamic families remain on the mcmc path. static
 \code{ame_als()} / \code{lame_als()} fits still use a
 single latent rank \code{R}; the dynamic bipartite ALS dispatcher
 honours separate \code{R_row} and \code{R_col} values.
