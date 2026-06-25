@@ -1,21 +1,72 @@
 name: Build lame Release Binaries
 
 on:
+  push:
+    branches: [main, master]
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      should_release: ${{ steps.release.outputs.should_release }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read release version
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(awk -F': *' '$1 == "Version" { print $2; exit }' DESCRIPTION)
+          tag="v${version}"
+
+          if [ -z "$version" ]; then
+            echo "Could not read Version from DESCRIPTION." >&2
+            exit 1
+          fi
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "$tag" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match DESCRIPTION version ${version}." >&2
+            exit 1
+          fi
+
+          should_release=true
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            if gh release view "$tag" >/dev/null 2>&1; then
+              should_release=false
+              echo "Release ${tag} already exists; skipping release build for this branch push."
+            fi
+          fi
+
+          {
+            echo "version=${version}"
+            echo "tag=${tag}"
+            echo "should_release=${should_release}"
+          } >> "$GITHUB_OUTPUT"
+
   build:
     name: Build on ${{ matrix.label }}
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             label: linux
-          - os: macos-13
+          - os: macos-15-intel
             label: macos-intel
-          - os: macos-15
-            label: macos-asan
           - os: macos-latest
             label: macos-arm64
           - os: windows-latest
@@ -31,13 +82,6 @@ jobs:
       - name: Install dependencies
         uses: r-lib/actions/setup-r-dependencies@v2
 
-      - name: Extract version from DESCRIPTION
-        id: version
-        run: |
-          version <- read.dcf("DESCRIPTION")[1, "Version"]
-          cat(sprintf("version=%s\n", version), file = Sys.getenv("GITHUB_OUTPUT"), append = TRUE)
-        shell: Rscript {0}
-
       - name: Build source package
         run: R CMD build .
         shell: bash
@@ -46,13 +90,29 @@ jobs:
         run: |
           pkg_file=$(ls -1tr *.tar.gz | tail -n 1)
           R CMD INSTALL --build "$pkg_file"
-          
+
           platform=${{ matrix.label }}
           for f in *.tgz *.zip *.tar.gz *.tar.bz2; do
             if [ -f "$f" ]; then
-              ext="${f##*.}"
-              filename=$(basename "$f")
-              mv "$f" "${filename%.*}-${platform}.${ext}"
+              case "$f" in
+                *.tar.gz)
+                  stem="${f%.tar.gz}"
+                  ext="tar.gz"
+                  ;;
+                *.tar.bz2)
+                  stem="${f%.tar.bz2}"
+                  ext="tar.bz2"
+                  ;;
+                *.tgz)
+                  stem="${f%.tgz}"
+                  ext="tgz"
+                  ;;
+                *.zip)
+                  stem="${f%.zip}"
+                  ext="zip"
+                  ;;
+              esac
+              mv "$f" "${stem}-${platform}.${ext}"
             fi
           done
         shell: bash
@@ -60,24 +120,23 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: lame-${{ matrix.label }}-v${{ steps.version.outputs.version }}
+          name: lame-${{ matrix.label }}-v${{ needs.prepare.outputs.version }}
           path: |
             *.tgz
             *.zip
             *.tar.gz
+            *.tar.bz2
           retention-days: 90
 
   release:
     name: Create GitHub Release
-    needs: build
+    needs: [prepare, build]
+    if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup R
-        uses: r-lib/actions/setup-r@v2
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -86,25 +145,25 @@ jobs:
 
       - name: Move artifacts to root of artifacts directory
         run: |
-          find artifacts -type f \( -name "*.zip" -o -name "*.tgz" -o -name "*.tar.gz" \) -exec mv {} artifacts/ \;
+          mkdir -p release-assets
+          find artifacts -type f \( -name "*.zip" -o -name "*.tgz" -o -name "*.tar.gz" -o -name "*.tar.bz2" \) -exec cp {} release-assets/ \;
+          ls -lh release-assets
         shell: bash
 
-      - name: Extract version from DESCRIPTION
-        id: version
-        run: |
-          version <- read.dcf("DESCRIPTION")[1, "Version"]
-          cat(sprintf("version=%s\n", version), file = Sys.getenv("GITHUB_OUTPUT"), append = TRUE)
-        shell: Rscript {0}
-
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "lame v${{ steps.version.outputs.version }}"
-          tag_name: "v${{ steps.version.outputs.version }}"
-          generate_release_notes: true
-          files: |
-            artifacts/*.tgz
-            artifacts/*.zip
-            artifacts/*.tar.gz
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LAME_VERSION: ${{ needs.prepare.outputs.version }}
+          LAME_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          if gh release view "$LAME_TAG" >/dev/null 2>&1; then
+            gh release upload "$LAME_TAG" release-assets/* --clobber
+            gh release edit "$LAME_TAG" --title "lame v${LAME_VERSION}" --latest
+          else
+            gh release create "$LAME_TAG" release-assets/* \
+              --title "lame v${LAME_VERSION}" \
+              --generate-notes \
+              --latest \
+              --target "$GITHUB_SHA"
+          fi
+        shell: bash
