@@ -1422,6 +1422,7 @@ lame_snap_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	                          share_snap_class_changed = numeric(0))
 	converged <- FALSE
 	prev_obj <- Inf
+	prev_params <- NULL
 	last_q_u <- q_u
 	last_q_v <- q_v
 	prev_delta_q_u <- q_u
@@ -1548,12 +1549,28 @@ lame_snap_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 		                                share_snap_delta_gt_tol = last_delta_summary$share_unstable,
 		                                n_snap_class_changed = last_delta_summary$n_class_changed,
 		                                share_snap_class_changed = last_delta_summary$share_class_changed))
-		if (iter > 2L && is.finite(prev_obj) &&
-		    abs(prev_obj - obj) / (abs(prev_obj) + 1) < tol &&
-		    snap_score_stable) {
+		# two convergence routes. (1) the relative-objective test, gated on
+		# snap-score stability. (2) stationarity of the identified
+		# parameters: the raw intercept mu is unidentified against the
+		# latent-mean direction (mu_identified is the reported quantity),
+		# and the free-energy objective creeps ~1/iter along that flat
+		# direction indefinitely -- so route 2 watches beta and the
+		# hyperparameters (not mu) at a point-estimator tolerance, with a
+		# stable snap classification
+		params_now <- c(beta, rho_uv, sigma_uv, pi_snap, obs_var)
+		param_tol <- max(tol, 1e-4)
+		param_stable <- !is.null(prev_params) &&
+			length(prev_params) == length(params_now) &&
+			all(is.finite(params_now)) &&
+			max(abs(params_now - prev_params) / (abs(prev_params) + 1)) < param_tol
+		if (iter > 2L &&
+		    ((snap_score_stable && is.finite(prev_obj) &&
+		      abs(prev_obj - obj) / (abs(prev_obj) + 1) < tol) ||
+		     (class_stable && param_stable))) {
 			converged <- TRUE
 			break
 		}
+		prev_params <- params_now
 		prev_obj <- obj
 		last_q_u <- q_u
 		last_q_v <- q_v

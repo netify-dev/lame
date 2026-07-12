@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,20 +80,15 @@ Tosin Salau, Shahryar Minhas</h4>
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
-<p>Networks change. Countries that were close allies a decade ago may
-have drifted apart. A legislator’s co-sponsorship patterns shift as they
-gain seniority or switch committee assignments. A user’s purchasing
-habits evolve as their tastes change.</p>
-<p>The standard AME model assumes that each actor has a fixed latent
-position and fixed additive effects across all time periods. This is a
-reasonable starting point (pooling across time gives you more data and
-more precise estimates), but it can miss important dynamics. The
-<code>lame</code> package provides two mechanisms for letting the model
-capture temporal change: <code>dynamic_uv</code> for time-varying latent
-positions and <code>dynamic_ab</code> for time-varying additive
-effects.</p>
-<p>This vignette explains what these options do, when to use them, and
-how to interpret the results.</p>
+<p>Networks change. Allies drift apart, tastes evolve. The standard AME
+model pools across time, assuming each actor has a fixed latent position
+and fixed additive effects in every period. The <code>lame</code>
+package provides three mechanisms for relaxing that assumption:
+<code>dynamic_uv</code> for time-varying latent positions,
+<code>dynamic_ab</code> for time-varying additive effects, and
+<code>dynamic_beta</code> for time-varying regression coefficients. This
+vignette explains what each option does, when to use it, and how to
+interpret the results.</p>
 </div>
 <div class="section level2">
 <h2 id="what-are-dynamic-effects">What Are Dynamic Effects?<a class="anchor" aria-label="anchor" href="#what-are-dynamic-effects"></a>
@@ -112,17 +107,16 @@ is:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><mi>β</mi><mi>′</mi><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>+</mo><msub><mi>a</mi><mi>i</mi></msub><mo>+</mo><msub><mi>b</mi><mi>j</mi></msub><mo>+</mo><msub><mi>u</mi><mi>i</mi></msub><mi>′</mi><msub><mi>v</mi><mi>j</mi></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">y_{ij,t} = \beta'x_{ij,t} + a_i + b_j + u_i'v_j + \epsilon_{ij,t}</annotation></semantics></math></p>
 <p>The covariates
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">x_{ij,t}</annotation></semantics></math>)
-can vary over time, but everything else (the sender effect
+can vary over time, but the sender effect
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>i</mi></msub><annotation encoding="application/x-tex">a_i</annotation></semantics></math>,
 the receiver effect
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mi>j</mi></msub><annotation encoding="application/x-tex">b_j</annotation></semantics></math>,
 and the latent positions
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>
 and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>j</mi></msub><annotation encoding="application/x-tex">v_j</annotation></semantics></math>)
-is constant. This means the model assumes that a country’s tendency to
-sanction others, or its position in the latent “sanctioning space,” is
-the same in 1993 as in 2000.</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>j</mi></msub><annotation encoding="application/x-tex">v_j</annotation></semantics></math>
+are constant: the model assumes a country’s position in the latent
+“sanctioning space” is the same in 1993 as in 2000.</p>
 </div>
 <div class="section level3">
 <h3 id="dynamic-latent-positions-dynamic_uv-true">Dynamic Latent Positions (<code>dynamic_uv = TRUE</code>)<a class="anchor" aria-label="anchor" href="#dynamic-latent-positions-dynamic_uv-true"></a>
@@ -132,126 +126,78 @@ position evolves over time according to an AR(1) process:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>U</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>∼</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">U_{i,k,t} = \rho_{uv} \, U_{i,k,t-1} + \epsilon_{i,k,t}, \quad \epsilon_{i,k,t} \sim N(0, \sigma_{uv}^2)</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>V</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>V</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>η</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>η</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>∼</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">V_{j,k,t} = \rho_{uv} \, V_{j,k,t-1} + \eta_{j,k,t}, \quad \eta_{j,k,t} \sim N(0, \sigma_{uv}^2)</annotation></semantics></math></p>
 <p>Note the <strong>innovation parameterisation</strong>:
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><annotation encoding="application/x-tex">\sigma_{uv}^2</annotation></semantics></math>
-is the variance of the period-to-period innovation
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">\epsilon_{i,k,t}</annotation></semantics></math>,
-not the marginal/stationary variance of
+is the variance of the period-to-period innovation, not the
+marginal/stationary variance of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>U</mi><mrow><mi>i</mi><mo>,</mo><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">U_{i,k,t}</annotation></semantics></math>
 (which is
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msubsup><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma_{uv}^2 / (1 - \rho_{uv}^2)</annotation></semantics></math>
-under the stationary AR(1)), and the on-fit field
-<code>fit$sigma_uv</code> holds posterior draws of the innovation
-<strong>standard deviation</strong>
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><annotation encoding="application/x-tex">\sigma_{uv}</annotation></semantics></math>.
-The autoregressive parameter
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><annotation encoding="application/x-tex">\rho_{uv}</annotation></semantics></math>
-controls how persistent the positions are: a value close to 1 means
-positions change slowly, a value close to 0 means they are essentially
-re-drawn each period. In practice,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><annotation encoding="application/x-tex">\rho_{uv}</annotation></semantics></math>
-is estimated from the data.</p>
-<p>This is useful when you believe the underlying community structure is
-evolving: alliances shift, social groups re-form, trading blocs
-realign.</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msubsup><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma_{uv}^2 / (1 - \rho_{uv}^2)</annotation></semantics></math>),
+and <code>fit$sigma_uv</code> holds posterior draws of the innovation
+<strong>standard deviation</strong>. The autoregressive parameter
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><annotation encoding="application/x-tex">\rho_{uv}</annotation></semantics></math>,
+estimated from the data, controls persistence: near 1 means positions
+change slowly, near 0 means they are essentially re-drawn each period.
+Use this when the underlying community structure is evolving – alliances
+shift, trading blocs realign.</p>
 </div>
 <div class="section level3">
 <h3 id="dynamic-additive-effects-dynamic_ab-true">Dynamic Additive Effects (<code>dynamic_ab = TRUE</code>)<a class="anchor" aria-label="anchor" href="#dynamic-additive-effects-dynamic_ab-true"></a>
 </h3>
 <p>When you set <code>dynamic_ab = TRUE</code>, the sender and receiver
-effects evolve over time:</p>
+effects evolve the same way:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>a</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>ϵ</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>∼</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>a</mi><mi>b</mi></mrow><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">a_{i,t} = \rho_{ab} \, a_{i,t-1} + \epsilon_{i,t}, \quad \epsilon_{i,t} \sim N(0, \sigma_{ab}^2)</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>b</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>b</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>η</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>η</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>∼</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>a</mi><mi>b</mi></mrow><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">b_{j,t} = \rho_{ab} \, b_{j,t-1} + \eta_{j,t}, \quad \eta_{j,t} \sim N(0, \sigma_{ab}^2)</annotation></semantics></math></p>
-<p>The same innovation parameterisation applies as for
-<code>dynamic_uv</code>:
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>σ</mi><mrow><mi>a</mi><mi>b</mi></mrow><mn>2</mn></msubsup><annotation encoding="application/x-tex">\sigma_{ab}^2</annotation></semantics></math>
-is the <em>innovation</em> variance, <code>fit$sigma_ab</code> holds
-posterior draws of the innovation standard deviation
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><annotation encoding="application/x-tex">\sigma_{ab}</annotation></semantics></math>,
-and the implied stationary marginal variance
+<p>The same innovation parameterisation applies:
+<code>fit$sigma_ab</code> holds draws of the innovation standard
+deviation, and the implied stationary variance
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>a</mi><mi>b</mi></mrow><mn>2</mn></msubsup><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msubsup><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma_{ab}^2 / (1 - \rho_{ab}^2)</annotation></semantics></math>
-doubles as the sampler’s prior on the initial state
+doubles as the prior on the initial state
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mrow><mi>i</mi><mo>,</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">a_{i,1}</annotation></semantics></math>.
-Substantively, <code>dynamic_ab</code> captures changes in actors’
-overall activity levels. A country might become a more active sanctioner
-after a change in government. A student might become more or less
-socially active across semesters. These are changes in how much an actor
-participates, not in who they connect with (that’s what
-<code>dynamic_uv</code> captures).</p>
-<p>You can use either option alone or combine them. In practice,
-<code>dynamic_ab</code> is often a good place to start, since changes in
-overall activity are common and relatively easy to estimate.
-<code>dynamic_uv</code> adds more flexibility but also more
-parameters.</p>
+Substantively, <code>dynamic_ab</code> captures changes in how much an
+actor participates, not in who they connect with (that is
+<code>dynamic_uv</code>’s territory). The two can be used alone or
+together; <code>dynamic_ab</code> is often the place to start, since
+changes in overall activity are common and relatively easy to
+estimate.</p>
 </div>
 <div class="section level3">
 <h3 id="dynamic-regression-coefficients-dynamic_beta">Dynamic Regression Coefficients (<code>dynamic_beta</code>)<a class="anchor" aria-label="anchor" href="#dynamic-regression-coefficients-dynamic_beta"></a>
 </h3>
-<p>The third dynamic option lets the regression coefficients themselves
-evolve over time. When you set <code>dynamic_beta = TRUE</code> (or pass
-a subset like <code>dynamic_beta = "dyad"</code> to make only the dyadic
-coefficients dynamic), each selected coefficient follows an independent
-AR(1):</p>
+<p>The third option lets the regression coefficients themselves evolve.
+With <code>dynamic_beta = TRUE</code> (or a subset like
+<code>dynamic_beta = "dyad"</code>), each selected coefficient follows
+an AR(1):</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>β</mi><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>β</mi><mo>,</mo><mi>b</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><mspace width="0.167em"></mspace><msub><mi>β</mi><mrow><mi>k</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>ϵ</mi><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>∼</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>β</mi><mo>,</mo><mi>b</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mn>2</mn></msubsup><msub><mi>Λ</mi><mrow><mi>k</mi><mi>k</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\beta_{k,t} = \rho_{\beta,b(k)} \, \beta_{k,t-1} + \epsilon_{k,t}, \quad \epsilon_{k,t} \sim N(0, \sigma_{\beta,b(k)}^2 \Lambda_{kk})</annotation></semantics></math></p>
 <p>where
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">b(k)</annotation></semantics></math>
 is the block of coefficient
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-(intercept / dyad / row / col), so all coefficients in the same block
-share the AR(1) persistence
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>β</mi><mo>,</mo><mi>b</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><annotation encoding="application/x-tex">\rho_{\beta,b(k)}</annotation></semantics></math>
-and innovation scale
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mrow><mi>β</mi><mo>,</mo><mi>b</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msub><annotation encoding="application/x-tex">\sigma_{\beta,b(k)}</annotation></semantics></math>;
-the diagonal scale
+(intercept / dyad / row / col), so coefficients in a block share
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>,
+while the design-based scale
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Λ</mi><mrow><mi>k</mi><mi>k</mi></mrow></msub><annotation encoding="application/x-tex">\Lambda_{kk}</annotation></semantics></math>
 (a
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math>-prior
-analogue built from the design) keeps the innovation variance for
-coefficient
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-commensurate with the data-level information about
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>β</mi><mi>k</mi></msub><annotation encoding="application/x-tex">\beta_k</annotation></semantics></math>.
-The package draws the entire time path of
+analogue) keeps each innovation variance commensurate with the data. The
+whole time path of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
-jointly via forward-filter / backward-sample (FFBS; Carter &amp; Kohn
-1994, Frühwirth-Schnatter 1994). Note a storage difference from
-<code>dynamic_uv</code>/<code>dynamic_ab</code>:
-<code>fit$sigma_beta</code> and <code>fit$rho_beta</code> hold the
-<strong>last-iteration</strong> scalars, while the full posterior draws
-live in <code>fit$SIGMA_BETA</code> and <code>fit$RHO_BETA</code> –
-summarise those (e.g. <code>colMeans(fit$SIGMA_BETA)</code>), do not
-square the last-iteration <code>fit$sigma_beta</code>.</p>
-<p>This is useful when you believe a covariate’s effect changes over
-time: maybe trade increases the probability of cooperation more strongly
-during a recession, or a peer’s behavior matters more in certain
-semesters. The dynamic-coefficient path is reported in
-<code>coef(fit)</code> as a <code>p x T</code> matrix, and the
-per-period 95% CIs are available via <code>confint(fit)</code>.</p>
-<p>You can pass <code>dynamic_beta</code> in five forms:</p>
-<ul>
-<li>
-<code>FALSE</code> (default): every coefficient is static.</li>
-<li>
-<code>TRUE</code>: every coefficient becomes dynamic.</li>
-<li>character vector of block shortcuts: <code>"intercept"</code>,
-<code>"dyad"</code>, <code>"row"</code>, <code>"col"</code>, or any
-coefficient name from <code>colnames(fit$BETA)</code>.</li>
-<li>integer vector: column indices into the BETA layout.</li>
-<li>logical vector of length <code>p</code>: per-coefficient mask.</li>
-</ul>
-<p>When the intercept (or a nodal coefficient) is included in
-<code>dynamic_beta</code>, the additive-effects sampler imposes a
-sum-to-zero constraint on <code>a</code> (and <code>b</code>) so that
-the intercept and the additive effects remain jointly identified. This
-happens automatically.</p>
-<p>The AR(1) hyperparameters
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>σ</mi><mi>β</mi><mn>2</mn></msubsup><annotation encoding="application/x-tex">\sigma_\beta^2</annotation></semantics></math>
-have their own priors:</p>
-<ul>
-<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mi>β</mi></msub><mo>∼</mo><mtext mathvariant="normal">TruncNormal</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.8</mn><mo>,</mo><mn>0.15</mn><mo>,</mo><mn>0</mn><mo>,</mo><mn>0.999</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\rho_\beta \sim \text{TruncNormal}(0.8, 0.15, 0, 0.999)</annotation></semantics></math></li>
-<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mi>β</mi><mn>2</mn></msubsup><mo>∼</mo><mtext mathvariant="normal">InverseGamma</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma_\beta^2 \sim \text{InverseGamma}(2, 1)</annotation></semantics></math></li>
-</ul>
-<p>You can override these via
-<code>prior = list(rho_beta_mean = ..., rho_beta_sd = ..., sigma_beta_shape = ..., sigma_beta_scale = ...)</code>.</p>
+is drawn jointly via forward-filter / backward-sample (FFBS; Carter
+&amp; Kohn 1994). One storage difference from <code>dynamic_uv</code> /
+<code>dynamic_ab</code>: <code>fit$sigma_beta</code> and
+<code>fit$rho_beta</code> hold last-iteration scalars, while the full
+posterior draws live in <code>fit$SIGMA_BETA</code> and
+<code>fit$RHO_BETA</code> – summarise those
+(e.g. <code>colMeans(fit$SIGMA_BETA)</code>).</p>
+<p><code>dynamic_beta</code> accepts <code>FALSE</code> (default),
+<code>TRUE</code> (all coefficients), block shortcuts
+(<code>"intercept"</code>, <code>"dyad"</code>, <code>"row"</code>,
+<code>"col"</code>) or coefficient names, integer column indices, or a
+length-<code>p</code> logical mask; see <code><a href="../reference/lame.html">?lame</a></code>. When the
+intercept (or a nodal coefficient) is dynamic, an automatic sum-to-zero
+constraint on <code>a</code> (and <code>b</code>) keeps everything
+jointly identified. <code>dynamic_beta</code> works for every family,
+unipartite and bipartite, directed and symmetric, and combines with
+<code>dynamic_ab</code> / <code>dynamic_uv</code>.</p>
 <div class="section level4">
 <h4 id="a-worked-dynamic_beta-example">A worked <code>dynamic_beta</code> example<a class="anchor" aria-label="anchor" href="#a-worked-dynamic_beta-example"></a>
 </h4>
@@ -304,163 +250,47 @@ covariate’s effect grows linearly over time, and fit with
 <span><span class="co">#&gt; intercept[t4] -0.02848641  0.01040391</span></span>
 <span><span class="co">#&gt; X1_dyad[t4]    0.57961541  0.69053241</span></span></code></pre></div>
 <p><strong>Migration warning for <code>amen</code> /
-static-<code>lame</code> users.</strong> Under <code><a href="https://rdrr.io/pkg/amen/man/ame.html" class="external-link">amen::ame()</a></code>
-and any static <code>lame</code> fit, <code>fit$BETA</code> is a 2-D
-<code>[n_stored, p]</code> matrix and
-<code>apply(fit$BETA, 2, mean)</code> gives the posterior mean per
-coefficient. When <code>dynamic_beta</code> is active,
-<code>fit$BETA</code> becomes a 3-D <code>[n_stored, p, T]</code> array.
-The second margin is still the coefficient index in both shapes, so
+static-<code>lame</code> users.</strong> With <code>dynamic_beta</code>
+active, <code>fit$BETA</code> becomes a 3-D
+<code>[n_stored, p, T]</code> array rather than the 2-D
+<code>[n_stored, p]</code> matrix. The amen-era idiom
 <code>apply(fit$BETA, 2, mean)</code> still returns a
-length-<code>p</code> vector and looks superficially correct, but it now
-silently averages across both iterations <strong>and</strong> time
-periods. The call does not error, the output length matches what the old
-code expected, and the silent collapse can survive into downstream plots
-as a single “average effect” that hides any time variation the user was
-trying to recover. Two safe patterns:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># check the shape before summarising coefficients</span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">$</span><span class="va">BETA</span><span class="op">)</span><span class="op">)</span> <span class="op">==</span> <span class="fl">3L</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="co"># 3-D: take posterior mean over the iteration margin -&gt; [p, T]</span></span>
-<span>    <span class="va">pm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">$</span><span class="va">BETA</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>, <span class="va">mean</span><span class="op">)</span></span>
-<span><span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
-<span>    <span class="co"># 2-D amen-style fit</span></span>
-<span>    <span class="va">pm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">$</span><span class="va">BETA</span>, <span class="fl">2</span>, <span class="va">mean</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="co"># or just use coef(), which returns a [p, T] matrix for dynamic fits</span></span>
-<span><span class="co"># and a length-p vector for static fits -- no shape sniffing required</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                    t1          t2          t3          t4          t5</span></span>
-<span><span class="co">#&gt; intercept -0.01023113 -0.01023113 -0.01023113 -0.01023113 -0.01023113</span></span>
-<span><span class="co">#&gt; X1_dyad   -0.48583219 -0.11744337  0.23062096  0.62762440  0.99821440</span></span></code></pre></div>
+length-<code>p</code> vector – but it now silently averages across both
+iterations <strong>and</strong> time, hiding the time variation you fit
+the model to recover. Use <code>coef(fit)</code> instead: it returns a
+<code>[p, T]</code> matrix for dynamic fits and a length-<code>p</code>
+vector for static ones.</p>
 <p>The per-period posterior mean for <code>X1_dyad</code> should track
 the linear ramp
-<code>beta_t_true = c(-0.5, -0.125, 0.25, 0.625, 1.0)</code>. The AR(1)
-prior provides mild shrinkage that reduces the per-period variance
-compared to fitting a separate <code><a href="../reference/ame.html">ame()</a></code> per period.</p>
-<p><code>summary(fit_db)</code> prints a <em>Dynamic coefficients per
-period</em> block with per-coefficient
-<code>Mean | Min | Max | Drift_pct | Dynamic</code> columns; the
-<code>Drift_pct</code> is <code>100 * (Max - Min) / |Mean|</code>,
-useful for spotting which coefficients move the most across periods.</p>
-</div>
-<div class="section level4">
-<h4 id="the-full-model-dynamic_beta-with-latent-factors-and-additive-effects">The full model: <code>dynamic_beta</code> with latent factors and
-additive effects<a class="anchor" aria-label="anchor" href="#the-full-model-dynamic_beta-with-latent-factors-and-additive-effects"></a>
-</h4>
-<p>The example above is a bare regression, but the reason to reach for
-AME in the first place is that networks carry sender/receiver
-heterogeneity and latent clustering that a regression alone
-misattributes to the covariates. <code>dynamic_beta</code> composes with
-both: here we simulate a binary panel that has all three structures at
-once – a dyadic effect that ramps from
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">-0.5</annotation></semantics></math>
-to
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1.0</mn><annotation encoding="application/x-tex">1.0</annotation></semantics></math>,
-sender/receiver effects with variance
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.25</mn><annotation encoding="application/x-tex">0.25</annotation></semantics></math>,
-and a rank-1 latent space – and fit them jointly.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span><span class="va">n_f</span> <span class="op">&lt;-</span> <span class="fl">25</span>; <span class="va">T_f</span> <span class="op">&lt;-</span> <span class="fl">5</span></span>
-<span><span class="va">beta_t_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.5</span>, <span class="fl">1.0</span>, length.out <span class="op">=</span> <span class="va">T_f</span><span class="op">)</span></span>
-<span><span class="va">a_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_f</span>, <span class="fl">0</span>, <span class="fl">0.5</span><span class="op">)</span>       <span class="co"># sender heterogeneity (variance 0.25)</span></span>
-<span><span class="va">b_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_f</span>, <span class="fl">0</span>, <span class="fl">0.5</span><span class="op">)</span>       <span class="co"># receiver heterogeneity</span></span>
-<span><span class="va">u_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_f</span>, <span class="fl">0</span>, <span class="fl">0.7</span><span class="op">)</span>       <span class="co"># 1-D latent positions</span></span>
-<span><span class="va">v_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_f</span>, <span class="fl">0</span>, <span class="fl">0.7</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">X_f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">T_f</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/array.html" class="external-link">array</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_f</span> <span class="op">*</span> <span class="va">n_f</span><span class="op">)</span>, <span class="va">n_f</span>, <span class="va">n_f</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n_f</span>, <span class="va">n_f</span>, <span class="fl">1</span><span class="op">)</span>,</span>
-<span>          dimnames <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="cn">NULL</span>, <span class="cn">NULL</span>, <span class="st">"x1"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">Y_f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">T_f</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">eta</span> <span class="op">&lt;-</span> <span class="op">-</span><span class="fl">0.3</span> <span class="op">+</span> <span class="va">beta_t_true</span><span class="op">[</span><span class="va">t</span><span class="op">]</span> <span class="op">*</span> <span class="va">X_f</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span><span class="op">[</span>, , <span class="fl">1</span><span class="op">]</span> <span class="op">+</span></span>
-<span>        <span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">a_true</span>, <span class="va">b_true</span>, <span class="st">"+"</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">u_true</span>, <span class="va">v_true</span><span class="op">)</span></span>
-<span>    <span class="va">Yt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_f</span> <span class="op">*</span> <span class="va">n_f</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">pnorm</a></span><span class="op">(</span><span class="va">eta</span><span class="op">)</span><span class="op">)</span>, <span class="va">n_f</span>, <span class="va">n_f</span><span class="op">)</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_f</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="va">Yt</span></span>
-<span><span class="op">}</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">Y_f</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"t"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">T_f</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">fit_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_f</span>, Xdyad <span class="op">=</span> <span class="va">X_f</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>                 rvar <span class="op">=</span> <span class="cn">TRUE</span>, cvar <span class="op">=</span> <span class="cn">TRUE</span>, dcor <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>                 dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>
-<span>                 nscan <span class="op">=</span> <span class="fl">600</span>, burn <span class="op">=</span> <span class="fl">150</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># the time-varying coefficient is recovered with the latent structure present</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>recovered <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_full</span><span class="op">)</span><span class="op">[</span><span class="st">"x1_dyad"</span>, <span class="op">]</span>,</span>
-<span>            truth     <span class="op">=</span> <span class="va">beta_t_true</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="co">#&gt;              t1    t2   t3   t4   t5</span></span>
-<span><span class="co">#&gt; recovered -0.53 -0.17 0.18 0.62 0.87</span></span>
-<span><span class="co">#&gt; truth     -0.50 -0.12 0.25 0.62 1.00</span></span>
-<span></span>
-<span><span class="co"># and the additive variance components stay pinned to the simulated truth</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">fit_full</span><span class="op">$</span><span class="va">VC</span>, <span class="fl">2</span>, <span class="va">quantile</span>,</span>
-<span>              <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.5</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"va"</span>, <span class="st">"vb"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    2.5%  50% 97.5%</span></span>
-<span><span class="co">#&gt; va 0.11 0.17  0.30</span></span>
-<span><span class="co">#&gt; vb 0.08 0.14  0.24</span></span></code></pre></div>
-<p>Two things to read off this output. First, the per-period coefficient
-path tracks the simulated ramp even though the model is simultaneously
-estimating per-actor effects and latent positions – the covariate’s time
-variation is not absorbed into the latent structure. Second, both
-additive variance components come back clearly non-zero –
-<code>va</code> at 0.17 [0.11, 0.30] and <code>vb</code> at 0.14 [0.08,
-0.24] – so per-actor sending/receiving heterogeneity is absorbed by the
-additive effects instead of bleeding into the coefficient path. The
-medians sit a little below the nominal
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.25</mn><annotation encoding="application/x-tex">0.25</annotation></semantics></math>,
-but that is largely the draw, not the sampler: with only 25 actors, the
-realized variances of the simulated effects are
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.23</mn><annotation encoding="application/x-tex">0.23</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.20</mn><annotation encoding="application/x-tex">0.20</annotation></semantics></math>,
-and both intervals cover those values. What matters for reporting is the
-clean separation of “some actors send/receive more ties” from “the
-covariate’s effect is growing”, which is exactly the decomposition you
-want when reporting a time-varying effect from observational network
-data.</p>
-<p>This combination is supported for every family – <code>normal</code>,
-<code>binary</code>, <code>poisson</code>, <code>ordinal</code>,
-<code>cbin</code>, and <code>frn</code> – across unipartite and
-bipartite panels, directed and symmetric networks, and together with
-<code>dynamic_ab</code> / <code>dynamic_uv</code>.</p>
+<code>beta_t_true = c(-0.5, -0.125, 0.25, 0.625, 1.0)</code>, with the
+AR(1) prior providing mild shrinkage relative to fitting a separate
+<code><a href="../reference/ame.html">ame()</a></code> per period.</p>
 </div>
 <div class="section level4">
 <h4 id="choosing-a-prior-family-dynamic_beta_kind">Choosing a prior family: <code>dynamic_beta_kind</code><a class="anchor" aria-label="anchor" href="#choosing-a-prior-family-dynamic_beta_kind"></a>
 </h4>
-<p><code><a href="../reference/lame.html">lame()</a></code> exposes a stable argument
-<code>dynamic_beta_kind</code> for selecting the prior family on the
-time-varying coefficients. <strong>In this release the full decision
-tree is:</strong></p>
+<p><code><a href="../reference/lame.html">lame()</a></code> exposes <code>dynamic_beta_kind</code> for
+selecting the prior family on the time-varying coefficients:</p>
 <blockquote>
 <p><strong>Mean-reverting</strong> coefficient? Use the default
 <code>dynamic_beta_kind = "ar1"</code>. <strong>Permanent / unit-root
-drift</strong> (no mean reversion)? Use
-<code>dynamic_beta_kind = "rw1"</code>. <strong>Smooth with
-curvature</strong> (acceleration matters; second-order smoothness)? Use
-<code>dynamic_beta_kind = "rw2"</code>. <strong>Smooth with a known
-length-scale</strong> of variation? Use
-<code>dynamic_beta_kind = "matern32"</code> (set the length scale via
+drift</strong> (no mean reversion)? Use <code>"rw1"</code>.
+<strong>Smooth with curvature</strong> (second-order smoothness)? Use
+<code>"rw2"</code>. <strong>Smooth with a known length-scale</strong> of
+variation? Use <code>"matern32"</code> (set the scale via
 <code>prior = list(matern32_length_scale = ...)</code>; defaults to
 <code>max(2, T/4)</code>). If the stationarity warning fires after
-fitting AR(1), meaning the posterior on
+fitting AR(1) – the posterior on
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
-is concentrated at or above 0.97, refit with <code>"rw1"</code> (or
+concentrated at or above 0.97 – refit with <code>"rw1"</code> (or
 <code>"rw2"</code> if acceleration matters).</p>
 </blockquote>
-<p><code>"random_walk"</code> is accepted as an alias for
-<code>"rw1"</code>. The <code>"rw2"</code> and <code>"matern32"</code>
-samplers use an R-level joint Gaussian update (slower than the C++ FFBS
-used for <code>"ar1"</code> / <code>"rw1"</code>, but produces full
-posterior draws and works on any T).</p>
-<p>The same <code>fit_db</code> setup above can be refit under each kind
-– each call swaps only the <code>dynamic_beta_kind</code> argument, and
-<code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> returns the same <code>p x T</code> matrix
-regardless. Comparing the recovered <code>X1_dyad</code> path across all
-four kinds against the truth:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<p><code>"random_walk"</code> is an alias for <code>"rw1"</code>; the
+<code>"rw2"</code> and <code>"matern32"</code> samplers use a slower
+R-level joint Gaussian update rather than the C++ FFBS. Refitting
+<code>fit_db</code> under each kind and comparing the recovered
+<code>X1_dyad</code> path against the truth:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">kinds</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rw1"</span>, <span class="st">"rw2"</span>, <span class="st">"matern32"</span><span class="op">)</span></span>
 <span><span class="va">paths</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">kinds</span>, <span class="kw">function</span><span class="op">(</span><span class="va">k</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="va">fit_k</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>, family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
@@ -479,29 +309,20 @@ four kinds against the truth:</p>
 <span><span class="co">#&gt; rw2      -0.489 -0.123 0.226 0.641 0.991</span></span>
 <span><span class="co">#&gt; matern32 -0.486 -0.126 0.230 0.645 0.981</span></span>
 <span><span class="co">#&gt; truth    -0.500 -0.125 0.250 0.625 1.000</span></span></code></pre></div>
-<p>All four kinds recover essentially the same ramp on these data –
-every path lands within a few hundredths of the <code>-0.5</code> to
-<code>1.0</code> truth. That agreement is the point to take away, not a
-tie-breaker: on a smooth, gap-free linear trend the four priors are
-nearly indistinguishable in-sample, so this table is <em>not</em> how
-you choose between them. The kinds diverge only when the data match
-their assumption – <code>rw1</code> when the coefficient genuinely
-wanders without reverting to a mean, <code>rw2</code> when it is the
-coefficient’s <em>slope</em> that evolves smoothly,
-<code>matern32</code> when you can name a length-scale of variation.
-Choose with the decision tree above (and the post-fit stationarity
-warning), not by eyeballing this table.</p>
+<p>All four kinds recover essentially the same ramp – the point to take
+away, not a tie-breaker: on a smooth, gap-free trend the priors are
+nearly indistinguishable in-sample, and they diverge only when the data
+match their assumption. Choose with the decision tree above and the
+post-fit stationarity warning, not by eyeballing this table.</p>
 <p>When <code>time_index</code> is supplied with unequal gaps, the AR(1)
-/ RW1 conditional variance is automatically scaled by the gap (the
-per-coefficient diagonal entry, suppressing
+/ RW1 conditional variance is scaled by the gap (suppressing
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Λ</mi><mrow><mi>k</mi><mi>k</mi></mrow></msub><annotation encoding="application/x-tex">\Lambda_{kk}</annotation></semantics></math>
 for readability):
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>t</mi></msub><mo>=</mo><msubsup><mi>σ</mi><mi>β</mi><mn>2</mn></msubsup><mo>⋅</mo><mfrac><mrow><mn>1</mn><mo>−</mo><msubsup><mi>ρ</mi><mi>β</mi><mrow><mn>2</mn><msub><mi>Δ</mi><mi>t</mi></msub></mrow></msubsup></mrow><mrow><mn>1</mn><mo>−</mo><msubsup><mi>ρ</mi><mi>β</mi><mn>2</mn></msubsup></mrow></mfrac></mrow><annotation encoding="application/x-tex">q_t = \sigma_\beta^2 \cdot \frac{1 - \rho_\beta^{2\Delta_t}}{1 - \rho_\beta^2}</annotation></semantics></math>
-so quarterly-then-annual data, for example, gets the correct prior.
-<code>"rw2"</code> and <code>"matern32"</code> support unequal gaps too,
-through their joint precision-matrix construction on the supplied
-positions.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+so quarterly-then-annual data gets the correct prior; <code>"rw2"</code>
+and <code>"matern32"</code> support unequal gaps through their joint
+precision-matrix construction.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># observations at t = 1, 2, 4, 8 (a doubling gap structure)</span></span>
 <span><span class="va">fit_gaps</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>, family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>                 nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
@@ -518,258 +339,98 @@ positions.</p>
 <div class="section level4">
 <h4 id="hierarchical-pooling-dynamic_beta_pool">Hierarchical pooling: <code>dynamic_beta_pool</code><a class="anchor" aria-label="anchor" href="#hierarchical-pooling-dynamic_beta_pool"></a>
 </h4>
-<p>When multiple coefficient blocks are dynamic (intercept / dyad / row
-/ col), each block has its own AR(1) hyperparameters
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ρ</mi><mi>b</mi></msub><mo>,</mo><msub><mi>σ</mi><mi>b</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\rho_b, \sigma_b)</annotation></semantics></math>
-by default, and short panels (small
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>)
-can leave one block’s hyperparameters badly under-identified.
-<code>dynamic_beta_pool</code> adds a hierarchical layer that shrinks
-block-level hyperparameters toward a shared mean: use <code>"rho"</code>
-when you want blocks to share a common persistence (you believe
-e.g. dyadic and nodal coefficients all drift at similar speed but the
-data alone can’t pin each
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>b</mi></msub><annotation encoding="application/x-tex">\rho_b</annotation></semantics></math>
-down), <code>"sigma"</code> when blocks should share an innovation scale
-(a common case when blocks were standardised consistently), and
-<code>"both"</code> when you want full hierarchical pooling. The default
-<code>"none"</code> leaves each block independent. Pooling is
-implemented as a hierarchical MH step on the block-level hyperpriors and
-is most valuable for
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>≤</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">T \le 5</annotation></semantics></math>
-panels where the per-block posteriors otherwise collapse to their
-priors.</p>
-<p>Pooling only has something to pool across when <strong>two or
-more</strong> blocks are dynamic, so the demo below makes both the
-intercept and the dyadic block dynamic and fits the same model with and
-without pooling. The check to run is a comparison of the per-block AR(1)
-hyperparameter posteriors across the two fits:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_pool</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>, family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>                 nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>                 dynamic_beta <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"intercept"</span>, <span class="st">"dyad"</span><span class="op">)</span>,</span>
-<span>                 dynamic_beta_pool <span class="op">=</span> <span class="st">"both"</span>,</span>
-<span>                 verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span><span class="va">fit_nopool</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>, family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>                   nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>                   dynamic_beta <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"intercept"</span>, <span class="st">"dyad"</span><span class="op">)</span>,</span>
-<span>                   dynamic_beta_pool <span class="op">=</span> <span class="st">"none"</span>,</span>
-<span>                   verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># posterior-mean AR(1) persistence per block, pooled vs independent</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>pooled      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">fit_pool</span><span class="op">$</span><span class="va">RHO_BETA</span><span class="op">)</span>,</span>
-<span>            independent <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">fit_nopool</span><span class="op">$</span><span class="va">RHO_BETA</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
-<span><span class="co">#&gt;              dyad intercept</span></span>
-<span><span class="co">#&gt; pooled      0.562     0.475</span></span>
-<span><span class="co">#&gt; independent 0.822     0.761</span></span></code></pre></div>
-<blockquote>
-<p><strong>Diagnostic check.</strong> With pooling on, compare the
-per-block posterior summaries of <code>(rho_beta, sigma_beta)</code>
-against an identical fit with <code>dynamic_beta_pool = "none"</code>,
-as above. For the pooling layer to be doing useful work, the
-between-block spread of the posterior means should shrink under
-<code>"both"</code> relative to <code>"none"</code> – but do not expect
-to see that on a vignette-scale run. With <code>nscan = 200</code> the
-hierarchical MH layer updates only a handful of times, so the direction
-of the shift is noisy from run to run (in the run above the pooled block
-means actually sit <em>further</em> apart, and lower, than the
-independent ones). Treat this output as the <em>mechanics</em> of the
-check and draw conclusions only at production chain lengths. Note also
-that pooling requires two or more dynamic blocks: with a single dynamic
-block (<code>dynamic_beta = "dyad"</code> alone) the hierarchical layer
-is skipped entirely and the pooled fit is <em>identical</em> to
-<code>dynamic_beta_pool = "none"</code>.</p>
-</blockquote>
+<p>When two or more coefficient blocks are dynamic, each block has its
+own AR(1) hyperparameters by default, and short panels
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>≤</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">T \le 5</annotation></semantics></math>)
+can leave them badly under-identified. <code>dynamic_beta_pool</code>
+shrinks block-level hyperparameters toward a shared mean:
+<code>"rho"</code> for common persistence, <code>"sigma"</code> for a
+common innovation scale, <code>"both"</code> for full pooling –
+e.g. <code>lame(..., dynamic_beta = c("intercept", "dyad"), dynamic_beta_pool = "both")</code>.
+With a single dynamic block the hierarchical layer is skipped entirely
+and the fit is identical to the default <code>"none"</code>. See
+<code><a href="../reference/lame.html">?lame</a></code> for the diagnostic comparison of pooled vs
+independent hyperparameter posteriors.</p>
 </div>
 <div class="section level4">
 <h4 id="per-actor-time-varying-slopes-dynamic_beta_per_actor">Per-actor time-varying slopes:
 <code>dynamic_beta_per_actor</code><a class="anchor" aria-label="anchor" href="#per-actor-time-varying-slopes-dynamic_beta_per_actor"></a>
 </h4>
-<p>For research questions that ask <em>whether one actor responds to a
-covariate differently than another, and whether that gap evolves</em>,
-set <code>dynamic_beta_per_actor = "row"</code> (or <code>"col"</code>)
-and choose the relevant covariate via
-<code>per_actor_covariate_idx</code>. The sampler imposes a per-period
-sum-to-zero constraint on the per-actor deviations
-(<code>per_actor_identifiability = "center"</code>, the default;
-enforced exactly at every period), so the population coefficient remains
-in <code>coef(fit)</code> and the deviations are stored in
-<code>fit$THETA_ACTOR</code> (a <code>n_iter x n_actors x T</code> array
-under the default <code>keep_per_actor = "auto"</code>). The summaries
-carry actor and period dimnames from the input <code>Y</code>:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_pa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>, family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>               dynamic_beta_per_actor <span class="op">=</span> <span class="st">"row"</span>,</span>
-<span>               per_actor_covariate_idx <span class="op">=</span> <span class="fl">1L</span>,</span>
-<span>               keep_per_actor <span class="op">=</span> <span class="st">"summary"</span>,</span>
-<span>               nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># n_actors x T posterior-mean deviations, labelled by actor and period</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">fit_pa</span><span class="op">$</span><span class="va">theta_actor_mean</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="op">]</span>, <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="co">#&gt;        t1    t2    t3    t4   t5</span></span>
-<span><span class="co">#&gt; a1  -0.24 -0.18 -0.07 -0.10 0.18</span></span>
-<span><span class="co">#&gt; a10  0.16  0.08  0.06  0.28 0.49</span></span>
-<span><span class="co">#&gt; a11  0.06  0.14  0.12  0.06 0.21</span></span>
-<span></span>
-<span><span class="co"># the per-period sum-to-zero constraint holds exactly</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colSums</a></span><span class="op">(</span><span class="va">fit_pa</span><span class="op">$</span><span class="va">theta_actor_mean</span><span class="op">)</span>, <span class="fl">10</span><span class="op">)</span></span>
-<span><span class="co">#&gt; t1 t2 t3 t4 t5 </span></span>
-<span><span class="co">#&gt;  0  0  0  0  0</span></span></code></pre></div>
+<p>For questions about whether one actor responds to a covariate
+differently than another – and whether that gap evolves – set
+<code>dynamic_beta_per_actor = "row"</code> (or <code>"col"</code>) and
+pick the covariate via <code>per_actor_covariate_idx</code>,
+e.g. <code>lame(..., dynamic_beta_per_actor = "row", per_actor_covariate_idx = 1L)</code>.
+Deviations are sum-to-zero centred at every period, so the population
+coefficient stays in <code>coef(fit)</code> while the per-actor
+deviations land in <code>fit$THETA_ACTOR</code> (and their posterior
+means in <code>fit$theta_actor_mean</code>, labelled by actor and
+period). See <code><a href="../reference/per_actor_slopes.html">?per_actor_slopes</a></code>.</p>
 </div>
 <div class="section level4">
 <h4 id="diagnosing-your-dynamic-fit">Diagnosing your dynamic fit<a class="anchor" aria-label="anchor" href="#diagnosing-your-dynamic-fit"></a>
 </h4>
-<p>After fitting, two helpers summarize the coefficient path:</p>
-<ul>
-<li>
-<code>summary(fit)</code>: prints the <em>Dynamic coefficients per
-period</em> block (mentioned above) and the per-block posterior-mean
-<code>rho_beta</code>. The stationarity warning fires when, for any
-block, the <strong>5th percentile</strong> of the posterior on
+<p><code>summary(fit)</code> prints the <em>Dynamic coefficients per
+period</em> block and the per-block posterior-mean
+<code>rho_beta</code>, and warns when a block’s posterior on
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
-is
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>0.97</mn></mrow><annotation encoding="application/x-tex">\ge 0.97</annotation></semantics></math><strong>and</strong> the IQR is below 0.1 – that is, at least 95% of the
-posterior mass sits above 0.97 with little spread. The print method then
-recommends switching to <code>dynamic_beta_kind = "rw1"</code>. The
-companion forecast warning (next section) uses a complementary trigger:
-the <strong>upper bound</strong> of the central 95% credible interval
-reaching 0.99.</li>
-<li>
-<code>detect_change_point(fit, threshold_bf = 5)</code>: heuristic
-regime-switch diagnostic. Computes the maximum first-difference
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">|</mo><mi>Δ</mi><msub><mi>β</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">|</mo></mrow><annotation encoding="application/x-tex">|\Delta \beta_t|</annotation></semantics></math>
-scaled by
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\sigma_\beta</annotation></semantics></math>,
-compares it to a prior-null reference built by resampling
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>ρ</mi><mo>,</mo><mi>σ</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\rho, \sigma)</annotation></semantics></math>
-from the posterior, and reports a tail-ratio score in the historical
-<code>bf</code> column. Large values (≥5) flag coefficients with abrupt
-breaks. This is a heuristic diagnostic, not a marginal-likelihood Bayes
-factor.</li>
-</ul>
-<p>Worked example on the simulated linear-ramp data above (no real break
-is present, so we expect modest scores):</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+is concentrated at or above 0.97 – the signal to refit with
+<code>dynamic_beta_kind = "rw1"</code>.</p>
+<p><code>detect_change_point(fit, threshold_bf = 5)</code> is a
+heuristic regime-switch diagnostic: it scales each coefficient’s largest
+one-period jump by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\sigma_\beta</annotation></semantics></math>
+and compares it to a prior-null reference, reporting a bounded
+tail-ratio score in the <code>bf</code> column (not a formal Bayes
+factor). On the smooth linear ramp above there is no break, so we expect
+a score of 0:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/detect_change_point.html">detect_change_point</a></span><span class="op">(</span><span class="va">fit_db</span>, threshold_bf <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="co">#&gt;      coef bf m_post_mean m_prior_q95 t_hat  warn</span></span>
-<span><span class="co">#&gt; 1 X1_dyad  0   0.7472946    2.729924     4 FALSE</span></span></code></pre></div>
-<p>Each row reports the largest one-period change for one coefficient,
-the tail-ratio score, and a flag. The diagnostic is deliberately
-conservative: it fires only when a jump is large <em>relative to what
-the AR(1) prior can absorb</em>. A modest planted break such as
-<code>beta_t_true = c(rep(-0.5, 3), rep(1.0, 2))</code> does
-<strong>not</strong> reliably trip it: at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">T = 5</annotation></semantics></math>
-the score is small and noisy run to run (often 0-2, occasionally
-clearing the threshold of 5), because the sampler can widen
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\sigma_\beta</annotation></semantics></math>
-to absorb a single step. Only a stark break
-(e.g. <code>c(rep(-2, 3), rep(2, 2))</code>) pushes the scaled
-first-difference reliably past the prior reference (scores roughly 6-16
-across runs, always clearing the threshold of 5). On the smooth linear
-ramp here the score is 0, as expected for a process with no abrupt
-jump.</p>
-<p>Interpret the <code>bf</code> column as a bounded tail-ratio score:
-values below 3 are weak, values from 3 to 10 suggest a jump worth
-inspecting, and values above 10 indicate a jump the AR(1) prior has
-difficulty generating. The construction is
-<code>bf = Pr(M_post &gt; m_star) / 0.05</code>, where
-<code>m_star</code> is the 95% quantile of the prior null, so the score
-is <strong>bounded above by 20</strong>. A value at or near 20 means the
-posterior path almost never looks as smooth as the prior reference, not
-that a separate change-point model has a formal Bayes factor of 20. The
-<code>t_hat</code> column points to <em>where</em> the largest scaled
-jump sits in posterior; treat it as a flag for visual inspection of the
-coefficient trajectory, not a formal break-time estimate. With very
-short panels, the score can be unstable run to run.</p>
-<p>For prior elicitation <em>before</em> fitting, see
-<code>dynamic_beta_prior_summary(T = 10, kind = "ar1", rho_mean = 0.8, rho_sd = 0.15)</code>.
-It simulates paths from the prior so you can check the implied max
-first-difference, roughness, range, and trend correlation distributions
-for your chosen <code>T</code>.</p>
+<span><span class="co">#&gt; 1 X1_dyad  0   0.7472946     2.78963     4 FALSE</span></span></code></pre></div>
+<p>Read <code>bf</code> below 3 as weak, 3 to 10 as worth inspecting,
+and above 10 as a jump the AR(1) prior struggles to generate;
+<code>t_hat</code> is a prompt for visual inspection, not a formal
+break-time estimate. The diagnostic is deliberately conservative (only
+stark breaks trip it reliably at short
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>);
+see <code><a href="../reference/detect_change_point.html">?detect_change_point</a></code>. For prior elicitation
+<em>before</em> fitting,
+<code>dynamic_beta_prior_summary(T = 10, kind = "ar1")</code> simulates
+prior paths so you can check the implied roughness and range for your
+<code>T</code>.</p>
+<p>Finally, the Gibbs analog of HMC divergences: every fit exposes
+per-block Metropolis failure counts as <code>fit$mh_counters</code>, and
+a warning fires automatically when any block exceeds a 10% failure rate.
+Treat anything above 5% as suspicious.</p>
 </div>
 <div class="section level4">
 <h4 id="temporal-trend-posterior-predictive-check-gof_temporal">Temporal-trend posterior-predictive check:
 <code>gof_temporal()</code><a class="anchor" aria-label="anchor" href="#temporal-trend-posterior-predictive-check-gof_temporal"></a>
 </h4>
-<p>The change-point diagnostic targets <em>coefficients</em>; the
-temporal-trend posterior-predictive check targets the <em>network
-statistic itself</em>. <code><a href="../reference/gof_temporal.html">gof_temporal()</a></code> fits a linear time
-trend to a chosen network statistic (density / mean / reciprocity /
-transitivity), computes the same slope on every
-<code>simulate(fit)</code> replicate, and returns a two-sided
-Gelman-style posterior-predictive p-value,
-<code>p_pp = 2 * min(p_up, 1 - p_up)</code>. This runs from 0 (observed
-slope in the extreme tail) to 1 (observed slope dead-centre). The print
-method’s reading: small <code>p_pp</code> (below 0.05) means the
-observed temporal trend is <em>incompatible</em> with the fitted model;
-a large <code>p_pp</code> (toward 1) means the observed trend is
-<em>well covered</em> by the predictive distribution.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_temporal.html">gof_temporal</a></span><span class="op">(</span><span class="va">fit_db</span>, stat <span class="op">=</span> <span class="st">"mean"</span>, n_rep <span class="op">=</span> <span class="fl">200</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Temporal-trend posterior-predictive check</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; • Statistic: <span style="color: #0000BB;">"mean"</span></span></span>
-<span><span class="co">#&gt; • Observed slope (per-period): <span style="color: #0000BB;">0.00534</span></span></span>
-<span><span class="co">#&gt; • Replicates: <span style="color: #0000BB;">200</span></span></span>
-<span><span class="co">#&gt; • Posterior-predictive p-value (two-sided): <span style="color: #0000BB;">0.81</span></span></span>
-<span><span class="co">#&gt; Observed temporal trend is well covered by the fitted model.</span></span></code></pre></div>
-<p>What is this telling us? <code>stat = "mean"</code> tracks the
-average edge weight across the network each period. In this simulation
-the dyadic covariate is zero-mean, so
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>β</mi><mi>t</mi></msub><msub><mi>X</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">\beta_t X_t</annotation></semantics></math>
-averages to roughly zero <em>regardless</em> of how
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>β</mi><mi>t</mi></msub><annotation encoding="application/x-tex">\beta_t</annotation></semantics></math>
-moves: the network mean has essentially no trend (its observed
-per-period slope is near 0). The high <code>p_pp</code> therefore
-confirms only that the fit reproduces a flat statistic; it is
-<strong>not</strong> a verdict on the (real, rising) trend in the
-coefficient. This is the key distinction from the change-point
-diagnostic above: <code><a href="../reference/gof_temporal.html">gof_temporal()</a></code> tests trends in a
-<em>network statistic</em>, while <code><a href="../reference/detect_change_point.html">detect_change_point()</a></code> and
-the per-period <code>coef(fit)</code> test trends in a
-<em>coefficient</em>. A static-<code>beta</code> fit also returns a high
-(well-covered) <code>p_pp</code> here, for the same reason – there is no
-trend in the network mean for either model to miss.</p>
-<p><code><a href="../reference/gof_temporal.html">gof_temporal()</a></code> earns its keep when the substantive
-statistic itself drifts; see the <a href="lame-overview.html">overview
-vignette</a> for the informative case, where a static fit that cannot
-track a drifting statistic lands <code>p_pp</code> near 0. To probe
-whether a <em>coefficient</em> trends, use the per-period
-<code>coef(fit)</code>, the change-point diagnostic, or a
-static-vs-dynamic LOO comparison.</p>
+<p>Where <code><a href="../reference/detect_change_point.html">detect_change_point()</a></code> targets
+<em>coefficients</em>,
+<code>gof_temporal(fit, stat = "density", n_rep = 200)</code> targets
+the <em>network statistic itself</em>: it fits a linear time trend to a
+chosen statistic (density / mean / reciprocity / transitivity), computes
+the same slope on <code>simulate(fit)</code> replicates, and returns a
+two-sided posterior-predictive p-value; small <code>p_pp</code> (below
+0.05) means the observed trend is incompatible with the fitted model.
+Reach for it when the substantive statistic drifts across the panel; the
+informative worked example lives in the <a href="lame-overview.html">overview vignette</a>; see
+<code><a href="../reference/gof_temporal.html">?gof_temporal</a></code>.</p>
 </div>
 <div class="section level4">
 <h4 id="inspecting-the-priors-actually-in-effect-prior_summary">Inspecting the priors actually in effect:
 <code>prior_summary()</code><a class="anchor" aria-label="anchor" href="#inspecting-the-priors-actually-in-effect-prior_summary"></a>
 </h4>
-<p><code>prior_summary(fit)</code> prints the hyperparameters that were
-<em>actually used</em> (defaults filled in) – for a dynamic fit that
-includes the AR(1) coefficient-block priors alongside the variance
-components and the g-prior on <code>beta</code>. Run it once per fit to
-catch typos in a <code>prior = list(...)</code> override; see the <a href="cross_sec_ame.html">cross-sectional vignette</a> for the general
-tour.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/prior_summary.html">prior_summary</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Priors in effect (lame fit)</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Regression coefficients: `beta ~ N(0, g * sigma^2 * (X'X)^-1)` (g-prior).</span></span>
-<span><span class="co">#&gt; `g` (vector, top-level argument) = <span style="color: #0000BB;">"225, 225"</span></span></span>
-<span><span class="co">#&gt; Note: `g` is set at top level on `lame()` -- not inside `prior = list(...)`.</span></span>
-<span><span class="co">#&gt; `Sab0` = <span style="color: #0000BB;">"matrix(0.0071, 0, 0, 0.0071)"</span></span></span>
-<span><span class="co">#&gt; `eta0` = <span style="color: #0000BB;">"4"</span></span></span>
-<span><span class="co">#&gt; `etaab` = <span style="color: #0000BB;">"4"</span></span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── Dynamic AR(1) priors</span></span>
-<span><span class="co">#&gt; `rho_beta_mean` = <span style="color: #0000BB;">0.8</span></span></span>
-<span><span class="co">#&gt; `rho_beta_sd` = <span style="color: #0000BB;">0.15</span></span></span>
-<span><span class="co">#&gt; `sigma_beta_shape` = <span style="color: #0000BB;">2</span></span></span>
-<span><span class="co">#&gt; `sigma_beta_scale` = <span style="color: #0000BB;">1</span></span></span>
-<span><span class="co">#&gt; `sigma_beta_init` = <span style="color: #0000BB;">0.25</span></span></span>
-<span><span class="co">#&gt; `rho_beta_lower` = <span style="color: #0000BB;">0</span></span></span>
-<span><span class="co">#&gt; `rho_beta_upper` = <span style="color: #0000BB;">0.999</span></span></span></code></pre></div>
+<p><code>prior_summary(fit)</code> prints the hyperparameters actually
+used, defaults filled in – for a dynamic fit that includes the per-block
+AR(1) priors alongside the variance components and the g-prior on
+<code>beta</code>. Run it once per fit to catch typos in a
+<code>prior = list(...)</code> override; see <code><a href="../reference/prior_summary.html">?prior_summary</a></code>
+and the <a href="cross_sec_ame.html">cross-sectional vignette</a> for
+the general tour.</p>
 </div>
 <div class="section level4">
 <h4 id="multi-chain-hat-r-via-lame_parallel-and-rhat_dynamic_beta">Multi-chain
@@ -779,184 +440,52 @@ via <code>lame_parallel()</code> and
 </h4>
 <p>A single chain only ever buys you within-chain
 split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>.
-For a between-chain diagnostic on the per-period coefficient path, run
-four parallel chains with different seeds and call
-<code><a href="../reference/rhat_dynamic_beta.html">rhat_dynamic_beta()</a></code> on the per-chain fit list:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_list_db</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame_parallel.html">lame_parallel</a></span><span class="op">(</span></span>
-<span>    <span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>,</span>
-<span>    family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>    nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>    dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>
-<span>    n_chains <span class="op">=</span> <span class="fl">4</span>, cores <span class="op">=</span> <span class="fl">1</span>,           <span class="co"># cores = 1 keeps the vignette portable</span></span>
-<span>    combine_method <span class="op">=</span> <span class="st">"list"</span>,            <span class="co"># one fit per chain</span></span>
-<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Running </span><span style="color: #0000BB; font-weight: bold;">4</span><span style="font-weight: bold;"> chains sequentially</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Starting chain <span style="color: #0000BB;">1</span> (`lame()`)</span></span>
-<span><span class="co">#&gt; Completed chain <span style="color: #0000BB;">1</span></span></span>
-<span><span class="co">#&gt; Starting chain <span style="color: #0000BB;">2</span> (`lame()`)</span></span>
-<span><span class="co">#&gt; Completed chain <span style="color: #0000BB;">2</span></span></span>
-<span><span class="co">#&gt; Starting chain <span style="color: #0000BB;">3</span> (`lame()`)</span></span>
-<span><span class="co">#&gt; Completed chain <span style="color: #0000BB;">3</span></span></span>
-<span><span class="co">#&gt; Starting chain <span style="color: #0000BB;">4</span> (`lame()`)</span></span>
-<span><span class="co">#&gt; Completed chain <span style="color: #0000BB;">4</span></span></span>
-<span></span>
-<span><span class="co"># multivariate (Brooks-Gelman) Rhat per coefficient on the length-T path,</span></span>
-<span><span class="co"># alongside the max univariate split-Rhat over the T per-period scalars.</span></span>
-<span><span class="fu"><a href="../reference/rhat_dynamic_beta.html">rhat_dynamic_beta</a></span><span class="op">(</span><span class="va">fit_list_db</span><span class="op">)</span></span>
-<span><span class="co">#&gt;        coef rhat_mvt rhat_max_univariate n_chains n_iter_per_chain T</span></span>
-<span><span class="co">#&gt; 1 intercept 1.012614            1.010292        4               40 5</span></span>
-<span><span class="co">#&gt; 2   X1_dyad 1.066562            1.025627        4               40 5</span></span>
-<span></span>
-<span><span class="co"># the pooled fit also routes through posterior::as_draws() with per-period</span></span>
-<span><span class="co"># coefficients flattened to "coef[t]" variable names, so summarise_draws()</span></span>
-<span><span class="co"># gives you ess_bulk / ess_tail per (coef, period).</span></span>
-<span><span class="va">fit_pool_db</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/combine_ame_chains.html">combine_ame_chains</a></span><span class="op">(</span><span class="va">fit_list_db</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── MCMC Convergence Diagnostics</span></span>
-<span><span class="co">#&gt; Number of chains: <span style="color: #0000BB;">4</span></span></span>
-<span><span class="co">#&gt; Samples per chain: <span style="color: #0000BB;">"40, 40, 40, 40"</span></span></span>
-<span><span class="co">#&gt; Diagnostics cover regression coefficients and variance components.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> All parameters converged (R-hat &lt; 1.1)</span></span>
-<span><span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws</a></span><span class="op">(</span><span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws.html" class="external-link">as_draws</a></span><span class="op">(</span><span class="va">fit_pool_db</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 15 × 10</span></span></span>
-<span><span class="co">#&gt;    variable       mean   median      sd     mad       q5      q95  rhat ess_bulk</span></span>
-<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept… -<span style="color: #BB0000;">1.03</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">9.34</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 1.14<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 1.23<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">0.028</span><span style="color: #BB0000; text-decoration: underline;">7</span>   0.007<span style="text-decoration: underline;">31</span> 1.01      203.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> X1_dyad[t… -<span style="color: #BB0000;">4.89</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> -<span style="color: #BB0000;">4.89</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 2.88<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 3.54<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">0.533</span>   -<span style="color: #BB0000;">0.445</span>   1.00      280.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> intercept… -<span style="color: #BB0000;">1.03</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">9.34</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 1.14<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 1.23<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">0.028</span><span style="color: #BB0000; text-decoration: underline;">7</span>   0.007<span style="text-decoration: underline;">31</span> 1.01      203.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> X1_dyad[t… -<span style="color: #BB0000;">1.23</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> -<span style="color: #BB0000;">1.25</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 2.61<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 2.24<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">0.159</span>   -<span style="color: #BB0000;">0.079</span><span style="color: #BB0000; text-decoration: underline;">1</span>  1.01      171.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> intercept… -<span style="color: #BB0000;">1.03</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">9.34</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 1.14<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 1.23<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">0.028</span><span style="color: #BB0000; text-decoration: underline;">7</span>   0.007<span style="text-decoration: underline;">31</span> 1.01      203.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> X1_dyad[t…  2.30<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  2.28<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 2.82<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 2.81<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span>  0.181    0.273   1.01      134.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> intercept… -<span style="color: #BB0000;">1.03</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">9.34</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 1.14<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 1.23<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">0.028</span><span style="color: #BB0000; text-decoration: underline;">7</span>   0.007<span style="text-decoration: underline;">31</span> 1.01      203.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> X1_dyad[t…  6.28<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  6.28<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 2.84<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 3.24<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span>  0.584    0.674   1.03      163.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> intercept… -<span style="color: #BB0000;">1.03</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">9.34</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 1.14<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 1.23<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">0.028</span><span style="color: #BB0000; text-decoration: underline;">7</span>   0.007<span style="text-decoration: underline;">31</span> 1.01      203.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> X1_dyad[t…  9.87<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  9.86<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 2.81<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 2.85<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span>  0.942    1.04    1.03      204.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> va          3.50<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span>  3.27<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 1.48<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 1.40<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span>  0.001<span style="text-decoration: underline;">69</span>  0.006<span style="text-decoration: underline;">06</span> 0.990     247.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> cab        -<span style="color: #BB0000;">1.87</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span> -<span style="color: #BB0000;">5.14</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span> 9.73<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span> 8.60<span style="color: #949494;">e</span><span style="color: #BB0000;">-4</span> -<span style="color: #BB0000;">0.001</span><span style="color: #BB0000; text-decoration: underline;">37</span>  0.001<span style="text-decoration: underline;">62</span> 0.995     132.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> vb          3.47<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span>  3.11<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 1.50<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 1.24<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span>  0.001<span style="text-decoration: underline;">77</span>  0.006<span style="text-decoration: underline;">32</span> 1.01      244.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">14</span> rho        -<span style="color: #BB0000;">2.14</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">2.48</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 4.19<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 4.39<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">0.078</span><span style="color: #BB0000; text-decoration: underline;">7</span>   0.051<span style="text-decoration: underline;">6</span>  1.00      210.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">15</span> ve          1.49<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  1.49<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 6.40<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 6.08<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span>  0.139    0.159   1.01      189.</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: ess_tail &lt;dbl&gt;</span></span></span></code></pre></div>
-<p>The diagnostics block that <code><a href="../reference/combine_ame_chains.html">combine_ame_chains()</a></code> prints
-comes from <code>compute_mcmc_diagnostics(fit_list_db)</code>, which you
-can also call directly on the per-chain list to get the
-per-(coefficient, period) R-hats (named like <code>X1_dyad[t3]</code>)
-and ESS values programmatically; its printed verdict uses the looser
-classical R-hat &lt; 1.1 gate on those scalars, which this run
-passes.</p>
-<p>Use <code>rhat_mvt &lt; 1.01</code> and
-<code>rhat_max_univariate &lt; 1.01</code> as the joint pass condition
-for the path. The univariate column is what you compare against the
-Stan-era 1.01 threshold per scalar; the multivariate column catches the
-case where individual periods look fine but the <em>trajectory</em>
-disagrees across chains. By that stricter bar the example above
-<strong>fails</strong>: it deliberately uses very short chains (40
-stored draws per chain) to keep the vignette fast, and
-<code>X1_dyad</code> lands at <code>rhat_mvt</code> around 1.05-1.07.
-The honest reading of such a value on your own fit is “not converged
-yet, run longer” – with production-length chains
-(e.g. <code>nscan = 2000, burn = 200</code>, i.e. 400 stored draws per
-chain) both columns drop below 1.01 for both coefficients here.</p>
-<p><code><a href="../reference/ame_parallel.html">ame_parallel()</a></code> is the cross-sectional twin (it
-auto-dispatches on the input type), and both wrappers accept the full
-<code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> argument list via
-<code>...</code>. Three practical notes for real runs. Memory scales
-roughly as <code>n_chains</code> times the single-chain footprint, so at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>≈</mo><mn>1000</mn></mrow><annotation encoding="application/x-tex">n \approx 1000</annotation></semantics></math>
-prefer fewer, longer chains. <code>cores</code> is clamped to
-<code>parallel::detectCores(logical = TRUE)</code> with a warning when
-you over-request; for a physical-core cap on BLAS-heavy runs pass
-<code>parallel::detectCores(logical = FALSE)</code> yourself. And there
-is no GPU backend – the scaling levers are cores plus the fast
-estimators (<code><a href="../reference/ame_als.html">ame_als()</a></code> / <code><a href="../reference/lame_als.html">lame_als()</a></code>, see the <a href="fast_estimation.html">fast estimation vignette</a>). For a
-cross-sectional <code><a href="../reference/ame_parallel.html">ame_parallel()</a></code> worked example and scaling
-guidance, see the <a href="cross_sec_ame.html">cross-sectional AME
-vignette</a>.</p>
-</div>
-<div class="section level4">
-<h4 id="sampler-failure-diagnostics-the-gibbs-analog-of-hmc-divergences">Sampler-failure diagnostics (the Gibbs analog of HMC
-divergences)<a class="anchor" aria-label="anchor" href="#sampler-failure-diagnostics-the-gibbs-analog-of-hmc-divergences"></a>
-</h4>
-<p>The <code>lame</code> sampler is Gibbs / Metropolis-Hastings, not
-HMC, so it does not produce HMC-style divergences. The closest analog is
-the per-block Metropolis acceptance / <code>tryError</code> count, which
-is exposed on every fit as <code>fit$mh_counters</code> (alias
-<code>fit$tryErrorChecks</code>). A post-MCMC warning fires
-automatically when any block exceeds a 10% failure rate; for routine
-reporting:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># per-block failure counts and acceptance proxies for the just-fit chain</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fit_db</span><span class="op">$</span><span class="va">mh_counters</span><span class="op">)</span></span>
-<span><span class="co">#&gt; List of 11</span></span>
-<span><span class="co">#&gt;  $ s2            : num 0</span></span>
-<span><span class="co">#&gt;  $ betaAB        : num 0</span></span>
-<span><span class="co">#&gt;  $ rho           : num 0</span></span>
-<span><span class="co">#&gt;  $ UV            : num 0</span></span>
-<span><span class="co">#&gt;  $ Z             : num 0</span></span>
-<span><span class="co">#&gt;  $ beta          : num 0</span></span>
-<span><span class="co">#&gt;  $ rho_sigma_beta: num 0</span></span>
-<span><span class="co">#&gt;  $ beta_static   : num 0</span></span>
-<span><span class="co">#&gt;  $ ab            : num 0</span></span>
-<span><span class="co">#&gt;  $ pool          : num 0</span></span>
-<span><span class="co">#&gt;  $ G             : num 0</span></span></code></pre></div>
-<p>Treat any block with <code>&gt;5%</code> failures as suspicious;
-combine that with the <code><a href="../reference/rhat_dynamic_beta.html">rhat_dynamic_beta()</a></code> and
-<code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws()</a></code> output above for a full diagnostic pass.
-Pairing <code>ess_bulk</code> / <code>ess_tail</code> from
-<code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws()</a></code> with the <code>mh_counters</code> totals
-gives you the Gibbs-side equivalent of the Stan diagnostic triple
-(R-hat, ESS, divergences).</p>
+For a between-chain diagnostic on the per-period coefficient path, fit
+several chains with
+<code>lame_parallel(..., n_chains = 4, combine_method = "list")</code>
+and call <code><a href="../reference/rhat_dynamic_beta.html">rhat_dynamic_beta()</a></code> on the resulting list. Require
+both <code>rhat_mvt &lt; 1.01</code> (the multivariate statistic catches
+chains that agree per period but disagree on the trajectory) and
+<code>rhat_max_univariate &lt; 1.01</code> before quoting a path; short
+vignette-length chains typically fail this bar, so use production
+lengths. <code><a href="../reference/combine_ame_chains.html">combine_ame_chains()</a></code> pools chains and routes
+through <code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">posterior::summarise_draws()</a></code> for per-(coefficient,
+period) ESS. <code><a href="../reference/ame_parallel.html">ame_parallel()</a></code> is the cross-sectional twin;
+see <code><a href="../reference/rhat_dynamic_beta.html">?rhat_dynamic_beta</a></code>, <code><a href="../reference/lame_parallel.html">?lame_parallel</a></code>, and
+the <a href="cross_sec_ame.html">cross-sectional vignette</a>.</p>
 </div>
 </div>
 <div class="section level3">
 <h3 id="forecasting">Forecasting<a class="anchor" aria-label="anchor" href="#forecasting"></a>
 </h3>
 <p>When at least one dynamic component is active,
-<code>predict(fit, h = K)</code> propagates the AR(1) / RW1 state-space
-model forward
+<code>predict(fit, h = K)</code> propagates the state-space model
+forward
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
 periods, sampling
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>ρ</mi><mi>β</mi></msub><mo>,</mo><msub><mi>σ</mi><mi>β</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\rho_\beta, \sigma_\beta)</annotation></semantics></math>
-from the posterior at each draw so the forecast accounts for
-hyperparameter uncertainty. The <a href="forecasting.html">forecasting
-vignette</a> is the full worked reference: link- vs response-scale
-forecasts, per-draw arrays (<code>by_draw = TRUE</code>), credible
-intervals (<code>interval = "credible"</code>), counterfactual future
-covariates (<code>newdata</code>), Poisson exposure offsets
-(<code>newexposure</code>), and the near-unit-root warning that fires
-when the upper bound of the 95% credible interval on
+from the posterior so the forecast carries hyperparameter uncertainty.
+The <a href="forecasting.html">forecasting vignette</a> is the full
+worked reference (forecast scales, per-draw arrays, credible intervals,
+counterfactual covariates, exposure offsets, near-unit-root warning).
+One kind-specific note lives here: under <code>"rw2"</code> /
+<code>"matern32"</code> the forward recursion pins
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
-reaches 0.99.</p>
-<p>One kind-specific note that lives here: forecasting under
-<code>dynamic_beta_kind = "rw2"</code> / <code>"matern32"</code> is
-supported but uses the same AR(1) forward recursion with
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
-pinned at 1 (neither prior identifies an AR(1) persistence), so the
-forecast variance grows linearly in
+at 1, so forecast variance grows linearly in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>
-exactly as under RW1. The smoothing or length-scale structure of these
-priors shapes the <em>in-sample</em> posterior path of
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>,
-not the out-of-sample propagation.</p>
+as under RW1 – the smoothing structure shapes the <em>in-sample</em>
+path only.</p>
 </div>
 <div class="section level3">
 <h3 id="visualising-the-coefficient-path-autoplot-lame">Visualising the coefficient path: <code>autoplot.lame</code><a class="anchor" aria-label="anchor" href="#visualising-the-coefficient-path-autoplot-lame"></a>
 </h3>
 <p>For a fit with <code>dynamic_beta</code> active,
-<code>autoplot(fit)</code> returns a <code>ggplot</code> with a ribbon
-plot per coefficient (posterior median line, 95% interval ribbon,
-faceted by coefficient). The S3 method is registered against
-<code><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">ggplot2::autoplot</a></code> so plain <code>autoplot(fit)</code>
-dispatches when <code>ggplot2</code> is loaded. One subsetting note:
-under <code>dynamic_beta = "dyad"</code> the intercept remains
-<em>static</em>, and faceting a constant coefficient as a “path” just
-draws a flat line inside its credible band – pass <code>coefs =</code>
-to restrict the plot to the genuinely time-varying coefficients:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code>autoplot(fit)</code> returns a <code>ggplot</code> ribbon plot per
+coefficient (posterior median line, 95% interval, faceted by
+coefficient). Under <code>dynamic_beta = "dyad"</code> the intercept
+remains static, so pass <code>coefs =</code> to restrict the plot to the
+genuinely time-varying coefficients:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">fit_db</span>, coefs <span class="op">=</span> <span class="st">"X1_dyad"</span>, probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.5</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Posterior coefficient path"</span>,</span>
@@ -969,11 +498,9 @@ to restrict the plot to the genuinely time-varying coefficients:</p>
 </h3>
 <p>Pass <code>save_log_lik = TRUE</code> and <code>lame</code> attaches
 a <code>[n_stored, n_obs]</code> pointwise log-likelihood matrix to
-<code>fit$log_lik</code>. From there, <code>loo::loo(fit)</code> and
-<code>loo::waic(fit)</code> work directly because the package registers
-S3 methods that hand the stored matrix to
-<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo.matrix()</a></code>:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code>fit$log_lik</code>, which registered S3 methods hand directly to
+<code>loo::loo(fit)</code> and <code>loo::waic(fit)</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_ll</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>, family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>               nscan <span class="op">=</span> <span class="fl">2000</span>, burn <span class="op">=</span> <span class="fl">200</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>               dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>
@@ -997,37 +524,26 @@ S3 methods that hand the stored matrix to
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All Pareto k estimates are good (k &lt; 0.62).</span></span>
 <span><span class="co">#&gt; See help('pareto-k-diagnostic') for details.</span></span></code></pre></div>
-<p>This chunk uses a longer run (400 stored draws) than the rest of the
-vignette on purpose. At very short chain lengths <code><a href="../reference/loo.html">loo()</a></code>
-instead prints a
+<p>This chunk uses a longer run on purpose: at very short chain lengths
+<code><a href="../reference/loo.html">loo()</a></code> prints a
 high-Pareto-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-warning with <code>NA</code> MCSE/ESS cells – the usual PSIS
-importance-sampling caveat at low draw counts, not an error; lengthen
-the run (a few hundred stored draws suffices here) before quoting
-<code>elpd_loo</code>. For runs where the in-memory
-<code>[n_stored, n_obs]</code> matrix would not fit in RAM, pass
-<code>save_log_lik = "chunked"</code> to stream it to disk; the <a href="forecasting.html">forecasting vignette</a> covers that
-variant.</p>
-<p>One important detail for cross-software comparisons. For five
-families – <code>normal</code>, <code>binary</code>, <code>cbin</code>,
-<code>poisson</code>, <code>ordinal</code> – the stored pointwise
-log-likelihood is the <strong>exact family-specific Y density</strong>
-on the response scale (Gaussian density for <code>normal</code>, probit
-Bernoulli log-pmf for <code>binary</code>/<code>cbin</code>, log-Poisson
-for <code>poisson</code>, and the cumulative-probit log-pmf for
-<code>ordinal</code>). For these five, <code>elpd_loo</code> is directly
-comparable to a <code><a href="../reference/loo.html">loo()</a></code> result from a Stan / brms fit to the
-same family on the same data, modulo the <code>lame</code> Gibbs
-sampler’s
+warning with <code>NA</code> MCSE/ESS cells (the usual PSIS caveat, not
+an error), so lengthen the run before quoting <code>elpd_loo</code>. If
+the matrix would not fit in RAM, <code>save_log_lik = "chunked"</code>
+streams it to disk (see the <a href="forecasting.html">forecasting
+vignette</a>).</p>
+<p>On the log-likelihood scale: for <code>normal</code>,
+<code>binary</code>, <code>cbin</code>, <code>poisson</code>, and
+<code>ordinal</code> the stored pointwise log-likelihood is the
+<strong>exact family-specific Y density</strong> on the response scale,
+so <code>elpd_loo</code> is directly comparable to a Stan / brms
+<code><a href="../reference/loo.html">loo()</a></code> on the same family and data (modulo satisfactory
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-and ESS being satisfactory. For the rank likelihood <code>frn</code>,
-the exact marginal needs GHK Monte Carlo and is currently only available
-on the longitudinal path via
-<code>log_lik_method = "observed_ghk"</code>; the default
-<code>observed_exact</code> for that family falls back to the
-augmented-Z normal density and emits a one-time warning. Inspect
-<code>fit$log_lik_method</code> on any fit to see which branch was
-used.</p>
+/ ESS). For the rank likelihood <code>frn</code>, the exact marginal
+needs GHK Monte Carlo (<code>log_lik_method = "observed_ghk"</code>,
+longitudinal path only); the default falls back to the augmented-Z
+normal density with a one-time warning. Inspect
+<code>fit$log_lik_method</code> for the branch used.</p>
 </div>
 <div class="section level3">
 <h3 id="prior-specifications">Prior Specifications<a class="anchor" aria-label="anchor" href="#prior-specifications"></a>
@@ -1041,30 +557,27 @@ centered on high persistence</li>
 <li>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mrow><mi>a</mi><mi>b</mi></mrow></msub><mo>∼</mo><mtext mathvariant="normal">TruncNormal</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.8</mn><mo>,</mo><mn>0.15</mn><mo>,</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\rho_{ab} \sim \text{TruncNormal}(0.8, 0.15, 0, 1)</annotation></semantics></math>,
 slightly less persistent</li>
-<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>a</mi><mi>b</mi></mrow><mn>2</mn></msubsup><mo>∼</mo><mtext mathvariant="normal">InverseGamma</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma_{uv}^2, \sigma_{ab}^2 \sim \text{InverseGamma}(2, 1)</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mi>β</mi></msub><mo>∼</mo><mtext mathvariant="normal">TruncNormal</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.8</mn><mo>,</mo><mn>0.15</mn><mo>,</mo><mn>0</mn><mo>,</mo><mn>0.999</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\rho_{\beta} \sim \text{TruncNormal}(0.8, 0.15, 0, 0.999)</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>a</mi><mi>b</mi></mrow><mn>2</mn></msubsup><mo>,</mo><msubsup><mi>σ</mi><mi>β</mi><mn>2</mn></msubsup><mo>∼</mo><mtext mathvariant="normal">InverseGamma</mtext><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma_{uv}^2, \sigma_{ab}^2, \sigma_{\beta}^2 \sim \text{InverseGamma}(2, 1)</annotation></semantics></math></li>
 </ul>
-<p>These can be customized via the <code>prior</code> argument if you
-have strong beliefs about the rate of change.</p>
+<p>All can be customized via the <code>prior</code> argument
+(e.g. <code>prior = list(rho_beta_mean = ..., sigma_beta_scale = ...)</code>)
+if you have strong beliefs about the rate of change.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="genuine-dynamics-what-they-look-like">Genuine Dynamics: What They Look Like<a class="anchor" aria-label="anchor" href="#genuine-dynamics-what-they-look-like"></a>
 </h2>
-<p>We start with an example where dynamics are truly present, so you can
-see what the model recovers when there is a real signal. We simulate 25
-actors over 5 periods where each actor’s latent position evolves via an
-AR(1) process with
+<p>We start with an example where dynamics are truly present: 25 actors
+over 5 periods whose latent positions evolve via an AR(1) with
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ρ</mi><mo>=</mo><mn>0.85</mn></mrow><annotation encoding="application/x-tex">\rho = 0.85</annotation></semantics></math>
 and innovation SD
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mo>=</mo><mn>0.3</mn></mrow><annotation encoding="application/x-tex">\sigma_{uv} = 0.3</annotation></semantics></math>
-(matching the <strong>innovation parameterisation</strong> the C++
-sampler uses). Initial positions are drawn at SD 1.5, which is larger
-than the implied stationary SD
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.3</mn><mi>/</mi><msqrt><mrow><mn>1</mn><mo>−</mo><msup><mn>0.85</mn><mn>2</mn></msup></mrow></msqrt><mo>≈</mo><mn>0.57</mn></mrow><annotation encoding="application/x-tex">0.3/\sqrt{1 - 0.85^2} \approx 0.57</annotation></semantics></math>.
-This seeds the simulation with strong latent structure that the AR(1)
-then drifts down toward stationarity, producing a network with realistic
-density (roughly 30%) after a negative intercept.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mo>=</mo><mn>0.3</mn></mrow><annotation encoding="application/x-tex">\sigma_{uv} = 0.3</annotation></semantics></math>.
+Initial positions are drawn at SD 1.5 – above the implied stationary SD
+of about 0.57 – seeding strong latent structure that drifts toward
+stationarity, with a negative intercept giving realistic density
+(roughly 30%).</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/lame/">lame</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
 <span></span>
@@ -1128,40 +641,31 @@ density (roughly 30%) after a negative intercept.</p>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
-<p>The trajectory plot shows how actors move through the latent space
-over time. With genuine temporal structure, the paths should show
-coherent movement rather than random jumping:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dyn_real</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="dynamic_effects_files/figure-html/uv-traj-real-1.png" class="r-plt" alt="Trajectory plot of each actor's path through the 2D latent space across five periods under genuine AR(1) dynamics, showing coherent and gradual movement." width="672"></p>
-<p>With more than eight actors the trajectory legend becomes a rainbow
-that loses meaning. Pass <code>highlight =</code> a small character
-vector of actor names to grey out the rest and colour only the
-highlighted set with the colour-blind-safe Okabe–Ito palette:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<p>The trajectory plot shows how actors move through the latent space.
+With more than eight actors the legend becomes an unreadable rainbow, so
+pass <code>highlight =</code> a few actor names to grey out the rest
+(colour-blind-safe Okabe–Ito palette for the highlighted set). With
+genuine temporal structure, the highlighted paths trace short, coherent
+arcs rather than random jumps:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dyn_real</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span>,</span>
 <span>        highlight <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A1"</span>, <span class="st">"A5"</span>, <span class="st">"A10"</span>, <span class="st">"A15"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="dynamic_effects_files/figure-html/uv-traj-highlight-1.png" class="r-plt" alt="Same trajectory plot as above but only four named actors (A1, A5, A10, A15) are coloured with the Okabe-Ito palette; remaining actors are drawn in light grey so the comparison reads at a glance." width="672"></p>
-<p>Always check convergence. Dynamic models have more parameters than
-static models, so adequate mixing is harder to achieve and requires
-longer chains. One display note: under the binary (probit) family the
-error variance <code>ve</code> is fixed at 1 for identification, so its
-trace is a flat line by construction and its density panel is empty –
-exclude it (by its display label) to keep the panels to genuinely
-sampled parameters:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<p><img src="dynamic_effects_files/figure-html/uv-traj-real-1.png" class="r-plt" alt="Trajectory plot of actors' paths through the 2D latent space across five periods under genuine AR(1) dynamics; four named actors (A1, A5, A10, A15) are coloured with the Okabe-Ito palette while the rest are light grey, and the highlighted paths show coherent, gradual movement." width="672"></p>
+<p>Always check convergence: dynamic models have more parameters than
+static ones, so adequate mixing requires longer chains. Under the binary
+(probit) family the error variance <code>ve</code> is fixed at 1 for
+identification, so exclude it by its display label:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit_dyn_real</span>, exclude <span class="op">=</span> <span class="st">"Error Variance"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="dynamic_effects_files/figure-html/trace-dyn-real-1.png" class="r-plt" alt="MCMC trace and density plots for the sampled parameters of the dynamic-effects fit on truly correlated data, excluding the identification-fixed error variance; well-mixed traces indicate the sampler ran long enough." width="672"></p>
 </div>
 <div class="section level2">
 <h2 id="what-happens-without-temporal-structure">What Happens Without Temporal Structure?<a class="anchor" aria-label="anchor" href="#what-happens-without-temporal-structure"></a>
 </h2>
-<p>To understand how the dynamic model behaves when there is no signal,
-we fit the same model to independent networks (no temporal correlation).
-This is a useful null baseline: the estimated <code>rho</code> values
-tell you what the prior alone produces when the data are
-uninformative.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<p>To see how the dynamic model behaves when there is no signal, we fit
+the same model to independent networks – a null baseline showing what
+the prior alone produces when the data are uninformative.</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">30</span></span>
 <span><span class="va">n_periods</span> <span class="op">&lt;-</span> <span class="fl">5</span></span>
@@ -1231,46 +735,35 @@ uninformative.</p>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
 <p>We can compare the estimated persistence parameters across the two
 settings:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Independent data rho_uv:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_null</span><span class="op">$</span><span class="va">rho_uv</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Independent data rho_uv: 0.797</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Correlated data rho_uv:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_dyn_real</span><span class="op">$</span><span class="va">rho_uv</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Correlated data rho_uv: 0.942</span></span></code></pre></div>
-<p>With only 5 time periods you might expect the prior to dominate, and
-yet the posterior means above can be substantially different from each
-other and from the prior centre of 0.95. The correlated fit lands in the
-upper-AR(1) range (the posterior mean is around 0.94 here; the true 0.85
-actually falls <em>below</em> the 95% credible interval, because at this
-short panel length the well-known small-sample upward bias of AR(1)
-estimators is large enough that even the interval misses the truth),
-while the null fit collapses well below the prior centre because the
-data carry no period-to-period correlation for the prior to anchor
-against. In other words: even a deliberately tight prior centred near 1
-will not always pull a clearly nonsensical posterior back toward 1, and
-the strength of that pull depends on the data. With even a modest panel
-the AR(1) parameter is identifiable enough to do real work, but the
-posterior mean is not a substitute for inspecting the trajectory plots,
-which are more informative than the point estimate of
-<code>rho_uv</code> alone (compare the coherent paths above with the
-erratic paths below).</p>
+<p>Even with a deliberately tight prior centred at 0.95, the two
+posteriors diverge: the correlated fit lands in the upper AR(1) range
+(expect small-sample upward bias at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">T = 5</annotation></semantics></math>,
+so the posterior can sit above the true 0.85), while the null fit
+collapses well below the prior centre because the data carry no
+period-to-period correlation to anchor against. The AR(1) parameter does
+real work even on a modest panel, but the point estimate of
+<code>rho_uv</code> is no substitute for the trajectory plots (compare
+the coherent paths above with the erratic paths below).</p>
 <div class="section level3">
 <h3 id="visualizing-the-null-case">Visualizing the Null Case<a class="anchor" aria-label="anchor" href="#visualizing-the-null-case"></a>
 </h3>
-<p>The trajectory plot for independent data looks different. We use the
-same highlight device as above (with 30 actors, the full legend would be
-an unreadable rainbow): the highlighted paths jump from period to period
-without any persistent direction, and the whole cloud clumps near the
-origin with paths pulled inward. Compare the genuine-dynamics plot
-above, where the highlighted paths trace short, smooth arcs around
-dispersed, persistent positions.</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<p>The trajectory plot for independent data looks different. Using the
+same highlight device as above, the highlighted paths jump from period
+to period without persistent direction, and the whole cloud clumps near
+the origin:</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_null</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span>,</span>
 <span>        highlight <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Actor1"</span>, <span class="st">"Actor5"</span>, <span class="st">"Actor10"</span>, <span class="st">"Actor15"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><img src="dynamic_effects_files/figure-html/uv-traj-null-1.png" class="r-plt" alt="Trajectory plot of latent positions for the null model with four actors highlighted in colour against the remaining 26 in light grey; the highlighted paths jump directionlessly and the whole cloud clumps near the origin, unlike the smooth dispersed paths of the genuine-dynamics fit." width="672"></p>
-<p>The additive effects show similar behavior. Without genuine temporal
-structure, the trajectories reflect noise rather than real shifts in
-actor activity.</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<p>The additive effects behave the same way: trajectories reflecting
+noise rather than real shifts in actor activity.</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit_null</span>, effect <span class="op">=</span> <span class="st">"sender"</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Showing top 5 and bottom 5 actors by average effect</span></span>
 <span><span class="co">#&gt; → Use `show_actors` to specify actors to display</span></span></code></pre></div>
@@ -1281,9 +774,9 @@ actor activity.</p>
 <h2 id="comparing-model-specifications">Comparing Model Specifications<a class="anchor" aria-label="anchor" href="#comparing-model-specifications"></a>
 </h2>
 <p>A natural workflow is to fit several specifications and compare their
-goodness-of-fit. We use the independent data from above to show that
-dynamic effects add nothing when there is no signal.</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+goodness-of-fit. We use the independent data from above, where dynamic
+effects should add nothing.</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># four small fits to compare specifications. nscan is intentionally</span></span>
 <span><span class="co"># small here so the vignette stays under CRAN's vignette compute</span></span>
 <span><span class="co"># budget; for a real comparison use nscan &gt;= 2000 per fit and run them</span></span>
@@ -1304,12 +797,11 @@ dynamic effects add nothing when there is no signal.</p>
 <span>                                family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>                                burn <span class="op">=</span> <span class="fl">50</span>, nscan <span class="op">=</span> <span class="fl">300</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                                verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
-<p>Compare the GOF statistics across models. For each specification, we
-compute posterior predictive p-values: how often do the simulated
-network statistics exceed the observed ones? Values near 0.5 indicate
-good fit on that statistic; values pinned near 0 or 1 flag a statistic
-the model systematically under- or over-generates.</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<p>For each specification we compute posterior predictive p-values (how
+often simulated statistics exceed observed): values near 0.5 indicate
+good fit; values pinned near 0 or 1 flag a statistic the model
+systematically under- or over-generates.</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># compute p-values for each model and each GOF statistic</span></span>
 <span><span class="va">compute_pvals</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="va">gof</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">GOF</span></span>
@@ -1333,58 +825,37 @@ the model systematically under- or over-generates.</p>
 <span><span class="co">#&gt; Dynamic_UV      0.883      0.950    0.450     0.550     0.333</span></span>
 <span><span class="co">#&gt; Dynamic_AB      1.000      1.000    0.583     0.617     0.317</span></span>
 <span><span class="co">#&gt; Full            1.000      0.983    0.417     0.483     0.300</span></span></code></pre></div>
-<p>Two things stand out in this table. First, <code>sd.rowmean</code>
-and <code>sd.colmean</code> sit at or near 1 for <em>every</em>
-specification. That is not noise, and it is not evidence about dynamics:
-the data are iid Bernoulli(0.2) with no real sender/receiver
-heterogeneity, but every AME specification here includes additive
-effects whose posterior draws inject some heterogeneity into the
-simulated networks, so the simulated degree spread systematically (if
-slightly) exceeds the observed spread. Both columns sitting high
-(0.88-1.00) for all four specifications at once is a shared artifact of
-fitting a heterogeneity model to homogeneous data – compare
+<p><code>sd.rowmean</code> and <code>sd.colmean</code> sit near 1 for
+<em>every</em> specification – an artifact of fitting a heterogeneity
+model to homogeneous iid data, not evidence about dynamics – so compare
 specifications on the <code>dyad.dep</code>, <code>cycle.dep</code>, and
-<code>trans.dep</code> columns instead. Second, on those columns no
-specification is clearly better, which is the expected result: the data
-were generated without temporal structure, so the dynamic terms add
-nothing here. With short chains these p-values are noisy, so read the
-comparison as “the dynamic terms add nothing”, not as a ranking by
-proximity to 0.5.</p>
+<code>trans.dep</code> columns instead. There, no specification is
+clearly better, as expected for data generated without temporal
+structure; with short chains these p-values are noisy, so read the table
+as “the dynamic terms add nothing”, not as a ranking.</p>
 </div>
 <div class="section level2">
 <h2 id="when-to-use-dynamic-effects">When to Use Dynamic Effects<a class="anchor" aria-label="anchor" href="#when-to-use-dynamic-effects"></a>
 </h2>
-<p><strong>Use <code>dynamic_ab</code></strong> when you suspect actors’
-overall activity levels change over time. This is common in many
-settings: countries go through isolationist vs. interventionist periods,
-users churn in and out of platforms, students become more or less
-engaged across semesters.</p>
-<p><strong>Use <code>dynamic_uv</code></strong> when you suspect the
-underlying community structure is shifting. This is a stronger claim,
-not just that actors are more or less active, but that the pattern of
-<em>who connects with whom</em> is changing. Examples include political
-realignment, market disruption, or generational turnover in a social
-network.</p>
-<p><strong>Use <code>dynamic_beta</code></strong> when you suspect a
-covariate’s <em>effect</em> on tie formation changes over time, while
-the actors themselves and the community structure are stable. Example:
-trade’s effect on alliance formation may strengthen during economic
-recessions and weaken otherwise; peer influence may matter more in some
-semesters than others. <code>dynamic_beta</code> is the right tool when
-the question is <em>how strongly X translates into Y</em>, not <em>who
-is connecting to whom</em> (which is <code>dynamic_uv</code>’s
-territory) or <em>who is generally active</em> (which is
-<code>dynamic_ab</code>’s).</p>
-<p><strong>Use multiple together</strong> when you believe several types
-of change are happening simultaneously. This is the most flexible
-specification but also the most data-hungry. With short panels (few time
-periods) or sparse networks, the dynamic parameters may not be
-well-identified, and you might be better off with a simpler
-specification.</p>
+<p><strong>Use <code>dynamic_ab</code></strong> when actors’ overall
+activity levels change over time: countries cycle through isolationist
+and interventionist periods, users churn in and out of platforms.</p>
+<p><strong>Use <code>dynamic_uv</code></strong> when the underlying
+community structure is shifting – a stronger claim: not just that actors
+are more or less active, but that <em>who connects with whom</em> is
+changing (political realignment, generational turnover).</p>
+<p><strong>Use <code>dynamic_beta</code></strong> when a covariate’s
+<em>effect</em> on tie formation changes over time while actors and
+community structure are stable: the question is <em>how strongly X
+translates into Y</em>, not who is connecting (<code>dynamic_uv</code>)
+or who is active (<code>dynamic_ab</code>).</p>
+<p><strong>Use multiple together</strong> when several types of change
+happen at once – the most flexible but most data-hungry specification;
+with short panels or sparse networks the dynamic parameters may not be
+well-identified.</p>
 <p><strong>Stick with static</strong> when you have few time periods,
-when the network structure is genuinely stable, or when you primarily
-care about the <em>average</em> covariate effects rather than how they
-evolve.</p>
+when the network is genuinely stable, or when you primarily care about
+<em>average</em> covariate effects.</p>
 </div>
 <div class="section level2">
 <h2 id="dealing-with-rotational-indeterminacy">Dealing with Rotational Indeterminacy<a class="anchor" aria-label="anchor" href="#dealing-with-rotational-indeterminacy"></a>
@@ -1392,16 +863,14 @@ evolve.</p>
 <p>One subtlety of dynamic latent space models: the latent space is only
 identified up to an orthogonal rotation <strong>at each time
 point</strong> <em>and</em> <strong>at each posterior draw</strong>.
-Even if actor positions are evolving smoothly under the truth, the raw
-estimated
+Even under smooth true dynamics, raw
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>U</mi><mi>t</mi></msub><annotation encoding="application/x-tex">U_t</annotation></semantics></math>
-matrices can appear to “jump” between periods due to arbitrary
-rotations, and posterior means across draws can shrink toward zero when
-different draws sit in different rotations of the latent space.</p>
-<p>The <code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> function applies the standard
-orthogonal-Procrustes rotation (Gower 1975) to align each time period’s
-positions to the previous one:</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+estimates can “jump” between periods, and posterior means can shrink
+toward zero across differently rotated draws.
+<code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> applies the orthogonal-Procrustes
+rotation (Gower 1975) to align each period’s positions to the previous
+one:</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># align latent positions across time</span></span>
 <span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/procrustes_align.html">procrustes_align</a></span><span class="op">(</span><span class="va">fit_null</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">$</span><span class="va">U</span><span class="op">)</span>  <span class="co"># 3D array: actors x dimensions x time</span></span>
@@ -1410,30 +879,23 @@ positions to the previous one:</p>
 <span><span class="co">#&gt;   ..$ : chr [1:30] "Actor1" "Actor10" "Actor11" "Actor12" ...</span></span>
 <span><span class="co">#&gt;   ..$ : NULL</span></span>
 <span><span class="co">#&gt;   ..$ : NULL</span></span></code></pre></div>
-<p><strong>Methodological note.</strong> By default,
-<code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> aligns the
-<strong>posterior-mean</strong> trajectory <code>fit$U</code> (an
-<code>n x R x T</code> array of posterior means) across time only. The
-Hoff (2005) / Sewell–Chen (2015) standard is to Procrustes-align each
-posterior draw to a reference (the first draw, or the posterior mean)
-<em>before</em> computing per-period summaries, because rotation
-indeterminacy is a per-draw property, not a per-mean one. The
-<code>per_draw = TRUE</code> argument runs that workflow on the 4-D
-per-draw trajectory cube (<code>[n, R, T, S]</code>), which a dynamic
-fit persists as <code>fit$U_draws</code> / <code>fit$V_draws</code> when
-you opt in via <code>posterior_opts = list(save_UV = TRUE)</code> – as
-we did for <code>fit_null</code> above. Without the opt-in,
-<code>per_draw = TRUE</code> emits an informational note and falls back
-to mean-trajectory alignment. For dynamic latent positions the
-trajectory view (<code>uv_plot(plot_type = "trajectory")</code>) remains
-more appropriate than per-period credible intervals on the raw
-<code>U_t</code> entries.</p>
-<p>You can also extract aligned positions as a tidy data frame using
-<code><a href="../reference/latent_positions.html">latent_positions()</a></code> with <code>align = TRUE</code> (the
-default for <code>lame</code> objects). Because this fit saved its
-per-draw latent trajectories, the <code>posterior_sd</code> column is
-computed from the draws rather than returned as <code>NA</code>:</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<p>By default this aligns the <strong>posterior-mean</strong> trajectory
+<code>fit$U</code> across time only. Rotation indeterminacy is a
+per-draw property, though, so the stricter standard (Hoff 2005; Sewell
+&amp; Chen 2015) is to align each posterior draw to a reference before
+summarising: <code>procrustes_align(fit, per_draw = TRUE)</code> does
+that on the per-draw cube a dynamic fit stores when you opt in via
+<code>posterior_opts = list(save_UV = TRUE)</code> – as we did for
+<code>fit_null</code>. Without the opt-in it falls back to
+mean-trajectory alignment with a note; see
+<code><a href="../reference/procrustes_align.html">?procrustes_align</a></code>.</p>
+<p><code>latent_positions(fit, align = TRUE)</code> returns the aligned
+positions as a tidy data frame ready for <code>ggplot2</code> (custom
+trajectory plots, overlaying external events). Because this fit saved
+its per-draw trajectories, the <code>posterior_sd</code> column is
+computed from the draws rather than returned as <code>NA</code> – though
+those SDs fold in some rotational wobble across draws:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit_null</span>, align <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     actor dimension time       value posterior_sd type</span></span>
@@ -1443,19 +905,6 @@ computed from the draws rather than returned as <code>NA</code>:</p>
 <span><span class="co">#&gt; 4 Actor12         1    1  0.10461871    0.5884328    U</span></span>
 <span><span class="co">#&gt; 5 Actor13         1    1  0.06869210    0.4461982    U</span></span>
 <span><span class="co">#&gt; 6 Actor14         1    1 -0.04060149    0.4717603    U</span></span></code></pre></div>
-<p>(These SDs are computed on the raw draws, so they fold in some
-rotational wobble across draws – see the methodological note above.)
-This data frame is ready for <code>ggplot2</code> if you want to build
-custom trajectory plots (e.g., highlighting specific actors or
-overlaying external events).</p>
-</div>
-<div class="section level2">
-<h2 id="implementation-notes">Implementation Notes<a class="anchor" aria-label="anchor" href="#implementation-notes"></a>
-</h2>
-<p>The dynamic effects are implemented in C++ via Rcpp and
-RcppArmadillo. The AR(1) updates use Gibbs sampling with block updates
-across all actors at each time point, which is efficient for large
-networks.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
@@ -1465,22 +914,14 @@ networks.</p>
 Effects Network Models. <em>Statistical Science</em> 36, 34–50.</p></li>
 <li><p><strong>Hoff, PD (2005)</strong>. Bilinear mixed-effects models
 for dyadic data. <em>Journal of the American Statistical
-Association</em> 100(469), 286–295. The original AME formulation
-underlying <code>amen</code> and <code>lame</code>.</p></li>
+Association</em> 100(469), 286–295.</p></li>
 <li><p><strong>Sewell, D. K., &amp; Chen, Y. (2015)</strong>. Latent
 space models for dynamic networks. <em>Journal of the American
 Statistical Association</em>, 110(512), 1646-1657.</p></li>
-<li><p><strong>Durante, D., &amp; Dunson, D. B. (2014)</strong>.
-Nonparametric Bayes dynamic modeling of relational data.
-<em>Biometrika</em>, 101(4), 883-898.</p></li>
 <li><p><strong>Carter, C. K., &amp; Kohn, R. (1994)</strong>. On Gibbs
 sampling for state space models. <em>Biometrika</em> 81(3), 541–553. The
-original forward-filter / backward-sample algorithm used by
-<code>dynamic_beta_kind = "ar1"</code> / <code>"rw1"</code>.</p></li>
-<li><p><strong>Frühwirth-Schnatter, S. (1994)</strong>. Data
-augmentation and dynamic linear models. <em>Journal of Time Series
-Analysis</em> 15(2), 183–202. Independent derivation of FFBS for dynamic
-linear models.</p></li>
+FFBS algorithm behind <code>dynamic_beta_kind = "ar1"</code> /
+<code>"rw1"</code>.</p></li>
 <li><p><strong>Gower, J. C. (1975)</strong>. Generalized Procrustes
 analysis. <em>Psychometrika</em> 40(1), 33–51. The orthogonal-Procrustes
 rotation underlying <code><a href="../reference/procrustes_align.html">procrustes_align()</a></code>.</p></li>

@@ -1,9 +1,5 @@
-# lame 1.3.0
+# lame 1.3.1
 
-* Six distributional families -- normal, binary, ordinal, Poisson, censored
-  binary, and fixed rank nomination -- work uniformly across unipartite and
-  bipartite networks, directed and symmetric ties, and cross-sectional and
-  longitudinal panels.
 * Time-varying coefficients (`dynamic_beta`) compose freely with the
   multiplicative latent factors (`R > 0`) and additive sender/receiver effects,
   for every family and network type. Coefficients can follow AR(1),
@@ -18,8 +14,6 @@
   directly.
 * `summary()` on a `lame` fit exposes the coefficient table under
   `$coefficients`, matching `summary.ame` and the `broom`/`lm` idiom.
-* The `tobit` and `rrl` families from pre-release development builds have been
-  retired; the six families above are the supported set.
 
 ## Known limitations
 

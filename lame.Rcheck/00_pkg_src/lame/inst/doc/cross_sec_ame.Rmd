@@ -26,9 +26,9 @@ knitr::opts_chunk$set(
 
 Imagine you're studying friendships in a high school. You have data on who nominated whom as a friend, plus information about each student (gender, race, grade). A natural first instinct is to run a logistic regression: does sharing the same gender predict friendship?
 
-The problem is that friendships aren't independent observations. Some students are just more social than others (they nominate lots of friends regardless of who). Some students are more popular (they receive lots of nominations). And friendships tend to be reciprocated: if Alice names Bob, Bob is more likely to name Alice. A standard regression ignores all of this, and your standard errors will be wrong.
+The problem is that friendships aren't independent observations. Some students are more social (they nominate lots of friends), some are more popular (they receive lots of nominations), and friendships tend to be reciprocated: if Alice names Bob, Bob is more likely to name Alice. A standard regression ignores all of this, and your standard errors will be wrong.
 
-The **Additive and Multiplicative Effects (AME)** model handles these dependencies directly. It gives each actor a sender effect ($a_i$, how social they are), a receiver effect ($b_j$, how popular they are), and a position in a latent space ($u_i$, $v_j$) that captures who tends to connect with whom beyond what the covariates explain. The name reflects the two kinds of actor-level terms: the sender and receiver effects enter the model *additively* ($a_i + b_j$), while the latent positions enter *multiplicatively* ($u_i'v_j$, a dot product). Think of it as a regression that takes network structure seriously.
+The **Additive and Multiplicative Effects (AME)** model handles these dependencies directly. It gives each actor a sender effect ($a_i$, how social they are), a receiver effect ($b_j$, how popular they are), and a position in a latent space ($u_i$, $v_j$) that captures who tends to connect with whom beyond what the covariates explain. The additive effects enter as $a_i + b_j$; the latent positions enter *multiplicatively* as the dot product $u_i'v_j$. Think of it as a regression that takes network structure seriously.
 
 ## The Data
 
@@ -52,9 +52,9 @@ cat("Friendships:", sum(Y, na.rm = TRUE), "\n")
 cat("Network density:", round(mean(Y, na.rm = TRUE), 3), "\n")
 ```
 
-Notice the `na.rm = TRUE` calls: network data often has missing entries (the diagonal is `NA` because self-ties are undefined, and some dyads may be unobserved). The model handles missing values internally via data augmentation, so `NA`s can stay in the matrix. The same applies to missing *covariates*: a few `NA`s in the node attributes (here `race` and `grade` have a handful) propagate to the dyads built from them, and `ame()` treats those dyads as unobserved and reports how many it data-augmented.
+Notice the `na.rm = TRUE` calls: network data often has missing entries (the diagonal is `NA` because self-ties are undefined). The model handles missing values internally via data augmentation, so `NA`s can stay in the matrix -- including dyads built from missing *covariates* (here `race` and `grade` have a handful), which `ame()` likewise treats as unobserved.
 
-Before modeling, let's look at the basic structure. How much do students vary in their number of friends?
+Before modeling: how much do students vary in their number of friends?
 
 ```{r viz-network, fig.width=10, fig.height=4, fig.alt="Two faceted histograms showing the distribution of nominations sent and nominations received per student in the Add Health friendship network, illustrating heterogeneity in sociality and popularity."}
 out_degree <- rowSums(Y, na.rm = TRUE)
@@ -79,13 +79,13 @@ ggplot(degree_df, aes(x = Degree)) +
 	)
 ```
 
-There's real variation here: some students are much more social than others, and some are much more popular. This is exactly what the sender and receiver random effects will capture.
+Some students are much more social than others, and some much more popular -- exactly what the sender and receiver random effects will capture.
 
 ## Building Covariates
 
 The classic question in friendship networks is **homophily**: do birds of a feather flock together? We'll test whether students are more likely to be friends with others of the same gender, race, and grade.
 
-We deliberately include both `same_grade` (binary: same grade or not) and `grade_diff` (continuous: how many grades apart) to illustrate a common modeling pitfall: collinearity. These two covariates measure nearly the same thing, and the model cannot cleanly separate their effects. We'll see the consequences in the results below.
+We deliberately include both `same_grade` (binary) and `grade_diff` (continuous: grades apart) to illustrate a common modeling pitfall, collinearity: they measure nearly the same thing, and we'll see the consequences in the results below.
 
 ```{r create-covariates}
 # `outer(x, x, FUN)` builds an n x n matrix whose (i,j) entry is FUN(x[i], x[j]).
@@ -117,20 +117,20 @@ Xcol <- X_nodes[, c("female", "grade")]
 
 Now the fun part. We fit a binary probit AME model with:
 
-- **Covariates** for homophily effects (do similar students become friends?)
-- **Sender and receiver random effects** (some students are more social/popular)
-- **Dyadic correlation** (reciprocity: friendships tend to be mutual)
-- **2-dimensional latent space** (residual clustering beyond what covariates explain)
+- **Covariates** for homophily effects
+- **Sender and receiver random effects** (sociality / popularity)
+- **Dyadic correlation** (reciprocity)
+- **2-dimensional latent space** (residual clustering)
 
 ### A note for ERGM users: what AME assumes
 
-If you're coming from `ergm` / statnet, the most important conceptual difference is the dependence assumption. ERGM specifies a joint distribution over the entire adjacency matrix and uses change statistics (e.g. `gwesp`, `triangle`, `kstar`) to encode *unconditional* higher-order dependence: changing one tie shifts the probability of other ties through those terms directly. AME does not. AME assumes **conditional dyadic independence**: given the additive effects $(a_i, b_j)$, the latent positions $(u_i, v_j)$, the dyadic correlation $\rho$ for $(y_{ij}, y_{ji})$, and the covariates, all dyads are independent. Higher-order structure (clustering, transitivity, degree heterogeneity) is captured *indirectly* by integrating over these latent random effects; actors with similar $u_i$ tend to form ties to overlapping neighborhoods, which induces clustering and partial transitivity at the marginal level.
+If you're coming from `ergm` / statnet, the key difference is the dependence assumption. ERGM uses change statistics (e.g. `gwesp`, `triangle`, `kstar`) to encode *unconditional* higher-order dependence: changing one tie shifts the probability of other ties directly. AME instead assumes **conditional dyadic independence**: given the additive effects $(a_i, b_j)$, the latent positions $(u_i, v_j)$, the dyadic correlation $\rho$, and the covariates, all dyads are independent, and higher-order structure is captured *indirectly* by integrating over the latent effects.
 
-The practical consequences for an ERGM user:
+Three practical consequences:
 
-- **No degeneracy.** Because the likelihood factors over dyads conditional on the random effects, AME does not exhibit the model-degeneracy failure modes of ERGMs with `triangle` or unconstrained `kstar` terms.
-- **No change-statistic interpretation of $\beta$.** A coefficient on `same_grade` is the partial association on the probit-latent scale, not a log-odds change conditional on the rest of the network.
-- **Some triangle structure is missed.** When transitive closure pressure is the substantive target (`gwesp` is a leading example), AME typically under-predicts triangles in the GOF and ERGM is the right tool. If your target is structural pattern + actor heterogeneity + covariate effects with calibrated uncertainty, AME is generally a more stable estimator.
+- **No degeneracy.** AME avoids the model-degeneracy failure modes of ERGMs with `triangle` or unconstrained `kstar` terms.
+- **No change-statistic interpretation of $\beta$.** A coefficient on `same_grade` is a partial association on the probit-latent scale, not a log-odds change conditional on the rest of the network.
+- **Some triangle structure is missed.** When transitive closure is the substantive target (`gwesp` is the leading example), ERGM is the right tool; for structural pattern + actor heterogeneity + covariate effects with calibrated uncertainty, AME is generally the more stable estimator.
 
 ```{r fit-model, message=FALSE, warning=FALSE}
 fit <- ame(Y,
@@ -157,17 +157,17 @@ summary(fit)
 
 Let's unpack the key results:
 
-**Homophily effects.** Look at the regression coefficients and their credible intervals. The `grade_diff` coefficient is strongly negative and its credible interval excludes zero, telling us that students further apart in grade are much less likely to be friends. The `same_female` coefficient is positive (gender homophily) but its 95% credible interval includes zero, so it is not well-identified at this sample size -- read the sign as suggestive, not the effect as established. The `same_race` coefficient captures race homophily after controlling for grade and gender.
+**Homophily effects.** The `grade_diff` coefficient is strongly negative and its credible interval excludes zero: students further apart in grade are much less likely to be friends. The `same_female` coefficient is positive (gender homophily) but its 95% credible interval includes zero -- read the sign as suggestive, not the effect as established. The `same_race` coefficient captures race homophily after controlling for grade and gender.
 
 **The collinearity pitfall.** `same_grade` and `grade_diff` measure nearly the same thing -- a grade difference of 0 *is* the same-grade event -- so the model cannot cleanly *split* the grade signal between them. It still identifies the dominant effect: `grade_diff` is strongly negative and stable from run to run (about `r round(mean(fit$BETA[, "grade_diff_dyad"]), 2)`, never near zero). What suffers is the partition: `same_grade` is left to absorb a small, noisy residual bump on top of the linear grade-distance trend. The lesson is about *interpretation*, not estimate instability: include one or the other, not both, so the grade effect lands on a single, clean coefficient.
 
-**Variance components.** The sender variance (`va`) and receiver variance (`vb`) quantify how much students differ in their sociality and popularity. Larger values mean more heterogeneity. The dyadic correlation (`rho`) captures reciprocity: values near 1 mean that if A nominates B, B almost always nominates A back. In this network, reciprocity is strong.
+**Variance components.** The sender variance (`va`) and receiver variance (`vb`) quantify how much students differ in sociality and popularity. The dyadic correlation (`rho`) captures reciprocity: values near 1 mean that if A nominates B, B almost always nominates A back. Reciprocity is strong here.
 
-For binary networks with a probit link, the coefficients are on the latent scale: the marginal effect of a covariate on the tie probability is $\phi(x'\beta) \cdot \beta_k$, where $\phi$ is the standard normal density. The textbook "$0.4 \times \beta$" rule of thumb uses the maximum of that density, $\phi(0) \approx 0.399$, and is only sharp when the baseline probability is near 0.5. The Add Health friendship network has density `r round(mean(Y, na.rm = TRUE), 3)`, well below 0.5, so the factor here is closer to $\phi(\Phi^{-1}(0.128)) \approx 0.21$. Rather than juggling correction factors, compute the quantity you actually want with `predict(fit, type = "response")` and contrast predicted probabilities under counterfactual covariate settings.
+For binary networks with a probit link, the coefficients are on the latent scale, and the textbook "$0.4 \times \beta$" rule for converting them to probability changes is only sharp when the baseline probability is near 0.5 -- which this sparse network is not. Rather than juggling correction factors, compute the quantity you actually want with `predict(fit, type = "response")` and contrast predicted probabilities under counterfactual covariate settings.
 
 ## Did the Sampler Converge?
 
-Since the model is estimated via MCMC (Markov chain Monte Carlo), trace plots are the first check that the sampler explored the posterior distribution thoroughly.
+The model is estimated via MCMC (Markov chain Monte Carlo), so trace plots are the first check that the sampler explored the posterior thoroughly.
 
 ```{r trace-plots, fig.width=10, fig.height=8, fig.alt="MCMC trace and density plots for each regression coefficient; stable traces fluctuate around a steady mean and the density plots are smooth and unimodal."}
 trace_plot(fit, params = "beta", ncol = 3)
@@ -179,11 +179,11 @@ The regression coefficients are not the whole story, though -- the slowest-mixin
 trace_plot(fit, params = "variance", include = "Dyadic Correlation")
 ```
 
-**What to look for:** The trace plots (top) should fluctuate around a stable mean. If you see long trends, the chain has not converged. The density plots (bottom) should be smooth and unimodal. With `r nrow(fit$BETA)` post-burn-in samples most coefficients mix acceptably for a demo; the slowest at this seed is `rho`, shown in its own trace above -- the reciprocity parameter that is chronically the slowest-mixing term in these fits (bulk ESS around 27 here, versus roughly 35--112 for the regression coefficients). Read low ESS as a *mixing* problem, not an *estimate* problem: point estimates such as `grade_diff`'s are stable from run to run even on short chains. But a slow-mixing parameter is exactly the one whose uncertainty you should not quote from a single short chain -- `rho` gets its real test in the multi-chain run below.
+**What to look for:** Traces should fluctuate around a stable mean (long trends mean non-convergence) and densities should be smooth and unimodal. With `r nrow(fit$BETA)` post-burn-in samples most coefficients mix acceptably for a demo; the slowest at this seed is `rho` -- the reciprocity parameter that is chronically the slowest-mixing term in these fits (bulk ESS around 27 here, versus roughly 35--112 for the regression coefficients). Read low ESS as a *mixing* problem, not an *estimate* problem: point estimates such as `grade_diff`'s are stable from run to run even on short chains. But a slow-mixing parameter is exactly the one whose uncertainty you should not quote from a single short chain -- `rho` gets its real test in the multi-chain run below.
 
 ### Numerical convergence diagnostics: `posterior::as_draws()`
 
-A trace plot is a sanity check, not a diagnostic. The Stan-era summary triple is **split-$\hat R$**, **bulk ESS**, and **tail ESS**, and the `posterior` package computes all three from a `draws_array`. `lame` registers an `as_draws()` method that reshapes `BETA` and `VC` for any fit, so the same workflow you would run on a `stanfit` works here:
+A trace plot is a sanity check, not a diagnostic. The Stan-era summary triple is **split-$\hat R$**, **bulk ESS**, and **tail ESS**; `lame` registers an `as_draws()` method, so the same `posterior`-package workflow you would run on a `stanfit` works here:
 
 ```{r as-draws-rhat-ess, eval = requireNamespace("posterior", quietly = TRUE), message = FALSE, warning = FALSE}
 library(posterior)
@@ -192,7 +192,7 @@ posterior::summarise_draws(draws)              # mean, sd, q5, q95, rhat,
                                                # ess_bulk, ess_tail per param
 ```
 
-The conventional thresholds: split-$\hat R$ < 1.01 for every monitored parameter; `ess_bulk` and `ess_tail` $\ge$ 400 per chain (so $\ge$ 1600 with four chains). This demo stores only `r nrow(fit$BETA)` draws (one short chain), so it cannot reach the ESS target -- the largest `ess_bulk` in the table is only about 112 (`same_female_dyad`, `va`), and `rho` sits lowest at about 27. The $\hat R$ column, by contrast, looks deceptively clean: every parameter comes back at or below about 1.08, with `cab` the nominal worst and both `grade_diff_dyad` and `rho` near 1.01--1.02. That is the trap of single-chain diagnostics: split-$\hat R$ computed on one chain compares the two halves of that chain, so it flags within-chain non-stationarity but cannot detect two chains that have each settled in different parts of the posterior. The parameter that actually fails to converge on this network -- `rho` -- looks fine in this table and only reveals itself when separate chains disagree, which is exactly what the four-chain fit below exposes ($\hat R \approx 1.8$). One row is expected to look degenerate in both tables here and in your own binary fits: `ve` is the latent residual variance, fixed at 1 for probit identification, so its draws are constant and `posterior` correctly reports NA for $\hat R$ and ESS -- ignore that row.
+The conventional thresholds: split-$\hat R$ < 1.01 for every monitored parameter; `ess_bulk` and `ess_tail` $\ge$ 400 per chain. This demo stores only `r nrow(fit$BETA)` draws (one short chain), so it cannot reach the ESS target -- the largest `ess_bulk` in the table is only about 112, and `rho` sits lowest at about 27. The $\hat R$ column, by contrast, looks deceptively clean: every parameter comes back at or below about 1.08, with `rho` near 1.01--1.02. That is the trap of single-chain diagnostics: split-$\hat R$ computed on one chain compares the two halves of that chain, so it flags within-chain non-stationarity but cannot detect two chains that have each settled in different parts of the posterior. The parameter that actually fails to converge on this network -- `rho` -- looks fine in this table and only reveals itself when separate chains disagree, which is exactly what the four-chain fit below exposes ($\hat R \approx 1.8$). One row will look degenerate in both tables: `ve` is the latent residual variance, fixed at 1 for probit identification, so its draws are constant and `posterior` correctly reports NA for $\hat R$ and ESS -- ignore that row.
 
 ### Between-chain $\hat R$: `ame_parallel(n_chains = 4)`
 
@@ -212,13 +212,13 @@ fit_mc <- ame_parallel(
 posterior::summarise_draws(posterior::as_draws(fit_mc))
 ```
 
-This is the payoff of running more than one chain. In the single-chain table above, `rho` looked merely mediocre -- $\hat R \approx 1.02$, bulk ESS around 27 -- because a single chain can only be compared with itself: split-$\hat R$ contrasts the two halves of one chain and cannot see two chains that have each settled into a different region. With a second, independently seeded chain the failure is unmistakable: the convergence banner flags `rho` at R-hat = 1.801, and `summarise_draws()` puts it at 1.63 with a bulk ESS of 3.7. (The two numbers differ because the banner computes the classic Gelman-Rubin ratio while `posterior` uses rank-normalized split-$\hat R$; both are far past the 1.01 bar.) This is the same reciprocity parameter the trace plots flagged as chronically slow-mixing. Do not report `rho`'s credible interval from a run that looks like this -- increase `nscan` and the number of chains until its $\hat R$ clears the threshold. Every other parameter sits at $\hat R \le 1.02$ across chains, so there is no sign of between-chain disagreement for the covariate and variance-component estimates; they still need the longer multi-chain run to clear the ESS bar before you quote their uncertainty.
+This is the payoff of running more than one chain. In the single-chain table above, `rho` looked merely mediocre -- $\hat R \approx 1.02$, bulk ESS around 27 -- for the reason just described: one chain can only be compared with itself. With a second, independently seeded chain the failure is unmistakable: the convergence banner flags `rho` at R-hat = 1.801, and `summarise_draws()` puts it at 1.63 with a bulk ESS of 3.7. (The two numbers differ because the banner computes the classic Gelman-Rubin ratio while `posterior` uses rank-normalized split-$\hat R$; both are far past the 1.01 bar.) This is the same reciprocity parameter the trace plots flagged as chronically slow-mixing. Do not report `rho`'s credible interval from a run that looks like this -- increase `nscan` and the number of chains until its $\hat R$ clears the threshold. Every other parameter sits at $\hat R \le 1.02$ across chains, so there is no sign of between-chain disagreement; the covariate and variance-component estimates still need a longer multi-chain run to clear the ESS bar before you quote their uncertainty.
 
-The pooled object carries a `chain_indicator` so `as_draws()` keeps chain identity separate, which is what split-$\hat R$ needs. The same reshape feeds `bayesplot::mcmc_trace()` and `tidybayes::tidy_draws()` directly.
+The pooled object carries a `chain_indicator` so `as_draws()` keeps chain identity separate; the same reshape feeds `bayesplot::mcmc_trace()` and `tidybayes::tidy_draws()` directly.
 
 ### Other quick checks
 
-Two cheap diagnostics worth running once per fit. First, the sampler-failure counters: `lame` is a Gibbs / Metropolis-Hastings sampler, not HMC, so it has no divergences -- the closest analog is the per-block Metropolis / `tryError` count exposed as `fit$mh_counters` (alias `fit$tryErrorChecks`). Treat any block with more than 5% failures as suspicious; the longitudinal `lame()` path warns automatically at that threshold. Second, `prior_summary(fit)` -- modelled on `rstanarm::prior_summary()` -- prints the hyperparameters *actually used* (defaults filled in) for the g-prior on $\beta$ and the variance components; it is the cheapest way to catch a typo in a `prior = list(...)` override.
+Two cheap diagnostics worth running once per fit. `lame` is a Gibbs / Metropolis-Hastings sampler, not HMC, so it has no divergences -- the closest analog is the per-block failure count exposed as `fit$mh_counters`; treat any block with more than 5% failures as suspicious. And `prior_summary(fit)` prints the hyperparameters *actually used* (defaults filled in), the cheapest way to catch a typo in a `prior = list(...)` override.
 
 ```{r mh-counters}
 str(fit$mh_counters)
@@ -255,73 +255,50 @@ loo::loo_compare(list(with_dyad = loo_dyad, no_dyad = loo_null))
 
 This time the diagnostics matter as much as the comparison. Start with the warning `loo()` raises and the Pareto-$k$ table it prints: 287 of the 992 dyads (28.9%) fall in the "bad" range ($0.47 < k \le 1$) and 11 more (1.1%) are "very bad" ($k > 1$), so for nearly a third of the observations the importance weights behind `elpd_loo` cannot be trusted. This failure mode is structural rather than a fluke: every dyad's likelihood depends on the actor-level random effects ($a_i$, $b_j$, $u_i'v_j$), so leaving one dyad out shifts the posterior enough to make the importance ratios heavy-tailed, and with only 80 stored draws there is little to stabilize them. Read the comparison in that light: `loo_compare()` sorts `with_dyad` first, but its 24.6-point advantage is smaller than its own standard error (`se_diff` 25.6) -- not decisive even at face value -- and with this many flagged dyads the honest conclusion is to not lean on `elpd_diff` at all. The workflow lesson: always read the Pareto-$k$ table *before* `elpd_diff`. For a comparison you can report, lengthen the run substantially (`nscan >= 2000`, more stored draws) and, for random-effects-dense network models like AME, prefer $K$-fold cross-validation over dyads -- or the held-out dyad evaluation shown below via `evaluate_heldout()` -- to PSIS-LOO.
 
-For the five families `normal`, `binary`, `cbin`, `poisson`, `ordinal` the stored log-likelihood is the **exact family-specific Y density** (Gaussian / probit Bernoulli / log-Poisson / cumulative-probit), so `elpd_loo` is directly comparable to a `loo()` from a brms or rstanarm fit to the same family. For the rank likelihood `frn`, the exact marginal requires GHK Monte Carlo and is only available on the longitudinal path via `log_lik_method = "observed_ghk"`; the cross-sectional default falls back to the augmented-Z normal density and emits a one-time warning. Inspect `fit$log_lik_method` to see which branch was used.
+For the `normal`, `binary`, `cbin`, `poisson`, and `ordinal` families the stored log-likelihood is the **exact family-specific Y density**, so `elpd_loo` is directly comparable to a `loo()` from a brms or rstanarm fit to the same family; see `?loo.ame` for the `frn` rank-likelihood caveat and `fit$log_lik_method`.
 
 ## Does the Model Fit the Data?
 
-Goodness-of-fit (GOF) checks whether the model can reproduce key structural features of the observed network. This goes beyond dyad-level prediction: it tests whether the model captures emergent properties like degree heterogeneity, reciprocity patterns, and clustering.
+Goodness-of-fit (GOF) checks whether the model can reproduce structural features of the observed network -- degree heterogeneity, reciprocity, clustering -- beyond dyad-level prediction.
 
 ```{r gof-plot, fig.width=10, fig.height=6, fig.alt="Goodness-of-fit panels comparing observed network statistics (dashed orange vertical line) against the posterior predictive histograms (grey) for sender and receiver degree heterogeneity, dyadic dependence, triadic dependence, and transitivity. Observed and predicted differ on both colour and linetype so the cue survives grayscale printing and colour-blind viewing."}
 gof_plot(fit)
 ```
 
-Each panel shows a different network statistic. The grey histogram is the posterior-predictive distribution from networks simulated from the fitted model; the **dashed orange vertical line is the observed value** on the same scale. The figure encodes the observed-vs-predicted contrast on two channels at once: colour (Okabe-Ito orange `#D55E00` vs `grey60`) **and** linetype (a dashed vertical segment vs a filled histogram bar), so the cue survives both colour-blind viewers and grayscale printing. The legend strip at the top of each panel labels the two glyphs explicitly as "Observed" and "Posterior predictive".
+In each panel the grey histogram is the posterior-predictive distribution from networks simulated out of the fitted model, and the **dashed orange vertical line is the observed value** (colour and linetype dual-encode the contrast so it survives grayscale printing and colour-blind viewing). See `?gof_plot` for the `statistics = ...` aliases and the exact column names stored in `fit$GOF`.
 
-The panel titles are the human-readable labels ("Sender Degree Heterogeneity", "Receiver Degree Heterogeneity", "Dyadic Dependence", "Triadic Dependence", and "Transitivity"). The user-facing aliases accepted by `gof_plot(..., statistics = ...)` are `sd.row`, `sd.col`, `dyad.dep`, `triad.dep` (the cyclic-triad measure), and `trans.dep` (the transitive-triad analogue). The actual column names stored in `fit$GOF` differ slightly: the row/column SDs are `sd.rowmean` / `sd.colmean` and the cyclic-triad statistic is `cycle.dep`, so `colnames(fit$GOF)` returns `sd.rowmean`, `sd.colmean`, `dyad.dep`, `cycle.dep`, `trans.dep`. The alias map applied inside `gof_plot()` rewrites `sd.row` → `sd.rowmean`, `sd.col` → `sd.colmean`, and `triad.dep` → `cycle.dep` before plotting.
+The observed values for Sender and Receiver Degree Heterogeneity and for Dyadic Dependence (essentially empirical reciprocity) fall inside their posterior-predictive histograms -- those three features are explicitly modeled by the random effects, the variance components, and $\rho$. The two triad-level statistics tell a different story: observed Triadic Dependence sits in the upper tail, and observed Transitivity at the far right edge. AME under-predicts triangle closure on this network, the expected signature of conditional dyadic independence: the latent space soaks up some triangle structure through clustering of the $u_i$, but there is no explicit closure term. If transitivity is your substantive target, fit an ERGM; if it is a diagnostic concern only, increasing `R` sometimes helps modestly.
 
-In the plot above the observed values for Sender and Receiver Degree Heterogeneity fall inside their posterior-predictive histograms (although Receiver sits to the right of the mode), and Dyadic Dependence (the Y-vs-t(Y) correlation, essentially empirical reciprocity) is also covered. Those three features are explicitly modeled by the sender/receiver random effects, the row/column variance components, and the dyadic correlation $\rho$. The two triad-level statistics tell a different story: observed Triadic Dependence sits in the upper tail of its simulated distribution, and observed Transitivity sits at the far right edge. AME under-predicts triangle closure on this network, the expected signature of conditional dyadic independence. The latent space soaks up some triangle structure through clustering of $u_i$ vectors, but the absence of an explicit triangle-closure term means we cannot match observed transitivity. If transitivity is your substantive target, fit an ERGM; if it is a diagnostic concern only, increasing `R` sometimes helps modestly.
-
-You can also compute GOF after the fact using the `gof()` function, which is useful if you want to test custom statistics. The built-in `trans.dep` panel is a *correlation-style* clustering measure; ERGM users will typically want raw counts that match the `triangle` / `ttriple` / `gwesp` family. Those are one-liners as custom stats:
+You can also compute GOF after the fact using the `gof()` function, which accepts custom statistics. The built-in `trans.dep` panel is a *correlation-style* clustering measure; ERGM users will typically want the raw clustering coefficient (`sna::gtrans`, the scalar summary that `gwesp(decay = 0, fixed = TRUE)` targets), which takes a few lines as a custom stat:
 
 ```{r custom-gof}
-# ERGM-style custom statistics:
-#   triangles  : count of transitive triples i -> j, j -> k, i -> k,
-#                the directed analogue of ergm's `ttriple` change statistic
-#                (and what `gwesp(decay = 0, fixed = TRUE)` reduces to)
-#   two_path   : count of two-paths i -> j -> k (the "potential" triangles)
-#   trans_ratio: triangles / two_path -- the classic clustering coefficient
-#                (sna::gtrans), the right scalar summary of what gwesp targets
-#   deg_cor    : Pearson correlation of out-degree and in-degree
-custom_stats <- function(Y) {
-	Yb <- Y; Yb[is.na(Yb)] <- 0           # NA -> 0 for matrix multiply
+# classic clustering coefficient: transitive triples / two-paths
+trans_ratio <- function(Y) {
+	Yb <- Y; Yb[is.na(Yb)] <- 0            # NA -> 0 for matrix multiply
 	YY <- Yb %*% Yb
-	triangles   <- sum(YY * Yb)            # transitive triples
-	two_path    <- sum(YY) - sum(diag(YY)) # two-paths excluding length-2 reciprocal loops
-	out_deg <- rowSums(Y, na.rm = TRUE)
-	in_deg  <- colSums(Y, na.rm = TRUE)
-	c(triangles   = triangles,
-	  two_path    = two_path,
-	  trans_ratio = triangles / max(two_path, 1),
-	  deg_cor     = cor(out_deg, in_deg))
+	triangles <- sum(YY * Yb)              # transitive triples
+	two_path  <- sum(YY) - sum(diag(YY))   # two-paths (potential triangles)
+	c(trans_ratio = triangles / max(two_path, 1))
 }
 
-gof_custom <- gof(fit, custom_gof = custom_stats, nsim = 50, verbose = FALSE)
-obs <- gof_custom[1, ]
-sim <- gof_custom[-1, , drop = FALSE]
+gof_custom <- gof(fit, custom_gof = trans_ratio, nsim = 50, verbose = FALSE)
+obs <- gof_custom[1, "trans_ratio"]
+sim <- gof_custom[-1, "trans_ratio"]
 
-# posterior-predictive p-value: fraction of simulated networks at least as
-# extreme (right tail) as the observed; values near 0 mean the model
-# under-predicts the statistic, values near 1 mean it over-predicts
-pp_right <- function(o, s) mean(s >= o, na.rm = TRUE)
-data.frame(
-	stat       = colnames(gof_custom),
-	observed   = round(obs, 3),
-	sim_mean   = round(colMeans(sim, na.rm = TRUE), 3),
-	pp_p_right = round(mapply(pp_right, obs, as.data.frame(sim)), 3)
-)[c("triangles", "two_path", "trans_ratio", "deg_cor"), ]
+# posterior-predictive p-value (right tail): near 0 = under-predicted
+c(observed = round(obs, 3), sim_mean = round(mean(sim), 3),
+  pp_p_right = round(mean(sim >= obs), 3))
 ```
 
-Read the table the same way you would read `ergm::gof()`. For each statistic a `pp_p_right` near 0 means the simulated networks rarely hit the observed value from below, i.e. the model under-predicts that quantity; a value near 1 means it over-predicts. On Add Health the raw `triangles` count comes back reasonably well covered (`pp_p_right` around 0.48 in our run): the AME fit absorbs much of the triangle pressure through clustering of $u_i$ and through the joint scale of the additive effects, so the raw count is in the predictive distribution even though the model has no `gwesp`-style change statistic in the likelihood. `two_path` is driven by the marginal degree distribution and the additive effects, so it is also usually well covered (`pp_p_right` around 0.66 here). The structural gap shows up in the ratio: the `trans_ratio` (triangles / two-paths) is the unweighted clustering coefficient ERGM users recognise from `sna::gtrans`, and on this network it comes back with `pp_p_right` close to zero (around 0.08 in our run). That is the scalar summary targeted by `gwesp(decay = 0, fixed = TRUE)`: the model gets the absolute scale of triangle counts roughly right but does not concentrate triangles per two-path the way the data do. The `deg_cor` is degree assortativity: AME captures some of it through the sender-receiver covariance (`cab`), but the rest reflects higher-order structure outside the dyadic likelihood.
+Read this the way you would read `ergm::gof()`: `pp_p_right` is the fraction of simulated networks at or above the observed value, so a value near 0 means the model under-predicts the statistic. On Add Health it comes back close to zero (around 0.08 in our run) -- the model produces triangles, but does not concentrate them per two-path the way the data do, the same structural gap the built-in panels showed. See `?gof` for adding further custom statistics (raw triangle counts, degree assortativity, and so on).
 
 ## Visualizing the Latent Space
 
-The multiplicative effects ($u_i'v_j$) place each student in a 2D latent space. Students near each other in sender space (triangles) tend to nominate similar friends; students near each other in receiver space (circles) tend to be nominated by similar students. This captures clustering that the covariates alone can't explain.
+The multiplicative effects ($u_i'v_j$) place each student in a 2D latent space: students near each other in sender space (triangles) nominate similar friends, and students near each other in receiver space (circles) are nominated by similar students. Clusters likely share some unobserved characteristic (same social group, same extracurriculars) that drives friendship choices beyond gender, race, and grade.
 
 ```{r latent-space, fig.width=8, fig.height=6, fig.alt="Biplot of the estimated 2D latent space: triangles mark each student's sender position and circles mark receiver positions on the two latent dimensions; students plotted near each other have similar friendship patterns beyond what the covariates explain."}
 uv_plot(fit, layout = "biplot", show.edges = FALSE, label.nodes = FALSE)
 ```
-
-Students on opposite sides of the plot have dissimilar friendship patterns. Clusters of students placed near each other likely share some unobserved characteristic (same social group, same extracurricular activities) that drives their friendship choices beyond gender, race, and grade.
 
 ## Who Are the Most Social / Popular Students?
 
@@ -341,7 +318,7 @@ Students with large positive sender effects nominate more friends than expected 
 
 ## Making Predictions
 
-The model gives you predicted probabilities for every possible tie, including unobserved ones. This is useful for link prediction (who is likely to become friends?) and for understanding the model's fit at the dyad level. One detail: for sparse networks (density below 0.1), raw accuracy can be misleadingly high because predicting "no tie" for every dyad already gets most predictions right. Focus on the off-diagonal cells of the confusion matrix to see how well the model distinguishes true ties from non-ties.
+The model gives you predicted probabilities for every possible tie, useful for link prediction and for understanding dyad-level fit. One caution for sparse networks: predicting "no tie" for every dyad already gets most predictions right, so raw accuracy flatters the model -- judge it against the modal-class baseline.
 
 ```{r predictions}
 pred_resp <- predict(fit, type = "response")
@@ -363,9 +340,9 @@ cat("\nAccuracy:", round(accuracy, 3),
     " | Lift:", round(accuracy - baseline, 3), "\n")
 ```
 
-The accuracy by itself flatters the model: a "predict the modal class" baseline already gets the printed baseline value, and the model's lift over that baseline is what's meaningful. For this friendship network with density ~13% the baseline is ~0.87, so the relevant question is whether the model's accuracy is materially above 0.87, not whether it crosses 0.5.
+At density ~13% the modal-class baseline is ~0.87, so the relevant question is whether the model's accuracy is materially above 0.87, not whether it crosses 0.5.
 
-For link prediction, the area under the ROC curve (AUC) evaluates the model's ability to rank true ties above non-ties across all thresholds rather than relying on a single cutpoint. The `pROC` and `precrec` packages compute both ROC and PR-AUC from `pred_resp`. For sparse networks the PR-AUC is often the more useful summary. A model that always predicts "no tie" already has AUROC near 0.5 but PR-AUC near the network density, so the gap between PR-AUC and density is the metric of substantive interest.
+For link prediction, AUC-style metrics evaluate the model's ability to rank true ties above non-ties across all thresholds. For sparse networks PR-AUC is the more informative summary: a model that always predicts "no tie" already has AUROC near 0.5 but PR-AUC near the network density, so the gap between PR-AUC and density is the metric of substantive interest.
 
 ```{r auc-eval, eval = requireNamespace("pROC", quietly = TRUE) && requireNamespace("precrec", quietly = TRUE)}
 # pROC: ROC curve and AUROC
@@ -385,11 +362,11 @@ cat("AUROC:", round(auroc, 3), "\n",
     "Baseline PR-AUC (density of Y):", round(mean(Y_vec[keep]), 3), "\n")
 ```
 
-Here that gap is wide: PR-AUC comes back at 0.603 against a density baseline of 0.128, so the model's precision over the ranked dyads runs roughly five times the guess-at-the-base-rate floor, and AUROC 0.874 (against 0.5 for a random ranker) tells the same story on the scale that ignores class imbalance. Both are in-sample numbers, though -- the held-out estimates in the next section are the ones to quote for any predictive claim.
+Here that gap is wide: PR-AUC 0.603 against a density baseline of 0.128 (roughly five times the base-rate floor), and AUROC 0.874 against 0.5 for a random ranker. Both are in-sample numbers, though -- the held-out estimates in the next section are the ones to quote for any predictive claim.
 
 ### Held-out link prediction
 
-Reporting accuracy / AUC on the same dyads the model was fit on is **in-sample** fit, not predictive performance. For a held-out evaluation, mask a random subset of dyads to `NA` before fitting (the AME sampler handles `NA` entries via data augmentation, so the masked dyads are excluded from the likelihood), then score `predict(fit, type = "response")` on the held-out indices. Stratify the split on `Y` so the test set has both classes; on a density-0.1 network a naive 10% mask leaves very few positive test dyads, so report the test-set positive count with the AUC.
+For a held-out evaluation, mask a random subset of dyads to `NA` before fitting (the sampler excludes them from the likelihood via data augmentation), then score `predict(fit, type = "response")` on the masked indices. Stratify the split on `Y` so the test set contains both classes.
 
 ```{r heldout}
 # 80/20 stratified mask of off-diagonal dyads
@@ -411,33 +388,27 @@ fit_train <- ame(Y_train, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
 
 pred_train <- predict(fit_train, type = "response")
 
-# `evaluate_heldout()` is the shipped helper that vectorises the same scoring
-# call, gates AUROC / PR-AUC on whether {precrec} (preferred) or {pROC} is
-# installed, and falls back to Brier + log-loss otherwise. It accepts the
-# observed Y, predictions, and a logical TEST mask of the same shape.
+# `evaluate_heldout()` scores predictions on a logical TEST mask:
+# columns n_eval, auroc, auprc, brier, logloss
 test_mask           <- matrix(FALSE, nrow(Y), ncol(Y),
                               dimnames = dimnames(Y))
 test_mask[test_idx] <- TRUE
 evaluate_heldout(y_obs = Y, y_pred = pred_train,
                  mask = test_mask, family = "binary")
-# columns: n_eval, auroc, auprc, brier, logloss
 cat("Test dyads:", length(test_idx),
     " | positives:", sum(Y[test_idx] == 1), "\n")
 ```
 
-On the 198 held-out dyads (25 of them true friendships) the model posts AUROC 0.836 and PR-AUC 0.551. Set these against the in-sample AUROC 0.874 and PR-AUC 0.603 just above: performance drops only modestly out of sample, which is the reassuring signal that the fit generalizes rather than memorizing the training dyads. PR-AUC is the number to weigh here because the positive class is rare: a random ranker's PR-AUC equals the positive rate (about 0.13), so 0.551 means the model's precision, averaged across recall levels, is roughly four times the chance baseline -- on dyads it never saw during fitting. Two caveats on stability: with only 25 positive test dyads the estimates carry wide split-sampling uncertainty (a different mask seed will move them), and the short single chain adds Monte Carlo noise on top -- detail (2) below addresses the latter. Read these numbers as a sanity check rather than a precise benchmark, and report the positive count alongside them.
-
-Two details on the ML split. (1) The actor identities are the same in train and test (only some of their dyads are masked); this is a *transductive* link-prediction split, not an inductive one. The latent positions $u_i, v_j$ for every actor are still informed by their non-masked dyads. For an **inductive** evaluation that holds out entire actors, drop a subset of rows/columns from $Y$ before fitting and score the model's predictions for those actors using only covariates (the held-out actors have no posterior $u_i, v_j$, so their predictions collapse to $X\beta + \hat a_{\text{mean}} + \hat b_{\text{mean}}$, which unsurprisingly performs worse). (2) The fit above is a single chain at modest length; for stable held-out AUC estimates run `ame_parallel(..., n_chains = 4)` and pool.
+On the 198 held-out dyads (25 of them true friendships) the model posts AUROC 0.836 and PR-AUC 0.551 -- only a modest drop from the in-sample 0.874 / 0.603, the reassuring signal that the fit generalizes rather than memorizing the training dyads. PR-AUC is the number to weigh: a random ranker's PR-AUC equals the positive rate (about 0.13), so the model's precision runs roughly four times chance on dyads it never saw. With only 25 positive test dyads and a single short chain, read these as a sanity check rather than a benchmark -- report the positive count alongside them, and see `?evaluate_heldout` for the metric definitions and options.
 
 ## Simulating from the Model
 
 You can generate new networks from the fitted posterior. A **posterior
-predictive check** asks: if I draw a parameter set from the posterior
-and then simulate a network with those parameters, does that simulated
-network look like the observed one on whatever feature I care about
-(here, overall density)? If the observed feature lies inside the
-simulated distribution, the model reproduces that aspect of the data;
-if it lies in a tail, the model is missing something there.
+predictive check** asks: does a network simulated from posterior draws
+look like the observed one on a feature you care about (here, overall
+density)? Observed values inside the simulated distribution mean the
+model reproduces that feature; values in a tail mean it is missing
+something.
 
 ```{r simulation, fig.width=8, fig.height=4, fig.alt="Posterior predictive check histogram of simulated network densities (grey bars) with a dashed Okabe-Ito orange vertical line marking the observed density; the encoding is dual on colour and linetype so the cue survives greyscale printing and colour-blind viewing. Overlap indicates the model reproduces the observed density."}
 sims <- simulate(fit, nsim = 100)
@@ -462,20 +433,18 @@ ggplot(data.frame(density = sim_densities), aes(x = density)) +
 
 ## Practical Tips
 
-**Choosing R (latent dimensions).** Start with R = 0 (no latent space), then try R = 1 and R = 2. Compare GOF statistics. If adding dimensions doesn't improve the GOF, the covariates and additive effects are sufficient. `ame()` / `lame()` will warn when `R > floor(n/3)` (or `min(nA, nB)/3` in bipartite) because at that rank the multiplicative effects start absorbing structure that belongs to the additive effects and the latent positions stop being interpretable; in practice `R = 2` or `R = 3` is the right default unless you have a specific reason to push higher.
+**Choosing R (latent dimensions).** Start with R = 0 (no latent space), then try R = 1 and R = 2 and compare GOF. `ame()` / `lame()` warn when `R > floor(n/3)` because at that rank the multiplicative effects absorb structure that belongs to the additive effects; in practice `R = 2` or `R = 3` is the right default.
 
 **MCMC settings.** For exploratory work, `burn = 500, nscan = 2000, odens = 25` is fine. For a final run, use at least `burn = 2000, nscan = 10000, odens = 25` and check convergence with `trace_plot()`.
 
 **Variance components.** Include `rvar = TRUE` and `cvar = TRUE` unless you have a specific reason not to. Include `dcor = TRUE` for directed networks where reciprocity is plausible.
-
-**Interpreting coefficients.** For binary networks, the coefficients are on the probit scale. Use `predict(fit, type = "response")` to get predicted probabilities.
 
 ## What's Next?
 
 - **Multiple time periods?** See the [lame overview](lame-overview.html) for longitudinal models
 - **Two types of nodes?** See the [bipartite vignette](bipartite.html)
 - **Evolving network structure?** See the [dynamic effects vignette](dynamic_effects.html)
-- **Other data types?** The `family` argument supports normal, binary, ordinal, poisson, and more
+- **Other data types?** See `?ame` for the supported `family` options
 
 ## References
 

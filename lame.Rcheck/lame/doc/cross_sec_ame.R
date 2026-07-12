@@ -143,41 +143,22 @@ loo::loo_compare(list(with_dyad = loo_dyad, no_dyad = loo_null))
 gof_plot(fit)
 
 ## ----custom-gof---------------------------------------------------------------
-# ERGM-style custom statistics:
-#   triangles  : count of transitive triples i -> j, j -> k, i -> k,
-#                the directed analogue of ergm's `ttriple` change statistic
-#                (and what `gwesp(decay = 0, fixed = TRUE)` reduces to)
-#   two_path   : count of two-paths i -> j -> k (the "potential" triangles)
-#   trans_ratio: triangles / two_path -- the classic clustering coefficient
-#                (sna::gtrans), the right scalar summary of what gwesp targets
-#   deg_cor    : Pearson correlation of out-degree and in-degree
-custom_stats <- function(Y) {
-	Yb <- Y; Yb[is.na(Yb)] <- 0           # NA -> 0 for matrix multiply
+# classic clustering coefficient: transitive triples / two-paths
+trans_ratio <- function(Y) {
+	Yb <- Y; Yb[is.na(Yb)] <- 0            # NA -> 0 for matrix multiply
 	YY <- Yb %*% Yb
-	triangles   <- sum(YY * Yb)            # transitive triples
-	two_path    <- sum(YY) - sum(diag(YY)) # two-paths excluding length-2 reciprocal loops
-	out_deg <- rowSums(Y, na.rm = TRUE)
-	in_deg  <- colSums(Y, na.rm = TRUE)
-	c(triangles   = triangles,
-	  two_path    = two_path,
-	  trans_ratio = triangles / max(two_path, 1),
-	  deg_cor     = cor(out_deg, in_deg))
+	triangles <- sum(YY * Yb)              # transitive triples
+	two_path  <- sum(YY) - sum(diag(YY))   # two-paths (potential triangles)
+	c(trans_ratio = triangles / max(two_path, 1))
 }
 
-gof_custom <- gof(fit, custom_gof = custom_stats, nsim = 50, verbose = FALSE)
-obs <- gof_custom[1, ]
-sim <- gof_custom[-1, , drop = FALSE]
+gof_custom <- gof(fit, custom_gof = trans_ratio, nsim = 50, verbose = FALSE)
+obs <- gof_custom[1, "trans_ratio"]
+sim <- gof_custom[-1, "trans_ratio"]
 
-# posterior-predictive p-value: fraction of simulated networks at least as
-# extreme (right tail) as the observed; values near 0 mean the model
-# under-predicts the statistic, values near 1 mean it over-predicts
-pp_right <- function(o, s) mean(s >= o, na.rm = TRUE)
-data.frame(
-	stat       = colnames(gof_custom),
-	observed   = round(obs, 3),
-	sim_mean   = round(colMeans(sim, na.rm = TRUE), 3),
-	pp_p_right = round(mapply(pp_right, obs, as.data.frame(sim)), 3)
-)[c("triangles", "two_path", "trans_ratio", "deg_cor"), ]
+# posterior-predictive p-value (right tail): near 0 = under-predicted
+c(observed = round(obs, 3), sim_mean = round(mean(sim), 3),
+  pp_p_right = round(mean(sim >= obs), 3))
 
 ## ----latent-space, fig.width=8, fig.height=6, fig.alt="Biplot of the estimated 2D latent space: triangles mark each student's sender position and circles mark receiver positions on the two latent dimensions; students plotted near each other have similar friendship patterns beyond what the covariates explain."----
 uv_plot(fit, layout = "biplot", show.edges = FALSE, label.nodes = FALSE)
@@ -247,16 +228,13 @@ fit_train <- ame(Y_train, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
 
 pred_train <- predict(fit_train, type = "response")
 
-# `evaluate_heldout()` is the shipped helper that vectorises the same scoring
-# call, gates AUROC / PR-AUC on whether {precrec} (preferred) or {pROC} is
-# installed, and falls back to Brier + log-loss otherwise. It accepts the
-# observed Y, predictions, and a logical TEST mask of the same shape.
+# `evaluate_heldout()` scores predictions on a logical TEST mask:
+# columns n_eval, auroc, auprc, brier, logloss
 test_mask           <- matrix(FALSE, nrow(Y), ncol(Y),
                               dimnames = dimnames(Y))
 test_mask[test_idx] <- TRUE
 evaluate_heldout(y_obs = Y, y_pred = pred_train,
                  mask = test_mask, family = "binary")
-# columns: n_eval, auroc, auprc, brier, logloss
 cat("Test dyads:", length(test_idx),
     " | positives:", sum(Y[test_idx] == 1), "\n")
 

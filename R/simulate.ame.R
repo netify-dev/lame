@@ -320,6 +320,11 @@ simulate.ame <- function(
 			# include the latent overdispersion layer of the fitted model
 			# (y ~ Pois(exp(z)), z ~ N(EZ, s2*Sigma_rho))
 			Y_sim <- simY_pois(simZ(EZ, rho, s2))
+		} else if (family == "cbin") {
+			# censored binary: an frn draw thresholded at zero, the same
+			# posterior-predictive convention the fitter's gof draws use
+			odmax <- if (!is.null(fit$odmax)) fit$odmax else rep(Inf, n_row)
+			Y_sim <- 1 * (simY_frn(EZ, rho, odmax) > 0)
 		} else if (family == "frn") {
 			odmax <- if (!is.null(fit$odmax)) fit$odmax else rep(Inf, n_row)
 			Y_sim <- simY_frn(EZ, rho, odmax)

@@ -854,3 +854,70 @@ test_that("forecasting works from a changing-composition fit", {
 	expect_identical(dim(pr[[1]]), c(12L, 12L))
 	expect_identical(rownames(pr[[1]]), sort(actors))
 })
+
+test_that("bipartite dynamic_ab recovers full-strength coefficients", {
+	skip_on_cran()
+	set.seed(501); nA = 12; nB = 9; Tt = 3
+	ra = sprintf("r%02d", 1:nA); ca = sprintf("c%02d", 1:nB)
+	X = lapply(1:Tt, function(t) array(rnorm(nA * nB), c(nA, nB, 1),
+		dimnames = list(ra, ca, "x1")))
+	av = rnorm(nA, 0, 0.3); bv = rnorm(nB, 0, 0.3)
+	Y = lapply(1:Tt, function(t) {
+		m = -0.3 + 0.5 * X[[t]][, , 1] + outer(av, rep(1, nB)) +
+			outer(rep(1, nA), bv) + matrix(rnorm(nA * nB), nA, nB)
+		dimnames(m) = list(ra, ca); m
+	})
+	fd = lame(Y, Xdyad = X, family = "normal", mode = "bipartite", R = 0,
+		dynamic_ab = TRUE, nscan = 600, burn = 150, odens = 5, seed = 501,
+		verbose = FALSE, gof = FALSE, plot = FALSE)
+	f0 = lame(Y, Xdyad = X, family = "normal", mode = "bipartite", R = 0,
+		nscan = 600, burn = 150, odens = 5, seed = 501,
+		verbose = FALSE, gof = FALSE, plot = FALSE)
+	# a correction-target draw would center the dynab chain at half the
+	# static estimate with strongly negative lag-1 autocorrelation
+	expect_gt(mean(fd$BETA[, "x1_dyad"]) / mean(f0$BETA[, "x1_dyad"]), 0.8)
+	expect_gt(acf(fd$BETA[, "x1_dyad"], plot = FALSE)$acf[2], -0.3)
+})
+
+test_that("simulate() supports cbin fits", {
+	skip_on_cran()
+	set.seed(1); n = 14
+	X = matrix(rnorm(n * n), n, n)
+	Z = -0.3 + 0.5 * X + matrix(rnorm(n * n), n, n)
+	Y = matrix(0, n, n)
+	for (i in 1:n) {
+		zi = Z[i, ]; zi[i] = -Inf; pos = which(zi > 0)
+		m = min(length(pos), 4)
+		if (m > 0) Y[i, pos[order(zi[pos], decreasing = TRUE)][1:m]] = 1
+	}
+	diag(Y) = NA; rownames(Y) = colnames(Y) = paste0("a", 1:n)
+	Xa = array(X, c(n, n, 1), dimnames = list(rownames(Y), colnames(Y), "x"))
+	fit = ame(Y, Xdyad = Xa, family = "cbin", odmax = rep(4, n),
+		nscan = 100, burn = 30, odens = 5, verbose = FALSE, gof = FALSE, plot = FALSE)
+	s = simulate(fit, nsim = 2)
+	expect_length(s$Y, 2)
+	expect_true(all(unlist(s$Y) %in% c(0, 1, NA)))
+	fl = lame(list(t1 = Y, t2 = Y), Xdyad = list(Xa, Xa), family = "cbin",
+		odmax = rep(4, n), nscan = 60, burn = 20, odens = 5,
+		verbose = FALSE, gof = FALSE, plot = FALSE)
+	sl = simulate(fl, nsim = 2)
+	expect_length(sl$Y, 2)
+})
+
+test_that("lame_snap_als converges via identified-parameter stationarity", {
+	skip_on_cran()
+	set.seed(801); n = 16; Tt = 4
+	an = sprintf("a%02d", 1:n)
+	U = matrix(rnorm(n * 2), n, 2); V = matrix(rnorm(n * 2), n, 2)
+	uv = U %*% t(V); uv = uv * (0.5 / sd(uv))
+	Y = list()
+	for (t in 1:Tt) {
+		Yt = -0.2 + uv + matrix(rnorm(n * n), n, n)
+		diag(Yt) = NA; dimnames(Yt) = list(an, an)
+		Y[[paste0("t", t)]] = Yt
+	}
+	fs = lame_snap_als(Y, R = 2, family = "normal", verbose = FALSE,
+		seed = 6886, max_iter = 400)
+	expect_true(fs$convergence$converged)
+	expect_lt(fs$convergence$iterations, 400)
+})

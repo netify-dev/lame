@@ -26,36 +26,20 @@ knitr::opts_chunk$set(
 
 The `lame` package provides tools for fitting **L**ongitudinal **A**dditive and **M**ultiplicative **E**ffects models to network data observed over time. If you study relationships between actors (countries trading with each other, legislators co-sponsoring bills, students forming friendships across semesters) and you have repeated observations of those relationships, `lame` is designed for you.
 
-The modeling approach builds on the Additive and Multiplicative Effects (AME) framework developed by Peter Hoff, whose [`amen`](https://pdhoff.github.io/amen/) package ([GitHub](https://github.com/pdhoff/amen)) provides the foundational implementation for cross-sectional network analysis. The `lame` package extends this framework in several directions:
+The modeling approach builds on the Additive and Multiplicative Effects (AME) framework developed by Peter Hoff, whose [`amen`](https://pdhoff.github.io/amen/) package provides the foundational cross-sectional implementation. `lame` extends that framework with:
 
-- **Longitudinal and replicated data**: While `amen` focuses on single networks (with `ame()`) or basic replicated designs (with `ame_rep()`), `lame` is built from the ground up for panel data, networks observed across multiple time periods, potentially with actors entering and leaving the sample.
-- **Dynamic effects**: Actors' positions in latent space and their baseline activity levels can evolve over time via AR(1) processes (`dynamic_uv` and `dynamic_ab`), letting you model how network structure changes rather than assuming it is fixed.
-- **C++ acceleration**: Core sampling routines are implemented in Rcpp/RcppArmadillo for faster computation, which matters when you have many time periods or actors.
-- **Bipartite networks**: Explicit support for two-mode networks (e.g., countries and treaties, users and products) with separate latent spaces for row and column nodes.
-- **ggplot2-based diagnostics**: Built-in visualization functions (`trace_plot`, `gof_plot`, `ab_plot`, `uv_plot`) return standard ggplot2 figures you can theme and extend.
+- **Longitudinal data**: panel networks observed across multiple time periods, potentially with actors entering and leaving the sample.
+- **Dynamic effects**: latent positions and baseline activity levels can evolve via AR(1) processes (`dynamic_uv` and `dynamic_ab`).
+- **C++ acceleration**: core sampling routines in Rcpp/RcppArmadillo.
+- **Bipartite networks**: two-mode networks (e.g., countries and treaties) with separate latent spaces for row and column nodes.
+- **ggplot2-based diagnostics**: `trace_plot`, `gof_plot`, `ab_plot`, and `uv_plot` return standard ggplot2 figures you can theme and extend.
 - **Standard S3 methods**: `coef()`, `confint()`, `fitted()`, `residuals()`, `predict()`, and `simulate()` work as you would expect from any R model object.
 
 The package works with [`netify`](https://netify-dev.github.io/netify/) for data preparation.
 
 ### Migrating from `amen`
 
-Both `amen` and `lame` export an `ame()` function. If you load both packages in the same session, `lame` prints a `.onAttach` startup message so you know unqualified `ame(...)` calls dispatch to whichever package was attached last; use `lame::ame(...)` or `amen::ame(...)` to be explicit. The table below maps the breaking differences for old `amen` scripts:
-
-| Topic | `amen::ame()` | `lame::ame()` / `lame::lame()` | Old code breaks? |
-|---|---|---|---|
-| Family strings | `"nrm"`, `"bin"`, `"ord"`, `"cbin"`, `"frn"` | `"normal"`, `"binary"`, `"ordinal"`, `"cbin"`, `"frn"`, `"poisson"` | No -- amen short forms are accepted as aliases (with a message recommending the full name). The ALS fitters support only normal/binary/poisson and reject the rest with a pointer to MCMC. |
-| Bipartite rank | single `R` | `R` (square) or separate `R_row` / `R_col` (bipartite); single `R` still accepted | No (old `R` calls work; `R_row` / `R_col` is new) |
-| Verbosity flag | `print = TRUE/FALSE` | `verbose = TRUE/FALSE` | No (deprecation warning) |
-| `fit$BETA` shape (static) | `[n_stored, p]` matrix | `[n_stored, p]` matrix | No (identical) |
-| `fit$BETA` shape (`dynamic_beta`) | not available | `[n_stored, p, T]` 3-D array | New feature; use `coef(fit)` (returns `[p, T]` for dynamic fits) -- a bare `apply(fit$BETA, 2, mean)` silently averages over time. See [Dynamic Effects](dynamic_effects.html). |
-| Longitudinal data | `ame_rep()` for replicates | `lame()` with a list of `T` matrices and optional `dynamic_uv` / `dynamic_ab` / `dynamic_beta` | Refit via `lame()` |
-| GOF output | `fit$GOF` matrix | `fit$GOF` (cross-sectional) or list-of-matrices per period (longitudinal) | Yes for longitudinal scripts |
-| S3 methods | `summary()`, `plot()` | adds `coef()`, `confint()`, `fitted()`, `residuals()`, `predict()`, `simulate()`, `autoplot()`, `tidy()` | No (additive) |
-| `loo` / `waic` | not available | `save_log_lik = TRUE` plus `loo::loo(fit)` / `loo::waic(fit)` S3 methods; see [Dynamic Effects](dynamic_effects.html) | N/A (new feature) |
-| `broom::tidy()` | not available | `tidy.ame()` / `tidy.lame()` registered against `generics::tidy` | N/A (new feature) |
-| `broom::glance()` | not available | `glance.ame()` / `glance.lame()` registered against `generics::glance`; returns `nobs`, `n_actors`, `n_periods`, `n_stored`, `family`, `mode`, `R`, `dynamic_uv`, `dynamic_ab`, `dynamic_beta`, `elpd_loo`. Pairs with `tidy()` for `modelsummary::modelsummary(fit)`. | N/A (new feature) |
-
-The most common porting fix is `family = "nrm"` → `family = "normal"` and `family = "bin"` → `family = "binary"`. Everything else either still works unchanged or surfaces a deprecation warning rather than an error.
+Both `amen` and `lame` export an `ame()` function; if both packages are attached, a startup message reminds you that unqualified `ame(...)` calls dispatch to whichever was attached last, so write `lame::ame(...)` to be explicit. Old `amen` scripts largely run unchanged -- the most common porting fix is `family = "nrm"` becoming `family = "normal"` (the short forms are accepted as aliases, with a message), and `print =` is deprecated in favour of `verbose =`. The full mapping of argument and output differences lives in the *Migration from amen* sections of `?ame` and `?lame`.
 
 ## Application: Dutch College Friendships
 
@@ -114,7 +98,7 @@ sapply(Y, function(y) round(mean(y, na.rm = TRUE), 2))
 
 ### Fitting the Model
 
-We fit a binary probit AME model with sender random effects (`rvar`), receiver random effects (`cvar`), dyadic correlation (`dcor`), and a one-dimensional latent space (`R = 1`). The random effects capture sender heterogeneity (some students simply nominate more friends) and receiver heterogeneity (some students are nominated more often), while the latent space picks up residual clustering: students who befriend similar people for reasons that the observed covariates do not capture. We use `R = 1` because with only 32 students a two-dimensional latent space competes with the three dyadic homophily indicators for the same signal and the chain mixes poorly on the dyadic coefficients; `R = 1` resolves that cleanly and the substantive results are nearly identical.
+We fit a binary probit AME model with sender random effects (`rvar`), receiver random effects (`cvar`), dyadic correlation (`dcor`), and a one-dimensional latent space (`R = 1`). The random effects capture sender heterogeneity (some students simply nominate more friends) and receiver heterogeneity (some students are nominated more often), while the latent space picks up residual clustering: students who befriend similar people for reasons the observed covariates do not capture. (Why `R = 1` and not 2? See the Latent Space section below.)
 
 ```{r, message=FALSE, warning=FALSE}
 fit <- lame(
@@ -148,7 +132,7 @@ summary(fit)
 
 A lot lands at once, so let's walk through it.
 
-**Intercept.** The probit intercept is the latent linear predictor when *every covariate is zero* and every random effect sits at its mean. That is not the same as the average student: the covariates here are uncentered, and `program` in particular is coded 2-4 and is never zero, so "all covariates zero" extrapolates well outside the observed data. The familiar `qnorm(density)` rule of thumb describes the predictor at the *average* covariate profile, not at the all-zero corner. The two reconcile exactly once you add back the mean covariate contribution:
+**Intercept.** The probit intercept is the latent linear predictor when *every covariate is zero*. The covariates here are uncentered (`program` is coded 2-4 and is never zero), so that corner sits well outside the observed data; the familiar `qnorm(density)` rule of thumb instead describes the predictor at the *average* covariate profile. The two reconcile once you add back the mean covariate contribution:
 
 ```{r intercept-decomp}
 bhat        <- colMeans(fit$BETA)
@@ -159,17 +143,17 @@ c(intercept     = unname(bhat["intercept"]),
   qnorm_density = qnorm(mean(unlist(Y), na.rm = TRUE)))
 ```
 
-The intercept itself is strongly negative, but the predictor at the average covariate profile (`centroid_lp`) sits close to `qnorm(density)` -- the uncentered covariates account for nearly the entire gap, leaving only a small shift from the random-effect variance. The intercept absorbs the mean covariate contribution; it is not a baseline probability. If you want the intercept to read directly as a baseline, center the covariates before fitting. Either way, read predicted probabilities on the response scale off `predict(fit, type = "response")`.
+The intercept itself is strongly negative, but the predictor at the average covariate profile (`centroid_lp`) sits close to `qnorm(density)` -- the uncentered covariates account for nearly the entire gap. The intercept absorbs the mean covariate contribution; it is not a baseline probability. Center the covariates if you want it to read as one, and read predicted probabilities off `predict(fit, type = "response")`.
 
-**Homophily.** The three dyadic coefficients (`same_male`, `same_smoker`, `same_program`) measure whether students of the same type are more likely to be friends, holding the sender, receiver, and latent positions fixed. Positive values mean homophily; credible intervals that exclude zero indicate that the direction of the association is well-identified. Program homophily tends to be the strongest of the three in this network, consistent with the substantive expectation that students bond around shared coursework.
+**Homophily.** The three dyadic coefficients (`same_male`, `same_smoker`, `same_program`) measure whether students of the same type are more likely to be friends, holding the sender, receiver, and latent positions fixed. Positive values mean homophily; credible intervals that exclude zero indicate that the direction of the association is well-identified. Program homophily tends to be the strongest of the three, consistent with students bonding around shared coursework.
 
 **Nodal covariates.** `male_row` / `male_col` measure whether male students are unusually active senders or popular receivers, and similarly for `smoker` and `program`. With only 32 students, the credible intervals on individual nodal effects are wide; treat the sign as suggestive, the magnitude with caution.
 
-**Variance components.** `va` (sender variance) and `vb` (receiver variance) quantify how much students differ in sociability and popularity beyond what the covariates explain. The dyadic correlation `rho` captures reciprocity: values away from zero indicate that ties tend to be mutual. In friendship networks `rho > 0` is the rule rather than the exception.
+**Variance components.** `va` (sender variance) and `vb` (receiver variance) quantify how much students differ in sociability and popularity beyond what the covariates explain. The dyadic correlation `rho` captures reciprocity; in friendship networks `rho > 0` is the rule rather than the exception.
 
 ### Checking Convergence
 
-The model is estimated via MCMC, so trace plots and posterior-density plots are useful checks. The `trace_plot` function shows the sampled values over iterations (top panels) and the corresponding posterior densities (bottom panels) for each parameter.
+The model is estimated via MCMC, so convergence checks come first. `trace_plot` shows the sampled values over iterations (top panels) and the corresponding posterior densities (bottom panels) for each parameter.
 
 ```{r overview-trace, fig.width=8, fig.height=8, dpi=100, dev="png", fig.alt="MCMC trace plots (top) and marginal posterior density plots (bottom) for each regression coefficient of the Dutch college fit; well-mixed fuzzy-caterpillar traces around a stable mean and smooth unimodal densities together indicate the chain has converged."}
 trace_plot(fit, params = "beta")
@@ -181,7 +165,7 @@ With `r nrow(fit$BETA)` stored samples, the regression coefficients mix well at 
 
 ### Bayesian-ecosystem diagnostics: `posterior::as_draws()`
 
-`lame` registers `as_draws()` methods so any fit drops straight into the Stan-era diagnostic ecosystem (`posterior`, `bayesplot`, `tidybayes`). The reshape lifts the `BETA` and `VC` blocks into a `draws_array` indexed by iteration / chain / variable, which means `posterior::summarise_draws()` gives you per-parameter posterior mean, median, sd, MAD, 5%/95% quantiles, **split-$\hat R$**, and **bulk / tail ESS** in one call:
+`lame` registers `as_draws()` methods so any fit drops straight into the Stan-era diagnostic ecosystem (`posterior`, `bayesplot`, `tidybayes`): `posterior::summarise_draws()` gives per-parameter posterior summaries, **split-$\hat R$**, and **bulk / tail ESS** in one call.
 
 ```{r as-draws-demo, eval = requireNamespace("posterior", quietly = TRUE)}
 library(posterior)
@@ -189,27 +173,25 @@ draws <- posterior::as_draws(fit)              # draws_array [iter, chain, var]
 posterior::summarise_draws(draws)              # rhat, ess_bulk, ess_tail per param
 ```
 
-A single-chain fit like this one has `chain = 1`, so $\hat R$ reduces to within-chain split-$\hat R$, which is informative about within-chain non-stationarity but not about between-chain disagreement. For $\hat R$ across independently initialised chains, see the multi-chain section in the dynamic-effects vignette.
+A single-chain fit like this one has `chain = 1`, so $\hat R$ reduces to within-chain split-$\hat R$; for $\hat R$ across independently initialised chains, see the multi-chain section in the dynamic-effects vignette.
 
 ### Goodness of Fit
 
-The `gof_plot` function compares observed network statistics to their posterior predictive distributions. This tells us whether the model can reproduce key structural features of the data, not just the dyad-level relationships, but emergent properties like how much actors vary in their degree (heterogeneity), whether friends-of-friends tend to be friends (transitivity), and whether ties tend to be reciprocated (dyadic dependence).
+The `gof_plot` function compares observed network statistics to their posterior predictive distributions: can the model reproduce emergent structural features like degree heterogeneity, transitivity, and reciprocity, not just the dyad-level relationships?
 
 ```{r overview-gof, fig.width=8, fig.height=6, dpi=100, dev="png", fig.alt="Longitudinal goodness-of-fit panels for the Dutch college fit: each facet plots one network statistic (Sender Degree Heterogeneity, Receiver Degree Heterogeneity, Dyadic Dependence, Triadic Dependence, Transitivity) across the six time periods. The observed series is a solid orange line with filled orange points; the posterior-predictive median is a dashed dark line; the 95 percent credible interval is a grey ribbon. The three elements differ on both colour and linetype, so the comparison survives grayscale printing and colour-blind viewing. Observed series falling outside the band flag structural features the model is missing."}
 gof_plot(fit)
 ```
 
-For a longitudinal model, `gof_plot` shows these statistics across time. The figure encodes three series on each panel using both colour and linetype redundantly: the **observed series is a solid orange line with filled orange points**, the **posterior-predictive median is a dashed dark line**, and the **95% credible interval is a grey ribbon** (the width is controlled by the `credible.level` argument). When the observed series falls inside the ribbon, the model is reproducing that aspect of the network; when it falls outside, the model is missing something. Falling outside is itself a substantive finding about the data-generating process, not a failure to report.
+For a longitudinal model, `gof_plot` shows these statistics across time, encoding three series per panel with colour and linetype redundantly: the **observed series is a solid orange line with filled orange points**, the **posterior-predictive median is a dashed dark line**, and the **95% credible interval is a grey ribbon** (width set by `credible.level`). Observed values inside the ribbon are features the model reproduces; values outside flag structure it is missing -- itself a substantive finding, not a failure to report.
 
-The panel-strip headers are the human-readable labels (`Sender Degree Heterogeneity`, etc.). `fit$GOF` is a named list whose elements are `sd.rowmean`, `sd.colmean`, `dyad.dep`, `cycle.dep` (cyclic triads), and `trans.dep`; user-facing aliases for `gof_plot(..., statistics = ...)` are `sd.row`, `sd.col`, `dyad.dep`, `triad.dep`, `trans.dep`.
+Reading the figure: the fit reproduces the cyclic-triad structure (Triadic Dependence sits inside the band at five of the six periods) but under-predicts sender degree heterogeneity (observed above the band at five of six periods) and transitivity (above the band at every period) -- some students nominate many more friends than the additive $a_i$ plus latent $u_i$ can absorb, and triangle closure is systematically too low. Receiver heterogeneity and Dyadic Dependence (reciprocity) drift in and out of the band across the panel.
 
-Reading the figure: the Dutch college fit reproduces the average level of reciprocity and most of the cyclic-triad structure but under-predicts sender degree heterogeneity, transitivity, and (at the panel ends) receiver heterogeneity. The observed Sender Degree Heterogeneity series sits above the upper edge of the 95% band at five of the six periods (inside the band only at $t = 1$); some students nominate many more friends than the additive sender effect $a_i$ plus latent $u_i$ can absorb. Transitivity is under-predicted at every period -- the observed value sits above the upper edge of the band at $t = 1$ through $t = 6$ -- so triangle closure is systematically too low under the latent space. Receiver Degree Heterogeneity is above the band at $t = 1, 2$, inside at $t = 3$ and $t = 5$, and below the band at $t = 4$ and $t = 6$. The Triadic Dependence panel (cyclic triads, `cycle.dep`) sits inside the band at five of the six periods (outside only at $t = 1$). Dyadic Dependence (reciprocity) is the most variable: above the band at $t = 1$ and $5$ (and marginally at $t = 2$), below at $t = 3$ and $t = 6$, inside only at $t = 4$.
-
-This is the standard signature of a latent-space model on a friendship network. AME assumes conditional dyadic independence: given the additive and multiplicative effects, dyads are independent, so triangle closure has to be soaked up by clustering of the latent positions $u_i$. ERGMs handle triangle closure directly via terms like `gwesp` or `triangle`. The two model classes are complementary. ERGM is the right answer for triangle-closure questions; AME is the right answer when the analyst wants stable, non-degenerate estimates with explicit actor heterogeneity and a coherent posterior to forecast or simulate from.
+This is the standard signature of a latent-space model on a friendship network. AME assumes conditional dyadic independence, so triangle closure must be soaked up by clustering of the latent positions; ERGMs model it directly via terms like `gwesp`. The two classes are complementary: ERGM for triangle-closure questions, AME for stable, non-degenerate estimates with explicit actor heterogeneity and a coherent posterior to forecast or simulate from.
 
 #### Posterior-predictive temporal-trend test: `gof_temporal()`
 
-The figure read above is qualitative. For a scalar posterior-predictive p-value on the temporal *trend* in a chosen network statistic, `gof_temporal()` complements `gof_plot()`. It computes the chosen statistic at each observed period, fits an OLS slope on period index, draws posterior-predictive replicate panels via `simulate(fit)`, recomputes the slope in each replicate, and returns a two-sided Gelman-style posterior-predictive p-value defined as `2 * min(p_up, 1 - p_up)`, so it runs from 0 (observed slope in the extreme tail) up to 1 (observed slope dead-centre). A static fit on truly trending data yields `p_pp` near 0 (the observed slope is unreachable); a fit that captures the trend yields a `p_pp` well away from 0 (the observed slope is central in the predictive distribution).
+The figure read above is qualitative. `gof_temporal()` gives a scalar check on the temporal *trend* in a chosen statistic: it fits an OLS slope to the observed per-period series, recomputes that slope in posterior-predictive replicate panels drawn via `simulate(fit)`, and returns a two-sided posterior-predictive p-value -- near 0 when the observed slope is unreachable under the model, well away from 0 when it is central in the predictive distribution.
 
 ```{r overview-gof-temporal}
 # density rises across the panel on net (the network gets denser as
@@ -217,26 +199,22 @@ The figure read above is qualitative. For a scalar posterior-predictive p-value 
 # natural temporal-trend target.
 gt_density <- gof_temporal(fit, stat = "density", n_rep = 100, seed = 6886)
 gt_density   # prints stat, observed slope, n_rep, and the p_pp
-
-# reciprocity is the natural second target for a directed network.
-gt_recip <- gof_temporal(fit, stat = "reciprocity", n_rep = 100, seed = 6886)
-gt_recip
 ```
 
-A `p_pp` of 0 on `density` says the static fit cannot reproduce the empirical net densification slope (about +0.025 per period in our run); that is the expected diagnostic for a fit without `dynamic_beta` or time-varying covariates and is consistent with the per-period mass shift in `gof_plot()`. The reciprocity check tells the same story in the opposite direction: the static fit also rejects the observed reciprocity slope (`p_pp` near 0), because reciprocity actually drifts *downward* across the panel (slope about $-0.03$ per period) and the static $\rho$ cannot track that drift. Both checks are pointing at the same structural mismatch: model parameters that are constant across periods cannot reproduce period-to-period drift in either marginal quantity. The companion diagnostic `detect_change_point()` reports a heuristic tail-ratio score comparing the posterior path of each `dynamic_beta` coefficient to its AR(1) prior null. It requires a fit with `dynamic_beta` active and is therefore not applicable to the static fit shown here; the worked example lives in the [Dynamic Effects](dynamic_effects.html) vignette.
+A `p_pp` of 0 says the static fit cannot reproduce the empirical net densification slope (about +0.025 per period in our run) -- the expected diagnostic for a model whose parameters are constant across periods, and consistent with the per-period mass shift in `gof_plot()`. `dynamic_beta` or time-varying covariates are the remedy; see the [Dynamic Effects](dynamic_effects.html) vignette.
 
 ### Latent Space
 
 The multiplicative effects capture association patterns beyond what the
 covariates and additive effects explain. We fit `R = 1`, so each student's
 sender position ($u_i$) and receiver position ($v_i$) is a single number --
-and a one-dimensional space should be *plotted* as one dimension. (A 2-D
+and a one-dimensional space should be *plotted* as one dimension (a 2-D
 scatter of a 1-D space piles every point onto a line and looks degenerate
-even when the positions are informative. Why not just fit `R = 2`? On these
-32 students the second latent dimension competes with the three homophily
-dummies for the same signal: refitting with `R = 2` collapses the
-`same_male` and `same_smoker` effective sample sizes to about 15, versus
-healthy mixing at `R = 1`.)
+even when the positions are informative). Why not just fit `R = 2`? On
+these 32 students the second latent dimension competes with the three
+homophily dummies for the same signal: refitting with `R = 2` collapses
+the `same_male` and `same_smoker` effective sample sizes to about 15,
+versus healthy mixing at `R = 1`.
 
 The honest display for a 1-D space is a ranked dot plot: every student's
 sender and receiver position with a 95% interval, ordered by sender
@@ -271,9 +249,9 @@ near the top both seek out and attract the same friendship cluster. Third,
 the exceptions are the interesting actors -- students whose blue and orange
 points diverge are attractive to a cluster they do not themselves reach
 toward (or vice versa), a pattern no covariate in the model encodes.
-Because this fit is static, these positions are pooled across all six
-waves; if you suspect students *moved* through this space as the year
-progressed, that is exactly what `dynamic_uv = TRUE` estimates (see the
+These static positions are pooled across all six waves; if you suspect
+students *moved* through this space as the year progressed, that is what
+`dynamic_uv = TRUE` estimates (see the
 [dynamic effects vignette](dynamic_effects.html)).
 
 
@@ -286,26 +264,14 @@ lp <- latent_positions(fit)
 head(lp)
 ```
 
-Each row gives one actor's position on one latent dimension at one time point; a `type` column distinguishes the sender position (`"U"`) from the receiver position (`"V"`), so a directed fit returns two rows per actor per dimension. The `posterior_sd` column is populated because the fit saved its U/V draws (`posterior_opts = list(save_UV = TRUE)`); without that option it is `NA` with a one-time message telling you how to refit. For a static fit like this one the positions do not change over time, so `latent_positions()` returns a single slice (labelled `time = 1`) that applies to every period rather than repeating it. For dynamic models (`dynamic_uv = TRUE`), positions evolve over time and `latent_positions()` returns each time point separately (see the [dynamic effects vignette](dynamic_effects.html)).
-
-When using dynamic latent positions, the latent space is only identified up to rotation at each time point. The `procrustes_align()` function aligns each time period's positions to the previous one, removing arbitrary rotations so that trajectories across time are interpretable:
-
-```{r}
-# procrustes alignment is useful for dynamic models.
-# for a static model, positions are already aligned.
-aligned <- procrustes_align(fit)
-str(aligned$U)
-```
+Each row gives one actor's position on one latent dimension at one time point, with a `type` column distinguishing the sender position (`"U"`) from the receiver position (`"V"`). The `posterior_sd` column is populated because the fit saved its U/V draws (`posterior_opts = list(save_UV = TRUE)`); without that option it is `NA` with a one-time message telling you how to refit. A static fit returns a single slice (labelled `time = 1`) that applies to every period; dynamic fits (`dynamic_uv = TRUE`) return each time point separately, and `procrustes_align()` removes the arbitrary per-period rotations so that trajectories across time are interpretable (see the [dynamic effects vignette](dynamic_effects.html)).
 
 ## Tidy-data round-trip via netify
 
-`lame` uses the `netify` package for tidy network data. Build a netify object
-from an edgelist and pass it directly to `lame()` or `ame()`. If you want to
-inspect the pieces first, `netify::to_lame()` returns the `Y`, `Xdyad`,
-`Xrow`, and `Xcol` objects that `lame` will use internally. Once the fit is
-built, `tidy()`, `autoplot()`, and `prediction_draws_long()` give you
-broom-/ggplot-/marginaleffects-ready output that works with the rest of the
-tidyverse.
+`lame` uses the `netify` package for tidy network data: build a netify
+object from an edgelist and pass it directly to `lame()` or `ame()`. On the
+way out, `tidy()`, `autoplot()`, and `prediction_draws_long()` give you
+broom-/ggplot-/marginaleffects-ready output.
 
 ### Entry: tidy edgelist → `lame()`
 
@@ -351,22 +317,15 @@ pieces <- netify::to_lame(netlet, lame = TRUE)
 names(pieces)
 ```
 
-Two things in that chunk deserve to be named. First, `fit_netlet` is a
-live fit taken straight off the netify object -- no reshaping, no
-hand-built lists -- confirming that a netify object drops into `lame()`
-as-is. Second, `names(pieces)` lists the inputs `lame()` actually
-consumes -- `Y`, `Xdyad`, `Xrow`, `Xcol` (the latter two are `NULL` here
-because only a dyadic covariate rode along on the edgelist) -- plus the
-`mode` / `family` metadata netify carries. The payoff of the round-trip
-is the alignment: `netify()` took the flat
-`(from, to, year, tie, same_program)` table and rebuilt, for every
-period, a tie matrix and a covariate slice keyed to the same actor
-order -- exactly the `rownames`-and-`array()` bookkeeping done by hand
-in the setup chunk at the top of this vignette. When your data arrives
-as an edgelist, as panel network data usually does, that bookkeeping is
-the reason to reach for the round-trip: the edgelist is the only object
-you touch, and the per-period matrices never have to be assembled by
-hand.
+`fit_netlet` is a live fit taken straight off the netify object -- no
+reshaping, no hand-built lists -- and `names(pieces)` shows the inputs
+`lame()` actually consumes (`Y`, `Xdyad`, `Xrow`, `Xcol`, plus the
+`mode` / `family` metadata netify carries). The payoff is the alignment:
+`netify()` rebuilt, for every period, a tie matrix and a covariate slice
+keyed to the same actor order -- exactly the `rownames`-and-`array()`
+bookkeeping done by hand in the setup chunk at the top of this vignette.
+When your data arrives as an edgelist, as panel network data usually
+does, the edgelist is the only object you touch.
 
 ### Exit: `tidy()`, `autoplot()`, `prediction_draws_long()`
 
@@ -385,12 +344,9 @@ tidy(fit)
 
 ### Coefficient tables: `glance()` + `tidy()` -> `modelsummary` / `gt` / `kableExtra`
 
-`lame` ships both `tidy.lame()` and `glance.lame()`, registered
-against `generics::tidy` / `generics::glance` at load time, so any
-broom-aware table package consumes a `lame` fit directly. The most
-compact route is `modelsummary::modelsummary(fit)`, which uses `tidy()`
-for the coefficient panel and `glance()` for the goodness-of-fit
-footer:
+Because `tidy()` and `glance()` are registered against their `generics`
+counterparts, any broom-aware table package consumes a `lame` fit
+directly -- most compactly `modelsummary::modelsummary(fit)`:
 
 ```{r modelsummary-fit, eval = requireNamespace("modelsummary", quietly = TRUE) && requireNamespace("broom", quietly = TRUE)}
 # glance() returns the one-row model summary modelsummary uses for its
@@ -408,11 +364,9 @@ modelsummary::modelsummary(
 )
 ```
 
-Multiple fits compose into a side-by-side table the same way they would
-for `lm()` / `glm()` -- pass a named list, one column per fit. Below we
-compare the full specification against a no-latent-space variant (`R =
-0`) to see how much of the coefficient story is being soaked up by
-multiplicative effects:
+Multiple fits compose into a side-by-side table via a named list, one
+column per fit. Below we compare the full specification against a
+no-latent-space variant (`R = 0`):
 
 ```{r fit-nouv, message = FALSE, warning = FALSE}
 fit_noUV <- lame(
@@ -435,19 +389,13 @@ modelsummary::modelsummary(
 )
 ```
 
-Reading down the `R = 1` column versus the `R = 0` column shows how the
-latent space can redistribute signal: when residual clustering is real,
-homophily coefficients move toward zero in the AME column because
-structure that was loaded onto `same_program` (etc.) is instead absorbed
-by the latent positions. On this small panel (32 students, short chains)
-the movement is modest and not uniform across the three homophily terms,
-with widely overlapping credible intervals, so treat the comparison as
-illustrating the mechanism rather than as a precise decomposition; the
-direction is what to look for, not the exact shift.
-
-The same `tidy()` frame follows the broom column contract, so it drops
-into `gt`, `kableExtra`, or `flextable` directly; ALS fits carry their
-own `tidy()`/`glance()` methods and compose into the same tables.
+Reading down the two columns shows how a latent space can redistribute
+signal: when residual clustering is real, homophily coefficients move
+toward zero in the AME column because structure that was loaded onto
+`same_program` (etc.) is instead absorbed by the latent positions. On
+this small panel the movement is modest, with widely overlapping
+credible intervals -- the direction is what to look for, not the exact
+shift.
 
 ```{r autoplot-fit, fig.width = 6, fig.height = 4, fig.alt="Horizontal coefficient plot returned by autoplot.lame: each row is a regression coefficient, with a point at the posterior mean and a horizontal segment marking the 95 percent credible interval; a dashed reference line at zero indicates where an effect is indistinguishable from null."}
 # autoplot.lame returns a horizontal coefplot for static fits and a
@@ -457,22 +405,14 @@ autoplot(fit) +
 	ggtitle("Dutch college friendship: posterior coefficients")
 ```
 
-The coefplot is the visual form of the `tidy(fit)` table above. The
-three homophily terms sit clearly to the right of the dashed zero
-line -- `same_program` largest (0.58), `same_male` next (0.45),
-`same_smoker` smallest (0.16) but still clear of zero -- so
-same-program pairs are the most likely to befriend, holding everything
-else fixed. The nodal terms are mixed: `male_row`, `male_col`, and
-`smoker_row` sit clear of zero (male students are both more active
-senders and more popular receivers; smokers nominate fewer friends),
-`program_row` stops just short of it (the lower bound of its interval
-grazes zero), and `smoker_col` and `program_col`
-straddle the line -- the wide-interval caution from the coefficient
-section applies to those. One glance reproduces the
-coefficient-section story. The same generic dispatches on
-`which = "uv"` (latent positions -- shown as the ranked dot plot in the
-Latent Space section above) and `which = "ab"` (sender / receiver
-random effects):
+The coefplot is the visual form of the `tidy(fit)` table above: the
+three homophily terms sit clearly right of the dashed zero line --
+`same_program` largest (0.58), `same_male` next (0.45), `same_smoker`
+smallest (0.16) but still clear of zero -- while the nodal terms are
+mixed, with `smoker_col` and `program_col` straddling the line. The
+same generic dispatches on `which = "uv"` (latent positions -- the
+ranked dot plot in the Latent Space section above) and `which = "ab"`
+(sender / receiver random effects):
 
 ```{r autoplot-ab, fig.width = 6, fig.height = 4, fig.alt="Lollipop plot of sender random effects: one stem per student, length equal to the posterior-mean sender effect a_i; long positive stems mark students who nominate far more friends than their covariates predict."}
 # which = "ab" delegates to ab_plot() (sender side by default; use
@@ -490,7 +430,7 @@ autoplot(fit, which = "ab")
 pdl <- prediction_draws_long(fit, type = "response", n_draws = 50)
 # the diagonal (i == j) is a self-tie, undefined in a friendship network, but
 # the linear predictor is still numerically defined there -- drop it so the
-# per-dyad summaries below cover only real (off-diagonal) pairs.
+# frame covers only real (off-diagonal) pairs.
 pdl <- pdl[pdl$i != pdl$j, ]
 head(pdl, 3)
 dim(pdl)
@@ -498,26 +438,24 @@ dim(pdl)
 
 Because the `.chain` / `.iteration` / `.draw` / `.value` columns follow
 the `tidybayes` / `marginaleffects` convention, this frame composes
-directly with `ggdist::stat_pointinterval()`,
-`tidybayes::point_interval()`, a `dplyr::group_by()` +
-`summarise()` per-dyad summary, or
-`marginaleffects::posterior_draws()` -- no reshaping step needed.
+directly with `ggdist`, `tidybayes`, and `marginaleffects` -- no
+reshaping step needed.
 
 ## Model comparison: `loo::loo_compare()` as a one-liner
 
-When two specifications are on the table -- say the additive-effects-only
-model against one that adds a multiplicative latent space -- the standard
-out-of-sample yardstick is the expected log pointwise predictive
-density (`elpd_loo`) returned by `loo::loo()`. Both fits need
-`save_log_lik = TRUE` so `loo()` can read the pointwise
-log-likelihood matrix off `fit$log_lik`; `loo::loo_compare()` then
-ranks them in a single call:
+Does the latent space earn its keep over additive effects alone? The
+standard out-of-sample yardstick is the expected log pointwise
+predictive density (`elpd_loo`) from `loo::loo()`, which requires
+`save_log_lik = TRUE` at fit time; the mechanics (and the Pareto-$k$
+diagnostics to read before trusting any `elpd` number) are covered in
+[Your First AME Model](cross_sec_ame.html). Both fits above already
+carry the pointwise log-likelihood, so `loo::loo_compare()` ranks them
+in one call:
 
 ```{r loo-compare-demo, eval = requireNamespace("loo", quietly = TRUE), message = FALSE, warning = FALSE}
-# does the 1-D multiplicative latent space earn its keep over additive
-# effects alone? both fits already carry save_log_lik = TRUE, so this
-# reuses them -- no refitting. Pass a NAMED list so the rows are
-# labelled by model rather than model1/model2.
+# both fits already carry save_log_lik = TRUE, so this reuses them -- no
+# refitting. Pass a NAMED list so the rows are labelled by model rather
+# than model1/model2.
 cmp <- loo::loo_compare(list(no_latent = loo::loo(fit_noUV),
                              latent_R1 = loo::loo(fit)))
 cmp
@@ -530,43 +468,23 @@ dval  <- abs(round(cmp[2, "elpd_diff"], 1))
 sval  <- round(cmp[2, "se_diff"], 1)
 ```
 
-**How to read the output.** The top row is the preferred model and
-always carries `elpd_diff = 0`. Each subsequent row reports the
-*difference* in expected log pointwise predictive density relative to
-the top model, with the standard error of that difference. Here
-`` `r best` `` is preferred, beating `` `r worse` `` by about
-`` `r dval` `` elpd units (SE `` `r sval` ``); a ratio of
-`|elpd_diff|/se_diff` near or above 2 is a reasonably confident
-preference, so the latent space is doing real predictive work on this
-network. When `|elpd_diff|` is instead close to its SE the two
-specifications are predictively indistinguishable and the simpler
-model is the defensible choice. `loo()` may still flag a few dyads
-with Pareto $\hat k > 0.7$ (the PSIS approximation straining); if that
-warning appears for more than a handful of dyads, lengthen the chain or
-use `loo::loo_moment_match()` before relying on `elpd_diff` for a
-reported result.
+**How to read the output.** The top row is the preferred model
+(`elpd_diff = 0`); each subsequent row reports the elpd *difference*
+relative to it, with a standard error. Here `` `r best` `` is
+preferred, beating `` `r worse` `` by about `` `r dval` `` elpd units
+(SE `` `r sval` ``); a ratio of `|elpd_diff|/se_diff` near or above 2
+is a reasonably confident preference, so the latent space is doing
+real predictive work on this network. When `|elpd_diff|` is instead
+close to its SE, the simpler model is the defensible choice.
 
-This result sits comfortably beside the earlier side-by-side
-`modelsummary` table, where the `R = 1` and `R = 0` coefficient
-columns were nearly identical. The two are not in tension: the latent
-space barely moves the fixed-effect point estimates yet buys roughly
-`` `r dval` `` elpd units out of sample, because the predictive gain
-is carried by the estimated latent positions themselves -- the
-$u_i' v_j$ term in the linear predictor -- rather than by shifting
-$\beta$. That is exactly what multiplicative effects are for: they
-absorb residual dyadic structure (clustering, third-party dependence)
-that the additive effects and covariates cannot represent, and that
-structure shows up in held-out predictive density long before it
-shows up in a coefficient table.
-
-Because `family = "binary"` is one of the five families with an exact
-closed-form pointwise log-likelihood (`normal`, `binary`, `cbin`,
-`poisson`, `ordinal`), the absolute `elpd_loo` values here
-are directly comparable to a `loo()` result from a probit-link `brms`
-fit on the same data, modulo $\hat R$ and ESS being satisfactory on
-the `lame` Gibbs sampler. For `frn`, see the
-`log_lik_method = "observed_ghk"` note in
-[Dynamic Effects](dynamic_effects.html#loo-waic-via-save_log_lik-true).
+This result sits comfortably beside the earlier `modelsummary` table,
+where the `R = 1` and `R = 0` coefficient columns were nearly
+identical. The two are not in tension: the latent space barely moves
+$\beta$ yet buys roughly `` `r dval` `` elpd units out of sample,
+because the predictive gain is carried by the estimated latent
+positions themselves -- the $u_i' v_j$ term in the linear predictor.
+Residual dyadic structure shows up in held-out predictive density long
+before it shows up in a coefficient table.
 
 ## Reproducibility: `sessionInfo()` and `renv.lock`
 

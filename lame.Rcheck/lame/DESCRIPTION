@@ -1,7 +1,7 @@
 Package: lame
 Title: Longitudinal Additive and Multiplicative Effects Models for
         Networks
-Version: 1.3.0
+Version: 1.3.1
 Authors@R: c(
     person("Cassy", "Dorff", role = "aut"),
     person("Shahryar", "Minhas", , "minhassh@msu.edu", role = c("aut", "cre")),
@@ -28,5 +28,5 @@ Suggests: knitr, rmarkdown, testthat (>= 3.0.0), igraph, network,
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 NeedsCompilation: yes
-Packaged: 2026-07-12 13:40:12 UTC; s7m
-Built: R 4.3.3; x86_64-pc-linux-gnu; 2026-07-12 13:40:32 UTC; unix
+Packaged: 2026-07-12 20:19:13 UTC; s7m
+Built: R 4.3.3; x86_64-pc-linux-gnu; 2026-07-12 20:19:33 UTC; unix

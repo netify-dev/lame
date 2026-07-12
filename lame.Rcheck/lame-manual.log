@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.1.6)  12 JUL 2026 09:45
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.1.6)  12 JUL 2026 16:23
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -353,7 +353,7 @@ File: l3backend-pdftex.def 2024-01-04 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count293
 \l__pdf_internal_box=\box58
 )
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.aux)
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.aux)
 \openout1 = `Rd2.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 8.
@@ -390,8 +390,8 @@ LaTeX Font Info:    ... okay on input line 8.
 \everyMPtoPDFconversion=\toks30
 )
 Package hyperref Info: Link coloring ON on input line 8.
- (/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.out)
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.out)
+ (/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.out)
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.out)
 \@outlinefile=\write4
 \openout4 = `Rd2.out'.
 
@@ -437,7 +437,7 @@ LaTeX Font Info:    Trying to load font information for T1+phv on input line 45
  (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2020/03/25 scalable font definitions for T1/phv.
 )
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.toc [2] [3] [4] [5] [6])
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.toc [2] [3] [4] [5] [6])
 \tf@toc=\write5
 \openout5 = `Rd2.toc'.
 
@@ -1073,7 +1073,7 @@ _igos
  []
 
 [226] [227] [228] [229] [230] [231] [232] [233]
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.ind [234]
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.ind [234]
 
 LaTeX Font Warning: Font shape `T1/zi4/m/it' undefined
 (Font)              using `T1/zi4/m/n' instead on input line 78.
@@ -1083,7 +1083,7 @@ LaTeX Font Warning: Font shape `T1/zi4/m/it' undefined
 ]
 LaTeX Font Info:    Font shape `T1/zi4/m/it' will be
 (Font)              scaled to size 10.0pt on input line 136.
- [236] [237] [238]) (/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.aux)
+ [236] [237] [238]) (/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-22>

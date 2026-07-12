@@ -39,55 +39,6 @@ coef(fit_db)
 # confint() returns one row per coef[t] with 95% credible interval
 head(confint(fit_db), 8)
 
-## ----dynamic-beta-migration---------------------------------------------------
-# check the shape before summarising coefficients
-if (length(dim(fit_db$BETA)) == 3L) {
-	# 3-D: take posterior mean over the iteration margin -> [p, T]
-	pm <- apply(fit_db$BETA, c(2, 3), mean)
-} else {
-	# 2-D amen-style fit
-	pm <- apply(fit_db$BETA, 2, mean)
-}
-
-# or just use coef(), which returns a [p, T] matrix for dynamic fits
-# and a length-p vector for static fits -- no shape sniffing required
-coef(fit_db)
-
-## ----dynamic-beta-full-model, message=FALSE-----------------------------------
-set.seed(2026)
-n_f <- 25; T_f <- 5
-beta_t_true <- seq(-0.5, 1.0, length.out = T_f)
-a_true <- rnorm(n_f, 0, 0.5)       # sender heterogeneity (variance 0.25)
-b_true <- rnorm(n_f, 0, 0.5)       # receiver heterogeneity
-u_true <- rnorm(n_f, 0, 0.7)       # 1-D latent positions
-v_true <- rnorm(n_f, 0, 0.7)
-
-X_f <- lapply(seq_len(T_f), function(t)
-	array(matrix(rnorm(n_f * n_f), n_f, n_f), c(n_f, n_f, 1),
-	      dimnames = list(NULL, NULL, "x1")))
-Y_f <- lapply(seq_len(T_f), function(t) {
-	eta <- -0.3 + beta_t_true[t] * X_f[[t]][, , 1] +
-		outer(a_true, b_true, "+") + outer(u_true, v_true)
-	Yt <- matrix(rbinom(n_f * n_f, 1, pnorm(eta)), n_f, n_f)
-	diag(Yt) <- NA
-	rownames(Yt) <- colnames(Yt) <- paste0("a", seq_len(n_f))
-	Yt
-})
-names(Y_f) <- paste0("t", seq_len(T_f))
-
-fit_full <- lame(Y_f, Xdyad = X_f, family = "binary", R = 1,
-                 rvar = TRUE, cvar = TRUE, dcor = TRUE,
-                 dynamic_beta = "dyad",
-                 nscan = 600, burn = 150, odens = 5, verbose = FALSE)
-
-# the time-varying coefficient is recovered with the latent structure present
-round(rbind(recovered = coef(fit_full)["x1_dyad", ],
-            truth     = beta_t_true), 2)
-
-# and the additive variance components stay pinned to the simulated truth
-round(t(apply(fit_full$VC, 2, quantile,
-              c(0.025, 0.5, 0.975))[, c("va", "vb")]), 2)
-
 ## ----dynamic-beta-kinds-------------------------------------------------------
 kinds <- c("rw1", "rw2", "matern32")
 paths <- sapply(kinds, function(k) {
@@ -112,68 +63,8 @@ fit_gaps <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
 fit_gaps$time_index
 round(coef(fit_gaps), 3)
 
-## ----dynamic-beta-pool--------------------------------------------------------
-fit_pool <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
-                 nscan = 200, burn = 50, odens = 5,
-                 dynamic_beta = c("intercept", "dyad"),
-                 dynamic_beta_pool = "both",
-                 verbose = FALSE)
-fit_nopool <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
-                   nscan = 200, burn = 50, odens = 5,
-                   dynamic_beta = c("intercept", "dyad"),
-                   dynamic_beta_pool = "none",
-                   verbose = FALSE)
-
-# posterior-mean AR(1) persistence per block, pooled vs independent
-round(rbind(pooled      = colMeans(fit_pool$RHO_BETA),
-            independent = colMeans(fit_nopool$RHO_BETA)), 3)
-
-## ----dynamic-beta-per-actor---------------------------------------------------
-fit_pa <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
-               dynamic_beta_per_actor = "row",
-               per_actor_covariate_idx = 1L,
-               keep_per_actor = "summary",
-               nscan = 200, burn = 50, odens = 5, verbose = FALSE)
-
-# n_actors x T posterior-mean deviations, labelled by actor and period
-round(fit_pa$theta_actor_mean[1:3, ], 2)
-
-# the per-period sum-to-zero constraint holds exactly
-round(colSums(fit_pa$theta_actor_mean), 10)
-
 ## ----change-point-demo--------------------------------------------------------
 detect_change_point(fit_db, threshold_bf = 5)
-
-## ----gof-temporal-demo--------------------------------------------------------
-gof_temporal(fit_db, stat = "mean", n_rep = 200, seed = 1)
-
-## ----prior-summary-demo-------------------------------------------------------
-prior_summary(fit_db)
-
-## ----rhat-dynamic-demo, eval = requireNamespace("posterior", quietly = TRUE)----
-fit_list_db <- lame_parallel(
-	Y_db, Xdyad = X_db_arr,
-	family = "normal", R = 0,
-	nscan = 200, burn = 50, odens = 5,
-	dynamic_beta = "dyad",
-	n_chains = 4, cores = 1,           # cores = 1 keeps the vignette portable
-	combine_method = "list",            # one fit per chain
-	verbose = FALSE
-)
-
-# multivariate (Brooks-Gelman) Rhat per coefficient on the length-T path,
-# alongside the max univariate split-Rhat over the T per-period scalars.
-rhat_dynamic_beta(fit_list_db)
-
-# the pooled fit also routes through posterior::as_draws() with per-period
-# coefficients flattened to "coef[t]" variable names, so summarise_draws()
-# gives you ess_bulk / ess_tail per (coef, period).
-fit_pool_db <- combine_ame_chains(fit_list_db)
-posterior::summarise_draws(posterior::as_draws(fit_pool_db))
-
-## ----mh-counters-demo---------------------------------------------------------
-# per-block failure counts and acceptance proxies for the just-fit chain
-str(fit_db$mh_counters)
 
 ## ----autoplot-example, fig.width = 6, fig.height = 4, fig.alt="Ribbon plot of the posterior path of the dyadic coefficient X1_dyad across five time periods, with the median as a line and the 95 percent credible interval as a shaded band, rising steadily from about minus 0.5 to 1."----
 library(ggplot2)
@@ -228,10 +119,7 @@ fit_dyn_real <- lame(Y_dyn, R = 2,
 
 summary(fit_dyn_real)
 
-## ----uv-traj-real, fig.width=7, fig.height=5, fig.alt="Trajectory plot of each actor's path through the 2D latent space across five periods under genuine AR(1) dynamics, showing coherent and gradual movement."----
-uv_plot(fit_dyn_real, plot_type = "trajectory")
-
-## ----uv-traj-highlight, fig.width=7, fig.height=5, fig.alt="Same trajectory plot as above but only four named actors (A1, A5, A10, A15) are coloured with the Okabe-Ito palette; remaining actors are drawn in light grey so the comparison reads at a glance."----
+## ----uv-traj-real, fig.width=7, fig.height=5, fig.alt="Trajectory plot of actors' paths through the 2D latent space across five periods under genuine AR(1) dynamics; four named actors (A1, A5, A10, A15) are coloured with the Okabe-Ito palette while the rest are light grey, and the highlighted paths show coherent, gradual movement."----
 uv_plot(fit_dyn_real, plot_type = "trajectory",
         highlight = c("A1", "A5", "A10", "A15"))
 

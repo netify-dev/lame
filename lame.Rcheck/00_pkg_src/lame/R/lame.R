@@ -4041,11 +4041,16 @@ lame <- function(
 			# === end dynamic_beta path =================================
 		} else if(dynamic_ab) {
 			if(bip) {
-				# bipartite dynamic_ab: update beta via bipartite gibbs
-				# compute ez without a/b for residual construction
+				# bipartite dynamic_ab: update beta via bipartite gibbs.
+				# the draw below is assigned as the FULL coefficient vector,
+				# so its residual must keep x*beta in place: build the base
+				# with beta zeroed (only the uv term is removed). subtracting
+				# the current x*beta would make each draw target the correction
+				# (beta_true - beta_current), an oscillator centred at half the
+				# truth
 				zero_a <- matrix(0, nA, N)
 				zero_b <- matrix(0, nB, N)
-				EZ_no_ab <- get_EZ_dynamic_ab(Xlist, beta, zero_a, zero_b,
+				EZ_uv_only <- get_EZ_dynamic_ab(Xlist, rep(0, length(beta)), zero_a, zero_b,
 				                              if(.dyn_uv_has_rank) U_cube else U,
 				                              if(.dyn_uv_has_rank) V_cube else V, N,
 				                              bip = TRUE, G = G, nA = nA, nB = nB)
@@ -4053,7 +4058,7 @@ lame <- function(
 				# update beta via c++ (bipartite conjugate update)
 				p_bip <- length(beta)
 				if(p_bip > 0) {
-					resid_b <- Z - EZ_no_ab
+					resid_b <- Z - EZ_uv_only
 					for(t in 1:N) {
 						resid_b[,,t] <- resid_b[,,t] - a_mat[,t]
 						for(j in 1:nB) resid_b[,j,t] <- resid_b[,j,t] - b_mat[j,t]

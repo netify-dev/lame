@@ -1,6 +1,6 @@
 # cran-comments
 
-## Submission of lame 1.3.0 (new submission)
+## Submission of lame 1.3.1 (new submission)
 
 ## Test environments
 

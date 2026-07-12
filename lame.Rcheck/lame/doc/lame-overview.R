@@ -103,10 +103,6 @@ gof_plot(fit)
 gt_density <- gof_temporal(fit, stat = "density", n_rep = 100, seed = 6886)
 gt_density   # prints stat, observed slope, n_rep, and the p_pp
 
-# reciprocity is the natural second target for a directed network.
-gt_recip <- gof_temporal(fit, stat = "reciprocity", n_rep = 100, seed = 6886)
-gt_recip
-
 ## ----overview-uv, fig.width=7, fig.height=6.5, dpi=100, dev="png", fig.alt="Ranked dot plot of the one-dimensional latent positions for all 32 students: for each student, an orange point marks the posterior-mean sender position and a blue point the receiver position, each with a horizontal 95 percent interval; students are ordered by sender position, and a dashed vertical line marks zero."----
 lp1 <- subset(latent_positions(fit), dimension == 1)
 ordv <- with(subset(lp1, type == "U"), actor[order(value)])
@@ -128,12 +124,6 @@ ggplot(lp1, aes(x = value, y = actor, color = type)) +
 ## -----------------------------------------------------------------------------
 lp <- latent_positions(fit)
 head(lp)
-
-## -----------------------------------------------------------------------------
-# procrustes alignment is useful for dynamic models.
-# for a static model, positions are already aligned.
-aligned <- procrustes_align(fit)
-str(aligned$U)
 
 ## ----tidyverse-entry, eval = requireNamespace("netify", quietly = TRUE), message = FALSE----
 # library(netify)
@@ -241,16 +231,15 @@ autoplot(fit, which = "ab")
 pdl <- prediction_draws_long(fit, type = "response", n_draws = 50)
 # the diagonal (i == j) is a self-tie, undefined in a friendship network, but
 # the linear predictor is still numerically defined there -- drop it so the
-# per-dyad summaries below cover only real (off-diagonal) pairs.
+# frame covers only real (off-diagonal) pairs.
 pdl <- pdl[pdl$i != pdl$j, ]
 head(pdl, 3)
 dim(pdl)
 
 ## ----loo-compare-demo, eval = requireNamespace("loo", quietly = TRUE), message = FALSE, warning = FALSE----
-# does the 1-D multiplicative latent space earn its keep over additive
-# effects alone? both fits already carry save_log_lik = TRUE, so this
-# reuses them -- no refitting. Pass a NAMED list so the rows are
-# labelled by model rather than model1/model2.
+# both fits already carry save_log_lik = TRUE, so this reuses them -- no
+# refitting. Pass a NAMED list so the rows are labelled by model rather
+# than model1/model2.
 cmp <- loo::loo_compare(list(no_latent = loo::loo(fit_noUV),
                              latent_R1 = loo::loo(fit)))
 cmp

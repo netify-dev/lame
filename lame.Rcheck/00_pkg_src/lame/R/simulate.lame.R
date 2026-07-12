@@ -514,6 +514,11 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 				} else {
 					Y_sim <- simY_pois(Z_od)
 				}
+			} else if (family == "cbin") {
+				# censored binary: an frn draw thresholded at zero, the same
+				# posterior-predictive convention the fitter's gof draws use
+				odmax <- if (!is.null(fit$odmax)) fit$odmax else rep(Inf, n_row)
+				Y_sim <- 1 * (simY_frn(EZ, rho, odmax) > 0)
 			} else if (family == "frn") {
 				odmax <- if (!is.null(fit$odmax)) fit$odmax else rep(Inf, n_row)
 				Y_sim <- simY_frn(EZ, rho, odmax)

@@ -516,7 +516,7 @@ zi4/m/n/10 distance []\T1/ptm/m/n/10 (ge-o-graphic) and []\T1/zi4/m/n/10 shared
 _igos
 [221] [222] [223] [224] [225] [226] [227] [228]
 No file Rd2.ind.
-[229] (/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.aux)
+[229] (/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.aux)
 
 Package rerunfilecheck Warning: File `Rd2.out' has changed.
 (rerunfilecheck)                Rerun to get outlines right
@@ -638,11 +638,11 @@ For additional information on amsmath, use the `?' option.
 Writing index file Rd2.idx
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1ptm.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.aux)
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.aux)
 (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-) (/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.out)
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.out)
+) (/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.out)
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.out)
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ptm.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/inconsolata/t1zi4.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd)
@@ -651,7 +651,7 @@ Writing index file Rd2.idx
 onts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-dist/fonts/enc/dvip
 s/base/8r.enc}{/usr/share/texlive/texmf-dist/fonts/enc/dvips/inconsolata/i4-t1-
 0.enc}] (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd)
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.toc [2] [3] [4] [5] [6])
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.toc [2] [3] [4] [5] [6])
 Overfull \hbox (2.68605pt too wide) in paragraph at lines 69--72
 [][][]\T1/zi4/m/n/10 ame[][][] []\T1/ptm/m/n/10 / [][][]\T1/zi4/m/n/10 lame[][]
 [] []\T1/ptm/m/n/10 -- the Bayesian MCMC es-ti-ma-tors, for cal-i-brated pos-te
@@ -1084,12 +1084,12 @@ Overfull \hbox (0.93892pt too wide) in paragraph at lines 12902--12904
 zi4/m/n/10 distance []\T1/ptm/m/n/10 (ge-o-graphic) and []\T1/zi4/m/n/10 shared
 _igos
 [226] [227] [228] [229] [230] [231] [232] [233]
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.ind [234]
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.ind [234]
 
 LaTeX Font Warning: Font shape `T1/zi4/m/it' undefined
 (Font)              using `T1/zi4/m/n' instead on input line 78.
 
-[235] [236] [237] [238]) (/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.aux)
+[235] [236] [237] [238]) (/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.aux)
 
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
@@ -1214,11 +1214,11 @@ For additional information on amsmath, use the `?' option.
 Writing index file Rd2.idx
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1ptm.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.aux)
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.aux)
 (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-) (/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.out)
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.out)
+) (/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.out)
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.out)
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ptm.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/inconsolata/t1zi4.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd)
@@ -1227,7 +1227,7 @@ Writing index file Rd2.idx
 onts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-dist/fonts/enc/dvip
 s/base/8r.enc}{/usr/share/texlive/texmf-dist/fonts/enc/dvips/inconsolata/i4-t1-
 0.enc}] (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd)
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.toc [2] [3] [4] [5] [6])
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.toc [2] [3] [4] [5] [6])
 Overfull \hbox (2.68605pt too wide) in paragraph at lines 69--72
 [][][]\T1/zi4/m/n/10 ame[][][] []\T1/ptm/m/n/10 / [][][]\T1/zi4/m/n/10 lame[][]
 [] []\T1/ptm/m/n/10 -- the Bayesian MCMC es-ti-ma-tors, for cal-i-brated pos-te
@@ -1660,12 +1660,12 @@ Overfull \hbox (0.93892pt too wide) in paragraph at lines 12902--12904
 zi4/m/n/10 distance []\T1/ptm/m/n/10 (ge-o-graphic) and []\T1/zi4/m/n/10 shared
 _igos
 [226] [227] [228] [229] [230] [231] [232] [233]
-(/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.ind [234]
+(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.ind [234]
 
 LaTeX Font Warning: Font shape `T1/zi4/m/it' undefined
 (Font)              using `T1/zi4/m/n' instead on input line 78.
 
-[235] [236] [237] [238]) (/tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19/Rd2.aux)
+[235] [236] [237] [238]) (/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.aux)
 
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
@@ -1713,4 +1713,4 @@ Output written on Rd2.pdf (238 pages, 704230 bytes).
 Transcript written on Rd2.log.
 Saving output to ‘lame-manual.pdf’ ...
 Done
-You may want to clean up by 'rm -Rf /tmp/RtmpXg9y70/Rd2pdf2d2aa85e8bbb19'
+You may want to clean up by 'rm -Rf /tmp/RtmpLaidHw/Rd2pdf313c1140102d7c'

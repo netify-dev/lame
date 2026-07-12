@@ -45,10 +45,10 @@ Number of chains: 2
 Samples per chain: "20, 20"
 Diagnostics cover regression coefficients and variance components.
 Skipping the R-hat convergence verdict for identical chains.
-[ FAIL 0 | WARN 0 | SKIP 71 | PASS 962 ]
+[ FAIL 0 | WARN 0 | SKIP 74 | PASS 962 ]
 
-══ Skipped tests (71) ══════════════════════════════════════════════════════════
-• On CRAN (70): 'test_ame_als.R:1:1', 'test_bipartite.R:1:1',
+══ Skipped tests (74) ══════════════════════════════════════════════════════════
+• On CRAN (73): 'test_ame_als.R:1:1', 'test_bipartite.R:1:1',
   'test_bipartite_recovery.R:1:1', 'test_correctness_contract.R:40:2',
   'test_correctness_contract.R:51:2', 'test_correctness_contract.R:70:2',
   'test_correctness_contract.R:90:2', 'test_correctness_contract.R:106:2',
@@ -74,21 +74,23 @@ Skipping the R-hat convergence verdict for identical chains.
   'test_per_actor.R:83:2', 'test_per_actor.R:107:2',
   'test_period_exposure.R:6:1', 'test_persona_fixes.R:758:2',
   'test_persona_fixes.R:784:2', 'test_persona_fixes.R:819:2',
-  'test_persona_fixes.R:839:2', 'test_posterior_utils.R:1:1',
-  'test_regression_guards.R:9:2', 'test_regression_guards.R:30:2',
-  'test_regression_guards.R:45:2', 'test_regression_guards.R:74:2',
-  'test_regression_guards.R:116:2', 'test_regression_guards.R:135:2',
-  'test_regression_guards.R:166:2', 'test_regression_guards.R:206:2',
-  'test_simulate.R:1:1', 'test_static_binary.R:1:1',
-  'test_static_bipartite.R:1:1', 'test_static_bipartite_families.R:1:1',
-  'test_static_count.R:1:1', 'test_static_gaussian.R:1:1',
-  'test_static_ordinal.R:1:1', 'test_static_rank.R:1:1',
-  'test_static_recovery.R:1:1', 'test_unipartite_recovery.R:1:1',
-  'test_utilities.R:1:1', 'test_xrow_xcol.R:1:1'
+  'test_persona_fixes.R:839:2', 'test_persona_fixes.R:859:2',
+  'test_persona_fixes.R:883:2', 'test_persona_fixes.R:908:2',
+  'test_posterior_utils.R:1:1', 'test_regression_guards.R:9:2',
+  'test_regression_guards.R:30:2', 'test_regression_guards.R:45:2',
+  'test_regression_guards.R:74:2', 'test_regression_guards.R:116:2',
+  'test_regression_guards.R:135:2', 'test_regression_guards.R:166:2',
+  'test_regression_guards.R:206:2', 'test_simulate.R:1:1',
+  'test_static_binary.R:1:1', 'test_static_bipartite.R:1:1',
+  'test_static_bipartite_families.R:1:1', 'test_static_count.R:1:1',
+  'test_static_gaussian.R:1:1', 'test_static_ordinal.R:1:1',
+  'test_static_rank.R:1:1', 'test_static_recovery.R:1:1',
+  'test_unipartite_recovery.R:1:1', 'test_utilities.R:1:1',
+  'test_xrow_xcol.R:1:1'
 • file.exists(src) is not TRUE (1): 'test_dynamic_uv_contract.R:249:2'
 
-[ FAIL 0 | WARN 0 | SKIP 71 | PASS 962 ]
+[ FAIL 0 | WARN 0 | SKIP 74 | PASS 962 ]
 > 
 > proc.time()
    user  system elapsed 
- 18.622   0.353  15.807 
+ 18.214   0.338  17.037 
