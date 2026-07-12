@@ -1,0 +1,403 @@
+skip_on_cran()
+
+# static gaussian models
+
+library(lame)
+library(testthat)
+
+# helper function to run single simulation
+sim_gaussian_ame = function(seed, n, mu, beta, gamma=NULL, 
+														rvar=FALSE, cvar=FALSE, R=0,
+														burn=500, nscan=2000) {
+	set.seed(seed)
+	
+	# generate covariates
+	xw = matrix(rnorm(n*2), n, 2)
+	X = tcrossprod(xw[,1])
+	diag(X) = NA
+	
+	# build linear predictor
+	eta = mu + beta * X
+	
+	# add unobserved covariate effect if specified
+	if(!is.null(gamma)) {
+		W = tcrossprod(xw[,2])
+		eta = eta + gamma * W
+	}
+	
+	# add additive effects if requested
+	if(rvar || cvar) {
+		a_true = if(rvar) rnorm(n, 0, 0.5) else rep(0, n)
+		b_true = if(cvar) rnorm(n, 0, 0.5) else rep(0, n)
+		eta = eta + outer(a_true, rep(1, n)) + outer(rep(1, n), b_true)
+	}
+	
+	# add multiplicative effects if r > 0
+	U_true = V_true = NULL
+	if(R > 0) {
+		U_true = matrix(rnorm(n*R, 0, 1), n, R)
+		V_true = matrix(rnorm(n*R, 0, 1), n, R)
+		eta = eta + tcrossprod(U_true, V_true)
+	}
+	
+	# generate gaussian outcome with noise
+	sigma2 = 1
+	Y = eta + matrix(rnorm(n*n, 0, sqrt(sigma2)), n, n)
+	diag(Y) = NA
+	
+	# fit ame model
+	fit = ame(Y, Xdyad=X, R=R, family="normal",
+						rvar=rvar, cvar=cvar, dcor=FALSE,
+						burn=burn, nscan=nscan, 
+						verbose = FALSE)
+	
+	# extract results
+	beta_hat = median(fit$BETA[,2])
+	beta_se = sd(fit$BETA[,2])
+	beta_ci_lower = quantile(fit$BETA[,2], 0.025)
+	beta_ci_upper = quantile(fit$BETA[,2], 0.975)
+	beta_covered = (beta >= beta_ci_lower) & (beta <= beta_ci_upper)
+	
+	mu_hat = median(fit$BETA[,1])
+	mu_se = sd(fit$BETA[,1])
+	mu_ci_lower = quantile(fit$BETA[,1], 0.025)
+	mu_ci_upper = quantile(fit$BETA[,1], 0.975)
+	mu_covered = (mu >= mu_ci_lower) & (mu <= mu_ci_upper)
+	
+	# correlation with unobserved if applicable
+	cor_with_W = if(!is.null(gamma) && R > 0) {
+		cor(c(W), c(reconstruct_UVPM(fit)), use='pairwise.complete.obs')
+	} else {
+		NA
+	}
+	
+	# recovery of additive effects
+	a_cor = if(rvar && !is.null(fit$APM)) {
+		cor(a_true, fit$APM, use='pairwise.complete.obs')
+	} else {
+		NA
+	}
+	
+	b_cor = if(cvar && !is.null(fit$BPM)) {
+		cor(b_true, fit$BPM, use='pairwise.complete.obs')
+	} else {
+		NA
+	}
+	
+	return(list(
+		beta_hat = beta_hat,
+		beta_se = beta_se,
+		beta_covered = beta_covered,
+		mu_hat = mu_hat,
+		mu_se = mu_se,
+		mu_covered = mu_covered,
+		cor_with_W = cor_with_W,
+		a_cor = a_cor,
+		b_cor = b_cor,
+		sigma2_hat = if(!is.null(fit$s2)) median(fit$s2) else if(!is.null(fit$VC) && "va" %in% colnames(fit$VC)) median(fit$VC[,"va"]) else NA
+	))
+}
+
+####
+# gaussian model with covariates only
+####
+
+test_that("Gaussian AME with covariates only has calibrated confidence intervals", {
+	skip_on_cran()
+	
+	set.seed(6886)
+	n_sims = 30
+	n = 40
+	mu_true = 0
+	beta_true = 1
+	
+	# run simulations
+	results = lapply(1:n_sims, function(i) {
+		sim_gaussian_ame(seed=i, n=n, mu=mu_true, beta=beta_true,
+										rvar=FALSE, cvar=FALSE, R=0,
+										burn=300, nscan=1000)
+	})
+	
+	# extract coverage rates
+	beta_coverage = mean(sapply(results, function(x) x$beta_covered))
+	mu_coverage = mean(sapply(results, function(x) x$mu_covered))
+	
+	# check calibration (should be close to 95%)
+	expect_gt(beta_coverage, 0.85)
+	expect_gt(mu_coverage, 0.85)
+	
+	# check bias
+	beta_bias = mean(sapply(results, function(x) x$beta_hat)) - beta_true
+	mu_bias = mean(sapply(results, function(x) x$mu_hat)) - mu_true
+	
+	expect_lt(abs(beta_bias), 0.1)
+	expect_lt(abs(mu_bias), 0.1)
+})
+
+####
+# gaussian model with covariates + additive effects
+####
+
+test_that("Gaussian AME with additive effects recovers true parameters", {
+	set.seed(6886)
+	n = 50
+	mu_true = 0.5
+	beta_true = 0.8
+	
+	# generate data with additive effects
+	xw = matrix(rnorm(n*2), n, 2)
+	X = tcrossprod(xw[,1])
+	diag(X) = NA
+	
+	# true additive effects
+	a_true = rnorm(n, 0, 0.7)
+	b_true = rnorm(n, 0, 0.7)
+	
+	eta = mu_true + beta_true * X + 
+				 outer(a_true, rep(1, n)) + outer(rep(1, n), b_true)
+	
+	sigma2_true = 1
+	Y = eta + matrix(rnorm(n*n, 0, sqrt(sigma2_true)), n, n)
+	diag(Y) = NA
+	
+	# fit model with additive effects
+	fit = ame(Y, Xdyad=X, R=0, family="normal",
+						rvar=TRUE, cvar=TRUE, dcor=FALSE,
+						burn=500, nscan=2000, verbose = FALSE)
+	
+	# check parameter recovery
+	beta_est = median(fit$BETA[,2])
+	mu_est = median(fit$BETA[,1])
+	
+	expect_lt(abs(beta_est - beta_true), 0.3)
+	expect_lt(abs(mu_est - mu_true), 0.3)
+	
+	# check recovery of additive effects
+	if(!is.null(fit$APM) && !is.null(fit$BPM)) {
+		a_cor = cor(a_true, fit$APM, use='pairwise.complete.obs')
+		b_cor = cor(b_true, fit$BPM, use='pairwise.complete.obs')
+		
+		expect_gt(a_cor, 0.5)
+		expect_gt(b_cor, 0.5)
+	}
+})
+
+test_that("Gaussian AME with additive effects has calibrated confidence intervals", {
+	skip_on_cran()
+	
+	set.seed(6886)
+	n_sims = 30
+	n = 40
+	mu_true = 0
+	beta_true = 1
+	
+	# run simulations
+	results = lapply(1:n_sims, function(i) {
+		sim_gaussian_ame(seed=i, n=n, mu=mu_true, beta=beta_true,
+										rvar=TRUE, cvar=TRUE, R=0,
+										burn=300, nscan=1000)
+	})
+	
+	# extract coverage rates
+	beta_coverage = mean(sapply(results, function(x) x$beta_covered))
+	mu_coverage = mean(sapply(results, function(x) x$mu_covered))
+	
+	# check calibration
+	expect_gt(beta_coverage, 0.75)
+	expect_gt(mu_coverage, 0.75)
+	
+	# check additive effect recovery
+	a_cors = sapply(results, function(x) x$a_cor)
+	b_cors = sapply(results, function(x) x$b_cor)
+	
+	mean_a_cor = mean(a_cors, na.rm=TRUE)
+	mean_b_cor = mean(b_cors, na.rm=TRUE)
+	
+	expect_gt(mean_a_cor, 0.4)
+	expect_gt(mean_b_cor, 0.4)
+})
+
+####
+# gaussian model with covariates + additive + multiplicative effects
+####
+
+test_that("Gaussian AME with full model recovers true parameters", {
+	set.seed(6886)
+	n = 50
+	mu_true = -0.2
+	beta_true = 1.0
+	gamma_true = 0.8  # unobserved covariate
+	R_true = 2
+	
+	# generate data
+	xw = matrix(rnorm(n*2), n, 2)
+	X = tcrossprod(xw[,1])
+	W = tcrossprod(xw[,2])  # unobserved
+	diag(X) = NA
+	diag(W) = NA
+	
+	# true additive effects
+	a_true = rnorm(n, 0, 0.5)
+	b_true = rnorm(n, 0, 0.5)
+	
+	# true latent factors
+	U_true = matrix(rnorm(n*R_true, 0, 1), n, R_true)
+	V_true = matrix(rnorm(n*R_true, 0, 1), n, R_true)
+	
+	# build full model
+	eta = mu_true + beta_true * X + gamma_true * W +
+				 outer(a_true, rep(1, n)) + outer(rep(1, n), b_true) +
+				 tcrossprod(U_true, V_true)
+	
+	sigma2_true = 1
+	Y = eta + matrix(rnorm(n*n, 0, sqrt(sigma2_true)), n, n)
+	diag(Y) = NA
+	
+	# fit full ame model
+	fit = ame(Y, Xdyad=X, R=R_true, family="normal",
+						rvar=TRUE, cvar=TRUE, dcor=FALSE,
+						burn=500, nscan=2000, verbose = FALSE)
+	
+	# check parameter recovery
+	beta_est = median(fit$BETA[,2])
+	mu_est = median(fit$BETA[,1])
+	
+	expect_lt(abs(beta_est - beta_true), 0.4)
+	
+	# check that multiplicative effects capture unobserved covariate
+	if(!is.null(reconstruct_UVPM(fit))) {
+		cor_W = cor(c(W), c(reconstruct_UVPM(fit)), use='pairwise.complete.obs')
+		expect_gt(cor_W, 0.3)
+	}
+	
+	# check dimensions of latent factors
+	expect_equal(ncol(fit$U), R_true)
+	expect_equal(ncol(fit$V), R_true)
+})
+
+test_that("Gaussian AME full model captures unobserved confounding", {
+	skip_on_cran()
+	
+	set.seed(6886)
+	n_sims = 30
+	n = 40
+	mu_true = 0
+	beta_true = 1
+	gamma_true = 1  # effect of unobserved covariate
+	
+	# run simulations with full model
+	results = lapply(1:n_sims, function(i) {
+		sim_gaussian_ame(seed=i, n=n, mu=mu_true, beta=beta_true,
+										gamma=gamma_true,
+										rvar=TRUE, cvar=TRUE, R=2,
+										burn=300, nscan=1000)
+	})
+	
+	# check that multiplicative effects capture unobserved heterogeneity
+	cors_with_W = sapply(results, function(x) x$cor_with_W)
+	mean_cor = mean(cors_with_W, na.rm=TRUE)
+
+	expect_gt(mean_cor, 0.35)
+	
+	# check parameter recovery and coverage
+	beta_coverage = mean(sapply(results, function(x) x$beta_covered))
+	mu_coverage = mean(sapply(results, function(x) x$mu_covered))
+	
+	expect_gt(beta_coverage, 0.85)
+	expect_gt(mu_coverage, 0.85)
+	
+	# check bias
+	beta_bias = mean(sapply(results, function(x) x$beta_hat)) - beta_true
+	expect_lt(abs(beta_bias), 0.15)
+})
+
+####
+# compare models with and without multiplicative effects
+####
+
+test_that("Multiplicative effects reduce bias from unobserved confounding", {
+	set.seed(6886)
+	n = 50
+	mu_true = 0
+	beta_true = 1
+	gamma_true = 1.5  # strong unobserved effect
+	
+	# generate data with unobserved confounder
+	xw = matrix(rnorm(n*2), n, 2)
+	X = tcrossprod(xw[,1])
+	W = tcrossprod(xw[,2])
+	diag(X) = NA
+	diag(W) = NA
+	
+	eta = mu_true + beta_true * X + gamma_true * W
+	Y = eta + matrix(rnorm(n*n), n, n)
+	diag(Y) = NA
+	
+	# fit model without multiplicative effects
+	fit_no_uv = ame(Y, Xdyad=X, R=0, family="normal",
+									rvar=FALSE, cvar=FALSE, dcor=FALSE,
+									burn=400, nscan=1500, verbose = FALSE)
+	
+	# fit model with multiplicative effects
+	fit_with_uv = ame(Y, Xdyad=X, R=2, family="normal",
+										rvar=FALSE, cvar=FALSE, dcor=FALSE,
+										burn=400, nscan=1500, verbose = FALSE)
+	
+	beta_no_uv = median(fit_no_uv$BETA[,2])
+	beta_with_uv = median(fit_with_uv$BETA[,2])
+	
+	# model with uv should have less bias
+	bias_no_uv = abs(beta_no_uv - beta_true)
+	bias_with_uv = abs(beta_with_uv - beta_true)
+	
+	expect_lt(bias_with_uv, bias_no_uv + 0.3)
+	
+	# check that uv captures the unobserved structure
+	if(!is.null(fit_with_uv$UVPM)) {
+		cor_W = cor(c(W), c(fit_with_uv$UVPM), use='pairwise.complete.obs')
+		expect_gt(cor_W, 0.2)
+	}
+})
+
+####
+# model diagnostics and convergence
+####
+
+test_that("Gaussian AME produces valid diagnostics", {
+	set.seed(6886)
+	n = 30
+	
+	# simple model for quick convergence check
+	X = matrix(rnorm(n*n), n, n)
+	diag(X) = NA
+	Y = X + matrix(rnorm(n*n), n, n)
+	diag(Y) = NA
+	
+	fit = ame(Y, Xdyad=X, R=1, family="normal",
+						rvar=TRUE, cvar=TRUE,
+						burn=200, nscan=500, verbose = FALSE)
+	
+	# check that key outputs exist
+	expect_true(!is.null(fit$BETA))
+	expect_true(!is.null(fit$VC))
+	
+	# check dimensions
+	expect_equal(ncol(fit$BETA), 2)  # intercept + one covariate
+	# check that we have some samples (may not be exactly nscan)
+	expect_gt(nrow(fit$BETA), 0)
+	
+	# check predictions are reasonable
+	resid = Y - reconstruct_EZ(fit)
+	expect_lt(abs(mean(resid, na.rm=TRUE)), 0.5)
+	
+	# check effective sample size if available
+	if(!is.null(fit$VC) && is.matrix(fit$VC)) {
+		# variance components exist (some might be negative due to model issues)
+		vc_values = as.numeric(fit$VC)
+		vc_values = vc_values[!is.na(vc_values)]
+		if(length(vc_values) > 0) {
+			# at least check that variance components exist
+			expect_gt(length(vc_values), 0)
+		}
+	}
+})

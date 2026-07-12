@@ -23,7 +23,7 @@ p_pp near 1."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,7 +95,7 @@ slope dead-centre). A static fit on truly trending data yields
 <dt id="arg-stat">stat<a class="anchor" aria-label="anchor" href="#arg-stat"></a></dt>
 <dd><p>One of <code>"auto"</code> (default; picks
 <code>"reciprocity"</code> for unipartite directed fits with \(T \ge 3\)
-and family <code>normal</code> / <code>poisson</code> / <code>tobit</code>, where
+and family <code>normal</code> / <code>poisson</code>, where
 <code>"density"</code> is constant and uninformative; otherwise
 <code>"density"</code>), <code>"density"</code>, <code>"mean"</code> (mean of
 off-diagonal Y; the right "density" analogue for continuous
@@ -126,18 +126,18 @@ replicate is a full \(T\)-period network from <code>simulate(fit)</code>).</p></
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="lame.html">lame</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">$</span><span class="va">Y</span>, <span class="va">YX_bin_list</span><span class="op">$</span><span class="va">X</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span></span>
 <span class="r-in"><span>            dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span></span>
-<span class="r-in"><span>            nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>            nscan <span class="op">=</span> <span class="fl">60</span>, burn <span class="op">=</span> <span class="fl">15</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`family` = <span style="color: #0000BB;">"binary"</span> but `Y` contains values other than 0/1.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
-<span class="r-in"><span><span class="fu">gof_temporal</span><span class="op">(</span><span class="va">fit</span>, stat <span class="op">=</span> <span class="st">"density"</span>, n_rep <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">gof_temporal</span><span class="op">(</span><span class="va">fit</span>, stat <span class="op">=</span> <span class="st">"density"</span>, n_rep <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── <span style="font-weight: bold;">Temporal-trend posterior-predictive check</span> ──</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Statistic: <span style="color: #0000BB;">"density"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Observed slope (per-period): <span style="color: #0000BB;">-0.00068</span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • Replicates: <span style="color: #0000BB;">100</span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • Posterior-predictive p-value (two-sided): <span style="color: #0000BB;">0.84</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Replicates: <span style="color: #0000BB;">50</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Posterior-predictive p-value (two-sided): <span style="color: #0000BB;">0.88</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Observed temporal trend is well covered by the fitted model.</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>

@@ -1,0 +1,2193 @@
+
+R version 4.3.3 (2024-02-29) -- "Angel Food Cake"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> pkgname <- "lame"
+> source(file.path(R.home("share"), "R", "examples-header.R"))
+> options(warn = 1)
+> base::assign(".ExTimings", "lame-Ex.timings", pos = 'CheckExEnv')
+> base::cat("name\tuser\tsystem\telapsed\n", file=base::get(".ExTimings", pos = 'CheckExEnv'))
+> base::assign(".format_ptime",
++ function(x) {
++   if(!is.na(x[4L])) x[1L] <- x[1L] + x[4L]
++   if(!is.na(x[5L])) x[2L] <- x[2L] + x[5L]
++   options(OutDec = '.')
++   format(x[1L:3L], digits = 7L)
++ },
++ pos = 'CheckExEnv')
+> 
+> ### * </HEADER>
+> library('lame')
+> 
+> base::assign(".oldSearch", base::search(), pos = 'CheckExEnv')
+> base::assign(".old_wd", base::getwd(), pos = 'CheckExEnv')
+> cleanEx()
+> nameEx("YX_bin")
+> ### * YX_bin
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: YX_bin
+> ### Title: binary relational data and covariates
+> ### Aliases: YX_bin
+> ### Keywords: datasets
+> 
+> ### ** Examples
+> 
+> 
+> data(YX_bin)
+> gof_stats(YX_bin$Y) 
+Note: Square matrix assumed to be unipartite. Use mode='bipartite' for square bipartite networks.
+sd.rowmean sd.colmean   dyad.dep  cycle.dep  trans.dep 
+0.04977650 0.03099423 0.52449087 0.01984067 0.02400606 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("YX_bin", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("YX_bin_long")
+> ### * YX_bin_long
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: YX_bin_long
+> ### Title: synthetic longitudinal binary relational data (latent-scale)
+> ### Aliases: YX_bin_long
+> ### Keywords: datasets
+> 
+> ### ** Examples
+> 
+> 
+> data(YX_bin_long)
+> # threshold latent z to 0/1 before computing binary GOF stats
+> Yt <- 1 * (YX_bin_long$Y[, , 1] > 0)
+> diag(Yt) <- NA
+> gof_stats(Yt)
+ sd.rowmean  sd.colmean    dyad.dep   cycle.dep   trans.dep 
+0.098854028 0.083875884 0.039461682 0.001059680 0.003684353 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("YX_bin_long", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("YX_cbin")
+> ### * YX_cbin
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: YX_cbin
+> ### Title: Censored binary nomination data and covariates
+> ### Aliases: YX_cbin
+> ### Keywords: datasets
+> 
+> ### ** Examples
+> 
+> 
+> data(YX_cbin)
+> gof_stats(YX_cbin$Y) 
+ sd.rowmean  sd.colmean    dyad.dep   cycle.dep   trans.dep 
+0.039373005 0.028860506 0.539267664 0.008495321 0.015489824 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("YX_cbin", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("YX_frn")
+> ### * YX_frn
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: YX_frn
+> ### Title: Fixed rank nomination data and covariates
+> ### Aliases: YX_frn
+> ### Keywords: datasets
+> 
+> ### ** Examples
+> 
+> 
+> data(YX_frn)
+> gof_stats(YX_frn$Y) 
+ sd.rowmean  sd.colmean    dyad.dep   cycle.dep   trans.dep 
+0.216963190 0.152754547 0.544539588 0.008276425 0.015688679 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("YX_frn", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("YX_nrm")
+> ### * YX_nrm
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: YX_nrm
+> ### Title: normal relational data and covariates
+> ### Aliases: YX_nrm
+> ### Keywords: datasets
+> 
+> ### ** Examples
+> 
+> 
+> data(YX_nrm)
+> gof_stats(YX_nrm$Y)
+sd.rowmean sd.colmean   dyad.dep  cycle.dep  trans.dep 
+0.93582644 0.27834223 0.65987298 0.03557144 0.04263373 
+> 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("YX_nrm", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("YX_ord")
+> ### * YX_ord
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: YX_ord
+> ### Title: ordinal relational data and covariates
+> ### Aliases: YX_ord
+> ### Keywords: datasets
+> 
+> ### ** Examples
+> 
+> 
+> data(YX_ord)
+> gof_stats(YX_ord$Y)
+sd.rowmean sd.colmean   dyad.dep  cycle.dep  trans.dep 
+0.64985277 0.27841315 0.68044237 0.04941867 0.06566578 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("YX_ord", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ab_plot")
+> ### * ab_plot
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ab_plot
+> ### Title: Visualize sender and receiver random effects
+> ### Aliases: ab_plot
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Fit an AME model
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X,
++            nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+> 
+> # Visualize sender effects
+> ab_plot(fit, effect = "sender")
+> 
+> # Visualize receiver effects without sorting
+> ab_plot(fit, effect = "receiver", sorted = FALSE)
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ab_plot", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("als_dynamic_beta")
+> ### * als_dynamic_beta
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: als_dynamic_beta
+> ### Title: Penalised ALS time-varying coefficient estimate
+> ### Aliases: als_dynamic_beta
+> 
+> ### ** Examples
+> 
+> set.seed(1)
+> n <- 10; T <- 4
+> X <- replicate(T, array(rnorm(n*n*2), c(n, n, 2)), simplify = FALSE)
+> beta_true <- rbind(seq(-1, 1, length.out = T), seq(0.5, -0.5, length.out = T))
+> Y <- vector("list", T)
+> for (t in seq_len(T)) {
++   Yt <- X[[t]][, , 1] * beta_true[1, t] + X[[t]][, , 2] * beta_true[2, t] +
++         matrix(rnorm(n*n, 0, 0.2), n, n)
++   diag(Yt) <- NA
++   Y[[t]] <- Yt
++ }
+> fit_als <- als_dynamic_beta(Y, X, lambda = 0)     # per-period LS
+> fit_smooth <- als_dynamic_beta(Y, X, lambda = 10) # smoother path
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("als_dynamic_beta", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ame")
+> ### * ame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ame
+> ### Title: AME model fitting routine
+> ### Aliases: ame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin)
+> fit <- ame(YX_bin$Y, Xdyad = YX_bin$X, burn = 10, nscan = 100, odens = 1,
++            family = "binary", verbose = FALSE)
+> summary(fit)
+
+=== AME Model Summary ===
+
+Call:
+[1] "Y ~ dyad(intercept, rgpa, rsmoke, cgpa, csmoke, igrade, igpa, ismoke) + a[i] + b[j] + rho*e[ji], family = 'binary'"
+
+Regression coefficients:
+------------------------
+               Estimate StdError z_value p_value CI_lower CI_upper    
+intercept_dyad   -2.614    0.119 -21.967       0   -2.807   -2.378 ***
+rgpa_dyad         0.192    0.074   2.585    0.01    0.046    0.339  **
+rsmoke_dyad       0.273    0.102   2.687   0.007    0.097    0.489  **
+cgpa_dyad         0.213     0.05    4.23       0    0.125    0.296 ***
+csmoke_dyad       0.203    0.066   3.095   0.002    0.106    0.331  **
+igrade_dyad       1.164     0.06   19.56       0    1.036    1.265 ***
+igpa_dyad         0.061    0.032     1.9   0.057        0    0.124   .
+ismoke_dyad      -0.005     0.06  -0.078   0.938   -0.097    0.108    
+---
+Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
+
+Variance components:
+-------------------
+    Estimate StdError
+va     0.438    0.108
+cab    0.060    0.024
+vb     0.073    0.010
+rho    0.785    0.060
+ve     1.000    0.000
+  (va = sender, cab = sender-receiver covariance, vb = receiver,
+   rho = dyadic correlation, ve = residual variance)
+> # Note: you should run the Markov chain much longer in practice
+> ## End(No test)
+>  
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ame_als")
+> ### * ame_als
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ame_als
+> ### Title: Fast (MCMC-free) AME estimation for a cross-sectional network
+> ### Aliases: ame_als
+> 
+> ### ** Examples
+> 
+> Y <- matrix(rnorm(400), 20, 20); diag(Y) <- NA
+> fit <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
+> coef(fit)
+ intercept 
+0.02421857 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ame_als", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ame_als_bootstrap")
+> ### * ame_als_bootstrap
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ame_als_bootstrap
+> ### Title: Bootstrap uncertainty for the fast AME estimator
+> ### Aliases: ame_als_bootstrap boot_ame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> Y <- replicate(6, { m <- matrix(rnorm(225), 15, 15); diag(m) <- NA; m },
++                simplify = FALSE)
+> fit <- lame_als(Y, R = 1, family = "normal", verbose = FALSE)
+> # post-hoc bootstrap of an existing fit:
+> bt <- ame_als_bootstrap(fit, R = 50, type = "block",
++                             seed = 1, verbose = FALSE)
+> # equivalent one-shot call:
+> # fit_b <- lame_als(Y, R = 1, family = "normal", verbose = FALSE,
+> #                   bootstrap = 50, bootstrap_type = "block",
+> #                   bootstrap_seed = 1)
+> print(bt)
+
+Bootstrap results: fast AME estimator
+Type: block | Family: normal | Replicates: 50/50 valid
+
+          Estimate Boot SE    2.5%  97.5%
+intercept  -0.0097  0.0206 -0.0414 0.0347
+
+beta, a, b and variance components aggregate directly; U/V are
+Procrustes-aligned.
+! Block bootstrap on a static-effects fit: SEs for the intercept,
+node-covariate coefficients and additive variance components (va, vb, cab) can
+severely under-cover because slice resampling does not perturb actor-level
+structure. Use `type = "parametric"` for those parameters.
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ame_als_bootstrap", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ame_als_refit")
+> ### * ame_als_refit
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ame_als_refit
+> ### Title: Refit a fast AME model with a warm start
+> ### Aliases: ame_als_refit
+> 
+> ### ** Examples
+> 
+> Y <- matrix(rnorm(400), 20, 20); diag(Y) <- NA
+> fit <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
+> refit <- ame_als_refit(fit, verbose = FALSE)
+> coef(refit)
+ intercept 
+0.02421856 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ame_als_refit", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ame_options")
+> ### * ame_options
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ame_options
+> ### Title: AME model fitting options
+> ### Aliases: ame_options
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Configure options
+> opts <- ame_options(verbose = TRUE, odens = 25)
+> opts
+$parallel_chains
+[1] 1
+
+$verbose
+[1] TRUE
+
+$odens
+[1] 25
+
+$use_sparse_matrices
+[1] FALSE
+
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ame_options", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ame_parallel")
+> ### * ame_parallel
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ame_parallel
+> ### Title: Run AME model with multiple parallel chains
+> ### Aliases: ame_parallel
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Run 2 chains sequentially
+> data(YX_nrm)
+> fit_parallel <- ame_parallel(YX_nrm$Y, Xdyad = YX_nrm$X,
++                              n_chains = 2, cores = 1,
++                              nscan = 100, burn = 10, odens = 1,
++                              verbose = FALSE)
+
+── Running 2 chains sequentially ──
+
+Starting chain 1 (`ame()`)
+Completed chain 1
+Starting chain 2 (`ame()`)
+Completed chain 2
+Combining chains...
+
+── MCMC Convergence Diagnostics 
+Number of chains: 2
+Samples per chain: "100, 100"
+Diagnostics cover regression coefficients and variance components.
+✔ All parameters converged (R-hat < 1.1)
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ame_parallel", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("as_lame_y")
+> ### * as_lame_y
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: as_lame_y
+> ### Title: Convert a graph object to a lame-ready adjacency matrix
+> ### Aliases: as_lame_y
+> 
+> ### ** Examples
+> 
+> # plain matrices are returned with the diagonal set to NA
+> m <- matrix(rbinom(25, 1, 0.4), 5, 5,
++             dimnames = list(letters[1:5], letters[1:5]))
+> as_lame_y(m)
+   a  b  c  d  e
+a NA  1  0  0  1
+b  0 NA  0  1  0
+c  0  1 NA  1  1
+d  1  1  0 NA  0
+e  0  0  1  1 NA
+> 
+> if (requireNamespace("igraph", quietly = TRUE)) {
++   g <- igraph::sample_gnp(8, 0.3)
++   Y <- as_lame_y(g)
++   dim(Y)
++ }
+[1] 8 8
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("as_lame_y", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("autoplot.lame")
+> ### * autoplot.lame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: autoplot.lame
+> ### Title: Ribbon plot of time-varying coefficients (or coefplot for static
+> ###   fits)
+> ### Aliases: autoplot.lame autoplot.ame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
++             dynamic_beta = "dyad",
++             nscan = 60, burn = 15, odens = 5, verbose = FALSE)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> if (requireNamespace("ggplot2", quietly = TRUE)) {
++   autoplot(fit)
++ }
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("autoplot.lame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("detect_change_point")
+> ### * detect_change_point
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: detect_change_point
+> ### Title: Detect potential change points in a dynamic_beta posterior path
+> ### Aliases: detect_change_point
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
++             dynamic_beta = "dyad",
++             nscan = 60, burn = 15, odens = 5, verbose = FALSE)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> detect_change_point(fit)
+     coef bf m_post_mean m_prior_q95 t_hat  warn
+1 X1_dyad  0   0.1102546    2.489239     2 FALSE
+2 X2_dyad  0   0.1455680    2.551090     4 FALSE
+3 X3_dyad  0   0.1983818    2.500953     4 FALSE
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("detect_change_point", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("dynamic_beta_prior_summary")
+> ### * dynamic_beta_prior_summary
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: dynamic_beta_prior_summary
+> ### Title: Summarise the implied prior on a time-varying coefficient path
+> ### Aliases: dynamic_beta_prior_summary
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Default prior: AR(1) with rho_mean = 0.8, rho_sd = 0.15
+> s <- dynamic_beta_prior_summary(T = 10, ndraws = 2000, seed = 1)
+> s$summary
+            quantity        q05        q50        q95
+1 max_abs_first_diff  0.7215172 1.46787811  3.7138105
+2          roughness  1.4113939 5.56455715 31.4268861
+3              range  1.1631870 2.62820813  6.6322426
+4          trend_cor -0.8732470 0.01310171  0.8807169
+> # what's the probability that consecutive beta_t differ by more than 1?
+> s$prob_max_diff_gt_threshold
+[1] 0.799
+> 
+> # Tighter prior on innovation variance
+> s_tight <- dynamic_beta_prior_summary(sigma_scale = 0.1, seed = 1)
+> s_tight$summary
+            quantity        q05        q50       q95
+1 max_abs_first_diff  0.2176577 0.46198529 1.1278813
+2          roughness  0.1372637 0.55602950 3.0626640
+3              range  0.3659379 0.82262847 2.0530328
+4          trend_cor -0.8787253 0.02435639 0.8788859
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("dynamic_beta_prior_summary", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("el2sm")
+> ### * el2sm
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: el2sm
+> ### Title: Edgelist to sociomatrix
+> ### Aliases: el2sm
+> 
+> ### ** Examples
+> 
+> 
+> Y<-matrix(rpois(10*10,.5),10,10) ; diag(Y)<-NA
+> E<-sm2el(Y) 
+> el2sm(E) - Y 
+    1  2  3  4  5  6  7  8  9 10
+1  NA  0  0  0  0  0  0  0  0  0
+2   0 NA  0  0  0  0  0  0  0  0
+3   0  0 NA  0  0  0  0  0  0  0
+4   0  0  0 NA  0  0  0  0  0  0
+5   0  0  0  0 NA  0  0  0  0  0
+6   0  0  0  0  0 NA  0  0  0  0
+7   0  0  0  0  0  0 NA  0  0  0
+8   0  0  0  0  0  0  0 NA  0  0
+9   0  0  0  0  0  0  0  0 NA  0
+10  0  0  0  0  0  0  0  0  0 NA
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("el2sm", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("evaluate_heldout")
+> ### * evaluate_heldout
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: evaluate_heldout
+> ### Title: Held-out predictive evaluation for an ame / lame fit
+> ### Aliases: evaluate_heldout
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> set.seed(1)
+> n <- 25; Y <- matrix(rbinom(n*n, 1, 0.3), n, n); diag(Y) <- NA
+> rownames(Y) <- colnames(Y) <- paste0("a", sprintf("%02d", 1:n))
+> # mask 20% of dyads
+> mask <- matrix(FALSE, n, n)
+> obs_idx <- which(!is.na(Y))
+> set.seed(1)
+> mask[sample(obs_idx, floor(0.2 * length(obs_idx)))] <- TRUE
+> Y_train <- Y; Y_train[mask] <- NA
+> fit <- ame(Y_train, R = 0, family = "binary",
++            burn = 15, nscan = 60, odens = 5, verbose = FALSE, plot = FALSE)
+> y_pred <- predict(fit, type = "response")
+> evaluate_heldout(Y, y_pred, mask, family = "binary")
+  n_eval    auroc     auprc     brier  logloss
+1    120 0.491853 0.2423768 0.2130208 0.620019
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("evaluate_heldout", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("forecast_pit")
+> ### * forecast_pit
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: forecast_pit
+> ### Title: Probability-integral-transform calibration check for h-step
+> ###   forecasts
+> ### Aliases: forecast_pit
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> Y_train <- YX_bin_list$Y[1:3]
+> Y_test <- YX_bin_list$Y[4]
+> X_train <- YX_bin_list$X[1:3]
+> fit <- lame(Y_train, Xdyad = X_train,
++             family = "binary", R = 0,
++             dynamic_beta = "dyad",
++             nscan = 60, burn = 15, odens = 5, verbose = FALSE)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> pit <- forecast_pit(fit, y_future = Y_test)
+> pit$ks_p
+[1] 0
+> plot(pit)
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("forecast_pit", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("glance.ame")
+> ### * glance.ame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: glance.ame
+> ### Title: Glance method for fitted 'ame' / 'lame' objects
+> ### Aliases: glance.ame glance.lame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
++             nscan = 100, burn = 20, odens = 5, verbose = FALSE)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> glance(fit)
+# A tibble: 1 × 13
+   nobs n_actors n_row_actors n_col_actors n_periods n_stored family mode      R
+  <int>    <int>        <int>        <int>     <int>    <int> <chr>  <chr> <int>
+1  9800       50           NA           NA         4       20 binary unip…     0
+# ℹ 4 more variables: dynamic_uv <lgl>, dynamic_ab <lgl>, dynamic_beta <lgl>,
+#   elpd_loo <dbl>
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("glance.ame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("glance.ame_als")
+> ### * glance.ame_als
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: glance.ame_als
+> ### Title: Glance method for fitted 'ame_als' / 'lame_als' objects
+> ### Aliases: glance.ame_als glance.lame_als
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> Y1 <- 1 * (YX_bin_list$Y[[1]] > 0); diag(Y1) <- NA
+> fit <- ame_als(Y = Y1, Xdyad = YX_bin_list$X[[1]],
++                family = "binary", R = 1, verbose = FALSE)
+> glance(fit)
+# A tibble: 1 × 12
+   nobs n_actors n_row_actors n_col_actors n_periods family mode           R
+  <int>    <int>        <int>        <int>     <int> <chr>  <chr>      <int>
+1  2450       50           NA           NA         1 binary unipartite     1
+# ℹ 4 more variables: non_normal_method <chr>, converged <lgl>,
+#   iterations <int>, se_source <chr>
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("glance.ame_als", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("gof")
+> ### * gof
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: gof
+> ### Title: Compute GOF statistics from saved posterior samples
+> ### Aliases: gof
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Run model without GOF during fitting
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2, gof = FALSE,
++            nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+> 
+> # Compute GOF post-hoc
+> gof_result <- gof(fit)
+ℹ Computing GOF statistics post-hoc
+ℹ Using 99 posterior predictive simulations
+✔ GOF computation complete
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("gof", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("gof_plot")
+> ### * gof_plot
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: gof_plot
+> ### Title: Visualize goodness-of-fit statistics for AME and LAME models
+> ### Aliases: gof_plot
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Fit an AME model
+> data(YX_nrm)
+> fit_ame <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, gof = TRUE,
++                nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+> 
+> # Basic GOF plot
+> gof_plot(fit_ame)
+> 
+> # Plot only degree-related statistics
+> gof_plot(fit_ame, statistics = c("sd.row", "sd.col"))
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("gof_plot", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("gof_stats")
+> ### * gof_stats
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: gof_stats
+> ### Title: Goodness of fit statistics
+> ### Aliases: gof_stats
+> 
+> ### ** Examples
+> 
+> 
+> data(YX_nrm) 
+> 
+> # Auto-detect unipartite
+> gof_stats(YX_nrm$Y) 
+sd.rowmean sd.colmean   dyad.dep  cycle.dep  trans.dep 
+0.93582644 0.27834223 0.65987298 0.03557144 0.04263373 
+> 
+> # Bipartite (rectangular) networks are auto-detected; mode can also
+> # be given explicitly (required when a bipartite network is square)
+> Y_bip <- matrix(rnorm(120), 10, 12)
+> gof_stats(Y_bip, mode = "bipartite")
+  sd.rowmean   sd.colmean  four.cycles 
+   0.2671276    0.1988342 2970.0000000 
+> 
+> # Custom GOF function
+> my_stat <- function(Y) { c(my_measure = sum(Y > 0, na.rm = TRUE)) }
+> gof_stats(YX_nrm$Y, custom_gof = my_stat)
+  sd.rowmean   sd.colmean     dyad.dep    cycle.dep    trans.dep   my_measure 
+  0.93582644   0.27834223   0.65987298   0.03557144   0.04263373 545.00000000 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("gof_stats", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("gof_stats_bipartite")
+> ### * gof_stats_bipartite
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: gof_stats_bipartite
+> ### Title: Goodness of fit statistics for bipartite networks
+> ### Aliases: gof_stats_bipartite
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Create a random bipartite network
+> Y <- matrix(rnorm(10*12), 10, 12)
+> 
+> # Calculate GOF statistics
+> gof_stats_bipartite(Y)
+  sd.rowmean   sd.colmean  four.cycles 
+   0.2671276    0.1988342 2970.0000000 
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("gof_stats_bipartite", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("gof_stats_unipartite")
+> ### * gof_stats_unipartite
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: gof_stats_unipartite
+> ### Title: Goodness of fit statistics for unipartite networks
+> ### Aliases: gof_stats_unipartite
+> 
+> ### ** Examples
+> 
+> 
+> # Create a random unipartite network
+> Y <- matrix(rnorm(100), 10, 10)
+> diag(Y) <- NA
+> gof_stats_unipartite(Y)
+   sd.rowmean    sd.colmean      dyad.dep     cycle.dep     trans.dep 
+ 0.3359975908  0.2667701796 -0.1683026175  0.0002257932 -0.0453403172 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("gof_stats_unipartite", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("gof_temporal")
+> ### * gof_temporal
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: gof_temporal
+> ### Title: Posterior-predictive temporal-trend test
+> ### Aliases: gof_temporal
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
++             dynamic_beta = "dyad",
++             nscan = 60, burn = 15, odens = 5, verbose = FALSE)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> gof_temporal(fit, stat = "density", n_rep = 50)
+
+── Temporal-trend posterior-predictive check ──
+
+• Statistic: "density"
+• Observed slope (per-period): -0.00068
+• Replicates: 50
+• Posterior-predictive p-value (two-sided): 0.92
+Observed temporal trend is well covered by the fitted model.
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("gof_temporal", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("lame-package")
+> ### * lame-package
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: lame-package
+> ### Title: Longitudinal Additive and Multiplicative Effects Models for
+> ###   Networks
+> ### Aliases: lame-package
+> ### Keywords: internal
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, burn = 10, nscan = 100, odens = 1,
++            family = "normal", verbose = FALSE)
+> summary(fit)
+
+=== AME Model Summary ===
+
+Call:
+[1] "Y ~ dyad(intercept, rgpa, rsmoke, cgpa, csmoke, igrade, igpa, ismoke) + a[i] + b[j] + rho*e[ji], family = 'normal'"
+
+Regression coefficients:
+------------------------
+               Estimate StdError z_value p_value CI_lower CI_upper    
+intercept_dyad   -2.692    0.112     -24       0   -2.894   -2.467 ***
+rgpa_dyad         0.221    0.103   2.143   0.032    0.015    0.438   *
+rsmoke_dyad       0.228    0.128   1.774   0.076    0.006     0.46   .
+cgpa_dyad         0.168    0.033   5.084       0    0.108    0.225 ***
+csmoke_dyad       0.106    0.041   2.575    0.01     0.03    0.176   *
+igrade_dyad       1.136    0.035   32.17       0    1.071    1.206 ***
+igpa_dyad         0.053    0.015   3.536       0    0.028    0.082 ***
+ismoke_dyad       0.022    0.033   0.652   0.514   -0.042    0.089    
+---
+Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
+
+Variance components:
+-------------------
+    Estimate StdError
+va     0.848    0.111
+cab    0.100    0.029
+vb     0.082    0.012
+rho    0.920    0.002
+ve     1.055    0.020
+  (va = sender, cab = sender-receiver covariance, vb = receiver,
+   rho = dyadic correlation, ve = residual variance)
+> ## End(No test)
+> 
+> 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("lame-package", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("lame")
+> ### * lame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: lame
+> ### Title: AME model fitting routine for longitudinal relational data
+> ### Aliases: lame
+> 
+> ### ** Examples
+> 
+> 
+> data(YX_bin_list)
+> fit<-lame(YX_bin_list$Y,YX_bin_list$X,burn=5,nscan=5,odens=1,family="binary")
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> # you should run the Markov chain much longer than this
+> 
+> ## No test: 
+> ## Time-varying regression coefficients (dynamic_beta).
+> ## Make every dyadic coefficient evolve as an AR(1):
+> fit_dyn <- lame(YX_bin_list$Y, YX_bin_list$X,
++                 family = "binary", R = 0,
++                 nscan = 60, burn = 15, odens = 5,
++                 dynamic_beta = "dyad")
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> dim(fit_dyn$BETA)        # [n_stored, p, T] -- 3-D when dynamic
+[1] 12  4  4
+> coef(fit_dyn)            # [p, T] posterior-mean coefficient paths
+                  t1         t2         t3         t4
+intercept 0.07716626 0.07716626 0.07716626 0.07716626
+X1_dyad   0.49076649 0.46871668 0.44042800 0.43915069
+X2_dyad   0.59285324 0.56979034 0.56463952 0.52249484
+X3_dyad   0.71830706 0.70157998 0.70796983 0.64771462
+> confint(fit_dyn)         # per-period 95% credible intervals
+                    2.5%     97.5%
+intercept[t1] 0.04044249 0.1187873
+X1_dyad[t1]   0.40880598 0.5754233
+X2_dyad[t1]   0.48775837 0.6524408
+X3_dyad[t1]   0.57551953 0.8230361
+intercept[t2] 0.04044249 0.1187873
+X1_dyad[t2]   0.37351362 0.5351765
+X2_dyad[t2]   0.44252845 0.6697346
+X3_dyad[t2]   0.54809567 0.8177825
+intercept[t3] 0.04044249 0.1187873
+X1_dyad[t3]   0.34099710 0.5228001
+X2_dyad[t3]   0.44566247 0.6604664
+X3_dyad[t3]   0.54365883 0.8223741
+intercept[t4] 0.04044249 0.1187873
+X1_dyad[t4]   0.34156095 0.5122625
+X2_dyad[t4]   0.40711398 0.6061875
+X3_dyad[t4]   0.53869386 0.7384885
+> summary(fit_dyn)         # prints a "Dynamic coefficients per period" block
+
+=== Longitudinal AME Model Summary ===
+
+Call:
+[1] "Y ~ dyad(X1, X2, X3) + a[i] + b[j] + rho*e[ji], family = 'binary'"
+
+Time periods: 4 
+Family: binary 
+Mode: unipartite 
+Dynamic regression coefficients: enabled, kind = 'ar1' (rho_beta = dyad : 0.97)
+
+Regression coefficients:
+------------------------
+          Estimate StdError z_value p_value CI_lower CI_upper    
+intercept    0.077    0.024   3.188   0.001     0.04    0.119  **
+X1_dyad       0.46    0.056   8.209       0    0.366    0.534 ***
+X2_dyad      0.562    0.068   8.325       0    0.446    0.642 ***
+X3_dyad      0.694    0.086   8.092       0    0.551    0.799 ***
+---
+Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.
+
+Dynamic coefficients per period:
+-------------------------------
+           Mean   Min   Max Drift Drift_pct Dynamic
+intercept 0.077 0.077 0.077 0.000     0.000       N
+X1_dyad   0.460 0.439 0.491 0.052    11.227       Y
+X2_dyad   0.562 0.522 0.593 0.070    12.509       Y
+X3_dyad   0.694 0.648 0.718 0.071    10.173       Y
+
+Variance components:
+-------------------
+    Estimate StdError
+va     0.216    0.042
+cab    0.101    0.030
+vb     0.152    0.053
+rho    0.269    0.060
+ve     1.000    0.000
+  (va = sender, cab = sender-receiver covariance, vb = receiver,
+   rho = dyadic correlation, ve = residual variance)
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("lame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("lame_als")
+> ### * lame_als
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: lame_als
+> ### Title: Fast (MCMC-free) AME estimation for a longitudinal network
+> ### Aliases: lame_als
+> 
+> ### ** Examples
+> 
+> Y <- replicate(4, { m <- matrix(rnorm(400), 20, 20); diag(m) <- NA; m },
++                simplify = FALSE)
+> fit <- lame_als(Y, R = 1, family = "normal", verbose = FALSE)
+> coef(fit)
+  intercept 
+-0.02134535 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("lame_als", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("lame_multi")
+> ### * lame_multi
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: lame_multi
+> ### Title: Multi-panel lame() with shared coefficients
+> ### Aliases: lame_multi
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> fit_multi <- lame_multi(
++   Y_list = list(YX_bin_list$Y, YX_bin_list$Y),
++   Xdyad_list = list(YX_bin_list$X, YX_bin_list$X),
++   family = "binary", R = 0,
++   nscan = 100, burn = 25, odens = 5, verbose = FALSE)
+> dim(fit_multi$beta_shared)
+NULL
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("lame_multi", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("lame_parallel")
+> ### * lame_parallel
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: lame_parallel
+> ### Title: Run LAME (longitudinal AME) with multiple parallel chains
+> ### Aliases: lame_parallel
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> fit_pll <- lame_parallel(YX_bin_list$Y, Xdyad = YX_bin_list$X,
++                          family = "binary", n_chains = 2, cores = 1,
++                          nscan = 50, burn = 10, odens = 5,
++                          dynamic_beta = "dyad", verbose = FALSE)
+
+── Running 2 chains sequentially ──
+
+Starting chain 1 (`lame()`)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+Completed chain 1
+Starting chain 2 (`lame()`)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+Completed chain 2
+Combining chains...
+
+── MCMC Convergence Diagnostics 
+Number of chains: 2
+Samples per chain: "10, 10"
+Diagnostics cover regression coefficients and variance components.
+✔ All parameters converged (R-hat < 1.1)
+> dim(fit_pll$BETA)        # [iter * n_chains, p, T]
+[1] 20  4  4
+> fit_pll$chain_indicator  # length iter * n_chains
+ [1] 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2
+> if (requireNamespace("posterior", quietly = TRUE)) {
++   posterior::summarise_draws(posterior::as_draws(fit_pll))
++ }
+# A tibble: 21 × 10
+   variable      mean median     sd    mad     q5    q95  rhat ess_bulk ess_tail
+   <chr>        <dbl>  <dbl>  <dbl>  <dbl>  <dbl>  <dbl> <dbl>    <dbl>    <dbl>
+ 1 intercept[… 0.0619 0.0626 0.0225 0.0252 0.0290 0.0875  1.01       10       10
+ 2 X1_dyad[t1] 0.448  0.457  0.0608 0.0548 0.339  0.530   1.89       10       10
+ 3 X2_dyad[t1] 0.545  0.573  0.0757 0.0547 0.405  0.642   1.89       10       10
+ 4 X3_dyad[t1] 0.652  0.668  0.0850 0.0878 0.502  0.779   1.85       10       10
+ 5 intercept[… 0.0619 0.0626 0.0225 0.0252 0.0290 0.0875  1.01       10       10
+ 6 X1_dyad[t2] 0.424  0.431  0.0569 0.0525 0.322  0.499   1.72       10       10
+ 7 X2_dyad[t2] 0.521  0.527  0.0745 0.0857 0.391  0.613   1.75       10       10
+ 8 X3_dyad[t2] 0.655  0.673  0.0848 0.0952 0.499  0.748   1.63       10       10
+ 9 intercept[… 0.0619 0.0626 0.0225 0.0252 0.0290 0.0875  1.01       10       10
+10 X1_dyad[t3] 0.430  0.417  0.0683 0.0937 0.347  0.519   1.70       10       10
+# ℹ 11 more rows
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("lame_parallel", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("lame_resume")
+> ### * lame_resume
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: lame_resume
+> ### Title: Resume a 'lame()' MCMC run from a checkpoint
+> ### Aliases: lame_resume
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> ck <- tempfile(fileext = ".rds")
+> data(YX_bin_list)
+> # short run with very-aggressive max_seconds to force early termination
+> fit1 <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
++              nscan = 5000, burn = 50, odens = 5,
++              checkpoint_path = ck, checkpoint_every = 50L,
++              max_seconds = 0.5, verbose = FALSE)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> if (isTRUE(fit1$terminated_early)) {
++   fit2 <- lame_resume(ck, nscan_more = 200)
++   dim(fit2$BETA)
++ }
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+[1] 40  4
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("lame_resume", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("lame_snap_als")
+> ### * lame_snap_als
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: lame_snap_als
+> ### Title: Fast approximate dynamic snap-shift AME estimator
+> ### Aliases: lame_snap_als
+> 
+> ### ** Examples
+> 
+> set.seed(1)
+> Y_bip <- lapply(seq_len(3), function(t) {
++   m <- matrix(rnorm(6 * 5), 6, 5)
++   rownames(m) <- paste0("r", seq_len(6))
++   colnames(m) <- paste0("c", seq_len(5))
++   m
++ })
+> fit_bip <- lame_snap_als(Y_bip, R = 1, mode = "bipartite",
++                          max_iter = 3, verbose = FALSE)
+> dim(fit_bip$snap_prob_v)
+[1] 5 3
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("lame_snap_als", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("latent_positions")
+> ### * latent_positions
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: latent_positions
+> ### Title: Extract latent positions as a tidy data frame
+> ### Aliases: latent_positions latent_positions.ame latent_positions.lame
+> ###   latent_positions.ame_als
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
++            burn = 5, nscan = 5, odens = 1, verbose = FALSE)
+> lp <- latent_positions(fit)
+ℹ `posterior_sd` is "NA" because U/V samples were not saved.
+ℹ To get posterior SDs, refit with `posterior_opts = posterior_options(save_UV
+  = TRUE)`.
+This message is displayed once per session.
+> head(lp)
+  actor dimension time      value posterior_sd type
+1 node1         1    1 -0.1684240           NA    U
+2 node2         1    1  0.4269292           NA    U
+3 node3         1    1  0.8392846           NA    U
+4 node4         1    1 -0.4980691           NA    U
+5 node5         1    1  0.2864206           NA    U
+6 node6         1    1  0.1130607           NA    U
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("latent_positions", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ldZgbme")
+> ### * ldZgbme
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ldZgbme
+> ### Title: log density for GBME models
+> ### Aliases: ldZgbme
+> 
+> ### ** Examples
+> 
+> ## For (overdispersed) Poisson regression, use
+> llYZ<-function(y,z){ dpois(y,z,log=TRUE) }
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ldZgbme", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("lfo")
+> ### * lfo
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: lfo
+> ### Title: Exact rolling-origin leave-future-out cross-validation
+> ### Aliases: lfo
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
++             dynamic_beta = "dyad",
++             nscan = 60, burn = 15, odens = 5, verbose = FALSE)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> lfo_res <- lfo(fit, periods = 4L, refit = TRUE,
++                nscan = 50, burn = 10, odens = 5, verbose = FALSE)
+> print(lfo_res)
+
+── Exact rolling-origin LFO ──
+
+Periods evaluated: 4
+Refit per leave-out: TRUE
+Total elpd_lfo: -7311.2
+ period      elpd n_obs
+      4 -7311.203  2450
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("lfo", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("loo.ame")
+> ### * loo.ame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: loo.ame
+> ### Title: Approximate leave-one-out cross-validation for AME / LAME fits
+> ### Aliases: loo.ame loo.lame loo.ame_als
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 0,
++            nscan = 60, burn = 15, odens = 5,
++            save_log_lik = TRUE, verbose = FALSE)
+> if (requireNamespace("loo", quietly = TRUE)) {
++   loo_res <- loo::loo(fit)
++   print(loo_res)
++ }
+Warning: Not enough tail samples to fit the generalized Pareto distribution in some or all columns of matrix of log importance ratios. Skipping the following columns: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ... [9890 more not printed].
+
+Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
+
+
+Computed from 12 by 9900 log-likelihood matrix.
+
+         Estimate    SE
+elpd_loo -14405.9  70.8
+p_loo       171.3   2.8
+looic     28811.8 141.5
+------
+MCSE of elpd_loo is NA.
+MCSE and ESS estimates assume independent draws (r_eff=1).
+
+Pareto k diagnostic values:
+                          Count Pct.    Min. ESS
+(-Inf, 0.07]   (good)        0    0.0%  <NA>    
+   (0.07, 1]   (bad)         0    0.0%  <NA>    
+    (1, Inf)   (very bad) 9900  100.0%  <NA>    
+See help('pareto-k-diagnostic') for details.
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("loo.ame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("nodematch")
+> ### * nodematch
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: nodematch
+> ### Title: ERGM-style covariate helpers for ame() / lame()
+> ### Aliases: nodematch absdiff nodefactor
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> n <- 12
+> grp <- sample(letters[1:3], n, replace = TRUE)
+> age <- rnorm(n, 40, 10)
+> # build a single same-group homophily covariate
+> Xdyad <- array(nodematch(grp), dim = c(n, n, 1),
++                dimnames = list(NULL, NULL, "same_group"))
+> # combine homophily + age difference
+> Xdyad <- array(c(nodematch(grp), absdiff(age)),
++                dim = c(n, n, 2),
++                dimnames = list(NULL, NULL, c("same_group", "age_diff")))
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("nodematch", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("per_actor_slopes")
+> ### * per_actor_slopes
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: per_actor_slopes
+> ### Title: Post-MCMC per-actor time-varying slopes
+> ### Aliases: per_actor_slopes
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
++             nscan = 100, burn = 25, odens = 5, verbose = FALSE)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> # post-MCMC per-row-actor slopes on the first dyadic covariate
+> pas <- per_actor_slopes(fit, kind = "row", lambda = 1)
+> dim(pas$slopes)
+[1] 50  4
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("per_actor_slopes", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("plot.ame")
+> ### * plot.ame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: plot.ame
+> ### Title: Simple diagnostic plot for AME model fit
+> ### Aliases: plot.ame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Fit an AME model
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2, gof = TRUE,
++            nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+> 
+> # Quick diagnostic plot (shows trace plots)
+> plot(fit)
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("plot.ame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("plot.lame")
+> ### * plot.lame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: plot.lame
+> ### Title: Plot diagnostics for a LAME model fit
+> ### Aliases: plot.lame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Create simple longitudinal network data
+> set.seed(6886)
+> n <- 10
+> nms <- paste0("n", 1:n)
+> Y_list <- list(
++   matrix(rnorm(n * n), n, n, dimnames = list(nms, nms)),
++   matrix(rnorm(n * n), n, n, dimnames = list(nms, nms))
++ )
+> diag(Y_list[[1]]) <- diag(Y_list[[2]]) <- NA
+> fit <- lame(Y_list, family = "normal",
++             nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE)
+> 
+> # default combined plot
+> plot(fit)
+ℹ Generating LAME diagnostic plots: trace, density, gof, effects
+ℹ Combining plots into single page layout
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("plot.lame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("predict.ame")
+> ### * predict.ame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: predict.ame
+> ### Title: Predict method for AME models
+> ### Aliases: predict.ame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Fit model
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
++            nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+> 
+> # Point predictions
+> Y_pred <- predict(fit)
+> 
+> # Predictions on link scale
+> Y_link <- predict(fit, type = "link")
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("predict.ame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("print.ame")
+> ### * print.ame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: print.ame
+> ### Title: Print method for AME model objects
+> ### Aliases: print.ame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Fit model
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
++            nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+> 
+> # Display summary
+> print(fit)
+
+Additive and Multiplicative Effects (AME) Model
+================================================
+
+Network dimensions:  100 x 100 
+Stored posterior samples:  100 
+Family:  normal 
+Mode:  unipartite 
+Symmetric:  FALSE 
+
+Number of parameters:
+  Regression coefficients:  8 
+  Row/sender effects: enabled
+  Column/receiver effects: enabled
+  Dyadic correlation: enabled
+  Multiplicative effects dimension:  2 
+
+Use summary(object) for detailed results
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("print.ame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("procrustes_align")
+> ### * procrustes_align
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: procrustes_align
+> ### Title: Procrustes alignment of latent positions across time
+> ### Aliases: procrustes_align
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> # YX_bin_list$Y stores latent-scale values; threshold to 0/1 first
+> Y_bin <- lapply(YX_bin_list$Y, function(y) 1 * (y > 0))
+> fit <- lame(Y_bin, Xdyad = YX_bin_list$X, R = 2,
++             family = "binary", dynamic_uv = TRUE,
++             burn = 5, nscan = 5, odens = 1,
++             verbose = FALSE)
+> aligned <- procrustes_align(fit)
+> str(aligned$U)  # aligned 3D array [n, R, T]
+ num [1:50, 1:2, 1:4] -0.0454 -0.0681 0.219 0.2154 0.053 ...
+ - attr(*, "dimnames")=List of 3
+  ..$ : chr [1:50] "303" "304" "317" "321" ...
+  ..$ : NULL
+  ..$ : NULL
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("procrustes_align", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("rUV_sym_fc")
+> ### * rUV_sym_fc
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: rUV_sym_fc
+> ### Title: Gibbs sampling of U and V
+> ### Aliases: rUV_sym_fc
+> 
+> ### ** Examples
+> 
+> 
+> U0<-matrix(rnorm(30,2),30,2) ; V0<-U0%*%diag(c(3,-2)) 
+> E<- U0%*%t(V0) + matrix(rnorm(30^2),30,30) 
+> rUV_sym_fc 
+function (E, U, V, s2 = 1, shrink = TRUE) 
+{
+    n <- nrow(U)
+    uLoopIDs <- as.integer(rep(sample(1:n), 4) - 1)
+    rUV_sym_fc_cpp(E, U, V, s2, shrink, uLoopIDs)
+}
+<bytecode: 0x597eb601f240>
+<environment: namespace:lame>
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("rUV_sym_fc", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("rhat_dynamic_beta")
+> ### * rhat_dynamic_beta
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: rhat_dynamic_beta
+> ### Title: Multivariate split-R-hat for dynamic_beta coefficient paths
+> ### Aliases: rhat_dynamic_beta
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> # note: pass seed = to lame() -- an external set.seed() does not vary
+> # the sampler, so it would produce identical chains
+> fit_list <- lapply(c(1L, 2L), function(s) {
++   lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
++        dynamic_beta = "dyad", seed = s,
++        nscan = 60, burn = 15, odens = 5, verbose = FALSE)
++ })
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> rhat_dynamic_beta(fit_list)
+       coef  rhat_mvt rhat_max_univariate n_chains n_iter_per_chain T
+1 intercept 0.9652322            1.003289        2               12 4
+2   X1_dyad 1.4857680            1.994606        2               12 4
+3   X2_dyad 1.2703514            2.126998        2               12 4
+4   X3_dyad 1.6227131            2.165537        2               12 4
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("rhat_dynamic_beta", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("rwish")
+> ### * rwish
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: rwish
+> ### Title: Simulation from a Wishart distribution
+> ### Aliases: rwish
+> 
+> ### ** Examples
+> 
+> 
+> ## The expectation is S0*nu
+> 
+> S0<-rwish(diag(3)) 
+> 
+> SS<-matrix(0,3,3) 
+> for(s in 1:1000) { SS<-SS+rwish(S0,5) }
+> 
+> SS/s 
+           [,1]       [,2]      [,3]
+[1,]  18.675292   4.260511 -17.62519
+[2,]   4.260511   9.471615 -15.78454
+[3,] -17.625186 -15.784543  45.28637
+> 
+> S0*5
+           [,1]       [,2]      [,3]
+[1,]  18.889703   4.022192 -17.59369
+[2,]   4.022192   9.403325 -15.63874
+[3,] -17.593686 -15.638744  44.96883
+> 
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("rwish", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("simulate.ame")
+> ### * simulate.ame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: simulate.ame
+> ### Title: Simulate networks from a fitted AME model
+> ### Aliases: simulate.ame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Fit a model
+> data(YX_bin)
+> fit <- ame(YX_bin$Y, Xdyad = YX_bin$X, burn = 10, nscan = 100, odens = 1,
++            family = "binary", verbose = FALSE)
+> 
+> # Simulate 10 networks from posterior
+> sims <- simulate(fit, nsim = 10)
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("simulate.ame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("simulate.lame")
+> ### * simulate.lame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: simulate.lame
+> ### Title: Simulate longitudinal networks from a fitted LAME model
+> ### Aliases: simulate.lame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Create simple longitudinal network data
+> set.seed(1)
+> n <- 10
+> nms <- paste0("n", 1:n)
+> Y_list <- list(
++   matrix(rnorm(n * n), n, n, dimnames = list(nms, nms)),
++   matrix(rnorm(n * n), n, n, dimnames = list(nms, nms))
++ )
+> diag(Y_list[[1]]) <- diag(Y_list[[2]]) <- NA
+> fit <- lame(Y_list, family = "normal",
++             nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE)
+> 
+> # Simulate 10 network trajectories from posterior
+> sims <- simulate(fit, nsim = 10)
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("simulate.lame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("simulate_posterior")
+> ### * simulate_posterior
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: simulate_posterior
+> ### Title: Simulate posterior distributions from fitted AME model
+> ### Aliases: simulate_posterior
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Fit a model with multiplicative effects
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
++            nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+> 
+> # Get posterior samples of regression coefficients
+> beta_post <- simulate_posterior(fit, "beta", n_samples = 50)
+Using saved MCMC samples for beta
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("simulate_posterior", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("sm2el")
+> ### * sm2el
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: sm2el
+> ### Title: Sociomatrix to edgelist
+> ### Aliases: sm2el
+> 
+> ### ** Examples
+> 
+> 
+> Y<-matrix(rpois(10*10,.5),10,10) ; diag(Y)<-NA
+> E<-sm2el(Y) 
+> el2sm(E) - Y 
+    1  2  3  4  5  6  7  8  9 10
+1  NA  0  0  0  0  0  0  0  0  0
+2   0 NA  0  0  0  0  0  0  0  0
+3   0  0 NA  0  0  0  0  0  0  0
+4   0  0  0 NA  0  0  0  0  0  0
+5   0  0  0  0 NA  0  0  0  0  0
+6   0  0  0  0  0 NA  0  0  0  0
+7   0  0  0  0  0  0 NA  0  0  0
+8   0  0  0  0  0  0  0 NA  0  0
+9   0  0  0  0  0  0  0  0 NA  0
+10  0  0  0  0  0  0  0  0  0 NA
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("sm2el", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("tidy.ame")
+> ### * tidy.ame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: tidy.ame
+> ### Title: Tidy method for fitted 'ame' / 'lame' objects
+> ### Aliases: tidy.ame tidy.lame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
++             nscan = 100, burn = 20, odens = 5, verbose = FALSE)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> tidy(fit)
+# A tibble: 4 × 7
+  term      estimate std.error statistic    p.value conf.low conf.high
+  <chr>        <dbl>     <dbl>     <dbl>      <dbl>    <dbl>     <dbl>
+1 intercept   0.0677    0.0148      4.58 0.00000466   0.0491    0.0961
+2 X1_dyad     0.493     0.0501      9.84 0            0.392     0.546 
+3 X2_dyad     0.599     0.0615      9.74 0            0.473     0.674 
+4 X3_dyad     0.747     0.0754      9.90 0            0.599     0.827 
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("tidy.ame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("tidy.ame_als")
+> ### * tidy.ame_als
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: tidy.ame_als
+> ### Title: Tidy method for fitted 'ame_als' / 'lame_als' objects
+> ### Aliases: tidy.ame_als tidy.lame_als
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> Y1 <- 1 * (YX_bin_list$Y[[1]] > 0); diag(Y1) <- NA
+> fit <- ame_als(Y = Y1, Xdyad = YX_bin_list$X[[1]],
++                family = "binary", R = 1, verbose = FALSE)
+> tidy(fit)
+Warning: ! `vcov.ame_als()` for "binary" returns the conditional sandwich on the
+  surrogate working likelihood -- anti-conservative.
+ℹ Refit with `ame_als(..., bootstrap = 200)` for fully propagated uncertainty.
+ℹ Or call `confint(fit)` after attaching a bootstrap with
+  `ame_als_bootstrap()`.
+# A tibble: 4 × 8
+  term       estimate std.error statistic   p.value conf.low conf.high se_source
+  <chr>         <dbl>     <dbl>     <dbl>     <dbl>    <dbl>     <dbl> <chr>    
+1 intercept     0.200    0.0357      5.61   1.99e-8    0.130     0.270 sandwich 
+2 dyad1_dyad    0.758    0.0155     49.0    0          0.727     0.788 sandwich 
+3 dyad2_dyad    0.896    0.0163     55.1    0          0.864     0.928 sandwich 
+4 dyad3_dyad    1.11     0.0204     54.3    0          1.07      1.15  sandwich 
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("tidy.ame_als", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("trace_plot")
+> ### * trace_plot
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: trace_plot
+> ### Title: MCMC trace plots and density plots for AME/LAME model parameters
+> ### Aliases: trace_plot
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Fit an AME model
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X,
++            nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+> 
+> # Basic trace plots for all parameters
+> trace_plot(fit)
+> 
+> # Only regression coefficients
+> trace_plot(fit, params = "beta")
+> 
+> # Only variance components
+> trace_plot(fit, params = "variance")
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("trace_plot", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("update.ame")
+> ### * update.ame
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: update.ame
+> ### Title: Update an AME / LAME fit
+> ### Aliases: update.ame update.lame
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> data(YX_bin_list)
+> fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary",
++             burn = 5, nscan = 20, odens = 1, verbose = FALSE)
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> # toggle dynamic_beta on without rewriting the whole call
+> fit_dyn <- update(fit, dynamic_beta = "dyad")
+Warning: `family` = "binary" but `Y` contains values other than 0/1.
+ℹ `Y` will be thresholded to `1 * (Y > 0)`; if you meant counts, use "poisson",
+  or "ordinal"/"normal" as appropriate.
+> dim(fit_dyn$BETA)  # 3-D now
+[1] 20  4  4
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("update.ame", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("update.ame_als")
+> ### * update.ame_als
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: update.ame_als
+> ### Title: Update an 'ame_als' / 'lame_als' fit
+> ### Aliases: update.ame_als update.lame_als
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> Y <- matrix(rnorm(400), 20, 20); diag(Y) <- NA
+> fit <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
+> # warm-start refit with the same arguments (fast)
+> fit_w <- update(fit, max_iter = 50)
+> # cold-start refit with a different R (full restart)
+> fit_R2 <- update(fit, R = 2)
+> ## End(No test)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("update.ame_als", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("uv_plot")
+> ### * uv_plot
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: uv_plot
+> ### Title: Visualize multiplicative effects (latent factors) from AME
+> ###   models
+> ### Aliases: uv_plot
+> 
+> ### ** Examples
+> 
+> ## No test: 
+> # Fit an AME model with multiplicative effects
+> data(YX_nrm)
+> fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
++            nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+> 
+> # Basic visualization
+> uv_plot(fit)
+> 
+> # Use biplot layout
+> uv_plot(fit, layout = "biplot")
+> ## End(No test)
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("uv_plot", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("vignette_data")
+> ### * vignette_data
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: vignette_data
+> ### Title: TIES sanctions data for vignettes
+> ### Aliases: vignette_data
+> ### Keywords: datasets
+> 
+> ### ** Examples
+> 
+> data(vignette_data)
+> cat("Countries:", nrow(Y[[1]]), "\n")
+Countries: 35 
+> cat("Time periods:", length(Y), "\n")
+Time periods: 4 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("vignette_data", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> ### * <FOOTER>
+> ###
+> cleanEx()
+> options(digits = 7L)
+> base::cat("Time elapsed: ", proc.time() - base::get("ptime", pos = 'CheckExEnv'),"\n")
+Time elapsed:  35.969 0.198 36.291 0 0 
+> grDevices::dev.off()
+null device 
+          1 
+> ###
+> ### Local variables: ***
+> ### mode: outline-minor ***
+> ### outline-regexp: "\\(> \\)?### [*]+" ***
+> ### End: ***
+> quit('no')

@@ -54,9 +54,16 @@ using namespace Rcpp;
    double runifdraw = R::runif(runiflo, runifhi);
    double qnormdraw = R::qnorm(runifdraw, 0.0, 1.0, 1, 0);
    double rho1 = rho + sr*qnormdraw;
+   // truncated-normal proposal normalizer Z(r) = Phi((1-r)/sr) - Phi((-1-r)/sr).
+   // The proposal is a normal truncated to (-1,1), so the Metropolis-Hastings
+   // ratio must include q(rho|rho1)/q(rho1|rho) = Z(rho)/Z(rho1); omitting it
+   // targets pi(rho)*Z(rho), biasing the chain away from |rho| -> 1.
+   double lZ0 = std::log(R::pnorm((1-rho)/sr,0.0,1.0,1,0)  - R::pnorm((-1-rho)/sr,0.0,1.0,1,0));
+   double lZ1 = std::log(R::pnorm((1-rho1)/sr,0.0,1.0,1,0) - R::pnorm((-1-rho1)/sr,0.0,1.0,1,0));
    double lhr = ( -.5*(m*log(1-pow(rho1,2))+(emss-2*rho1*emcp)/(1-pow(rho1,2))) ) -
-     (-.5*(m*log(1-pow(rho,2) )+(emss-2*rho*emcp )/(1-pow(rho,2) ))) + 
-     ( (-.5*log(1-pow(rho1,2))) - (-.5*log(1-pow(rho,2))) );
+     (-.5*(m*log(1-pow(rho,2) )+(emss-2*rho*emcp )/(1-pow(rho,2) ))) +
+     ( (-.5*log(1-pow(rho1,2))) - (-.5*log(1-pow(rho,2))) )         +
+     ( lZ0 - lZ1 );
    double rhoNew;
    if( log(runif(1,0,1)[0]) < lhr ){ rhoNew = rho1; } else { rhoNew = rho; }
    return( rhoNew );

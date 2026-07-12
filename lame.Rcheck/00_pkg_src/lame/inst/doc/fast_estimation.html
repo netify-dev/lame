@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Cassy Dorff, Shahryar Minhas, and Tosin Salau" />
+
+<meta name="date" content="2026-07-12" />
+
+<title>Fast (MCMC-free) AME Estimation</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Fast (MCMC-free) AME Estimation</h1>
+<h4 class="author">Cassy Dorff, Shahryar Minhas, and Tosin Salau</h4>
+<h4 class="date">2026-07-12</h4>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#when-to-use-the-fast-estimator" id="toc-when-to-use-the-fast-estimator">When to use the fast
+estimator</a>
+<ul>
+<li><a href="#wall-clock-benchmark" id="toc-wall-clock-benchmark">Wall-clock benchmark</a></li>
+<li><a href="#what-als-can-do-vs.-what-only-mcmc-does" id="toc-what-als-can-do-vs.-what-only-mcmc-does">What ALS can do
+vs. what only MCMC does</a></li>
+</ul></li>
+<li><a href="#a-first-fit" id="toc-a-first-fit">A first fit</a></li>
+<li><a href="#choosing-the-rank-r" id="toc-choosing-the-rank-r">Choosing
+the rank R</a></li>
+<li><a href="#non-normal-families" id="toc-non-normal-families">Non-normal families</a></li>
+<li><a href="#uncertainty" id="toc-uncertainty">Uncertainty</a>
+<ul>
+<li><a href="#als-bootstrap-vs-mcmc-posterior-on-the-same-data" id="toc-als-bootstrap-vs-mcmc-posterior-on-the-same-data">ALS bootstrap
+vs MCMC posterior on the same data</a></li>
+</ul></li>
+<li><a href="#longitudinal-data" id="toc-longitudinal-data">Longitudinal
+data</a></li>
+<li><a href="#summary" id="toc-summary">Summary</a></li>
+</ul>
+</div>
+
+<div id="when-to-use-the-fast-estimator" class="section level2">
+<h2>When to use the fast estimator</h2>
+<p><code>ame()</code> and <code>lame()</code> fit AME models by Bayesian
+MCMC, which gives calibrated posterior inference but can take minutes.
+For rapid model exploration, trying several ranks, screening covariates,
+or getting starting values, the package also ships a fast, MCMC-free
+point estimator:</p>
+<ul>
+<li><code>ame_als()</code>: cross-sectional networks</li>
+<li><code>lame_als()</code>: longitudinal (replicated) networks</li>
+<li><code>ame_als_bootstrap()</code>: bootstrap standard errors and
+intervals</li>
+</ul>
+<p>It fits the same model</p>
+<p>z_ij = mu + beta’x_ij + a_i + b_j + u_i’v_j + e_ij</p>
+<p>by <strong>iterative block coordinate descent</strong> rather than
+Gibbs sampling. It is typically tens to hundreds of times faster than
+<code>ame()</code>, and the point estimates are usually close. Use it
+when a point estimate is enough; use <code>ame()</code> /
+<code>lame()</code> when the target is a posterior summary.</p>
+<div id="wall-clock-benchmark" class="section level3">
+<h3>Wall-clock benchmark</h3>
+<p>The numbers below are indicative for normal-family AME with
+<code>R = 2</code>; absolute timings depend heavily on CPU, BLAS, and
+whether you are on a high-clock workstation or a virtualised / WSL host.
+On the dev box (WSL2, single-threaded BLAS) the same benchmark ran
+roughly 2-4× slower than the workstation reference column, so treat
+these as order-of- magnitude. The point estimator scales O(n² · iter)
+per BCD pass and is dominated by the linear system at each block; the
+MCMC scales similarly per iteration but pays the constant of running
+thousands of iterations. The “ratio” column is what you actually feel:
+the ALS fit completes before MCMC finishes its burn-in for any
+reasonable n.</p>
+<table>
+<thead>
+<tr class="header">
+<th>n</th>
+<th><code>ame()</code> MCMC (4000 iter)</th>
+<th><code>ame_als()</code></th>
+<th>Speed ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>50</td>
+<td>5-25 s</td>
+<td>0.1-0.5 s</td>
+<td>25-250×</td>
+</tr>
+<tr class="even">
+<td>100</td>
+<td>15-50 s</td>
+<td>0.3-1 s</td>
+<td>30-200×</td>
+</tr>
+<tr class="odd">
+<td>200</td>
+<td>60-120 s</td>
+<td>2-3 s</td>
+<td>30-60×</td>
+</tr>
+<tr class="even">
+<td>500</td>
+<td>7-15 min</td>
+<td>15-30 s</td>
+<td>25-40×</td>
+</tr>
+</tbody>
+</table>
+<p>These ranges are wide on purpose: under a single-threaded BLAS on a
+virtualised host, the small-n speed ratios we have measured are several
+times larger than the “≈ 30×” figure in older docs, because the MCMC’s
+per-iteration overhead is fixed and the ALS solve is nearly free at n ≤
+100. Treat the ratio as “ALS finishes before MCMC’s burn-in” rather than
+a number to plan against.</p>
+<p>For binary/poisson the <strong>point-estimate</strong> speedup ratio
+is much smaller (often only 3-10× on small networks) because the IRLS
+path runs 3-5 reweighting iterations per fit, and because the MCMC
+binary sampler is itself cheaper per iteration than the normal sampler.
+Bipartite and unipartite ALS run at broadly similar cost for comparable
+dimensions; which is faster depends on the exact shape and hardware, so
+do not read much into small differences.</p>
+<p><strong>The bootstrap can dominate.</strong> A
+<code>bootstrap = 100</code> parametric bootstrap runs the full ALS fit
+101 times. For a binary <code>ame_als(R = 1, bootstrap = 100)</code> at
+n = 50, we measured ≈ 135 s – slower than the equivalent MCMC fit. If
+you only need the point estimate, skip the bootstrap
+(<code>bootstrap = 0</code>, the default) and use the sandwich
+<code>vcov()</code>/<code>confint()</code> on the fit. If you need
+interval estimates at scale, compare the bootstrap cost with a regular
+<code>ame()</code> MCMC run; for some binary networks the MCMC fit is
+cheaper – and for binary <code>R &gt; 0</code> it is also the
+statistically preferred choice, since the bootstrap inherits the point
+estimator’s finite-sample upward bias (see Non-normal families
+below).</p>
+<p>To benchmark on your own hardware:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n<span class="sc">*</span>n), n, n); <span class="fu">diag</span>(Y) <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="fu">rownames</span>(Y) <span class="ot">&lt;-</span> <span class="fu">colnames</span>(Y) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;a&quot;</span>, <span class="fu">sprintf</span>(<span class="st">&quot;%03d&quot;</span>, <span class="dv">1</span><span class="sc">:</span>n))</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>t_als <span class="ot">&lt;-</span> <span class="fu">system.time</span>(<span class="fu">ame_als</span>(Y, <span class="at">R =</span> <span class="dv">2</span>, <span class="at">family =</span> <span class="st">&quot;normal&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>t_mcmc <span class="ot">&lt;-</span> <span class="fu">system.time</span>(<span class="fu">ame</span>(Y, <span class="at">R =</span> <span class="dv">2</span>, <span class="at">family =</span> <span class="st">&quot;normal&quot;</span>, <span class="at">burn =</span> <span class="dv">500</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>                          <span class="at">nscan =</span> <span class="dv">4000</span>, <span class="at">odens =</span> <span class="dv">25</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>, <span class="at">plot =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;ALS:  &quot;</span>, <span class="fu">round</span>(t_als[<span class="st">&quot;elapsed&quot;</span>], <span class="dv">2</span>), <span class="st">&quot;s</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>    <span class="st">&quot;MCMC: &quot;</span>, <span class="fu">round</span>(t_mcmc[<span class="st">&quot;elapsed&quot;</span>], <span class="dv">2</span>), <span class="st">&quot;s</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>    <span class="st">&quot;ratio:&quot;</span>, <span class="fu">round</span>(t_mcmc[<span class="st">&quot;elapsed&quot;</span>] <span class="sc">/</span> t_als[<span class="st">&quot;elapsed&quot;</span>], <span class="dv">1</span>), <span class="st">&quot;x</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+</div>
+<div id="what-als-can-do-vs.-what-only-mcmc-does" class="section level3">
+<h3>What ALS can do vs. what only MCMC does</h3>
+<p>ALS is a fast point estimator. It covers most static AME workflows
+and several dynamic workflows, while posterior-specific features still
+require the Bayesian MCMC fits. The current coverage is:</p>
+<table>
+<colgroup>
+<col width="46%" />
+<col width="29%" />
+<col width="24%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Capability</th>
+<th><code>ame()</code> / <code>lame()</code> (MCMC)</th>
+<th>Fast point estimators</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Families: normal, binary</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td>Family: poisson</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td>Families: ordinal / cbin / frn</td>
+<td>yes</td>
+<td>no (error)</td>
+</tr>
+<tr class="even">
+<td>Unipartite / bipartite mode</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td><code>symmetric = TRUE</code></td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td><code>R = 0..min(n)-1</code></td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td>Xrow / Xcol / Xdyad covariates</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td>Reproducibility via <code>seed=</code></td>
+<td>yes</td>
+<td>yes (deterministic ALS)</td>
+</tr>
+<tr class="odd">
+<td><code>coef</code>, <code>vcov</code>, <code>fitted</code>,
+<code>residuals</code></td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td><code>confint</code></td>
+<td>posterior quantile</td>
+<td>sandwich Wald OR bootstrap</td>
+</tr>
+<tr class="odd">
+<td><code>predict(newdata=)</code></td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td><code>summary</code>, <code>print</code>,
+<code>latent_positions</code></td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td><code>nobs</code></td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td><code>simulate</code></td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td><code>gof_plot</code></td>
+<td>posterior predictive</td>
+<td>bootstrap-based GOF check</td>
+</tr>
+<tr class="even">
+<td><code>ab_plot</code>, <code>uv_plot</code></td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td><code>prior_summary</code></td>
+<td>yes</td>
+<td>yes (reports “no priors”)</td>
+</tr>
+<tr class="even">
+<td><code>dynamic_ab</code> / selected <code>dynamic_beta</code></td>
+<td>yes</td>
+<td>normal, binary, and Poisson panels via dynamic ALS; named
+changing-composition panels are aligned</td>
+</tr>
+<tr class="odd">
+<td>Dynamic node-covariate coefficient paths</td>
+<td>yes</td>
+<td>period-specific node values when selected by
+<code>dynamic_beta</code>; static node effects use actor means</td>
+</tr>
+<tr class="even">
+<td><code>dynamic_uv</code> (smooth AR(1) / t)</td>
+<td>yes</td>
+<td>AR(1) and t for directed, symmetric, and bipartite panels</td>
+</tr>
+<tr class="odd">
+<td><code>dynamic_G</code></td>
+<td>yes</td>
+<td>bipartite normal, binary, and Poisson panels via dynamic ALS; named
+changing-composition panels are aligned</td>
+</tr>
+<tr class="even">
+<td><code>dynamic_uv_kind = &quot;snap&quot;</code></td>
+<td>yes</td>
+<td><code>lame_snap_als()</code> for normal unipartite and bipartite
+panels</td>
+</tr>
+<tr class="odd">
+<td>Custom priors (<code>prior = list(...)</code>, <code>g</code>)</td>
+<td>yes</td>
+<td>no Bayesian priors; dynamic ALS reads selected
+<code>prior$rho_*_mean</code> and <code>prior$lambda_*_als</code> values
+as smoothing controls</td>
+</tr>
+<tr class="even">
+<td>Multi-chain (<code>n_chains</code>, via
+<code>ame_parallel</code>)</td>
+<td>yes</td>
+<td>no (use <code>bootstrap = N</code>)</td>
+</tr>
+<tr class="odd">
+<td><code>posterior_opts</code> (save U/V/a/b samples)</td>
+<td>yes</td>
+<td>no (point estimator)</td>
+</tr>
+<tr class="even">
+<td><code>trace_plot</code> (Rhat / ESS)</td>
+<td>yes</td>
+<td>no (deterministic)</td>
+</tr>
+<tr class="odd">
+<td><code>custom_gof</code>, <code>periodic_save</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>When you call the unified front door with MCMC-only arguments, the
+ALS dispatcher warns and lists exactly which ones it ignored – for the
+arguments each entry point actually accepts. Two notes on the edges:</p>
+<ul>
+<li><code>nscan</code> / <code>burn</code> / <code>odens</code> /
+<code>g</code> are accepted-then-ignored with a warning by both
+<code>ame(method = &quot;als&quot;)</code> and
+<code>lame(method = &quot;als&quot;)</code>.</li>
+<li>The static ALS dispatcher warns and ignores MCMC tuning arguments
+such as <code>nscan</code>, <code>burn</code>, <code>odens</code>, prior
+settings not used by the fast path, and <code>g</code>. Dynamic ALS has
+no posterior priors, but it does use selected entries in
+<code>prior</code> as deterministic smoothing controls
+(<code>prior$rho_ab_mean</code>, <code>prior$rho_beta_mean</code>,
+<code>prior$rho_uv_mean</code>, <code>prior$rho_G_mean</code>, and
+<code>prior$lambda_*_als</code>). Dynamic requests are stricter:
+supported <code>dynamic_ab</code>, selected <code>dynamic_beta</code>,
+AR(1) or t <code>dynamic_uv</code>, and bipartite <code>dynamic_G</code>
+requests route to dynamic ALS for normal, binary, and Poisson panels.
+Named changing-composition panels are aligned to the union actor set and
+actor-entry gaps break the smoothing penalties. Student-t dynamic UV
+fits attach final local transition-weight matrices as
+<code>fit$lambda_u</code> and <code>fit$lambda_v</code>.
+<code>lame(method = &quot;als&quot;, dynamic_uv = TRUE,   dynamic_uv_kind = &quot;snap&quot;)</code>
+routes to <code>lame_snap_als()</code> for supported normal unipartite
+and bipartite panels; unsupported dynamic stacks raise a specific error
+rather than being silently ignored. Use <code>als_max_iter</code>,
+<code>als_tol</code>, and <code>als_stability</code> for longer dynamic
+ALS runs and start-sensitivity checks.</li>
+<li>Passing longitudinal-only arguments such as <code>dynamic_uv</code>,
+<code>dynamic_ab</code>, or <code>dynamic_beta</code> to
+<code>ame()</code> (cross-sectional) raises the usual “longitudinal-only
+argument” error before ALS runs, because they are not valid
+<code>ame()</code> arguments at all.</li>
+<li><code>n_chains</code> is an <code>ame()</code> /
+<code>ame_parallel()</code> argument; it is not a <code>lame()</code>
+formal, so <code>lame(method = &quot;als&quot;, n_chains = ...)</code> raises an
+“unused argument” error rather than a warn-and-ignore. Use
+<code>bootstrap = N</code> for ALS uncertainty regardless of entry
+point.</li>
+</ul>
+</div>
+</div>
+<div id="a-first-fit" class="section level2">
+<h2>A first fit</h2>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>n  <span class="ot">&lt;-</span> <span class="dv">40</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>a  <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, <span class="fl">0.5</span>); b <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, <span class="fl">0.5</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>Xd <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n <span class="sc">*</span> n), n, n)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>Y  <span class="ot">&lt;-</span> <span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> Xd <span class="sc">+</span> <span class="fu">outer</span>(a, b, <span class="st">&quot;+&quot;</span>) <span class="sc">+</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n <span class="sc">*</span> n), n, n)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="fu">diag</span>(Y) <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">ame_als</span>(Y, <span class="at">Xdyad =</span> Xd, <span class="at">R =</span> <span class="dv">1</span>, <span class="at">family =</span> <span class="st">&quot;normal&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>fit</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt; AME fit via iterative block coordinate descent (fast, MCMC-free)</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt; Family: normal | Mode: unipartite | R = 1</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt; Network: 40 x 40, 1 time slice</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="co">#&gt; Converged: TRUE in 5 iterations</span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="co">#&gt; Coefficients:</span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co">#&gt;  intercept dyad1_dyad </span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="co">#&gt;     0.6315     0.7944</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co">#&gt; Variance components:</span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="co">#&gt;      va     cab      vb     rho      ve </span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="co">#&gt;  0.1929  0.0461  0.2217 -0.0198  1.0461</span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="co">#&gt; va/vb: variances of the sender/receiver effects | cab: their covariance | rho:</span></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a><span class="co">#&gt; dyadic residual reciprocity | ve: residual variance.</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a><span class="co">#&gt; (Descriptive summaries, not random-effect variance components.)</span></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="co">#&gt; Point estimate only; no uncertainty. Re-fit with `bootstrap = N` (e.g.</span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a><span class="co">#&gt; `ame_als(Y, ..., bootstrap = 200)`) to attach bootstrap intervals in one call.</span></span></code></pre></div>
+<p><code>coef()</code>, <code>fitted()</code>, <code>residuals()</code>,
+<code>predict()</code> and <code>plot()</code> all work as for any model
+object. The printed variance components (<code>va</code>,
+<code>vb</code>, <code>cab</code>, <code>rho</code>, <code>ve</code>)
+are descriptive summaries of the fitted effects, not random-effect
+variance components.</p>
+</div>
+<div id="choosing-the-rank-r" class="section level2">
+<h2>Choosing the rank R</h2>
+<p>There is no information criterion for <code>R</code>. Fit a few
+values and look for an elbow in the deviance / SSE:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>devs <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">3</span>, <span class="cf">function</span>(r)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>    <span class="fu">ame_als</span>(Y, <span class="at">Xdyad =</span> Xd, <span class="at">R =</span> r, <span class="at">family =</span> <span class="st">&quot;normal&quot;</span>,</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>                <span class="at">verbose =</span> <span class="cn">FALSE</span>)<span class="sc">$</span>deviance)</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">R =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">3</span>, <span class="at">deviance =</span> <span class="fu">round</span>(devs, <span class="dv">1</span>))</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt;   R deviance</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt; 1 0   1617.5</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt; 2 1   1465.6</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt; 3 2   1324.9</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt; 4 3   1193.4</span></span></code></pre></div>
+<p>If the curve declines smoothly with no clear elbow, keep
+<code>R</code> small and confirm the chosen rank with an
+<code>ame()</code> fit.</p>
+</div>
+<div id="non-normal-families" class="section level2">
+<h2>Non-normal families</h2>
+<p>For <code>binary</code> and <code>poisson</code> data the default
+<code>non_normal_method = &quot;irls&quot;</code> runs an iteratively reweighted
+least squares loop, returning coefficients on the calibrated link scale
+(probit for binary, log for poisson). The alternative
+<code>non_normal_method = &quot;transform&quot;</code> is faster but its
+coefficients are on an uncalibrated rank scale, good for the sign and
+ranking of effects but not their magnitude.</p>
+<p>One caveat for binary fits with <code>R &gt; 0</code>: the factor
+block is a penalized (MAP-style) point estimate, and a residual
+finite-sample (incidental-parameters) upward bias in the coefficients
+remains – roughly +10-15% at n = 50, shrinking with n, and largest when
+<code>R</code> is set higher than the data support. The bootstrap
+reproduces rather than removes this bias, and <code>ame_als()</code>
+prints a reminder when <code>verbose = TRUE</code>. The binary examples
+in this vignette use <code>R = 0</code>, which does not trigger this
+caveat; for final binary coefficient inference at <code>R &gt; 0</code>,
+use the MCMC <code>ame()</code>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>Yb <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">*</span> (Y <span class="sc">&gt;</span> <span class="fu">median</span>(Y, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)); <span class="fu">diag</span>(Yb) <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>fb <span class="ot">&lt;-</span> <span class="fu">ame_als</span>(Yb, <span class="at">Xdyad =</span> Xd, <span class="at">R =</span> <span class="dv">0</span>, <span class="at">family =</span> <span class="st">&quot;binary&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="fu">coef</span>(fb)</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co">#&gt;  intercept dyad1_dyad </span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#&gt; 0.01191482 0.80192554</span></span></code></pre></div>
+</div>
+<div id="uncertainty" class="section level2">
+<h2>Uncertainty</h2>
+<p>The point estimator carries no uncertainty. Use the bootstrap:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>bt <span class="ot">&lt;-</span> <span class="fu">ame_als_bootstrap</span>(fb, <span class="at">R =</span> <span class="dv">100</span>, <span class="at">type =</span> <span class="st">&quot;parametric&quot;</span>,</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>                            <span class="at">seed =</span> <span class="dv">1</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="fu">summary</span>(bt)</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt; ── Bootstrap results: fast AME estimator ───────────────────────────────────────</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt; Type: parametric | Family: binary | Mode: unipartite</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; Replicates: 100 valid of 100 (100%)</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt; Network: 40 x 40, 1 time slice, R = 0</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt; ────────────────────────────────────────────────────────────────────────────────</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt; Regression coefficients</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt;            Estimate Boot SE 2.5%   97.5%  sig</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#&gt; intercept  0.0119   0.139   -0.271 0.23      </span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt; dyad1_dyad 0.8019   0.5385  0.746  1.0016 *</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt; * = 95% percentile CI excludes zero</span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt; ────────────────────────────────────────────────────────────────────────────────</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt; Variance components</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt;     Estimate Boot SE    2.5%  97.5%</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt; va    0.2443  0.2128  0.2276 0.5657</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt; cab   0.0278  0.1098 -0.0662 0.1277</span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt; vb    0.2490  0.2289  0.2067 0.4989</span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt; rho  -0.0075  0.0402 -0.1028 0.0606</span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt; ve    1.0000  0.0000  1.0000 1.0000</span></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co">#&gt; ────────────────────────────────────────────────────────────────────────────────</span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#&gt; Additive effects (rotation-invariant, aggregated directly)</span></span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="co">#&gt; Sender a: mean |SE| = 0.5983</span></span>
+<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a><span class="co">#&gt; Receiver b: mean |SE| = 0.596</span></span></code></pre></div>
+<p>Two rows of this table deserve a comment before you report anything
+from it. First, the <code>Boot SE</code> column is the raw standard
+deviation across replicates, and for <code>dyad1_dyad</code> it visibly
+disagrees with the interval printed next to it: an SE of 0.5385 would
+imply a Wald interval of roughly [-0.25, 1.86], yet the 95% percentile
+CI is [0.746, 1.0016] – a width that corresponds to an SE of about
+0.065. The gap comes from a single divergent binary IRLS replicate (1 of
+the 100 refits returned a coefficient of 6.2), which inflates the
+standard deviation while barely moving the percentile quantiles. That is
+exactly why the package defaults to percentile CIs: report the
+percentile interval, which is what <code>confint()</code> returns by
+default, not a Wald interval built from the printed SE.</p>
+<p>Second, one row of the variance-components table is constant by
+construction: for the binary family the latent residual variance
+<code>ve</code> is fixed at 1 by probit identification, so its bootstrap
+SE is exactly zero and its interval is the point [1, 1] – that row is
+expected, not a failed bootstrap. See <code>?ame_als</code> for the
+<code>ve</code> vs <code>ve_working</code> distinction.</p>
+<p><code>type = &quot;parametric&quot;</code> (the default) simulates fresh
+outcomes from the fitted model and refits; <code>type = &quot;block&quot;</code>
+resamples time slices and is available for longitudinal fits with
+several time points. <code>confint()</code> and <code>vcov()</code> work
+on the bootstrap object.</p>
+<p>A fast analytic alternative for the <strong>regression coefficients
+only</strong> is the conditional sandwich covariance,
+<code>vcov()</code> / <code>confint()</code> applied directly to the
+fit. It is anti-conservative (it holds the additive and multiplicative
+effects fixed); the bootstrap is the recommended tool for full
+inference.</p>
+<div id="als-bootstrap-vs-mcmc-posterior-on-the-same-data" class="section level3">
+<h3>ALS bootstrap vs MCMC posterior on the same data</h3>
+<p>A useful sanity check on the fast estimator is to fit the same data
+with both engines and overlay the coefficient intervals. With a
+calibrated link (<code>non_normal_method = &quot;irls&quot;</code> for binary, the
+default) the ALS bootstrap should give a coefficient story qualitatively
+similar to the MCMC posterior on cases the model fits well; large
+differences mean the posterior fit is the better reference for that
+dataset.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># wrap Xd into a 3-D array with an explicit slice name so the ALS and MCMC</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co"># paths produce identical coefficient names (the auto-naming default differs</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co"># between the two engines)</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>Xd_arr <span class="ot">&lt;-</span> <span class="fu">array</span>(Xd, <span class="at">dim =</span> <span class="fu">c</span>(<span class="fu">nrow</span>(Xd), <span class="fu">ncol</span>(Xd), <span class="dv">1</span>),</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>                <span class="at">dimnames =</span> <span class="fu">list</span>(<span class="cn">NULL</span>, <span class="cn">NULL</span>, <span class="st">&quot;Xd&quot;</span>))</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co"># refit the binary ALS fit with the bootstrap attached so tidy() returns</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co"># bootstrap-based intervals</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>fb_b <span class="ot">&lt;-</span> <span class="fu">ame_als</span>(Yb, <span class="at">Xdyad =</span> Xd_arr, <span class="at">R =</span> <span class="dv">0</span>, <span class="at">family =</span> <span class="st">&quot;binary&quot;</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>                <span class="at">verbose =</span> <span class="cn">FALSE</span>, <span class="at">bootstrap =</span> <span class="dv">100</span>, <span class="at">bootstrap_seed =</span> <span class="dv">1</span>)</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co"># fit the same data with MCMC using a short chain for a quick comparison</span></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a>fit_mcmc <span class="ot">&lt;-</span> <span class="fu">ame</span>(Yb, <span class="at">Xdyad =</span> Xd_arr, <span class="at">family =</span> <span class="st">&quot;binary&quot;</span>, <span class="at">R =</span> <span class="dv">0</span>,</span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a>                <span class="at">burn =</span> <span class="dv">200</span>, <span class="at">nscan =</span> <span class="dv">1000</span>, <span class="at">odens =</span> <span class="dv">5</span>,</span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a>                <span class="at">verbose =</span> <span class="cn">FALSE</span>, <span class="at">plot =</span> <span class="cn">FALSE</span>, <span class="at">gof =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a>                <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a></span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a><span class="co"># collect the common coefficient interval columns without relying on</span></span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a><span class="co"># vignette-time s3 dispatch through broom</span></span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a>coef_interval_table <span class="ot">&lt;-</span> <span class="cf">function</span>(fit) {</span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a>    est <span class="ot">&lt;-</span> <span class="fu">coef</span>(fit)</span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a>    ci <span class="ot">&lt;-</span> <span class="fu">confint</span>(fit)</span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a>    terms <span class="ot">&lt;-</span> <span class="fu">intersect</span>(<span class="fu">names</span>(est), <span class="fu">rownames</span>(ci))</span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a>    <span class="fu">data.frame</span>(</span>
+<span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a>        <span class="at">term =</span> terms,</span>
+<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a>        <span class="at">estimate =</span> <span class="fu">unname</span>(est[terms]),</span>
+<span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a>        <span class="at">conf.low =</span> <span class="fu">unname</span>(ci[terms, <span class="dv">1</span>]),</span>
+<span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a>        <span class="at">conf.high =</span> <span class="fu">unname</span>(ci[terms, <span class="dv">2</span>]),</span>
+<span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a>        <span class="at">row.names =</span> <span class="cn">NULL</span></span>
+<span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a>    )</span>
+<span id="cb6-31"><a href="#cb6-31" tabindex="-1"></a>}</span>
+<span id="cb6-32"><a href="#cb6-32" tabindex="-1"></a></span>
+<span id="cb6-33"><a href="#cb6-33" tabindex="-1"></a>als_tdy  <span class="ot">&lt;-</span> <span class="fu">coef_interval_table</span>(fb_b)</span>
+<span id="cb6-34"><a href="#cb6-34" tabindex="-1"></a>mcmc_tdy <span class="ot">&lt;-</span> <span class="fu">coef_interval_table</span>(fit_mcmc)</span>
+<span id="cb6-35"><a href="#cb6-35" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb6-36"><a href="#cb6-36" tabindex="-1"></a>    <span class="fu">cbind</span>(<span class="at">estimator =</span> <span class="st">&quot;ALS bootstrap&quot;</span>,</span>
+<span id="cb6-37"><a href="#cb6-37" tabindex="-1"></a>          als_tdy[, <span class="fu">c</span>(<span class="st">&quot;term&quot;</span>, <span class="st">&quot;estimate&quot;</span>, <span class="st">&quot;conf.low&quot;</span>, <span class="st">&quot;conf.high&quot;</span>)]),</span>
+<span id="cb6-38"><a href="#cb6-38" tabindex="-1"></a>    <span class="fu">cbind</span>(<span class="at">estimator =</span> <span class="st">&quot;MCMC posterior&quot;</span>,</span>
+<span id="cb6-39"><a href="#cb6-39" tabindex="-1"></a>          mcmc_tdy[, <span class="fu">c</span>(<span class="st">&quot;term&quot;</span>, <span class="st">&quot;estimate&quot;</span>, <span class="st">&quot;conf.low&quot;</span>, <span class="st">&quot;conf.high&quot;</span>)])</span>
+<span id="cb6-40"><a href="#cb6-40" tabindex="-1"></a>)</span>
+<span id="cb6-41"><a href="#cb6-41" tabindex="-1"></a></span>
+<span id="cb6-42"><a href="#cb6-42" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb6-43"><a href="#cb6-43" tabindex="-1"></a><span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> estimate, <span class="at">y =</span> term,</span>
+<span id="cb6-44"><a href="#cb6-44" tabindex="-1"></a>                <span class="at">colour =</span> estimator, <span class="at">shape =</span> estimator)) <span class="sc">+</span></span>
+<span id="cb6-45"><a href="#cb6-45" tabindex="-1"></a>    <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">&quot;dashed&quot;</span>, <span class="at">colour =</span> <span class="st">&quot;grey60&quot;</span>) <span class="sc">+</span></span>
+<span id="cb6-46"><a href="#cb6-46" tabindex="-1"></a>    <span class="fu">geom_pointrange</span>(<span class="fu">aes</span>(<span class="at">xmin =</span> conf.low, <span class="at">xmax =</span> conf.high),</span>
+<span id="cb6-47"><a href="#cb6-47" tabindex="-1"></a>                    <span class="at">position =</span> <span class="fu">position_dodge</span>(<span class="at">width =</span> <span class="fl">0.45</span>),</span>
+<span id="cb6-48"><a href="#cb6-48" tabindex="-1"></a>                    <span class="at">size =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb6-49"><a href="#cb6-49" tabindex="-1"></a>    <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">&quot;ALS bootstrap&quot;</span>  <span class="ot">=</span> <span class="st">&quot;#0072B2&quot;</span>,</span>
+<span id="cb6-50"><a href="#cb6-50" tabindex="-1"></a>                                    <span class="st">&quot;MCMC posterior&quot;</span> <span class="ot">=</span> <span class="st">&quot;#D55E00&quot;</span>)) <span class="sc">+</span></span>
+<span id="cb6-51"><a href="#cb6-51" tabindex="-1"></a>    <span class="fu">scale_shape_manual</span>(<span class="at">values  =</span> <span class="fu">c</span>(<span class="st">&quot;ALS bootstrap&quot;</span>  <span class="ot">=</span> <span class="dv">16</span>,</span>
+<span id="cb6-52"><a href="#cb6-52" tabindex="-1"></a>                                    <span class="st">&quot;MCMC posterior&quot;</span> <span class="ot">=</span> <span class="dv">17</span>)) <span class="sc">+</span></span>
+<span id="cb6-53"><a href="#cb6-53" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;coefficient (probit scale)&quot;</span>, <span class="at">y =</span> <span class="cn">NULL</span>,</span>
+<span id="cb6-54"><a href="#cb6-54" tabindex="-1"></a>         <span class="at">colour =</span> <span class="cn">NULL</span>, <span class="at">shape =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb6-55"><a href="#cb6-55" tabindex="-1"></a>    <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb6-56"><a href="#cb6-56" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">panel.border    =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb6-57"><a href="#cb6-57" tabindex="-1"></a>          <span class="at">axis.ticks      =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb6-58"><a href="#cb6-58" tabindex="-1"></a>          <span class="at">legend.position =</span> <span class="st">&quot;top&quot;</span>)</span></code></pre></div>
+<p><img src="data:image/png;base64,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" alt="Side-by-side coefficient plot comparing the ALS bootstrap and MCMC posterior on the same binary network. Each coefficient (intercept and the single dyadic covariate) has two horizontal intervals: one for the ALS bootstrap, one for the MCMC posterior. A dashed vertical line at zero marks the no-effect reference; intervals on the same side of zero and with overlapping range indicate the two estimators agree." /></p>
+<p>Two intervals on the same side of zero with substantial overlap means
+ALS is a fine point estimate for that coefficient; intervals that
+disagree on sign or location point to the MCMC fit for that dataset.</p>
+</div>
+</div>
+<div id="longitudinal-data" class="section level2">
+<h2>Longitudinal data</h2>
+<p><code>lame_als()</code> is the longitudinal counterpart. Its effects
+are static (pooled across time), as in a non-dynamic <code>lame()</code>
+fit.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">3</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>Yl <span class="ot">&lt;-</span> <span class="fu">replicate</span>(<span class="dv">5</span>, {</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>    <span class="co"># intercept 0.4 + sender/receiver structure + noise (no dyadic</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>    <span class="co"># covariate is passed below, so only the intercept is recoverable)</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>    m <span class="ot">&lt;-</span> <span class="fl">0.4</span> <span class="sc">+</span> <span class="fu">outer</span>(a, b, <span class="st">&quot;+&quot;</span>) <span class="sc">+</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n <span class="sc">*</span> n), n, n)</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>    <span class="fu">diag</span>(m) <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>    m</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>}, <span class="at">simplify =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>lf <span class="ot">&lt;-</span> <span class="fu">lame_als</span>(Yl, <span class="at">R =</span> <span class="dv">1</span>, <span class="at">family =</span> <span class="st">&quot;normal&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="fu">coef</span>(lf)</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co">#&gt; intercept </span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co">#&gt; 0.4978209</span></span></code></pre></div>
+</div>
+<div id="summary" class="section level2">
+<h2>Summary</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Task</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Fast cross-sectional point estimate</td>
+<td><code>ame_als()</code></td>
+</tr>
+<tr class="even">
+<td>Fast longitudinal point estimate</td>
+<td><code>lame_als()</code></td>
+</tr>
+<tr class="odd">
+<td>Bootstrap standard errors / intervals</td>
+<td><code>ame_als_bootstrap()</code></td>
+</tr>
+<tr class="even">
+<td>Calibrated posterior inference</td>
+<td><code>ame()</code> / <code>lame()</code></td>
+</tr>
+</tbody>
+</table>
+<p>The fast estimator returns point estimates and bootstrap or sandwich
+uncertainty. The MCMC estimator returns posterior summaries.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

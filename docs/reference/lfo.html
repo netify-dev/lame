@@ -15,7 +15,7 @@ across all leave-out periods, along with per-period contributions."></head><body
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -96,7 +96,7 @@ means (a much rougher approximation).</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list with <code>elpd_lfo</code> (total summed elpd), <code>pointwise</code>
 (per-dyad log-density at each leave-out period; a list of numeric
-vectors, one per period — <code>unlist(pointwise)</code> gives a flat vector
+vectors, one per period – <code>unlist(pointwise)</code> gives a flat vector
 suitable for <code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo::loo_compare()</a></code>-style stacking),
 <code>p_lfo</code> (effective number of parameters), <code>per_period</code>
 (data frame with <code>period</code>, <code>elpd</code>, <code>n_obs</code>), and
@@ -109,34 +109,21 @@ suitable for <code><a href="https://mc-stan.org/loo/reference/loo_compare.html" 
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="lame.html">lame</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">$</span><span class="va">Y</span>, <span class="va">YX_bin_list</span><span class="op">$</span><span class="va">X</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span></span>
 <span class="r-in"><span>            dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span></span>
-<span class="r-in"><span>            nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>            nscan <span class="op">=</span> <span class="fl">60</span>, burn <span class="op">=</span> <span class="fl">15</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`family` = <span style="color: #0000BB;">"binary"</span> but `Y` contains values other than 0/1.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
-<span class="r-in"><span><span class="va">lfo_res</span> <span class="op">&lt;-</span> <span class="fu">lfo</span><span class="op">(</span><span class="va">fit</span>, periods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3L</span>, <span class="fl">4L</span><span class="op">)</span>, refit <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
-<span class="r-in"><span>               nscan <span class="op">=</span> <span class="fl">100</span>, burn <span class="op">=</span> <span class="fl">20</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span><span style="color: #BBBB00;">!</span> Posterior 95% interval for `rho_beta` reaches <span style="color: #0000BB;">0.991</span>.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Under AR(1) the `h`-step forecast variance saturates at the stationary level</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   `sigma_beta^2 / (1 - rho_beta^2)`, which itself explodes as `rho_beta -&gt; 1`;</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   horizons beyond <span style="color: #0000BB;">"3"</span> become uninformative in this regime.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Consider refitting with `dynamic_beta_kind = "rw1"` if the underlying process</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   is genuinely unit-root.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span><span style="color: #BBBB00;">!</span> Posterior 95% interval for `rho_beta` reaches <span style="color: #0000BB;">0.991</span>.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Under AR(1) the `h`-step forecast variance saturates at the stationary level</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   `sigma_beta^2 / (1 - rho_beta^2)`, which itself explodes as `rho_beta -&gt; 1`;</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   horizons beyond <span style="color: #0000BB;">"3"</span> become uninformative in this regime.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Consider refitting with `dynamic_beta_kind = "rw1"` if the underlying process</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   is genuinely unit-root.</span>
+<span class="r-in"><span><span class="va">lfo_res</span> <span class="op">&lt;-</span> <span class="fu">lfo</span><span class="op">(</span><span class="va">fit</span>, periods <span class="op">=</span> <span class="fl">4L</span>, refit <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
+<span class="r-in"><span>               nscan <span class="op">=</span> <span class="fl">50</span>, burn <span class="op">=</span> <span class="fl">10</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">lfo_res</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── <span style="font-weight: bold;">Exact rolling-origin LFO</span> ──</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Periods evaluated: <span style="color: #0000BB;">3</span> and <span style="color: #0000BB;">4</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Periods evaluated: <span style="color: #0000BB;">4</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Refit per leave-out: <span style="color: #0000BB;">TRUE</span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Total elpd_lfo: <span style="color: #0000BB;">-17633</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Total elpd_lfo: <span style="color: #0000BB;">-4270.5</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  period      elpd n_obs</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       3 -8517.472  2450</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       4 -9115.306  2450</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       4 -4270.525  2450</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

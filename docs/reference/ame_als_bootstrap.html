@@ -8,8 +8,9 @@ fitted model and refits. For normal and IRLS (binary,
 poisson) fits the simulation is on the calibrated response scale;
 for a non-normal transform fit – whose estimator is a Gaussian
 fit to a fixed transformed response – it is on the Gaussian working
-scale. The simulated residual variance is inflated by the mean-model
-degrees of freedom so the replicates are centred on the point estimate.
+scale. The fitted residual variance is df-corrected (mean-model degrees
+of freedom) at fit time, so simulating with it keeps the replicates
+centred on the point estimate.
 Available for both cross-sectional and longitudinal fits.
 
 block
@@ -37,8 +38,9 @@ fitted model and refits. For normal and IRLS (binary,
 poisson) fits the simulation is on the calibrated response scale;
 for a non-normal transform fit – whose estimator is a Gaussian
 fit to a fixed transformed response – it is on the Gaussian working
-scale. The simulated residual variance is inflated by the mean-model
-degrees of freedom so the replicates are centred on the point estimate.
+scale. The fitted residual variance is df-corrected (mean-model degrees
+of freedom) at fit time, so simulating with it keeps the replicates
+centred on the point estimate.
 Available for both cross-sectional and longitudinal fits.
 
 block
@@ -65,7 +67,7 @@ percentile method."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -113,8 +115,9 @@ fitted model and refits. For <code>normal</code> and IRLS (<code>binary</code>,
 <code>poisson</code>) fits the simulation is on the calibrated response scale;
 for a non-normal <code>transform</code> fit – whose estimator is a Gaussian
 fit to a fixed transformed response – it is on the Gaussian working
-scale. The simulated residual variance is inflated by the mean-model
-degrees of freedom so the replicates are centred on the point estimate.
+scale. The fitted residual variance is df-corrected (mean-model degrees
+of freedom) at fit time, so simulating with it keeps the replicates
+centred on the point estimate.
 Available for both cross-sectional and longitudinal fits.</p></dd>
 
 <dt><code>block</code></dt>
@@ -211,7 +214,7 @@ joint Hessian rank-deficient. Second, even with a gauge fixed, the non-normal
 families are fit on a Gaussian working response, so a Hessian computed from
 that working objective is not calibrated to the family likelihood. The
 bootstrap side-steps both issues and is the recommended uncertainty tool
-here, mirroring <code><a href="https://rdrr.io/pkg/sir/man/boot_sir.html" class="external-link">sir::boot_sir()</a></code>.</p>
+here, mirroring <code><a href="https://netify-dev.github.io/sir/reference/boot_sir.html" class="external-link">sir::boot_sir()</a></code>.</p>
 <p><strong>Alignment-sensitive quantities.</strong> The regression coefficients
 <code>beta</code>, the additive effects <code>a</code>, <code>b</code> and the variance
 components are rotation-invariant and are aggregated directly. The
@@ -250,7 +253,7 @@ that is the target.</p>
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Minhas, S. and Hoff, P. D. (2025). Decomposing Network Dynamics: Social
 Influence Regression. <em>Political Analysis</em>. The block and parametric
-bootstrap follow the inference scheme of <code><a href="https://rdrr.io/pkg/sir/man/boot_sir.html" class="external-link">sir::boot_sir()</a></code> developed
+bootstrap follow the inference scheme of <code><a href="https://netify-dev.github.io/sir/reference/boot_sir.html" class="external-link">sir::boot_sir()</a></code> developed
 for the SIR estimator.</p>
     </div>
     <div class="section level2">

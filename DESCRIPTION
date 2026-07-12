@@ -1,11 +1,11 @@
 Package: lame
 Title: Longitudinal Additive and Multiplicative Effects Models for Networks
-Version: 1.2.1
+Version: 1.3.0
 Authors@R: c(
     person("Cassy", "Dorff", role = "aut"),
     person("Shahryar", "Minhas", , "minhassh@msu.edu", role = c("aut", "cre")),
     person("Tosin", "Salau", role = "aut"))
-Description: Tools for Additive and Multiplicative Effects (AME) models for both cross-sectional and longitudinal network analysis. The package provides two main functions: 'ame()' for cross-sectional networks and 'lame()' for longitudinal networks. Package supports unipartite (square) and bipartite (rectangular) network structures. Key features include: (1) Cross-sectional network analysis via 'ame()' with support for various data types (binary, continuous, ordinal, count); (2) Longitudinal network analysis via 'lame()' with dynamic effects modeling where both additive (sender/receiver) and multiplicative (latent factor) effects can be chosen to evolve over time via AR(1) processes (Sewell & Chen 2015 <doi:10.1080/01621459.2014.988214>, Durante & Dunson 2014 <doi:10.1093/biomet/asu040>); (3) Handling of changing actor compositions across time periods in longitudinal models; (4) Performance improvements through C++ implementations via Rcpp and RcppArmadillo. 
+Description: Tools for Additive and Multiplicative Effects (AME) models for both cross-sectional and longitudinal network analysis. The package provides two main functions: 'ame()' for cross-sectional networks and 'lame()' for longitudinal networks. Package supports unipartite (square) and bipartite (rectangular) network structures. Key features include: (1) Cross-sectional network analysis via 'ame()' with support for various data types (binary, continuous, ordinal, count); (2) Longitudinal network analysis via 'lame()' with dynamic effects modeling where both additive (sender/receiver) and multiplicative (latent factor) effects can be chosen to evolve over time via AR(1) processes (Sewell & Chen 2015 <doi:10.1080/01621459.2014.988214>, Durante & Dunson 2014 <doi:10.1093/biomet/asu040>); (3) Handling of changing actor compositions across time periods in longitudinal models; (4) Performance improvements through C++ implementations via 'Rcpp' and 'RcppArmadillo'.
 Author: Cassy Dorff [aut], Shahryar Minhas [aut, cre], Tosin Salau [aut]
 Maintainer: Shahryar Minhas <minhassh@msu.edu>
 License: MIT + file LICENSE
@@ -22,22 +22,27 @@ LinkingTo:
 Imports:
     Rcpp,
     ggplot2,
-    reshape2,
     ggrepel,
     ggforce,
-    network,
     gridExtra,
     coda,
     patchwork,
     cli,
     MASS,
     Matrix,
-    abind
+    abind,
+    netify (>= 1.5.3),
+    graphics,
+    grDevices,
+    parallel,
+    stats,
+    utils
 Suggests:
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
     igraph,
+    network,
     posterior,
     loo,
     digest,

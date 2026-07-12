@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-06-11</h4>
+            <h4 data-toc-skip class="date">2026-07-12</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/HEAD/vignettes/cross_sec_ame.Rmd" class="external-link"><code>vignettes/cross_sec_ame.Rmd</code></a></small>
       <div class="d-none name"><code>cross_sec_ame.Rmd</code></div>
@@ -161,6 +161,8 @@ students vary in their number of friends?</p>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
 <span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        axis.ticks <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        legend.position <span class="op">=</span> <span class="st">"top"</span>,</span>
 <span>        strip.background <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_rect</a></span><span class="op">(</span>fill <span class="op">=</span> <span class="st">"black"</span>, color <span class="op">=</span> <span class="st">"black"</span><span class="op">)</span>,</span>
 <span>        strip.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"white"</span>, hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span>    <span class="op">)</span></span></code></pre></div>
@@ -303,15 +305,15 @@ generally a more stable estimator.</li>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;                  Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept           -3.49    1.096  -3.184   0.001   -5.894   -1.615  **</span></span>
-<span><span class="co">#&gt; female_row         -0.522    0.303  -1.723   0.085   -1.128   -0.002   .</span></span>
-<span><span class="co">#&gt; grade_row           0.065    0.085   0.765   0.444   -0.062    0.248    </span></span>
-<span><span class="co">#&gt; female_col         -0.385    0.277   -1.39   0.165   -0.898    0.081    </span></span>
-<span><span class="co">#&gt; grade_col           0.275    0.059   4.635       0    0.142    0.364 ***</span></span>
-<span><span class="co">#&gt; same_female_dyad    0.187    0.183   1.022   0.307   -0.163    0.519    </span></span>
-<span><span class="co">#&gt; same_race_dyad     -0.085    0.265   -0.32   0.749     -0.5    0.409    </span></span>
-<span><span class="co">#&gt; same_grade_dyad      0.17    0.261   0.649   0.517   -0.338     0.65    </span></span>
-<span><span class="co">#&gt; grade_diff_dyad    -0.602    0.101  -5.966       0   -0.783   -0.409 ***</span></span>
+<span><span class="co">#&gt; intercept          -3.277    0.981  -3.342   0.001   -5.465   -1.584 ***</span></span>
+<span><span class="co">#&gt; female_row         -0.484    0.256  -1.892   0.058   -0.989   -0.046   .</span></span>
+<span><span class="co">#&gt; grade_row           0.075    0.086   0.863   0.388   -0.083    0.235    </span></span>
+<span><span class="co">#&gt; female_col         -0.378    0.243  -1.558   0.119   -0.827    0.088    </span></span>
+<span><span class="co">#&gt; grade_col            0.25    0.068   3.682       0    0.124    0.389 ***</span></span>
+<span><span class="co">#&gt; same_female_dyad    0.171    0.172   0.994    0.32   -0.216    0.441    </span></span>
+<span><span class="co">#&gt; same_race_dyad     -0.098    0.301  -0.326   0.744   -0.679     0.53    </span></span>
+<span><span class="co">#&gt; same_grade_dyad     0.127    0.262   0.487   0.626   -0.413    0.606    </span></span>
+<span><span class="co">#&gt; grade_diff_dyad    -0.612    0.094  -6.495       0   -0.757   -0.443 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -319,10 +321,10 @@ generally a more stable estimator.</li>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.406    0.139</span></span>
-<span><span class="co">#&gt; cab    0.031    0.092</span></span>
-<span><span class="co">#&gt; vb     0.236    0.084</span></span>
-<span><span class="co">#&gt; rho    0.831    0.081</span></span>
+<span><span class="co">#&gt; va     0.388    0.144</span></span>
+<span><span class="co">#&gt; cab    0.051    0.095</span></span>
+<span><span class="co">#&gt; vb     0.240    0.116</span></span>
+<span><span class="co">#&gt; rho    0.816    0.085</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
@@ -342,7 +344,7 @@ and <code>grade_diff</code> measure nearly the same thing – a grade
 difference of 0 <em>is</em> the same-grade event – so the model cannot
 cleanly <em>split</em> the grade signal between them. It still
 identifies the dominant effect: <code>grade_diff</code> is strongly
-negative and stable from run to run (about -0.59, never near zero). What
+negative and stable from run to run (about -0.61, never near zero). What
 suffers is the partition: <code>same_grade</code> is left to absorb a
 small, noisy residual bump on top of the linear grade-distance trend.
 The lesson is about <em>interpretation</em>, not estimate instability:
@@ -355,39 +357,21 @@ mean more heterogeneity. The dyadic correlation (<code>rho</code>)
 captures reciprocity: values near 1 mean that if A nominates B, B almost
 always nominates A back. In this network, reciprocity is strong.</p>
 <p>For binary networks with a probit link, the coefficients are on the
-latent scale. The marginal effect of a covariate on the response
-probability is
+latent scale: the marginal effect of a covariate on the tie probability
+is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mi>′</mi><mi>β</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>⋅</mo><msub><mi>β</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">\phi(x'\beta) \cdot \beta_k</annotation></semantics></math>,
 where
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
-is the standard normal density. That density is maximized at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>≈</mo><mn>0.399</mn></mrow><annotation encoding="application/x-tex">\phi(0) \approx 0.399</annotation></semantics></math>,
-which is the source of the textbook
+is the standard normal density. The textbook
 “<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.4</mn><mo>×</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">0.4 \times \beta</annotation></semantics></math>”
-rule of thumb for probit (see e.g. Wooldridge 2010, <em>Econometric
-Analysis of Cross Section and Panel Data</em>, ch. 15, or Greene 2018,
-<em>Econometric Analysis</em>, ch. 17). This approximation is only sharp
-when the baseline predicted probability is near 0.5. The Add Health
-friendship network has density 0.128, well below 0.5, so
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>Φ</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.128</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo>≈</mo><mn>0.21</mn></mrow><annotation encoding="application/x-tex">\phi(\Phi^{-1}(0.128)) \approx 0.21</annotation></semantics></math>
-– the marginal effect of a unit change in a covariate is closer to
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.21</mn><mo>×</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">0.21 \times \beta</annotation></semantics></math>
-than to the
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.4</mn><mo>×</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">0.4 \times \beta</annotation></semantics></math>
-midpoint rule (and it would fall further, to about
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.18</mn><mo>×</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">0.18 \times \beta</annotation></semantics></math>,
-on a sparser
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>≈</mo><mn>0.1</mn></mrow><annotation encoding="application/x-tex">p \approx 0.1</annotation></semantics></math>
-network). Two further wrinkles specific to AME: (i) the random effects
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>i</mi></msub><mo>,</mo><msub><mi>b</mi><mi>j</mi></msub><mo>,</mo><msub><mi>u</mi><mi>i</mi></msub><mi>′</mi><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">a_i, b_j, u_i'v_j</annotation></semantics></math>
-contribute extra variance to the latent linear predictor, so the
-marginal effect after integrating them out is smaller again by a factor
-of
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msqrt><mrow><mn>1</mn><mo>+</mo><msub><mi>V</mi><mtext mathvariant="normal">RE</mtext></msub></mrow></msqrt></mrow><annotation encoding="application/x-tex">1/\sqrt{1 + V_\text{RE}}</annotation></semantics></math>;
-(ii) the right number to report depends on whether you want the effect
-at the sample mean, the average effect across observed dyads, or the
-effect at specific covariate values. For interpretation, compute the
-quantity you want with <code>predict(fit, type = "response")</code> and
+rule of thumb uses the maximum of that density,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>≈</mo><mn>0.399</mn></mrow><annotation encoding="application/x-tex">\phi(0) \approx 0.399</annotation></semantics></math>,
+and is only sharp when the baseline probability is near 0.5. The Add
+Health friendship network has density 0.128, well below 0.5, so the
+factor here is closer to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>Φ</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>0.128</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow><mo>≈</mo><mn>0.21</mn></mrow><annotation encoding="application/x-tex">\phi(\Phi^{-1}(0.128)) \approx 0.21</annotation></semantics></math>.
+Rather than juggling correction factors, compute the quantity you
+actually want with <code>predict(fit, type = "response")</code> and
 contrast predicted probabilities under counterfactual covariate
 settings.</p>
 </div>
@@ -400,20 +384,25 @@ distribution thoroughly.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"beta"</span>, ncol <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></code></pre></div>
 <p><img src="cross_sec_ame_files/figure-html/trace-plots-1.png" class="r-plt" alt="MCMC trace and density plots for each regression coefficient; stable traces fluctuate around a steady mean and the density plots are smooth and unimodal." width="960" style="display: block; margin: auto;"></p>
+<p>The regression coefficients are not the whole story, though – the
+slowest-mixing term in these fits is usually the dyadic correlation
+<code>rho</code>, so it deserves its own trace:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"variance"</span>, include <span class="op">=</span> <span class="st">"Dyadic Correlation"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="cross_sec_ame_files/figure-html/trace-rho-1.png" class="r-plt" alt="MCMC trace and density plot for the dyadic correlation (rho); the trace moves slowly relative to the regression coefficients, illustrating the slow mixing discussed in the text." width="768" style="display: block; margin: auto;"></p>
 <p><strong>What to look for:</strong> The trace plots (top) should
 fluctuate around a stable mean. If you see long trends, the chain has
 not converged. The density plots (bottom) should be smooth and unimodal.
-With 80 post-burn-in samples most coefficients mix well; the slow ones
-at this seed are <code>grade_diff</code>, whose effective sample size
-drops to single digits, and – typically the worse of the two across runs
-– <code>rho</code>, the reciprocity parameter that is chronically the
-slowest-mixing term in these fits. Read this as a <em>mixing</em>
-problem, not an <em>estimate</em> problem: <code>grade_diff</code>’s
-point estimate is stable from run to run even when its ESS is low, and
-its near-twin <code>same_grade</code> mixes fine, so the poor mixing
-here comes from this short run and seed rather than a collinearity
-breakdown. Both <code>grade_diff</code> and <code>rho</code> call for a
-longer or multi-chain run before quoting their uncertainty.</p>
+With 80 post-burn-in samples most coefficients mix acceptably for a
+demo; the slowest at this seed is <code>rho</code>, shown in its own
+trace above – the reciprocity parameter that is chronically the
+slowest-mixing term in these fits (bulk ESS around 27 here, versus
+roughly 35–112 for the regression coefficients). Read low ESS as a
+<em>mixing</em> problem, not an <em>estimate</em> problem: point
+estimates such as <code>grade_diff</code>’s are stable from run to run
+even on short chains. But a slow-mixing parameter is exactly the one
+whose uncertainty you should not quote from a single short chain –
+<code>rho</code> gets its real test in the multi-chain run below.</p>
 <div class="section level3">
 <h3 id="numerical-convergence-diagnostics-posterioras_draws">Numerical convergence diagnostics:
 <code>posterior::as_draws()</code><a class="anchor" aria-label="anchor" href="#numerical-convergence-diagnostics-posterioras_draws"></a>
@@ -427,39 +416,27 @@ summary triple is
 <code><a href="../reference/as_draws.html">as_draws()</a></code> method that reshapes <code>BETA</code> and
 <code>VC</code> for any fit, so the same workflow you would run on a
 <code>stanfit</code> works here:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/posterior/" class="external-link">posterior</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; This is posterior version 1.6.1</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Attaching package: 'posterior'</span></span>
-<span><span class="co">#&gt; The following object is masked from 'package:lame':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     as_draws</span></span>
-<span><span class="co">#&gt; The following objects are masked from 'package:stats':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     mad, sd, var</span></span>
-<span><span class="co">#&gt; The following objects are masked from 'package:base':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     %in%, match</span></span>
 <span><span class="va">draws</span> <span class="op">&lt;-</span> <span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws.html" class="external-link">as_draws</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>              <span class="co"># draws_array [iter, chain, var]</span></span>
 <span><span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws</a></span><span class="op">(</span><span class="va">draws</span><span class="op">)</span>              <span class="co"># mean, sd, q5, q95, rhat,</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 14 × 10</span></span></span>
 <span><span class="co">#&gt;    variable           mean  median     sd    mad      q5     q95   rhat ess_bulk</span></span>
 <span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept       -<span style="color: #BB0000;">3.49</span>   -<span style="color: #BB0000;">3.39</span>   1.10   0.940  -<span style="color: #BB0000;">5.30</span>   -<span style="color: #BB0000;">1.72</span>    0.990    80.7 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> female_row      -<span style="color: #BB0000;">0.522</span>  -<span style="color: #BB0000;">0.514</span>  0.303  0.270  -<span style="color: #BB0000;">1.03</span>   -<span style="color: #BB0000;">0.067</span><span style="color: #BB0000; text-decoration: underline;">8</span>  1.00     66.8 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> grade_row        0.064<span style="text-decoration: underline;">7</span>  0.060<span style="text-decoration: underline;">1</span> 0.084<span style="text-decoration: underline;">6</span> 0.085<span style="text-decoration: underline;">8</span> -<span style="color: #BB0000;">0.052</span><span style="color: #BB0000; text-decoration: underline;">1</span>  0.231   0.993    67.1 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> female_col      -<span style="color: #BB0000;">0.385</span>  -<span style="color: #BB0000;">0.352</span>  0.277  0.251  -<span style="color: #BB0000;">0.847</span>   0.028<span style="text-decoration: underline;">1</span>  0.992    77.8 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> grade_col        0.275   0.278  0.059<span style="text-decoration: underline;">3</span> 0.054<span style="text-decoration: underline;">1</span>  0.186   0.359   1.01     57.5 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> same_female_dy…  0.187   0.180  0.183  0.178  -<span style="color: #BB0000;">0.143</span>   0.502   1.01     67.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> same_race_dyad  -<span style="color: #BB0000;">0.084</span><span style="color: #BB0000; text-decoration: underline;">7</span> -<span style="color: #BB0000;">0.092</span><span style="color: #BB0000; text-decoration: underline;">1</span> 0.265  0.272  -<span style="color: #BB0000;">0.459</span>   0.334   1.03     80.3 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_grade_dyad  0.170   0.195  0.261  0.276  -<span style="color: #BB0000;">0.258</span>   0.619   1.03     97.3 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> grade_diff_dyad -<span style="color: #BB0000;">0.602</span>  -<span style="color: #BB0000;">0.592</span>  0.101  0.108  -<span style="color: #BB0000;">0.763</span>  -<span style="color: #BB0000;">0.463</span>   1.12      7.62</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> va               0.406   0.379  0.139  0.136   0.223   0.668   0.995    79.5 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> cab              0.031<span style="text-decoration: underline;">4</span>  0.020<span style="text-decoration: underline;">1</span> 0.091<span style="text-decoration: underline;">6</span> 0.085<span style="text-decoration: underline;">3</span> -<span style="color: #BB0000;">0.095</span><span style="color: #BB0000; text-decoration: underline;">3</span>  0.179   0.988    68.5 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> vb               0.236   0.226  0.084<span style="text-decoration: underline;">2</span> 0.079<span style="text-decoration: underline;">5</span>  0.128   0.394   1.00     55.5 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> rho              0.831   0.860  0.081<span style="text-decoration: underline;">5</span> 0.071<span style="text-decoration: underline;">9</span>  0.654   0.925   1.08      9.53</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">14</span> ve               1       1      0      0       1       1      <span style="color: #BB0000;">NA</span>        <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept       -<span style="color: #BB0000;">3.28</span>   -<span style="color: #BB0000;">3.35</span>   0.981  0.803  -<span style="color: #BB0000;">4.84</span>   -<span style="color: #BB0000;">1.75</span>    0.996     60.8</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> female_row      -<span style="color: #BB0000;">0.484</span>  -<span style="color: #BB0000;">0.490</span>  0.256  0.233  -<span style="color: #BB0000;">0.901</span>  -<span style="color: #BB0000;">0.064</span><span style="color: #BB0000; text-decoration: underline;">0</span>  0.998     63.2</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> grade_row        0.074<span style="text-decoration: underline;">5</span>  0.066<span style="text-decoration: underline;">8</span> 0.086<span style="text-decoration: underline;">3</span> 0.094<span style="text-decoration: underline;">5</span> -<span style="color: #BB0000;">0.057</span><span style="color: #BB0000; text-decoration: underline;">9</span>  0.224   0.989     67.2</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> female_col      -<span style="color: #BB0000;">0.378</span>  -<span style="color: #BB0000;">0.420</span>  0.243  0.213  -<span style="color: #BB0000;">0.752</span>   0.023<span style="text-decoration: underline;">7</span>  1.00      56.6</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> grade_col        0.250   0.253  0.068<span style="text-decoration: underline;">0</span> 0.063<span style="text-decoration: underline;">7</span>  0.151   0.350   1.04      35.3</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> same_female_dy…  0.171   0.182  0.172  0.177  -<span style="color: #BB0000;">0.136</span>   0.404   0.993    112. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> same_race_dyad  -<span style="color: #BB0000;">0.098</span><span style="color: #BB0000; text-decoration: underline;">1</span> -<span style="color: #BB0000;">0.103</span>  0.301  0.290  -<span style="color: #BB0000;">0.584</span>   0.354   1.02      62.5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_grade_dyad  0.127   0.128  0.262  0.255  -<span style="color: #BB0000;">0.306</span>   0.558   0.995     58.1</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> grade_diff_dyad -<span style="color: #BB0000;">0.612</span>  -<span style="color: #BB0000;">0.605</span>  0.094<span style="text-decoration: underline;">2</span> 0.099<span style="text-decoration: underline;">8</span> -<span style="color: #BB0000;">0.749</span>  -<span style="color: #BB0000;">0.452</span>   1.01      64.6</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> va               0.388   0.356  0.144  0.131   0.202   0.619   1.02     111. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> cab              0.051<span style="text-decoration: underline;">3</span>  0.042<span style="text-decoration: underline;">0</span> 0.095<span style="text-decoration: underline;">0</span> 0.062<span style="text-decoration: underline;">4</span> -<span style="color: #BB0000;">0.049</span><span style="color: #BB0000; text-decoration: underline;">6</span>  0.230   1.08      57.4</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> vb               0.240   0.213  0.116  0.090<span style="text-decoration: underline;">9</span>  0.123   0.446   1.04      66.9</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> rho              0.816   0.822  0.085<span style="text-decoration: underline;">1</span> 0.090<span style="text-decoration: underline;">8</span>  0.680   0.918   1.02      26.6</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">14</span> ve               1       1      0      0       1       1      <span style="color: #BB0000;">NA</span>         <span style="color: #BB0000;">NA</span>  </span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: ess_tail &lt;dbl&gt;</span></span></span>
 <span>                                               <span class="co"># ess_bulk, ess_tail per param</span></span></code></pre></div>
 <p>The conventional thresholds:
@@ -470,25 +447,29 @@ split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semanti
 400 per chain (so
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>
 1600 with four chains). This demo stores only 80 draws (one short
-chain), so it cannot reach the ESS target – that needs the longer,
-multi-chain run below – but the
+chain), so it cannot reach the ESS target – the largest
+<code>ess_bulk</code> in the table is only about 112
+(<code>same_female_dyad</code>, <code>va</code>), and <code>rho</code>
+sits lowest at about 27. The
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-column is still informative. Most coefficients clear the
+column, by contrast, looks deceptively clean: every parameter comes back
+at or below about 1.08, with <code>cab</code> the nominal worst and both
+<code>grade_diff_dyad</code> and <code>rho</code> near 1.01–1.02. That
+is the trap of single-chain diagnostics:
+split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+computed on one chain compares the two halves of that chain, so it flags
+within-chain non-stationarity but cannot detect two chains that have
+each settled in different parts of the posterior. The parameter that
+actually fails to converge on this network – <code>rho</code> – looks
+fine in this table and only reveals itself when separate chains
+disagree, which is exactly what the four-chain fit below exposes
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≈</mo><mn>1.8</mn></mrow><annotation encoding="application/x-tex">\hat R \approx 1.8</annotation></semantics></math>).
+One row is expected to look degenerate in both tables here and in your
+own binary fits: <code>ve</code> is the latent residual variance, fixed
+at 1 for probit identification, so its draws are constant and
+<code>posterior</code> correctly reports NA for
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-&lt; 1.01 bar; two do not: <code>grade_diff_dyad</code>
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≈</mo><mn>1.12</mn></mrow><annotation encoding="application/x-tex">\hat R \approx 1.12</annotation></semantics></math>,
-<code>ess_bulk</code> in the single digits at this seed – its point
-estimate is stable regardless), and <code>rho</code>
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≈</mo><mn>1.08</mn></mrow><annotation encoding="application/x-tex">\hat R \approx 1.08</annotation></semantics></math>),
-the reciprocity parameter that is the chronically slow-mixing term
-across seeds (on a typical run it, not <code>grade_diff</code>, is the
-worst-mixing parameter – this fit’s seed simply pushes
-<code>grade_diff</code> to the very bottom). A single-chain fit like
-this one reports within-chain
-split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>,
-which is informative about within-chain non-stationarity but not about
-between-chain disagreement; the four-chain fit below gives the
-cross-chain check.</p>
+and ESS – ignore that row.</p>
 </div>
 <div class="section level3">
 <h3 id="between-chain-hat-r-ame_paralleln_chains-4">Between-chain
@@ -497,16 +478,92 @@ cross-chain check.</p>
 </h3>
 <p>For real convergence assessment, run four chains from different seeds
 and let <code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws()</a></code> compute Rhat across chains:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_mc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame_parallel.html">ame_parallel</a></span><span class="op">(</span></span>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># reduced chains/iterations for a fast build; use n_chains = 4 and</span></span>
+<span><span class="co"># nscan &gt;= 2000 for a convergence check you will report.</span></span>
+<span><span class="va">fit_mc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame_parallel.html">ame_parallel</a></span><span class="op">(</span></span>
 <span>    <span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, Xrow <span class="op">=</span> <span class="va">Xrow</span>, Xcol <span class="op">=</span> <span class="va">Xcol</span>,</span>
 <span>    family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>    burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">2000</span>, odens <span class="op">=</span> <span class="fl">25</span>,</span>
-<span>    n_chains <span class="op">=</span> <span class="fl">4</span>, cores <span class="op">=</span> <span class="fl">1</span>,            <span class="co"># cores = 1 keeps the chunk portable</span></span>
+<span>    burn <span class="op">=</span> <span class="fl">200</span>, nscan <span class="op">=</span> <span class="fl">800</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>    n_chains <span class="op">=</span> <span class="fl">2</span>, cores <span class="op">=</span> <span class="fl">1</span>,            <span class="co"># cores = 1 keeps the chunk portable</span></span>
 <span>    combine_method <span class="op">=</span> <span class="st">"pool"</span>,            <span class="co"># pooled fit; chain_indicator is preserved</span></span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
-<span><span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws</a></span><span class="op">(</span><span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws.html" class="external-link">as_draws</a></span><span class="op">(</span><span class="va">fit_mc</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Running </span><span style="color: #0000BB; font-weight: bold;">2</span><span style="font-weight: bold;"> chains sequentially</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Starting chain <span style="color: #0000BB;">1</span> (`ame()`)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> 122 `Y` cells had a missing covariate and are treated as unobserved</span></span>
+<span><span class="co">#&gt;   (data-augmented).</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The covariate coefficients are estimated from the complete dyads only.</span></span>
+<span><span class="co">#&gt; Completed chain <span style="color: #0000BB;">1</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Starting chain <span style="color: #0000BB;">2</span> (`ame()`)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> 122 `Y` cells had a missing covariate and are treated as unobserved</span></span>
+<span><span class="co">#&gt;   (data-augmented).</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The covariate coefficients are estimated from the complete dyads only.</span></span>
+<span><span class="co">#&gt; Completed chain <span style="color: #0000BB;">2</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Combining chains...</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── MCMC Convergence Diagnostics </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Number of chains: <span style="color: #0000BB;">2</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Samples per chain: <span style="color: #0000BB;">"80, 80"</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Diagnostics cover regression coefficients and variance components.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> <span style="color: #0000BB;">1</span> parameter have R-hat &gt;= 1.1</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; rho: R-hat = <span style="color: #0000BB;">1.801</span></span></span>
+<span><span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws</a></span><span class="op">(</span><span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws.html" class="external-link">as_draws</a></span><span class="op">(</span><span class="va">fit_mc</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 14 × 10</span></span></span>
+<span><span class="co">#&gt;    variable           mean  median     sd    mad      q5     q95   rhat ess_bulk</span></span>
+<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept       -<span style="color: #BB0000;">3.16</span>   -<span style="color: #BB0000;">3.15</span>   0.943  0.957  -<span style="color: #BB0000;">4.82</span>   -<span style="color: #BB0000;">1.79</span>    1.01    142.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> female_row      -<span style="color: #BB0000;">0.454</span>  -<span style="color: #BB0000;">0.439</span>  0.269  0.265  -<span style="color: #BB0000;">0.908</span>  -<span style="color: #BB0000;">0.037</span><span style="color: #BB0000; text-decoration: underline;">3</span>  1.00    127.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> grade_row        0.067<span style="text-decoration: underline;">2</span>  0.068<span style="text-decoration: underline;">4</span> 0.074<span style="text-decoration: underline;">6</span> 0.068<span style="text-decoration: underline;">8</span> -<span style="color: #BB0000;">0.059</span><span style="color: #BB0000; text-decoration: underline;">3</span>  0.177   1.01     86.5 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> female_col      -<span style="color: #BB0000;">0.374</span>  -<span style="color: #BB0000;">0.381</span>  0.230  0.212  -<span style="color: #BB0000;">0.737</span>   0.041<span style="text-decoration: underline;">0</span>  1.01    122.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> grade_col        0.237   0.241  0.060<span style="text-decoration: underline;">0</span> 0.052<span style="text-decoration: underline;">4</span>  0.129   0.339   1.01     54.4 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> same_female_dy…  0.202   0.199  0.151  0.155  -<span style="color: #BB0000;">0.045</span><span style="color: #BB0000; text-decoration: underline;">5</span>  0.436   0.997    96.6 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> same_race_dyad  -<span style="color: #BB0000;">0.083</span><span style="color: #BB0000; text-decoration: underline;">2</span> -<span style="color: #BB0000;">0.056</span><span style="color: #BB0000; text-decoration: underline;">0</span> 0.262  0.233  -<span style="color: #BB0000;">0.537</span>   0.324   1.02    136.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_grade_dyad  0.136   0.119  0.254  0.249  -<span style="color: #BB0000;">0.273</span>   0.572   1.01    132.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> grade_diff_dyad -<span style="color: #BB0000;">0.570</span>  -<span style="color: #BB0000;">0.567</span>  0.101  0.106  -<span style="color: #BB0000;">0.752</span>  -<span style="color: #BB0000;">0.416</span>   1.01     66.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> va               0.366   0.353  0.139  0.117   0.196   0.627   1.00    120.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> cab              0.040<span style="text-decoration: underline;">4</span>  0.031<span style="text-decoration: underline;">2</span> 0.078<span style="text-decoration: underline;">1</span> 0.069<span style="text-decoration: underline;">7</span> -<span style="color: #BB0000;">0.072</span><span style="color: #BB0000; text-decoration: underline;">4</span>  0.174   1.00    105.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> vb               0.235   0.218  0.093<span style="text-decoration: underline;">3</span> 0.067<span style="text-decoration: underline;">4</span>  0.123   0.441   0.994   138.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> rho              0.849   0.871  0.081<span style="text-decoration: underline;">7</span> 0.072<span style="text-decoration: underline;">8</span>  0.703   0.954   1.63      3.70</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">14</span> ve               1       1      0      0       1       1      <span style="color: #BB0000;">NA</span>        <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: ess_tail &lt;dbl&gt;</span></span></span></code></pre></div>
+<p>This is the payoff of running more than one chain. In the
+single-chain table above, <code>rho</code> looked merely mediocre –
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≈</mo><mn>1.02</mn></mrow><annotation encoding="application/x-tex">\hat R \approx 1.02</annotation></semantics></math>,
+bulk ESS around 27 – because a single chain can only be compared with
+itself:
+split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+contrasts the two halves of one chain and cannot see two chains that
+have each settled into a different region. With a second, independently
+seeded chain the failure is unmistakable: the convergence banner flags
+<code>rho</code> at R-hat = 1.801, and <code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws()</a></code>
+puts it at 1.63 with a bulk ESS of 3.7. (The two numbers differ because
+the banner computes the classic Gelman-Rubin ratio while
+<code>posterior</code> uses rank-normalized
+split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>;
+both are far past the 1.01 bar.) This is the same reciprocity parameter
+the trace plots flagged as chronically slow-mixing. Do not report
+<code>rho</code>’s credible interval from a run that looks like this –
+increase <code>nscan</code> and the number of chains until its
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
+clears the threshold. Every other parameter sits at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≤</mo><mn>1.02</mn></mrow><annotation encoding="application/x-tex">\hat R \le 1.02</annotation></semantics></math>
+across chains, so there is no sign of between-chain disagreement for the
+covariate and variance-component estimates; they still need the longer
+multi-chain run to clear the ESS bar before you quote their
+uncertainty.</p>
 <p>The pooled object carries a <code>chain_indicator</code> so
 <code><a href="../reference/as_draws.html">as_draws()</a></code> keeps chain identity separate, which is what
 split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
@@ -514,19 +571,23 @@ needs. The same reshape feeds <code><a href="https://mc-stan.org/bayesplot/refer
 <code><a href="https://mjskay.github.io/tidybayes/reference/tidy_draws.html" class="external-link">tidybayes::tidy_draws()</a></code> directly.</p>
 </div>
 <div class="section level3">
-<h3 id="sampler-failure-diagnostics-the-gibbs-analog-of-hmc-divergences">Sampler-failure diagnostics (the Gibbs analog of HMC
-divergences)<a class="anchor" aria-label="anchor" href="#sampler-failure-diagnostics-the-gibbs-analog-of-hmc-divergences"></a>
+<h3 id="other-quick-checks">Other quick checks<a class="anchor" aria-label="anchor" href="#other-quick-checks"></a>
 </h3>
-<p><code>lame</code> is a Gibbs / Metropolis-Hastings sampler, not HMC,
-so it has no notion of an HMC divergence. The closest analog is the
-per-block Metropolis acceptance / <code>tryError</code> count, exposed
-on every fit as <code>fit$mh_counters</code> (alias
-<code>fit$tryErrorChecks</code>). For the cross-sectional
-<code><a href="../reference/ame.html">ame()</a></code> fit here these counts are yours to inspect (they
-should be all zero); the longitudinal <code><a href="../reference/lame.html">lame()</a></code> path
-additionally fires an automatic warning when any block exceeds a 5%
-failure rate. For routine reporting:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<p>Two cheap diagnostics worth running once per fit. First, the
+sampler-failure counters: <code>lame</code> is a Gibbs /
+Metropolis-Hastings sampler, not HMC, so it has no divergences – the
+closest analog is the per-block Metropolis / <code>tryError</code> count
+exposed as <code>fit$mh_counters</code> (alias
+<code>fit$tryErrorChecks</code>). Treat any block with more than 5%
+failures as suspicious; the longitudinal <code><a href="../reference/lame.html">lame()</a></code> path warns
+automatically at that threshold. Second, <code>prior_summary(fit)</code>
+– modelled on <code>rstanarm::prior_summary()</code> – prints the
+hyperparameters <em>actually used</em> (defaults filled in) for the
+g-prior on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
+and the variance components; it is the cheapest way to catch a typo in a
+<code>prior = list(...)</code> override.</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">mh_counters</span><span class="op">)</span></span>
 <span><span class="co">#&gt; List of 5</span></span>
 <span><span class="co">#&gt;  $ beta: int 0</span></span>
@@ -534,25 +595,7 @@ failure rate. For routine reporting:</p>
 <span><span class="co">#&gt;  $ s2  : int 0</span></span>
 <span><span class="co">#&gt;  $ rho : int 0</span></span>
 <span><span class="co">#&gt;  $ UV  : int 0</span></span></code></pre></div>
-<p>Treat any block with &gt;5% failures as suspicious; pair
-<code>ess_bulk</code> / <code>ess_tail</code> from
-<code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws()</a></code> with <code>mh_counters</code> for the
-Gibbs-side equivalent of the Stan triple
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>,
-ESS, divergences).</p>
-</div>
-<div class="section level3">
-<h3 id="inspecting-the-priors-actually-in-effect-prior_summary">Inspecting the priors actually in effect:
-<code>prior_summary()</code><a class="anchor" aria-label="anchor" href="#inspecting-the-priors-actually-in-effect-prior_summary"></a>
-</h3>
-<p>Modelled on <code>rstanarm::prior_summary()</code>,
-<code>prior_summary(fit)</code> prints the hyperparameters that were
-<em>actually used</em> (defaults filled in) for the g-prior on
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
-and the variance components. Always run it once per fit; it is the
-cheapest way to catch a typo in a <code>prior = list(...)</code>
-override.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/prior_summary.html">prior_summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Priors in effect (ame fit)</span> ──</span></span>
@@ -574,29 +617,86 @@ override.</p>
 <code>[n_stored, n_obs]</code> pointwise log-likelihood matrix and
 <code>loo::loo(fit)</code> works directly via the registered S3
 method:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_ll</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, Xrow <span class="op">=</span> <span class="va">Xrow</span>, Xcol <span class="op">=</span> <span class="va">Xcol</span>,</span>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># reduced iterations for a fast build; use nscan &gt;= 2000 for a reported result.</span></span>
+<span><span class="va">fit_ll</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, Xrow <span class="op">=</span> <span class="va">Xrow</span>, Xcol <span class="op">=</span> <span class="va">Xcol</span>,</span>
 <span>              family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>              burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">2000</span>, odens <span class="op">=</span> <span class="fl">25</span>,</span>
+<span>              burn <span class="op">=</span> <span class="fl">200</span>, nscan <span class="op">=</span> <span class="fl">800</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>              save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># alternative model: drop the dyadic covariate</span></span>
 <span><span class="va">fit_ll_null</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span><span class="va">Y</span>, Xrow <span class="op">=</span> <span class="va">Xrow</span>, Xcol <span class="op">=</span> <span class="va">Xcol</span>,</span>
 <span>                   family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>                   burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">2000</span>, odens <span class="op">=</span> <span class="fl">25</span>,</span>
+<span>                   burn <span class="op">=</span> <span class="fl">200</span>, nscan <span class="op">=</span> <span class="fl">800</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>                   save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_ll</span><span class="op">)</span>, <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_ll_null</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>For the six families <code>normal</code>, <code>binary</code>,
-<code>cbin</code>, <code>tobit</code>, <code>poisson</code>,
-<code>ordinal</code> the stored log-likelihood is the <strong>exact
-family-specific Y density</strong> (Gaussian / probit Bernoulli /
-censored-Gaussian / log-Poisson / cumulative-probit), so
+<span><span class="va">loo_dyad</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_ll</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.</span></span>
+<span><span class="va">loo_null</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_ll_null</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.</span></span>
+<span></span>
+<span><span class="va">loo_dyad</span>   <span class="co"># read the Pareto-k table before any elpd number</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Computed from 80 by 992 log-likelihood matrix.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;          Estimate   SE</span></span>
+<span><span class="co">#&gt; elpd_loo   -357.3 35.5</span></span>
+<span><span class="co">#&gt; p_loo       104.9 19.6</span></span>
+<span><span class="co">#&gt; looic       714.7 70.9</span></span>
+<span><span class="co">#&gt; ------</span></span>
+<span><span class="co">#&gt; MCSE of elpd_loo is NA.</span></span>
+<span><span class="co">#&gt; MCSE and ESS estimates assume independent draws (r_eff=1).</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Pareto k diagnostic values:</span></span>
+<span><span class="co">#&gt;                           Count Pct.    Min. ESS</span></span>
+<span><span class="co">#&gt; (-Inf, 0.47]   (good)     694   70.0%   11      </span></span>
+<span><span class="co">#&gt;    (0.47, 1]   (bad)      287   28.9%   &lt;NA&gt;    </span></span>
+<span><span class="co">#&gt;     (1, Inf)   (very bad)  11    1.1%   &lt;NA&gt;    </span></span>
+<span><span class="co">#&gt; See help('pareto-k-diagnostic') for details.</span></span>
+<span></span>
+<span><span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>with_dyad <span class="op">=</span> <span class="va">loo_dyad</span>, no_dyad <span class="op">=</span> <span class="va">loo_null</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;           elpd_diff se_diff</span></span>
+<span><span class="co">#&gt; with_dyad   0.0       0.0  </span></span>
+<span><span class="co">#&gt; no_dyad   -24.6      25.6</span></span></code></pre></div>
+<p>This time the diagnostics matter as much as the comparison. Start
+with the warning <code><a href="../reference/loo.html">loo()</a></code> raises and the
+Pareto-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+table it prints: 287 of the 992 dyads (28.9%) fall in the “bad” range
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.47</mn><mo>&lt;</mo><mi>k</mi><mo>≤</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">0.47 &lt; k \le 1</annotation></semantics></math>)
+and 11 more (1.1%) are “very bad”
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">k &gt; 1</annotation></semantics></math>),
+so for nearly a third of the observations the importance weights behind
+<code>elpd_loo</code> cannot be trusted. This failure mode is structural
+rather than a fluke: every dyad’s likelihood depends on the actor-level
+random effects
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>i</mi></msub><annotation encoding="application/x-tex">a_i</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mi>j</mi></msub><annotation encoding="application/x-tex">b_j</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>i</mi></msub><mi>′</mi><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i'v_j</annotation></semantics></math>),
+so leaving one dyad out shifts the posterior enough to make the
+importance ratios heavy-tailed, and with only 80 stored draws there is
+little to stabilize them. Read the comparison in that light:
+<code>loo_compare()</code> sorts <code>with_dyad</code> first, but its
+24.6-point advantage is smaller than its own standard error
+(<code>se_diff</code> 25.6) – not decisive even at face value – and with
+this many flagged dyads the honest conclusion is to not lean on
+<code>elpd_diff</code> at all. The workflow lesson: always read the
+Pareto-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+table <em>before</em> <code>elpd_diff</code>. For a comparison you can
+report, lengthen the run substantially (<code>nscan &gt;= 2000</code>,
+more stored draws) and, for random-effects-dense network models like
+AME, prefer
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>-fold
+cross-validation over dyads – or the held-out dyad evaluation shown
+below via <code><a href="../reference/evaluate_heldout.html">evaluate_heldout()</a></code> – to PSIS-LOO.</p>
+<p>For the five families <code>normal</code>, <code>binary</code>,
+<code>cbin</code>, <code>poisson</code>, <code>ordinal</code> the stored
+log-likelihood is the <strong>exact family-specific Y density</strong>
+(Gaussian / probit Bernoulli / log-Poisson / cumulative-probit), so
 <code>elpd_loo</code> is directly comparable to a <code><a href="../reference/loo.html">loo()</a></code>
-from a brms or rstanarm fit to the same family. For the two rank
-likelihoods <code>frn</code> and <code>rrl</code>, the exact marginal
-requires GHK Monte Carlo and is only available on the longitudinal path
-via <code>log_lik_method = "observed_ghk"</code>; the cross-sectional
+from a brms or rstanarm fit to the same family. For the rank likelihood
+<code>frn</code>, the exact marginal requires GHK Monte Carlo and is
+only available on the longitudinal path via
+<code>log_lik_method = "observed_ghk"</code>; the cross-sectional
 default falls back to the augmented-Z normal density and emits a
 one-time warning. Inspect <code>fit$log_lik_method</code> to see which
 branch was used.</p>
@@ -609,7 +709,7 @@ branch was used.</p>
 structural features of the observed network. This goes beyond dyad-level
 prediction: it tests whether the model captures emergent properties like
 degree heterogeneity, reciprocity patterns, and clustering.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="cross_sec_ame_files/figure-html/gof-plot-1.png" class="r-plt" alt="Goodness-of-fit panels comparing observed network statistics (dashed orange vertical line) against the posterior predictive histograms (grey) for sender and receiver degree heterogeneity, dyadic dependence, triadic dependence, and transitivity. Observed and predicted differ on both colour and linetype so the cue survives grayscale printing and colour-blind viewing." width="960" style="display: block; margin: auto;"></p>
 <p>Each panel shows a different network statistic. The grey histogram is
@@ -663,7 +763,7 @@ built-in <code>trans.dep</code> panel is a <em>correlation-style</em>
 clustering measure; ERGM users will typically want raw counts that match
 the <code>triangle</code> / <code>ttriple</code> / <code>gwesp</code>
 family. Those are one-liners as custom stats:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># ERGM-style custom statistics:</span></span>
 <span><span class="co">#   triangles  : count of transitive triples i -&gt; j, j -&gt; k, i -&gt; k,</span></span>
 <span><span class="co">#                the directed analogue of ergm's `ttriple` change statistic</span></span>
@@ -700,16 +800,16 @@ family. Those are one-liners as custom stats:</p>
 <span>    pp_p_right <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mapply.html" class="external-link">mapply</a></span><span class="op">(</span><span class="va">pp_right</span>, <span class="va">obs</span>, <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">sim</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"triangles"</span>, <span class="st">"two_path"</span>, <span class="st">"trans_ratio"</span>, <span class="st">"deg_cor"</span><span class="op">)</span>, <span class="op">]</span></span>
 <span><span class="co">#&gt;                    stat observed sim_mean pp_p_right</span></span>
-<span><span class="co">#&gt; triangles     triangles  239.000  183.740       0.26</span></span>
-<span><span class="co">#&gt; two_path       two_path  493.000  473.680       0.44</span></span>
-<span><span class="co">#&gt; trans_ratio trans_ratio    0.485    0.371       0.06</span></span>
-<span><span class="co">#&gt; deg_cor         deg_cor    0.564    0.415       0.32</span></span></code></pre></div>
+<span><span class="co">#&gt; triangles     triangles  239.000  248.300       0.48</span></span>
+<span><span class="co">#&gt; two_path       two_path  493.000  603.540       0.66</span></span>
+<span><span class="co">#&gt; trans_ratio trans_ratio    0.485    0.394       0.08</span></span>
+<span><span class="co">#&gt; deg_cor         deg_cor    0.564    0.483       0.28</span></span></code></pre></div>
 <p>Read the table the same way you would read <code><a href="https://rdrr.io/pkg/ergm/man/gof.html" class="external-link">ergm::gof()</a></code>.
 For each statistic a <code>pp_p_right</code> near 0 means the simulated
 networks rarely hit the observed value from below, i.e. the model
 under-predicts that quantity; a value near 1 means it over-predicts. On
 Add Health the raw <code>triangles</code> count comes back reasonably
-well covered (<code>pp_p_right</code> around 0.25 in our run): the AME
+well covered (<code>pp_p_right</code> around 0.48 in our run): the AME
 fit absorbs much of the triangle pressure through clustering of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>
 and through the joint scale of the additive effects, so the raw count is
@@ -717,11 +817,11 @@ in the predictive distribution even though the model has no
 <code>gwesp</code>-style change statistic in the likelihood.
 <code>two_path</code> is driven by the marginal degree distribution and
 the additive effects, so it is also usually well covered
-(<code>pp_p_right</code> around 0.4 here). The structural gap shows up
+(<code>pp_p_right</code> around 0.66 here). The structural gap shows up
 in the ratio: the <code>trans_ratio</code> (triangles / two-paths) is
 the unweighted clustering coefficient ERGM users recognise from
 <code><a href="https://rdrr.io/pkg/sna/man/gtrans.html" class="external-link">sna::gtrans</a></code>, and on this network it comes back with
-<code>pp_p_right</code> close to zero (around 0.05 in our run). That is
+<code>pp_p_right</code> close to zero (around 0.08 in our run). That is
 the scalar summary targeted by
 <code>gwesp(decay = 0, fixed = TRUE)</code>: the model gets the absolute
 scale of triangle counts roughly right but does not concentrate
@@ -740,17 +840,9 @@ sender space (triangles) tend to nominate similar friends; students near
 each other in receiver space (circles) tend to be nominated by similar
 students. This captures clustering that the covariates alone can’t
 explain.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span>, layout <span class="op">=</span> <span class="st">"circle"</span>, show.edges <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>                label.nodes <span class="op">=</span> <span class="cn">TRUE</span>, label.size <span class="op">=</span> <span class="fl">2.5</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
-<span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>        axis.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>        axis.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>        panel.grid <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="op">)</span></span></code></pre></div>
-<p><img src="cross_sec_ame_files/figure-html/latent-space-1.png" class="r-plt" alt="Circular latent-space layout of students with triangles marking sender positions and circles marking receiver positions; proximity indicates similar friendship patterns." width="768" style="display: block; margin: auto;"></p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span>, layout <span class="op">=</span> <span class="st">"biplot"</span>, show.edges <span class="op">=</span> <span class="cn">FALSE</span>, label.nodes <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<p><img src="cross_sec_ame_files/figure-html/latent-space-1.png" class="r-plt" alt="Biplot of the estimated 2D latent space: triangles mark each student's sender position and circles mark receiver positions on the two latent dimensions; students plotted near each other have similar friendship patterns beyond what the covariates explain." width="768" style="display: block; margin: auto;"></p>
 <p>Students on opposite sides of the plot have dissimilar friendship
 patterns. Clusters of students placed near each other likely share some
 unobserved characteristic (same social group, same extracurricular
@@ -762,7 +854,7 @@ and grade.</p>
 </h2>
 <p>The additive effects decompose individual heterogeneity into sender
 effects (sociality) and receiver effects (popularity):</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">p1</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"sender"</span>, sorted <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                            title <span class="op">=</span> <span class="st">"Sender Effects (Sociality)"</span><span class="op">)</span></span>
 <span><span class="va">p2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ab_plot.html">ab_plot</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"receiver"</span>, sorted <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -786,7 +878,7 @@ accuracy can be misleadingly high because predicting “no tie” for every
 dyad already gets most predictions right. Focus on the off-diagonal
 cells of the confusion matrix to see how well the model distinguishes
 true ties from non-ties.</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pred_resp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># how well does the model classify?</span></span>
@@ -808,17 +900,17 @@ true ties from non-ties.</p>
 <tbody>
 <tr class="odd">
 <td align="left">0</td>
-<td align="right">849</td>
-<td align="right">16</td>
+<td align="right">844</td>
+<td align="right">21</td>
 </tr>
 <tr class="even">
 <td align="left">1</td>
-<td align="right">86</td>
-<td align="right">41</td>
+<td align="right">87</td>
+<td align="right">40</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="va">accuracy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">confusion</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">confusion</span><span class="op">)</span></span>
 <span><span class="va">baseline</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Y_vec</span><span class="op">[</span><span class="va">keep</span><span class="op">]</span><span class="op">)</span>, <span class="fl">1</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Y_vec</span><span class="op">[</span><span class="va">keep</span><span class="op">]</span><span class="op">)</span><span class="op">)</span>  <span class="co"># always-predict-modal-class</span></span>
@@ -826,7 +918,7 @@ true ties from non-ties.</p>
 <span>    <span class="st">" | Baseline (predict modal class):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">baseline</span>, <span class="fl">3</span><span class="op">)</span>,</span>
 <span>    <span class="st">" | Lift:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">accuracy</span> <span class="op">-</span> <span class="va">baseline</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Accuracy: 0.897  | Baseline (predict modal class): 0.872  | Lift: 0.025</span></span></code></pre></div>
+<span><span class="co">#&gt; Accuracy: 0.891  | Baseline (predict modal class): 0.872  | Lift: 0.019</span></span></code></pre></div>
 <p>The accuracy by itself flatters the model: a “predict the modal
 class” baseline already gets the printed baseline value, and the model’s
 lift over that baseline is what’s meaningful. For this friendship
@@ -841,7 +933,7 @@ rather than relying on a single cutpoint. The <code>pROC</code> and
 useful summary. A model that always predicts “no tie” already has AUROC
 near 0.5 but PR-AUC near the network density, so the gap between PR-AUC
 and density is the metric of substantive interest.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># pROC: ROC curve and AUROC</span></span>
 <span><span class="co"># install.packages("pROC")</span></span>
 <span><span class="va">roc_obj</span> <span class="op">&lt;-</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/roc.html" class="external-link">roc</a></span><span class="op">(</span>response <span class="op">=</span> <span class="va">Y_vec</span><span class="op">[</span><span class="va">keep</span><span class="op">]</span>, predictor <span class="op">=</span> <span class="va">pred_vec</span><span class="op">[</span><span class="va">keep</span><span class="op">]</span>,</span>
@@ -853,10 +945,23 @@ and density is the metric of substantive interest.</p>
 <span><span class="co"># install.packages("precrec")</span></span>
 <span><span class="va">ev</span> <span class="op">&lt;-</span> <span class="fu">precrec</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/precrec/man/evalmod.html" class="external-link">evalmod</a></span><span class="op">(</span>scores <span class="op">=</span> <span class="va">pred_vec</span><span class="op">[</span><span class="va">keep</span><span class="op">]</span>, labels <span class="op">=</span> <span class="va">Y_vec</span><span class="op">[</span><span class="va">keep</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="fu">precrec</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/precrec/man/auc.html" class="external-link">auc</a></span><span class="op">(</span><span class="va">ev</span><span class="op">)</span>   <span class="co"># returns AUROC and PR-AUC side-by-side</span></span>
+<span><span class="co">#&gt;   modnames dsids curvetypes      aucs</span></span>
+<span><span class="co">#&gt; 1       m1     1        ROC 0.8742024</span></span>
+<span><span class="co">#&gt; 2       m1     1        PRC 0.6032345</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"AUROC:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">auroc</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span>,</span>
 <span>    <span class="st">"Baseline AUROC (random ranker):"</span>, <span class="fl">0.5</span>, <span class="st">"\n"</span>,</span>
-<span>    <span class="st">"Baseline PR-AUC (density of Y):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Y_vec</span><span class="op">[</span><span class="va">keep</span><span class="op">]</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
+<span>    <span class="st">"Baseline PR-AUC (density of Y):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Y_vec</span><span class="op">[</span><span class="va">keep</span><span class="op">]</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; AUROC: 0.874 </span></span>
+<span><span class="co">#&gt;  Baseline AUROC (random ranker): 0.5 </span></span>
+<span><span class="co">#&gt;  Baseline PR-AUC (density of Y): 0.128</span></span></code></pre></div>
+<p>Here that gap is wide: PR-AUC comes back at 0.603 against a density
+baseline of 0.128, so the model’s precision over the ranked dyads runs
+roughly five times the guess-at-the-base-rate floor, and AUROC 0.874
+(against 0.5 for a random ranker) tells the same story on the scale that
+ignores class imbalance. Both are in-sample numbers, though – the
+held-out estimates in the next section are the ones to quote for any
+predictive claim.</p>
 <div class="section level3">
 <h3 id="held-out-link-prediction">Held-out link prediction<a class="anchor" aria-label="anchor" href="#held-out-link-prediction"></a>
 </h3>
@@ -870,7 +975,7 @@ indices. Stratify the split on <code>Y</code> so the test set has both
 classes; on a density-0.1 network a naive 10% mask leaves very few
 positive test dyads, so report the test-set positive count with the
 AUC.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 80/20 stratified mask of off-diagonal dyads</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
 <span><span class="va">off_diag</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/row.html" class="external-link">row</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span> <span class="op">!=</span> <span class="fu"><a href="https://rdrr.io/r/base/col.html" class="external-link">col</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span> <span class="op">&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span><span class="op">)</span></span>
@@ -885,8 +990,11 @@ AUC.</p>
 <span><span class="va">fit_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span><span class="va">Y_train</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, Xrow <span class="op">=</span> <span class="va">Xrow</span>, Xcol <span class="op">=</span> <span class="va">Xcol</span>,</span>
 <span>                 R <span class="op">=</span> <span class="fl">2</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
 <span>                 rvar <span class="op">=</span> <span class="cn">TRUE</span>, cvar <span class="op">=</span> <span class="cn">TRUE</span>, dcor <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>                 burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">2000</span>, odens <span class="op">=</span> <span class="fl">25</span>,</span>
+<span>                 burn <span class="op">=</span> <span class="fl">200</span>, nscan <span class="op">=</span> <span class="fl">800</span>, odens <span class="op">=</span> <span class="fl">10</span>,   <span class="co"># reduced for build speed</span></span>
 <span>                 verbose <span class="op">=</span> <span class="cn">FALSE</span>, gof <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> 92 `Y` cells had a missing covariate and are treated as unobserved</span></span>
+<span><span class="co">#&gt;   (data-augmented).</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The covariate coefficients are estimated from the complete dyads only.</span></span>
 <span></span>
 <span><span class="va">pred_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_train</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
 <span></span>
@@ -899,9 +1007,26 @@ AUC.</p>
 <span><span class="va">test_mask</span><span class="op">[</span><span class="va">test_idx</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">TRUE</span></span>
 <span><span class="fu"><a href="../reference/evaluate_heldout.html">evaluate_heldout</a></span><span class="op">(</span>y_obs <span class="op">=</span> <span class="va">Y</span>, y_pred <span class="op">=</span> <span class="va">pred_train</span>,</span>
 <span>                 mask <span class="op">=</span> <span class="va">test_mask</span>, family <span class="op">=</span> <span class="st">"binary"</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   n_eval     auroc     auprc      brier   logloss</span></span>
+<span><span class="co">#&gt; 1    198 0.8358382 0.5513644 0.08299874 0.3957617</span></span>
 <span><span class="co"># columns: n_eval, auroc, auprc, brier, logloss</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Test dyads:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">test_idx</span><span class="op">)</span>,</span>
-<span>    <span class="st">" | positives:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">Y</span><span class="op">[</span><span class="va">test_idx</span><span class="op">]</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
+<span>    <span class="st">" | positives:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">Y</span><span class="op">[</span><span class="va">test_idx</span><span class="op">]</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Test dyads: 198  | positives: 25</span></span></code></pre></div>
+<p>On the 198 held-out dyads (25 of them true friendships) the model
+posts AUROC 0.836 and PR-AUC 0.551. Set these against the in-sample
+AUROC 0.874 and PR-AUC 0.603 just above: performance drops only modestly
+out of sample, which is the reassuring signal that the fit generalizes
+rather than memorizing the training dyads. PR-AUC is the number to weigh
+here because the positive class is rare: a random ranker’s PR-AUC equals
+the positive rate (about 0.13), so 0.551 means the model’s precision,
+averaged across recall levels, is roughly four times the chance baseline
+– on dyads it never saw during fitting. Two caveats on stability: with
+only 25 positive test dyads the estimates carry wide split-sampling
+uncertainty (a different mask seed will move them), and the short single
+chain adds Monte Carlo noise on top – detail (2) below addresses the
+latter. Read these numbers as a sanity check rather than a precise
+benchmark, and report the positive count alongside them.</p>
 <p>Two details on the ML split. (1) The actor identities are the same in
 train and test (only some of their dyads are masked); this is a
 <em>transductive</em> link-prediction split, not an inductive one. The
@@ -918,19 +1043,7 @@ so their predictions collapse to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>β</mi><mo>+</mo><msub><mover><mi>a</mi><mo accent="true">̂</mo></mover><mtext mathvariant="normal">mean</mtext></msub><mo>+</mo><msub><mover><mi>b</mi><mo accent="true">̂</mo></mover><mtext mathvariant="normal">mean</mtext></msub></mrow><annotation encoding="application/x-tex">X\beta + \hat a_{\text{mean}} + \hat b_{\text{mean}}</annotation></semantics></math>,
 which unsurprisingly performs worse). (2) The fit above is a single
 chain at modest length; for stable held-out AUC estimates run
-<code>ame_parallel(..., n_chains = 4)</code> and pool. A standard
-<code>lame</code> fit on a network with
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>≲</mo><mn>200</mn></mrow><annotation encoding="application/x-tex">n \lesssim 200</annotation></semantics></math>
-takes seconds to a few minutes at <code>nscan = 2000</code>; for
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>≈</mo><mn>500</mn></mrow><annotation encoding="application/x-tex">n \approx 500</annotation></semantics></math>
-expect tens of minutes, and beyond
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>≈</mo><mn>1000</mn></mrow><annotation encoding="application/x-tex">n \approx 1000</annotation></semantics></math>
-the per-iteration cost of the
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(n^2)</annotation></semantics></math>
-dyadic operations starts to dominate and the fast point estimator
-(<code><a href="../reference/ame_als.html">ame_als()</a></code>, see the <a href="fast_estimation.html">fast
-estimation vignette</a>) is the recommended exploration tool. There is
-no GPU backend in the current release.</p>
+<code>ame_parallel(..., n_chains = 4)</code> and pool.</p>
 </div>
 </div>
 <div class="section level2">
@@ -944,7 +1057,7 @@ whatever feature I care about (here, overall density)? If the observed
 feature lies inside the simulated distribution, the model reproduces
 that aspect of the data; if it lies in a tail, the model is missing
 something there.</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sims</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate</a></span><span class="op">(</span><span class="va">fit</span>, nsim <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># compare simulated vs observed density</span></span>
@@ -961,7 +1074,8 @@ something there.</p>
 <span>            subtitle <span class="op">=</span> <span class="st">"Dashed orange line = observed; grey histogram = simulated from model"</span>,</span>
 <span>            x <span class="op">=</span> <span class="st">"Network Density (Mean Tie Probability)"</span>, y <span class="op">=</span> <span class="st">"Replicate Count"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>, axis.ticks <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>          legend.position <span class="op">=</span> <span class="st">"top"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="cross_sec_ame_files/figure-html/simulation-1.png" class="r-plt" alt="Posterior predictive check histogram of simulated network densities (grey bars) with a dashed Okabe-Ito orange vertical line marking the observed density; the encoding is dual on colour and linetype so the cue survives greyscale printing and colour-blind viewing. Overlap indicates the model reproduces the observed density." width="768" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level2">
@@ -1004,7 +1118,7 @@ probabilities.</p>
 </li>
 <li>
 <strong>Other data types?</strong> The <code>family</code> argument
-supports normal, binary, ordinal, poisson, tobit, and more</li>
+supports normal, binary, ordinal, poisson, and more</li>
 </ul>
 </div>
 <div class="section level2">

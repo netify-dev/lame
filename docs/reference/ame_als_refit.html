@@ -17,7 +17,7 @@ or rotations and is essential for meaningful bootstrap standard errors."></head>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -130,16 +130,15 @@ fewer are needed than for a cold start).</p></dd>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The estimation algorithm is the iterative block coordinate descent estimator
 of the Social Influence Regression model of Hoff &amp; Minhas
-(<code><a href="https://rdrr.io/pkg/sir/man/sir_alsfit.html" class="external-link">sir::sir_alsfit()</a></code>), adapted to the AME model. Warm-starting the
-bootstrap replicates is the adaptation introduced when this routine was
-ported to sibling packages and is reproduced here.</p>
+(<code>sir::sir_alsfit()</code>), adapted to the AME model, with each bootstrap
+replicate warm-started from the original point estimate.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Minhas, S. and Hoff, P. D. (2025). Decomposing Network Dynamics: Social
 Influence Regression. <em>Political Analysis</em>. The iterative block
 coordinate descent estimator refit here originates with that work
-(implemented in <code><a href="https://rdrr.io/pkg/sir/man/sir_alsfit.html" class="external-link">sir::sir_alsfit()</a></code>).</p>
+(implemented in <code>sir::sir_alsfit()</code>).</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

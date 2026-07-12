@@ -10,7 +10,7 @@ Trade flows, friendship nominations, alliance ties, and sanctions are all exampl
 
 The `lame` package fits **L**ongitudinal **A**dditive and **M**ultiplicative **E**ffects models that account for that structure. Concretely, the model gives every actor two random effects (a *sender* effect $a_i$ for how active they are and a *receiver* effect $b_j$ for how popular they are), plus a position $(u_i, v_j)$ in a low-dimensional *latent space* that captures patterns covariates cannot, such as homophily ("similar actors tie to each other") and transitivity ("friends of friends are friends"). Covariates enter additively, just like in a regression. The "longitudinal" piece lets all of these pieces drift across time periods.
 
-The package builds directly on Peter Hoff's [`amen`](https://CRAN.R-project.org/package=amen) and extends it in four directions: (1) `lame()` fits *panel* networks (the same actors observed at multiple time points) with time-varying effects; (2) it supports *bipartite* (rectangular) networks — such as countries-by-international-organisations (which states belong to which IGOs) — alongside the more familiar unipartite (square) case; (3) the MCMC sampler is written in C++ (via Rcpp / RcppArmadillo) so it scales to the network sizes typical in political-science applications; (4) the fitted object exposes the usual `coef()`, `vcov()`, `confint()`, `predict()`, `fitted()`, `residuals()`, `simulate()` methods, so it plugs into the rest of the R modelling ecosystem the same way `lm()` or `glm()` does.
+The package builds directly on Peter Hoff's [`amen`](https://CRAN.R-project.org/package=amen) and extends it in four directions: (1) `lame()` fits *panel* networks (the same actors observed at multiple time points) with time-varying effects; (2) it supports *bipartite* (rectangular) networks -- such as countries-by-international-organisations (which states belong to which IGOs) -- alongside the more familiar unipartite (square) case; (3) the MCMC sampler is written in C++ (via Rcpp / RcppArmadillo) so it scales to the network sizes typical in political-science applications; (4) the fitted object exposes the usual `coef()`, `vcov()`, `confint()`, `predict()`, `fitted()`, `residuals()`, `simulate()` methods, so it plugs into the rest of the R modelling ecosystem the same way `lm()` or `glm()` does.
 
 **Two ways to estimate the same model.** Alongside the Bayesian MCMC sampler, `lame` ships a fast, **MCMC-free point estimator**, `ame_als()` / `lame_als()`, adapted from the **Social Influence Regression (SIR)** estimator of Minhas & Hoff (2025). It fits the same additive-and-multiplicative structure by iterative block coordinate descent (alternating least squares / IRLS) for the normal, binary, and Poisson families, with parametric-bootstrap or sandwich standard errors and the usual S3 methods. Use it for data exploration, model screening, starting values, or large networks; use the MCMC path (`ame()` / `lame()`) when you need a full posterior or the rank/censored families. For longitudinal normal, binary, and Poisson panels, including named panels where actors enter or exit, `lame(..., method = "als")` has a dynamic point-estimation path for time-varying additive effects, selected regression coefficients, AR(1) latent factors in directed, symmetric, and bipartite panels, Student-t latent-factor drift in directed, symmetric, and bipartite panels, and bipartite dynamic `G`. For normal unipartite and bipartite snap-shift panels, `lame_snap_als()` gives a fast ALS snap score using sequential alignment and lower-tail drift updates by default.
 
@@ -146,44 +146,41 @@ summary(fit_long)
 
 ### Coming from another network package?
 
-`lame` expects `Y` as a (possibly named) matrix, not a graph object. The
-package ships a one-call `as_lame_y()` helper that handles `igraph`,
-`network`, plain matrices, and data.frames with the correct NA diagonal:
+For tidy edgelists, bipartite data, changing actor panels, and covariates,
+use [`netify`](https://netify-dev.github.io/netify/) to build the network
+object and pass it straight into `ame()`, `lame()`, or the ALS versions:
 
 ```r
-# igraph / network / statnet / matrix -> matrix
-Y <- as_lame_y(g)                              # works for any of the above
+net <- netify::netify(
+  edges,
+  actor1 = "sender", actor2 = "receiver", time = "year",
+  weight = "tie",
+  dyad_vars = c("distance", "shared_border"),
+  nodal_vars = c("gdp", "population"),
+  symmetric = FALSE,
+  mode = "unipartite",
+  output_format = "longit_list",
+  missing_to_zero = FALSE
+)
 
-# manual idioms still work
-Y <- igraph::as_adjacency_matrix(g, sparse = FALSE); diag(Y) <- NA
-Y <- as.matrix(net); diag(Y) <- NA
+fit <- lame(net, family = "binary", R = 2,
+            burn = 500, nscan = 4000, odens = 10,
+            verbose = FALSE)
+
+fit_als <- lame(net, family = "binary", R = 2,
+                method = "als", verbose = FALSE)
 ```
 
-### Coming from a long-format tibble?
-
-If your data lives in a tibble of (sender, receiver, tie), pivot to a matrix
-and align row / column order explicitly:
+If you already have a single `igraph`, `network`, or adjacency matrix and just
+need a plain matrix, `as_lame_y()` is still available:
 
 ```r
-library(tidyr); library(tibble); library(dplyr)
-# get a stable actor universe (sorted; or whatever order you want)
-actors <- sort(unique(c(df$sender, df$receiver)))
-Y <- df |>
-  # ensure every (sender, receiver) cell exists, with NA for absent pairs
-  complete(sender = actors, receiver = actors) |>
-  arrange(factor(sender, levels = actors)) |>
-  pivot_wider(names_from = receiver, values_from = tie) |>
-  column_to_rownames("sender") |>
-  as.matrix()
-Y <- Y[actors, actors]    # final guarantee: row / col order matches
-diag(Y) <- NA              # unipartite only; skip for bipartite
+Y <- as_lame_y(g)
+fit <- ame(Y, family = "binary", R = 2, verbose = FALSE)
 ```
 
-A common mistake: `pivot_wider()` does not preserve row order, so the naive
-`pivot_wider() |> column_to_rownames() |> as.matrix()` can produce a `Y`
-where `rownames(Y) != colnames(Y)`, and the next `diag(Y) <- NA` writes NA
-into the wrong cells. The `arrange()` + `Y[actors, actors]` step above
-prevents that.
+Use `missing_to_zero = TRUE` only when absent dyads are real zero-valued ties.
+Use `missing_to_zero = FALSE` when the absence means the dyad was not observed.
 
 ### Coming from ERGM?
 
@@ -236,7 +233,7 @@ international organisations, states × treaties) pass
 either a numeric matrix or a `data.frame`; `Xdyad` must be a 3-D
 `n × n × p` numeric array.
 
-All eight families are supported under both modes; pick the family
+All six families are supported under both modes; pick the family
 that matches your tie type (continuous, binary, ordered categories,
 counts, censored, rank lists). For symmetric (undirected) networks
 pass `symmetric = TRUE` and the same family table applies.
@@ -245,15 +242,13 @@ pass `symmetric = TRUE` and the same family table applies.
 |---------|------------|-----------|-----------|
 | normal  | yes        | yes       | yes       |
 | binary  | yes        | yes       | yes       |
-| tobit   | yes        | yes       | yes       |
 | ordinal | yes        | yes       | yes       |
 | poisson | yes        | yes       | yes       |
 | cbin    | yes        | yes       | no (row-cone is directed) |
 | frn     | yes        | yes       | no (row-cone is directed) |
-| rrl     | yes        | yes       | no (row-cone is directed) |
 
 Every family works under both modes, including the rank-and-count
-families (`ordinal`, `cbin`, `frn`, `rrl`, `poisson`) on bipartite
+families (`ordinal`, `cbin`, `frn`, `poisson`) on bipartite
 networks and symmetric `ordinal`; the
 [`vignette("bipartite")`](#documentation) walk-through covers each.
 
@@ -313,7 +308,7 @@ gof_plot(fit)                                       # goodness of fit
 - **Cross-sectional**: `ame()` fits AME models for a single network snapshot
 - **Longitudinal**: `lame()` fits AME models for networks observed over multiple time periods
 - **Bipartite**: full support for two-mode (rectangular) networks in both `ame()` and `lame()`
-- **8 families**: normal, binary, ordinal, poisson, tobit, censored binary, fixed rank nomination, row-ranked likelihood
+- **6 families**: normal, binary, ordinal, poisson, censored binary, fixed rank nomination
 
 ### Dynamic Modeling
 
@@ -357,7 +352,7 @@ gof_plot(fit)                                       # goodness of fit
 
 `ame_als()` and `lame_als()` are a fast, MCMC-free point estimator for
 the additive-and-multiplicative model, **adapted from the Social
-Influence Regression (SIR) estimator of Minhas & Hoff (2025)** — the
+Influence Regression (SIR) estimator of Minhas & Hoff (2025)** -- the
 iterative block coordinate descent method introduced in *Decomposing
 Network Dynamics: Social Influence Regression* and implemented in the
 [`sir`](https://github.com/netify-dev/sir) package. It is a port and
@@ -369,8 +364,8 @@ methodology.
   IRLS), typically much faster than the MCMC sampler since they return
   point estimates rather than a posterior sample. Useful for data
   exploration, model screening, starting values, and large networks.
-  **Family scope**: `normal`, `binary`, `poisson`; for `tobit`,
-  `ordinal`, `cbin`, `frn`, `rrl` use the MCMC path.
+  **Family scope**: `normal`, `binary`, `poisson`; for
+  `ordinal`, `cbin`, `frn` use the MCMC path.
 - **`lame(..., method = "als")` with dynamic effects**: for
   normal, binary, and Poisson panels, the dispatcher
   can fit dynamic additive effects, selected dynamic regression
@@ -466,7 +461,7 @@ If you use `lame` in your research, please cite:
   title = {lame: Longitudinal Additive and Multiplicative Effects Models for Networks},
   author = {Cassy Dorff and Shahryar Minhas and Tosin Salau},
   year = {2026},
-  note = {R package version 1.1.0},
+  note = {R package version 1.3.0},
   url = {https://github.com/netify-dev/lame},
 }
 ```

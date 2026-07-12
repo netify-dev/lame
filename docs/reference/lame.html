@@ -15,7 +15,7 @@ use the ame function."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@ use the <code>ame</code> function.</p>
 <span>  Xdyad <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  Xrow <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  Xcol <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  rvar <span class="op">=</span> <span class="op">!</span><span class="op">(</span><span class="va">family</span> <span class="op">==</span> <span class="st">"rrl"</span><span class="op">)</span>,</span>
+<span>  rvar <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  cvar <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  dcor <span class="op">=</span> <span class="op">!</span><span class="va">symmetric</span>,</span>
 <span>  nvar <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -85,7 +85,7 @@ use the <code>ame</code> function.</p>
 <span>  dynamic_beta_kind <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ar1"</span>, <span class="st">"rw1"</span>, <span class="st">"rw2"</span>, <span class="st">"matern32"</span><span class="op">)</span>,</span>
 <span>  dynamic_uv_kind <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ar1"</span>, <span class="st">"snap"</span>, <span class="st">"t"</span><span class="op">)</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"normal"</span>,</span>
-<span>  intercept <span class="op">=</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>, <span class="st">"ordinal"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  intercept <span class="op">=</span> <span class="op">!</span><span class="op">(</span><span class="va">family</span> <span class="op">==</span> <span class="st">"ordinal"</span><span class="op">)</span>,</span>
 <span>  symmetric <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  odmax <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
@@ -103,6 +103,7 @@ use the <code>ame</code> function.</p>
 <span>  save_interval <span class="op">=</span> <span class="fl">0.25</span>,</span>
 <span>  model.name <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  save_log_lik <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  posterior_opts <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  log_lik_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  log_lik_chunk_size <span class="op">=</span> <span class="fl">10000L</span>,</span>
 <span>  keep_snap_draws <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"summary"</span>, <span class="st">"draws"</span>, <span class="st">"chunked"</span><span class="op">)</span>,</span>
@@ -137,10 +138,12 @@ use the <code>ame</code> function.</p>
 
 
 <dl><dt id="arg-y">Y<a class="anchor" aria-label="anchor" href="#arg-y"></a></dt>
-<dd><p>a T length list of n x n relational matrices, or a 3D array
-of dimensions <code>[n, n, T]</code>, where T corresponds to the number of
-replicates (over time, for example). If a 3D array is provided, it is
-automatically converted to list format. See family below for various
+<dd><p>a T length list of relational matrices, or a 3D array of dimensions
+<code>[n_row, n_col, T]</code>, where T is the number of time periods. Named lists
+may have changing actor composition; actors are aligned by row and column
+names. A longitudinal <span class="pkg">netify</span> object is also accepted and converted with
+<code>netify::to_lame(lame = TRUE)</code>. When <code>family</code> or <code>mode</code> is
+omitted, the value inferred by <span class="pkg">netify</span> is used. See family below for
 data types.</p></dd>
 
 
@@ -190,7 +193,11 @@ data types.</p></dd>
 
 <dt id="arg-dynamic-uv">dynamic_uv<a class="anchor" aria-label="anchor" href="#arg-dynamic-uv"></a></dt>
 <dd><p>logical: fit dynamic multiplicative effects (latent
-factors). The transition model is selected by <code>dynamic_uv_kind</code>. Default
+factors). The transition model is selected by <code>dynamic_uv_kind</code>.
+<code>fit$U</code> / <code>fit$V</code> store only the posterior-mean trajectory cubes;
+draw-level trajectory uncertainty requires refitting with
+<code>posterior_opts = list(save_UV_draws = TRUE)</code>, which attaches the
+per-iteration cubes as <code>fit$U_draws</code> / <code>fit$V_draws</code>. Default
 <code>FALSE</code>.</p></dd>
 
 
@@ -226,7 +233,7 @@ historical behaviour). Accepted forms:</p><ul><li><p><code>FALSE</code> / <code>
 <li><p><code>TRUE</code>: every coefficient is dynamic.</p></li>
 <li><p>character vector of block shortcuts (<code>"intercept"</code>,
 <code>"dyad"</code>, <code>"row"</code>, <code>"col"</code>) or specific coefficient
-names from <code>colnames(BETA)</code> — those become dynamic.</p></li>
+names from <code>colnames(BETA)</code> – those become dynamic.</p></li>
 <li><p>integer vector: 1-based column indices into <code>colnames(BETA)</code>.</p></li>
 <li><p>logical vector of length <code>p</code>: per-coefficient mask.</p></li>
 </ul><p>Each dynamic-coefficient block (one per distinct intercept / dyad / row /
@@ -239,14 +246,22 @@ loop, conditional on the current static-block beta and on (a, b, U, V).
 When the intercept or a nodal coefficient is dynamic, a sum-to-zero
 contrast basis is applied to the additive-effect sampler to keep
 \(a_i + intercept_t\) identified. Requires at least 2 time periods.
+<code>dynamic_beta</code> composes with multiplicative latent factors
+(<code>R</code> &gt; 0) and additive random effects for every family, across
+unipartite/bipartite and directed/symmetric panels and in combination
+with <code>dynamic_ab</code> / <code>dynamic_uv</code>.
+Note: with a single dynamic coefficient block and small \(T\), the AR(1)
+parameter \(\rho_\beta\) sees only \(T - 1\) transitions and is
+strongly informed by its default truncated-Normal prior (mean 0.8, sd 0.15)
+rather than the data; if \(\rho_\beta\) itself is of interest, check
+prior sensitivity (see <code><a href="dynamic_beta_prior_summary.html">dynamic_beta_prior_summary</a></code>).
 With <code>method = "als"</code>, selected intercept, dyadic, row-node, and
 column-node coefficients are supported on normal, binary, and Poisson panels,
 including named panels where actors enter or exit. Dynamic ALS uses
 period-specific <code>Xrow</code> or
 <code>Xcol</code> values for selected dynamic node coefficients; static node
 coefficients still use per-actor means. Dynamic intercepts are
-unavailable when <code>family = "ordinal"</code> or <code>"rrl"</code>
-(and row-nodal coefficients are unavailable with <code>family = "rrl"</code>).
+unavailable when <code>family = "ordinal"</code>.
 Default FALSE.</p></dd>
 
 
@@ -295,7 +310,7 @@ matrices as <code>fit$lambda_u</code> and <code>fit$lambda_v</code>.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson" - see
+<dd><p>character: one of "normal","binary","ordinal","cbin","frn","poisson" - see
 the details below</p></dd>
 
 
@@ -429,7 +444,12 @@ control.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
-<dd><p>random seed</p></dd>
+<dd><p>random seed for the MCMC sampler (default 6886). The sampler
+is seeded internally with this value, so results are reproducible by
+default and an external <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> call has <em>no</em> effect on
+the chain – pass a different <code>seed</code> here to vary the draws (e.g.
+when running multiple chains). The caller's <code>.Random.seed</code> is
+restored on exit, so fitting never perturbs your RNG stream.</p></dd>
 
 
 <dt id="arg-nscan">nscan<a class="anchor" aria-label="anchor" href="#arg-nscan"></a></dt>
@@ -487,6 +507,32 @@ streams the log-lik values to per-column-chunk binary files under
 chunk's width; the chunks are recovered later via
 <code>read_log_lik(fit)</code>. Required for <code>loo::loo(fit)</code> and
 <code>loo::waic(fit)</code>.</p></dd>
+
+
+<dt id="arg-posterior-opts">posterior_opts<a class="anchor" aria-label="anchor" href="#arg-posterior-opts"></a></dt>
+<dd><p>optional list of posterior draw-storage options,
+usually built with <code><a href="posterior_options.html">posterior_options</a></code>. Recognised names
+(unknown names trigger a warning): <code>save_UV</code>, <code>save_UV_draws</code>,
+<code>save_ab</code>, <code>thin_UV</code>, <code>thin_ab</code>.
+<code>save_UV = TRUE</code> (the <code><a href="ame.html">ame</a></code> spelling) and
+<code>save_UV_draws = TRUE</code> are aliases on this path. With
+<code>dynamic_uv = TRUE</code> they store the per-iteration dynamic
+latent-position cubes at every stored (<code>odens</code>) iteration on
+<code>fit$U_draws</code> / <code>fit$V_draws</code>, each an
+<code>[actor, dim, period, draw]</code> array. On a static fit with a
+positive multiplicative rank they store the per-iteration
+latent-position matrices on <code>fit$U_samples</code> / <code>fit$V_samples</code>
+(<code>[actor, dim, draw]</code> arrays, as <code><a href="ame.html">ame</a></code> does). Bipartite
+fits with positive latent ranks additionally store the
+interaction-matrix draws on <code>fit$G_samples</code>
+(<code>[R_row, R_col, draw]</code>), except under <code>dynamic_G = TRUE</code>
+whose per-period cube already gets posterior summaries.
+<code>save_ab</code> is not available on the longitudinal path and is ignored
+with a warning; <code>thin_UV</code> / <code>thin_ab</code> are accepted for
+<code><a href="posterior_options.html">posterior_options</a></code> compatibility but not applied here
+(<code>odens</code> already thins the stored chain). Requesting latent draw
+storage with a zero multiplicative rank warns and stores nothing.
+Default <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-log-lik-path">log_lik_path<a class="anchor" aria-label="anchor" href="#arg-log-lik-path"></a></dt>
@@ -610,12 +656,24 @@ checkpoint writes. Default <code>100L</code>.</p></dd>
 <code>"observed_ghk"</code>, or <code>"augmented"</code>. Selects the
 argument for selecting which pointwise log-lik is stored on
 <code>fit$log_lik</code>. <code>"observed_exact"</code> uses the closed-form
-marginal log-likelihood for normal, binary, cbin, tobit, poisson,
+marginal log-likelihood for normal, binary, cbin, poisson,
 and ordinal fits. <code>"observed_ghk"</code> uses a randomized-Halton GHK
-Monte Carlo marginal for rank-family fits (<code>"frn"</code> and
-<code>"rrl"</code>) and the exact observed likelihood when no GHK step is
+Monte Carlo marginal for rank-family fits (<code>"frn"</code>)
+and the exact observed likelihood when no GHK step is
 needed. <code>"augmented"</code> uses the augmented-data Gaussian-on-\(Z\)
-contribution.</p></dd>
+contribution. Note the GHK cost grows exponentially with the
+per-row dimension \(D\) (the number of observed dyads in a
+sender row): the per-row Monte Carlo budget escalates to
+<code>min(2048, max(64, 8 * 2^D))</code> draws across a bank of 8
+randomized Halton sequences, once per stored draw, so
+<code>"observed_ghk"</code> on a unipartite <code>"frn"</code> fit with more
+than roughly 12 actors (where \(D = n - 1\)) is expensive; rows
+with \(D &gt; 15\) fall back to a fast pairwise-normal
+approximation. Power users can fix the per-row budget exactly via
+<code>prior$ghk_n_mc</code> (a single positive integer), which both
+raises the 2048 ceiling and lowers the <code>8 * 2^D</code> accuracy
+floor; lower budgets increase the downward Jensen bias of the
+log-lik estimate.</p></dd>
 
 
 <dt id="arg-ordinal-cutpoints">ordinal_cutpoints<a class="anchor" aria-label="anchor" href="#arg-ordinal-cutpoints"></a></dt>
@@ -878,10 +936,8 @@ is bipartite only.</p>
 <li><p>Rectangular structure: Network density patterns differ from square matrices</p></li>
 <li><p>Community interpretation: Captures affiliation patterns between node types</p></li>
 </ul><p><strong>Standard AME Model Types:</strong></p>
-<p>The following describes the eight standard data types/models available:</p>
+<p>The following describes the six standard data types/models available:</p>
 <p>"normal": A normal AME model.</p>
-<p>"tobit": A tobit AME model for censored continuous data. Values are censored
-at zero, appropriate for non-negative continuous relational data.</p>
 <p>"binary": A binary probit AME model.</p>
 <p>"ordinal": An ordinal probit AME model. An intercept is not identifiable in this
 model.</p>
@@ -890,12 +946,11 @@ specifies the maximum number of links each row may have.</p>
 <p>"frn": An AME model for fixed rank nomination networks. A higher value of
 the rank indicates a stronger relationship. The value of 'odmax' specifies
 the maximum number of links each row may have.</p>
-<p>"rrl": An AME model based on the row ranks. This is appropriate if the
-relationships across rows are not directly comparable in terms of scale. An
-intercept, row random effects and row regression effects are not estimable
-for this model.</p>
-<p>"poisson": An overdispersed Poisson AME model for count data. The latent
-variable represents the log mean of the Poisson distribution.</p>
+<p>"poisson": An overdispersed Poisson AME model for count data:
+\(Y \sim \mathrm{Poisson}(\exp(z))\) with \(z \sim N(\eta, \sigma^2)\),
+a lognormal-mixed Poisson. The conditional mean given the latent \(z\) is
+\(\exp(z)\); the marginal mean is \(\exp(\eta + \sigma^2/2)\), not
+\(\exp(\eta)\).</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -911,9 +966,10 @@ smoother on the time-varying coefficient path,
 <code><a href="latent_positions.html">latent_positions</a></code> for extracting latent positions as a tidy data frame,
 <code><a href="procrustes_align.html">procrustes_align</a></code> for Procrustes alignment of latent positions,
 <code><a href="summary.lame.html">summary.lame</a></code> for model summaries,
-<code><a href="coef.ame.html">coef.lame</a></code> for coefficient extraction,
-<code><a href="netify_to_lame.html">netify_to_lame</a></code> for the recommended netify -&gt; lame
-bridge (set <code>lame = TRUE</code> on <code><a href="https://netify-dev.github.io/netify/reference/netify_to_amen.html" class="external-link">netify::to_amen()</a></code>).</p></div>
+<code><a href="coef.ame.html">coef.lame</a></code> for coefficient extraction.
+Long-format edgelists and covariates can be prepared with
+<code><a href="https://netify-dev.github.io/netify/reference/netify.html" class="external-link">netify::netify()</a></code> and passed directly to <code>lame()</code>, or converted
+explicitly with <code>netify::to_lame(lame = TRUE)</code>.</p></div>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
@@ -935,37 +991,37 @@ bridge (set <code>lame = TRUE</code> on <code><a href="https://netify-dev.github
 <span class="r-in"><span><span class="co">## Make every dyadic coefficient evolve as an AR(1):</span></span></span>
 <span class="r-in"><span><span class="va">fit_dyn</span> <span class="op">&lt;-</span> <span class="fu">lame</span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">$</span><span class="va">Y</span>, <span class="va">YX_bin_list</span><span class="op">$</span><span class="va">X</span>,</span></span>
 <span class="r-in"><span>                family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span></span>
-<span class="r-in"><span>                nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span></span>
+<span class="r-in"><span>                nscan <span class="op">=</span> <span class="fl">60</span>, burn <span class="op">=</span> <span class="fl">15</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span></span>
 <span class="r-in"><span>                dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`family` = <span style="color: #0000BB;">"binary"</span> but `Y` contains values other than 0/1.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">$</span><span class="va">BETA</span><span class="op">)</span>        <span class="co"># [n_stored, p, T] -- 3-D when dynamic</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 40  4  4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 12  4  4</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span>            <span class="co"># [p, T] posterior-mean coefficient paths</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                  t1        t2        t3        t4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept 0.1201770 0.1201770 0.1201770 0.1201770</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad   0.7129073 0.7082005 0.6908786 0.6646877</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad   0.8666715 0.8747979 0.8419112 0.7943650</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad   1.0599525 1.0776382 1.0791149 0.9832361</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                   t1         t2         t3         t4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept 0.07716626 0.07716626 0.07716626 0.07716626</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad   0.49076649 0.46871668 0.44042800 0.43915069</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad   0.59285324 0.56979034 0.56463952 0.52249484</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad   0.71830706 0.70157998 0.70796983 0.64771462</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span>         <span class="co"># per-period 95% credible intervals</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                     2.5%     97.5%</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t1] 0.07475056 0.1728590</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t1]   0.53690991 0.8622224</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t1]   0.62214324 1.0604462</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t1]   0.76493725 1.3209904</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t2] 0.07475056 0.1728590</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t2]   0.50979660 0.8765256</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t2]   0.63053640 1.0551014</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t2]   0.77041289 1.2576733</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t3] 0.07475056 0.1728590</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t3]   0.54409889 0.8386222</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t3]   0.65197943 0.9968609</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t3]   0.84724827 1.2835246</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t4] 0.07475056 0.1728590</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t4]   0.51366995 0.7657976</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t4]   0.60847529 0.9173027</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t4]   0.75054803 1.1387718</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t1] 0.04044249 0.1187873</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t1]   0.40880598 0.5754233</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t1]   0.48775837 0.6524408</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t1]   0.57551953 0.8230361</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t2] 0.04044249 0.1187873</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t2]   0.37351362 0.5351765</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t2]   0.44252845 0.6697346</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t2]   0.54809567 0.8177825</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t3] 0.04044249 0.1187873</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t3]   0.34099710 0.5228001</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t3]   0.44566247 0.6604664</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t3]   0.54365883 0.8223741</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t4] 0.04044249 0.1187873</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t4]   0.34156095 0.5122625</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t4]   0.40711398 0.6061875</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t4]   0.53869386 0.7384885</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span>         <span class="co"># prints a "Dynamic coefficients per period" block</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> === Longitudinal AME Model Summary ===</span>
@@ -976,34 +1032,34 @@ bridge (set <code>lame = TRUE</code> on <code><a href="https://netify-dev.github
 <span class="r-out co"><span class="r-pr">#&gt;</span> Time periods: 4 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: binary </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Mode: unipartite </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Dynamic regression coefficients: enabled, kind = 'ar1' (rho_beta = dyad : 0.93)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Dynamic regression coefficients: enabled, kind = 'ar1' (rho_beta = dyad : 0.97)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Regression coefficients:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>           Estimate StdError z_value p_value CI_lower CI_upper    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept     0.12    0.031   3.866       0    0.075    0.173 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad      0.694    0.095   7.331       0    0.525    0.822 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad      0.844    0.116   7.253       0    0.631        1 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad       1.05    0.145   7.264       0    0.782    1.242 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept    0.077    0.024   3.188   0.001     0.04    0.119  **</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad       0.46    0.056   8.209       0    0.366    0.534 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad      0.562    0.068   8.325       0    0.446    0.642 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad      0.694    0.086   8.092       0    0.551    0.799 ***</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Dynamic coefficients per period:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> -------------------------------</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>            Mean   Min   Max Drift_pct Dynamic</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept 0.120 0.120 0.120     0.000       N</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad   0.694 0.665 0.713     6.946       Y</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad   0.844 0.794 0.875     9.525       Y</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad   1.050 0.983 1.079     9.131       Y</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            Mean   Min   Max Drift Drift_pct Dynamic</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept 0.077 0.077 0.077 0.000     0.000       N</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad   0.460 0.439 0.491 0.052    11.227       Y</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad   0.562 0.522 0.593 0.070    12.509       Y</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad   0.694 0.648 0.718 0.071    10.173       Y</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Variance components:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> -------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     Estimate StdError</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> va     0.841    0.322</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> cab    0.438    0.194</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> vb     0.648    0.246</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rho    0.203    0.057</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> va     0.216    0.042</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cab    0.101    0.030</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> vb     0.152    0.053</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rho    0.269    0.060</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ve     1.000    0.000</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   (va = sender, cab = sender-receiver covariance, vb = receiver,</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    rho = dyadic correlation, ve = residual variance)</span>

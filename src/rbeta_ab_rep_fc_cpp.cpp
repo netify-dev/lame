@@ -152,7 +152,12 @@ arma::vec rmvnorm_cpp(
    
    arma::mat Vb; arma::mat Mb; arma::vec beta;
    if(p > 0){
-     double ridge = 1e-3;
+     // relative ridge: an absolute constant here acts as an informative
+     // shrinkage prior whose strength depends on the scale of Y (it
+     // attenuates beta on large-scale outcomes); scale it off the
+     // precision diagonal so it only guards conditioning
+     double qmax = Qb.diag().max();
+     double ridge = 1e-8 * (qmax > 0 ? qmax : 1.0);
      Qb.diag() += ridge;
 
      bool inv_success = false;

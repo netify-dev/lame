@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2026-06-11</h4>
+            <h4 data-toc-skip class="date">2026-07-12</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/HEAD/vignettes/forecasting.Rmd" class="external-link"><code>vignettes/forecasting.Rmd</code></a></small>
       <div class="d-none name"><code>forecasting.Rmd</code></div>
@@ -168,14 +168,13 @@ we show it failing.</p>
 <span>    nscan <span class="op">=</span> <span class="fl">800</span>, burn <span class="op">=</span> <span class="fl">200</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; Note: Square matrix assumed to be unipartite. Use mode='bipartite' for square bipartite networks.</span></span>
 <span></span>
 <span><span class="co"># the recovered per-period coefficient tracks the simulated path</span></span>
 <span><span class="va">coef_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="va">trade_row</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"^trade[._]dyad$|trade"</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">coef_path</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">coef_path</span><span class="op">[</span><span class="va">trade_row</span>, <span class="op">]</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    t1    t2    t3    t4    t5    t6 </span></span>
-<span><span class="co">#&gt; 0.913 0.867 0.587 0.532 0.531 0.519</span></span></code></pre></div>
+<span><span class="co">#&gt; 0.891 0.847 0.570 0.508 0.520 0.504</span></span></code></pre></div>
 <p>The recovered trade coefficient path tracks the simulated truth, and
 (as we confirm in Step 5) the posterior on
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
@@ -206,7 +205,7 @@ and is the right prior for permanent-drift coefficients.</p>
 <span><span class="va">fc_resp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
 <span><span class="co"># binary: each entry is a posterior-mean predicted probability</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="va">fc_resp</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.02416641 0.89436915</span></span>
+<span><span class="co">#&gt; [1] 0.03937621 0.87313380</span></span>
 <span></span>
 <span><span class="co"># by_draw = TRUE returns the full [n, n, h, n_draws] array</span></span>
 <span><span class="va">fc_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span>, by_draw <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -218,9 +217,9 @@ and is the right prior for permanent-drift coefficients.</p>
 <span><span class="va">fc_ci</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span>, interval <span class="op">=</span> <span class="st">"credible"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fc_ci</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>         <span class="co"># list($lower, $median, $upper), each n x n</span></span>
 <span><span class="co">#&gt; List of 3</span></span>
-<span><span class="co">#&gt;  $ lower : num [1:30, 1:30] 0.00243 0.03424 0.00523 0.05901 0.10495 ...</span></span>
-<span><span class="co">#&gt;  $ median: num [1:30, 1:30] 0.097 0.0475 0.1614 0.1229 0.1543 ...</span></span>
-<span><span class="co">#&gt;  $ upper : num [1:30, 1:30] 0.6032 0.0635 0.7355 0.2271 0.21 ...</span></span></code></pre></div>
+<span><span class="co">#&gt;  $ lower : num [1:30, 1:30] 0.00448 0.05674 0.00818 0.09038 0.13514 ...</span></span>
+<span><span class="co">#&gt;  $ median: num [1:30, 1:30] 0.1501 0.0733 0.2218 0.1739 0.1927 ...</span></span>
+<span><span class="co">#&gt;  $ upper : num [1:30, 1:30] 0.6927 0.0936 0.7966 0.2961 0.2605 ...</span></span></code></pre></div>
 <p>The typical cell of <code>fc_ci[[1]]</code> carries an informative
 <code>lower</code> / <code>median</code> / <code>upper</code> triple – a
 genuine sub-interval of [0, 1] rather than the whole range, because the
@@ -231,6 +230,63 @@ horizon <code>h</code> as forecast uncertainty accumulates; on a
 stationary fit it rarely collapses toward the degenerate [0, 1] you see
 pervasively near a unit root (Step 5 shows that failure mode and the
 warning that catches it).</p>
+<div class="section level3">
+<h3 id="visualising-the-forecast">Visualising the forecast<a class="anchor" aria-label="anchor" href="#visualising-the-forecast"></a>
+</h3>
+<p>Two views make the forecast concrete. The left panel is the predicted
+tie-probability matrix for the first future period
+(<code>fc_resp[[1]]</code>) – the actual network the model expects next.
+The right panel collapses each horizon to its across-dyad average
+predicted probability with the average 95% credible band, so you can
+watch the band widen as the horizon grows.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://patchwork.data-imaginist.com" class="external-link">patchwork</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># left: forecast heatmap for the first future period</span></span>
+<span><span class="va">P1</span> <span class="op">&lt;-</span> <span class="va">fc_resp</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">rn</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">P1</span><span class="op">)</span>; <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">rn</span><span class="op">)</span><span class="op">)</span> <span class="va">rn</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"a%02d"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">P1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">cn</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">P1</span><span class="op">)</span>; <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">cn</span><span class="op">)</span><span class="op">)</span> <span class="va">cn</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"a%02d"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">P1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">heat_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>    sender   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">rn</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/row.html" class="external-link">row</a></span><span class="op">(</span><span class="va">P1</span><span class="op">)</span><span class="op">]</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rev.html" class="external-link">rev</a></span><span class="op">(</span><span class="va">rn</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    receiver <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">cn</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/col.html" class="external-link">col</a></span><span class="op">(</span><span class="va">P1</span><span class="op">)</span><span class="op">]</span>, levels <span class="op">=</span> <span class="va">cn</span><span class="op">)</span>,</span>
+<span>    prob     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">P1</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">p_heat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">heat_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">receiver</span>, <span class="va">sender</span>, fill <span class="op">=</span> <span class="va">prob</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_tile</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_viridis.html" class="external-link">scale_fill_viridis_c</a></span><span class="op">(</span>limits <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>, name <span class="op">=</span> <span class="st">"P(tie)"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Forecast for t7"</span>, x <span class="op">=</span> <span class="st">"Receiver"</span>, y <span class="op">=</span> <span class="st">"Sender"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>          axis.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>, axis.ticks <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>          panel.grid <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>, legend.position <span class="op">=</span> <span class="st">"top"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># right: across-dyad average predicted probability + average 95% band</span></span>
+<span><span class="va">horizon_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>    period <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"t"</span>, <span class="va">T_fc</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">fc_ci</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>                    levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"t"</span>, <span class="va">T_fc</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">fc_ci</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    median <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">fc_ci</span>, <span class="kw">function</span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">median</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    lower  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">fc_ci</span>, <span class="kw">function</span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">lower</span>,  na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    upper  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">fc_ci</span>, <span class="kw">function</span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">upper</span>,  na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">p_horizon</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">horizon_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">period</span>, <span class="va">median</span>, group <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_ribbon.html" class="external-link">geom_ribbon</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>ymin <span class="op">=</span> <span class="va">lower</span>, ymax <span class="op">=</span> <span class="va">upper</span><span class="op">)</span>, fill <span class="op">=</span> <span class="st">"grey85"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">2</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Average forecast by horizon"</span>,</span>
+<span>         x <span class="op">=</span> <span class="st">"Forecast period"</span>, y <span class="op">=</span> <span class="st">"Mean P(tie)"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>, axis.ticks <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>          legend.position <span class="op">=</span> <span class="st">"top"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">p_heat</span> <span class="op">+</span> <span class="va">p_horizon</span></span></code></pre></div>
+<p><img src="forecasting_files/figure-html/forecast-plot-1.png" class="r-plt" alt="Left: heatmap of predicted tie probabilities among the 30 actors for the first forecast period, darker cells indicating higher predicted probability. Right: the across-dyad average predicted probability at horizons h = 1, 2, 3 with a shaded 95 percent credible band that widens with the horizon." width="672"></p>
+<p>The heatmap shows the model does not forecast a uniform network: some
+sender/receiver pairs carry a much higher predicted tie probability than
+others, inherited from their estimated additive effects and the
+recovered trade coefficient. The horizon panel shows the average
+predicted probability staying roughly level (the coefficient is
+mean-reverting) while its credible band widens with <code>h</code> – the
+visual signature of accumulating forecast uncertainty.</p>
 <p>The forecast propagates <code>(β_t, a_t, b_t, U_t, V_t)</code>
 forward by drawing from the joint posterior of the dynamic state-space
 hyperparameters <code>(ρ_β, σ_β, ρ_ab, σ_ab, ρ_uv, σ_uv)</code> for each
@@ -239,9 +295,9 @@ binary example above is just for illustration. For
 <code>family = "normal"</code>, <code>type = "response"</code> returns
 the forecasted continuous outcome; for <code>family = "poisson"</code>,
 the response-scale forecast multiplies <code>exp(η)</code> by the
-future-period exposure (pass via <code>newexposure = ...</code>; see
-also the <code>period_exposure</code> note in
-<code>vignettes/dynamic_effects.Rmd</code>).</p>
+future-period exposure (pass via <code>newexposure = ...</code>; see the
+<code>period_exposure</code> section below).</p>
+</div>
 <div class="section level3">
 <h3 id="poisson-exposure-offsets-via-period_exposure">Poisson exposure offsets via <code>period_exposure</code><a class="anchor" aria-label="anchor" href="#poisson-exposure-offsets-via-period_exposure"></a>
 </h3>
@@ -270,7 +326,7 @@ alternative future covariates with the forecast. Each array is
 <code>n x n x p</code> and the slice order along the 3rd dimension must
 match the original <code>dimnames(Xdyad[[1]])[[3]]</code> from the fit
 (here a single slice, <code>trade</code>).</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>   <span class="co"># forecast draws are stochastic; seed so the printed delta summary reproduces</span></span>
 <span><span class="co"># baseline scenario: freeze the trade covariate at the last observed period</span></span>
 <span><span class="va">last_X</span> <span class="op">&lt;-</span> <span class="va">Xdyad</span><span class="op">[[</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">Xdyad</span><span class="op">)</span><span class="op">]</span><span class="op">]</span></span>
@@ -293,7 +349,7 @@ match the original <code>dimnames(Xdyad[[1]])[[3]]</code> from the fit
 <span><span class="va">delta_h3</span> <span class="op">&lt;-</span> <span class="va">fc_up</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span> <span class="op">-</span> <span class="va">fc_cf</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">delta_h3</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. </span></span>
-<span><span class="co">#&gt; -0.04955  0.04331  0.08604  0.07468  0.10923  0.13965</span></span></code></pre></div>
+<span><span class="co">#&gt; -0.06080  0.04622  0.08240  0.07072  0.10297  0.13440</span></span></code></pre></div>
 <p>The trade coefficient is positive and mean-reverting, so a one-unit
 increase in <code>trade</code> raises the posterior-mean cooperation
 probability at <code>h = 3</code> on average (the mean and median of
@@ -321,7 +377,7 @@ additive shifts there, which is why we used <code>+ 1</code> rather than
 <div class="section level2">
 <h2 id="step-4-visualise-the-coefficient-path">Step 4: Visualise the coefficient path<a class="anchor" aria-label="anchor" href="#step-4-visualise-the-coefficient-path"></a>
 </h2>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">fit</span>, probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.5</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Posterior coefficient paths"</span>,</span>
@@ -337,10 +393,10 @@ posterior median per coefficient and period; faceted by coefficient.</p>
 <p><code>predict(fit, h = ...)</code> fires a one-per-fit warning if the
 upper 97.5% credible bound on ρ_β reaches 0.99 (i.e. the posterior puts
 non-trivial mass near the unit root). On the mean-reverting fit above
-that bound sits around 0.98, so <strong>the warning does not
-fire</strong> and the forecasts are well-posed. The two regimes still
-have qualitatively different forecast-variance behavior, and getting
-this distinction right matters for picking your horizon:</p>
+that bound sits at 0.964, so <strong>the warning does not fire</strong>
+and the forecasts are well-posed. The two regimes still have
+qualitatively different forecast-variance behavior, and getting this
+distinction right matters for picking your horizon:</p>
 <ul>
 <li>
 <strong>AR(1), <code>dynamic_beta_kind = "ar1"</code></strong> with
@@ -386,25 +442,131 @@ if the AR(1) posterior on
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
 is near-but-not-at 1 and the science says “should mean-revert
 eventually,” stick with AR(1) but cap your reported horizon at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mo>≈</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">h \approx 3</annotation></semantics></math>.
+The warning printed by <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> states whichever of these
+two variance behaviours applies to your
+<code>dynamic_beta_kind</code>.</p>
+<div class="section level3">
+<h3 id="watching-it-fail-a-sparse-short-drifting-panel">Watching it fail: a sparse, short, drifting panel<a class="anchor" aria-label="anchor" href="#watching-it-fail-a-sparse-short-drifting-panel"></a>
+</h3>
+<p>Everything above describes the failure mode; here it is actually
+happening. We simulate the kind of panel the Step 1 note warned about:
+fewer actors, only four periods, single-digit tie density in the early
+periods, and a covariate effect that <em>drifts upward</em> instead of
+mean-reverting. There is no long-run level for the AR(1) to find, so the
+posterior on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
+runs up against the unit root:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
+<span><span class="va">n_sp</span> <span class="op">&lt;-</span> <span class="fl">20</span></span>
+<span><span class="va">T_sp</span> <span class="op">&lt;-</span> <span class="fl">4</span></span>
+<span><span class="va">beta_drift</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.4</span>, <span class="fl">0.9</span>, <span class="fl">1.4</span>, <span class="fl">1.9</span><span class="op">)</span>   <span class="co"># drifts up; never mean-reverts</span></span>
+<span><span class="va">X_sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">T_sp</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n_sp</span> <span class="op">*</span> <span class="va">n_sp</span><span class="op">)</span>, <span class="va">n_sp</span>, <span class="va">n_sp</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/array.html" class="external-link">array</a></span><span class="op">(</span><span class="va">x</span>, dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n_sp</span>, <span class="va">n_sp</span>, <span class="fl">1</span><span class="op">)</span>,</span>
+<span>          dimnames <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="cn">NULL</span>, <span class="cn">NULL</span>, <span class="st">"sanction_risk"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span>
+<span><span class="va">Y_sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">T_sp</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">eta</span> <span class="op">&lt;-</span> <span class="op">-</span><span class="fl">2</span> <span class="op">+</span> <span class="va">beta_drift</span><span class="op">[</span><span class="va">t</span><span class="op">]</span> <span class="op">*</span> <span class="va">X_sp</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span><span class="op">[</span>, , <span class="fl">1</span><span class="op">]</span></span>
+<span>    <span class="va">Yt</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_sp</span> <span class="op">*</span> <span class="va">n_sp</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">pnorm</a></span><span class="op">(</span><span class="va">eta</span><span class="op">)</span><span class="op">)</span>, <span class="va">n_sp</span>, <span class="va">n_sp</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"s%02d"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_sp</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="va">Yt</span></span>
+<span><span class="op">}</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">Y_sp</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"t"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">T_sp</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">Y_sp</span>, <span class="kw">function</span><span class="op">(</span><span class="va">y</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span>  <span class="co"># sparse early on</span></span>
+<span><span class="co">#&gt;    t1    t2    t3    t4 </span></span>
+<span><span class="co">#&gt; 0.034 0.055 0.118 0.161</span></span>
+<span></span>
+<span><span class="va">fit_sparse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
+<span>    <span class="va">Y_sp</span>, Xdyad <span class="op">=</span> <span class="va">X_sp</span>,</span>
+<span>    family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>    dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>, dynamic_beta_kind <span class="op">=</span> <span class="st">"ar1"</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">400</span>, burn <span class="op">=</span> <span class="fl">100</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">fit_sparse</span><span class="op">$</span><span class="va">RHO_BETA</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   50% 97.5% </span></span>
+<span><span class="co">#&gt; 0.860 0.994</span></span></code></pre></div>
+<p>The upper 97.5% bound on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
+is now 0.994 – past the 0.99 threshold – so the forecast call itself
+raises the warning:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">fc_sparse</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_sparse</span>, h <span class="op">=</span> <span class="fl">6</span>, type <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>                     interval <span class="op">=</span> <span class="st">"credible"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: <span style="color: #BBBB00;">!</span> Posterior 95% interval for `rho_beta` reaches <span style="color: #0000BB;">0.994</span>.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Under AR(1) the `h`-step forecast variance saturates at the stationary level</span></span>
+<span><span class="co">#&gt;   `sigma_beta^2 / (1 - rho_beta^2)`, which itself explodes as `rho_beta -&gt; 1`;</span></span>
+<span><span class="co">#&gt;   horizons beyond <span style="color: #0000BB;">"3"</span> become uninformative in this regime.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Consider refitting with `dynamic_beta_kind = "rw1"` if the underlying process</span></span>
+<span><span class="co">#&gt;   is genuinely unit-root.</span></span></code></pre></div>
+<p>That is the diagnostic doing its job at forecast time. To see what
+the near-unit-root posterior does to the intervals, compare how the
+average 95% forecast-interval width grows with the horizon on this fit
+versus the mean-reverting Step 1 fit:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">fc_healthy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">6</span>, type <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>                      interval <span class="op">=</span> <span class="st">"credible"</span><span class="op">)</span></span>
+<span><span class="va">width_by_h</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">fc</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">fc</span>, <span class="kw">function</span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">upper</span> <span class="op">-</span> <span class="va">m</span><span class="op">$</span><span class="va">lower</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="va">w_healthy</span> <span class="op">&lt;-</span> <span class="fu">width_by_h</span><span class="op">(</span><span class="va">fc_healthy</span><span class="op">)</span></span>
+<span><span class="va">w_sparse</span>  <span class="op">&lt;-</span> <span class="fu">width_by_h</span><span class="op">(</span><span class="va">fc_sparse</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>mean_reverting <span class="op">=</span> <span class="va">w_healthy</span>, near_unit_root <span class="op">=</span> <span class="va">w_sparse</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                 [,1]  [,2]  [,3]  [,4]  [,5]  [,6]</span></span>
+<span><span class="co">#&gt; mean_reverting 0.476 0.497 0.570 0.584 0.587 0.584</span></span>
+<span><span class="co">#&gt; near_unit_root 0.251 0.355 0.375 0.469 0.488 0.497</span></span>
+<span></span>
+<span><span class="co"># at h = 3, how many of the dyads the covariate actually moves (top</span></span>
+<span><span class="co"># decile of |sanction_risk|) get an interval spanning nearly all of</span></span>
+<span><span class="co"># [0, 1]?</span></span>
+<span><span class="va">x_last</span> <span class="op">&lt;-</span> <span class="va">X_sp</span><span class="op">[[</span><span class="va">T_sp</span><span class="op">]</span><span class="op">]</span><span class="op">[</span>, , <span class="fl">1</span><span class="op">]</span></span>
+<span><span class="va">hi_x</span>   <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">x_last</span><span class="op">)</span> <span class="op">&gt;=</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">x_last</span><span class="op">)</span>, <span class="fl">0.9</span><span class="op">)</span></span>
+<span><span class="va">deg_h3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fc_sparse</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">lower</span><span class="op">[</span><span class="va">hi_x</span><span class="op">]</span> <span class="op">&lt;</span> <span class="fl">0.05</span> <span class="op">&amp;</span></span>
+<span>               <span class="va">fc_sparse</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">upper</span><span class="op">[</span><span class="va">hi_x</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0.95</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">deg_h3</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 0.45</span></span>
+<span></span>
+<span><span class="va">width_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>    h     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">w_healthy</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span>,</span>
+<span>    fit   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mean-reverting (Step 1 fit)"</span>,</span>
+<span>                  <span class="st">"near-unit-root (sparse fit)"</span><span class="op">)</span>, each <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">w_healthy</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    width <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">w_healthy</span>, <span class="va">w_sparse</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">width_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">h</span>, <span class="va">width</span>, linetype <span class="op">=</span> <span class="va">fit</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">1.8</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Forecast interval width by horizon"</span>,</span>
+<span>         x <span class="op">=</span> <span class="st">"Forecast horizon h"</span>, y <span class="op">=</span> <span class="st">"Mean 95% interval width"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>, axis.ticks <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>          legend.position <span class="op">=</span> <span class="st">"top"</span>, legend.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><img src="forecasting_files/figure-html/sparse-fail-width-1.png" class="r-plt" alt="Line plot of the across-dyad mean 95 percent forecast interval width at horizons one through six for two fits. The mean-reverting Step 1 fit's width is flat from roughly horizon three on, the saturation an AR(1) below the unit root predicts, while the near-unit-root sparse fit's width is still rising at horizon six, roughly double its one-step value." width="576"></p>
+<p>Read the growth, not the levels: the sparse fit’s absolute widths are
+smaller only because most of its predicted probabilities sit near zero
+(the network is sparse). The mean-reverting fit’s width grows by a
+factor of just 1.2 across the whole horizon and is flat from about
+<code>h = 3</code> on – the saturation the AR(1) bullet above predicts.
+The near-unit-root fit’s width has grown by a factor of 2 by
+<code>h = 6</code> and is still climbing – the growth you get when
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
+sits at the unit root, damped here only by the bounded [0, 1]
+probability scale. And the degeneracy lands exactly where it hurts:
+among the dyads the covariate actually moves (the top decile of
+<code>|sanction_risk|</code>), 45% of the <code>h = 3</code> intervals
+already span essentially the whole unit interval, on a network whose
+observed density never exceeded 16%. A forecast interval of [0, 1] for a
+rare-event dyad says nothing at all – which is precisely what the
+warning is telling you. The remedy is the one stated above: refit with
+<code>dynamic_beta_kind = "rw1"</code> if the drift is real, and in
+either case do not report horizons past
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mo>≈</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">h \approx 3</annotation></semantics></math>.</p>
-<p>A note on the printed warning text. As of the post-v4 fix, the cli
-message branches on <code>dynamic_beta_kind</code>: under AR(1) it
-reports that the
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>-step
-forecast variance <em>saturates</em> at the stationary level
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mi>β</mi><mn>2</mn></msubsup><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msubsup><mi>ρ</mi><mi>β</mi><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\sigma_\beta^2 / (1 - \rho_\beta^2)</annotation></semantics></math>
-(which itself explodes as
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ρ</mi><mi>β</mi></msub><mo>→</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\rho_\beta \to 1</annotation></semantics></math>),
-and under RW1 it reports that the
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>-step
-variance <em>grows linearly</em> in
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>.
-This is the strictly-correct distinction — AR(1) saturates
-geometrically, RW1 grows exactly linearly — and is the version to cite
-in any methods write-up.</p>
 <p>For a longer-horizon diagnostic, use the exact rolling-origin
 leave-future-out CV:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># refit on Y[1:(t-1)] for each t in periods and score Y[[t]].</span></span>
 <span><span class="co"># Skip the very first leave-out (would leave a 1-period training window</span></span>
 <span><span class="co"># which is too short for dynamic_beta); use the last 2 origins.</span></span>
@@ -419,10 +581,10 @@ leave-future-out CV:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Periods evaluated: <span style="color: #0000BB;">5</span> and <span style="color: #0000BB;">6</span></span></span>
 <span><span class="co">#&gt; Refit per leave-out: <span style="color: #0000BB;">TRUE</span></span></span>
-<span><span class="co">#&gt; Total elpd_lfo: <span style="color: #0000BB;">-1173.7</span></span></span>
+<span><span class="co">#&gt; Total elpd_lfo: <span style="color: #0000BB;">-1156.2</span></span></span>
 <span><span class="co">#&gt;  period      elpd n_obs</span></span>
-<span><span class="co">#&gt;       5 -580.7807   870</span></span>
-<span><span class="co">#&gt;       6 -592.9636   870</span></span></code></pre></div>
+<span><span class="co">#&gt;       5 -581.8143   870</span></span>
+<span><span class="co">#&gt;       6 -574.3680   870</span></span></code></pre></div>
 <p>The <code>nscan = 200, burn = 50, odens = 5</code> settings inside
 <code><a href="../reference/lfo.html">lfo()</a></code> are chosen so the vignette builds in well under a
 minute on a laptop. They give <code>200 / 5 = 40</code> stored draws per
@@ -442,6 +604,7 @@ which is what you want to see when there is no late regime change. If
 be the empirical signal of a regime change near the end of your training
 window; reach for <code>detect_change_point(fit)</code> (a heuristic
 Bayes-factor diagnostic) to localise it.</p>
+</div>
 <div class="section level3">
 <h3 id="probability-integral-transform-pit-calibration">Probability-integral-transform (PIT) calibration<a class="anchor" aria-label="anchor" href="#probability-integral-transform-pit-calibration"></a>
 </h3>
@@ -452,7 +615,7 @@ continuous families the PIT is the Gaussian CDF evaluated at the
 observation; for binary / Poisson / ordinal it is the
 Czado-Gneiting-Held randomised PIT (Czado, Gneiting &amp; Held 2009). A
 well-calibrated forecast produces PIT values that are Uniform(0, 1).</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># fit on the first five periods, hold out the sixth</span></span>
 <span><span class="va">fit_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    <span class="va">Y</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span>,</span>
@@ -463,12 +626,6 @@ well-calibrated forecast produces PIT values that are Uniform(0, 1).</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>   <span class="co"># the randomised PIT draws are stochastic; seed for reproducibility</span></span>
 <span><span class="va">pit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/forecast_pit.html">forecast_pit</a></span><span class="op">(</span><span class="va">fit_train</span>, y_future <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">Y</span><span class="op">[[</span><span class="fl">6</span><span class="op">]</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: <span style="color: #BBBB00;">!</span> Posterior 95% interval for `rho_beta` reaches <span style="color: #0000BB;">0.999</span>.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Under AR(1) the `h`-step forecast variance saturates at the stationary level</span></span>
-<span><span class="co">#&gt;   `sigma_beta^2 / (1 - rho_beta^2)`, which itself explodes as `rho_beta -&gt; 1`;</span></span>
-<span><span class="co">#&gt;   horizons beyond <span style="color: #0000BB;">"3"</span> become uninformative in this regime.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Consider refitting with `dynamic_beta_kind = "rw1"` if the underlying process</span></span>
-<span><span class="co">#&gt;   is genuinely unit-root.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">pit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Forecast PIT calibration check</span> ──</span></span>
@@ -476,16 +633,34 @@ well-calibrated forecast produces PIT values that are Uniform(0, 1).</p>
 <span><span class="co">#&gt; • Family: <span style="color: #0000BB;">"binary"</span></span></span>
 <span><span class="co">#&gt; • Forecast horizon: <span style="color: #0000BB;">1</span></span></span>
 <span><span class="co">#&gt; • Held-out dyads: <span style="color: #0000BB;">870</span></span></span>
-<span><span class="co">#&gt; • KS stat vs Uniform(0,1): <span style="color: #0000BB;">0.0395</span></span></span>
-<span><span class="co">#&gt; • KS p-value: <span style="color: #0000BB;">0.133</span></span></span>
-<span><span class="co">#&gt; • Fraction in [0.025, 0.975]: <span style="color: #0000BB;">0.932</span> (expect <span style="color: #0000BB;">0.95</span>)</span></span>
+<span><span class="co">#&gt; • KS stat vs Uniform(0,1): <span style="color: #0000BB;">0.0417</span></span></span>
+<span><span class="co">#&gt; • KS p-value: <span style="color: #0000BB;">0.0973</span></span></span>
+<span><span class="co">#&gt; • Fraction in [0.025, 0.975]: <span style="color: #0000BB;">0.934</span> (expect <span style="color: #0000BB;">0.95</span>)</span></span>
 <span><span class="co">#&gt; PIT values are consistent with Uniform(0, 1) at the 5% level.</span></span></code></pre></div>
-<p>(<code>fit_train</code> is fit on only five periods, so its
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
-posterior sits closer to the unit root than the six-period
-<code>fit</code> above and the internal forecast prints the Step-5
-unit-root note. That note is about the <em>shorter training fit</em>,
-not the main model; the calibration result below is still valid.)</p>
+<p><code>plot(pit)</code> renders the PIT values against the Uniform(0,
+1) reference that a perfectly calibrated forecast would follow:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pit</span><span class="op">)</span></span></code></pre></div>
+<p><img src="forecasting_files/figure-html/pit-plot-1.png" class="r-plt" alt="PIT calibration plot for the held-out period: the empirical distribution of probability-integral-transform values compared with the Uniform(0,1) reference. Bars or a curve tracking the reference indicate calibration; a U-shape signals an over-confident (too-narrow) forecast and a central hump signals an under-confident (too-wide) one." width="672"></p>
+<p>Bars that hug the uniform reference indicate a well-calibrated
+forecast. A U-shape (mass piling up in the tails) is the signature of an
+over-confident forecast whose intervals are too narrow; a central hump
+is the opposite, an under-confident forecast with intervals that are too
+wide. On this single binary held-out period the randomised PIT is noisy,
+so read the plot for gross departures rather than small wiggles, and
+corroborate it with <code>cover_95</code> below.</p>
+<p>(<code>fit_train</code> has only five periods to pin down
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>,
+so its posterior is wider than that of the six-period <code>fit</code>
+above; on very short or sparse panels that extra uncertainty can spill
+past the forecast-time unit-root threshold, exactly as the drifting
+sparse panel earlier in Step 5 demonstrated. Here it stays clear of the
+threshold – the unit-root warning does not fire for
+<code>fit_train</code> and the <code>print(pit)</code> output above is
+clean. If you <em>do</em> see that warning on your own shorter-window
+fit, read it as a caution about the training fit’s forecast variance
+rather than a defect in the PIT check – the calibration summaries below
+remain meaningful either way.)</p>
 <p>Read the two summaries together. <code>pit$cover_95</code> – the
 fraction of held-out cells whose observed outcome falls in the central
 95% posterior-predictive interval, target 0.95 – is the
@@ -494,19 +669,21 @@ nominal, so the forecast intervals have roughly the right width.
 <code>pit$ks_p</code> tests whether the full PIT distribution is
 Uniform(0, 1); a value below 0.05 flags mis-calibration. For a
 <strong>binary</strong> outcome the PIT is the randomised
-Czado-Gneiting-Held version, and on a single held-out period its KS
-statistic is noisy – it hovers near the 0.05 threshold from run to run
-(which is why we seed the chunk). Treat <code>cover_95</code> as the
-headline and <code>ks_p</code> as corroborating evidence; do not
-over-read a single borderline KS p-value on one held-out period. For a
-sharper test, hold out two or more periods and pair
-<code>plot(pit)</code> with <code>pit$pit</code> to see whether any
-mis-calibration is in the tails (over- vs under-dispersion) or the
-centre (location bias). On a sparse, short, near-unit-root panel both
-summaries degrade together – <code>cover_95</code> drops well below 0.95
-and <code>ks_p</code> collapses toward 0 – the calibration-side
-signature of the forecast-variance explosion the Step 5 warning
-flags.</p>
+Czado-Gneiting-Held version, so on a single held-out period
+<code>ks_p</code> carries randomisation noise on top of ordinary
+sampling noise. Here it is 0.097 – above 0.05, so this run passes – but
+redrawing the randomisation alone can move that p-value from below 0.05
+to far above it, so a single KS p-value on one held-out period neither
+confirms nor condemns the forecast. (We seed the chunk only so the
+printed value reproduces.) Treat <code>cover_95</code> as the headline
+and <code>ks_p</code> as corroborating evidence. For a sharper test,
+hold out two or more periods and pair <code>plot(pit)</code> with
+<code>pit$pit</code> to see whether any mis-calibration is in the tails
+(over- vs under-dispersion) or the centre (location bias). On a sparse,
+short, near-unit-root panel both summaries degrade together –
+<code>cover_95</code> drops well below 0.95 and <code>ks_p</code>
+collapses toward 0 – the calibration-side signature of the
+forecast-variance explosion the Step 5 warning flags.</p>
 </div>
 </div>
 <div class="section level2">
@@ -519,17 +696,19 @@ static-<code>beta</code> baseline and a
 out-of-sample predictive performance. Both fits need
 <code>save_log_lik = TRUE</code> so <code><a href="../reference/loo.html">loo()</a></code> can read the
 stored pointwise log-likelihood matrix off <code>fit$log_lik</code>:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># reduced iterations so the vignette builds quickly; use nscan &gt;= 2000,</span></span>
+<span><span class="co"># burn &gt;= 500 for a comparison you will report.</span></span>
+<span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    <span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>    nscan <span class="op">=</span> <span class="fl">2000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">600</span>, burn <span class="op">=</span> <span class="fl">150</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>    save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">fit_dyn</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    <span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>    dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>
-<span>    nscan <span class="op">=</span> <span class="fl">2000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">600</span>, burn <span class="op">=</span> <span class="fl">150</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>    save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
@@ -539,60 +718,59 @@ stored pointwise log-likelihood matrix off <code>fit$log_lik</code>:</p>
 <span><span class="co"># list so the rows are labelled by model name rather than "model1"/"model2".</span></span>
 <span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>fit_static <span class="op">=</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">)</span>,</span>
 <span>                             fit_dyn    <span class="op">=</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.</span></span>
+<span><span class="co">#&gt; Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.</span></span>
 <span><span class="va">cmp</span></span>
 <span><span class="co">#&gt;            elpd_diff se_diff</span></span>
-<span><span class="co">#&gt; fit_dyn     0.0       0.0</span></span>
-<span><span class="co">#&gt; fit_static -8.4       3.1</span></span></code></pre></div>
-<p>The <code>eval = FALSE</code> block above keeps the vignette build
-fast; the printed <code>elpd_diff</code> of -8.4 and
-<code>se_diff</code> of 3.1 are illustrative values you should expect to
-see on this scale of panel — they are not literally what running the
-chunk reproduces. (Passing the bare <code><a href="../reference/loo.html">loo()</a></code> objects rather
-than a named list still works but labels the rows <code>model1</code> /
-<code>model2</code>.)</p>
+<span><span class="co">#&gt; fit_dyn      0.0       0.0  </span></span>
+<span><span class="co">#&gt; fit_static -22.6       7.3</span></span></code></pre></div>
+<p>(<code><a href="../reference/loo.html">loo()</a></code> may print a
+high-Pareto-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+warning at these short chain lengths – it is the usual PSIS
+importance-sampling caveat, not an error; lengthen the chains or fall
+back to <code><a href="../reference/loo.html">waic()</a></code> if it persists.)</p>
 <p><strong>How to read this output.</strong> The top row is the
-preferred model (<code>fit_dyn</code> here); <code>elpd_diff</code> is
-always zero for it. Each subsequent row reports the <em>difference</em>
-in expected log pointwise predictive density relative to the top model,
-together with the standard error of that difference. In the example
-above, <code>fit_dyn</code> beats <code>fit_static</code> by 8.4 elpd
-units with an SE of 3.1, so <code>|elpd_diff| / se_diff ~ 2.7</code>:
-the dynamic-beta specification is preferred at roughly the “2-sigma”
-threshold. A sociologist writing this up would say <strong>“the
-time-varying coefficient model is preferred over the static
-specification by about 8 elpd units (SE 3.1), consistent with nontrivial
-drift in the effect over the panel window.”</strong> If
-<code>|elpd_diff|</code> were closer to its SE — say
-<code>-2.0 (SE 3.0)</code> — the two specifications would be
-predictively indistinguishable and the simpler static model would be the
-defensible choice.</p>
-<p>A common rule of thumb: if <code>|elpd_diff|</code> exceeds roughly
-<code>2 * se_diff</code>, the better-ranked model is preferred with
-reasonable confidence; smaller gaps are within noise and the two
-specifications are predictively indistinguishable.</p>
-<p>Because <code>family = "binary"</code> is one of the six families
+preferred model; <code>elpd_diff</code> is always zero for it. Each
+subsequent row reports the <em>difference</em> in expected log pointwise
+predictive density relative to the top model, together with the standard
+error of that difference. Here <code>fit_dyn</code> is preferred,
+beating <code>fit_static</code> by about <code>22.6</code> elpd units
+with an SE of <code>7.3</code>, so <code>|elpd_diff| / se_diff</code>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≈</mo><annotation encoding="application/x-tex">\approx</annotation></semantics></math><code>3.1</code>. A common rule of thumb reads a ratio near or above 2
+as a reasonably confident preference. A sociologist writing this up
+would say <strong>“the time-varying coefficient model is preferred over
+the static specification by about <code>22.6</code> elpd units (SE
+<code>7.3</code>), consistent with nontrivial drift in the effect over
+the panel window.”</strong> When <code>|elpd_diff|</code> is instead
+close to its SE the two specifications are predictively
+indistinguishable and the simpler static model is the defensible choice.
+(Because these are short demonstration chains, expect the exact numbers
+to move from run to run; report a comparison only after checking it is
+stable at production chain lengths.)</p>
+<p>Because <code>family = "binary"</code> is one of the five families
 with an exact closed-form log-likelihood (<code>normal</code>,
-<code>binary</code>, <code>cbin</code>, <code>tobit</code>,
-<code>poisson</code>, <code>ordinal</code>; see the <strong>log-lik
-scale</strong> discussion in the <a href="dynamic_effects.html#loo-waic-via-save_log_lik-true">Dynamic
+<code>binary</code>, <code>cbin</code>, <code>poisson</code>,
+<code>ordinal</code>; see the <strong>log-lik scale</strong> discussion
+in the <a href="dynamic_effects.html#loo-waic-via-save_log_lik-true">Dynamic
 Effects vignette</a>), the two <code>elpd_loo</code> values here are on
 the response scale and the absolute numbers are directly comparable to a
 <code><a href="../reference/loo.html">loo()</a></code> result from a probit-link <code>brms</code> fit on
 the same data, modulo the <code>lame</code> Gibbs sampler’s R-hat / ESS
-being satisfactory. For the rank likelihoods <code>frn</code> and
-<code>rrl</code>, the default <code>observed_exact</code> falls back to
-an augmented-Z normal approximation and is only valid for
-<em>relative</em> comparison within <code>lame</code>; opt in to
+being satisfactory. For the rank likelihood <code>frn</code>, the
+default <code>observed_exact</code> falls back to an augmented-Z normal
+approximation and is only valid for <em>relative</em> comparison within
+<code>lame</code>; opt in to
 <code>log_lik_method = "observed_ghk"</code> for the exact marginal on
-those two families.</p>
+that family.</p>
 <div class="section level3">
 <h3 id="memory-conscious-long-runs">Memory-conscious long runs<a class="anchor" aria-label="anchor" href="#memory-conscious-long-runs"></a>
 </h3>
 <p>If the in-memory log-likelihood matrix from
 <code>save_log_lik = TRUE</code> would exceed RAM, pass
 <code>save_log_lik = "chunked"</code> instead. The on-disk chunks are
-recovered transparently by <code><a href="../reference/loo.html">loo()</a></code>:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+recovered transparently by <code><a href="../reference/loo.html">loo()</a></code>, or can be read back
+directly as a matrix with <code>read_log_lik(fit)</code>:</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_chk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    <span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>    dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>

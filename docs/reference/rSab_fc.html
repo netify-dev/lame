@@ -11,7 +11,7 @@ posterior update for the covariance matrix Sab."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -74,8 +74,15 @@ posterior update for the covariance matrix Sab.</p>
 
 
 <dt id="arg-sab-">Sab0<a class="anchor" aria-label="anchor" href="#arg-sab-"></a></dt>
-<dd><p>prior (inverse) scale matrix for the prior distribution.
-Default is diag(2), which provides a weakly informative prior.</p></dd>
+<dd><p>prior scale matrix. <strong>Convention (Hoff/amen):</strong>
+<code>Sab0</code> is passed <em>raw</em>; the inverse-Wishart scale used
+internally is \(\eta_0 \cdot Sab0\), so the prior mean of Sab is
+\(\eta_0 Sab0/(\eta_0-3) \approx Sab0\) and the prior mode is
+\(\eta_0 Sab0/(\eta_0+3)\). Every call site in the package (ame()
+unipartite and bipartite, lame() unipartite and bipartite, and the
+raSab_bin/cbin/frn joint updates) passes <code>Sab0</code> raw under this
+same convention, so a given <code>prior$Sab0</code> means the same prior
+everywhere. Default is diag(2) (weakly informative).</p></dd>
 
 
 <dt id="arg-eta-">eta0<a class="anchor" aria-label="anchor" href="#arg-eta-"></a></dt>
@@ -106,8 +113,9 @@ and covariance off-diagonal)</p>
 covariance matrix using an inverse-Wishart distribution</p></li>
 <li><p>Row variance only: When only rvar is TRUE, updates only Sab[1,1]</p></li>
 <li><p>Column variance only: When only cvar is TRUE, updates only Sab[2,2]</p></li>
-<li><p>Symmetric case: When symmetric is TRUE, enforces equal variances
-and high correlation (0.999) between row and column effects</p></li>
+<li><p>Symmetric case: When symmetric is TRUE, draws a single shared
+variance for the row and column effects (inverse-gamma update) with
+zero covariance</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>

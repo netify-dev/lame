@@ -26,7 +26,6 @@
 <url><loc>https://netify-dev.github.io/lame/reference/YX_frn.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/YX_nrm.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/YX_ord.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/YX_rrl.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/ab_plot.ame_als.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/ab_plot.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/addhealthc3.html</loc></url>
@@ -123,7 +122,6 @@
 <url><loc>https://netify-dev.github.io/lame/reference/loo.ame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/loo.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/mhalf.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/netify_to_lame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/nobs.ame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/nobs.ame_als.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/nodematch.html</loc></url>
@@ -180,10 +178,6 @@
 <url><loc>https://netify-dev.github.io/lame/reference/rZ_ord_sym_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rZ_pois_bip_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rZ_pois_fc.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/rZ_rrl_bip_fc.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/rZ_rrl_fc.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/rZ_tob_bip_batch_cpp.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/rZ_tob_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/raSab_bin_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/raSab_cbin_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/raSab_frn_fc.html</loc></url>
@@ -203,6 +197,7 @@
 <url><loc>https://netify-dev.github.io/lame/reference/rrho_mh_rep.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rs2_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rs2_rep_fc.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/reference/rtnorm_interval_logp.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rwish.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/sample_ab_bipartite.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/sample_alpha_cowles.html</loc></url>
@@ -225,8 +220,6 @@
 <url><loc>https://netify-dev.github.io/lame/reference/simY_nrm.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/simY_ord.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/simY_pois.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/simY_rrl.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/simY_tob.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/simZ.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/simulate.ame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/simulate.ame_als.html</loc></url>

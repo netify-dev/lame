@@ -13,7 +13,7 @@ forecast produces approximately Uniform(0, 1) PIT values."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -105,11 +105,11 @@ Returns a numeric vector of PIT values (one per observed dyad in the
 held-out periods), plus a one-row summary with the Kolmogorov-Smirnov
 statistic against Uniform(0, 1) and a fraction-of-observed-dyads
 coverage diagnostic.</p>
-<p><strong>Families.</strong> For <code>family = "normal"</code> / <code>"tobit"</code>, the
+<p><strong>Families.</strong> For <code>family = "normal"</code>, the
 PIT is computed analytically from the per-draw forecast variance. For
 discrete families (<code>"binary"</code>, <code>"poisson"</code>, <code>"ordinal"</code>)
 the randomised PIT of Czado, Gneiting &amp; Held (2009) is used. For rank
-families (<code>"cbin"</code>, <code>"frn"</code>, <code>"rrl"</code>) PIT is not
+families (<code>"cbin"</code>, <code>"frn"</code>) PIT is not
 implemented; the function returns NULL with an informational note.</p>
 <p><strong>Plotting.</strong> The companion <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> method on the returned
 object renders a histogram with a uniform reference line. Use
@@ -131,17 +131,11 @@ model assessment for count data. <em>Biometrics</em>, 65(4), 1254-1261.</p>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="lame.html">lame</a></span><span class="op">(</span><span class="va">Y_train</span>, Xdyad <span class="op">=</span> <span class="va">X_train</span>,</span></span>
 <span class="r-in"><span>            family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span></span>
 <span class="r-in"><span>            dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span></span>
-<span class="r-in"><span>            nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>            nscan <span class="op">=</span> <span class="fl">60</span>, burn <span class="op">=</span> <span class="fl">15</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`family` = <span style="color: #0000BB;">"binary"</span> but `Y` contains values other than 0/1.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
 <span class="r-in"><span><span class="va">pit</span> <span class="op">&lt;-</span> <span class="fu">forecast_pit</span><span class="op">(</span><span class="va">fit</span>, y_future <span class="op">=</span> <span class="va">Y_test</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span><span style="color: #BBBB00;">!</span> Posterior 95% interval for `rho_beta` reaches <span style="color: #0000BB;">0.994</span>.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Under AR(1) the `h`-step forecast variance saturates at the stationary level</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   `sigma_beta^2 / (1 - rho_beta^2)`, which itself explodes as `rho_beta -&gt; 1`;</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   horizons beyond <span style="color: #0000BB;">"3"</span> become uninformative in this regime.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Consider refitting with `dynamic_beta_kind = "rw1"` if the underlying process</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   is genuinely unit-root.</span>
 <span class="r-in"><span><span class="va">pit</span><span class="op">$</span><span class="va">ks_p</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pit</span><span class="op">)</span></span></span>

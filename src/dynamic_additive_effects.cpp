@@ -5,20 +5,29 @@ using namespace Rcpp;
 
 //' Sample dynamic additive effects with AR(1) evolution
 //'
+//' Gibbs update of the per-period additive effects under the AR(1) state
+//' model with stationary initial condition. For each actor and period the
+//' full conditional combines the AR(1) bridge prior (stationary init at
+//' t = 1) with the dyadic residual likelihood: resid_ij = a_i + b_j + e_ij,
+//' e_ij ~ N(0, s2). The reciprocal effect (b_j for the a-step, the freshly
+//' updated a_i for the b-step) is subtracted from each residual, missing
+//' residuals are skipped, and for symmetric networks each dyad contributes
+//' exactly once (resid(i,j) = a_i + a_j + e_ij).
+//'
 //' @param a_current Current 2D array of row effects (n x T)
 //' @param b_current Current 2D array of column effects (n x T)
 //' @param Z_array 3D array of latent positions (n x n x T)
 //' @param EZ_array 3D array of expected values without additive effects (n x n x T)
 //' @param rho_ab AR(1) parameter for additive effects
 //' @param sigma_ab Innovation standard deviation
-//' @param Sab Covariance matrix for a and b (2x2)
+//' @param s2 Dyadic residual variance
 //' @param symmetric Whether the network is symmetric
 //' @return List with updated a and b arrays
 // [[Rcpp::export]]
 List sample_dynamic_ab_cpp(arma::mat a_current, arma::mat b_current,
                            const arma::cube& Z_array, const arma::cube& EZ_array,
                            double rho_ab, double sigma_ab,
-                           const arma::mat& Sab, bool symmetric) {
+                           double s2, bool symmetric) {
 
   const int n = a_current.n_rows;
   const int T = a_current.n_cols;
@@ -26,73 +35,102 @@ List sample_dynamic_ab_cpp(arma::mat a_current, arma::mat b_current,
   arma::mat a_new = a_current;
   arma::mat b_new = b_current;
 
-  double var_innov = sigma_ab * sigma_ab;
-  double var_stationary = var_innov / (1.0 - rho_ab * rho_ab);
+  const double var_innov = std::max(sigma_ab * sigma_ab, 1e-8);
+  const double s2_safe = std::max(s2, 1e-8);
+  const double rho2 = std::min(rho_ab * rho_ab, 0.9801);
 
-  arma::mat Sab_safe = Sab;
-  double min_eigenval = arma::min(arma::eig_sym(Sab_safe));
-  if (min_eigenval <= 0) {
-    Sab_safe += arma::eye(2, 2) * (1e-6 - min_eigenval);
-  }
+  // t-outer sweep with in-place updates so each conditional sees the
+  // freshest values of the other effects (proper sequential-scan Gibbs)
+  for(int t = 0; t < T; t++) {
 
-  arma::mat L_Sab;
-  bool chol_success = arma::chol(L_Sab, Sab_safe, "lower");
-  if (!chol_success) {
-    L_Sab = arma::diagmat(arma::sqrt(arma::diagvec(Sab_safe)));
-  }
+    arma::mat resid_t = Z_array.slice(t) - EZ_array.slice(t);
 
-  for(int i = 0; i < n; i++) {
+    // a-step (symmetric folds b into a)
+    for(int i = 0; i < n; i++) {
 
-    arma::vec a_i = a_current.row(i).t();
-    arma::vec b_i = b_current.row(i).t();
-
-    for(int t = 0; t < T; t++) {
-
-      arma::mat resid_t = Z_array.slice(t) - EZ_array.slice(t);
-
-      double prior_mean_a = 0.0;
-      double prior_mean_b = 0.0;
-      double prior_prec = 1.0 / var_stationary;
-
-      if(t > 0) {
-        prior_mean_a = rho_ab * a_i(t-1);
-        prior_mean_b = rho_ab * b_i(t-1);
+      // ar(1) bridge prior with stationary initial condition
+      double prior_prec, prior_mean;
+      if(T == 1) {
+        prior_prec = (1.0 - rho2) / var_innov;
+        prior_mean = 0.0;
+      } else if(t == 0) {
         prior_prec = 1.0 / var_innov;
-      }
-
-      if(t < T-1) {
-        prior_mean_a = 0.5 * (prior_mean_a + rho_ab * a_i(t+1));
-        prior_mean_b = 0.5 * (prior_mean_b + rho_ab * b_i(t+1));
-        prior_prec *= 2.0;
-      }
-
-      arma::vec row_sum = sum(resid_t, 1);
-      arma::vec col_sum = sum(resid_t, 0).t();
-
-      row_sum(i) -= n * a_i(t);
-      col_sum(i) -= n * b_i(t);
-
-      double data_prec_a = n / Sab(0,0);
-      double post_prec_a = prior_prec + data_prec_a;
-      double post_mean_a = (prior_prec * prior_mean_a + data_prec_a * row_sum(i)/n) / post_prec_a;
-      double post_sd_a = 1.0 / sqrt(post_prec_a);
-
-      a_i(t) = R::rnorm(post_mean_a, post_sd_a);
-
-      if(!symmetric) {
-        double data_prec_b = n / Sab(1,1);
-        double post_prec_b = prior_prec + data_prec_b;
-        double post_mean_b = (prior_prec * prior_mean_b + data_prec_b * col_sum(i)/n) / post_prec_b;
-        double post_sd_b = 1.0 / sqrt(post_prec_b);
-
-        b_i(t) = R::rnorm(post_mean_b, post_sd_b);
+        prior_mean = rho_ab * a_new(i, 1);
+      } else if(t == T - 1) {
+        prior_prec = 1.0 / var_innov;
+        prior_mean = rho_ab * a_new(i, T - 2);
       } else {
-        b_i(t) = a_i(t);
+        prior_prec = (1.0 + rho2) / var_innov;
+        prior_mean = rho_ab * (a_new(i, t - 1) + a_new(i, t + 1)) / (1.0 + rho2);
       }
+
+      double dsum = 0.0;
+      int nobs = 0;
+      for(int j = 0; j < n; j++) {
+        if(j == i) continue;
+        double r = resid_t(i, j);
+        if(!std::isfinite(r)) continue;
+        // subtract the reciprocal effect: b_j (directed) or a_j (symmetric,
+        // where each dyad appears exactly once in row i)
+        double other = symmetric ? a_new(j, t) : b_new(j, t);
+        if(!std::isfinite(other)) other = 0.0;
+        dsum += r - other;
+        nobs++;
+      }
+
+      double post_prec = prior_prec + nobs / s2_safe;
+      double post_mean = (prior_prec * prior_mean + dsum / s2_safe) / post_prec;
+
+      if(std::isfinite(post_prec) && post_prec > 0.0 && std::isfinite(post_mean)) {
+        a_new(i, t) = R::rnorm(post_mean, 1.0 / sqrt(post_prec));
+      } else {
+        a_new(i, t) = std::isfinite(prior_mean) ? prior_mean : 0.0;
+      }
+
+      if(symmetric) b_new(i, t) = a_new(i, t);
     }
 
-    a_new.row(i) = a_i.t();
-    b_new.row(i) = b_i.t();
+    // b-step: uses the freshly updated a values for all rows
+    if(!symmetric) {
+      for(int j = 0; j < n; j++) {
+
+        double prior_prec, prior_mean;
+        if(T == 1) {
+          prior_prec = (1.0 - rho2) / var_innov;
+          prior_mean = 0.0;
+        } else if(t == 0) {
+          prior_prec = 1.0 / var_innov;
+          prior_mean = rho_ab * b_new(j, 1);
+        } else if(t == T - 1) {
+          prior_prec = 1.0 / var_innov;
+          prior_mean = rho_ab * b_new(j, T - 2);
+        } else {
+          prior_prec = (1.0 + rho2) / var_innov;
+          prior_mean = rho_ab * (b_new(j, t - 1) + b_new(j, t + 1)) / (1.0 + rho2);
+        }
+
+        double dsum = 0.0;
+        int nobs = 0;
+        for(int i = 0; i < n; i++) {
+          if(i == j) continue;
+          double r = resid_t(i, j);
+          if(!std::isfinite(r)) continue;
+          double ai = a_new(i, t);
+          if(!std::isfinite(ai)) ai = 0.0;
+          dsum += r - ai;
+          nobs++;
+        }
+
+        double post_prec = prior_prec + nobs / s2_safe;
+        double post_mean = (prior_prec * prior_mean + dsum / s2_safe) / post_prec;
+
+        if(std::isfinite(post_prec) && post_prec > 0.0 && std::isfinite(post_mean)) {
+          b_new(j, t) = R::rnorm(post_mean, 1.0 / sqrt(post_prec));
+        } else {
+          b_new(j, t) = std::isfinite(prior_mean) ? prior_mean : 0.0;
+        }
+      }
+    }
   }
 
   return List::create(
@@ -132,7 +170,19 @@ double sample_rho_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat,
   double sum_sq_curr = 0.0;
   int count = 0;
 
+  // stationary-init sufficient statistics (t = 1 states); the state sampler
+  // uses the stationary AR(1) initial condition, so its (1 - rho^2) factor
+  // must appear in this conditional too for a coherent joint
+  double q1 = 0.0;
+  int p1 = 0;
+
   for(int i = 0; i < n; i++) {
+    q1 += a_mat(i,0) * a_mat(i,0);
+    p1++;
+    if(!symmetric) {
+      q1 += b_mat(i,0) * b_mat(i,0);
+      p1++;
+    }
     for(int t = 1; t < T; t++) {
       sum_prod += a_mat(i,t) * a_mat(i,t-1);
       sum_sq_lag += a_mat(i,t-1) * a_mat(i,t-1);
@@ -148,9 +198,6 @@ double sample_rho_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat,
     }
   }
 
-  double rho_mle = sum_prod / sum_sq_lag;
-  rho_mle = std::max(-0.99, std::min(0.99, rho_mle));
-
   double proposal_sd = 0.1;
   double rho_proposal = R::rnorm(rho_current, proposal_sd);
 
@@ -158,13 +205,20 @@ double sample_rho_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat,
     return rho_current;
   }
 
-  double ll_current = -0.5 * count * log(2.0 * M_PI * sigma_ab * sigma_ab);
-  ll_current -= 0.5 * (sum_sq_curr - 2.0 * rho_current * sum_prod +
-                       rho_current * rho_current * sum_sq_lag) / (sigma_ab * sigma_ab);
+  const double sigma2 = sigma_ab * sigma_ab;
 
-  double ll_proposal = -0.5 * count * log(2.0 * M_PI * sigma_ab * sigma_ab);
+  double ll_current = -0.5 * count * log(2.0 * M_PI * sigma2);
+  ll_current -= 0.5 * (sum_sq_curr - 2.0 * rho_current * sum_prod +
+                       rho_current * rho_current * sum_sq_lag) / sigma2;
+  // stationary init factor: (1 - rho^2)^{p1/2} exp(-(1 - rho^2) q1 / (2 sigma^2))
+  ll_current += 0.5 * p1 * log(1.0 - rho_current * rho_current);
+  ll_current -= 0.5 * (1.0 - rho_current * rho_current) * q1 / sigma2;
+
+  double ll_proposal = -0.5 * count * log(2.0 * M_PI * sigma2);
   ll_proposal -= 0.5 * (sum_sq_curr - 2.0 * rho_proposal * sum_prod +
-                        rho_proposal * rho_proposal * sum_sq_lag) / (sigma_ab * sigma_ab);
+                        rho_proposal * rho_proposal * sum_sq_lag) / sigma2;
+  ll_proposal += 0.5 * p1 * log(1.0 - rho_proposal * rho_proposal);
+  ll_proposal -= 0.5 * (1.0 - rho_proposal * rho_proposal) * q1 / sigma2;
 
   double log_prior_current, log_prior_proposal;
   if (prior_sd > 0.0) {
@@ -208,6 +262,19 @@ double sample_sigma_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat,
 
   double ss_innov = 0.0;
   int count = 0;
+
+  // stationary-init contribution (t = 1 states): each contributes
+  // (sigma^2)^{-1/2} exp(-(1 - rho^2) state^2 / (2 sigma^2)) for coherence
+  // with the state sampler's stationary initial condition
+  const double one_m_rho2 = 1.0 - std::min(rho_ab * rho_ab, 0.9801);
+  for(int i = 0; i < n; i++) {
+    ss_innov += one_m_rho2 * a_mat(i,0) * a_mat(i,0);
+    count++;
+    if(!symmetric) {
+      ss_innov += one_m_rho2 * b_mat(i,0) * b_mat(i,0);
+      count++;
+    }
+  }
 
   for(int i = 0; i < n; i++) {
     for(int t = 1; t < T; t++) {

@@ -27,3 +27,5 @@
 ^tests/testthat/Rplots-.*\.pdf$
 ^figure$
 ^analysis$
+^inst/verify_default_hash\.R$
+^inst/verify_default_hash_baseline\.rds$

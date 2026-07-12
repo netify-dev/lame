@@ -14,33 +14,6 @@ static inline void replace_nonfinite(arma::cube& x) {
   if(bad.n_elem > 0) x.elem(bad).zeros();
 }
 
-static inline void balance_dynamic_bip_uv_scale(arma::cube& U, arma::cube& V) {
-  const int R = std::min((int)U.n_cols, (int)V.n_cols);
-  const int T = std::min((int)U.n_slices, (int)V.n_slices);
-
-  for(int r = 0; r < R; r++) {
-    double ss_u = 0.0;
-    double ss_v = 0.0;
-    for(int t = 0; t < T; t++) {
-      ss_u += arma::dot(U.slice(t).col(r), U.slice(t).col(r));
-      ss_v += arma::dot(V.slice(t).col(r), V.slice(t).col(r));
-    }
-    if(ss_u <= 1e-24 || ss_v <= 1e-24 ||
-       !std::isfinite(ss_u) || !std::isfinite(ss_v)) {
-      continue;
-    }
-
-    double scale = std::pow(ss_v / ss_u, 0.25);
-    if(!std::isfinite(scale)) continue;
-    scale = std::max(1e-6, std::min(1e6, scale));
-
-    for(int t = 0; t < T; t++) {
-      U.slice(t).col(r) *= scale;
-      V.slice(t).col(r) /= scale;
-    }
-  }
-}
-
 // Fast 2x2 symmetric positive definite inverse (direct formula)
 // For R=2, this avoids LAPACK overhead entirely
 static inline arma::mat inv_sympd_small(const arma::mat& A) {
@@ -128,6 +101,8 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
   const double s2_sigma2_inv = s2 * sigma2_inv;
   const double s2_rho_s2 = s2 * rho_uv * sigma2_inv;
   const double s2_rho2_s2 = s2 * rho_uv * rho_uv * sigma2_inv;
+  // stationary AR(1) initial condition at t = 0 (s2-scaled prior precision)
+  const double s2_stat_init = s2 * (1.0 - rho_uv * rho_uv) * sigma2_inv;
 
   for(int t = 0; t < T; t++) {
     // Get slices
@@ -152,12 +127,16 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
       if(t > 0) {
         prec.diag() += s2_sigma2_inv;
         ei += s2_rho_s2 * U_cube.slice(t-1).row(i).t();
+      } else {
+        // stationary AR(1) prior at t = 0 (the model's marginal init)
+        prec.diag() += s2_stat_init;
       }
       if(t < T-1) {
         prec.diag() += s2_rho2_s2;
         ei += s2_rho_s2 * U_cube.slice(t+1).row(i).t();
       }
-      prec.diag() += 1.0;
+      // tiny conditioning jitter only (the AR terms supply the prior precision)
+      prec.diag() += 1e-8 * (prec.diag().max() + 1.0);
 
       try {
         arma::mat iprec = inv_sympd_small(prec);
@@ -191,12 +170,15 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
       if(t > 0) {
         prec.diag() += s2_sigma2_inv;
         ej += s2_rho_s2 * V_cube.slice(t-1).row(j).t();
+      } else {
+        prec.diag() += s2_stat_init;
       }
       if(t < T-1) {
         prec.diag() += s2_rho2_s2;
         ej += s2_rho_s2 * V_cube.slice(t+1).row(j).t();
       }
-      prec.diag() += 1.0;
+      // tiny conditioning jitter only (the AR terms supply the prior precision)
+      prec.diag() += 1e-8 * (prec.diag().max() + 1.0);
 
       try {
         arma::mat iprec = inv_sympd_small(prec);
@@ -217,7 +199,9 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
 
   replace_nonfinite(U_cube);
   replace_nonfinite(V_cube);
-  balance_dynamic_bip_uv_scale(U_cube, V_cube);
+  // note: the previous in-kernel U/V column scale balancing was a
+  // state-dependent map that did not preserve the AR(1) prior's law and
+  // has been removed; any rebalancing belongs on stored draws only.
 
   return List::create(Named("U") = U_cube, Named("V") = V_cube);
 }

@@ -27,7 +27,7 @@ actor_j, period_label columns."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -74,7 +74,7 @@ Intended for <span class="pkg">marginaleffects</span>- / <span class="pkg">tidyb
 downstream summarisation: column names follow the
 <code>.draw</code> / <code>.chain</code> / <code>.iteration</code> / <code>.value</code>
 convention so that <code><a href="https://mjskay.github.io/tidybayes/reference/spread_draws.html" class="external-link">tidybayes::spread_draws()</a></code> and
-<code>marginaleffects::posterior_draws()</code> auto-dispatch on the
+<code><a href="https://rdrr.io/pkg/marginaleffects/man/posterior_draws.html" class="external-link">marginaleffects::posterior_draws()</a></code> auto-dispatch on the
 returned data frame. Actor and period names from <code>fit$Y</code>'s
 dimnames are carried forward into the <code>actor_i</code>,
 <code>actor_j</code>, <code>period_label</code> columns.</p>

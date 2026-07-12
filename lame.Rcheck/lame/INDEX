@@ -1,0 +1,304 @@
+IR90s                   International relations in the 90s
+Xbeta                   Linear combinations of submatrices of an array
+Xbeta_bip_cpp           Compute Xbeta product for bipartite networks
+Xcol                    Column covariates
+Xdyad                   Dyadic covariates
+Xrow                    Row covariates
+Y                       Relational matrix
+YX_bin                  binary relational data and covariates
+YX_bin_list             Synthetic longitudinal binary relational data,
+                        list-form (latent-scale)
+YX_bin_long             synthetic longitudinal binary relational data
+                        (latent-scale)
+YX_cbin                 Censored binary nomination data and covariates
+YX_frn                  Fixed rank nomination data and covariates
+YX_nrm                  normal relational data and covariates
+YX_ord                  ordinal relational data and covariates
+ab_plot                 Visualize sender and receiver random effects
+ab_plot.ame_als         Additive-effects plot for an ame_als fit
+addhealthc3             AddHealth community 3 data
+addhealthc9             AddHealth community 9 data
+als_dynamic_beta        Penalised ALS time-varying coefficient estimate
+als_start_vals          Convert an ALS fit to MCMC starting values
+ame                     AME model fitting routine
+ame_als                 Fast (MCMC-free) AME estimation for a
+                        cross-sectional network
+ame_als_bootstrap       Bootstrap uncertainty for the fast AME
+                        estimator
+ame_als_refit           Refit a fast AME model with a warm start
+ame_memory_settings     Display memory usage information for AME models
+ame_memory_usage        Calculate memory usage of AME model components
+ame_options             AME model fitting options
+ame_parallel            Run AME model with multiple parallel chains
+array_to_list           Convert array to list.
+as_draws                Generic dispatcher for posterior::as_draws on
+                        lame fits
+as_draws.ame            Convert an AME / LAME fit to a posterior draws
+                        object
+as_lame_y               Convert a graph object to a lame-ready
+                        adjacency matrix
+autoplot.ame_als        autoplot method for ALS fits
+autoplot.lame           Ribbon plot of time-varying coefficients (or
+                        coefplot for static fits)
+boot_ame-no-fitted      fitted/residuals are not defined for a
+                        bootstrap object
+check_format            Validate input data format for lame function
+coef.als_dynamic_beta   Extract beta path from a penalised-ALS object
+coef.ame                Extract model coefficients from AME model
+coef.ame_als            Extract coefficients from a fast AME fit
+coef.boot_ame           Point estimates from a fast AME bootstrap
+coldwar                 Cold War data
+combine_ame_chains      Combine multiple AME chains
+compact_ame             Optimize AME model output for memory efficiency
+compute_XtX_Xty_bip_cpp
+                        Compute X'X and X'y for bipartite covariate
+                        regression
+compute_mcmc_diagnostics
+                        Compute MCMC convergence diagnostics for
+                        multiple chains
+comtrade                Comtrade data
+confint.ame             Bayesian credible intervals for AME model
+                        parameters
+confint.ame_als         Confidence intervals for a fast AME fit
+confint.boot_ame        Confidence intervals from a fast AME bootstrap
+design_array            Computes the design socioarray of covariate
+                        values
+design_array_listwisedel
+                        Computes the design socioarray of covariate
+                        values
+detect_change_point     Detect potential change points in a
+                        dynamic_beta posterior path
+dutchcollege            Dutch college data
+dynamic_beta_prior_summary
+                        Summarise the implied prior on a time-varying
+                        coefficient path
+el2sm                   Edgelist to sociomatrix
+evaluate_heldout        Held-out predictive evaluation for an ame /
+                        lame fit
+fitted.ame              Extract fitted values from AME model
+fitted.ame_als          Extract fitted values from a fast AME fit
+fitted.lame             Extract fitted values from LAME model
+forecast_pit            Probability-integral-transform calibration
+                        check for h-step forecasts
+formula.ame             formula() is not defined for an ame() / lame()
+                        fit
+get_EZ_dynamic_beta_cpp
+                        Compute EZ when beta is time-varying
+get_design_rep          Create design array for replicate data
+get_fit_object          Get fitted object from MCMC results
+get_start_vals          Get fitted object from MCMC results
+glance                  S3 generic for 'glance'
+glance.ame              Glance method for fitted 'ame' / 'lame' objects
+glance.ame_als          Glance method for fitted 'ame_als' / 'lame_als'
+                        objects
+gof                     Compute GOF statistics from saved posterior
+                        samples
+gof_plot                Visualize goodness-of-fit statistics for AME
+                        and LAME models
+gof_plot.ame_als        Goodness-of-fit check for an ame_als fit
+gof_stats               Goodness of fit statistics
+gof_stats_bipartite     Goodness of fit statistics for bipartite
+                        networks
+gof_stats_unipartite    Goodness of fit statistics for unipartite
+                        networks
+gof_temporal            Posterior-predictive temporal-trend test
+init_dynamic_ab_cpp     Initialize dynamic additive effects with AR(1)
+                        structure
+init_dynamic_positions
+                        Initialize dynamic latent positions with AR(1)
+                        structure
+lame                    AME model fitting routine for longitudinal
+                        relational data
+lame_als                Fast (MCMC-free) AME estimation for a
+                        longitudinal network
+lame_multi              Multi-panel lame() with shared coefficients
+lame_parallel           Run LAME (longitudinal AME) with multiple
+                        parallel chains
+lame_resume             Resume a 'lame()' MCMC run from a checkpoint
+lame_snap_als           Fast approximate dynamic snap-shift AME
+                        estimator
+latent_positions        Extract latent positions as a tidy data frame
+lazegalaw               Lazega's law firm data
+ldZgbme                 log density for GBME models
+lfo                     Exact rolling-origin leave-future-out
+                        cross-validation
+list_to_array           Convert list to array
+llsrmRho                SRM log likelihood evaluated on a grid of
+                        rho-values
+logLik.ame              Log-likelihood is not directly exposed for
+                        ame() / lame() fits
+logLik.ame_als          Log-likelihood is not defined for a fast AME
+                        fit
+loo                     Generic dispatcher for loo / waic on ame / lame
+                        fits
+loo.ame                 Approximate leave-one-out cross-validation for
+                        AME / LAME fits
+mhalf                   Symmetric square root of a matrix
+nobs.ame                Number of observed dyads in an AME / LAME fit
+nobs.ame_als            Number of observed dyads in an ame_als fit
+nodematch               ERGM-style covariate helpers for ame() / lame()
+per_actor_slopes        Post-MCMC per-actor time-varying slopes
+plot.ame                Simple diagnostic plot for AME model fit
+plot.ame_als            Plot the convergence of a fast AME fit
+plot.lame               Plot diagnostics for a LAME model fit
+posterior_options       Options for saving posterior samples during
+                        MCMC
+posterior_quantiles     Extract posterior quantiles for model
+                        components
+precomputeX             Precompute design matrix statistics
+predict.ame             Predict method for AME models
+predict.ame_als         Predictions from a fast AME fit
+predict.lame            Predict method for LAME models
+prediction_draws_long   Long-format draws of the linear predictor for
+                        marginaleffects-style use
+print.als_dynamic_beta
+                        Print method for penalised ALS time-varying
+                        beta
+print.ame               Print method for AME model objects
+print.ame.sim           Print methods for AME and LAME simulation
+                        objects
+print.ame_als           Print an ame_als object
+print.boot_ame          Print bootstrap results for a fast AME fit
+print.gof_temporal      Print method for gof_temporal output
+print.lame              Print method for LAME objects
+print.lame_multi        Print method for lame_multi
+print.lfo_lame          Print method for lfo() results
+print.per_actor_slopes
+                        Print method for per_actor_slopes
+print.summary.ame       Print method for summary.ame objects
+print.summary.ame_als   Print a fast AME summary
+print.summary.lame      Print method for summary.lame objects
+prior_summary           Print the priors used by an AME / LAME /
+                        ame_als fit
+procrustes_align        Procrustes alignment of latent positions across
+                        time
+rSab_fc                 Gibbs update for additive effects covariance
+rSuv_fc                 Gibbs update for multiplicative effects
+                        covariance
+rUV_dynamic_bip_fc_cpp
+                        Bipartite dynamic UV Gibbs update
+rUV_dynamic_fc          Gibbs sampling of dynamic U and V with AR(1)
+                        evolution
+rUV_dynamic_fc_cpp      Update dynamic latent positions using AR(1)
+                        process
+rUV_dynamic_snap_fc     Gibbs sampling of dynamic U and V with
+                        snap-shift dynamics
+rUV_dynamic_snap_fc_cpp
+                        Update dynamic latent positions with snap-shift
+                        model selection
+rUV_dynamic_t_fc        Gibbs sampling of dynamic U and V with
+                        heavy-tailed (Student-t) innovations
+rUV_dynamic_t_fc_cpp    Update dynamic latent positions with
+                        heavy-tailed (Student-t) AR(1) innovations
+rUV_fc                  Gibbs sampling of U and V
+rUV_rep_fc              Gibbs sampling of U and V
+rUV_sym_fc              Gibbs sampling of U and V
+rZ_bin_bip_batch_cpp    Batch binary Z sampling across all time periods
+                        (bipartite, rho=0)
+rZ_bin_fc               Simulate Z based on a probit model
+rZ_cbin_fc              Simulate Z given fixed rank nomination data
+rZ_frn_fc               Simulate Z given fixed rank nomination data
+rZ_nrm_batch_cpp        Batch normal Z sampling across all time periods
+rZ_nrm_fc               Simulate missing values in a normal AME model
+rZ_ord_fc               Simulate Z given the partial ranks
+rZ_pois_fc              Gibbs update for latent variable in a Poisson
+                        AME model
+raSab_bin_fc            Simulate a and Sab from full conditional
+                        distributions under bin likelihood
+raSab_cbin_fc           Simulate a and Sab from full conditional
+                        distributions under the cbin likelihood
+raSab_frn_fc            Simulate a and Sab from full conditional
+                        distributions under frn likelihood
+rbeta_ab_bip_gibbs_cpp
+                        Full bipartite Gibbs update for beta, a, b
+rbeta_ab_fc             Conditional simulation of additive effects and
+                        regression coefficients
+rbeta_ab_rep_fc         Gibbs sampling of additive row and column
+                        effects and regression coefficient with
+                        independent replicate relational data
+read_log_lik            Read the per-iteration log-lik matrix back from
+                        on-disk chunks
+reconstruct_EZ          Reconstruct EZ and UVPM matrices from AME model
+                        output
+residuals.ame           Extract residuals from AME model
+residuals.ame_als       Residuals from a fast AME fit
+residuals.lame          Extract residuals from LAME model
+rhat_dynamic_beta       Multivariate split-R-hat for dynamic_beta
+                        coefficient paths
+rmvnorm                 Simulation from a multivariate normal
+                        distribution
+rrho_fc                 Griddy Gibbs update for dyadic correlation
+rrho_mh                 Metropolis update for dyadic correlation
+rrho_mh_rep             Metropolis update for dyadic correlation with
+                        independent replicate data
+rs2_fc                  Gibbs update for dyadic variance
+rs2_rep_fc              Gibbs update for dyadic variance with
+                        independent replicate relational data
+rwish                   Simulation from a Wishart distribution
+sample_beta_dynamic_cpp
+                        Sample the dynamic-block beta path via FFBS
+sample_beta_static_cpp
+                        Sample the static-block beta conditional on the
+                        dynamic path
+sample_dynamic_ab_cpp   Sample dynamic additive effects with AR(1)
+                        evolution
+sample_rho_ab_cpp       Sample AR(1) parameter for dynamic additive
+                        effects
+sample_rho_beta_cpp     Sample the AR(1) rho for each dynamic block
+sample_rho_uv           Sample AR(1) parameter for dynamic latent
+                        factors
+sample_sigma_ab_cpp     Sample innovation variance for dynamic additive
+                        effects
+sample_sigma_beta_cpp   Sample the AR(1) innovation sigma for each
+                        dynamic block
+sample_sigma_uv         Sample innovation variance for dynamic latent
+                        factors
+sampler_describe        Describe the estimator behind a fitted object
+sampsonmonks            Sampson's monastery data
+sheep                   Sheep dominance data
+simY_bin                Simulate a network, i.e. a binary relational
+                        matrix
+simY_frn                Simulate an relational matrix based on a fixed
+                        rank nomination scheme
+simY_nrm                Simulate a normal relational matrix
+simY_ord                Simulate an ordinal relational matrix
+simY_pois               Simulate a Poisson relational matrix
+simZ                    Simulate Z given its expectation and covariance
+simulate.ame            Simulate networks from a fitted AME model
+simulate.ame_als        Simulate networks from a fitted ame_als model
+simulate.lame           Simulate longitudinal networks from a fitted
+                        LAME model
+simulate_posterior      Simulate posterior distributions from fitted
+                        AME model
+sm2el                   Sociomatrix to edgelist
+snap_category_summary   Summarize snap indices by actor category
+snap_index_draws        Extract posterior draws of snap indices
+snap_index_summary      Summarize posterior snap indices
+snap_rank_summary       Summarize posterior rank uncertainty for snap
+                        years
+summary.ame             Summary of an AME object
+summary.ame.sim         Summary method for AME simulations
+summary.ame_als         Summarize an ame_als object
+summary.boot_ame        Summarize bootstrap results for a fast AME fit
+summary.lame            Summary of a LAME object
+summary.lame.sim        Summary method for LAME simulations
+tidy                    S3 generic for 'tidy'
+tidy.ame                Tidy method for fitted 'ame' / 'lame' objects
+tidy.ame_als            Tidy method for fitted 'ame_als' / 'lame_als'
+                        objects
+tidy.boot_ame           Tidy method for a standalone bootstrap object
+                        ('boot_ame')
+trace_plot              MCMC trace plots and density plots for AME/LAME
+                        model parameters
+update.ame              Update an AME / LAME fit
+update.ame_als          Update an 'ame_als' / 'lame_als' fit
+uv_plot                 Visualize multiplicative effects (latent
+                        factors) from AME models
+vcov.ame                Posterior covariance of AME model coefficients
+vcov.ame_als            Sandwich covariance for the regression
+                        coefficients of a fast AME fit
+vcov.boot_ame           Bootstrap covariance of the regression
+                        coefficients
+vignette_data           TIES sanctions data for vignettes
+waic.ame                WAIC for AME / LAME fits
+zscores                 rank-based z-scores

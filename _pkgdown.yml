@@ -210,9 +210,7 @@ reference:
     - simY_bin
     - simY_ord
     - simY_pois
-    - simY_tob
     - simY_frn
-    - simY_rrl
     - simZ
 
   - title: "Data Manipulation"
@@ -242,10 +240,8 @@ reference:
     - rZ_bin_fc
     - rZ_ord_fc
     - rZ_pois_fc
-    - rZ_tob_fc
     - rZ_cbin_fc
     - rZ_frn_fc
-    - rZ_rrl_fc
     - rbeta_ab_fc
     - rbeta_ab_rep_fc
     - rSab_fc
@@ -279,7 +275,6 @@ reference:
     - rUV_dynamic_bip_fc_cpp
     - rZ_nrm_batch_cpp
     - rZ_bin_bip_batch_cpp
-    - rZ_tob_bip_batch_cpp
     - compute_XtX_Xty_bip_cpp
     - Xbeta_bip_cpp
     - rbeta_ab_bip_gibbs_cpp
@@ -316,7 +311,6 @@ reference:
     - YX_ord
     - YX_cbin
     - YX_frn
-    - YX_rrl
     - IR90s
     - coldwar
     - comtrade

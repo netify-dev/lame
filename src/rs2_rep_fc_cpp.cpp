@@ -55,8 +55,16 @@ arma::mat mhalf_cpp2(
      EM = join_cols(EM, join_rows(eUpperTri, etUpperTri) * H);
    }
    
-   double shape = (EM.n_elem + 1)/2;
-   double scale = (accu(pow(EM, 2))+1)/2;
+   // scale-free prior: one pseudo-observation at the empirical
+   // mean-square residual (an absolute +1 corrupts s2, and through the
+   // whitening rho, whenever Y is not on unit scale)
+   double ss = accu(pow(EM, 2));
+   double ms = ss / std::max((double) EM.n_elem, 1.0);
+   if(!(ms > 0) || !std::isfinite(ms)) ms = 1.0;
+   // force floating-point arithmetic: EM.n_elem is unsigned, so
+   // (n_elem + 1)/2 truncates and loses the half pseudo-observation
+   double shape = ((double) EM.n_elem + 1.0)/2.0;
+   double scale = (ss + ms)/2;
    double s2 = 1/rgamma(1, shape, 1/scale)[0];
    return( s2 );
  }

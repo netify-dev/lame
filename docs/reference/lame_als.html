@@ -29,7 +29,7 @@ algorithm details."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -78,7 +78,7 @@ estimated effects (<code>mu</code>, <code>beta</code>, <code>a</code>, <code>b</
 <code><a href="lame.html">lame</a></code> fit.</p>
 <p>The estimation algorithm adapts the iterative block coordinate descent
 estimator of the Social Influence Regression model of Hoff &amp; Minhas
-(<code><a href="https://rdrr.io/pkg/sir/man/sir_alsfit.html" class="external-link">sir::sir_alsfit()</a></code>) to the AME model; it is a port and adaptation,
+(<code>sir::sir_alsfit()</code>) to the AME model; it is a port and adaptation,
 not original <span class="pkg">lame</span> methodology. See <code><a href="ame_als.html">ame_als</a></code> for the
 algorithm details.</p>
     </div>
@@ -119,7 +119,9 @@ algorithm details.</p>
 <code>[n_row, n_col, t]</code>. A named list may have changing actor
 composition; every slice must carry row and column names so actors can be
 aligned to the union panel. Unnamed lists and arrays are treated
-positionally and must have one fixed layout.</p></dd>
+positionally and must have one fixed layout. A longitudinal <span class="pkg">netify</span>
+object is also accepted and converted with
+<code>netify::to_lame(lame = TRUE)</code>.</p></dd>
 
 
 <dt id="arg-xdyad">Xdyad<a class="anchor" aria-label="anchor" href="#arg-xdyad"></a></dt>
@@ -260,7 +262,7 @@ argument is retained for API consistency with <code><a href="ame.html">ame</a></
     <p>Minhas, S. and Hoff, P. D. (2025). Decomposing Network Dynamics: Social
 Influence Regression. <em>Political Analysis</em>. The iterative block
 coordinate descent estimator adapted here originates with that work
-(implemented in <code><a href="https://rdrr.io/pkg/sir/man/sir_alsfit.html" class="external-link">sir::sir_alsfit()</a></code>).</p>
+(implemented in <code>sir::sir_alsfit()</code>).</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -283,8 +285,8 @@ that estimates <em>only</em> a time-varying \(\beta_t\) (no
 <span class="r-in"><span>               simplify <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">lame_als</span><span class="op">(</span><span class="va">Y</span>, R <span class="op">=</span> <span class="fl">1</span>, family <span class="op">=</span> <span class="st">"normal"</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  intercept </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 0.02993164 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   intercept </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -0.03918337 </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

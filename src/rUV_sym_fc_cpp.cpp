@@ -71,7 +71,9 @@ arma::mat matMultVec(arma::mat x, arma::vec y){
    double shape;
    
    if(shrink){
-     shape = (2+n)/2;
+     // force floating-point arithmetic: (2+n)/2 in int arithmetic
+     // floors the gamma shape by 0.5 for every odd n
+     shape = (2.0 + n) / 2.0;
      scale = (1+sum(pow(U,2),0))/2;
      for(int r=0 ; r<R ; r++){
        ivU[r] = rgamma(1, shape, 1/scale[r] )[0];
