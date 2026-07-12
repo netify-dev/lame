@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-06-25</h4>
+            <h4 data-toc-skip class="date">2026-07-12</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/lame-overview.Rmd" class="external-link"><code>vignettes/lame-overview.Rmd</code></a></small>
       <div class="d-none name"><code>lame-overview.Rmd</code></div>
@@ -126,9 +126,8 @@ figures you can theme and extend.</li>
 <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>, and <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> work as you would
 expect from any R model object.</li>
 </ul>
-<p>The package is part of the <code>netify-verse</code>, and it works
-with the <a href="https://netify-dev.github.io/netify/" class="external-link"><code>netify</code></a>
-package for data preparation.</p>
+<p>The package works with <a href="https://netify-dev.github.io/netify/" class="external-link"><code>netify</code></a> for
+data preparation.</p>
 <div class="section level3">
 <h3 id="migrating-from-amen">Migrating from <code>amen</code><a class="anchor" aria-label="anchor" href="#migrating-from-amen"></a>
 </h3>
@@ -159,29 +158,16 @@ breaking differences for old <code>amen</code> scripts:</p>
 <td>Family strings</td>
 <td>
 <code>"nrm"</code>, <code>"bin"</code>, <code>"ord"</code>,
-<code>"cbin"</code>, <code>"frn"</code>, <code>"rrl"</code>,
-<code>"tobit"</code>
+<code>"cbin"</code>, <code>"frn"</code>
 </td>
 <td>
 <code>"normal"</code>, <code>"binary"</code>,
 <code>"ordinal"</code>, <code>"cbin"</code>, <code>"frn"</code>,
-<code>"rrl"</code>, <code>"tobit"</code>, <code>"poisson"</code>
+<code>"poisson"</code>
 </td>
-<td>No for <code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> (short forms
-<code>"nrm"</code>, <code>"bin"</code>, <code>"ord"</code>,
-<code>"pois"</code>, <code>"tob"</code> are accepted as aliases via
-<code><a href="https://cli.r-lib.org/reference/cli_abort.html" class="external-link">cli::cli_inform()</a></code> – two informational lines per call,
-recommending the full name; old scripts run unchanged). For
-<code><a href="../reference/ame_als.html">ame_als()</a></code> / <code><a href="../reference/lame_als.html">lame_als()</a></code> (MCMC-free estimator)
-the same short aliases (<code>"nrm"</code>, <code>"bin"</code>,
-<code>"ord"</code>, <code>"pois"</code>, <code>"tob"</code>) are
-accepted with an informational message, but the estimator
-<em>supports</em> only <code>"normal"</code>, <code>"binary"</code>, and
-<code>"poisson"</code>. The censoring / rank families
-<code>"ordinal"</code>, <code>"tobit"</code>, <code>"cbin"</code>,
-<code>"frn"</code>, and <code>"rrl"</code> are rejected with a direct
-error pointing to <code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> (MCMC), which
-is the posterior-sampling path for those families.</td>
+<td>No – amen short forms are accepted as aliases (with a message
+recommending the full name). The ALS fitters support only
+normal/binary/poisson and reject the rest with a pointer to MCMC.</td>
 </tr>
 <tr class="even">
 <td>Bipartite rank</td>
@@ -215,13 +201,10 @@ accepted</td>
 <td>not available</td>
 <td>
 <code>[n_stored, p, T]</code> 3-D array</td>
-<td>New feature, but watch out: under the new shape
-<code>apply(fit$BETA, 2, mean)</code> still returns a
-length-<code>p</code> vector that <em>looks</em> like the old amen
-result, while silently averaging across both iterations and time. Use
-<code>coef(fit)</code> (returns <code>[p, T]</code> for dynamic,
-length-<code>p</code> for static) or branch on
-<code>length(dim(fit$BETA))</code>. See <a href="dynamic_effects.html">Dynamic Effects</a>.</td>
+<td>New feature; use <code>coef(fit)</code> (returns <code>[p, T]</code>
+for dynamic fits) – a bare <code>apply(fit$BETA, 2, mean)</code>
+silently averages over time. See <a href="dynamic_effects.html">Dynamic
+Effects</a>.</td>
 </tr>
 <tr class="even">
 <td>Longitudinal data</td>
@@ -400,6 +383,10 @@ identical.</p>
 <span>    burn <span class="op">=</span> <span class="fl">500</span>,              <span class="co"># burn-in</span></span>
 <span>    nscan <span class="op">=</span> <span class="fl">4000</span>,            <span class="co"># post-burn-in iterations</span></span>
 <span>    odens <span class="op">=</span> <span class="fl">10</span>,              <span class="co"># thinning -&gt; 400 stored draws</span></span>
+<span>    posterior_opts <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>save_UV <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,  <span class="co"># keep U/V draws: gives</span></span>
+<span>                                            <span class="co"># latent_positions() real</span></span>
+<span>                                            <span class="co"># posterior SDs below</span></span>
+<span>    save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>,     <span class="co"># pointwise log-lik: feeds loo() at the end</span></span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>    plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -427,16 +414,16 @@ identical.</p>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;                   Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept           -2.863    1.162  -2.465   0.014   -5.107   -0.655   *</span></span>
-<span><span class="co">#&gt; male_row             0.939     0.41   2.289   0.022     0.22    1.749   *</span></span>
-<span><span class="co">#&gt; smoker_row          -0.949    0.334  -2.841   0.004   -1.572   -0.307  **</span></span>
-<span><span class="co">#&gt; program_row          0.497    0.227   2.189   0.029    0.063    0.943   *</span></span>
-<span><span class="co">#&gt; male_col              0.99    0.262   3.781       0    0.458    1.504 ***</span></span>
-<span><span class="co">#&gt; smoker_col          -0.059    0.212  -0.277   0.781   -0.503    0.329    </span></span>
-<span><span class="co">#&gt; program_col          0.149    0.142    1.05   0.294   -0.105    0.433    </span></span>
-<span><span class="co">#&gt; same_male_dyad       0.446    0.059   7.582       0    0.331    0.564 ***</span></span>
-<span><span class="co">#&gt; same_smoker_dyad     0.144    0.056   2.594   0.009    0.038    0.246  **</span></span>
-<span><span class="co">#&gt; same_program_dyad    0.577    0.053  10.913       0    0.472    0.674 ***</span></span>
+<span><span class="co">#&gt; intercept           -2.929    1.221  -2.399   0.016     -5.5   -0.454   *</span></span>
+<span><span class="co">#&gt; male_row              0.98     0.45   2.176    0.03    0.134    1.838   *</span></span>
+<span><span class="co">#&gt; smoker_row          -0.928    0.344  -2.698   0.007   -1.577   -0.236  **</span></span>
+<span><span class="co">#&gt; program_row          0.507    0.251   2.018   0.044   -0.003    0.997   *</span></span>
+<span><span class="co">#&gt; male_col             1.048     0.28    3.74       0    0.509     1.61 ***</span></span>
+<span><span class="co">#&gt; smoker_col          -0.069    0.213  -0.322   0.747   -0.548    0.324    </span></span>
+<span><span class="co">#&gt; program_col          0.151    0.148   1.014   0.311   -0.161     0.44    </span></span>
+<span><span class="co">#&gt; same_male_dyad       0.446    0.058   7.622       0    0.332    0.553 ***</span></span>
+<span><span class="co">#&gt; same_smoker_dyad     0.156    0.062   2.538   0.011    0.027    0.257   *</span></span>
+<span><span class="co">#&gt; same_program_dyad    0.579    0.051  11.356       0    0.481    0.683 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -444,10 +431,10 @@ identical.</p>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.773    0.208</span></span>
-<span><span class="co">#&gt; cab    0.282    0.101</span></span>
-<span><span class="co">#&gt; vb     0.258    0.074</span></span>
-<span><span class="co">#&gt; rho    0.322    0.041</span></span>
+<span><span class="co">#&gt; va     0.819    0.199</span></span>
+<span><span class="co">#&gt; cab    0.291    0.097</span></span>
+<span><span class="co">#&gt; vb     0.301    0.079</span></span>
+<span><span class="co">#&gt; rho    0.326    0.039</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
@@ -469,7 +456,7 @@ add back the mean covariate contribution:</p>
 <span>  centroid_lp   <span class="op">=</span> <span class="va">centroid_lp</span>,</span>
 <span>  qnorm_density <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">qnorm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     intercept   centroid_lp qnorm_density </span></span>
-<span><span class="co">#&gt;   -2.86335722   -0.07414573    0.00842291</span></span></code></pre></div>
+<span><span class="co">#&gt;   -2.92867688   -0.06839751    0.00842291</span></span></code></pre></div>
 <p>The intercept itself is strongly negative, but the predictor at the
 average covariate profile (<code>centroid_lp</code>) sits close to
 <code>qnorm(density)</code> – the uncentered covariates account for
@@ -520,13 +507,12 @@ unimodal. Numerically, common MCMC checks are
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>
 400 per chain</strong>.</p>
 <p>With 400 stored samples, the regression coefficients mix well at this
-seed. The variance components mix more slowly: in the
-<code>summarise_draws</code> table below, <code>va</code> carries the
-highest
+seed. The variance components mix more slowly than the regression
+coefficients – compare their
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-and the lowest ESS. Which parameter mixes worst is seed-dependent in a
-short chain, so treat this fit as a compact worked example rather than a
-final diagnostic run.</p>
+and ESS columns in the <code>summarise_draws</code> table below. Which
+parameter mixes worst is seed-dependent in a short chain, so treat this
+fit as a compact worked example rather than a final diagnostic run.</p>
 </div>
 <div class="section level3">
 <h3 id="bayesian-ecosystem-diagnostics-posterioras_draws">Bayesian-ecosystem diagnostics:
@@ -561,21 +547,21 @@ and <strong>bulk / tail ESS</strong> in one call:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 15 × 10</span></span></span>
 <span><span class="co">#&gt;    variable            mean  median     sd    mad      q5    q95   rhat ess_bulk</span></span>
 <span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>              <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept        -<span style="color: #BB0000;">2.86</span>   -<span style="color: #BB0000;">2.86</span>   1.16   1.14   -<span style="color: #BB0000;">4.76</span>   -<span style="color: #BB0000;">0.964</span>  0.999   388.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> male_row          0.939   0.924  0.410  0.436   0.318   1.64   1.000   462.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> smoker_row       -<span style="color: #BB0000;">0.949</span>  -<span style="color: #BB0000;">0.917</span>  0.334  0.311  -<span style="color: #BB0000;">1.51</span>   -<span style="color: #BB0000;">0.426</span>  1.00    347.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> program_row       0.497   0.505  0.227  0.212   0.114   0.875  0.998   358.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> male_col          0.990   0.986  0.262  0.231   0.564   1.43   0.998   459.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> smoker_col       -<span style="color: #BB0000;">0.058</span><span style="color: #BB0000; text-decoration: underline;">9</span> -<span style="color: #BB0000;">0.057</span><span style="color: #BB0000; text-decoration: underline;">2</span> 0.212  0.209  -<span style="color: #BB0000;">0.386</span>   0.272  1.00    308.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> program_col       0.149   0.155  0.142  0.143  -<span style="color: #BB0000;">0.077</span><span style="color: #BB0000; text-decoration: underline;">0</span>  0.386  1.00    373.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_male_dyad    0.446   0.445  0.058<span style="text-decoration: underline;">9</span> 0.051<span style="text-decoration: underline;">8</span>  0.352   0.547  1.01    325.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> same_smoker_dyad  0.144   0.147  0.055<span style="text-decoration: underline;">5</span> 0.054<span style="text-decoration: underline;">0</span>  0.049<span style="text-decoration: underline;">6</span>  0.236  1.000    79.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> same_program_dy…  0.577   0.579  0.052<span style="text-decoration: underline;">9</span> 0.050<span style="text-decoration: underline;">2</span>  0.486   0.659  1.01    202.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> va                0.773   0.736  0.208  0.189   0.490   1.19   1.11      6.99</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> cab               0.282   0.272  0.101  0.094<span style="text-decoration: underline;">5</span>  0.144   0.462  1.06     20.4 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> vb                0.258   0.246  0.074<span style="text-decoration: underline;">3</span> 0.071<span style="text-decoration: underline;">1</span>  0.156   0.396  1.01    199.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">14</span> rho               0.322   0.325  0.040<span style="text-decoration: underline;">6</span> 0.043<span style="text-decoration: underline;">6</span>  0.253   0.384  0.998   111.  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">15</span> ve                1       1      0      0       1       1     <span style="color: #BB0000;">NA</span>        <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept        -<span style="color: #BB0000;">2.93</span>   -<span style="color: #BB0000;">2.93</span>   1.22   1.17   -<span style="color: #BB0000;">5.01</span>   -<span style="color: #BB0000;">0.808</span>  1.000    315. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> male_row          0.980   0.976  0.450  0.418   0.230   1.76   0.999    458. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> smoker_row       -<span style="color: #BB0000;">0.928</span>  -<span style="color: #BB0000;">0.939</span>  0.344  0.370  -<span style="color: #BB0000;">1.48</span>   -<span style="color: #BB0000;">0.340</span>  0.998    392. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> program_row       0.507   0.514  0.251  0.227   0.080<span style="text-decoration: underline;">3</span>  0.936  0.998    293. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> male_col          1.05    1.06   0.280  0.261   0.581   1.52   1.00     383. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> smoker_col       -<span style="color: #BB0000;">0.068</span><span style="color: #BB0000; text-decoration: underline;">7</span> -<span style="color: #BB0000;">0.068</span><span style="color: #BB0000; text-decoration: underline;">6</span> 0.213  0.207  -<span style="color: #BB0000;">0.431</span>   0.279  0.998    430. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> program_col       0.151   0.146  0.148  0.146  -<span style="color: #BB0000;">0.113</span>   0.399  1.01     366. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_male_dyad    0.446   0.444  0.058<span style="text-decoration: underline;">5</span> 0.058<span style="text-decoration: underline;">3</span>  0.344   0.544  1.01     359. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> same_smoker_dyad  0.156   0.161  0.061<span style="text-decoration: underline;">6</span> 0.059<span style="text-decoration: underline;">9</span>  0.053<span style="text-decoration: underline;">2</span>  0.244  1.00      95.8</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> same_program_dy…  0.579   0.576  0.051<span style="text-decoration: underline;">0</span> 0.052<span style="text-decoration: underline;">0</span>  0.496   0.665  1.000    325. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> va                0.819   0.779  0.199  0.177   0.558   1.18   0.999    305. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> cab               0.291   0.279  0.097<span style="text-decoration: underline;">1</span> 0.096<span style="text-decoration: underline;">4</span>  0.164   0.460  1.00     254. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> vb                0.301   0.293  0.079<span style="text-decoration: underline;">0</span> 0.072<span style="text-decoration: underline;">3</span>  0.186   0.443  1.00     207. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">14</span> rho               0.326   0.326  0.038<span style="text-decoration: underline;">5</span> 0.036<span style="text-decoration: underline;">9</span>  0.261   0.385  0.999    160. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">15</span> ve                1       1      0      0       1       1     <span style="color: #BB0000;">NA</span>         <span style="color: #BB0000;">NA</span>  </span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: ess_tail &lt;dbl&gt;</span></span></span></code></pre></div>
 <p>A single-chain fit like this one has <code>chain = 1</code>, so
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
@@ -743,37 +729,59 @@ the <a href="dynamic_effects.html">Dynamic Effects</a> vignette.</p>
 <div class="section level3">
 <h3 id="latent-space">Latent Space<a class="anchor" aria-label="anchor" href="#latent-space"></a>
 </h3>
-<p>The multiplicative effects capture patterns of association that go
-beyond what the covariates and additive effects explain. The
-<code>uv_plot</code> function visualizes these latent positions. Because
-we fit <code>R = 1</code>, the latent space is one-dimensional: each
-student’s sender position (triangle) and receiver position (circle) is a
-single number, and <code>uv_plot</code> lays them out along one axis
-(the two reference circles are drawn only for scale). Students who land
-near each other share friendship-formation patterns the covariates and
-additive effects miss; sign separates the two latent groups. With
-<code>R = 2</code> the same call would spread the positions across a
-genuine two-dimensional plane.</p>
+<p>The multiplicative effects capture association patterns beyond what
+the covariates and additive effects explain. We fit <code>R = 1</code>,
+so each student’s sender position
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>)
+and receiver position
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>i</mi></msub><annotation encoding="application/x-tex">v_i</annotation></semantics></math>)
+is a single number – and a one-dimensional space should be
+<em>plotted</em> as one dimension. (A 2-D scatter of a 1-D space piles
+every point onto a line and looks degenerate even when the positions are
+informative. Why not just fit <code>R = 2</code>? On these 32 students
+the second latent dimension competes with the three homophily dummies
+for the same signal: refitting with <code>R = 2</code> collapses the
+<code>same_male</code> and <code>same_smoker</code> effective sample
+sizes to about 15, versus healthy mixing at <code>R = 1</code>.)</p>
+<p>The honest display for a 1-D space is a ranked dot plot: every
+student’s sender and receiver position with a 95% interval, ordered by
+sender position. The intervals come from the saved U/V draws
+(<code>posterior_opts = list(save_UV = TRUE)</code> in the fit
+above).</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Dutch college friendship: multiplicative effects"</span><span class="op">)</span> <span class="op">+</span></span>
+<code class="sourceCode R"><span><span class="va">lp1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>, <span class="va">dimension</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">ordv</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/with.html" class="external-link">with</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">lp1</span>, <span class="va">type</span> <span class="op">==</span> <span class="st">"U"</span><span class="op">)</span>, <span class="va">actor</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="va">lp1</span><span class="op">$</span><span class="va">actor</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">lp1</span><span class="op">$</span><span class="va">actor</span>, levels <span class="op">=</span> <span class="va">ordv</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">lp1</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">value</span>, y <span class="op">=</span> <span class="va">actor</span>, color <span class="op">=</span> <span class="va">type</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_vline</a></span><span class="op">(</span>xintercept <span class="op">=</span> <span class="fl">0</span>, linetype <span class="op">=</span> <span class="fl">2</span>, color <span class="op">=</span> <span class="st">"grey60"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_linerange.html" class="external-link">geom_errorbar</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>xmin <span class="op">=</span> <span class="va">value</span> <span class="op">-</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">posterior_sd</span>,</span>
+<span>                      xmax <span class="op">=</span> <span class="va">value</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">posterior_sd</span><span class="op">)</span>,</span>
+<span>                  width <span class="op">=</span> <span class="fl">0</span>, alpha <span class="op">=</span> <span class="fl">0.5</span>, orientation <span class="op">=</span> <span class="st">"y"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">1.8</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_color_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>U <span class="op">=</span> <span class="st">"#D55E00"</span>, V <span class="op">=</span> <span class="st">"#0072B2"</span><span class="op">)</span>,</span>
+<span>                       labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>U <span class="op">=</span> <span class="st">"sender (u)"</span>, V <span class="op">=</span> <span class="st">"receiver (v)"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Latent position (dimension 1)"</span>, y <span class="op">=</span> <span class="cn">NULL</span>, color <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
-<span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>        legend.position <span class="op">=</span> <span class="st">"none"</span>,</span>
-<span>        axis.text  <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>        axis.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>        panel.grid <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="op">)</span></span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/overview-uv-1.png" class="r-plt" alt="One-dimensional latent-space layout for the Dutch college fit (R = 1): triangles mark each student's sender position and circles the receiver position, both falling along a single horizontal axis because the latent space has one dimension, with two reference circles drawn only for scale and marker size proportional to magnitude; students near each other share friendship-formation patterns beyond what the covariates and additive effects explain." width="100%" style="display: block; margin: auto;"></p>
-<p>With <code>R = 1</code> the latent space is one-dimensional, so the
-positions fall along a single axis and the two circles serve only as a
-reference scale; marker size encodes magnitude. Students at the extremes
-– and those whose sender (triangle) and receiver (circle) positions
-diverge – have the most distinctive friendship-formation patterns that
-the covariates and additive effects do not explain on their own. With
-<code>R = 2</code> the same call spreads the positions across a genuine
-plane.</p>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>, panel.grid.major.y <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>          axis.ticks <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>, legend.position <span class="op">=</span> <span class="st">"top"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="lame-overview_files/figure-html/overview-uv-1.png" class="r-plt" alt="Ranked dot plot of the one-dimensional latent positions for all 32 students: for each student, an orange point marks the posterior-mean sender position and a blue point the receiver position, each with a horizontal 95 percent interval; students are ordered by sender position, and a dashed vertical line marks zero." width="100%" style="display: block; margin: auto;"></p>
+<p>Three things to read off this plot. First, the dimension is genuinely
+informative: the extremes (around
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>+</mi><mn>1.9</mn></mrow><annotation encoding="application/x-tex">+1.9</annotation></semantics></math>
+at the top versus
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>1.4</mn></mrow><annotation encoding="application/x-tex">-1.4</annotation></semantics></math>
+at the bottom) are separated by roughly six times the width of a typical
+95% interval, so the ordering is signal, not noise. Second, sender and
+receiver positions are strongly related (their correlation is about
+0.7): students near the top both seek out and attract the same
+friendship cluster. Third, the exceptions are the interesting actors –
+students whose blue and orange points diverge are attractive to a
+cluster they do not themselves reach toward (or vice versa), a pattern
+no covariate in the model encodes. Because this fit is static, these
+positions are pooled across all six waves; if you suspect students
+<em>moved</em> through this space as the year progressed, that is
+exactly what <code>dynamic_uv = TRUE</code> estimates (see the <a href="dynamic_effects.html">dynamic effects vignette</a>).</p>
 </div>
 </div>
 <div class="section level2">
@@ -784,26 +792,25 @@ custom plots, merging with external data, or exporting to other tools),
 the <code><a href="../reference/latent_positions.html">latent_positions()</a></code> function returns a data frame:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `posterior_sd` is <span style="color: #0000BB;">"NA"</span> because U/V samples were not saved.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> To get posterior SDs, refit with `posterior_opts = posterior_options(save_UV</span></span>
-<span><span class="co">#&gt;   = TRUE)`.</span></span>
-<span><span class="co">#&gt; <span style="color: #555555;">This message is displayed once per session.</span></span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   actor dimension time      value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1   S01         1    1 -1.3181079           NA    U</span></span>
-<span><span class="co">#&gt; 2   S02         1    1 -0.1201780           NA    U</span></span>
-<span><span class="co">#&gt; 3   S03         1    1  0.2863954           NA    U</span></span>
-<span><span class="co">#&gt; 4   S04         1    1  0.4012661           NA    U</span></span>
-<span><span class="co">#&gt; 5   S05         1    1  0.5031653           NA    U</span></span>
-<span><span class="co">#&gt; 6   S06         1    1  0.8525542           NA    U</span></span></code></pre></div>
+<span><span class="co">#&gt; 1   S01         1    1 -1.3392909    0.3937971    U</span></span>
+<span><span class="co">#&gt; 2   S02         1    1 -0.1270659    0.2203360    U</span></span>
+<span><span class="co">#&gt; 3   S03         1    1  0.2342230    0.2318528    U</span></span>
+<span><span class="co">#&gt; 4   S04         1    1  0.3676437    0.2070456    U</span></span>
+<span><span class="co">#&gt; 5   S05         1    1  0.4929603    0.2554410    U</span></span>
+<span><span class="co">#&gt; 6   S06         1    1  0.7586983    0.3727190    U</span></span></code></pre></div>
 <p>Each row gives one actor’s position on one latent dimension at one
 time point; a <code>type</code> column distinguishes the sender position
 (<code>"U"</code>) from the receiver position (<code>"V"</code>), so a
-directed fit returns two rows per actor per dimension. For a static fit
-like this one the positions do not change over time, so
-<code><a href="../reference/latent_positions.html">latent_positions()</a></code> returns a single slice (labelled
-<code>time = 1</code>) that applies to every period rather than
-repeating it. For dynamic models (<code>dynamic_uv = TRUE</code>),
+directed fit returns two rows per actor per dimension. The
+<code>posterior_sd</code> column is populated because the fit saved its
+U/V draws (<code>posterior_opts = list(save_UV = TRUE)</code>); without
+that option it is <code>NA</code> with a one-time message telling you
+how to refit. For a static fit like this one the positions do not change
+over time, so <code><a href="../reference/latent_positions.html">latent_positions()</a></code> returns a single slice
+(labelled <code>time = 1</code>) that applies to every period rather
+than repeating it. For dynamic models (<code>dynamic_uv = TRUE</code>),
 positions evolve over time and <code><a href="../reference/latent_positions.html">latent_positions()</a></code> returns
 each time point separately (see the <a href="dynamic_effects.html">dynamic effects vignette</a>).</p>
 <p>When using dynamic latent positions, the latent space is only
@@ -817,7 +824,7 @@ trajectories across time are interpretable:</p>
 <span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/procrustes_align.html">procrustes_align</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Latent positions are static (single time point). No alignment needed.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">$</span><span class="va">U</span><span class="op">)</span></span>
-<span><span class="co">#&gt;  num [1:32, 1] -1.318 -0.12 0.286 0.401 0.503 ...</span></span>
+<span><span class="co">#&gt;  num [1:32, 1] -1.339 -0.127 0.234 0.368 0.493 ...</span></span>
 <span><span class="co">#&gt;  - attr(*, "dimnames")=List of 2</span></span>
 <span><span class="co">#&gt;   ..$ : chr [1:32] "S01" "S02" "S03" "S04" ...</span></span>
 <span><span class="co">#&gt;   ..$ : NULL</span></span></code></pre></div>
@@ -825,53 +832,94 @@ trajectories across time are interpretable:</p>
 <div class="section level2">
 <h2 id="tidy-data-round-trip-via-netify">Tidy-data round-trip via netify<a class="anchor" aria-label="anchor" href="#tidy-data-round-trip-via-netify"></a>
 </h2>
-<p><code>lame</code> integrates with the <code>netify</code> package via
-the <code>netify::to_amen(netlet, lame = TRUE)</code> bridge: feed a
-long-format edgelist (or any tidy network representation) through
-<code>netify::netify()</code> and then pass the result of
-<code>to_amen()</code> straight into <code><a href="../reference/lame.html">lame()</a></code> or
-<code><a href="../reference/ame.html">ame()</a></code>. The <code>lame = TRUE</code> flag preserves the
-per-period dyadic-covariate axis (required for longitudinal models).
+<p><code>lame</code> uses the <code>netify</code> package for tidy
+network data. Build a netify object from an edgelist and pass it
+directly to <code><a href="../reference/lame.html">lame()</a></code> or <code><a href="../reference/ame.html">ame()</a></code>. If you want to
+inspect the pieces first, <code><a href="https://netify-dev.github.io/netify/reference/netify_to_lame.html" class="external-link">netify::to_lame()</a></code> returns the
+<code>Y</code>, <code>Xdyad</code>, <code>Xrow</code>, and
+<code>Xcol</code> objects that <code>lame</code> will use internally.
 Once the fit is built, <code><a href="../reference/tidy.html">tidy()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot()</a></code>, and
 <code><a href="../reference/prediction_draws_long.html">prediction_draws_long()</a></code> give you
-broom-/ggplot-/marginaleffects-ready output that composes naturally with
-the rest of the tidyverse.</p>
+broom-/ggplot-/marginaleffects-ready output that works with the rest of
+the tidyverse.</p>
 <div class="section level3">
 <h3 id="entry-tidy-edgelist-lame">Entry: tidy edgelist → <code>lame()</code><a class="anchor" aria-label="anchor" href="#entry-tidy-edgelist-lame"></a>
 </h3>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">netify</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/netify/" class="external-link">netify</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 1. tidy edgelist -&gt; netify</span></span>
-<span><span class="va">netlet</span> <span class="op">&lt;-</span> <span class="fu">netify</span><span class="fu">::</span><span class="fu">netify</span><span class="op">(</span></span>
+<span><span class="co"># a tidy edgelist is often how network data arrives. Here we melt the</span></span>
+<span><span class="co"># Dutch-college wave list back into one (from, to, year, tie) row per</span></span>
+<span><span class="co"># ordered dyad, carrying a dyadic covariate along for the ride.</span></span>
+<span><span class="va">edges_long</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">Yt</span>  <span class="op">&lt;-</span> <span class="va">Y</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span></span>
+<span>    <span class="va">idx</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span>, arr.ind <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>        from <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span><span class="op">[</span><span class="va">idx</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span><span class="op">]</span>,</span>
+<span>        to   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">)</span><span class="op">[</span><span class="va">idx</span><span class="op">[</span>, <span class="fl">2</span><span class="op">]</span><span class="op">]</span>,</span>
+<span>        year <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span><span class="op">[</span><span class="va">t</span><span class="op">]</span>,</span>
+<span>        tie  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">Yt</span><span class="op">[</span><span class="va">idx</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>        same_program <span class="op">=</span> <span class="va">Xdyad</span><span class="op">[[</span><span class="va">t</span><span class="op">]</span><span class="op">]</span><span class="op">[</span>, , <span class="st">"same_program"</span><span class="op">]</span><span class="op">[</span><span class="va">idx</span><span class="op">]</span></span>
+<span>    <span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">edges_long</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   from  to year tie same_program</span></span>
+<span><span class="co">#&gt; 1  S02 S01   t2   0            0</span></span>
+<span><span class="co">#&gt; 2  S03 S01   t2   0            0</span></span>
+<span><span class="co">#&gt; 3  S04 S01   t2   0            0</span></span>
+<span><span class="co">#&gt; 4  S05 S01   t2   0            0</span></span>
+<span><span class="co">#&gt; 5  S06 S01   t2   0            0</span></span>
+<span><span class="co">#&gt; 6  S07 S01   t2   1            0</span></span>
+<span></span>
+<span><span class="va">netlet</span> <span class="op">&lt;-</span> <span class="fu">netify</span><span class="fu">::</span><span class="fu"><a href="https://netify-dev.github.io/netify/reference/netify.html" class="external-link">netify</a></span><span class="op">(</span></span>
 <span>    <span class="va">edges_long</span>,</span>
 <span>    actor1 <span class="op">=</span> <span class="st">"from"</span>, actor2 <span class="op">=</span> <span class="st">"to"</span>, time <span class="op">=</span> <span class="st">"year"</span>,</span>
-<span>    weight <span class="op">=</span> <span class="st">"tie"</span>, dyad_vars <span class="op">=</span> <span class="st">"distance"</span>,</span>
+<span>    weight <span class="op">=</span> <span class="st">"tie"</span>, dyad_vars <span class="op">=</span> <span class="st">"same_program"</span>,</span>
 <span>    symmetric <span class="op">=</span> <span class="cn">FALSE</span>, mode <span class="op">=</span> <span class="st">"unipartite"</span>,</span>
+<span>    missing_to_zero <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>    output_format <span class="op">=</span> <span class="st">"longit_array"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 2. netify -&gt; lame-ready list (lame = TRUE for longitudinal)</span></span>
-<span><span class="va">amen_in</span> <span class="op">&lt;-</span> <span class="fu">netify</span><span class="fu">::</span><span class="fu">to_amen</span><span class="op">(</span><span class="va">netlet</span>, lame <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># 3. fit (same Dutch-college style fit we built above)</span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
-<span>    Y      <span class="op">=</span> <span class="va">amen_in</span><span class="op">$</span><span class="va">Y</span>,</span>
-<span>    Xdyad  <span class="op">=</span> <span class="va">amen_in</span><span class="op">$</span><span class="va">Xdyad</span>,</span>
-<span>    Xrow   <span class="op">=</span> <span class="va">amen_in</span><span class="op">$</span><span class="va">Xrow</span>,</span>
-<span>    Xcol   <span class="op">=</span> <span class="va">amen_in</span><span class="op">$</span><span class="va">Xcol</span>,</span>
+<span><span class="co"># a netify object drops straight into lame(); reduced iterations here so the</span></span>
+<span><span class="co"># vignette builds quickly (use burn &gt;= 500, nscan &gt;= 4000 for real analyses).</span></span>
+<span><span class="va">fit_netlet</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
+<span>    <span class="va">netlet</span>,</span>
 <span>    family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>    burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">4000</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>    burn <span class="op">=</span> <span class="fl">50</span>, nscan <span class="op">=</span> <span class="fl">200</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># to inspect what lame() will see, to_lame() returns the pieces directly</span></span>
+<span><span class="va">pieces</span> <span class="op">&lt;-</span> <span class="fu">netify</span><span class="fu">::</span><span class="fu"><a href="https://netify-dev.github.io/netify/reference/netify_to_lame.html" class="external-link">to_lame</a></span><span class="op">(</span><span class="va">netlet</span>, lame <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">pieces</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "Y"          "Xdyad"      "Xrow"       "Xcol"       "mode"      </span></span>
+<span><span class="co">#&gt; [6] "family"     "ame_call"   "fit_method" "bootstrap"</span></span></code></pre></div>
+<p>Two things in that chunk deserve to be named. First,
+<code>fit_netlet</code> is a live fit taken straight off the netify
+object – no reshaping, no hand-built lists – confirming that a netify
+object drops into <code><a href="../reference/lame.html">lame()</a></code> as-is. Second,
+<code>names(pieces)</code> lists the inputs <code><a href="../reference/lame.html">lame()</a></code> actually
+consumes – <code>Y</code>, <code>Xdyad</code>, <code>Xrow</code>,
+<code>Xcol</code> (the latter two are <code>NULL</code> here because
+only a dyadic covariate rode along on the edgelist) – plus the
+<code>mode</code> / <code>family</code> metadata netify carries. The
+payoff of the round-trip is the alignment: <code><a href="https://netify-dev.github.io/netify/reference/netify.html" class="external-link">netify()</a></code> took
+the flat <code>(from, to, year, tie, same_program)</code> table and
+rebuilt, for every period, a tie matrix and a covariate slice keyed to
+the same actor order – exactly the
+<code>rownames</code>-and-<code><a href="https://rdrr.io/r/base/array.html" class="external-link">array()</a></code> bookkeeping done by hand
+in the setup chunk at the top of this vignette. When your data arrives
+as an edgelist, as panel network data usually does, that bookkeeping is
+the reason to reach for the round-trip: the edgelist is the only object
+you touch, and the per-period matrices never have to be assembled by
+hand.</p>
 </div>
 <div class="section level3">
 <h3 id="exit-tidy-autoplot-prediction_draws_long">Exit: <code>tidy()</code>, <code>autoplot()</code>,
 <code>prediction_draws_long()</code><a class="anchor" aria-label="anchor" href="#exit-tidy-autoplot-prediction_draws_long"></a>
 </h3>
 <p>The rest of the round-trip runs against the <code>fit</code> object
-built from the Dutch-college data above (no <code>netify</code> install
-needed):</p>
+built from the Dutch-college data above:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># tidy(fit) -&gt; term / estimate / std.error / statistic / p.value /</span></span>
 <span><span class="co"># conf.low / conf.high; one row per coefficient (or per</span></span>
@@ -883,16 +931,16 @@ needed):</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 10 × 7</span></span></span>
 <span><span class="co">#&gt;    term              estimate std.error statistic  p.value conf.low conf.high</span></span>
 <span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept          -<span style="color: #BB0000;">2.86</span>      1.16      -<span style="color: #BB0000;">2.46</span>  1.37<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span>  -<span style="color: #BB0000;">5.11</span>      -<span style="color: #BB0000;">0.655</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> male_row            0.939     0.410      2.29  2.21<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span>   0.220      1.75 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> smoker_row         -<span style="color: #BB0000;">0.949</span>     0.334     -<span style="color: #BB0000;">2.84</span>  4.50<span style="color: #949494;">e</span><span style="color: #BB0000;">- 3</span>  -<span style="color: #BB0000;">1.57</span>      -<span style="color: #BB0000;">0.307</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> program_row         0.497     0.227      2.19  2.86<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span>   0.062<span style="text-decoration: underline;">6</span>     0.943</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> male_col            0.990     0.262      3.78  1.56<span style="color: #949494;">e</span><span style="color: #BB0000;">- 4</span>   0.458      1.50 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> smoker_col         -<span style="color: #BB0000;">0.058</span><span style="color: #BB0000; text-decoration: underline;">9</span>    0.212     -<span style="color: #BB0000;">0.277</span> 7.81<span style="color: #949494;">e</span><span style="color: #BB0000;">- 1</span>  -<span style="color: #BB0000;">0.503</span>      0.329</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> program_col         0.149     0.142      1.05  2.94<span style="color: #949494;">e</span><span style="color: #BB0000;">- 1</span>  -<span style="color: #BB0000;">0.105</span>      0.433</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_male_dyad      0.446     0.058<span style="text-decoration: underline;">9</span>     7.58  3.40<span style="color: #949494;">e</span><span style="color: #BB0000;">-14</span>   0.331      0.564</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> same_smoker_dyad    0.144     0.055<span style="text-decoration: underline;">5</span>     2.59  9.49<span style="color: #949494;">e</span><span style="color: #BB0000;">- 3</span>   0.038<span style="text-decoration: underline;">0</span>     0.246</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> same_program_dyad   0.577     0.052<span style="text-decoration: underline;">9</span>    10.9   0   <span style="color: #949494;"> </span>      0.472      0.674</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept          -<span style="color: #BB0000;">2.93</span>      1.22      -<span style="color: #BB0000;">2.40</span>  1.65<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span> -<span style="color: #BB0000;">5.50</span>       -<span style="color: #BB0000;">0.454</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> male_row            0.980     0.450      2.18  2.96<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span>  0.134       1.84 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> smoker_row         -<span style="color: #BB0000;">0.928</span>     0.344     -<span style="color: #BB0000;">2.70</span>  6.98<span style="color: #949494;">e</span><span style="color: #BB0000;">- 3</span> -<span style="color: #BB0000;">1.58</span>       -<span style="color: #BB0000;">0.236</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> program_row         0.507     0.251      2.02  4.36<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span> -<span style="color: #BB0000;">0.003</span><span style="color: #BB0000; text-decoration: underline;">09</span>     0.997</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> male_col            1.05      0.280      3.74  1.84<span style="color: #949494;">e</span><span style="color: #BB0000;">- 4</span>  0.509       1.61 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> smoker_col         -<span style="color: #BB0000;">0.068</span><span style="color: #BB0000; text-decoration: underline;">7</span>    0.213     -<span style="color: #BB0000;">0.322</span> 7.47<span style="color: #949494;">e</span><span style="color: #BB0000;">- 1</span> -<span style="color: #BB0000;">0.548</span>       0.324</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> program_col         0.151     0.148      1.01  3.11<span style="color: #949494;">e</span><span style="color: #BB0000;">- 1</span> -<span style="color: #BB0000;">0.161</span>       0.440</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_male_dyad      0.446     0.058<span style="text-decoration: underline;">5</span>     7.62  2.51<span style="color: #949494;">e</span><span style="color: #BB0000;">-14</span>  0.332       0.553</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> same_smoker_dyad    0.156     0.061<span style="text-decoration: underline;">6</span>     2.54  1.11<span style="color: #949494;">e</span><span style="color: #BB0000;">- 2</span>  0.026<span style="text-decoration: underline;">5</span>      0.257</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> same_program_dyad   0.579     0.051<span style="text-decoration: underline;">0</span>    11.4   0   <span style="color: #949494;"> </span>     0.481       0.683</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="coefficient-tables-glance-tidy---modelsummary-gt-kableextra">Coefficient tables: <code>glance()</code> + <code>tidy()</code>
@@ -931,42 +979,42 @@ for the goodness-of-fit footer:</p>
 
     <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script><script>
       // Create table-specific functions using external factory
-      const tableFns_jwaj4g5dp6kqab0hzts1 = TinyTable.createTableFunctions("tinytable_jwaj4g5dp6kqab0hzts1");
+      const tableFns_5jjwaj4g5dp6kqab0hzt = TinyTable.createTableFunctions("tinytable_5jjwaj4g5dp6kqab0hzt");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '28', j: 2 } ], css_id: 'tinytable_css_urtrwctftkbcvo204a0z',}, 
-          { positions: [ { i: '20', j: 2 } ], css_id: 'tinytable_css_7sdofc101fttprsauq9v',}, 
-          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '21', j: 2 }, { i: '22', j: 2 }, { i: '23', j: 2 }, { i: '24', j: 2 }, { i: '25', j: 2 }, { i: '26', j: 2 }, { i: '27', j: 2 } ], css_id: 'tinytable_css_jowp6eoeqehvkeoyf2tm',}, 
-          { positions: [ { i: '0', j: 2 } ], css_id: 'tinytable_css_wbehs6coso697cyxaxo6',}, 
-          { positions: [ { i: '28', j: 1 } ], css_id: 'tinytable_css_arvlcjj3id2v6ajoyozs',}, 
-          { positions: [ { i: '20', j: 1 } ], css_id: 'tinytable_css_qqcc504dqmqb9ez43ok5',}, 
-          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '21', j: 1 }, { i: '22', j: 1 }, { i: '23', j: 1 }, { i: '24', j: 1 }, { i: '25', j: 1 }, { i: '26', j: 1 }, { i: '27', j: 1 } ], css_id: 'tinytable_css_0mrg4389y4wt84r3sk4x',}, 
-          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_ul1e5nabwenlmmojcboc',}, 
+          { positions: [ { i: '28', j: 2 } ], css_id: 'tinytable_css_9vurtrwctftkbcvo204a',}, 
+          { positions: [ { i: '20', j: 2 } ], css_id: 'tinytable_css_tm7sdofc101fttprsauq',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '21', j: 2 }, { i: '22', j: 2 }, { i: '23', j: 2 }, { i: '24', j: 2 }, { i: '25', j: 2 }, { i: '26', j: 2 }, { i: '27', j: 2 } ], css_id: 'tinytable_css_o6jowp6eoeqehvkeoyf2',}, 
+          { positions: [ { i: '0', j: 2 } ], css_id: 'tinytable_css_zswbehs6coso697cyxax',}, 
+          { positions: [ { i: '28', j: 1 } ], css_id: 'tinytable_css_k5arvlcjj3id2v6ajoyo',}, 
+          { positions: [ { i: '20', j: 1 } ], css_id: 'tinytable_css_4xqqcc504dqmqb9ez43o',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '21', j: 1 }, { i: '22', j: 1 }, { i: '23', j: 1 }, { i: '24', j: 1 }, { i: '25', j: 1 }, { i: '26', j: 1 }, { i: '27', j: 1 } ], css_id: 'tinytable_css_oc0mrg4389y4wt84r3sk',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_s1ul1e5nabwenlmmojcb',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_jwaj4g5dp6kqab0hzts1.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_5jjwaj4g5dp6kqab0hzt.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
     </script><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
 <style>
     /* tinytable css entries after */
-    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_urtrwctftkbcvo204a0z, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_urtrwctftkbcvo204a0z {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_7sdofc101fttprsauq9v, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_7sdofc101fttprsauq9v {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_jowp6eoeqehvkeoyf2tm, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_jowp6eoeqehvkeoyf2tm { text-align: center }
-    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_wbehs6coso697cyxaxo6, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_wbehs6coso697cyxaxo6 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_arvlcjj3id2v6ajoyozs, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_arvlcjj3id2v6ajoyozs {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
-    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_qqcc504dqmqb9ez43ok5, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_qqcc504dqmqb9ez43ok5 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
-    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_0mrg4389y4wt84r3sk4x, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_0mrg4389y4wt84r3sk4x { text-align: left }
-    #tinytable_jwaj4g5dp6kqab0hzts1 td.tinytable_css_ul1e5nabwenlmmojcboc, #tinytable_jwaj4g5dp6kqab0hzts1 th.tinytable_css_ul1e5nabwenlmmojcboc {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_5jjwaj4g5dp6kqab0hzt td.tinytable_css_9vurtrwctftkbcvo204a, #tinytable_5jjwaj4g5dp6kqab0hzt th.tinytable_css_9vurtrwctftkbcvo204a {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_5jjwaj4g5dp6kqab0hzt td.tinytable_css_tm7sdofc101fttprsauq, #tinytable_5jjwaj4g5dp6kqab0hzt th.tinytable_css_tm7sdofc101fttprsauq {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_5jjwaj4g5dp6kqab0hzt td.tinytable_css_o6jowp6eoeqehvkeoyf2, #tinytable_5jjwaj4g5dp6kqab0hzt th.tinytable_css_o6jowp6eoeqehvkeoyf2 { text-align: center }
+    #tinytable_5jjwaj4g5dp6kqab0hzt td.tinytable_css_zswbehs6coso697cyxax, #tinytable_5jjwaj4g5dp6kqab0hzt th.tinytable_css_zswbehs6coso697cyxax {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_5jjwaj4g5dp6kqab0hzt td.tinytable_css_k5arvlcjj3id2v6ajoyo, #tinytable_5jjwaj4g5dp6kqab0hzt th.tinytable_css_k5arvlcjj3id2v6ajoyo {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_5jjwaj4g5dp6kqab0hzt td.tinytable_css_4xqqcc504dqmqb9ez43o, #tinytable_5jjwaj4g5dp6kqab0hzt th.tinytable_css_4xqqcc504dqmqb9ez43o {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_5jjwaj4g5dp6kqab0hzt td.tinytable_css_oc0mrg4389y4wt84r3sk, #tinytable_5jjwaj4g5dp6kqab0hzt th.tinytable_css_oc0mrg4389y4wt84r3sk { text-align: left }
+    #tinytable_5jjwaj4g5dp6kqab0hzt td.tinytable_css_s1ul1e5nabwenlmmojcb, #tinytable_5jjwaj4g5dp6kqab0hzt th.tinytable_css_s1ul1e5nabwenlmmojcb {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
     </style>
 <div class="container">
-      <table class="table tinytable" id="tinytable_jwaj4g5dp6kqab0hzts1" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="table tinytable" id="tinytable_5jjwaj4g5dp6kqab0hzt" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
 <thead><tr>
 <th scope="col" data-row="0" data-col="1"> </th>
                 <th scope="col" data-row="0" data-col="2">Dutch college</th>
@@ -974,59 +1022,59 @@ for the goodness-of-fit footer:</p>
 <tbody>
 <tr>
 <td data-row="1" data-col="1">intercept</td>
-                  <td data-row="1" data-col="2">-2.863</td>
+                  <td data-row="1" data-col="2">-2.929</td>
                 </tr>
 <tr>
 <td data-row="2" data-col="1"></td>
-                  <td data-row="2" data-col="2">[-5.107, -0.655]</td>
+                  <td data-row="2" data-col="2">[-5.500, -0.454]</td>
                 </tr>
 <tr>
 <td data-row="3" data-col="1">male_row</td>
-                  <td data-row="3" data-col="2">0.939</td>
+                  <td data-row="3" data-col="2">0.980</td>
                 </tr>
 <tr>
 <td data-row="4" data-col="1"></td>
-                  <td data-row="4" data-col="2">[0.220, 1.749]</td>
+                  <td data-row="4" data-col="2">[0.134, 1.838]</td>
                 </tr>
 <tr>
 <td data-row="5" data-col="1">smoker_row</td>
-                  <td data-row="5" data-col="2">-0.949</td>
+                  <td data-row="5" data-col="2">-0.928</td>
                 </tr>
 <tr>
 <td data-row="6" data-col="1"></td>
-                  <td data-row="6" data-col="2">[-1.572, -0.307]</td>
+                  <td data-row="6" data-col="2">[-1.577, -0.236]</td>
                 </tr>
 <tr>
 <td data-row="7" data-col="1">program_row</td>
-                  <td data-row="7" data-col="2">0.497</td>
+                  <td data-row="7" data-col="2">0.507</td>
                 </tr>
 <tr>
 <td data-row="8" data-col="1"></td>
-                  <td data-row="8" data-col="2">[0.063, 0.943]</td>
+                  <td data-row="8" data-col="2">[-0.003, 0.997]</td>
                 </tr>
 <tr>
 <td data-row="9" data-col="1">male_col</td>
-                  <td data-row="9" data-col="2">0.990</td>
+                  <td data-row="9" data-col="2">1.048</td>
                 </tr>
 <tr>
 <td data-row="10" data-col="1"></td>
-                  <td data-row="10" data-col="2">[0.458, 1.504]</td>
+                  <td data-row="10" data-col="2">[0.509, 1.610]</td>
                 </tr>
 <tr>
 <td data-row="11" data-col="1">smoker_col</td>
-                  <td data-row="11" data-col="2">-0.059</td>
+                  <td data-row="11" data-col="2">-0.069</td>
                 </tr>
 <tr>
 <td data-row="12" data-col="1"></td>
-                  <td data-row="12" data-col="2">[-0.503, 0.329]</td>
+                  <td data-row="12" data-col="2">[-0.548, 0.324]</td>
                 </tr>
 <tr>
 <td data-row="13" data-col="1">program_col</td>
-                  <td data-row="13" data-col="2">0.149</td>
+                  <td data-row="13" data-col="2">0.151</td>
                 </tr>
 <tr>
 <td data-row="14" data-col="1"></td>
-                  <td data-row="14" data-col="2">[-0.105, 0.433]</td>
+                  <td data-row="14" data-col="2">[-0.161, 0.440]</td>
                 </tr>
 <tr>
 <td data-row="15" data-col="1">same_male_dyad</td>
@@ -1034,23 +1082,23 @@ for the goodness-of-fit footer:</p>
                 </tr>
 <tr>
 <td data-row="16" data-col="1"></td>
-                  <td data-row="16" data-col="2">[0.331, 0.564]</td>
+                  <td data-row="16" data-col="2">[0.332, 0.553]</td>
                 </tr>
 <tr>
 <td data-row="17" data-col="1">same_smoker_dyad</td>
-                  <td data-row="17" data-col="2">0.144</td>
+                  <td data-row="17" data-col="2">0.156</td>
                 </tr>
 <tr>
 <td data-row="18" data-col="1"></td>
-                  <td data-row="18" data-col="2">[0.038, 0.246]</td>
+                  <td data-row="18" data-col="2">[0.027, 0.257]</td>
                 </tr>
 <tr>
 <td data-row="19" data-col="1">same_program_dyad</td>
-                  <td data-row="19" data-col="2">0.577</td>
+                  <td data-row="19" data-col="2">0.579</td>
                 </tr>
 <tr>
 <td data-row="20" data-col="1"></td>
-                  <td data-row="20" data-col="2">[0.472, 0.674]</td>
+                  <td data-row="20" data-col="2">[0.481, 0.683]</td>
                 </tr>
 <tr>
 <td data-row="21" data-col="1">Num.Obs.</td>
@@ -1100,10 +1148,11 @@ coefficient story is being soaked up by multiplicative effects:</p>
 <span>    R <span class="op">=</span> <span class="fl">0</span>,                          <span class="co"># no latent space</span></span>
 <span>    symmetric <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>    burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">4000</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>    save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>,            <span class="co"># reused by loo_compare() below</span></span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">modelsummary</span><span class="fu">::</span><span class="fu"><a href="https://modelsummary.com/man/modelsummary.html" class="external-link">modelsummary</a></span><span class="op">(</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">modelsummary</span><span class="fu">::</span><span class="fu"><a href="https://modelsummary.com/man/modelsummary.html" class="external-link">modelsummary</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"AME (R = 1)"</span> <span class="op">=</span> <span class="va">fit</span>, <span class="st">"Additive only (R = 0)"</span> <span class="op">=</span> <span class="va">fit_noUV</span><span class="op">)</span>,</span>
 <span>    statistic <span class="op">=</span> <span class="st">"conf.int"</span>,</span>
 <span>    gof_map <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"nobs"</span>, <span class="st">"n_actors"</span>, <span class="st">"n_periods"</span>, <span class="st">"n_stored"</span>,</span>
@@ -1113,42 +1162,42 @@ coefficient story is being soaked up by multiplicative effects:</p>
 
     <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script><script>
       // Create table-specific functions using external factory
-      const tableFns_bvheu1dv6qt6sbs26wn8 = TinyTable.createTableFunctions("tinytable_bvheu1dv6qt6sbs26wn8");
+      const tableFns_4bbvheu1dv6qt6sbs26w = TinyTable.createTableFunctions("tinytable_4bbvheu1dv6qt6sbs26w");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '28', j: 2 }, { i: '28', j: 3 } ], css_id: 'tinytable_css_gxcw4abv0xvtf1zq6wo1',}, 
-          { positions: [ { i: '20', j: 2 }, { i: '20', j: 3 } ], css_id: 'tinytable_css_90v9ndfephq7o9pbaeui',}, 
-          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '21', j: 2 }, { i: '22', j: 2 }, { i: '23', j: 2 }, { i: '24', j: 2 }, { i: '25', j: 2 }, { i: '26', j: 2 }, { i: '27', j: 2 }, { i: '1', j: 3 }, { i: '2', j: 3 }, { i: '3', j: 3 }, { i: '4', j: 3 }, { i: '5', j: 3 }, { i: '6', j: 3 }, { i: '7', j: 3 }, { i: '8', j: 3 }, { i: '9', j: 3 }, { i: '10', j: 3 }, { i: '11', j: 3 }, { i: '12', j: 3 }, { i: '13', j: 3 }, { i: '14', j: 3 }, { i: '15', j: 3 }, { i: '16', j: 3 }, { i: '17', j: 3 }, { i: '18', j: 3 }, { i: '19', j: 3 }, { i: '21', j: 3 }, { i: '22', j: 3 }, { i: '23', j: 3 }, { i: '24', j: 3 }, { i: '25', j: 3 }, { i: '26', j: 3 }, { i: '27', j: 3 } ], css_id: 'tinytable_css_kyn3v9ieuqu7sav6bc9n',}, 
-          { positions: [ { i: '0', j: 2 }, { i: '0', j: 3 } ], css_id: 'tinytable_css_sfipkfps8lvmla3h3v98',}, 
-          { positions: [ { i: '28', j: 1 } ], css_id: 'tinytable_css_riolq4qc10876fmxmsy9',}, 
-          { positions: [ { i: '20', j: 1 } ], css_id: 'tinytable_css_pj1d26v4q4ue01ayxrna',}, 
-          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '21', j: 1 }, { i: '22', j: 1 }, { i: '23', j: 1 }, { i: '24', j: 1 }, { i: '25', j: 1 }, { i: '26', j: 1 }, { i: '27', j: 1 } ], css_id: 'tinytable_css_pj55lcxtsun6khgd1llo',}, 
-          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_smup22rbd8d9eaegvx23',}, 
+          { positions: [ { i: '28', j: 2 }, { i: '28', j: 3 } ], css_id: 'tinytable_css_uigxcw4abv0xvtf1zq6w',}, 
+          { positions: [ { i: '20', j: 2 }, { i: '20', j: 3 } ], css_id: 'tinytable_css_9n90v9ndfephq7o9pbae',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '21', j: 2 }, { i: '22', j: 2 }, { i: '23', j: 2 }, { i: '24', j: 2 }, { i: '25', j: 2 }, { i: '26', j: 2 }, { i: '27', j: 2 }, { i: '1', j: 3 }, { i: '2', j: 3 }, { i: '3', j: 3 }, { i: '4', j: 3 }, { i: '5', j: 3 }, { i: '6', j: 3 }, { i: '7', j: 3 }, { i: '8', j: 3 }, { i: '9', j: 3 }, { i: '10', j: 3 }, { i: '11', j: 3 }, { i: '12', j: 3 }, { i: '13', j: 3 }, { i: '14', j: 3 }, { i: '15', j: 3 }, { i: '16', j: 3 }, { i: '17', j: 3 }, { i: '18', j: 3 }, { i: '19', j: 3 }, { i: '21', j: 3 }, { i: '22', j: 3 }, { i: '23', j: 3 }, { i: '24', j: 3 }, { i: '25', j: 3 }, { i: '26', j: 3 }, { i: '27', j: 3 } ], css_id: 'tinytable_css_98kyn3v9ieuqu7sav6bc',}, 
+          { positions: [ { i: '0', j: 2 }, { i: '0', j: 3 } ], css_id: 'tinytable_css_y9sfipkfps8lvmla3h3v',}, 
+          { positions: [ { i: '28', j: 1 } ], css_id: 'tinytable_css_nariolq4qc10876fmxms',}, 
+          { positions: [ { i: '20', j: 1 } ], css_id: 'tinytable_css_lopj1d26v4q4ue01ayxr',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '21', j: 1 }, { i: '22', j: 1 }, { i: '23', j: 1 }, { i: '24', j: 1 }, { i: '25', j: 1 }, { i: '26', j: 1 }, { i: '27', j: 1 } ], css_id: 'tinytable_css_23pj55lcxtsun6khgd1l',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_n8smup22rbd8d9eaegvx',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_bvheu1dv6qt6sbs26wn8.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_4bbvheu1dv6qt6sbs26w.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
     </script><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
 <style>
     /* tinytable css entries after */
-    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_gxcw4abv0xvtf1zq6wo1, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_gxcw4abv0xvtf1zq6wo1 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_90v9ndfephq7o9pbaeui, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_90v9ndfephq7o9pbaeui {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_kyn3v9ieuqu7sav6bc9n, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_kyn3v9ieuqu7sav6bc9n { text-align: center }
-    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_sfipkfps8lvmla3h3v98, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_sfipkfps8lvmla3h3v98 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_riolq4qc10876fmxmsy9, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_riolq4qc10876fmxmsy9 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
-    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_pj1d26v4q4ue01ayxrna, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_pj1d26v4q4ue01ayxrna {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
-    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_pj55lcxtsun6khgd1llo, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_pj55lcxtsun6khgd1llo { text-align: left }
-    #tinytable_bvheu1dv6qt6sbs26wn8 td.tinytable_css_smup22rbd8d9eaegvx23, #tinytable_bvheu1dv6qt6sbs26wn8 th.tinytable_css_smup22rbd8d9eaegvx23 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_4bbvheu1dv6qt6sbs26w td.tinytable_css_uigxcw4abv0xvtf1zq6w, #tinytable_4bbvheu1dv6qt6sbs26w th.tinytable_css_uigxcw4abv0xvtf1zq6w {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_4bbvheu1dv6qt6sbs26w td.tinytable_css_9n90v9ndfephq7o9pbae, #tinytable_4bbvheu1dv6qt6sbs26w th.tinytable_css_9n90v9ndfephq7o9pbae {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_4bbvheu1dv6qt6sbs26w td.tinytable_css_98kyn3v9ieuqu7sav6bc, #tinytable_4bbvheu1dv6qt6sbs26w th.tinytable_css_98kyn3v9ieuqu7sav6bc { text-align: center }
+    #tinytable_4bbvheu1dv6qt6sbs26w td.tinytable_css_y9sfipkfps8lvmla3h3v, #tinytable_4bbvheu1dv6qt6sbs26w th.tinytable_css_y9sfipkfps8lvmla3h3v {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_4bbvheu1dv6qt6sbs26w td.tinytable_css_nariolq4qc10876fmxms, #tinytable_4bbvheu1dv6qt6sbs26w th.tinytable_css_nariolq4qc10876fmxms {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_4bbvheu1dv6qt6sbs26w td.tinytable_css_lopj1d26v4q4ue01ayxr, #tinytable_4bbvheu1dv6qt6sbs26w th.tinytable_css_lopj1d26v4q4ue01ayxr {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_4bbvheu1dv6qt6sbs26w td.tinytable_css_23pj55lcxtsun6khgd1l, #tinytable_4bbvheu1dv6qt6sbs26w th.tinytable_css_23pj55lcxtsun6khgd1l { text-align: left }
+    #tinytable_4bbvheu1dv6qt6sbs26w td.tinytable_css_n8smup22rbd8d9eaegvx, #tinytable_4bbvheu1dv6qt6sbs26w th.tinytable_css_n8smup22rbd8d9eaegvx {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
     </style>
 <div class="container">
-      <table class="table tinytable" id="tinytable_bvheu1dv6qt6sbs26wn8" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="table tinytable" id="tinytable_4bbvheu1dv6qt6sbs26w" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
 <thead><tr>
 <th scope="col" data-row="0" data-col="1"> </th>
                 <th scope="col" data-row="0" data-col="2">AME (R = 1)</th>
@@ -1157,103 +1206,103 @@ coefficient story is being soaked up by multiplicative effects:</p>
 <tbody>
 <tr>
 <td data-row="1" data-col="1">intercept</td>
-                  <td data-row="1" data-col="2">-2.863</td>
-                  <td data-row="1" data-col="3">-2.703</td>
+                  <td data-row="1" data-col="2">-2.929</td>
+                  <td data-row="1" data-col="3">-2.708</td>
                 </tr>
 <tr>
 <td data-row="2" data-col="1"></td>
-                  <td data-row="2" data-col="2">[-5.107, -0.655]</td>
-                  <td data-row="2" data-col="3">[-5.004, -0.549]</td>
+                  <td data-row="2" data-col="2">[-5.500, -0.454]</td>
+                  <td data-row="2" data-col="3">[-5.292, -0.329]</td>
                 </tr>
 <tr>
 <td data-row="3" data-col="1">male_row</td>
-                  <td data-row="3" data-col="2">0.939</td>
-                  <td data-row="3" data-col="3">0.914</td>
+                  <td data-row="3" data-col="2">0.980</td>
+                  <td data-row="3" data-col="3">0.921</td>
                 </tr>
 <tr>
 <td data-row="4" data-col="1"></td>
-                  <td data-row="4" data-col="2">[0.220, 1.749]</td>
-                  <td data-row="4" data-col="3">[0.130, 1.685]</td>
+                  <td data-row="4" data-col="2">[0.134, 1.838]</td>
+                  <td data-row="4" data-col="3">[0.097, 1.777]</td>
                 </tr>
 <tr>
 <td data-row="5" data-col="1">smoker_row</td>
-                  <td data-row="5" data-col="2">-0.949</td>
-                  <td data-row="5" data-col="3">-0.854</td>
+                  <td data-row="5" data-col="2">-0.928</td>
+                  <td data-row="5" data-col="3">-0.834</td>
                 </tr>
 <tr>
 <td data-row="6" data-col="1"></td>
-                  <td data-row="6" data-col="2">[-1.572, -0.307]</td>
-                  <td data-row="6" data-col="3">[-1.492, -0.208]</td>
+                  <td data-row="6" data-col="2">[-1.577, -0.236]</td>
+                  <td data-row="6" data-col="3">[-1.528, -0.102]</td>
                 </tr>
 <tr>
 <td data-row="7" data-col="1">program_row</td>
-                  <td data-row="7" data-col="2">0.497</td>
-                  <td data-row="7" data-col="3">0.496</td>
+                  <td data-row="7" data-col="2">0.507</td>
+                  <td data-row="7" data-col="3">0.479</td>
                 </tr>
 <tr>
 <td data-row="8" data-col="1"></td>
-                  <td data-row="8" data-col="2">[0.063, 0.943]</td>
-                  <td data-row="8" data-col="3">[0.049, 0.968]</td>
+                  <td data-row="8" data-col="2">[-0.003, 0.997]</td>
+                  <td data-row="8" data-col="3">[0.029, 1.052]</td>
                 </tr>
 <tr>
 <td data-row="9" data-col="1">male_col</td>
-                  <td data-row="9" data-col="2">0.990</td>
-                  <td data-row="9" data-col="3">0.974</td>
+                  <td data-row="9" data-col="2">1.048</td>
+                  <td data-row="9" data-col="3">0.986</td>
                 </tr>
 <tr>
 <td data-row="10" data-col="1"></td>
-                  <td data-row="10" data-col="2">[0.458, 1.504]</td>
-                  <td data-row="10" data-col="3">[0.498, 1.451]</td>
+                  <td data-row="10" data-col="2">[0.509, 1.610]</td>
+                  <td data-row="10" data-col="3">[0.432, 1.497]</td>
                 </tr>
 <tr>
 <td data-row="11" data-col="1">smoker_col</td>
-                  <td data-row="11" data-col="2">-0.059</td>
+                  <td data-row="11" data-col="2">-0.069</td>
                   <td data-row="11" data-col="3">-0.094</td>
                 </tr>
 <tr>
 <td data-row="12" data-col="1"></td>
-                  <td data-row="12" data-col="2">[-0.503, 0.329]</td>
-                  <td data-row="12" data-col="3">[-0.495, 0.345]</td>
+                  <td data-row="12" data-col="2">[-0.548, 0.324]</td>
+                  <td data-row="12" data-col="3">[-0.517, 0.344]</td>
                 </tr>
 <tr>
 <td data-row="13" data-col="1">program_col</td>
-                  <td data-row="13" data-col="2">0.149</td>
-                  <td data-row="13" data-col="3">0.104</td>
+                  <td data-row="13" data-col="2">0.151</td>
+                  <td data-row="13" data-col="3">0.117</td>
                 </tr>
 <tr>
 <td data-row="14" data-col="1"></td>
-                  <td data-row="14" data-col="2">[-0.105, 0.433]</td>
-                  <td data-row="14" data-col="3">[-0.161, 0.387]</td>
+                  <td data-row="14" data-col="2">[-0.161, 0.440]</td>
+                  <td data-row="14" data-col="3">[-0.186, 0.409]</td>
                 </tr>
 <tr>
 <td data-row="15" data-col="1">same_male_dyad</td>
                   <td data-row="15" data-col="2">0.446</td>
-                  <td data-row="15" data-col="3">0.412</td>
+                  <td data-row="15" data-col="3">0.418</td>
                 </tr>
 <tr>
 <td data-row="16" data-col="1"></td>
-                  <td data-row="16" data-col="2">[0.331, 0.564]</td>
-                  <td data-row="16" data-col="3">[0.295, 0.519]</td>
+                  <td data-row="16" data-col="2">[0.332, 0.553]</td>
+                  <td data-row="16" data-col="3">[0.321, 0.525]</td>
                 </tr>
 <tr>
 <td data-row="17" data-col="1">same_smoker_dyad</td>
-                  <td data-row="17" data-col="2">0.144</td>
-                  <td data-row="17" data-col="3">0.191</td>
+                  <td data-row="17" data-col="2">0.156</td>
+                  <td data-row="17" data-col="3">0.189</td>
                 </tr>
 <tr>
 <td data-row="18" data-col="1"></td>
-                  <td data-row="18" data-col="2">[0.038, 0.246]</td>
-                  <td data-row="18" data-col="3">[0.108, 0.276]</td>
+                  <td data-row="18" data-col="2">[0.027, 0.257]</td>
+                  <td data-row="18" data-col="3">[0.095, 0.270]</td>
                 </tr>
 <tr>
 <td data-row="19" data-col="1">same_program_dyad</td>
-                  <td data-row="19" data-col="2">0.577</td>
-                  <td data-row="19" data-col="3">0.593</td>
+                  <td data-row="19" data-col="2">0.579</td>
+                  <td data-row="19" data-col="3">0.595</td>
                 </tr>
 <tr>
 <td data-row="20" data-col="1"></td>
-                  <td data-row="20" data-col="2">[0.472, 0.674]</td>
-                  <td data-row="20" data-col="3">[0.498, 0.682]</td>
+                  <td data-row="20" data-col="2">[0.481, 0.683]</td>
+                  <td data-row="20" data-col="3">[0.497, 0.687]</td>
                 </tr>
 <tr>
 <td data-row="21" data-col="1">Num.Obs.</td>
@@ -1309,32 +1358,11 @@ is modest and not uniform across the three homophily terms, with widely
 overlapping credible intervals, so treat the comparison as illustrating
 the mechanism rather than as a precise decomposition; the direction is
 what to look for, not the exact shift.</p>
-<p><strong>Side-by-side MCMC and ALS in one table.</strong>
-<code><a href="../reference/tidy.ame_als.html">tidy.ame_als()</a></code> and <code><a href="../reference/glance.ame_als.html">glance.ame_als()</a></code> are
-registered alongside the MCMC methods, so
-<code>modelsummary(list("MCMC" = fit, "ALS" = fit_als))</code> works
-directly. The ALS row reports sandwich-based SEs when no bootstrap is
-attached and bootstrap-based SEs when
-<code>ame_als(..., bootstrap = K)</code> was used; the
-<code>se_source</code> column on <code>tidy(fit_als)</code> records
-which one supplied the interval.</p>
-<p>If you prefer <code>gt</code> directly, the same <code><a href="../reference/tidy.html">tidy()</a></code>
-frame composes into any formatter; every column follows the broom
-contract so <code>kableExtra::kbl()</code>,
-<code>flextable::flextable()</code>, and <code>gt::gt()</code> all work
-without a custom shim:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://gt.rstudio.com" class="external-link">gt</a></span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">broom</span><span class="fu">::</span><span class="fu"><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>`Estimate (95% CI)` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"%.3f (%.3f, %.3f)"</span>,</span>
-<span>                                         <span class="va">estimate</span>, <span class="va">conf.low</span>, <span class="va">conf.high</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">term</span>, <span class="va">`Estimate (95% CI)`</span>, <span class="va">p.value</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">gt</span><span class="fu">::</span><span class="fu">gt</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">gt</span><span class="fu">::</span><span class="fu">fmt_number</span><span class="op">(</span>columns <span class="op">=</span> <span class="va">p.value</span>, decimals <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">gt</span><span class="fu">::</span><span class="fu">tab_header</span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Posterior coefficient summary"</span>,</span>
-<span>                   subtitle <span class="op">=</span> <span class="st">"lame::lame() fit, Dutch college panel"</span><span class="op">)</span></span></code></pre></div>
+<p>The same <code><a href="../reference/tidy.html">tidy()</a></code> frame follows the broom column contract,
+so it drops into <code>gt</code>, <code>kableExtra</code>, or
+<code>flextable</code> directly; ALS fits carry their own
+<code><a href="../reference/tidy.html">tidy()</a></code>/<code><a href="../reference/glance.html">glance()</a></code> methods and compose into the
+same tables.</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># autoplot.lame returns a horizontal coefplot for static fits and a</span></span>
 <span><span class="co"># ribbon-per-period for dynamic_beta fits, so the same call works for</span></span>
@@ -1342,22 +1370,32 @@ without a custom shim:</p>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Dutch college friendship: posterior coefficients"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/autoplot-fit-1.png" class="r-plt" alt="Horizontal coefficient plot returned by autoplot.lame: each row is a regression coefficient, with a point at the posterior mean and a horizontal segment marking the 95 percent credible interval; a dashed reference line at zero indicates where an effect is indistinguishable from null." width="100%" style="display: block; margin: auto;"></p>
-<p>The same generic dispatches on <code>which = "uv"</code> (latent
-positions) and <code>which = "ab"</code> (sender / receiver random
-effects), so the entire random-effects diagnostic suite is reachable
-from a single broom-style verb:</p>
+<p>The coefplot is the visual form of the <code>tidy(fit)</code> table
+above. The three homophily terms sit clearly to the right of the dashed
+zero line – <code>same_program</code> largest (0.58),
+<code>same_male</code> next (0.45), <code>same_smoker</code> smallest
+(0.16) but still clear of zero – so same-program pairs are the most
+likely to befriend, holding everything else fixed. The nodal terms are
+mixed: <code>male_row</code>, <code>male_col</code>, and
+<code>smoker_row</code> sit clear of zero (male students are both more
+active senders and more popular receivers; smokers nominate fewer
+friends), <code>program_row</code> stops just short of it (the lower
+bound of its interval grazes zero), and <code>smoker_col</code> and
+<code>program_col</code> straddle the line – the wide-interval caution
+from the coefficient section applies to those. One glance reproduces the
+coefficient-section story. The same generic dispatches on
+<code>which = "uv"</code> (latent positions – shown as the ranked dot
+plot in the Latent Space section above) and <code>which = "ab"</code>
+(sender / receiver random effects):</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># which = "uv": delegates to uv_plot(); trajectory for dynamic_uv,</span></span>
-<span><span class="co"># snapshot for static -- returns a ggplot in both cases.</span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">fit</span>, which <span class="op">=</span> <span class="st">"uv"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/autoplot-uv-ab-1.png" class="r-plt" alt="Two separate ggplots returned by autoplot.lame, rendered one above the other: a one-dimensional latent-space layout of posterior-mean U/V positions, and a lollipop plot of sender random effects." width="100%" style="display: block; margin: auto;"></p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span></span>
-<span><span class="co"># which = "ab": delegates to ab_plot() (sender side by default);</span></span>
-<span><span class="co"># call ab_plot(fit, effect = "receiver") for the column-side plot.</span></span>
+<code class="sourceCode R"><span><span class="co"># which = "ab" delegates to ab_plot() (sender side by default; use</span></span>
+<span><span class="co"># ab_plot(fit, effect = "receiver") for the column side). Each lollipop</span></span>
+<span><span class="co"># is a student's sender random effect a_i: the longest positive stems</span></span>
+<span><span class="co"># are students who nominate far more friends than their covariates</span></span>
+<span><span class="co"># predict -- the heterogeneity that va summarises as one number.</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">fit</span>, which <span class="op">=</span> <span class="st">"ab"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="lame-overview_files/figure-html/autoplot-uv-ab-2.png" class="r-plt" alt="Two separate ggplots returned by autoplot.lame, rendered one above the other: a one-dimensional latent-space layout of posterior-mean U/V positions, and a lollipop plot of sender random effects." width="100%" style="display: block; margin: auto;"></p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<p><img src="lame-overview_files/figure-html/autoplot-ab-1.png" class="r-plt" alt="Lollipop plot of sender random effects: one stem per student, length equal to the posterior-mean sender effect a_i; long positive stems mark students who nominate far more friends than their covariates predict." width="100%" style="display: block; margin: auto;"></p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># prediction_draws_long() returns a long-format data frame with</span></span>
 <span><span class="co"># .chain / .iteration / .draw / period / period_label / i / j /</span></span>
 <span><span class="co"># actor_i / actor_j / .value -- ready for tidybayes / marginaleffects.</span></span>
@@ -1376,151 +1414,98 @@ from a single broom-style verb:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: .value &lt;dbl&gt;</span></span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">pdl</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 297600     10</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="worked-tidybayes-style-summary">Worked tidybayes-style summary<a class="anchor" aria-label="anchor" href="#worked-tidybayes-style-summary"></a>
-</h3>
-<p>Because <code><a href="../reference/prediction_draws_long.html">prediction_draws_long()</a></code> already uses the
-<code>.draw</code> / <code>.value</code> column convention, you can pipe
-straight into a <code>tidybayes::spread_draws()</code>- style workflow,
-or, since the columns are already in the right shape, go directly to
-<code>dplyr</code> for per-dyad posterior summaries:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Attaching package: 'dplyr'</span></span>
-<span><span class="co">#&gt; The following objects are masked from 'package:stats':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     filter, lag</span></span>
-<span><span class="co">#&gt; The following objects are masked from 'package:base':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     intersect, setdiff, setequal, union</span></span>
-<span><span class="va">pdl</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">actor_i</span>, <span class="va">actor_j</span>, <span class="va">period_label</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span>p_hat <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">.value</span><span class="op">)</span>,</span>
-<span>              lo    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">.value</span>, <span class="fl">0.025</span><span class="op">)</span>,</span>
-<span>              hi    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">.value</span>, <span class="fl">0.975</span><span class="op">)</span>,</span>
-<span>              .groups <span class="op">=</span> <span class="st">"drop"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 6</span></span></span>
-<span><span class="co">#&gt;   actor_i actor_j period_label  p_hat           lo    hi</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> S01     S02     t2           0.016<span style="text-decoration: underline;">7</span> 0.000<span style="text-decoration: underline;">000</span>023<span style="text-decoration: underline;">1</span> 0.156</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> S01     S02     t3           0.016<span style="text-decoration: underline;">7</span> 0.000<span style="text-decoration: underline;">000</span>023<span style="text-decoration: underline;">1</span> 0.156</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> S01     S02     t4           0.016<span style="text-decoration: underline;">7</span> 0.000<span style="text-decoration: underline;">000</span>023<span style="text-decoration: underline;">1</span> 0.156</span></span></code></pre></div>
 <p>Because the <code>.chain</code> / <code>.iteration</code> /
-<code>.draw</code> / <code>.value</code> columns already follow the
-<code>tidybayes</code> / <code>marginaleffects</code> convention, the
-data frame composes directly with
-<code>ggdist::stat_pointinterval()</code>,
-<code>tidybayes::point_interval()</code>, and
-<code>marginaleffects::posterior_draws()</code> without an intermediate
-<code>spread_draws()</code> call (that generic dispatches on draws /
-brms / Stan model objects, not on a long data frame – the point of
-returning the long shape directly is to skip that step).</p>
+<code>.draw</code> / <code>.value</code> columns follow the
+<code>tidybayes</code> / <code>marginaleffects</code> convention, this
+frame composes directly with <code>ggdist::stat_pointinterval()</code>,
+<code>tidybayes::point_interval()</code>, a
+<code><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">dplyr::group_by()</a></code> + <code>summarise()</code> per-dyad
+summary, or <code>marginaleffects::posterior_draws()</code> – no
+reshaping step needed.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="model-comparison-looloo_compare-as-a-one-liner">Model comparison: <code>loo::loo_compare()</code> as a
 one-liner<a class="anchor" aria-label="anchor" href="#model-comparison-looloo_compare-as-a-one-liner"></a>
 </h2>
-<p>When two specifications are on the table – say a static-coefficient
-baseline against a <code>dynamic_beta = "dyad"</code> variant – the
-standard out-of-sample yardstick is the expected log pointwise
-predictive density (<code>elpd_loo</code>) returned by
+<p>When two specifications are on the table – say the
+additive-effects-only model against one that adds a multiplicative
+latent space – the standard out-of-sample yardstick is the expected log
+pointwise predictive density (<code>elpd_loo</code>) returned by
 <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo()</a></code>. Both fits need <code>save_log_lik = TRUE</code>
 so <code><a href="../reference/loo.html">loo()</a></code> can read the pointwise log-likelihood matrix off
 <code>fit$log_lik</code>; <code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo::loo_compare()</a></code> then ranks
 them in a single call:</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>                   burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">4000</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
-<span>                   save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span><span class="va">fit_dyn</span>    <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>                   dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>
-<span>                   burn <span class="op">=</span> <span class="fl">500</span>, nscan <span class="op">=</span> <span class="fl">4000</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
-<span>                   save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">)</span>, <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># does the 1-D multiplicative latent space earn its keep over additive</span></span>
+<span><span class="co"># effects alone? both fits already carry save_log_lik = TRUE, so this</span></span>
+<span><span class="co"># reuses them -- no refitting. Pass a NAMED list so the rows are</span></span>
+<span><span class="co"># labelled by model rather than model1/model2.</span></span>
+<span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>no_latent <span class="op">=</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_noUV</span><span class="op">)</span>,</span>
+<span>                             latent_R1 <span class="op">=</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">cmp</span></span>
-<span><span class="co">#&gt;            elpd_diff se_diff</span></span>
-<span><span class="co">#&gt; fit_dyn     0.0       0.0</span></span>
-<span><span class="co">#&gt; fit_static -8.4       3.1</span></span></code></pre></div>
+<span><span class="co">#&gt;      model elpd_diff se_diff p_worse diag_diff       diag_elpd</span></span>
+<span><span class="co">#&gt;  latent_R1       0.0     0.0      NA           8 k_psis &gt; 0.62</span></span>
+<span><span class="co">#&gt;  no_latent    -134.5    15.7    1.00</span></span></code></pre></div>
 <p><strong>How to read the output.</strong> The top row is the preferred
 model and always carries <code>elpd_diff = 0</code>. Each subsequent row
 reports the <em>difference</em> in expected log pointwise predictive
-density relative to the top model, together with the standard error of
-that difference. In the printout above, <code>fit_dyn</code> beats
-<code>fit_static</code> by 8.4 elpd units with an SE of 3.1, so
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">|</mo><mtext mathvariant="normal">elpd_diff</mtext><mo stretchy="false" form="prefix">|</mo><mi>/</mi><mtext mathvariant="normal">se_diff</mtext><mo>≈</mo><mn>2.7</mn></mrow><annotation encoding="application/x-tex">|\text{elpd\_diff}| / \text{se\_diff} \approx 2.7</annotation></semantics></math>
-– the dynamic-beta specification is preferred at roughly the “2-sigma”
-threshold. A natural way to phrase that comparison:</p>
-<blockquote>
-<p><em>“The time-varying-coefficient model is preferred over the static
-specification by 8.4 elpd units (SE 3.1) on leave-one-out
-cross-validation, a <code>|</code>elpd_diff<code>|</code>/SE ratio of
-2.7. This is consistent with non-trivial drift in the dyadic coefficient
-over the panel window; the static specification is rejected at
-conventional thresholds.”</em></p>
-</blockquote>
-<p>If <code>|elpd_diff|</code> were closer to its SE (say
-<code>-2.0 (SE 3.0)</code>), the two specifications would be
-predictively indistinguishable and the simpler static model would be the
-defensible choice. The numbers in the printout above are illustrative;
-the preferred model and the gap size depend on the data, the chain
-length, and how well AME captures the structural features of the
-network. A <code><a href="../reference/loo.html">loo()</a></code> run on a short Gibbs chain (the kind a
-replicator typically uses while iterating on a specification) will also
-commonly flag a few percent of dyads with Pareto
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>k</mi><mo accent="true">̂</mo></mover><mo>&gt;</mo><mn>0.7</mn></mrow><annotation encoding="application/x-tex">\hat k &gt; 0.7</annotation></semantics></math>;
-treat that warning as a sign that the importance-sampling approximation
-is straining and either lengthen the chain or apply
-<code><a href="https://mc-stan.org/loo/reference/loo_moment_match.html" class="external-link">loo::loo_moment_match()</a></code> before relying on the
-<code>elpd_diff</code> for inference.</p>
-<p>Because <code>family = "binary"</code> is one of the six families
+density relative to the top model, with the standard error of that
+difference. Here <code>1</code> is preferred, beating <code>2</code> by
+about <code>134.5</code> elpd units (SE <code>15.7</code>); a ratio of
+<code>|elpd_diff|/se_diff</code> near or above 2 is a reasonably
+confident preference, so the latent space is doing real predictive work
+on this network. When <code>|elpd_diff|</code> is instead close to its
+SE the two specifications are predictively indistinguishable and the
+simpler model is the defensible choice. <code><a href="../reference/loo.html">loo()</a></code> may still
+flag a few dyads with Pareto
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>k</mi><mo accent="true">̂</mo></mover><mo>&gt;</mo><mn>0.7</mn></mrow><annotation encoding="application/x-tex">\hat k &gt; 0.7</annotation></semantics></math>
+(the PSIS approximation straining); if that warning appears for more
+than a handful of dyads, lengthen the chain or use
+<code><a href="https://mc-stan.org/loo/reference/loo_moment_match.html" class="external-link">loo::loo_moment_match()</a></code> before relying on
+<code>elpd_diff</code> for a reported result.</p>
+<p>This result sits comfortably beside the earlier side-by-side
+<code>modelsummary</code> table, where the <code>R = 1</code> and
+<code>R = 0</code> coefficient columns were nearly identical. The two
+are not in tension: the latent space barely moves the fixed-effect point
+estimates yet buys roughly <code>134.5</code> elpd units out of sample,
+because the predictive gain is carried by the estimated latent positions
+themselves – the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mo>′</mo></msubsup><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i' v_j</annotation></semantics></math>
+term in the linear predictor – rather than by shifting
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>.
+That is exactly what multiplicative effects are for: they absorb
+residual dyadic structure (clustering, third-party dependence) that the
+additive effects and covariates cannot represent, and that structure
+shows up in held-out predictive density long before it shows up in a
+coefficient table.</p>
+<p>Because <code>family = "binary"</code> is one of the five families
 with an exact closed-form pointwise log-likelihood (<code>normal</code>,
-<code>binary</code>, <code>cbin</code>, <code>tobit</code>,
-<code>poisson</code>, <code>ordinal</code>), the absolute
-<code>elpd_loo</code> values here are directly comparable to a
-<code><a href="../reference/loo.html">loo()</a></code> result from a probit-link <code>brms</code> fit on
-the same data, modulo
+<code>binary</code>, <code>cbin</code>, <code>poisson</code>,
+<code>ordinal</code>), the absolute <code>elpd_loo</code> values here
+are directly comparable to a <code><a href="../reference/loo.html">loo()</a></code> result from a
+probit-link <code>brms</code> fit on the same data, modulo
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
 and ESS being satisfactory on the <code>lame</code> Gibbs sampler. For
-<code>frn</code> and <code>rrl</code>, see the
-<code>log_lik_method = "observed_ghk"</code> note in <a href="dynamic_effects.html#loo-waic-via-save_log_lik-true">Dynamic
+<code>frn</code>, see the <code>log_lik_method = "observed_ghk"</code>
+note in <a href="dynamic_effects.html#loo-waic-via-save_log_lik-true">Dynamic
 Effects</a>.</p>
 </div>
 <div class="section level2">
 <h2 id="reproducibility-sessioninfo-and-renv-lock">Reproducibility: <code>sessionInfo()</code> and
 <code>renv.lock</code><a class="anchor" aria-label="anchor" href="#reproducibility-sessioninfo-and-renv-lock"></a>
 </h2>
-<p>MCMC posteriors depend on the RNG state, the C++ ABI of
-<code>RcppArmadillo</code>, and minor internal changes in
-<code>lame</code> itself across releases. A <code>lame</code> analysis
-that a reviewer or your future self can reproduce captures both the seed
-and the exact package versions you fit under. The conventional pattern
-at the top of any replication script:</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span>                 <span class="co"># paste into supplementary materials</span></span></code></pre></div>
-<p>For long-running fits, save the fitted object together with the
-session record:</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>fit <span class="op">=</span> <span class="va">fit</span>, session <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span>
+<p>An analysis a reviewer (or your future self) can reproduce records
+the seed and the package versions it was fit under. The pattern:</p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">...</span>, seed <span class="op">=</span> <span class="fl">6886</span><span class="op">)</span>          <span class="co"># the sampler seed lives in lame()</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>fit <span class="op">=</span> <span class="va">fit</span>, session <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>        file <span class="op">=</span> <span class="st">"lame_fit_replication.rds"</span><span class="op">)</span></span></code></pre></div>
-<p>For long-term reproducibility, pin <code>lame</code> to a specific
-commit hash (the package is pre-CRAN at the time of writing):</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"netify-dev/lame@&lt;commit-sha&gt;"</span><span class="op">)</span></span></code></pre></div>
-<p>or commit an <code>renv.lock</code> to your project repo so reviewers
-can recreate the entire toolchain with <code>renv::restore()</code>.
-Random-seed + package version is the floor; commit hash +
-<code>renv.lock</code> is the ceiling.</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># this vignette's own session record -- copy the pattern verbatim</span></span>
-<span><span class="co"># into your replication archive</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
+<p>For long-term reproducibility, commit an <code>renv.lock</code> so
+reviewers can recreate the toolchain with <code>renv::restore()</code>.
+This vignette’s own session record:</p>
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; R version 4.6.1 (2026-06-24)</span></span>
 <span><span class="co">#&gt; Platform: x86_64-pc-linux-gnu</span></span>
 <span><span class="co">#&gt; Running under: Ubuntu 24.04.4 LTS</span></span>
@@ -1542,35 +1527,34 @@ Random-seed + package version is the floor; commit hash +
 <span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] dplyr_1.2.1     posterior_1.7.0 ggplot2_4.0.3   lame_1.2.1     </span></span>
+<span><span class="co">#&gt; [1] netify_1.5.3    posterior_1.7.0 ggplot2_4.0.3   lame_1.3.0     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
-<span><span class="co">#&gt;  [1] gtable_0.3.6          tensorA_0.36.2.1      bayestestR_0.18.1    </span></span>
-<span><span class="co">#&gt;  [4] xfun_0.59             bslib_0.11.0          insight_1.5.1        </span></span>
+<span><span class="co">#&gt;  [1] gtable_0.3.6          tensorA_0.36.2.1      xfun_0.60            </span></span>
+<span><span class="co">#&gt;  [4] bslib_0.11.0          bayestestR_0.18.1     insight_1.5.2        </span></span>
 <span><span class="co">#&gt;  [7] ggrepel_0.9.8         lattice_0.22-9        vctrs_0.7.3          </span></span>
 <span><span class="co">#&gt; [10] tools_4.6.1           generics_0.1.4        datawizard_1.3.1     </span></span>
 <span><span class="co">#&gt; [13] parallel_4.6.1        tibble_3.3.1          pkgconfig_2.0.3      </span></span>
-<span><span class="co">#&gt; [16] tinytable_0.16.0      data.table_1.18.4     checkmate_2.3.4      </span></span>
-<span><span class="co">#&gt; [19] RColorBrewer_1.1-3    S7_0.2.2              desc_1.4.3           </span></span>
-<span><span class="co">#&gt; [22] distributional_0.8.0  lifecycle_1.0.5       compiler_4.6.1       </span></span>
-<span><span class="co">#&gt; [25] farver_2.1.2          stringr_1.6.0         textshaping_1.0.5    </span></span>
-<span><span class="co">#&gt; [28] ggforce_0.5.0         htmltools_0.5.9       sass_0.4.10          </span></span>
-<span><span class="co">#&gt; [31] yaml_2.3.12           pillar_1.11.1         pkgdown_2.2.0        </span></span>
-<span><span class="co">#&gt; [34] jquerylib_0.1.4       tidyr_1.3.2           MASS_7.3-65          </span></span>
-<span><span class="co">#&gt; [37] cachem_1.1.0          abind_1.4-8           network_1.20.0       </span></span>
-<span><span class="co">#&gt; [40] tidyselect_1.2.1      digest_0.6.39         performance_0.17.0   </span></span>
-<span><span class="co">#&gt; [43] stringi_1.8.7         reshape2_1.4.5        purrr_1.2.2          </span></span>
-<span><span class="co">#&gt; [46] labeling_0.4.3        polyclip_1.10-7       fastmap_1.2.0        </span></span>
-<span><span class="co">#&gt; [49] grid_4.6.1            cli_3.6.6             magrittr_2.0.5       </span></span>
-<span><span class="co">#&gt; [52] patchwork_1.3.2       loo_2.9.0             utf8_1.2.6           </span></span>
-<span><span class="co">#&gt; [55] broom_1.0.13          withr_3.0.3           scales_1.4.0         </span></span>
-<span><span class="co">#&gt; [58] backports_1.5.1       rmarkdown_2.31        matrixStats_1.5.0    </span></span>
-<span><span class="co">#&gt; [61] otel_0.2.0            modelsummary_2.6.0    ragg_1.5.2           </span></span>
-<span><span class="co">#&gt; [64] coda_0.19-4.1         evaluate_1.0.5        knitr_1.51           </span></span>
-<span><span class="co">#&gt; [67] parameters_0.29.1     rlang_1.2.0           Rcpp_1.1.1-1.1       </span></span>
-<span><span class="co">#&gt; [70] glue_1.8.1            tweenr_2.0.3          jsonlite_2.0.0       </span></span>
-<span><span class="co">#&gt; [73] R6_2.6.1              plyr_1.8.9            statnet.common_4.13.0</span></span>
-<span><span class="co">#&gt; [76] tables_0.9.35         systemfonts_1.3.2     fs_2.1.0</span></span></code></pre></div>
+<span><span class="co">#&gt; [16] tinytable_0.17.0      data.table_1.18.4     checkmate_2.3.4      </span></span>
+<span><span class="co">#&gt; [19] ggnewscale_0.5.2      RColorBrewer_1.1-3    S7_0.2.2             </span></span>
+<span><span class="co">#&gt; [22] desc_1.4.3            distributional_0.8.1  lifecycle_1.0.5      </span></span>
+<span><span class="co">#&gt; [25] compiler_4.6.1        farver_2.1.2          textshaping_1.0.5    </span></span>
+<span><span class="co">#&gt; [28] htmltools_0.5.9       sass_0.4.10           yaml_2.3.12          </span></span>
+<span><span class="co">#&gt; [31] pillar_1.11.1         pkgdown_2.2.1         jquerylib_0.1.4      </span></span>
+<span><span class="co">#&gt; [34] tidyr_1.3.2           cachem_1.1.0          abind_1.4-8          </span></span>
+<span><span class="co">#&gt; [37] network_1.20.0        tidyselect_1.2.1      digest_0.6.39        </span></span>
+<span><span class="co">#&gt; [40] performance_0.17.1    dplyr_1.2.1           purrr_1.2.2          </span></span>
+<span><span class="co">#&gt; [43] labeling_0.4.3        fastmap_1.2.0         grid_4.6.1           </span></span>
+<span><span class="co">#&gt; [46] cli_3.6.6             magrittr_2.0.5        patchwork_1.3.2      </span></span>
+<span><span class="co">#&gt; [49] loo_2.10.0            utf8_1.2.6            broom_1.0.13         </span></span>
+<span><span class="co">#&gt; [52] withr_3.0.3           scales_1.4.0          backports_1.5.1      </span></span>
+<span><span class="co">#&gt; [55] rmarkdown_2.31        matrixStats_1.5.0     igraph_2.3.3         </span></span>
+<span><span class="co">#&gt; [58] otel_0.2.0            modelsummary_2.6.0    ragg_1.5.2           </span></span>
+<span><span class="co">#&gt; [61] coda_0.19-4.1         evaluate_1.0.5        knitr_1.51           </span></span>
+<span><span class="co">#&gt; [64] parameters_0.29.2     rlang_1.3.0           Rcpp_1.1.2           </span></span>
+<span><span class="co">#&gt; [67] glue_1.8.1            jsonlite_2.0.0        R6_2.6.1             </span></span>
+<span><span class="co">#&gt; [70] statnet.common_4.13.0 tables_0.9.35         systemfonts_1.3.2    </span></span>
+<span><span class="co">#&gt; [73] fs_2.1.0</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="whats-next">What’s Next?<a class="anchor" aria-label="anchor" href="#whats-next"></a>
@@ -1613,7 +1597,7 @@ Research and Methods, 10(4), 703–721. <a href="doi:10.1017/psrm.2021.56" class
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

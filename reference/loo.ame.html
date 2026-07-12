@@ -13,7 +13,7 @@ loo object with Pareto-k diagnostics."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -91,11 +91,11 @@ the model was fit with <code>save_log_lik = TRUE</code>. Returns the standard
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><strong>What <code>log_lik</code> measures.</strong> For <code>family</code> in
-{normal, binary, cbin, tobit, poisson, ordinal} the stored
+{normal, binary, cbin, poisson, ordinal} the stored
 pointwise log-likelihood is the exact family-specific Y density on
 the response scale, so <code>elpd_loo</code> is directly comparable to a
 <code><a href="loo.html">loo()</a></code> output from Stan / brms fit to the same family. For
-the rank likelihoods <code>frn</code> and <code>rrl</code> the exact marginal
+the rank likelihood <code>frn</code> the exact marginal
 needs GHK Monte Carlo (Halton sequence); on the longitudinal
 <code><a href="lame.html">lame()</a></code> path you can opt in with <code>log_lik_method =
 "observed_ghk"</code>, on the cross-sectional <code><a href="ame.html">ame()</a></code> path the
@@ -115,29 +115,30 @@ session, supply an explicit persistent <code>log_lik_path</code> (e.g.
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_nrm</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="ame.html">ame</a></span><span class="op">(</span><span class="va">YX_nrm</span><span class="op">$</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">YX_nrm</span><span class="op">$</span><span class="va">X</span>, R <span class="op">=</span> <span class="fl">0</span>,</span></span>
-<span class="r-in"><span>           nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span></span>
+<span class="r-in"><span>           nscan <span class="op">=</span> <span class="fl">60</span>, burn <span class="op">=</span> <span class="fl">15</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span></span>
 <span class="r-in"><span>           save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"loo"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="va">loo_res</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">loo_res</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>Not enough tail samples to fit the generalized Pareto distribution in some or all columns of matrix of log importance ratios. Skipping the following columns: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ... [9890 more not printed].</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Computed from 40 by 9900 log-likelihood matrix.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Computed from 12 by 9900 log-likelihood matrix.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>          Estimate    SE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> elpd_loo -14947.4  74.9</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> p_loo       704.7  12.9</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> looic     29894.7 149.9</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> elpd_loo -14405.9  70.8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> p_loo       171.3   2.8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> looic     28811.8 141.5</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> MCSE of elpd_loo is NA.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> MCSE and ESS estimates assume independent draws (r_eff=1).</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Pareto k diagnostic values:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                           Count Pct.    Min. ESS</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (-Inf, 0.38]   (good)     6114  61.8%   12      </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    (0.38, 1]   (bad)      3700  37.4%   &lt;NA&gt;    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     (1, Inf)   (very bad)   86   0.9%   &lt;NA&gt;    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (-Inf, 0.07]   (good)        0    0.0%  &lt;NA&gt;    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    (0.07, 1]   (bad)         0    0.0%  &lt;NA&gt;    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     (1, Inf)   (very bad) 9900  100.0%  &lt;NA&gt;    </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> See help('pareto-k-diagnostic') for details.</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
@@ -152,7 +153,7 @@ session, supply an explicit persistent <code>log_lik_path</code> (e.g.
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

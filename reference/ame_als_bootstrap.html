@@ -8,8 +8,9 @@ fitted model and refits. For normal and IRLS (binary,
 poisson) fits the simulation is on the calibrated response scale;
 for a non-normal transform fit – whose estimator is a Gaussian
 fit to a fixed transformed response – it is on the Gaussian working
-scale. The simulated residual variance is inflated by the mean-model
-degrees of freedom so the replicates are centred on the point estimate.
+scale. The fitted residual variance is df-corrected (mean-model degrees
+of freedom) at fit time, so simulating with it keeps the replicates
+centred on the point estimate.
 Available for both cross-sectional and longitudinal fits.
 
 block
@@ -37,8 +38,9 @@ fitted model and refits. For normal and IRLS (binary,
 poisson) fits the simulation is on the calibrated response scale;
 for a non-normal transform fit – whose estimator is a Gaussian
 fit to a fixed transformed response – it is on the Gaussian working
-scale. The simulated residual variance is inflated by the mean-model
-degrees of freedom so the replicates are centred on the point estimate.
+scale. The fitted residual variance is df-corrected (mean-model degrees
+of freedom) at fit time, so simulating with it keeps the replicates
+centred on the point estimate.
 Available for both cross-sectional and longitudinal fits.
 
 block
@@ -65,7 +67,7 @@ percentile method."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -113,8 +115,9 @@ fitted model and refits. For <code>normal</code> and IRLS (<code>binary</code>,
 <code>poisson</code>) fits the simulation is on the calibrated response scale;
 for a non-normal <code>transform</code> fit – whose estimator is a Gaussian
 fit to a fixed transformed response – it is on the Gaussian working
-scale. The simulated residual variance is inflated by the mean-model
-degrees of freedom so the replicates are centred on the point estimate.
+scale. The fitted residual variance is df-corrected (mean-model degrees
+of freedom) at fit time, so simulating with it keeps the replicates
+centred on the point estimate.
 Available for both cross-sectional and longitudinal fits.</p></dd>
 
 <dt><code>block</code></dt>
@@ -309,7 +312,7 @@ scratch). <code><a href="ame_als_refit.html">ame_als_refit</a></code> for warm-s
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

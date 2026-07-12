@@ -17,7 +17,7 @@ gives R-hat across chains for every per-period coefficient."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -115,7 +115,7 @@ array <code>[n, n, T]</code>.</p></dd>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit_pll</span> <span class="op">&lt;-</span> <span class="fu">lame_parallel</span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">$</span><span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">YX_bin_list</span><span class="op">$</span><span class="va">X</span>,</span></span>
 <span class="r-in"><span>                         family <span class="op">=</span> <span class="st">"binary"</span>, n_chains <span class="op">=</span> <span class="fl">2</span>, cores <span class="op">=</span> <span class="fl">1</span>,</span></span>
-<span class="r-in"><span>                         nscan <span class="op">=</span> <span class="fl">100</span>, burn <span class="op">=</span> <span class="fl">20</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span></span>
+<span class="r-in"><span>                         nscan <span class="op">=</span> <span class="fl">50</span>, burn <span class="op">=</span> <span class="fl">10</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span></span>
 <span class="r-in"><span>                         dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── <span style="font-weight: bold;">Running </span><span style="color: #0000BB; font-weight: bold;">2</span><span style="font-weight: bold;"> chains sequentially</span> ──</span>
@@ -134,31 +134,29 @@ array <code>[n, n, T]</code>.</p></dd>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── MCMC Convergence Diagnostics </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Number of chains: <span style="color: #0000BB;">2</span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Samples per chain: <span style="color: #0000BB;">"320, 320"</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Samples per chain: <span style="color: #0000BB;">"10, 10"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Diagnostics cover regression coefficients and variance components.</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> <span style="color: #0000BB;">1</span> parameter have R-hat &gt;= 1.1</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> rho: R-hat = <span style="color: #0000BB;">3.118</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> All parameters converged (R-hat &lt; 1.1)</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fit_pll</span><span class="op">$</span><span class="va">BETA</span><span class="op">)</span>        <span class="co"># [iter * n_chains, p, T]</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 40  4  4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 20  4  4</span>
 <span class="r-in"><span><span class="va">fit_pll</span><span class="op">$</span><span class="va">chain_indicator</span>  <span class="co"># length iter * n_chains</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [39] 2 2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2</span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"posterior"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws</a></span><span class="op">(</span><span class="fu">posterior</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws.html" class="external-link">as_draws</a></span><span class="op">(</span><span class="va">fit_pll</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 21 × 10</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    variable       mean median     sd    mad     q5   q95  rhat ess_bulk ess_tail</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span> intercept[t… 0.084<span style="text-decoration: underline;">6</span> 0.083<span style="text-decoration: underline;">7</span> 0.025<span style="text-decoration: underline;">6</span> 0.027<span style="text-decoration: underline;">6</span> 0.044<span style="text-decoration: underline;">2</span> 0.127  1.17    12.7      49.6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span> X1_dyad[t1]  0.557  0.559  0.080<span style="text-decoration: underline;">6</span> 0.083<span style="text-decoration: underline;">9</span> 0.428  0.668  1.73     4.66     43.9</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span> X2_dyad[t1]  0.657  0.677  0.100  0.099<span style="text-decoration: underline;">6</span> 0.479  0.781  1.70     4.71     49.6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span> X3_dyad[t1]  0.804  0.803  0.117  0.121  0.610  0.959  1.83     4.43     17.3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span> intercept[t… 0.084<span style="text-decoration: underline;">6</span> 0.083<span style="text-decoration: underline;">7</span> 0.025<span style="text-decoration: underline;">6</span> 0.027<span style="text-decoration: underline;">6</span> 0.044<span style="text-decoration: underline;">2</span> 0.127  1.17    12.7      49.6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span> X1_dyad[t2]  0.547  0.551  0.079<span style="text-decoration: underline;">4</span> 0.083<span style="text-decoration: underline;">4</span> 0.414  0.680  1.65     4.85     21.4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span> X2_dyad[t2]  0.680  0.688  0.096<span style="text-decoration: underline;">9</span> 0.113  0.518  0.803  2.07     4.17     37.7</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span> X3_dyad[t2]  0.834  0.841  0.122  0.150  0.637  0.998  1.87     4.36     17.3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span> intercept[t… 0.084<span style="text-decoration: underline;">6</span> 0.083<span style="text-decoration: underline;">7</span> 0.025<span style="text-decoration: underline;">6</span> 0.027<span style="text-decoration: underline;">6</span> 0.044<span style="text-decoration: underline;">2</span> 0.127  1.17    12.7      49.6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span> X1_dyad[t3]  0.540  0.531  0.083<span style="text-decoration: underline;">1</span> 0.088<span style="text-decoration: underline;">3</span> 0.399  0.667  1.75     4.58     17.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    variable      mean median     sd    mad     q5    q95  rhat ess_bulk ess_tail</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span> intercept[… 0.061<span style="text-decoration: underline;">9</span> 0.062<span style="text-decoration: underline;">6</span> 0.022<span style="text-decoration: underline;">5</span> 0.025<span style="text-decoration: underline;">2</span> 0.029<span style="text-decoration: underline;">0</span> 0.087<span style="text-decoration: underline;">5</span> 0.995       10       10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span> X1_dyad[t1] 0.448  0.457  0.060<span style="text-decoration: underline;">8</span> 0.054<span style="text-decoration: underline;">8</span> 0.339  0.530  1.89        10       10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span> X2_dyad[t1] 0.545  0.573  0.075<span style="text-decoration: underline;">7</span> 0.054<span style="text-decoration: underline;">7</span> 0.405  0.642  1.89        10       10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span> X3_dyad[t1] 0.652  0.668  0.085<span style="text-decoration: underline;">0</span> 0.087<span style="text-decoration: underline;">8</span> 0.502  0.779  1.85        10       10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span> intercept[… 0.061<span style="text-decoration: underline;">9</span> 0.062<span style="text-decoration: underline;">6</span> 0.022<span style="text-decoration: underline;">5</span> 0.025<span style="text-decoration: underline;">2</span> 0.029<span style="text-decoration: underline;">0</span> 0.087<span style="text-decoration: underline;">5</span> 0.995       10       10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span> X1_dyad[t2] 0.424  0.431  0.056<span style="text-decoration: underline;">9</span> 0.052<span style="text-decoration: underline;">5</span> 0.322  0.499  1.72        10       10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span> X2_dyad[t2] 0.521  0.527  0.074<span style="text-decoration: underline;">5</span> 0.085<span style="text-decoration: underline;">7</span> 0.391  0.613  1.75        10       10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span> X3_dyad[t2] 0.655  0.673  0.084<span style="text-decoration: underline;">8</span> 0.095<span style="text-decoration: underline;">2</span> 0.499  0.748  1.63        10       10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span> intercept[… 0.061<span style="text-decoration: underline;">9</span> 0.062<span style="text-decoration: underline;">6</span> 0.022<span style="text-decoration: underline;">5</span> 0.025<span style="text-decoration: underline;">2</span> 0.029<span style="text-decoration: underline;">0</span> 0.087<span style="text-decoration: underline;">5</span> 0.995       10       10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span> X1_dyad[t3] 0.430  0.417  0.068<span style="text-decoration: underline;">3</span> 0.093<span style="text-decoration: underline;">7</span> 0.347  0.519  1.70        10       10</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 11 more rows</span></span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
@@ -173,7 +171,7 @@ array <code>[n, n, T]</code>.</p></dd>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

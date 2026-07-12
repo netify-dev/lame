@@ -13,7 +13,7 @@ beta posterior, and the panel-specific deviations."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -101,8 +101,8 @@ from <code>beta_shared</code>.</p></li>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>This is an R-level wrapper. A single joint MCMC would share panel state
-across iterations, which is a substantial sampler refactor. The wrapper is exact when the panels are
+    <p>This is an R-level wrapper: it fits each panel with its own MCMC and
+pools the results afterwards. The pooling is exact when the panels are
 conditionally independent given beta, which is the standard
 assumption.</p>
     </div>
@@ -140,7 +140,7 @@ one model.</p></div>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

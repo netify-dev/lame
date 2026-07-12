@@ -13,7 +13,7 @@ multivariate observation per iteration."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -97,7 +97,7 @@ $$W_k = \tfrac{1}{m}\sum_c S_c^{(k)}, \quad
 where \(S_c^{(k)}\) is the within-chain sample covariance of
 path \(k\) in chain \(c\). Then
 \(V_k = ((n-1)/n) W_k + ((m+1)/(mn)) B_k\) and
-\(\hat R_k^{mvt} = \sqrt{\lambda_\max(W_k^{-1} V_k)}\).
+\(\hat R_k^{mvt} = \sqrt{\lambda_{\max}(W_k^{-1} V_k)}\).
 For nearly degenerate covariances we add a tiny ridge to \(W_k\).</p>
     </div>
 
@@ -105,18 +105,13 @@ For nearly degenerate covariances we add a tiny ridge to \(W_k\).</p>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">fit_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">2L</span>, <span class="fl">3L</span>, <span class="fl">4L</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">s</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># note: pass seed = to lame() -- an external set.seed() does not vary</span></span></span>
+<span class="r-in"><span><span class="co"># the sampler, so it would produce identical chains</span></span></span>
+<span class="r-in"><span><span class="va">fit_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">2L</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">s</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="fu"><a href="lame.html">lame</a></span><span class="op">(</span><span class="va">YX_bin_list</span><span class="op">$</span><span class="va">Y</span>, <span class="va">YX_bin_list</span><span class="op">$</span><span class="va">X</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span></span>
-<span class="r-in"><span>       dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span></span>
-<span class="r-in"><span>       nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>       dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>, seed <span class="op">=</span> <span class="va">s</span>,</span></span>
+<span class="r-in"><span>       nscan <span class="op">=</span> <span class="fl">60</span>, burn <span class="op">=</span> <span class="fl">15</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`family` = <span style="color: #0000BB;">"binary"</span> but `Y` contains values other than 0/1.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`family` = <span style="color: #0000BB;">"binary"</span> but `Y` contains values other than 0/1.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`family` = <span style="color: #0000BB;">"binary"</span> but `Y` contains values other than 0/1.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
@@ -125,10 +120,10 @@ For nearly degenerate covariances we add a tiny ridge to \(W_k\).</p>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
 <span class="r-in"><span><span class="fu">rhat_dynamic_beta</span><span class="op">(</span><span class="va">fit_list</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>        coef  rhat_mvt rhat_max_univariate n_chains n_iter_per_chain T</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 intercept 0.9874209            1.231186        4               40 4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2   X1_dyad 0.9874209            2.238256        4               40 4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3   X2_dyad 0.9874209            1.938971        4               40 4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4   X3_dyad 0.9874209            2.080414        4               40 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 intercept 0.9652322            1.003289        2               12 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2   X1_dyad 1.4857680            1.994606        2               12 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3   X2_dyad 1.2703514            2.126998        2               12 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4   X3_dyad 1.6227131            2.165537        2               12 4</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
@@ -142,7 +137,7 @@ For nearly degenerate covariances we add a tiny ridge to \(W_k\).</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

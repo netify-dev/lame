@@ -13,7 +13,7 @@ a regression table."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -82,20 +82,22 @@ a regression table.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A one-row data frame with columns:</p><ul><li><p><code>nobs</code> — number of observed dyads (NA cells excluded).</p></li>
-<li><p><code>n_actors</code> — number of distinct actors (for bipartite,
+    <p>A one-row data frame with columns:</p><ul><li><p><code>nobs</code> – number of observed dyads (NA cells excluded).</p></li>
+<li><p><code>n_actors</code> – number of distinct actors (for bipartite,
 row + column actors).</p></li>
-<li><p><code>n_periods</code> — number of time periods (1 for <code>ame</code>).</p></li>
-<li><p><code>n_stored</code> — number of stored MCMC draws.</p></li>
-<li><p><code>family</code> — outcome family ("normal","binary",...).</p></li>
-<li><p><code>mode</code> — "unipartite","bipartite".</p></li>
-<li><p><code>R</code> — latent-space dimension (or max of <code>R_row</code>,
+<li><p><code>n_periods</code> – number of time periods (1 for <code>ame</code>).</p></li>
+<li><p><code>n_stored</code> – number of stored MCMC draws.</p></li>
+<li><p><code>family</code> – outcome family ("normal","binary",...).</p></li>
+<li><p><code>mode</code> – "unipartite","bipartite".</p></li>
+<li><p><code>R</code> – latent-space dimension (or max of <code>R_row</code>,
 <code>R_col</code> for bipartite).</p></li>
-<li><p><code>dynamic_uv</code>, <code>dynamic_ab</code>, <code>dynamic_beta</code> —
+<li><p><code>dynamic_uv</code>, <code>dynamic_ab</code>, <code>dynamic_beta</code> –
 logicals; whether each component is time-varying.</p></li>
-<li><p><code>elpd_loo</code> — leave-one-out expected log predictive
-density, if a cached <code>loo</code> object is on the fit (NA if not
-fit with <code>save_log_lik = TRUE</code>).</p></li>
+<li><p><code>elpd_loo</code> – leave-one-out expected log predictive
+density. Populated only when a <code>loo</code> object has been cached
+on the fit: fit with <code>save_log_lik = TRUE</code>, then attach it
+via <code>fit$loo &lt;- loo(fit)</code>. NA otherwise (calling
+<code>loo(fit)</code> alone does not modify the fit object).</p></li>
 </ul></div>
 
     <div class="section level2">
@@ -126,7 +128,7 @@ fit with <code>save_log_lik = TRUE</code>).</p></li>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

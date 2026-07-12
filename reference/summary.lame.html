@@ -11,7 +11,7 @@ and model diagnostics."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -131,10 +131,16 @@ table has one row per coefficient with columns:</p><dl><dt>Mean</dt>
 <dt>Min, Max</dt>
 <dd><p>smallest and largest per-period posterior mean</p></dd>
 
+<dt>Drift</dt>
+<dd><p><code>Max - Min</code>: the absolute range of the
+per-period posterior means, in coefficient units</p></dd>
+
 <dt>Drift_pct</dt>
-<dd><p><code>100 * (Max - Min) / |Mean|</code>; a coarse
-measure of how much the coefficient moves across periods
-relative to its average level</p></dd>
+<dd><p><code>100 * Drift / |Mean|</code>, the drift as a
+percentage of the average level. Reported as <code>NA</code> when
+the time-average is near zero (within 5\<!-- % of the drift -->
+range), because a trajectory that crosses zero makes the
+percentage explode; read <code>Drift</code> in that case</p></dd>
 
 <dt>Dynamic</dt>
 <dd><p><code>"Y"</code> if the coefficient was flagged as
@@ -165,7 +171,7 @@ dynamic, <code>"N"</code> if it was held static</p></dd>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

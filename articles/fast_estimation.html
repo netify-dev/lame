@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-06-25</h4>
+            <h4 data-toc-skip class="date">2026-07-12</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/fast_estimation.Rmd" class="external-link"><code>vignettes/fast_estimation.Rmd</code></a></small>
       <div class="d-none name"><code>fast_estimation.Rmd</code></div>
@@ -166,13 +166,16 @@ do not read much into small differences.</p>
 <p><strong>The bootstrap can dominate.</strong> A
 <code>bootstrap = 100</code> parametric bootstrap runs the full ALS fit
 101 times. For a binary <code>ame_als(R = 1, bootstrap = 100)</code> at
-n = 50, we measured ≈ 135 s — slower than the equivalent MCMC fit. If
+n = 50, we measured ≈ 135 s – slower than the equivalent MCMC fit. If
 you only need the point estimate, skip the bootstrap
 (<code>bootstrap = 0</code>, the default) and use the sandwich
 <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>/<code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code> on the fit. If you need
 interval estimates at scale, compare the bootstrap cost with a regular
 <code><a href="../reference/ame.html">ame()</a></code> MCMC run; for some binary networks the MCMC fit is
-cheaper.</p>
+cheaper – and for binary <code>R &gt; 0</code> it is also the
+statistically preferred choice, since the bootstrap inherits the point
+estimator’s finite-sample upward bias (see Non-normal families
+below).</p>
 <p>To benchmark on your own hardware:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
@@ -217,7 +220,7 @@ require the Bayesian MCMC fits. The current coverage is:</p>
 <td>yes</td>
 </tr>
 <tr class="odd">
-<td>Families: ordinal / tobit / cbin / frn / rrl</td>
+<td>Families: ordinal / cbin / frn</td>
 <td>yes</td>
 <td>no (error)</td>
 </tr>
@@ -436,7 +439,7 @@ point.</li>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="font-weight: bold;">Variance components:</span></span></span>
 <span><span class="co">#&gt;      va     cab      vb     rho      ve </span></span>
-<span><span class="co">#&gt;  0.1929  0.0461  0.2217 -0.0198  0.9395</span></span>
+<span><span class="co">#&gt;  0.1929  0.0461  0.2217 -0.0198  1.0461</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #555555;">va/vb: variances of the sender/receiver effects | cab: their covariance | rho:</span></span></span>
 <span><span class="co">#&gt; <span style="color: #555555;">dyadic residual reciprocity | ve: residual variance.</span></span></span>
@@ -479,6 +482,16 @@ least squares loop, returning coefficients on the calibrated link scale
 <code>non_normal_method = "transform"</code> is faster but its
 coefficients are on an uncalibrated rank scale, good for the sign and
 ranking of effects but not their magnitude.</p>
+<p>One caveat for binary fits with <code>R &gt; 0</code>: the factor
+block is a penalized (MAP-style) point estimate, and a residual
+finite-sample (incidental-parameters) upward bias in the coefficients
+remains – roughly +10-15% at n = 50, shrinking with n, and largest when
+<code>R</code> is set higher than the data support. The bootstrap
+reproduces rather than removes this bias, and <code><a href="../reference/ame_als.html">ame_als()</a></code>
+prints a reminder when <code>verbose = TRUE</code>. The binary examples
+in this vignette use <code>R = 0</code>, which does not trigger this
+caveat; for final binary coefficient inference at <code>R &gt; 0</code>,
+use the MCMC <code><a href="../reference/ame.html">ame()</a></code>.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span></span>
 <span><span class="va">Yb</span> <span class="op">&lt;-</span> <span class="fl">1</span> <span class="op">*</span> <span class="op">(</span><span class="va">Y</span> <span class="op">&gt;</span> <span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Yb</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
@@ -513,13 +526,29 @@ ranking of effects but not their magnitude.</p>
 <span><span class="co">#&gt; cab   0.0278  0.1098 -0.0662 0.1277</span></span>
 <span><span class="co">#&gt; vb    0.2490  0.2289  0.2067 0.4989</span></span>
 <span><span class="co">#&gt; rho  -0.0075  0.0402 -0.1028 0.0606</span></span>
-<span><span class="co">#&gt; ve    1.9504 15.9786  2.0901 3.8576</span></span>
-<span><span class="co">#&gt; <span style="color: #BBBB00;">! point estimate outside its bootstrap CI for: ve -- a residual</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BBBB00;">parametric-bootstrap bias; treat that interval as approximate.</span></span></span>
+<span><span class="co">#&gt; ve    1.0000  0.0000  1.0000 1.0000</span></span>
 <span><span class="co">#&gt; ────────────────────────────────────────────────────────────────────────────────</span></span>
 <span><span class="co">#&gt; <span style="font-weight: bold;">Additive effects</span> (rotation-invariant, aggregated directly)</span></span>
 <span><span class="co">#&gt; Sender a: mean |SE| = 0.5983</span></span>
 <span><span class="co">#&gt; Receiver b: mean |SE| = 0.596</span></span></code></pre></div>
+<p>Two rows of this table deserve a comment before you report anything
+from it. First, the <code>Boot SE</code> column is the raw standard
+deviation across replicates, and for <code>dyad1_dyad</code> it visibly
+disagrees with the interval printed next to it: an SE of 0.5385 would
+imply a Wald interval of roughly [-0.25, 1.86], yet the 95% percentile
+CI is [0.746, 1.0016] – a width that corresponds to an SE of about
+0.065. The gap comes from a single divergent binary IRLS replicate (1 of
+the 100 refits returned a coefficient of 6.2), which inflates the
+standard deviation while barely moving the percentile quantiles. That is
+exactly why the package defaults to percentile CIs: report the
+percentile interval, which is what <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code> returns by
+default, not a Wald interval built from the printed SE.</p>
+<p>Second, one row of the variance-components table is constant by
+construction: for the binary family the latent residual variance
+<code>ve</code> is fixed at 1 by probit identification, so its bootstrap
+SE is exactly zero and its interval is the point [1, 1] – that row is
+expected, not a failed bootstrap. See <code><a href="../reference/ame_als.html">?ame_als</a></code> for the
+<code>ve</code> vs <code>ve_working</code> distinction.</p>
 <p><code>type = "parametric"</code> (the default) simulates fresh
 outcomes from the fitted model and refits; <code>type = "block"</code>
 resamples time slices and is available for longitudinal fits with
@@ -564,7 +593,7 @@ dataset.</p>
 <span><span class="va">coef_interval_table</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="va">est</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span>    <span class="va">ci</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span>    <span class="va">terms</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://generics.r-lib.org/reference/setops.html" class="external-link">intersect</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">est</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">ci</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="va">terms</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">intersect</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">est</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">ci</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>        term <span class="op">=</span> <span class="va">terms</span>,</span>
 <span>        estimate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">est</span><span class="op">[</span><span class="va">terms</span><span class="op">]</span><span class="op">)</span>,</span>
@@ -599,7 +628,7 @@ dataset.</p>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border    <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>          axis.ticks      <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>          legend.position <span class="op">=</span> <span class="st">"bottom"</span><span class="op">)</span></span></code></pre></div>
+<span>          legend.position <span class="op">=</span> <span class="st">"top"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="fast_estimation_files/figure-html/als-vs-mcmc-1.png" class="r-plt" alt="Side-by-side coefficient plot comparing the ALS bootstrap and MCMC posterior on the same binary network. Each coefficient (intercept and the single dyadic covariate) has two horizontal intervals: one for the ALS bootstrap, one for the MCMC posterior. A dashed vertical line at zero marks the no-effect reference; intervals on the same side of zero and with overlapping range indicate the two estimators agree." width="672"></p>
 <p>Two intervals on the same side of zero with substantial overlap means
 ALS is a fine point estimate for that coefficient; intervals that
@@ -669,7 +698,7 @@ uncertainty. The MCMC estimator returns posterior summaries.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

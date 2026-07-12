@@ -21,7 +21,7 @@ adaptation, not original lame methodology.'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -103,7 +103,10 @@ adaptation, not original <span class="pkg">lame</span> methodology.</p>
 
 
 <dl><dt id="arg-y">Y<a class="anchor" aria-label="anchor" href="#arg-y"></a></dt>
-<dd><p>a square (unipartite) or rectangular (bipartite) relational matrix.</p></dd>
+<dd><p>a square (unipartite) or rectangular (bipartite) relational matrix.
+A cross-sectional <span class="pkg">netify</span> object is also accepted and converted with
+<code><a href="https://netify-dev.github.io/netify/reference/netify_to_lame.html" class="external-link">netify::to_lame()</a></code>; when <code>family</code> or <code>mode</code> is omitted,
+the value inferred by <span class="pkg">netify</span> is used.</p></dd>
 
 
 <dt id="arg-xdyad">Xdyad<a class="anchor" aria-label="anchor" href="#arg-xdyad"></a></dt>
@@ -257,7 +260,13 @@ the residuals of \((i,j)\) and \((j,i)\) — not the sender/receiver
 correlation <code>cor(a, b)</code>.</p></dd>
 
 <dt><code>ve</code></dt>
-<dd><p>residual (working-scale) variance.</p></dd>
+<dd><p>residual variance, on the model's own scale and
+degrees-of-freedom-corrected (\(\mathrm{SSE}/(n_{obs} -
+      \mathrm{df})\)) so it matches the MCMC posterior-mean <code>s2</code>. For a
+<code>binary</code> IRLS fit the probit/logit model fixes the latent error
+variance at 1 by identification, so <code>ve</code> is reported as
+<code>1</code>; the working-scale GLM dispersion (about 1 under correct
+specification) is kept separately as <code>ve_working</code>.</p></dd>
 
 
 </dl><p>These are descriptive summaries of the point estimates, not random-effect
@@ -291,9 +300,33 @@ For <code>"binary"</code> and <code>"poisson"</code>, the estimator uses an IRLS
 working-response path by default, so coefficients are on the requested
 link scale (binary probit/logit, Poisson log). The fixed-transform path is
 still available as a faster exploratory score, but its coefficients are not
-calibrated effect sizes. Censoring and rank families
-(<code>"ordinal"</code>, <code>"tobit"</code>, <code>"cbin"</code>, <code>"frn"</code>,
-<code>"rrl"</code>) are not supported by ALS and raise an informative error; use
+calibrated effect sizes. For <code>R &gt; 0</code> the multiplicative factor block
+of the IRLS families solves a penalized (MAP) sub-problem: each factor row
+carries the ridge implied by the AME prior \([u_i, v_i] \sim N(0,
+\Sigma_{uv})\), with the per-column prior scale estimated by an EM step (the
+analog of the MCMC \(\Sigma_{uv}\) draw). This is what makes the estimate
+well-defined: the <em>unpenalized</em> rank-<code>R</code> binary MLE does not exist
+under quasi-separation, and fitting it directly inflates every
+coefficient (a runaway that grows with <code>R</code>, with the latent variance
+diverging). With the penalty the latent variance does not run away and
+the slope inflation is bounded and stable in <code>R</code>; a residual
+finite-sample (incidental-parameters) upward bias remains, on the order of
++10-15\<!-- % at n = 50 and shrinking with n (versus roughly +2\\% for the MCMC -->
+posterior mean). This residual is a property of the estimator class, not a
+code defect: because a nonlinear-likelihood point estimator profiles the
+\(2 R n\) latent factors at their joint optimum rather than integrating
+them, it cannot be consistent for the regression coefficient
+(Neyman-Scott). The bias is dominated by <em>rank over-specification</em> –
+it is largest when <code>R</code> is set higher than the data support (the
+factors then absorb noise) and is only ~5\<!-- % at the correct rank. The MCMC -->
+<code><a href="ame.html">ame()</a></code> / <code><a href="lame.html">lame()</a></code> path integrates the factors out and is
+verified calibrated by simulation-based calibration, so binary
+<code>R &gt; 0</code> ALS is best used as a fast exploratory / rank-selection score,
+with <code>ame(..., method = "mcmc")</code> for final coefficient inference
+(<code>bootstrap = N</code> gives ALS-scale intervals but reproduces, rather than
+removes, this bias). Rank and ordinal families
+(<code>"ordinal"</code>, <code>"cbin"</code>,
+<code>"frn"</code>) are not supported by ALS and raise an informative error; use
 <code><a href="ame.html">ame</a></code> or <code><a href="lame.html">lame</a></code> for those likelihoods.</p>
 <p><strong>Row/column (node) covariates.</strong> A node covariate broadcasts to a
 per-actor constant, which is collinear with the additive sender/receiver
@@ -354,8 +387,8 @@ preferred here.)</p>
 static AME workflows, and the top-level <code>lame(..., method = "als")</code>
 dispatcher covers several dynamic workflows, but posterior-specific features
 still require the MCMC estimator:</p><ul><li><p><strong>Families.</strong> ALS supports <code>normal</code>, <code>binary</code>, and
-<code>poisson</code>. For <code>ordinal</code>, <code>tobit</code>, <code>cbin</code>,
-<code>frn</code>, and <code>rrl</code>, fall back to <code><a href="ame.html">ame</a></code> /
+<code>poisson</code>. For <code>ordinal</code>, <code>cbin</code>,
+and <code>frn</code>, fall back to <code><a href="ame.html">ame</a></code> /
 <code><a href="lame.html">lame</a></code>.</p></li>
 <li><p><strong>Dynamic effects.</strong> <code><a href="lame_als.html">lame_als</a></code> itself fits a
 static model pooled across time slices. The top-level dispatcher
@@ -432,7 +465,7 @@ coordinate descent estimator adapted here originates with that work
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

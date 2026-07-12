@@ -17,7 +17,7 @@ MCMC draws.'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -118,7 +118,9 @@ MCMC draws.</p>
 <code>[n, n, T]</code> panels. Bipartite fits use rectangular
 <code>[n_row, n_col, T]</code> panels. For named lists, slices may have changing
 actor composition; the estimator pads to the union actor set and treats
-absent actor-periods as unobserved and snap-ineligible.</p></dd>
+absent actor-periods as unobserved and snap-ineligible. A longitudinal
+<span class="pkg">netify</span> object is also accepted and converted with
+<code>netify::to_lame(lame = TRUE)</code>.</p></dd>
 
 
 <dt id="arg-xdyad">Xdyad<a class="anchor" aria-label="anchor" href="#arg-xdyad"></a></dt>
@@ -160,7 +162,8 @@ approximation and report one snap-probability matrix.</p></dd>
 
 
 <dt id="arg-tol">tol<a class="anchor" aria-label="anchor" href="#arg-tol"></a></dt>
-<dd><p>convergence tolerance on the approximate penalized objective.</p></dd>
+<dd><p>convergence tolerance on the relative change of the tracked
+\(-2\times\) variational free energy (see Details).</p></dd>
 
 
 <dt id="arg-snap-kappa">snap_kappa<a class="anchor" aria-label="anchor" href="#arg-snap-kappa"></a></dt>
@@ -179,7 +182,7 @@ used to regularize the snap rate.</p></dd>
 
 <dt id="arg-snap-damping">snap_damping<a class="anchor" aria-label="anchor" href="#arg-snap-damping"></a></dt>
 <dd><p>scalar in <code>(0, 1]</code>; damping applied to soft
-snap-score updates. Values below 1 mix the new profiled score with the
+snap-score updates. Values below 1 mix the new score with the
 previous score to reduce oscillation on large panels. Ignored for
 <code>snap_update = "hard"</code>.</p></dd>
 
@@ -298,7 +301,18 @@ convergence diagnostics.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>On longer panels, the default <code>align = "sequential"</code> keeps the
+    <p>The raw snap-ALS intercept <code>mu</code> is <em>not</em> separately identified
+from the uncentered multiplicative term: a constant level can be absorbed
+into \(\mathrm{mean}(U_t V_t')\) (bipartite:
+\(\mathrm{mean}(U_t G V_t')\)), so <code>fit$mu</code> on its own is
+arbitrary. After convergence the estimator therefore computes a post-hoc
+identified level: <code>fit$mu_t</code> stores the per-period level
+\(\mu + \mathrm{mean}(U_t V_t')\) (named by period) and
+<code>fit$mu_identified</code> is the mean of <code>fit$mu_t</code>. Interpret the
+network level through <code>mu_identified</code>; the latent trajectories and
+the covariate coefficients are unaffected by this shift and remain
+reliable outputs of this estimator.</p>
+<p>On longer panels, the default <code>align = "sequential"</code> keeps the
 period-to-period movement in view. <code>align = "global"</code> can help on very
 short panels, but on longer panels it can pull each period back toward the
 pooled static fit and make early jumps look too strong. If you have a fixed
@@ -310,6 +324,15 @@ score changes and the share of class changes. <code>final_max_snap_delta</code>
 and <code>unstable_transitions</code> still show the largest local moves. Read
 <code>snap_prob</code> as an ALS snap score. It is useful for rankings and
 heuristic classifications; it is not a Bayesian posterior probability.</p>
+<p>For unipartite fits, the tracked objective (<code>fit$objective_trace</code>,
+<code>fit$convergence$final_objective</code>) is the exact \(-2\times\)
+variational free energy of the snap/drift mixture model, including the
+Gaussian log-normalizers, the responsibility entropy, and the beta prior
+on the snap rate. The exact block updates descend it monotonically; small
+increases can come from damped snap scores or the robust hyperparameter
+updates. Because it carries log-variance normalizers it can be negative
+and is not a deviance; <code>fit$param_trace$sse</code> tracks raw data fit
+directly.</p>
 <p>In bipartite mode, the fitted multiplicative term is
 \(U_t G V_t'\) with one static interaction matrix \(G\). The returned
 <code>snap_prob</code> matrix contains row-actor snap scores and
@@ -343,7 +366,7 @@ does not estimate node covariates, dynamic coefficients, or a dynamic
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

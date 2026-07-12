@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -73,10 +73,15 @@
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>When <code>use_sparse_matrices = TRUE</code>, converts YPM, APM, and BPM to
-sparse matrices via the <span class="pkg">Matrix</span> package. This is only beneficial
-when your network is actually sparse (&lt; 10\<!-- % non-zero entries). For dense -->
-networks, sparse storage will be slower and may use more memory.</p>
+    <p>When <code>use_sparse_matrices = TRUE</code>, the posterior-mean matrices
+<code>YPM</code> and <code>EZ</code> are converted to sparse storage via the
+<span class="pkg">Matrix</span> package, but only when a matrix's nonzero density is below
+0.5 – converting a dense posterior-mean matrix would <em>grow</em> memory,
+so denser matrices are left as ordinary dense matrices. For <code>lame</code>
+fits, where <code>YPM</code>/<code>EZ</code> are per-period lists, the check and
+conversion are applied per element. The additive-effect summaries
+<code>APM</code>/<code>BPM</code> are named numeric vectors and are never converted.
+Names and dimnames are preserved.</p>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
@@ -92,7 +97,7 @@ networks, sparse storage will be slower and may use more memory.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

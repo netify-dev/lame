@@ -1,5 +1,5 @@
 pandoc: 3.8.3
-pkgdown: 2.2.0
+pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   bipartite: bipartite.html
@@ -9,7 +9,7 @@ articles:
   forecasting: forecasting.html
   lame-overview: lame-overview.html
   lame: lame.html
-last_built: 2026-06-25T16:34Z
+last_built: 2026-07-12T14:06Z
 urls:
   reference: https://netify-dev.github.io/lame/reference
   article: https://netify-dev.github.io/lame/articles

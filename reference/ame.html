@@ -15,7 +15,7 @@ implementation by Peter Hoff."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@ implementation by Peter Hoff.</p>
 <span>  Xdyad <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  Xrow <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  Xcol <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  rvar <span class="op">=</span> <span class="op">!</span><span class="op">(</span><span class="va">family</span> <span class="op">==</span> <span class="st">"rrl"</span><span class="op">)</span>,</span>
+<span>  rvar <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  cvar <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  dcor <span class="op">=</span> <span class="op">!</span><span class="va">symmetric</span>,</span>
 <span>  nvar <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -78,7 +78,7 @@ implementation by Peter Hoff.</p>
 <span>  R_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  mode <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"unipartite"</span>, <span class="st">"bipartite"</span><span class="op">)</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"normal"</span>,</span>
-<span>  intercept <span class="op">=</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">is.element</a></span><span class="op">(</span><span class="va">family</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rrl"</span>, <span class="st">"ordinal"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  intercept <span class="op">=</span> <span class="op">!</span><span class="op">(</span><span class="va">family</span> <span class="op">==</span> <span class="st">"ordinal"</span><span class="op">)</span>,</span>
 <span>  symmetric <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  odmax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">&gt;</span> <span class="fl">0</span>, <span class="fl">1</span>, <span class="va">sum</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
@@ -95,7 +95,6 @@ implementation by Peter Hoff.</p>
 <span>  periodic_save <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  out_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  save_interval <span class="op">=</span> <span class="fl">0.25</span>,</span>
-<span>  model.name <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  posterior_opts <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_chains <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  cores <span class="op">=</span> <span class="fl">1</span>,</span>
@@ -108,7 +107,8 @@ implementation by Peter Hoff.</p>
 <span>  save_log_lik <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  ordinal_cutpoints <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"data_induced"</span>, <span class="st">"explicit"</span><span class="op">)</span>,</span>
 <span>  <span class="va">print</span>,</span>
-<span>  <span class="va">...</span></span>
+<span>  <span class="va">...</span>,</span>
+<span>  model.name <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -117,9 +117,13 @@ implementation by Peter Hoff.</p>
 
 
 <dl><dt id="arg-y">Y<a class="anchor" aria-label="anchor" href="#arg-y"></a></dt>
-<dd><p>For unipartite: an n x n square relational matrix. For bipartite: an nA x nB
-rectangular relational matrix where nA is the number of row nodes and nB is the
-number of column nodes. See family below for various data types.</p></dd>
+<dd><p>For unipartite: an n x n square relational matrix. For bipartite:
+an nA x nB rectangular relational matrix where nA is the number of row
+nodes and nB is the number of column nodes. A cross-sectional
+<span class="pkg">netify</span> object is also accepted and converted with
+<code><a href="https://netify-dev.github.io/netify/reference/netify_to_lame.html" class="external-link">netify::to_lame()</a></code>; when <code>family</code> or <code>mode</code> is omitted,
+the value inferred by <span class="pkg">netify</span> is used. See family below for data
+types.</p></dd>
 
 
 <dt id="arg-xdyad">Xdyad<a class="anchor" aria-label="anchor" href="#arg-xdyad"></a></dt>
@@ -175,7 +179,7 @@ family x mode combinations</strong> below.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>character: one of "normal","tobit","binary","ordinal","cbin","frn","rrl","poisson". See the
+<dd><p>character: one of "normal","binary","ordinal","cbin","frn","poisson". See the
 <strong>Supported family x mode combinations</strong> table below for which combinations are valid; see <strong>Details</strong>
 for the model assumptions behind each family.</p></dd>
 
@@ -240,8 +244,8 @@ For a unipartite cross-sectional <code>ame()</code> fit the prior is controlled 
 <dd><p>optional <strong>scalar</strong> for the Zellner g-prior on regression
 coefficients (<code>beta ~ N(0, g * sigma^2 * solve(XtX))</code> where
 <code>XtX</code> is the design cross-product). If not specified, defaults are:
-for <code>normal</code> family, <code>g = n * var(Y)</code>; for <code>tobit</code>,
-<code>g = n * var(Y) * 4</code>; for other families, <code>g = n</code> (number of
+for <code>normal</code> family, <code>g = n * var(Y)</code>; for other families,
+<code>g = n</code> (number of
 non-missing dyads). Per-coefficient (vector) <code>g</code> is not currently
 supported by the unipartite path – pass a scalar.
 <em>Note:</em> <code>g</code> is a top-level argument to <code>ame()</code>,
@@ -250,7 +254,12 @@ supported by the unipartite path – pass a scalar.
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
-<dd><p>random seed</p></dd>
+<dd><p>random seed for the MCMC sampler (default 6886). The sampler
+is seeded internally with this value, so results are reproducible by
+default and an external <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> call has <em>no</em> effect on
+the chain – pass a different <code>seed</code> here to vary the draws (e.g.
+when running multiple chains). The caller's <code>.Random.seed</code> is
+restored on exit, so fitting never perturbs your RNG stream.</p></dd>
 
 
 <dt id="arg-nscan">nscan<a class="anchor" aria-label="anchor" href="#arg-nscan"></a></dt>
@@ -309,12 +318,19 @@ live trace panels. Default <code>FALSE</code>.</p></dd>
 <dd><p>quantile interval indicating when to save during the post-burn-in period.</p></dd>
 
 
-<dt id="arg-model-name">model.name<a class="anchor" aria-label="anchor" href="#arg-model-name"></a></dt>
-<dd><p>optional string for model selection output</p></dd>
-
-
 <dt id="arg-posterior-opts">posterior_opts<a class="anchor" aria-label="anchor" href="#arg-posterior-opts"></a></dt>
-<dd><p>optional list of posterior sampling options</p></dd>
+<dd><p>optional list of posterior draw-storage options,
+usually built with <code><a href="posterior_options.html">posterior_options</a></code>. Recognised names
+(unknown names trigger a warning): <code>save_UV</code>, <code>save_UV_draws</code>,
+<code>save_ab</code>, <code>thin_UV</code>, <code>thin_ab</code>.
+<code>save_UV = TRUE</code> stores per-iteration latent-position draws on
+<code>fit$U_samples</code> / <code>fit$V_samples</code> (<code>[actor, dim, draw]</code>
+arrays; bipartite fits also store the interaction-matrix draws on
+<code>fit$G_samples</code>); <code>save_UV_draws</code> (the <code><a href="lame.html">lame</a></code>
+spelling) is accepted as an alias. <code>save_ab = TRUE</code> stores
+additive-effect draws on <code>fit$a_samples</code> / <code>fit$b_samples</code>.
+<code>thin_UV</code> / <code>thin_ab</code> thin the stored draws. Default
+<code>NULL</code>.</p></dd>
 
 
 <dt id="arg-n-chains">n_chains<a class="anchor" aria-label="anchor" href="#arg-n-chains"></a></dt>
@@ -361,13 +377,13 @@ returns bootstrap intervals.</p></dd>
 <dt id="arg-save-log-lik">save_log_lik<a class="anchor" aria-label="anchor" href="#arg-save-log-lik"></a></dt>
 <dd><p>logical: when <code>TRUE</code>, attach a per-iteration
 pointwise log-likelihood matrix <code>fit$log_lik</code> (an
-<code>n_iter x n_obs</code> array) using the augmented-Z normal
-approximation. Required for <code>loo::loo(fit)</code> and
-<code>loo::waic(fit)</code>. The augmented-Z approximation is the same
-semantics used by <code><a href="lame.html">lame()</a></code>; for non-normal families it is the
-predictive criterion on the latent-Z scale, not the family-specific
-Y density. Default <code>FALSE</code> (no log_lik storage; default fit is
-byte-identical to previous releases).</p></dd>
+<code>n_iter x n_obs</code> array), required for <code>loo(fit)</code> and
+<code>waic(fit)</code>. For families normal, binary, cbin, poisson,
+and ordinal this is the exact observed-data log density of Y
+(<code>fit$log_lik_method = "observed_exact"</code>); only frn falls
+back to the augmented-Z normal approximation on the latent scale
+(with a one-time warning). Default <code>FALSE</code> (no log_lik storage;
+default fit is byte-identical to previous releases).</p></dd>
 
 
 <dt id="arg-ordinal-cutpoints">ordinal_cutpoints<a class="anchor" aria-label="anchor" href="#arg-ordinal-cutpoints"></a></dt>
@@ -388,18 +404,23 @@ triggers a clean abort directing you to <code><a href="lame.html">lame</a></code
 any other unrecognised name warns so typos are visible rather than
 silently dropped.</p></dd>
 
+
+<dt id="arg-model-name">model.name<a class="anchor" aria-label="anchor" href="#arg-model-name"></a></dt>
+<dd><p>optional string for model selection output</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><strong>Posterior Samples (full MCMC chains):</strong></p>
 <dl><dt>BETA</dt>
-<dd><p>Regression coefficients (nscan xp matrix)</p></dd>
+<dd><p>Regression coefficients (<code>nscan/odens</code> x p matrix; one
+row per stored draw)</p></dd>
 
 <dt>VC</dt>
-<dd><p>Variance components (nscan xk matrix)</p></dd>
+<dd><p>Variance components (<code>nscan/odens</code> x k matrix)</p></dd>
 
 <dt>GOF</dt>
-<dd><p>Goodness-of-fit statistics (nscan x4 matrix).
+<dd><p>Goodness-of-fit statistics ((<code>nscan/odens</code> + 1) x 5 matrix).
 First row contains observed values, remaining rows contain posterior predictive samples.
 See <code><a href="gof.html">gof</a></code> for post-hoc computation and <code><a href="gof_plot.html">gof_plot</a></code> for visualization.</p></dd>
 
@@ -488,9 +509,10 @@ bipartite, dyad correlation is fixed at 0.</p>
 \(\Sigma_{ab}\) (Inverse-Wishart prior <code>Sab0 / eta0</code>);
 \(u_i, v_j\) are independent Normal with covariance
 \(\Sigma_{uv}\) (Inverse-Wishart prior <code>Suv0 / kappa0</code>);
-the dyad-correlation \(\rho\) has a Normal prior on
-\(\mathrm{atanh}(\rho)\). See <code>prior_summary(fit)</code> for the
-priors actually used.</p>
+the dyad-correlation \(\rho\) has an arc-sine prior on \((-1, 1)\)
+(density proportional to \((1-\rho^2)^{-1/2}\)), updated with
+Metropolis steps. See <code>prior_summary(fit)</code> for the priors
+actually used.</p>
 <p><strong>Choosing R.</strong> The multiplicative rank <code>R</code> controls the
 dimensionality of latent homophily / heterogeneity not explained
 by covariates and additive effects. <code>R = 0</code> fits an
@@ -519,9 +541,19 @@ and latent space models (Hoff et al. 2002) within a unified framework.</p>
 <li><p>Additive effects: \((a_i, b_i)' \sim N(0, \Sigma_{ab})\) jointly</p></li>
 <li><p>Covariance: \(\Sigma_{ab} \sim IW(\eta_0, \eta_0 S_{ab0})\) (inverse-Wishart)</p></li>
 <li><p>Multiplicative effects: Hierarchical shrinkage via \(\eta_0\)</p></li>
-<li><p>Dyadic correlation: \(\rho \sim Uniform(-1, 1)\) with Metropolis updates</p></li>
+<li><p>Dyadic correlation: arc-sine prior on \((-1, 1)\), density
+\(p(\rho) \propto (1-\rho^2)^{-1/2}\), with Metropolis updates</p></li>
 </ul><p>The inverse-Wishart prior on \(\Sigma_{ab}\) allows learning correlation between
 sender and receiver effects, capturing reciprocity patterns.</p>
+<p>Note on the additive-effects variance scale: for the <code>"normal"</code>
+and <code>"poisson"</code> families the default
+<code>Sab0 = diag(2)</code> with <code>eta0 = round(4 + 3n/100)</code> pseudo-actors
+pulls the additive-effects variances <code>va</code>/<code>vb</code> toward 1 at small
+\(n\) (measured roughly +50\<!-- % upward bias at \eqn{n = 30} when the true -->
+variance is 0.3, and about +20\<!-- % at \eqn{n = 100}). The binary/ordinal -->
+families adaptively scale <code>Sab0</code> and do not have this issue. Pass
+<code>prior = list(Sab0 = ..., eta0 = ...)</code> when the magnitude of
+sender/receiver heterogeneity matters at \(n\) below roughly 100.</p>
 <p><strong>Multiplicative Effects (Latent Factors):</strong></p>
 <p>When R &gt; 0, the model includes R-dimensional latent factors:</p><ul><li><p>Asymmetric case: \(u_i, v_j \in \mathbb{R}^R\) with \(u_i'v_j\) interaction</p></li>
 <li><p>Symmetric case: \(u_i = v_i\) with eigendecomposition \(ULU'\)</p></li>
@@ -538,8 +570,6 @@ sender and receiver effects, capturing reciprocity patterns.</p>
 </ol><p><strong>Standard Model Types:</strong></p>
 <p>The following data types/models are available:</p>
 <p>"normal": A normal AME model (identity link: \(E[Y] = \eta\)).</p>
-<p>"tobit": A tobit AME model for censored continuous data. Values are censored
-at zero, appropriate for non-negative continuous relational data (identity link with censoring).</p>
 <p>"binary": A binary probit AME model (probit link: \(P(Y=1) = \Phi(\eta)\)).</p>
 <p>"ordinal": An ordinal probit AME model (cumulative probit link). An intercept is not
 identifiable in this model.</p>
@@ -548,12 +578,11 @@ identifiable in this model.</p>
 <p>"frn": An AME model for fixed rank nomination networks. A higher value of
 the rank indicates a stronger relationship. The value of 'odmax' specifies
 the maximum number of links each row may have.</p>
-<p>"rrl": An AME model based on the row ranks. This is appropriate if the
-relationships across rows are not directly comparable in terms of scale. An
-intercept, row random effects and row regression effects are not estimable
-for this model.</p>
-<p>"poisson": An overdispersed Poisson AME model for count data (log link: \(E[Y] = \exp(\eta)\)).
-The linear predictor \(\eta\) represents \(\log(\lambda)\) where \(\lambda\) is the expected count.</p>
+<p>"poisson": An overdispersed Poisson AME model for count data:
+\(Y \sim \mathrm{Poisson}(\exp(z))\) with \(z \sim N(\eta, \sigma^2)\),
+a lognormal-mixed Poisson. The conditional mean given the latent \(z\) is
+\(\exp(z)\); the marginal mean is \(\exp(\eta + \sigma^2/2)\), not
+\(\exp(\eta)\).</p>
     </div>
     <div class="section level2">
     <h2 id="supported-family-x-mode-combinations">Supported family x mode combinations<a class="anchor" aria-label="anchor" href="#supported-family-x-mode-combinations"></a></h2>
@@ -563,14 +592,11 @@ The linear predictor \(\eta\) represents \(\log(\lambda)\) where \(\lambda\) is 
 both <code>mode</code>s. The bipartite Z-samplers live in <code>R/rZ_bipartite.R</code>
 and dispatch per family; see also the inline comment in <code>R/lame.R</code>
 (the rectangular samplers live in <code>R/rZ_bipartite.R</code>).</p>
-<table class="table table"><tr><td><strong>family</strong></td><td><strong>unipartite</strong></td><td><strong>bipartite</strong></td></tr><tr><td>normal</td><td>yes</td><td>yes</td></tr><tr><td>binary</td><td>yes</td><td>yes</td></tr><tr><td>tobit</td><td>yes</td><td>yes</td></tr><tr><td>ordinal</td><td>yes</td><td>yes</td></tr><tr><td>cbin</td><td>yes</td><td>yes</td></tr><tr><td>frn</td><td>yes</td><td>yes</td></tr><tr><td>poisson</td><td>yes</td><td>yes</td></tr><tr><td>rrl</td><td>yes</td><td>yes</td></tr></table><p>Symmetric (<code>symmetric = TRUE</code>) fits require a symmetric <code>Y</code>.
+<table class="table table"><tr><td><strong>family</strong></td><td><strong>unipartite</strong></td><td><strong>bipartite</strong></td></tr><tr><td>normal</td><td>yes</td><td>yes</td></tr><tr><td>binary</td><td>yes</td><td>yes</td></tr><tr><td>ordinal</td><td>yes</td><td>yes</td></tr><tr><td>cbin</td><td>yes</td><td>yes</td></tr><tr><td>frn</td><td>yes</td><td>yes</td></tr><tr><td>poisson</td><td>yes</td><td>yes</td></tr></table><p>Symmetric (<code>symmetric = TRUE</code>) fits require a symmetric <code>Y</code>.
 <code>family = "ordinal"</code> with <code>symmetric = TRUE</code> is supported via the
 dedicated sampler in <code>R/rZ_ord_sym_fc.R</code>, which uses the
 symmetric-doubled precision and mirrors upper-triangle draws to the lower
-triangle so \(Z = t(Z)\) holds at every sweep. <code>rrl</code> + bipartite is
-supported: the rectangular row-rank Z-sampler handles the
-full per-row permutation likelihood, and <code>ame()</code> recovers regression
-coefficients comparably to the unipartite rrl path on similarly-sized data.</p>
+triangle so \(Z = t(Z)\) holds at every sweep.</p>
 <p><strong>Symmetric input with one triangle missing.</strong> When
 <code>symmetric = TRUE</code> and one triangle of <code>Y</code> is fully <code>NA</code>
 (the user stored only the lower or upper triangle), the symmetry validator
@@ -582,22 +608,22 @@ fitting half the data. Audit <code>anyNA(Y[upper.tri(Y)]) !=
 anyNA(Y[lower.tri(Y)])</code> before calling if you are unsure.</p>
     </div>
     <div class="section level2">
-    <h2 id="converting-a-network-from-another-r-package">Converting a network from another R package<a class="anchor" aria-label="anchor" href="#converting-a-network-from-another-r-package"></a></h2>
+    <h2 id="data-preparation">Data preparation<a class="anchor" aria-label="anchor" href="#data-preparation"></a></h2>
 
 
-<p><code>ame()</code> expects <code>Y</code> as a (potentially named) matrix, not a graph
-object. The most common conversions:</p><ul><li><p><span class="pkg">igraph</span>: <code>Y &lt;- igraph::as_adjacency_matrix(g, sparse = FALSE);
-        diag(Y) &lt;- NA</code></p></li>
-<li><p><span class="pkg">network</span> / <span class="pkg">statnet</span>: <code>Y &lt;- as.matrix(net); diag(Y) &lt;- NA</code></p></li>
-<li><p><span class="pkg">tibble</span> / long-format <span class="pkg">tidyverse</span>: <code>Y &lt;-
-        tidyr::pivot_wider(df, names_from = receiver, values_from = tie) |&gt;
-        tibble::column_to_rownames("sender") |&gt; as.matrix()</code>; or use the
-convenience helper <code><a href="as_lame_y.html">as_lame_y</a></code>.</p></li>
-</ul><p>For an undirected/symmetric network, pass <code>symmetric = TRUE</code>; for a
+<p><code>ame()</code> accepts a matrix directly. For long-format edgelists,
+bipartite data, and covariates, use <span class="pkg">netify</span> to build the network object
+and pass that object as <code>Y</code>. <code>ame()</code> will call
+<code><a href="https://netify-dev.github.io/netify/reference/netify_to_lame.html" class="external-link">netify::to_lame()</a></code> internally. If you already have an <span class="pkg">igraph</span> or
+<span class="pkg">network</span> object and only need a plain adjacency matrix,
+<code><a href="as_lame_y.html">as_lame_y</a></code> is still available as a small convenience helper.</p>
+<p>For an undirected/symmetric network, pass <code>symmetric = TRUE</code>; for a
 rectangular two-mode network (students x courses, donors x candidates), pass
-<code>mode = "bipartite"</code>. <code>Xrow</code> and <code>Xcol</code> accept either a numeric
-matrix or a data.frame (coerced internally); <code>Xdyad</code> must be a 3-D array
-<code>n x n x p</code> of numeric covariates with no <code>Inf</code>/<code>NaN</code>.</p>
+<code>mode = "bipartite"</code> or build the <span class="pkg">netify</span> object with
+<code>mode = "bipartite"</code>. <code>Xrow</code> and <code>Xcol</code> accept either a
+numeric matrix or a data.frame (coerced internally); <code>Xdyad</code> must be a
+3-D array <code>n x n x p</code> of numeric covariates with no
+<code>Inf</code>/<code>NaN</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="when-to-use-ame-vs-ergm">When to use AME vs ERGM<a class="anchor" aria-label="anchor" href="#when-to-use-ame-vs-ergm"></a></h2>
@@ -705,14 +731,14 @@ silently dropped).</p></li>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Regression coefficients:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                Estimate StdError z_value p_value CI_lower CI_upper    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept_dyad   -2.543    0.114 -22.296       0   -2.772   -2.319 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rgpa_dyad         0.178    0.081   2.193   0.028    0.047     0.32   *</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rsmoke_dyad       0.254    0.112   2.279   0.023    0.054    0.474   *</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> cgpa_dyad         0.188    0.042   4.472       0    0.107    0.273 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> csmoke_dyad       0.167    0.052   3.248   0.001    0.067     0.27  **</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> igrade_dyad        1.13    0.052  21.782       0    1.032    1.229 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> igpa_dyad         0.049    0.038   1.284   0.199   -0.045    0.123    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ismoke_dyad       0.038    0.063   0.601   0.548   -0.084     0.15    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept_dyad   -2.614    0.119 -21.967       0   -2.807   -2.378 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rgpa_dyad         0.192    0.074   2.585    0.01    0.046    0.339  **</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rsmoke_dyad       0.273    0.102   2.687   0.007    0.097    0.489  **</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cgpa_dyad         0.213     0.05    4.23       0    0.125    0.296 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> csmoke_dyad       0.203    0.066   3.095   0.002    0.106    0.331  **</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> igrade_dyad       1.164     0.06   19.56       0    1.036    1.265 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> igpa_dyad         0.061    0.032     1.9   0.057        0    0.124   .</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ismoke_dyad      -0.005     0.06  -0.078   0.938   -0.097    0.108    </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span>
@@ -720,10 +746,10 @@ silently dropped).</p></li>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Variance components:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> -------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     Estimate StdError</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> va     0.377    0.088</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> cab    0.045    0.019</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> vb     0.073    0.011</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rho    0.723    0.085</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> va     0.438    0.108</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cab    0.060    0.024</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> vb     0.073    0.010</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rho    0.785    0.060</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ve     1.000    0.000</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   (va = sender, cab = sender-receiver covariance, vb = receiver,</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    rho = dyadic correlation, ve = residual variance)</span>
@@ -741,7 +767,7 @@ silently dropped).</p></li>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>
