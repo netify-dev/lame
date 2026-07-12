@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -85,11 +85,11 @@ on who nominated whom as a friend, plus information about each student
 (gender, race, grade). A natural first instinct is to run a logistic
 regression: does sharing the same gender predict friendship?</p>
 <p>The problem is that friendships aren’t independent observations. Some
-students are just more social than others (they nominate lots of friends
-regardless of who). Some students are more popular (they receive lots of
-nominations). And friendships tend to be reciprocated: if Alice names
-Bob, Bob is more likely to name Alice. A standard regression ignores all
-of this, and your standard errors will be wrong.</p>
+students are more social (they nominate lots of friends), some are more
+popular (they receive lots of nominations), and friendships tend to be
+reciprocated: if Alice names Bob, Bob is more likely to name Alice. A
+standard regression ignores all of this, and your standard errors will
+be wrong.</p>
 <p>The <strong>Additive and Multiplicative Effects (AME)</strong> model
 handles these dependencies directly. It gives each actor a sender effect
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>i</mi></msub><annotation encoding="application/x-tex">a_i</annotation></semantics></math>,
@@ -99,13 +99,11 @@ how popular they are), and a position in a latent space
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>j</mi></msub><annotation encoding="application/x-tex">v_j</annotation></semantics></math>)
 that captures who tends to connect with whom beyond what the covariates
-explain. The name reflects the two kinds of actor-level terms: the
-sender and receiver effects enter the model <em>additively</em>
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>i</mi></msub><mo>+</mo><msub><mi>b</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">a_i + b_j</annotation></semantics></math>),
-while the latent positions enter <em>multiplicatively</em>
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mo>′</mo></msubsup><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i'v_j</annotation></semantics></math>,
-a dot product). Think of it as a regression that takes network structure
-seriously.</p>
+explain. The additive effects enter as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>i</mi></msub><mo>+</mo><msub><mi>b</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">a_i + b_j</annotation></semantics></math>;
+the latent positions enter <em>multiplicatively</em> as the dot product
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mo>′</mo></msubsup><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i'v_j</annotation></semantics></math>.
+Think of it as a regression that takes network structure seriously.</p>
 </div>
 <div class="section level2">
 <h2 id="the-data">The Data<a class="anchor" aria-label="anchor" href="#the-data"></a>
@@ -136,15 +134,13 @@ characteristics.</p>
 <span><span class="co">#&gt; Network density: 0.128</span></span></code></pre></div>
 <p>Notice the <code>na.rm = TRUE</code> calls: network data often has
 missing entries (the diagonal is <code>NA</code> because self-ties are
-undefined, and some dyads may be unobserved). The model handles missing
-values internally via data augmentation, so <code>NA</code>s can stay in
-the matrix. The same applies to missing <em>covariates</em>: a few
-<code>NA</code>s in the node attributes (here <code>race</code> and
-<code>grade</code> have a handful) propagate to the dyads built from
-them, and <code><a href="../reference/ame.html">ame()</a></code> treats those dyads as unobserved and
-reports how many it data-augmented.</p>
-<p>Before modeling, let’s look at the basic structure. How much do
-students vary in their number of friends?</p>
+undefined). The model handles missing values internally via data
+augmentation, so <code>NA</code>s can stay in the matrix – including
+dyads built from missing <em>covariates</em> (here <code>race</code> and
+<code>grade</code> have a handful), which <code><a href="../reference/ame.html">ame()</a></code> likewise
+treats as unobserved.</p>
+<p>Before modeling: how much do students vary in their number of
+friends?</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">out_degree</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowSums</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">in_degree</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colSums</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -167,9 +163,9 @@ students vary in their number of friends?</p>
 <span>        strip.text <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"white"</span>, hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span>    <span class="op">)</span></span></code></pre></div>
 <p><img src="cross_sec_ame_files/figure-html/viz-network-1.png" class="r-plt" alt="Two faceted histograms showing the distribution of nominations sent and nominations received per student in the Add Health friendship network, illustrating heterogeneity in sociality and popularity." width="960" style="display: block; margin: auto;"></p>
-<p>There’s real variation here: some students are much more social than
-others, and some are much more popular. This is exactly what the sender
-and receiver random effects will capture.</p>
+<p>Some students are much more social than others, and some much more
+popular – exactly what the sender and receiver random effects will
+capture.</p>
 </div>
 <div class="section level2">
 <h2 id="building-covariates">Building Covariates<a class="anchor" aria-label="anchor" href="#building-covariates"></a>
@@ -178,12 +174,10 @@ and receiver random effects will capture.</p>
 <strong>homophily</strong>: do birds of a feather flock together? We’ll
 test whether students are more likely to be friends with others of the
 same gender, race, and grade.</p>
-<p>We deliberately include both <code>same_grade</code> (binary: same
-grade or not) and <code>grade_diff</code> (continuous: how many grades
-apart) to illustrate a common modeling pitfall: collinearity. These two
-covariates measure nearly the same thing, and the model cannot cleanly
-separate their effects. We’ll see the consequences in the results
-below.</p>
+<p>We deliberately include both <code>same_grade</code> (binary) and
+<code>grade_diff</code> (continuous: grades apart) to illustrate a
+common modeling pitfall, collinearity: they measure nearly the same
+thing, and we’ll see the consequences in the results below.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># `outer(x, x, FUN)` builds an n x n matrix whose (i,j) entry is FUN(x[i], x[j]).</span></span>
 <span><span class="co"># So `outer(female, female, "==")` returns TRUE where students i and j share the</span></span>
@@ -215,64 +209,52 @@ below.</p>
 <p>Now the fun part. We fit a binary probit AME model with:</p>
 <ul>
 <li>
-<strong>Covariates</strong> for homophily effects (do similar
-students become friends?)</li>
+<strong>Covariates</strong> for homophily effects</li>
 <li>
-<strong>Sender and receiver random effects</strong> (some students
-are more social/popular)</li>
+<strong>Sender and receiver random effects</strong> (sociality /
+popularity)</li>
 <li>
-<strong>Dyadic correlation</strong> (reciprocity: friendships tend
-to be mutual)</li>
+<strong>Dyadic correlation</strong> (reciprocity)</li>
 <li>
-<strong>2-dimensional latent space</strong> (residual clustering
-beyond what covariates explain)</li>
+<strong>2-dimensional latent space</strong> (residual
+clustering)</li>
 </ul>
 <div class="section level3">
 <h3 id="a-note-for-ergm-users-what-ame-assumes">A note for ERGM users: what AME assumes<a class="anchor" aria-label="anchor" href="#a-note-for-ergm-users-what-ame-assumes"></a>
 </h3>
-<p>If you’re coming from <code>ergm</code> / statnet, the most important
-conceptual difference is the dependence assumption. ERGM specifies a
-joint distribution over the entire adjacency matrix and uses change
-statistics (e.g. <code>gwesp</code>, <code>triangle</code>,
-<code>kstar</code>) to encode <em>unconditional</em> higher-order
-dependence: changing one tie shifts the probability of other ties
-through those terms directly. AME does not. AME assumes
+<p>If you’re coming from <code>ergm</code> / statnet, the key difference
+is the dependence assumption. ERGM uses change statistics
+(e.g. <code>gwesp</code>, <code>triangle</code>, <code>kstar</code>) to
+encode <em>unconditional</em> higher-order dependence: changing one tie
+shifts the probability of other ties directly. AME instead assumes
 <strong>conditional dyadic independence</strong>: given the additive
 effects
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>a</mi><mi>i</mi></msub><mo>,</mo><msub><mi>b</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(a_i, b_j)</annotation></semantics></math>,
 the latent positions
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>u</mi><mi>i</mi></msub><mo>,</mo><msub><mi>v</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(u_i, v_j)</annotation></semantics></math>,
 the dyadic correlation
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
-for
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>y</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>,</mo><msub><mi>y</mi><mrow><mi>j</mi><mi>i</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(y_{ij}, y_{ji})</annotation></semantics></math>,
-and the covariates, all dyads are independent. Higher-order structure
-(clustering, transitivity, degree heterogeneity) is captured
-<em>indirectly</em> by integrating over these latent random effects;
-actors with similar
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>
-tend to form ties to overlapping neighborhoods, which induces clustering
-and partial transitivity at the marginal level.</p>
-<p>The practical consequences for an ERGM user:</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>,
+and the covariates, all dyads are independent, and higher-order
+structure is captured <em>indirectly</em> by integrating over the latent
+effects.</p>
+<p>Three practical consequences:</p>
 <ul>
 <li>
-<strong>No degeneracy.</strong> Because the likelihood factors over
-dyads conditional on the random effects, AME does not exhibit the
-model-degeneracy failure modes of ERGMs with <code>triangle</code> or
-unconstrained <code>kstar</code> terms.</li>
+<strong>No degeneracy.</strong> AME avoids the model-degeneracy
+failure modes of ERGMs with <code>triangle</code> or unconstrained
+<code>kstar</code> terms.</li>
 <li>
 <strong>No change-statistic interpretation of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>.</strong>
-A coefficient on <code>same_grade</code> is the partial association on
-the probit-latent scale, not a log-odds change conditional on the rest
-of the network.</li>
+A coefficient on <code>same_grade</code> is a partial association on the
+probit-latent scale, not a log-odds change conditional on the rest of
+the network.</li>
 <li>
 <strong>Some triangle structure is missed.</strong> When transitive
-closure pressure is the substantive target (<code>gwesp</code> is a
-leading example), AME typically under-predicts triangles in the GOF and
-ERGM is the right tool. If your target is structural pattern + actor
+closure is the substantive target (<code>gwesp</code> is the leading
+example), ERGM is the right tool; for structural pattern + actor
 heterogeneity + covariate effects with calibrated uncertainty, AME is
-generally a more stable estimator.</li>
+generally the more stable estimator.</li>
 </ul>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span><span class="va">Y</span>,</span>
@@ -329,14 +311,12 @@ generally a more stable estimator.</li>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
 <p>Let’s unpack the key results:</p>
-<p><strong>Homophily effects.</strong> Look at the regression
-coefficients and their credible intervals. The <code>grade_diff</code>
+<p><strong>Homophily effects.</strong> The <code>grade_diff</code>
 coefficient is strongly negative and its credible interval excludes
-zero, telling us that students further apart in grade are much less
-likely to be friends. The <code>same_female</code> coefficient is
-positive (gender homophily) but its 95% credible interval includes zero,
-so it is not well-identified at this sample size – read the sign as
-suggestive, not the effect as established. The <code>same_race</code>
+zero: students further apart in grade are much less likely to be
+friends. The <code>same_female</code> coefficient is positive (gender
+homophily) but its 95% credible interval includes zero – read the sign
+as suggestive, not the effect as established. The <code>same_race</code>
 coefficient captures race homophily after controlling for grade and
 gender.</p>
 <p><strong>The collinearity pitfall.</strong> <code>same_grade</code>
@@ -352,24 +332,15 @@ include one or the other, not both, so the grade effect lands on a
 single, clean coefficient.</p>
 <p><strong>Variance components.</strong> The sender variance
 (<code>va</code>) and receiver variance (<code>vb</code>) quantify how
-much students differ in their sociality and popularity. Larger values
-mean more heterogeneity. The dyadic correlation (<code>rho</code>)
-captures reciprocity: values near 1 mean that if A nominates B, B almost
-always nominates A back. In this network, reciprocity is strong.</p>
+much students differ in sociality and popularity. The dyadic correlation
+(<code>rho</code>) captures reciprocity: values near 1 mean that if A
+nominates B, B almost always nominates A back. Reciprocity is strong
+here.</p>
 <p>For binary networks with a probit link, the coefficients are on the
-latent scale: the marginal effect of a covariate on the tie probability
-is
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mi>β</mi><mo stretchy="false" form="postfix">)</mo><mo>⋅</mo><msub><mi>β</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">\phi(x'\beta) \cdot \beta_k</annotation></semantics></math>,
-where
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
-is the standard normal density. The textbook
+latent scale, and the textbook
 “<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.4</mn><mo>×</mo><mi>β</mi></mrow><annotation encoding="application/x-tex">0.4 \times \beta</annotation></semantics></math>”
-rule of thumb uses the maximum of that density,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo stretchy="false" form="postfix">)</mo><mo>≈</mo><mn>0.399</mn></mrow><annotation encoding="application/x-tex">\phi(0) \approx 0.399</annotation></semantics></math>,
-and is only sharp when the baseline probability is near 0.5. The Add
-Health friendship network has density 0.128, well below 0.5, so the
-factor here is closer to
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϕ</mi><mo stretchy="false" form="prefix">(</mo><msup><mi mathvariant="normal">Φ</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><mn>0.128</mn><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo><mo>≈</mo><mn>0.21</mn></mrow><annotation encoding="application/x-tex">\phi(\Phi^{-1}(0.128)) \approx 0.21</annotation></semantics></math>.
+rule for converting them to probability changes is only sharp when the
+baseline probability is near 0.5 – which this sparse network is not.
 Rather than juggling correction factors, compute the quantity you
 actually want with <code>predict(fit, type = "response")</code> and
 contrast predicted probabilities under counterfactual covariate
@@ -378,9 +349,9 @@ settings.</p>
 <div class="section level2">
 <h2 id="did-the-sampler-converge">Did the Sampler Converge?<a class="anchor" aria-label="anchor" href="#did-the-sampler-converge"></a>
 </h2>
-<p>Since the model is estimated via MCMC (Markov chain Monte Carlo),
-trace plots are the first check that the sampler explored the posterior
-distribution thoroughly.</p>
+<p>The model is estimated via MCMC (Markov chain Monte Carlo), so trace
+plots are the first check that the sampler explored the posterior
+thoroughly.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"beta"</span>, ncol <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></code></pre></div>
 <p><img src="cross_sec_ame_files/figure-html/trace-plots-1.png" class="r-plt" alt="MCMC trace and density plots for each regression coefficient; stable traces fluctuate around a steady mean and the density plots are smooth and unimodal." width="960" style="display: block; margin: auto;"></p>
@@ -390,19 +361,18 @@ slowest-mixing term in these fits is usually the dyadic correlation
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"variance"</span>, include <span class="op">=</span> <span class="st">"Dyadic Correlation"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="cross_sec_ame_files/figure-html/trace-rho-1.png" class="r-plt" alt="MCMC trace and density plot for the dyadic correlation (rho); the trace moves slowly relative to the regression coefficients, illustrating the slow mixing discussed in the text." width="768" style="display: block; margin: auto;"></p>
-<p><strong>What to look for:</strong> The trace plots (top) should
-fluctuate around a stable mean. If you see long trends, the chain has
-not converged. The density plots (bottom) should be smooth and unimodal.
-With 80 post-burn-in samples most coefficients mix acceptably for a
-demo; the slowest at this seed is <code>rho</code>, shown in its own
-trace above – the reciprocity parameter that is chronically the
-slowest-mixing term in these fits (bulk ESS around 27 here, versus
-roughly 35–112 for the regression coefficients). Read low ESS as a
-<em>mixing</em> problem, not an <em>estimate</em> problem: point
-estimates such as <code>grade_diff</code>’s are stable from run to run
-even on short chains. But a slow-mixing parameter is exactly the one
-whose uncertainty you should not quote from a single short chain –
-<code>rho</code> gets its real test in the multi-chain run below.</p>
+<p><strong>What to look for:</strong> Traces should fluctuate around a
+stable mean (long trends mean non-convergence) and densities should be
+smooth and unimodal. With 80 post-burn-in samples most coefficients mix
+acceptably for a demo; the slowest at this seed is <code>rho</code> –
+the reciprocity parameter that is chronically the slowest-mixing term in
+these fits (bulk ESS around 27 here, versus roughly 35–112 for the
+regression coefficients). Read low ESS as a <em>mixing</em> problem, not
+an <em>estimate</em> problem: point estimates such as
+<code>grade_diff</code>’s are stable from run to run even on short
+chains. But a slow-mixing parameter is exactly the one whose uncertainty
+you should not quote from a single short chain – <code>rho</code> gets
+its real test in the multi-chain run below.</p>
 <div class="section level3">
 <h3 id="numerical-convergence-diagnostics-posterioras_draws">Numerical convergence diagnostics:
 <code>posterior::as_draws()</code><a class="anchor" aria-label="anchor" href="#numerical-convergence-diagnostics-posterioras_draws"></a>
@@ -410,11 +380,9 @@ whose uncertainty you should not quote from a single short chain –
 <p>A trace plot is a sanity check, not a diagnostic. The Stan-era
 summary triple is
 <strong>split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math></strong>,
-<strong>bulk ESS</strong>, and <strong>tail ESS</strong>, and the
-<code>posterior</code> package computes all three from a
-<code>draws_array</code>. <code>lame</code> registers an
-<code><a href="../reference/as_draws.html">as_draws()</a></code> method that reshapes <code>BETA</code> and
-<code>VC</code> for any fit, so the same workflow you would run on a
+<strong>bulk ESS</strong>, and <strong>tail ESS</strong>;
+<code>lame</code> registers an <code><a href="../reference/as_draws.html">as_draws()</a></code> method, so the
+same <code>posterior</code>-package workflow you would run on a
 <code>stanfit</code> works here:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/posterior/" class="external-link">posterior</a></span><span class="op">)</span></span>
@@ -444,18 +412,14 @@ split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semanti
 &lt; 1.01 for every monitored parameter; <code>ess_bulk</code> and
 <code>ess_tail</code>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>
-400 per chain (so
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≥</mo><annotation encoding="application/x-tex">\ge</annotation></semantics></math>
-1600 with four chains). This demo stores only 80 draws (one short
-chain), so it cannot reach the ESS target – the largest
-<code>ess_bulk</code> in the table is only about 112
-(<code>same_female_dyad</code>, <code>va</code>), and <code>rho</code>
-sits lowest at about 27. The
+400 per chain. This demo stores only 80 draws (one short chain), so it
+cannot reach the ESS target – the largest <code>ess_bulk</code> in the
+table is only about 112, and <code>rho</code> sits lowest at about 27.
+The
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
 column, by contrast, looks deceptively clean: every parameter comes back
-at or below about 1.08, with <code>cab</code> the nominal worst and both
-<code>grade_diff_dyad</code> and <code>rho</code> near 1.01–1.02. That
-is the trap of single-chain diagnostics:
+at or below about 1.08, with <code>rho</code> near 1.01–1.02. That is
+the trap of single-chain diagnostics:
 split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
 computed on one chain compares the two halves of that chain, so it flags
 within-chain non-stationarity but cannot detect two chains that have
@@ -464,10 +428,9 @@ actually fails to converge on this network – <code>rho</code> – looks
 fine in this table and only reveals itself when separate chains
 disagree, which is exactly what the four-chain fit below exposes
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≈</mo><mn>1.8</mn></mrow><annotation encoding="application/x-tex">\hat R \approx 1.8</annotation></semantics></math>).
-One row is expected to look degenerate in both tables here and in your
-own binary fits: <code>ve</code> is the latent residual variance, fixed
-at 1 for probit identification, so its draws are constant and
-<code>posterior</code> correctly reports NA for
+One row will look degenerate in both tables: <code>ve</code> is the
+latent residual variance, fixed at 1 for probit identification, so its
+draws are constant and <code>posterior</code> correctly reports NA for
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
 and ESS – ignore that row.</p>
 </div>
@@ -542,16 +505,13 @@ and let <code><a href="https://mc-stan.org/posterior/reference/draws_summary.htm
 <p>This is the payoff of running more than one chain. In the
 single-chain table above, <code>rho</code> looked merely mediocre –
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≈</mo><mn>1.02</mn></mrow><annotation encoding="application/x-tex">\hat R \approx 1.02</annotation></semantics></math>,
-bulk ESS around 27 – because a single chain can only be compared with
-itself:
-split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-contrasts the two halves of one chain and cannot see two chains that
-have each settled into a different region. With a second, independently
-seeded chain the failure is unmistakable: the convergence banner flags
-<code>rho</code> at R-hat = 1.801, and <code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws()</a></code>
-puts it at 1.63 with a bulk ESS of 3.7. (The two numbers differ because
-the banner computes the classic Gelman-Rubin ratio while
-<code>posterior</code> uses rank-normalized
+bulk ESS around 27 – for the reason just described: one chain can only
+be compared with itself. With a second, independently seeded chain the
+failure is unmistakable: the convergence banner flags <code>rho</code>
+at R-hat = 1.801, and <code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">summarise_draws()</a></code> puts it at 1.63
+with a bulk ESS of 3.7. (The two numbers differ because the banner
+computes the classic Gelman-Rubin ratio while <code>posterior</code>
+uses rank-normalized
 split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>;
 both are far past the 1.01 bar.) This is the same reciprocity parameter
 the trace plots flagged as chronically slow-mixing. Do not report
@@ -560,33 +520,26 @@ increase <code>nscan</code> and the number of chains until its
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
 clears the threshold. Every other parameter sits at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≤</mo><mn>1.02</mn></mrow><annotation encoding="application/x-tex">\hat R \le 1.02</annotation></semantics></math>
-across chains, so there is no sign of between-chain disagreement for the
-covariate and variance-component estimates; they still need the longer
+across chains, so there is no sign of between-chain disagreement; the
+covariate and variance-component estimates still need a longer
 multi-chain run to clear the ESS bar before you quote their
 uncertainty.</p>
 <p>The pooled object carries a <code>chain_indicator</code> so
-<code><a href="../reference/as_draws.html">as_draws()</a></code> keeps chain identity separate, which is what
-split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-needs. The same reshape feeds <code>bayesplot::mcmc_trace()</code> and
+<code><a href="../reference/as_draws.html">as_draws()</a></code> keeps chain identity separate; the same reshape
+feeds <code>bayesplot::mcmc_trace()</code> and
 <code>tidybayes::tidy_draws()</code> directly.</p>
 </div>
 <div class="section level3">
 <h3 id="other-quick-checks">Other quick checks<a class="anchor" aria-label="anchor" href="#other-quick-checks"></a>
 </h3>
-<p>Two cheap diagnostics worth running once per fit. First, the
-sampler-failure counters: <code>lame</code> is a Gibbs /
-Metropolis-Hastings sampler, not HMC, so it has no divergences – the
-closest analog is the per-block Metropolis / <code>tryError</code> count
-exposed as <code>fit$mh_counters</code> (alias
-<code>fit$tryErrorChecks</code>). Treat any block with more than 5%
-failures as suspicious; the longitudinal <code><a href="../reference/lame.html">lame()</a></code> path warns
-automatically at that threshold. Second, <code>prior_summary(fit)</code>
-– modelled on <code>rstanarm::prior_summary()</code> – prints the
-hyperparameters <em>actually used</em> (defaults filled in) for the
-g-prior on
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
-and the variance components; it is the cheapest way to catch a typo in a
-<code>prior = list(...)</code> override.</p>
+<p>Two cheap diagnostics worth running once per fit. <code>lame</code>
+is a Gibbs / Metropolis-Hastings sampler, not HMC, so it has no
+divergences – the closest analog is the per-block failure count exposed
+as <code>fit$mh_counters</code>; treat any block with more than 5%
+failures as suspicious. And <code>prior_summary(fit)</code> prints the
+hyperparameters <em>actually used</em> (defaults filled in), the
+cheapest way to catch a typo in a <code>prior = list(...)</code>
+override.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">mh_counters</span><span class="op">)</span></span>
 <span><span class="co">#&gt; List of 5</span></span>
@@ -688,166 +641,95 @@ AME, prefer
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>-fold
 cross-validation over dyads – or the held-out dyad evaluation shown
 below via <code><a href="../reference/evaluate_heldout.html">evaluate_heldout()</a></code> – to PSIS-LOO.</p>
-<p>For the five families <code>normal</code>, <code>binary</code>,
-<code>cbin</code>, <code>poisson</code>, <code>ordinal</code> the stored
-log-likelihood is the <strong>exact family-specific Y density</strong>
-(Gaussian / probit Bernoulli / log-Poisson / cumulative-probit), so
-<code>elpd_loo</code> is directly comparable to a <code><a href="../reference/loo.html">loo()</a></code>
-from a brms or rstanarm fit to the same family. For the rank likelihood
-<code>frn</code>, the exact marginal requires GHK Monte Carlo and is
-only available on the longitudinal path via
-<code>log_lik_method = "observed_ghk"</code>; the cross-sectional
-default falls back to the augmented-Z normal density and emits a
-one-time warning. Inspect <code>fit$log_lik_method</code> to see which
-branch was used.</p>
+<p>For the <code>normal</code>, <code>binary</code>, <code>cbin</code>,
+<code>poisson</code>, and <code>ordinal</code> families the stored
+log-likelihood is the <strong>exact family-specific Y density</strong>,
+so <code>elpd_loo</code> is directly comparable to a <code><a href="../reference/loo.html">loo()</a></code>
+from a brms or rstanarm fit to the same family; see
+<code><a href="../reference/loo.ame.html">?loo.ame</a></code> for the <code>frn</code> rank-likelihood caveat
+and <code>fit$log_lik_method</code>.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="does-the-model-fit-the-data">Does the Model Fit the Data?<a class="anchor" aria-label="anchor" href="#does-the-model-fit-the-data"></a>
 </h2>
-<p>Goodness-of-fit (GOF) checks whether the model can reproduce key
-structural features of the observed network. This goes beyond dyad-level
-prediction: it tests whether the model captures emergent properties like
-degree heterogeneity, reciprocity patterns, and clustering.</p>
+<p>Goodness-of-fit (GOF) checks whether the model can reproduce
+structural features of the observed network – degree heterogeneity,
+reciprocity, clustering – beyond dyad-level prediction.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="cross_sec_ame_files/figure-html/gof-plot-1.png" class="r-plt" alt="Goodness-of-fit panels comparing observed network statistics (dashed orange vertical line) against the posterior predictive histograms (grey) for sender and receiver degree heterogeneity, dyadic dependence, triadic dependence, and transitivity. Observed and predicted differ on both colour and linetype so the cue survives grayscale printing and colour-blind viewing." width="960" style="display: block; margin: auto;"></p>
-<p>Each panel shows a different network statistic. The grey histogram is
-the posterior-predictive distribution from networks simulated from the
-fitted model; the <strong>dashed orange vertical line is the observed
-value</strong> on the same scale. The figure encodes the
-observed-vs-predicted contrast on two channels at once: colour
-(Okabe-Ito orange <code>#D55E00</code> vs <code>grey60</code>)
-<strong>and</strong> linetype (a dashed vertical segment vs a filled
-histogram bar), so the cue survives both colour-blind viewers and
-grayscale printing. The legend strip at the top of each panel labels the
-two glyphs explicitly as “Observed” and “Posterior predictive”.</p>
-<p>The panel titles are the human-readable labels (“Sender Degree
-Heterogeneity”, “Receiver Degree Heterogeneity”, “Dyadic Dependence”,
-“Triadic Dependence”, and “Transitivity”). The user-facing aliases
-accepted by <code>gof_plot(..., statistics = ...)</code> are
-<code>sd.row</code>, <code>sd.col</code>, <code>dyad.dep</code>,
-<code>triad.dep</code> (the cyclic-triad measure), and
-<code>trans.dep</code> (the transitive-triad analogue). The actual
-column names stored in <code>fit$GOF</code> differ slightly: the
-row/column SDs are <code>sd.rowmean</code> / <code>sd.colmean</code> and
-the cyclic-triad statistic is <code>cycle.dep</code>, so
-<code>colnames(fit$GOF)</code> returns <code>sd.rowmean</code>,
-<code>sd.colmean</code>, <code>dyad.dep</code>, <code>cycle.dep</code>,
-<code>trans.dep</code>. The alias map applied inside
-<code><a href="../reference/gof_plot.html">gof_plot()</a></code> rewrites <code>sd.row</code> →
-<code>sd.rowmean</code>, <code>sd.col</code> → <code>sd.colmean</code>,
-and <code>triad.dep</code> → <code>cycle.dep</code> before plotting.</p>
-<p>In the plot above the observed values for Sender and Receiver Degree
-Heterogeneity fall inside their posterior-predictive histograms
-(although Receiver sits to the right of the mode), and Dyadic Dependence
-(the Y-vs-t(Y) correlation, essentially empirical reciprocity) is also
-covered. Those three features are explicitly modeled by the
-sender/receiver random effects, the row/column variance components, and
-the dyadic correlation
+<p>In each panel the grey histogram is the posterior-predictive
+distribution from networks simulated out of the fitted model, and the
+<strong>dashed orange vertical line is the observed value</strong>
+(colour and linetype dual-encode the contrast so it survives grayscale
+printing and colour-blind viewing). See <code><a href="../reference/gof_plot.html">?gof_plot</a></code> for the
+<code>statistics = ...</code> aliases and the exact column names stored
+in <code>fit$GOF</code>.</p>
+<p>The observed values for Sender and Receiver Degree Heterogeneity and
+for Dyadic Dependence (essentially empirical reciprocity) fall inside
+their posterior-predictive histograms – those three features are
+explicitly modeled by the random effects, the variance components, and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>.
 The two triad-level statistics tell a different story: observed Triadic
-Dependence sits in the upper tail of its simulated distribution, and
-observed Transitivity sits at the far right edge. AME under-predicts
-triangle closure on this network, the expected signature of conditional
-dyadic independence. The latent space soaks up some triangle structure
-through clustering of
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>
-vectors, but the absence of an explicit triangle-closure term means we
-cannot match observed transitivity. If transitivity is your substantive
-target, fit an ERGM; if it is a diagnostic concern only, increasing
-<code>R</code> sometimes helps modestly.</p>
+Dependence sits in the upper tail, and observed Transitivity at the far
+right edge. AME under-predicts triangle closure on this network, the
+expected signature of conditional dyadic independence: the latent space
+soaks up some triangle structure through clustering of the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>,
+but there is no explicit closure term. If transitivity is your
+substantive target, fit an ERGM; if it is a diagnostic concern only,
+increasing <code>R</code> sometimes helps modestly.</p>
 <p>You can also compute GOF after the fact using the <code><a href="../reference/gof.html">gof()</a></code>
-function, which is useful if you want to test custom statistics. The
-built-in <code>trans.dep</code> panel is a <em>correlation-style</em>
-clustering measure; ERGM users will typically want raw counts that match
-the <code>triangle</code> / <code>ttriple</code> / <code>gwesp</code>
-family. Those are one-liners as custom stats:</p>
+function, which accepts custom statistics. The built-in
+<code>trans.dep</code> panel is a <em>correlation-style</em> clustering
+measure; ERGM users will typically want the raw clustering coefficient
+(<code>sna::gtrans</code>, the scalar summary that
+<code>gwesp(decay = 0, fixed = TRUE)</code> targets), which takes a few
+lines as a custom stat:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># ERGM-style custom statistics:</span></span>
-<span><span class="co">#   triangles  : count of transitive triples i -&gt; j, j -&gt; k, i -&gt; k,</span></span>
-<span><span class="co">#                the directed analogue of ergm's `ttriple` change statistic</span></span>
-<span><span class="co">#                (and what `gwesp(decay = 0, fixed = TRUE)` reduces to)</span></span>
-<span><span class="co">#   two_path   : count of two-paths i -&gt; j -&gt; k (the "potential" triangles)</span></span>
-<span><span class="co">#   trans_ratio: triangles / two_path -- the classic clustering coefficient</span></span>
-<span><span class="co">#                (sna::gtrans), the right scalar summary of what gwesp targets</span></span>
-<span><span class="co">#   deg_cor    : Pearson correlation of out-degree and in-degree</span></span>
-<span><span class="va">custom_stats</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">Y</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">Yb</span> <span class="op">&lt;-</span> <span class="va">Y</span>; <span class="va">Yb</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">Yb</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">0</span>           <span class="co"># NA -&gt; 0 for matrix multiply</span></span>
+<code class="sourceCode R"><span><span class="co"># classic clustering coefficient: transitive triples / two-paths</span></span>
+<span><span class="va">trans_ratio</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">Y</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">Yb</span> <span class="op">&lt;-</span> <span class="va">Y</span>; <span class="va">Yb</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">Yb</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">0</span>            <span class="co"># NA -&gt; 0 for matrix multiply</span></span>
 <span>    <span class="va">YY</span> <span class="op">&lt;-</span> <span class="va">Yb</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">Yb</span></span>
-<span>    <span class="va">triangles</span>   <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">YY</span> <span class="op">*</span> <span class="va">Yb</span><span class="op">)</span>            <span class="co"># transitive triples</span></span>
-<span>    <span class="va">two_path</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">YY</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">YY</span><span class="op">)</span><span class="op">)</span> <span class="co"># two-paths excluding length-2 reciprocal loops</span></span>
-<span>    <span class="va">out_deg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowSums</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span>    <span class="va">in_deg</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colSums</a></span><span class="op">(</span><span class="va">Y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>triangles   <span class="op">=</span> <span class="va">triangles</span>,</span>
-<span>      two_path    <span class="op">=</span> <span class="va">two_path</span>,</span>
-<span>      trans_ratio <span class="op">=</span> <span class="va">triangles</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">two_path</span>, <span class="fl">1</span><span class="op">)</span>,</span>
-<span>      deg_cor     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="va">out_deg</span>, <span class="va">in_deg</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="va">triangles</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">YY</span> <span class="op">*</span> <span class="va">Yb</span><span class="op">)</span>              <span class="co"># transitive triples</span></span>
+<span>    <span class="va">two_path</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">YY</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">YY</span><span class="op">)</span><span class="op">)</span>   <span class="co"># two-paths (potential triangles)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>trans_ratio <span class="op">=</span> <span class="va">triangles</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">two_path</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="va">gof_custom</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gof.html">gof</a></span><span class="op">(</span><span class="va">fit</span>, custom_gof <span class="op">=</span> <span class="va">custom_stats</span>, nsim <span class="op">=</span> <span class="fl">50</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span><span class="va">obs</span> <span class="op">&lt;-</span> <span class="va">gof_custom</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
-<span><span class="va">sim</span> <span class="op">&lt;-</span> <span class="va">gof_custom</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
+<span><span class="va">gof_custom</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gof.html">gof</a></span><span class="op">(</span><span class="va">fit</span>, custom_gof <span class="op">=</span> <span class="va">trans_ratio</span>, nsim <span class="op">=</span> <span class="fl">50</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="va">obs</span> <span class="op">&lt;-</span> <span class="va">gof_custom</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"trans_ratio"</span><span class="op">]</span></span>
+<span><span class="va">sim</span> <span class="op">&lt;-</span> <span class="va">gof_custom</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span>, <span class="st">"trans_ratio"</span><span class="op">]</span></span>
 <span></span>
-<span><span class="co"># posterior-predictive p-value: fraction of simulated networks at least as</span></span>
-<span><span class="co"># extreme (right tail) as the observed; values near 0 mean the model</span></span>
-<span><span class="co"># under-predicts the statistic, values near 1 mean it over-predicts</span></span>
-<span><span class="va">pp_right</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">o</span>, <span class="va">s</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">s</span> <span class="op">&gt;=</span> <span class="va">o</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>    stat       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">gof_custom</span><span class="op">)</span>,</span>
-<span>    observed   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">obs</span>, <span class="fl">3</span><span class="op">)</span>,</span>
-<span>    sim_mean   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">sim</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>,</span>
-<span>    pp_p_right <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mapply.html" class="external-link">mapply</a></span><span class="op">(</span><span class="va">pp_right</span>, <span class="va">obs</span>, <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">sim</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
-<span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"triangles"</span>, <span class="st">"two_path"</span>, <span class="st">"trans_ratio"</span>, <span class="st">"deg_cor"</span><span class="op">)</span>, <span class="op">]</span></span>
-<span><span class="co">#&gt;                    stat observed sim_mean pp_p_right</span></span>
-<span><span class="co">#&gt; triangles     triangles  239.000  248.300       0.48</span></span>
-<span><span class="co">#&gt; two_path       two_path  493.000  603.540       0.66</span></span>
-<span><span class="co">#&gt; trans_ratio trans_ratio    0.485    0.394       0.08</span></span>
-<span><span class="co">#&gt; deg_cor         deg_cor    0.564    0.483       0.28</span></span></code></pre></div>
-<p>Read the table the same way you would read <code>ergm::gof()</code>.
-For each statistic a <code>pp_p_right</code> near 0 means the simulated
-networks rarely hit the observed value from below, i.e. the model
-under-predicts that quantity; a value near 1 means it over-predicts. On
-Add Health the raw <code>triangles</code> count comes back reasonably
-well covered (<code>pp_p_right</code> around 0.48 in our run): the AME
-fit absorbs much of the triangle pressure through clustering of
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>
-and through the joint scale of the additive effects, so the raw count is
-in the predictive distribution even though the model has no
-<code>gwesp</code>-style change statistic in the likelihood.
-<code>two_path</code> is driven by the marginal degree distribution and
-the additive effects, so it is also usually well covered
-(<code>pp_p_right</code> around 0.66 here). The structural gap shows up
-in the ratio: the <code>trans_ratio</code> (triangles / two-paths) is
-the unweighted clustering coefficient ERGM users recognise from
-<code>sna::gtrans</code>, and on this network it comes back with
-<code>pp_p_right</code> close to zero (around 0.08 in our run). That is
-the scalar summary targeted by
-<code>gwesp(decay = 0, fixed = TRUE)</code>: the model gets the absolute
-scale of triangle counts roughly right but does not concentrate
-triangles per two-path the way the data do. The <code>deg_cor</code> is
-degree assortativity: AME captures some of it through the
-sender-receiver covariance (<code>cab</code>), but the rest reflects
-higher-order structure outside the dyadic likelihood.</p>
+<span><span class="co"># posterior-predictive p-value (right tail): near 0 = under-predicted</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>observed <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">obs</span>, <span class="fl">3</span><span class="op">)</span>, sim_mean <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">sim</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>,</span>
+<span>  pp_p_right <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">sim</span> <span class="op">&gt;=</span> <span class="va">obs</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   observed   sim_mean pp_p_right </span></span>
+<span><span class="co">#&gt;      0.485      0.394      0.080</span></span></code></pre></div>
+<p>Read this the way you would read <code>ergm::gof()</code>:
+<code>pp_p_right</code> is the fraction of simulated networks at or
+above the observed value, so a value near 0 means the model
+under-predicts the statistic. On Add Health it comes back close to zero
+(around 0.08 in our run) – the model produces triangles, but does not
+concentrate them per two-path the way the data do, the same structural
+gap the built-in panels showed. See <code><a href="../reference/gof.html">?gof</a></code> for adding further
+custom statistics (raw triangle counts, degree assortativity, and so
+on).</p>
 </div>
 <div class="section level2">
 <h2 id="visualizing-the-latent-space">Visualizing the Latent Space<a class="anchor" aria-label="anchor" href="#visualizing-the-latent-space"></a>
 </h2>
 <p>The multiplicative effects
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mo>′</mo></msubsup><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i'v_j</annotation></semantics></math>)
-place each student in a 2D latent space. Students near each other in
-sender space (triangles) tend to nominate similar friends; students near
-each other in receiver space (circles) tend to be nominated by similar
-students. This captures clustering that the covariates alone can’t
-explain.</p>
+place each student in a 2D latent space: students near each other in
+sender space (triangles) nominate similar friends, and students near
+each other in receiver space (circles) are nominated by similar
+students. Clusters likely share some unobserved characteristic (same
+social group, same extracurriculars) that drives friendship choices
+beyond gender, race, and grade.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit</span>, layout <span class="op">=</span> <span class="st">"biplot"</span>, show.edges <span class="op">=</span> <span class="cn">FALSE</span>, label.nodes <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="cross_sec_ame_files/figure-html/latent-space-1.png" class="r-plt" alt="Biplot of the estimated 2D latent space: triangles mark each student's sender position and circles mark receiver positions on the two latent dimensions; students plotted near each other have similar friendship patterns beyond what the covariates explain." width="768" style="display: block; margin: auto;"></p>
-<p>Students on opposite sides of the plot have dissimilar friendship
-patterns. Clusters of students placed near each other likely share some
-unobserved characteristic (same social group, same extracurricular
-activities) that drives their friendship choices beyond gender, race,
-and grade.</p>
 </div>
 <div class="section level2">
 <h2 id="who-are-the-most-social-popular-students">Who Are the Most Social / Popular Students?<a class="anchor" aria-label="anchor" href="#who-are-the-most-social-popular-students"></a>
@@ -871,13 +753,10 @@ effects receive more nominations.</p>
 <h2 id="making-predictions">Making Predictions<a class="anchor" aria-label="anchor" href="#making-predictions"></a>
 </h2>
 <p>The model gives you predicted probabilities for every possible tie,
-including unobserved ones. This is useful for link prediction (who is
-likely to become friends?) and for understanding the model’s fit at the
-dyad level. One detail: for sparse networks (density below 0.1), raw
-accuracy can be misleadingly high because predicting “no tie” for every
-dyad already gets most predictions right. Focus on the off-diagonal
-cells of the confusion matrix to see how well the model distinguishes
-true ties from non-ties.</p>
+useful for link prediction and for understanding dyad-level fit. One
+caution for sparse networks: predicting “no tie” for every dyad already
+gets most predictions right, so raw accuracy flatters the model – judge
+it against the modal-class baseline.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pred_resp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
 <span></span>
@@ -919,20 +798,15 @@ true ties from non-ties.</p>
 <span>    <span class="st">" | Lift:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">accuracy</span> <span class="op">-</span> <span class="va">baseline</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Accuracy: 0.891  | Baseline (predict modal class): 0.872  | Lift: 0.019</span></span></code></pre></div>
-<p>The accuracy by itself flatters the model: a “predict the modal
-class” baseline already gets the printed baseline value, and the model’s
-lift over that baseline is what’s meaningful. For this friendship
-network with density ~13% the baseline is ~0.87, so the relevant
+<p>At density ~13% the modal-class baseline is ~0.87, so the relevant
 question is whether the model’s accuracy is materially above 0.87, not
 whether it crosses 0.5.</p>
-<p>For link prediction, the area under the ROC curve (AUC) evaluates the
-model’s ability to rank true ties above non-ties across all thresholds
-rather than relying on a single cutpoint. The <code>pROC</code> and
-<code>precrec</code> packages compute both ROC and PR-AUC from
-<code>pred_resp</code>. For sparse networks the PR-AUC is often the more
-useful summary. A model that always predicts “no tie” already has AUROC
-near 0.5 but PR-AUC near the network density, so the gap between PR-AUC
-and density is the metric of substantive interest.</p>
+<p>For link prediction, AUC-style metrics evaluate the model’s ability
+to rank true ties above non-ties across all thresholds. For sparse
+networks PR-AUC is the more informative summary: a model that always
+predicts “no tie” already has AUROC near 0.5 but PR-AUC near the network
+density, so the gap between PR-AUC and density is the metric of
+substantive interest.</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># pROC: ROC curve and AUROC</span></span>
 <span><span class="co"># install.packages("pROC")</span></span>
@@ -955,26 +829,20 @@ and density is the metric of substantive interest.</p>
 <span><span class="co">#&gt; AUROC: 0.874 </span></span>
 <span><span class="co">#&gt;  Baseline AUROC (random ranker): 0.5 </span></span>
 <span><span class="co">#&gt;  Baseline PR-AUC (density of Y): 0.128</span></span></code></pre></div>
-<p>Here that gap is wide: PR-AUC comes back at 0.603 against a density
-baseline of 0.128, so the model’s precision over the ranked dyads runs
-roughly five times the guess-at-the-base-rate floor, and AUROC 0.874
-(against 0.5 for a random ranker) tells the same story on the scale that
-ignores class imbalance. Both are in-sample numbers, though – the
+<p>Here that gap is wide: PR-AUC 0.603 against a density baseline of
+0.128 (roughly five times the base-rate floor), and AUROC 0.874 against
+0.5 for a random ranker. Both are in-sample numbers, though – the
 held-out estimates in the next section are the ones to quote for any
 predictive claim.</p>
 <div class="section level3">
 <h3 id="held-out-link-prediction">Held-out link prediction<a class="anchor" aria-label="anchor" href="#held-out-link-prediction"></a>
 </h3>
-<p>Reporting accuracy / AUC on the same dyads the model was fit on is
-<strong>in-sample</strong> fit, not predictive performance. For a
-held-out evaluation, mask a random subset of dyads to <code>NA</code>
-before fitting (the AME sampler handles <code>NA</code> entries via data
-augmentation, so the masked dyads are excluded from the likelihood),
-then score <code>predict(fit, type = "response")</code> on the held-out
-indices. Stratify the split on <code>Y</code> so the test set has both
-classes; on a density-0.1 network a naive 10% mask leaves very few
-positive test dyads, so report the test-set positive count with the
-AUC.</p>
+<p>For a held-out evaluation, mask a random subset of dyads to
+<code>NA</code> before fitting (the sampler excludes them from the
+likelihood via data augmentation), then score
+<code>predict(fit, type = "response")</code> on the masked indices.
+Stratify the split on <code>Y</code> so the test set contains both
+classes.</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 80/20 stratified mask of off-diagonal dyads</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">6886</span><span class="op">)</span></span>
@@ -998,10 +866,8 @@ AUC.</p>
 <span></span>
 <span><span class="va">pred_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_train</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># `evaluate_heldout()` is the shipped helper that vectorises the same scoring</span></span>
-<span><span class="co"># call, gates AUROC / PR-AUC on whether {precrec} (preferred) or {pROC} is</span></span>
-<span><span class="co"># installed, and falls back to Brier + log-loss otherwise. It accepts the</span></span>
-<span><span class="co"># observed Y, predictions, and a logical TEST mask of the same shape.</span></span>
+<span><span class="co"># `evaluate_heldout()` scores predictions on a logical TEST mask:</span></span>
+<span><span class="co"># columns n_eval, auroc, auprc, brier, logloss</span></span>
 <span><span class="va">test_mask</span>           <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="cn">FALSE</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span>,</span>
 <span>                              dimnames <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/dimnames.html" class="external-link">dimnames</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">test_mask</span><span class="op">[</span><span class="va">test_idx</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">TRUE</span></span>
@@ -1009,54 +875,30 @@ AUC.</p>
 <span>                 mask <span class="op">=</span> <span class="va">test_mask</span>, family <span class="op">=</span> <span class="st">"binary"</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   n_eval     auroc     auprc      brier   logloss</span></span>
 <span><span class="co">#&gt; 1    198 0.8358382 0.5513644 0.08299874 0.3957617</span></span>
-<span><span class="co"># columns: n_eval, auroc, auprc, brier, logloss</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Test dyads:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">test_idx</span><span class="op">)</span>,</span>
 <span>    <span class="st">" | positives:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">Y</span><span class="op">[</span><span class="va">test_idx</span><span class="op">]</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Test dyads: 198  | positives: 25</span></span></code></pre></div>
 <p>On the 198 held-out dyads (25 of them true friendships) the model
-posts AUROC 0.836 and PR-AUC 0.551. Set these against the in-sample
-AUROC 0.874 and PR-AUC 0.603 just above: performance drops only modestly
-out of sample, which is the reassuring signal that the fit generalizes
-rather than memorizing the training dyads. PR-AUC is the number to weigh
-here because the positive class is rare: a random ranker’s PR-AUC equals
-the positive rate (about 0.13), so 0.551 means the model’s precision,
-averaged across recall levels, is roughly four times the chance baseline
-– on dyads it never saw during fitting. Two caveats on stability: with
-only 25 positive test dyads the estimates carry wide split-sampling
-uncertainty (a different mask seed will move them), and the short single
-chain adds Monte Carlo noise on top – detail (2) below addresses the
-latter. Read these numbers as a sanity check rather than a precise
-benchmark, and report the positive count alongside them.</p>
-<p>Two details on the ML split. (1) The actor identities are the same in
-train and test (only some of their dyads are masked); this is a
-<em>transductive</em> link-prediction split, not an inductive one. The
-latent positions
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>i</mi></msub><mo>,</mo><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i, v_j</annotation></semantics></math>
-for every actor are still informed by their non-masked dyads. For an
-<strong>inductive</strong> evaluation that holds out entire actors, drop
-a subset of rows/columns from
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>
-before fitting and score the model’s predictions for those actors using
-only covariates (the held-out actors have no posterior
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>i</mi></msub><mo>,</mo><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i, v_j</annotation></semantics></math>,
-so their predictions collapse to
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mi>β</mi><mo>+</mo><msub><mover><mi>a</mi><mo accent="true">̂</mo></mover><mtext mathvariant="normal">mean</mtext></msub><mo>+</mo><msub><mover><mi>b</mi><mo accent="true">̂</mo></mover><mtext mathvariant="normal">mean</mtext></msub></mrow><annotation encoding="application/x-tex">X\beta + \hat a_{\text{mean}} + \hat b_{\text{mean}}</annotation></semantics></math>,
-which unsurprisingly performs worse). (2) The fit above is a single
-chain at modest length; for stable held-out AUC estimates run
-<code>ame_parallel(..., n_chains = 4)</code> and pool.</p>
+posts AUROC 0.836 and PR-AUC 0.551 – only a modest drop from the
+in-sample 0.874 / 0.603, the reassuring signal that the fit generalizes
+rather than memorizing the training dyads. PR-AUC is the number to
+weigh: a random ranker’s PR-AUC equals the positive rate (about 0.13),
+so the model’s precision runs roughly four times chance on dyads it
+never saw. With only 25 positive test dyads and a single short chain,
+read these as a sanity check rather than a benchmark – report the
+positive count alongside them, and see <code><a href="../reference/evaluate_heldout.html">?evaluate_heldout</a></code>
+for the metric definitions and options.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="simulating-from-the-model">Simulating from the Model<a class="anchor" aria-label="anchor" href="#simulating-from-the-model"></a>
 </h2>
 <p>You can generate new networks from the fitted posterior. A
-<strong>posterior predictive check</strong> asks: if I draw a parameter
-set from the posterior and then simulate a network with those
-parameters, does that simulated network look like the observed one on
-whatever feature I care about (here, overall density)? If the observed
-feature lies inside the simulated distribution, the model reproduces
-that aspect of the data; if it lies in a tail, the model is missing
-something there.</p>
+<strong>posterior predictive check</strong> asks: does a network
+simulated from posterior draws look like the observed one on a feature
+you care about (here, overall density)? Observed values inside the
+simulated distribution mean the model reproduces that feature; values in
+a tail mean it is missing something.</p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sims</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate</a></span><span class="op">(</span><span class="va">fit</span>, nsim <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span>
 <span></span>
@@ -1082,15 +924,12 @@ something there.</p>
 <h2 id="practical-tips">Practical Tips<a class="anchor" aria-label="anchor" href="#practical-tips"></a>
 </h2>
 <p><strong>Choosing R (latent dimensions).</strong> Start with R = 0 (no
-latent space), then try R = 1 and R = 2. Compare GOF statistics. If
-adding dimensions doesn’t improve the GOF, the covariates and additive
-effects are sufficient. <code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> will
-warn when <code>R &gt; floor(n/3)</code> (or <code>min(nA, nB)/3</code>
-in bipartite) because at that rank the multiplicative effects start
-absorbing structure that belongs to the additive effects and the latent
-positions stop being interpretable; in practice <code>R = 2</code> or
-<code>R = 3</code> is the right default unless you have a specific
-reason to push higher.</p>
+latent space), then try R = 1 and R = 2 and compare GOF.
+<code><a href="../reference/ame.html">ame()</a></code> / <code><a href="../reference/lame.html">lame()</a></code> warn when
+<code>R &gt; floor(n/3)</code> because at that rank the multiplicative
+effects absorb structure that belongs to the additive effects; in
+practice <code>R = 2</code> or <code>R = 3</code> is the right
+default.</p>
 <p><strong>MCMC settings.</strong> For exploratory work,
 <code>burn = 500, nscan = 2000, odens = 25</code> is fine. For a final
 run, use at least <code>burn = 2000, nscan = 10000, odens = 25</code>
@@ -1099,10 +938,6 @@ and check convergence with <code><a href="../reference/trace_plot.html">trace_pl
 <code>rvar = TRUE</code> and <code>cvar = TRUE</code> unless you have a
 specific reason not to. Include <code>dcor = TRUE</code> for directed
 networks where reciprocity is plausible.</p>
-<p><strong>Interpreting coefficients.</strong> For binary networks, the
-coefficients are on the probit scale. Use
-<code>predict(fit, type = "response")</code> to get predicted
-probabilities.</p>
 </div>
 <div class="section level2">
 <h2 id="whats-next">What’s Next?<a class="anchor" aria-label="anchor" href="#whats-next"></a>
@@ -1117,8 +952,8 @@ probabilities.</p>
 <strong>Evolving network structure?</strong> See the <a href="dynamic_effects.html">dynamic effects vignette</a>
 </li>
 <li>
-<strong>Other data types?</strong> The <code>family</code> argument
-supports normal, binary, ordinal, poisson, and more</li>
+<strong>Other data types?</strong> See <code><a href="../reference/ame.html">?ame</a></code> for the
+supported <code>family</code> options</li>
 </ul>
 </div>
 <div class="section level2">

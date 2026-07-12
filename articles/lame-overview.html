@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,37 +89,29 @@ bills, students forming friendships across semesters) and you have
 repeated observations of those relationships, <code>lame</code> is
 designed for you.</p>
 <p>The modeling approach builds on the Additive and Multiplicative
-Effects (AME) framework developed by Peter Hoff, whose <a href="https://pdhoff.github.io/amen/" class="external-link"><code>amen</code></a> package (<a href="https://github.com/pdhoff/amen" class="external-link">GitHub</a>) provides the
-foundational implementation for cross-sectional network analysis. The
-<code>lame</code> package extends this framework in several
-directions:</p>
+Effects (AME) framework developed by Peter Hoff, whose <a href="https://pdhoff.github.io/amen/" class="external-link"><code>amen</code></a> package
+provides the foundational cross-sectional implementation.
+<code>lame</code> extends that framework with:</p>
 <ul>
 <li>
-<strong>Longitudinal and replicated data</strong>: While
-<code>amen</code> focuses on single networks (with <code><a href="../reference/ame.html">ame()</a></code>)
-or basic replicated designs (with <code>ame_rep()</code>),
-<code>lame</code> is built from the ground up for panel data, networks
-observed across multiple time periods, potentially with actors entering
-and leaving the sample.</li>
+<strong>Longitudinal data</strong>: panel networks observed across
+multiple time periods, potentially with actors entering and leaving the
+sample.</li>
 <li>
-<strong>Dynamic effects</strong>: Actors’ positions in latent space
-and their baseline activity levels can evolve over time via AR(1)
-processes (<code>dynamic_uv</code> and <code>dynamic_ab</code>), letting
-you model how network structure changes rather than assuming it is
-fixed.</li>
+<strong>Dynamic effects</strong>: latent positions and baseline
+activity levels can evolve via AR(1) processes (<code>dynamic_uv</code>
+and <code>dynamic_ab</code>).</li>
 <li>
-<strong>C++ acceleration</strong>: Core sampling routines are
-implemented in Rcpp/RcppArmadillo for faster computation, which matters
-when you have many time periods or actors.</li>
+<strong>C++ acceleration</strong>: core sampling routines in
+Rcpp/RcppArmadillo.</li>
 <li>
-<strong>Bipartite networks</strong>: Explicit support for two-mode
-networks (e.g., countries and treaties, users and products) with
-separate latent spaces for row and column nodes.</li>
+<strong>Bipartite networks</strong>: two-mode networks (e.g.,
+countries and treaties) with separate latent spaces for row and column
+nodes.</li>
 <li>
-<strong>ggplot2-based diagnostics</strong>: Built-in visualization
-functions (<code>trace_plot</code>, <code>gof_plot</code>,
-<code>ab_plot</code>, <code>uv_plot</code>) return standard ggplot2
-figures you can theme and extend.</li>
+<strong>ggplot2-based diagnostics</strong>: <code>trace_plot</code>,
+<code>gof_plot</code>, <code>ab_plot</code>, and <code>uv_plot</code>
+return standard ggplot2 figures you can theme and extend.</li>
 <li>
 <strong>Standard S3 methods</strong>: <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>,
 <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code>, <code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code>, <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals()</a></code>,
@@ -132,153 +124,17 @@ data preparation.</p>
 <h3 id="migrating-from-amen">Migrating from <code>amen</code><a class="anchor" aria-label="anchor" href="#migrating-from-amen"></a>
 </h3>
 <p>Both <code>amen</code> and <code>lame</code> export an
-<code><a href="../reference/ame.html">ame()</a></code> function. If you load both packages in the same
-session, <code>lame</code> prints a <code>.onAttach</code> startup
-message so you know unqualified <code>ame(...)</code> calls dispatch to
-whichever package was attached last; use <code>lame::ame(...)</code> or
-<code>amen::ame(...)</code> to be explicit. The table below maps the
-breaking differences for old <code>amen</code> scripts:</p>
-<table class="table">
-<colgroup>
-<col width="25%">
-<col width="25%">
-<col width="25%">
-<col width="25%">
-</colgroup>
-<thead><tr class="header">
-<th>Topic</th>
-<th><code>amen::ame()</code></th>
-<th>
-<code><a href="../reference/ame.html">lame::ame()</a></code> / <code><a href="../reference/lame.html">lame::lame()</a></code>
-</th>
-<th>Old code breaks?</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td>Family strings</td>
-<td>
-<code>"nrm"</code>, <code>"bin"</code>, <code>"ord"</code>,
-<code>"cbin"</code>, <code>"frn"</code>
-</td>
-<td>
-<code>"normal"</code>, <code>"binary"</code>,
-<code>"ordinal"</code>, <code>"cbin"</code>, <code>"frn"</code>,
-<code>"poisson"</code>
-</td>
-<td>No – amen short forms are accepted as aliases (with a message
-recommending the full name). The ALS fitters support only
-normal/binary/poisson and reject the rest with a pointer to MCMC.</td>
-</tr>
-<tr class="even">
-<td>Bipartite rank</td>
-<td>single <code>R</code>
-</td>
-<td>
-<code>R</code> (square) or separate <code>R_row</code> /
-<code>R_col</code> (bipartite); single <code>R</code> still
-accepted</td>
-<td>No (old <code>R</code> calls work; <code>R_row</code> /
-<code>R_col</code> is new)</td>
-</tr>
-<tr class="odd">
-<td>Verbosity flag</td>
-<td><code>print = TRUE/FALSE</code></td>
-<td><code>verbose = TRUE/FALSE</code></td>
-<td>No (deprecation warning)</td>
-</tr>
-<tr class="even">
-<td>
-<code>fit$BETA</code> shape (static)</td>
-<td>
-<code>[n_stored, p]</code> matrix</td>
-<td>
-<code>[n_stored, p]</code> matrix</td>
-<td>No (identical)</td>
-</tr>
-<tr class="odd">
-<td>
-<code>fit$BETA</code> shape (<code>dynamic_beta</code>)</td>
-<td>not available</td>
-<td>
-<code>[n_stored, p, T]</code> 3-D array</td>
-<td>New feature; use <code>coef(fit)</code> (returns <code>[p, T]</code>
-for dynamic fits) – a bare <code>apply(fit$BETA, 2, mean)</code>
-silently averages over time. See <a href="dynamic_effects.html">Dynamic
-Effects</a>.</td>
-</tr>
-<tr class="even">
-<td>Longitudinal data</td>
-<td>
-<code>ame_rep()</code> for replicates</td>
-<td>
-<code><a href="../reference/lame.html">lame()</a></code> with a list of <code>T</code> matrices and
-optional <code>dynamic_uv</code> / <code>dynamic_ab</code> /
-<code>dynamic_beta</code>
-</td>
-<td>Refit via <code><a href="../reference/lame.html">lame()</a></code>
-</td>
-</tr>
-<tr class="odd">
-<td>GOF output</td>
-<td>
-<code>fit$GOF</code> matrix</td>
-<td>
-<code>fit$GOF</code> (cross-sectional) or list-of-matrices per
-period (longitudinal)</td>
-<td>Yes for longitudinal scripts</td>
-</tr>
-<tr class="even">
-<td>S3 methods</td>
-<td>
-<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code>
-</td>
-<td>adds <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>, <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code>,
-<code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code>, <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals()</a></code>, <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>,
-<code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot()</a></code>,
-<code><a href="../reference/tidy.html">tidy()</a></code>
-</td>
-<td>No (additive)</td>
-</tr>
-<tr class="odd">
-<td>
-<code>loo</code> / <code>waic</code>
-</td>
-<td>not available</td>
-<td>
-<code>save_log_lik = TRUE</code> plus <code>loo::loo(fit)</code> /
-<code>loo::waic(fit)</code> S3 methods; see <a href="dynamic_effects.html">Dynamic Effects</a>
-</td>
-<td>N/A (new feature)</td>
-</tr>
-<tr class="even">
-<td><code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">broom::tidy()</a></code></td>
-<td>not available</td>
-<td>
-<code><a href="../reference/tidy.ame.html">tidy.ame()</a></code> / <code><a href="../reference/tidy.ame.html">tidy.lame()</a></code> registered
-against <code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">generics::tidy</a></code>
-</td>
-<td>N/A (new feature)</td>
-</tr>
-<tr class="odd">
-<td><code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">broom::glance()</a></code></td>
-<td>not available</td>
-<td>
-<code><a href="../reference/glance.ame.html">glance.ame()</a></code> / <code><a href="../reference/glance.ame.html">glance.lame()</a></code> registered
-against <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">generics::glance</a></code>; returns <code>nobs</code>,
-<code>n_actors</code>, <code>n_periods</code>, <code>n_stored</code>,
-<code>family</code>, <code>mode</code>, <code>R</code>,
-<code>dynamic_uv</code>, <code>dynamic_ab</code>,
-<code>dynamic_beta</code>, <code>elpd_loo</code>. Pairs with
-<code><a href="../reference/tidy.html">tidy()</a></code> for
-<code>modelsummary::modelsummary(fit)</code>.</td>
-<td>N/A (new feature)</td>
-</tr>
-</tbody>
-</table>
-<p>The most common porting fix is <code>family = "nrm"</code> →
-<code>family = "normal"</code> and <code>family = "bin"</code> →
-<code>family = "binary"</code>. Everything else either still works
-unchanged or surfaces a deprecation warning rather than an error.</p>
+<code><a href="../reference/ame.html">ame()</a></code> function; if both packages are attached, a startup
+message reminds you that unqualified <code>ame(...)</code> calls
+dispatch to whichever was attached last, so write
+<code>lame::ame(...)</code> to be explicit. Old <code>amen</code>
+scripts largely run unchanged – the most common porting fix is
+<code>family = "nrm"</code> becoming <code>family = "normal"</code> (the
+short forms are accepted as aliases, with a message), and
+<code>print =</code> is deprecated in favour of <code>verbose =</code>.
+The full mapping of argument and output differences lives in the
+<em>Migration from amen</em> sections of <code><a href="../reference/ame.html">?ame</a></code> and
+<code><a href="../reference/lame.html">?lame</a></code>.</p>
 </div>
 </div>
 <div class="section level2">
@@ -362,12 +218,8 @@ correlation (<code>dcor</code>), and a one-dimensional latent space
 (some students simply nominate more friends) and receiver heterogeneity
 (some students are nominated more often), while the latent space picks
 up residual clustering: students who befriend similar people for reasons
-that the observed covariates do not capture. We use <code>R = 1</code>
-because with only 32 students a two-dimensional latent space competes
-with the three dyadic homophily indicators for the same signal and the
-chain mixes poorly on the dyadic coefficients; <code>R = 1</code>
-resolves that cleanly and the substantive results are nearly
-identical.</p>
+the observed covariates do not capture. (Why <code>R = 1</code> and not
+2? See the Latent Space section below.)</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    Y <span class="op">=</span> <span class="va">Y</span>,</span>
@@ -440,14 +292,12 @@ identical.</p>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
 <p>A lot lands at once, so let’s walk through it.</p>
 <p><strong>Intercept.</strong> The probit intercept is the latent linear
-predictor when <em>every covariate is zero</em> and every random effect
-sits at its mean. That is not the same as the average student: the
-covariates here are uncentered, and <code>program</code> in particular
-is coded 2-4 and is never zero, so “all covariates zero” extrapolates
-well outside the observed data. The familiar <code>qnorm(density)</code>
-rule of thumb describes the predictor at the <em>average</em> covariate
-profile, not at the all-zero corner. The two reconcile exactly once you
-add back the mean covariate contribution:</p>
+predictor when <em>every covariate is zero</em>. The covariates here are
+uncentered (<code>program</code> is coded 2-4 and is never zero), so
+that corner sits well outside the observed data; the familiar
+<code>qnorm(density)</code> rule of thumb instead describes the
+predictor at the <em>average</em> covariate profile. The two reconcile
+once you add back the mean covariate contribution:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bhat</span>        <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">BETA</span><span class="op">)</span></span>
 <span><span class="va">slice_means</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">X</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="fl">3</span>, <span class="va">mean</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>   <span class="co"># mean of each design column</span></span>
@@ -460,11 +310,9 @@ add back the mean covariate contribution:</p>
 <p>The intercept itself is strongly negative, but the predictor at the
 average covariate profile (<code>centroid_lp</code>) sits close to
 <code>qnorm(density)</code> – the uncentered covariates account for
-nearly the entire gap, leaving only a small shift from the random-effect
-variance. The intercept absorbs the mean covariate contribution; it is
-not a baseline probability. If you want the intercept to read directly
-as a baseline, center the covariates before fitting. Either way, read
-predicted probabilities on the response scale off
+nearly the entire gap. The intercept absorbs the mean covariate
+contribution; it is not a baseline probability. Center the covariates if
+you want it to read as one, and read predicted probabilities off
 <code>predict(fit, type = "response")</code>.</p>
 <p><strong>Homophily.</strong> The three dyadic coefficients
 (<code>same_male</code>, <code>same_smoker</code>,
@@ -473,8 +321,7 @@ more likely to be friends, holding the sender, receiver, and latent
 positions fixed. Positive values mean homophily; credible intervals that
 exclude zero indicate that the direction of the association is
 well-identified. Program homophily tends to be the strongest of the
-three in this network, consistent with the substantive expectation that
-students bond around shared coursework.</p>
+three, consistent with students bonding around shared coursework.</p>
 <p><strong>Nodal covariates.</strong> <code>male_row</code> /
 <code>male_col</code> measure whether male students are unusually active
 senders or popular receivers, and similarly for <code>smoker</code> and
@@ -484,18 +331,17 @@ magnitude with caution.</p>
 <p><strong>Variance components.</strong> <code>va</code> (sender
 variance) and <code>vb</code> (receiver variance) quantify how much
 students differ in sociability and popularity beyond what the covariates
-explain. The dyadic correlation <code>rho</code> captures reciprocity:
-values away from zero indicate that ties tend to be mutual. In
-friendship networks <code>rho &gt; 0</code> is the rule rather than the
-exception.</p>
+explain. The dyadic correlation <code>rho</code> captures reciprocity;
+in friendship networks <code>rho &gt; 0</code> is the rule rather than
+the exception.</p>
 </div>
 <div class="section level3">
 <h3 id="checking-convergence">Checking Convergence<a class="anchor" aria-label="anchor" href="#checking-convergence"></a>
 </h3>
-<p>The model is estimated via MCMC, so trace plots and posterior-density
-plots are useful checks. The <code>trace_plot</code> function shows the
-sampled values over iterations (top panels) and the corresponding
-posterior densities (bottom panels) for each parameter.</p>
+<p>The model is estimated via MCMC, so convergence checks come first.
+<code>trace_plot</code> shows the sampled values over iterations (top
+panels) and the corresponding posterior densities (bottom panels) for
+each parameter.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span><span class="va">fit</span>, params <span class="op">=</span> <span class="st">"beta"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/overview-trace-1.png" class="r-plt" alt="MCMC trace plots (top) and marginal posterior density plots (bottom) for each regression coefficient of the Dutch college fit; well-mixed fuzzy-caterpillar traces around a stable mean and smooth unimodal densities together indicate the chain has converged." width="100%" style="display: block; margin: auto;"></p>
@@ -521,13 +367,10 @@ fit as a compact worked example rather than a final diagnostic run.</p>
 <p><code>lame</code> registers <code><a href="../reference/as_draws.html">as_draws()</a></code> methods so any
 fit drops straight into the Stan-era diagnostic ecosystem
 (<code>posterior</code>, <code>bayesplot</code>,
-<code>tidybayes</code>). The reshape lifts the <code>BETA</code> and
-<code>VC</code> blocks into a <code>draws_array</code> indexed by
-iteration / chain / variable, which means
-<code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">posterior::summarise_draws()</a></code> gives you per-parameter
-posterior mean, median, sd, MAD, 5%/95% quantiles,
+<code>tidybayes</code>): <code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">posterior::summarise_draws()</a></code> gives
+per-parameter posterior summaries,
 <strong>split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math></strong>,
-and <strong>bulk / tail ESS</strong> in one call:</p>
+and <strong>bulk / tail ESS</strong> in one call.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/posterior/" class="external-link">posterior</a></span><span class="op">)</span></span>
 <span><span class="co">#&gt; This is posterior version 1.7.0</span></span>
@@ -566,9 +409,8 @@ and <strong>bulk / tail ESS</strong> in one call:</p>
 <p>A single-chain fit like this one has <code>chain = 1</code>, so
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
 reduces to within-chain
-split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>,
-which is informative about within-chain non-stationarity but not about
-between-chain disagreement. For
+split-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>;
+for
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
 across independently initialised chains, see the multi-chain section in
 the dynamic-effects vignette.</p>
@@ -577,106 +419,51 @@ the dynamic-effects vignette.</p>
 <h3 id="goodness-of-fit">Goodness of Fit<a class="anchor" aria-label="anchor" href="#goodness-of-fit"></a>
 </h3>
 <p>The <code>gof_plot</code> function compares observed network
-statistics to their posterior predictive distributions. This tells us
-whether the model can reproduce key structural features of the data, not
-just the dyad-level relationships, but emergent properties like how much
-actors vary in their degree (heterogeneity), whether friends-of-friends
-tend to be friends (transitivity), and whether ties tend to be
-reciprocated (dyadic dependence).</p>
+statistics to their posterior predictive distributions: can the model
+reproduce emergent structural features like degree heterogeneity,
+transitivity, and reciprocity, not just the dyad-level
+relationships?</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/overview-gof-1.png" class="r-plt" alt="Longitudinal goodness-of-fit panels for the Dutch college fit: each facet plots one network statistic (Sender Degree Heterogeneity, Receiver Degree Heterogeneity, Dyadic Dependence, Triadic Dependence, Transitivity) across the six time periods. The observed series is a solid orange line with filled orange points; the posterior-predictive median is a dashed dark line; the 95 percent credible interval is a grey ribbon. The three elements differ on both colour and linetype, so the comparison survives grayscale printing and colour-blind viewing. Observed series falling outside the band flag structural features the model is missing." width="100%" style="display: block; margin: auto;"></p>
 <p>For a longitudinal model, <code>gof_plot</code> shows these
-statistics across time. The figure encodes three series on each panel
-using both colour and linetype redundantly: the <strong>observed series
-is a solid orange line with filled orange points</strong>, the
-<strong>posterior-predictive median is a dashed dark line</strong>, and
-the <strong>95% credible interval is a grey ribbon</strong> (the width
-is controlled by the <code>credible.level</code> argument). When the
-observed series falls inside the ribbon, the model is reproducing that
-aspect of the network; when it falls outside, the model is missing
-something. Falling outside is itself a substantive finding about the
-data-generating process, not a failure to report.</p>
-<p>The panel-strip headers are the human-readable labels
-(<code>Sender Degree Heterogeneity</code>, etc.). <code>fit$GOF</code>
-is a named list whose elements are <code>sd.rowmean</code>,
-<code>sd.colmean</code>, <code>dyad.dep</code>, <code>cycle.dep</code>
-(cyclic triads), and <code>trans.dep</code>; user-facing aliases for
-<code>gof_plot(..., statistics = ...)</code> are <code>sd.row</code>,
-<code>sd.col</code>, <code>dyad.dep</code>, <code>triad.dep</code>,
-<code>trans.dep</code>.</p>
-<p>Reading the figure: the Dutch college fit reproduces the average
-level of reciprocity and most of the cyclic-triad structure but
-under-predicts sender degree heterogeneity, transitivity, and (at the
-panel ends) receiver heterogeneity. The observed Sender Degree
-Heterogeneity series sits above the upper edge of the 95% band at five
-of the six periods (inside the band only at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t = 1</annotation></semantics></math>);
-some students nominate many more friends than the additive sender effect
+statistics across time, encoding three series per panel with colour and
+linetype redundantly: the <strong>observed series is a solid orange line
+with filled orange points</strong>, the <strong>posterior-predictive
+median is a dashed dark line</strong>, and the <strong>95% credible
+interval is a grey ribbon</strong> (width set by
+<code>credible.level</code>). Observed values inside the ribbon are
+features the model reproduces; values outside flag structure it is
+missing – itself a substantive finding, not a failure to report.</p>
+<p>Reading the figure: the fit reproduces the cyclic-triad structure
+(Triadic Dependence sits inside the band at five of the six periods) but
+under-predicts sender degree heterogeneity (observed above the band at
+five of six periods) and transitivity (above the band at every period) –
+some students nominate many more friends than the additive
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>i</mi></msub><annotation encoding="application/x-tex">a_i</annotation></semantics></math>
 plus latent
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>
-can absorb. Transitivity is under-predicted at every period – the
-observed value sits above the upper edge of the band at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t = 1</annotation></semantics></math>
-through
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">t = 6</annotation></semantics></math>
-– so triangle closure is systematically too low under the latent space.
-Receiver Degree Heterogeneity is above the band at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn><mo>,</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">t = 1, 2</annotation></semantics></math>,
-inside at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">t = 3</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">t = 5</annotation></semantics></math>,
-and below the band at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">t = 4</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">t = 6</annotation></semantics></math>.
-The Triadic Dependence panel (cyclic triads, <code>cycle.dep</code>)
-sits inside the band at five of the six periods (outside only at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t = 1</annotation></semantics></math>).
-Dyadic Dependence (reciprocity) is the most variable: above the band at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t = 1</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>5</mn><annotation encoding="application/x-tex">5</annotation></semantics></math>
-(and marginally at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">t = 2</annotation></semantics></math>),
-below at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">t = 3</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>6</mn></mrow><annotation encoding="application/x-tex">t = 6</annotation></semantics></math>,
-inside only at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">t = 4</annotation></semantics></math>.</p>
+can absorb, and triangle closure is systematically too low. Receiver
+heterogeneity and Dyadic Dependence (reciprocity) drift in and out of
+the band across the panel.</p>
 <p>This is the standard signature of a latent-space model on a
-friendship network. AME assumes conditional dyadic independence: given
-the additive and multiplicative effects, dyads are independent, so
-triangle closure has to be soaked up by clustering of the latent
-positions
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>u</mi><mi>i</mi></msub><annotation encoding="application/x-tex">u_i</annotation></semantics></math>.
-ERGMs handle triangle closure directly via terms like <code>gwesp</code>
-or <code>triangle</code>. The two model classes are complementary. ERGM
-is the right answer for triangle-closure questions; AME is the right
-answer when the analyst wants stable, non-degenerate estimates with
-explicit actor heterogeneity and a coherent posterior to forecast or
-simulate from.</p>
+friendship network. AME assumes conditional dyadic independence, so
+triangle closure must be soaked up by clustering of the latent
+positions; ERGMs model it directly via terms like <code>gwesp</code>.
+The two classes are complementary: ERGM for triangle-closure questions,
+AME for stable, non-degenerate estimates with explicit actor
+heterogeneity and a coherent posterior to forecast or simulate from.</p>
 <div class="section level4">
 <h4 id="posterior-predictive-temporal-trend-test-gof_temporal">Posterior-predictive temporal-trend test:
 <code>gof_temporal()</code><a class="anchor" aria-label="anchor" href="#posterior-predictive-temporal-trend-test-gof_temporal"></a>
 </h4>
-<p>The figure read above is qualitative. For a scalar
-posterior-predictive p-value on the temporal <em>trend</em> in a chosen
-network statistic, <code><a href="../reference/gof_temporal.html">gof_temporal()</a></code> complements
-<code><a href="../reference/gof_plot.html">gof_plot()</a></code>. It computes the chosen statistic at each
-observed period, fits an OLS slope on period index, draws
-posterior-predictive replicate panels via <code>simulate(fit)</code>,
-recomputes the slope in each replicate, and returns a two-sided
-Gelman-style posterior-predictive p-value defined as
-<code>2 * min(p_up, 1 - p_up)</code>, so it runs from 0 (observed slope
-in the extreme tail) up to 1 (observed slope dead-centre). A static fit
-on truly trending data yields <code>p_pp</code> near 0 (the observed
-slope is unreachable); a fit that captures the trend yields a
-<code>p_pp</code> well away from 0 (the observed slope is central in the
-predictive distribution).</p>
+<p>The figure read above is qualitative. <code><a href="../reference/gof_temporal.html">gof_temporal()</a></code>
+gives a scalar check on the temporal <em>trend</em> in a chosen
+statistic: it fits an OLS slope to the observed per-period series,
+recomputes that slope in posterior-predictive replicate panels drawn via
+<code>simulate(fit)</code>, and returns a two-sided posterior-predictive
+p-value – near 0 when the observed slope is unreachable under the model,
+well away from 0 when it is central in the predictive distribution.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># density rises across the panel on net (the network gets denser as</span></span>
 <span><span class="co"># students settle in, though the trajectory is not monotone), so it is the</span></span>
@@ -690,40 +477,13 @@ predictive distribution).</p>
 <span><span class="co">#&gt; • Observed slope (per-period): <span style="color: #0000BB;">0.025</span></span></span>
 <span><span class="co">#&gt; • Replicates: <span style="color: #0000BB;">100</span></span></span>
 <span><span class="co">#&gt; • Posterior-predictive p-value (two-sided): <span style="color: #0000BB;">0</span></span></span>
-<span><span class="co">#&gt; Observed temporal trend is incompatible with the fitted model.</span></span>
-<span></span>
-<span><span class="co"># reciprocity is the natural second target for a directed network.</span></span>
-<span><span class="va">gt_recip</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gof_temporal.html">gof_temporal</a></span><span class="op">(</span><span class="va">fit</span>, stat <span class="op">=</span> <span class="st">"reciprocity"</span>, n_rep <span class="op">=</span> <span class="fl">100</span>, seed <span class="op">=</span> <span class="fl">6886</span><span class="op">)</span></span>
-<span><span class="va">gt_recip</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Temporal-trend posterior-predictive check</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; • Statistic: <span style="color: #0000BB;">"reciprocity"</span></span></span>
-<span><span class="co">#&gt; • Observed slope (per-period): <span style="color: #0000BB;">-0.0306</span></span></span>
-<span><span class="co">#&gt; • Replicates: <span style="color: #0000BB;">100</span></span></span>
-<span><span class="co">#&gt; • Posterior-predictive p-value (two-sided): <span style="color: #0000BB;">0</span></span></span>
 <span><span class="co">#&gt; Observed temporal trend is incompatible with the fitted model.</span></span></code></pre></div>
-<p>A <code>p_pp</code> of 0 on <code>density</code> says the static fit
-cannot reproduce the empirical net densification slope (about +0.025 per
-period in our run); that is the expected diagnostic for a fit without
-<code>dynamic_beta</code> or time-varying covariates and is consistent
-with the per-period mass shift in <code><a href="../reference/gof_plot.html">gof_plot()</a></code>. The
-reciprocity check tells the same story in the opposite direction: the
-static fit also rejects the observed reciprocity slope
-(<code>p_pp</code> near 0), because reciprocity actually drifts
-<em>downward</em> across the panel (slope about
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>0.03</mn></mrow><annotation encoding="application/x-tex">-0.03</annotation></semantics></math>
-per period) and the static
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
-cannot track that drift. Both checks are pointing at the same structural
-mismatch: model parameters that are constant across periods cannot
-reproduce period-to-period drift in either marginal quantity. The
-companion diagnostic <code><a href="../reference/detect_change_point.html">detect_change_point()</a></code> reports a
-heuristic tail-ratio score comparing the posterior path of each
-<code>dynamic_beta</code> coefficient to its AR(1) prior null. It
-requires a fit with <code>dynamic_beta</code> active and is therefore
-not applicable to the static fit shown here; the worked example lives in
-the <a href="dynamic_effects.html">Dynamic Effects</a> vignette.</p>
+<p>A <code>p_pp</code> of 0 says the static fit cannot reproduce the
+empirical net densification slope (about +0.025 per period in our run) –
+the expected diagnostic for a model whose parameters are constant across
+periods, and consistent with the per-period mass shift in
+<code><a href="../reference/gof_plot.html">gof_plot()</a></code>. <code>dynamic_beta</code> or time-varying
+covariates are the remedy; see the <a href="dynamic_effects.html">Dynamic Effects</a> vignette.</p>
 </div>
 </div>
 <div class="section level3">
@@ -736,13 +496,13 @@ so each student’s sender position
 and receiver position
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>v</mi><mi>i</mi></msub><annotation encoding="application/x-tex">v_i</annotation></semantics></math>)
 is a single number – and a one-dimensional space should be
-<em>plotted</em> as one dimension. (A 2-D scatter of a 1-D space piles
+<em>plotted</em> as one dimension (a 2-D scatter of a 1-D space piles
 every point onto a line and looks degenerate even when the positions are
-informative. Why not just fit <code>R = 2</code>? On these 32 students
+informative). Why not just fit <code>R = 2</code>? On these 32 students
 the second latent dimension competes with the three homophily dummies
 for the same signal: refitting with <code>R = 2</code> collapses the
 <code>same_male</code> and <code>same_smoker</code> effective sample
-sizes to about 15, versus healthy mixing at <code>R = 1</code>.)</p>
+sizes to about 15, versus healthy mixing at <code>R = 1</code>.</p>
 <p>The honest display for a 1-D space is a ranked dot plot: every
 student’s sender and receiver position with a 95% interval, ordered by
 sender position. The intervals come from the saved U/V draws
@@ -778,10 +538,10 @@ receiver positions are strongly related (their correlation is about
 friendship cluster. Third, the exceptions are the interesting actors –
 students whose blue and orange points diverge are attractive to a
 cluster they do not themselves reach toward (or vice versa), a pattern
-no covariate in the model encodes. Because this fit is static, these
-positions are pooled across all six waves; if you suspect students
-<em>moved</em> through this space as the year progressed, that is
-exactly what <code>dynamic_uv = TRUE</code> estimates (see the <a href="dynamic_effects.html">dynamic effects vignette</a>).</p>
+no covariate in the model encodes. These static positions are pooled
+across all six waves; if you suspect students <em>moved</em> through
+this space as the year progressed, that is what
+<code>dynamic_uv = TRUE</code> estimates (see the <a href="dynamic_effects.html">dynamic effects vignette</a>).</p>
 </div>
 </div>
 <div class="section level2">
@@ -801,51 +561,31 @@ the <code><a href="../reference/latent_positions.html">latent_positions()</a></c
 <span><span class="co">#&gt; 5   S05         1    1  0.4929603    0.2554410    U</span></span>
 <span><span class="co">#&gt; 6   S06         1    1  0.7586983    0.3727190    U</span></span></code></pre></div>
 <p>Each row gives one actor’s position on one latent dimension at one
-time point; a <code>type</code> column distinguishes the sender position
-(<code>"U"</code>) from the receiver position (<code>"V"</code>), so a
-directed fit returns two rows per actor per dimension. The
-<code>posterior_sd</code> column is populated because the fit saved its
-U/V draws (<code>posterior_opts = list(save_UV = TRUE)</code>); without
-that option it is <code>NA</code> with a one-time message telling you
-how to refit. For a static fit like this one the positions do not change
-over time, so <code><a href="../reference/latent_positions.html">latent_positions()</a></code> returns a single slice
-(labelled <code>time = 1</code>) that applies to every period rather
-than repeating it. For dynamic models (<code>dynamic_uv = TRUE</code>),
-positions evolve over time and <code><a href="../reference/latent_positions.html">latent_positions()</a></code> returns
-each time point separately (see the <a href="dynamic_effects.html">dynamic effects vignette</a>).</p>
-<p>When using dynamic latent positions, the latent space is only
-identified up to rotation at each time point. The
-<code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> function aligns each time period’s
-positions to the previous one, removing arbitrary rotations so that
-trajectories across time are interpretable:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># procrustes alignment is useful for dynamic models.</span></span>
-<span><span class="co"># for a static model, positions are already aligned.</span></span>
-<span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/procrustes_align.html">procrustes_align</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Latent positions are static (single time point). No alignment needed.</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">$</span><span class="va">U</span><span class="op">)</span></span>
-<span><span class="co">#&gt;  num [1:32, 1] -1.339 -0.127 0.234 0.368 0.493 ...</span></span>
-<span><span class="co">#&gt;  - attr(*, "dimnames")=List of 2</span></span>
-<span><span class="co">#&gt;   ..$ : chr [1:32] "S01" "S02" "S03" "S04" ...</span></span>
-<span><span class="co">#&gt;   ..$ : NULL</span></span></code></pre></div>
+time point, with a <code>type</code> column distinguishing the sender
+position (<code>"U"</code>) from the receiver position
+(<code>"V"</code>). The <code>posterior_sd</code> column is populated
+because the fit saved its U/V draws
+(<code>posterior_opts = list(save_UV = TRUE)</code>); without that
+option it is <code>NA</code> with a one-time message telling you how to
+refit. A static fit returns a single slice (labelled
+<code>time = 1</code>) that applies to every period; dynamic fits
+(<code>dynamic_uv = TRUE</code>) return each time point separately, and
+<code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> removes the arbitrary per-period
+rotations so that trajectories across time are interpretable (see the <a href="dynamic_effects.html">dynamic effects vignette</a>).</p>
 </div>
 <div class="section level2">
 <h2 id="tidy-data-round-trip-via-netify">Tidy-data round-trip via netify<a class="anchor" aria-label="anchor" href="#tidy-data-round-trip-via-netify"></a>
 </h2>
 <p><code>lame</code> uses the <code>netify</code> package for tidy
-network data. Build a netify object from an edgelist and pass it
-directly to <code><a href="../reference/lame.html">lame()</a></code> or <code><a href="../reference/ame.html">ame()</a></code>. If you want to
-inspect the pieces first, <code><a href="https://netify-dev.github.io/netify/reference/netify_to_lame.html" class="external-link">netify::to_lame()</a></code> returns the
-<code>Y</code>, <code>Xdyad</code>, <code>Xrow</code>, and
-<code>Xcol</code> objects that <code>lame</code> will use internally.
-Once the fit is built, <code><a href="../reference/tidy.html">tidy()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot()</a></code>, and
+network data: build a netify object from an edgelist and pass it
+directly to <code><a href="../reference/lame.html">lame()</a></code> or <code><a href="../reference/ame.html">ame()</a></code>. On the way out,
+<code><a href="../reference/tidy.html">tidy()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot()</a></code>, and
 <code><a href="../reference/prediction_draws_long.html">prediction_draws_long()</a></code> give you
-broom-/ggplot-/marginaleffects-ready output that works with the rest of
-the tidyverse.</p>
+broom-/ggplot-/marginaleffects-ready output.</p>
 <div class="section level3">
 <h3 id="entry-tidy-edgelist-lame">Entry: tidy edgelist → <code>lame()</code><a class="anchor" aria-label="anchor" href="#entry-tidy-edgelist-lame"></a>
 </h3>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://netify-dev.github.io/netify/" class="external-link">netify</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># a tidy edgelist is often how network data arrives. Here we melt the</span></span>
@@ -894,25 +634,18 @@ the tidyverse.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">pieces</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "Y"          "Xdyad"      "Xrow"       "Xcol"       "mode"      </span></span>
 <span><span class="co">#&gt; [6] "family"     "ame_call"   "fit_method" "bootstrap"</span></span></code></pre></div>
-<p>Two things in that chunk deserve to be named. First,
-<code>fit_netlet</code> is a live fit taken straight off the netify
-object – no reshaping, no hand-built lists – confirming that a netify
-object drops into <code><a href="../reference/lame.html">lame()</a></code> as-is. Second,
-<code>names(pieces)</code> lists the inputs <code><a href="../reference/lame.html">lame()</a></code> actually
-consumes – <code>Y</code>, <code>Xdyad</code>, <code>Xrow</code>,
-<code>Xcol</code> (the latter two are <code>NULL</code> here because
-only a dyadic covariate rode along on the edgelist) – plus the
-<code>mode</code> / <code>family</code> metadata netify carries. The
-payoff of the round-trip is the alignment: <code><a href="https://netify-dev.github.io/netify/reference/netify.html" class="external-link">netify()</a></code> took
-the flat <code>(from, to, year, tie, same_program)</code> table and
-rebuilt, for every period, a tie matrix and a covariate slice keyed to
-the same actor order – exactly the
+<p><code>fit_netlet</code> is a live fit taken straight off the netify
+object – no reshaping, no hand-built lists – and
+<code>names(pieces)</code> shows the inputs <code><a href="../reference/lame.html">lame()</a></code> actually
+consumes (<code>Y</code>, <code>Xdyad</code>, <code>Xrow</code>,
+<code>Xcol</code>, plus the <code>mode</code> / <code>family</code>
+metadata netify carries). The payoff is the alignment:
+<code><a href="https://netify-dev.github.io/netify/reference/netify.html" class="external-link">netify()</a></code> rebuilt, for every period, a tie matrix and a
+covariate slice keyed to the same actor order – exactly the
 <code>rownames</code>-and-<code><a href="https://rdrr.io/r/base/array.html" class="external-link">array()</a></code> bookkeeping done by hand
 in the setup chunk at the top of this vignette. When your data arrives
-as an edgelist, as panel network data usually does, that bookkeeping is
-the reason to reach for the round-trip: the edgelist is the only object
-you touch, and the per-period matrices never have to be assembled by
-hand.</p>
+as an edgelist, as panel network data usually does, the edgelist is the
+only object you touch.</p>
 </div>
 <div class="section level3">
 <h3 id="exit-tidy-autoplot-prediction_draws_long">Exit: <code>tidy()</code>, <code>autoplot()</code>,
@@ -920,7 +653,7 @@ hand.</p>
 </h3>
 <p>The rest of the round-trip runs against the <code>fit</code> object
 built from the Dutch-college data above:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># tidy(fit) -&gt; term / estimate / std.error / statistic / p.value /</span></span>
 <span><span class="co"># conf.low / conf.high; one row per coefficient (or per</span></span>
 <span><span class="co"># coefficient x period for dynamic_beta fits). The generic ships with</span></span>
@@ -947,15 +680,11 @@ built from the Dutch-college data above:</p>
 -&gt; <code>modelsummary</code> / <code>gt</code> /
 <code>kableExtra</code><a class="anchor" aria-label="anchor" href="#coefficient-tables-glance-tidy---modelsummary-gt-kableextra"></a>
 </h3>
-<p><code>lame</code> ships both <code><a href="../reference/tidy.ame.html">tidy.lame()</a></code> and
-<code><a href="../reference/glance.ame.html">glance.lame()</a></code>, registered against
-<code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">generics::tidy</a></code> / <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">generics::glance</a></code> at load
-time, so any broom-aware table package consumes a <code>lame</code> fit
-directly. The most compact route is
-<code>modelsummary::modelsummary(fit)</code>, which uses
-<code><a href="../reference/tidy.html">tidy()</a></code> for the coefficient panel and <code><a href="../reference/glance.html">glance()</a></code>
-for the goodness-of-fit footer:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<p>Because <code><a href="../reference/tidy.html">tidy()</a></code> and <code><a href="../reference/glance.html">glance()</a></code> are registered
+against their <code>generics</code> counterparts, any broom-aware table
+package consumes a <code>lame</code> fit directly – most compactly
+<code>modelsummary::modelsummary(fit)</code>:</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># glance() returns the one-row model summary modelsummary uses for its</span></span>
 <span><span class="co"># lower panel: nobs, n_actors, n_periods, n_stored, family, mode, R,</span></span>
 <span><span class="co"># dynamic_uv / dynamic_ab / dynamic_beta, elpd_loo (NA unless save_log_lik=TRUE).</span></span>
@@ -1136,12 +865,10 @@ for the goodness-of-fit footer:</p>
 </table>
 </div>
 <!-- hack to avoid NA insertion in last line -->
-<p>Multiple fits compose into a side-by-side table the same way they
-would for <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> / <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> – pass a named list,
-one column per fit. Below we compare the full specification against a
-no-latent-space variant (<code>R = 0</code>) to see how much of the
-coefficient story is being soaked up by multiplicative effects:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<p>Multiple fits compose into a side-by-side table via a named list, one
+column per fit. Below we compare the full specification against a
+no-latent-space variant (<code>R = 0</code>):</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_noUV</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    Y <span class="op">=</span> <span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, Xrow <span class="op">=</span> <span class="va">Xrow</span>, Xcol <span class="op">=</span> <span class="va">Xcol</span>,</span>
 <span>    family <span class="op">=</span> <span class="st">"binary"</span>, rvar <span class="op">=</span> <span class="cn">TRUE</span>, cvar <span class="op">=</span> <span class="cn">TRUE</span>, dcor <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -1151,7 +878,7 @@ coefficient story is being soaked up by multiplicative effects:</p>
 <span>    save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>,            <span class="co"># reused by loo_compare() below</span></span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">modelsummary</span><span class="fu">::</span><span class="fu"><a href="https://modelsummary.com/man/modelsummary.html" class="external-link">modelsummary</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"AME (R = 1)"</span> <span class="op">=</span> <span class="va">fit</span>, <span class="st">"Additive only (R = 0)"</span> <span class="op">=</span> <span class="va">fit_noUV</span><span class="op">)</span>,</span>
 <span>    statistic <span class="op">=</span> <span class="st">"conf.int"</span>,</span>
@@ -1348,22 +1075,14 @@ coefficient story is being soaked up by multiplicative effects:</p>
 </table>
 </div>
 <!-- hack to avoid NA insertion in last line -->
-<p>Reading down the <code>R = 1</code> column versus the
-<code>R = 0</code> column shows how the latent space can redistribute
-signal: when residual clustering is real, homophily coefficients move
-toward zero in the AME column because structure that was loaded onto
-<code>same_program</code> (etc.) is instead absorbed by the latent
-positions. On this small panel (32 students, short chains) the movement
-is modest and not uniform across the three homophily terms, with widely
-overlapping credible intervals, so treat the comparison as illustrating
-the mechanism rather than as a precise decomposition; the direction is
-what to look for, not the exact shift.</p>
-<p>The same <code><a href="../reference/tidy.html">tidy()</a></code> frame follows the broom column contract,
-so it drops into <code>gt</code>, <code>kableExtra</code>, or
-<code>flextable</code> directly; ALS fits carry their own
-<code><a href="../reference/tidy.html">tidy()</a></code>/<code><a href="../reference/glance.html">glance()</a></code> methods and compose into the
-same tables.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<p>Reading down the two columns shows how a latent space can
+redistribute signal: when residual clustering is real, homophily
+coefficients move toward zero in the AME column because structure that
+was loaded onto <code>same_program</code> (etc.) is instead absorbed by
+the latent positions. On this small panel the movement is modest, with
+widely overlapping credible intervals – the direction is what to look
+for, not the exact shift.</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># autoplot.lame returns a horizontal coefplot for static fits and a</span></span>
 <span><span class="co"># ribbon-per-period for dynamic_beta fits, so the same call works for</span></span>
 <span><span class="co"># both. ggplot layers compose on top.</span></span>
@@ -1371,23 +1090,15 @@ same tables.</p>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Dutch college friendship: posterior coefficients"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/autoplot-fit-1.png" class="r-plt" alt="Horizontal coefficient plot returned by autoplot.lame: each row is a regression coefficient, with a point at the posterior mean and a horizontal segment marking the 95 percent credible interval; a dashed reference line at zero indicates where an effect is indistinguishable from null." width="100%" style="display: block; margin: auto;"></p>
 <p>The coefplot is the visual form of the <code>tidy(fit)</code> table
-above. The three homophily terms sit clearly to the right of the dashed
-zero line – <code>same_program</code> largest (0.58),
-<code>same_male</code> next (0.45), <code>same_smoker</code> smallest
-(0.16) but still clear of zero – so same-program pairs are the most
-likely to befriend, holding everything else fixed. The nodal terms are
-mixed: <code>male_row</code>, <code>male_col</code>, and
-<code>smoker_row</code> sit clear of zero (male students are both more
-active senders and more popular receivers; smokers nominate fewer
-friends), <code>program_row</code> stops just short of it (the lower
-bound of its interval grazes zero), and <code>smoker_col</code> and
-<code>program_col</code> straddle the line – the wide-interval caution
-from the coefficient section applies to those. One glance reproduces the
-coefficient-section story. The same generic dispatches on
-<code>which = "uv"</code> (latent positions – shown as the ranked dot
-plot in the Latent Space section above) and <code>which = "ab"</code>
-(sender / receiver random effects):</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+above: the three homophily terms sit clearly right of the dashed zero
+line – <code>same_program</code> largest (0.58), <code>same_male</code>
+next (0.45), <code>same_smoker</code> smallest (0.16) but still clear of
+zero – while the nodal terms are mixed, with <code>smoker_col</code> and
+<code>program_col</code> straddling the line. The same generic
+dispatches on <code>which = "uv"</code> (latent positions – the ranked
+dot plot in the Latent Space section above) and
+<code>which = "ab"</code> (sender / receiver random effects):</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># which = "ab" delegates to ab_plot() (sender side by default; use</span></span>
 <span><span class="co"># ab_plot(fit, effect = "receiver") for the column side). Each lollipop</span></span>
 <span><span class="co"># is a student's sender random effect a_i: the longest positive stems</span></span>
@@ -1395,14 +1106,14 @@ plot in the Latent Space section above) and <code>which = "ab"</code>
 <span><span class="co"># predict -- the heterogeneity that va summarises as one number.</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">fit</span>, which <span class="op">=</span> <span class="st">"ab"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="lame-overview_files/figure-html/autoplot-ab-1.png" class="r-plt" alt="Lollipop plot of sender random effects: one stem per student, length equal to the posterior-mean sender effect a_i; long positive stems mark students who nominate far more friends than their covariates predict." width="100%" style="display: block; margin: auto;"></p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># prediction_draws_long() returns a long-format data frame with</span></span>
 <span><span class="co"># .chain / .iteration / .draw / period / period_label / i / j /</span></span>
 <span><span class="co"># actor_i / actor_j / .value -- ready for tidybayes / marginaleffects.</span></span>
 <span><span class="va">pdl</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prediction_draws_long.html">prediction_draws_long</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"response"</span>, n_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span>
 <span><span class="co"># the diagonal (i == j) is a self-tie, undefined in a friendship network, but</span></span>
 <span><span class="co"># the linear predictor is still numerically defined there -- drop it so the</span></span>
-<span><span class="co"># per-dyad summaries below cover only real (off-diagonal) pairs.</span></span>
+<span><span class="co"># frame covers only real (off-diagonal) pairs.</span></span>
 <span><span class="va">pdl</span> <span class="op">&lt;-</span> <span class="va">pdl</span><span class="op">[</span><span class="va">pdl</span><span class="op">$</span><span class="va">i</span> <span class="op">!=</span> <span class="va">pdl</span><span class="op">$</span><span class="va">j</span>, <span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">pdl</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 10</span></span></span>
@@ -1417,30 +1128,29 @@ plot in the Latent Space section above) and <code>which = "ab"</code>
 <p>Because the <code>.chain</code> / <code>.iteration</code> /
 <code>.draw</code> / <code>.value</code> columns follow the
 <code>tidybayes</code> / <code>marginaleffects</code> convention, this
-frame composes directly with <code>ggdist::stat_pointinterval()</code>,
-<code>tidybayes::point_interval()</code>, a
-<code><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">dplyr::group_by()</a></code> + <code>summarise()</code> per-dyad
-summary, or <code>marginaleffects::posterior_draws()</code> – no
-reshaping step needed.</p>
+frame composes directly with <code>ggdist</code>,
+<code>tidybayes</code>, and <code>marginaleffects</code> – no reshaping
+step needed.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="model-comparison-looloo_compare-as-a-one-liner">Model comparison: <code>loo::loo_compare()</code> as a
 one-liner<a class="anchor" aria-label="anchor" href="#model-comparison-looloo_compare-as-a-one-liner"></a>
 </h2>
-<p>When two specifications are on the table – say the
-additive-effects-only model against one that adds a multiplicative
-latent space – the standard out-of-sample yardstick is the expected log
-pointwise predictive density (<code>elpd_loo</code>) returned by
-<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo()</a></code>. Both fits need <code>save_log_lik = TRUE</code>
-so <code><a href="../reference/loo.html">loo()</a></code> can read the pointwise log-likelihood matrix off
-<code>fit$log_lik</code>; <code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo::loo_compare()</a></code> then ranks
-them in a single call:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># does the 1-D multiplicative latent space earn its keep over additive</span></span>
-<span><span class="co"># effects alone? both fits already carry save_log_lik = TRUE, so this</span></span>
-<span><span class="co"># reuses them -- no refitting. Pass a NAMED list so the rows are</span></span>
-<span><span class="co"># labelled by model rather than model1/model2.</span></span>
+<p>Does the latent space earn its keep over additive effects alone? The
+standard out-of-sample yardstick is the expected log pointwise
+predictive density (<code>elpd_loo</code>) from <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo()</a></code>,
+which requires <code>save_log_lik = TRUE</code> at fit time; the
+mechanics (and the
+Pareto-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+diagnostics to read before trusting any <code>elpd</code> number) are
+covered in <a href="cross_sec_ame.html">Your First AME Model</a>. Both
+fits above already carry the pointwise log-likelihood, so
+<code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo::loo_compare()</a></code> ranks them in one call:</p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># both fits already carry save_log_lik = TRUE, so this reuses them -- no</span></span>
+<span><span class="co"># refitting. Pass a NAMED list so the rows are labelled by model rather</span></span>
+<span><span class="co"># than model1/model2.</span></span>
 <span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>no_latent <span class="op">=</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_noUV</span><span class="op">)</span>,</span>
 <span>                             latent_R1 <span class="op">=</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">cmp</span></span>
@@ -1448,48 +1158,26 @@ them in a single call:</p>
 <span><span class="co">#&gt;  latent_R1       0.0     0.0      NA           8 k_psis &gt; 0.62</span></span>
 <span><span class="co">#&gt;  no_latent    -134.5    15.7    1.00</span></span></code></pre></div>
 <p><strong>How to read the output.</strong> The top row is the preferred
-model and always carries <code>elpd_diff = 0</code>. Each subsequent row
-reports the <em>difference</em> in expected log pointwise predictive
-density relative to the top model, with the standard error of that
-difference. Here <code>1</code> is preferred, beating <code>2</code> by
-about <code>134.5</code> elpd units (SE <code>15.7</code>); a ratio of
+model (<code>elpd_diff = 0</code>); each subsequent row reports the elpd
+<em>difference</em> relative to it, with a standard error. Here
+<code>1</code> is preferred, beating <code>2</code> by about
+<code>134.5</code> elpd units (SE <code>15.7</code>); a ratio of
 <code>|elpd_diff|/se_diff</code> near or above 2 is a reasonably
 confident preference, so the latent space is doing real predictive work
 on this network. When <code>|elpd_diff|</code> is instead close to its
-SE the two specifications are predictively indistinguishable and the
-simpler model is the defensible choice. <code><a href="../reference/loo.html">loo()</a></code> may still
-flag a few dyads with Pareto
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>k</mi><mo accent="true">̂</mo></mover><mo>&gt;</mo><mn>0.7</mn></mrow><annotation encoding="application/x-tex">\hat k &gt; 0.7</annotation></semantics></math>
-(the PSIS approximation straining); if that warning appears for more
-than a handful of dyads, lengthen the chain or use
-<code><a href="https://mc-stan.org/loo/reference/loo_moment_match.html" class="external-link">loo::loo_moment_match()</a></code> before relying on
-<code>elpd_diff</code> for a reported result.</p>
-<p>This result sits comfortably beside the earlier side-by-side
+SE, the simpler model is the defensible choice.</p>
+<p>This result sits comfortably beside the earlier
 <code>modelsummary</code> table, where the <code>R = 1</code> and
 <code>R = 0</code> coefficient columns were nearly identical. The two
-are not in tension: the latent space barely moves the fixed-effect point
-estimates yet buys roughly <code>134.5</code> elpd units out of sample,
-because the predictive gain is carried by the estimated latent positions
+are not in tension: the latent space barely moves
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>
+yet buys roughly <code>134.5</code> elpd units out of sample, because
+the predictive gain is carried by the estimated latent positions
 themselves – the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mo>′</mo></msubsup><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i' v_j</annotation></semantics></math>
-term in the linear predictor – rather than by shifting
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>β</mi><annotation encoding="application/x-tex">\beta</annotation></semantics></math>.
-That is exactly what multiplicative effects are for: they absorb
-residual dyadic structure (clustering, third-party dependence) that the
-additive effects and covariates cannot represent, and that structure
-shows up in held-out predictive density long before it shows up in a
-coefficient table.</p>
-<p>Because <code>family = "binary"</code> is one of the five families
-with an exact closed-form pointwise log-likelihood (<code>normal</code>,
-<code>binary</code>, <code>cbin</code>, <code>poisson</code>,
-<code>ordinal</code>), the absolute <code>elpd_loo</code> values here
-are directly comparable to a <code><a href="../reference/loo.html">loo()</a></code> result from a
-probit-link <code>brms</code> fit on the same data, modulo
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat R</annotation></semantics></math>
-and ESS being satisfactory on the <code>lame</code> Gibbs sampler. For
-<code>frn</code>, see the <code>log_lik_method = "observed_ghk"</code>
-note in <a href="dynamic_effects.html#loo-waic-via-save_log_lik-true">Dynamic
-Effects</a>.</p>
+term in the linear predictor. Residual dyadic structure shows up in
+held-out predictive density long before it shows up in a coefficient
+table.</p>
 </div>
 <div class="section level2">
 <h2 id="reproducibility-sessioninfo-and-renv-lock">Reproducibility: <code>sessionInfo()</code> and
@@ -1497,14 +1185,14 @@ Effects</a>.</p>
 </h2>
 <p>An analysis a reviewer (or your future self) can reproduce records
 the seed and the package versions it was fit under. The pattern:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">...</span>, seed <span class="op">=</span> <span class="fl">6886</span><span class="op">)</span>          <span class="co"># the sampler seed lives in lame()</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>fit <span class="op">=</span> <span class="va">fit</span>, session <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>        file <span class="op">=</span> <span class="st">"lame_fit_replication.rds"</span><span class="op">)</span></span></code></pre></div>
 <p>For long-term reproducibility, commit an <code>renv.lock</code> so
 reviewers can recreate the toolchain with <code>renv::restore()</code>.
 This vignette’s own session record:</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; R version 4.6.1 (2026-06-24)</span></span>
 <span><span class="co">#&gt; Platform: x86_64-pc-linux-gnu</span></span>
@@ -1527,7 +1215,7 @@ This vignette’s own session record:</p>
 <span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] netify_1.5.3    posterior_1.7.0 ggplot2_4.0.3   lame_1.3.0     </span></span>
+<span><span class="co">#&gt; [1] netify_1.5.3    posterior_1.7.0 ggplot2_4.0.3   lame_1.3.1     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
 <span><span class="co">#&gt;  [1] gtable_0.3.6          tensorA_0.36.2.1      xfun_0.60            </span></span>
