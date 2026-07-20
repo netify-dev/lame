@@ -3,15 +3,15 @@
 rotational indeterminacy. This is essential for interpreting temporal
 trajectories of latent positions, since the latent space is only identified
 up to rotation at each time point.
-Uses Procrustes rotation: at each time step t, finds the orthogonal rotation
-matrix that best aligns U_t to U_t-1 (minimizing Frobenius norm), then
-applies it sequentially from t=2 to T."><meta property="og:description" content="Aligns dynamic latent positions across time periods to remove arbitrary
+Uses Procrustes rotation: at each time step, finds the orthogonal rotation
+matrix that best aligns the current sender coordinates to the preceding
+period, then applies it sequentially through the series."><meta property="og:description" content="Aligns dynamic latent positions across time periods to remove arbitrary
 rotational indeterminacy. This is essential for interpreting temporal
 trajectories of latent positions, since the latent space is only identified
 up to rotation at each time point.
-Uses Procrustes rotation: at each time step t, finds the orthogonal rotation
-matrix that best aligns U_t to U_t-1 (minimizing Frobenius norm), then
-applies it sequentially from t=2 to T."></head><body>
+Uses Procrustes rotation: at each time step, finds the orthogonal rotation
+matrix that best aligns the current sender coordinates to the preceding
+period, then applies it sequentially through the series."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -63,9 +63,9 @@ applies it sequentially from t=2 to T."></head><body>
 rotational indeterminacy. This is essential for interpreting temporal
 trajectories of latent positions, since the latent space is only identified
 up to rotation at each time point.</p>
-<p>Uses Procrustes rotation: at each time step t, finds the orthogonal rotation
-matrix that best aligns U_t to U_t-1 (minimizing Frobenius norm), then
-applies it sequentially from t=2 to T.</p>
+<p>Uses Procrustes rotation: at each time step, finds the orthogonal rotation
+matrix that best aligns the current sender coordinates to the preceding
+period, then applies it sequentially through the series.</p>
     </div>
 
     <div class="section level2">

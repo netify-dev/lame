@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-07-12</h4>
+            <h4 data-toc-skip class="date">2026-07-20</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/fast_estimation.Rmd" class="external-link"><code>vignettes/fast_estimation.Rmd</code></a></small>
       <div class="d-none name"><code>fast_estimation.Rmd</code></div>
@@ -531,24 +531,18 @@ use the MCMC <code><a href="../reference/ame.html">ame()</a></code>.</p>
 <span><span class="co">#&gt; <span style="font-weight: bold;">Additive effects</span> (rotation-invariant, aggregated directly)</span></span>
 <span><span class="co">#&gt; Sender a: mean |SE| = 0.5983</span></span>
 <span><span class="co">#&gt; Receiver b: mean |SE| = 0.596</span></span></code></pre></div>
-<p>Two rows of this table deserve a comment before you report anything
-from it. First, the <code>Boot SE</code> column is the raw standard
-deviation across replicates, and for <code>dyad1_dyad</code> it visibly
-disagrees with the interval printed next to it: an SE of 0.5385 would
-imply a Wald interval of roughly [-0.25, 1.86], yet the 95% percentile
-CI is [0.746, 1.0016] – a width that corresponds to an SE of about
-0.065. The gap comes from a single divergent binary IRLS replicate (1 of
-the 100 refits returned a coefficient of 6.2), which inflates the
-standard deviation while barely moving the percentile quantiles. That is
-exactly why the package defaults to percentile CIs: report the
-percentile interval, which is what <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code> returns by
-default, not a Wald interval built from the printed SE.</p>
-<p>Second, one row of the variance-components table is constant by
-construction: for the binary family the latent residual variance
-<code>ve</code> is fixed at 1 by probit identification, so its bootstrap
-SE is exactly zero and its interval is the point [1, 1] – that row is
-expected, not a failed bootstrap. See <code><a href="../reference/ame_als.html">?ame_als</a></code> for the
-<code>ve</code> vs <code>ve_working</code> distinction.</p>
+<p>The <code>Boot SE</code> column is the raw standard deviation across
+replicates, whereas the interval reported by <code><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint()</a></code> is
+percentile-based by default. A small number of unstable binary IRLS
+refits can inflate the raw standard deviation without moving the
+percentile limits much, so use the percentile interval rather than
+constructing a Wald interval from <code>Boot SE</code>.</p>
+<p>One row of the variance-components table is constant by construction:
+for the binary family the latent residual variance <code>ve</code> is
+fixed at 1 by probit identification, so its bootstrap SE is exactly zero
+and its interval is the point [1, 1] – that row is expected, not a
+failed bootstrap. See <code><a href="../reference/ame_als.html">?ame_als</a></code> for the <code>ve</code> vs
+<code>ve_working</code> distinction.</p>
 <p><code>type = "parametric"</code> (the default) simulates fresh
 outcomes from the fitted model and refits; <code>type = "block"</code>
 resamples time slices and is available for longitudinal fits with
@@ -584,7 +578,7 @@ dataset.</p>
 <span></span>
 <span><span class="co"># fit the same data with MCMC using a short chain for a quick comparison</span></span>
 <span><span class="va">fit_mcmc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ame.html">ame</a></span><span class="op">(</span><span class="va">Yb</span>, Xdyad <span class="op">=</span> <span class="va">Xd_arr</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>                burn <span class="op">=</span> <span class="fl">200</span>, nscan <span class="op">=</span> <span class="fl">1000</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>                burn <span class="op">=</span> <span class="fl">30</span>, nscan <span class="op">=</span> <span class="fl">100</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span>, gof <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>                seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>

@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2026-07-12</h4>
+            <h4 data-toc-skip class="date">2026-07-20</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/dynamic_effects.Rmd" class="external-link"><code>vignettes/dynamic_effects.Rmd</code></a></small>
       <div class="d-none name"><code>dynamic_effects.Rmd</code></div>
@@ -502,36 +502,19 @@ a <code>[n_stored, n_obs]</code> pointwise log-likelihood matrix to
 <code>loo::loo(fit)</code> and <code>loo::waic(fit)</code>:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_ll</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_db</span>, Xdyad <span class="op">=</span> <span class="va">X_db_arr</span>, family <span class="op">=</span> <span class="st">"normal"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>               nscan <span class="op">=</span> <span class="fl">2000</span>, burn <span class="op">=</span> <span class="fl">200</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>               nscan <span class="op">=</span> <span class="fl">2000</span>, burn <span class="op">=</span> <span class="fl">500</span>, odens <span class="op">=</span> <span class="fl">25</span>,</span>
 <span>               dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>
 <span>               save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>               verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fit_ll</span><span class="op">$</span><span class="va">log_lik</span><span class="op">)</span>        <span class="co"># [n_stored, n_observations]</span></span>
-<span><span class="co">#&gt; [1]  400 1050</span></span>
 <span><span class="va">loo_db</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_ll</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">loo_db</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Computed from 400 by 1050 log-likelihood matrix.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;          Estimate   SE</span></span>
-<span><span class="co">#&gt; elpd_loo   -502.5 22.6</span></span>
-<span><span class="co">#&gt; p_loo        23.6  1.1</span></span>
-<span><span class="co">#&gt; looic      1005.0 45.3</span></span>
-<span><span class="co">#&gt; ------</span></span>
-<span><span class="co">#&gt; MCSE of elpd_loo is 0.3.</span></span>
-<span><span class="co">#&gt; MCSE and ESS estimates assume independent draws (r_eff=1).</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; All Pareto k estimates are good (k &lt; 0.62).</span></span>
-<span><span class="co">#&gt; See help('pareto-k-diagnostic') for details.</span></span></code></pre></div>
-<p>This chunk uses a longer run on purpose: at very short chain lengths
-<code><a href="../reference/loo.html">loo()</a></code> prints a
-high-Pareto-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-warning with <code>NA</code> MCSE/ESS cells (the usual PSIS caveat, not
-an error), so lengthen the run before quoting <code>elpd_loo</code>. If
-the matrix would not fit in RAM, <code>save_log_lik = "chunked"</code>
-streams it to disk (see the <a href="forecasting.html">forecasting
-vignette</a>).</p>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">loo_db</span><span class="op">)</span></span></code></pre></div>
+<p>The code is left unevaluated because a useful PSIS-LOO calculation
+needs more draws than a vignette should generate. Run it with a
+converged fit before using <code>elpd_loo</code>. If the matrix would
+not fit in RAM, <code>save_log_lik = "chunked"</code> streams it to disk
+(see the <a href="forecasting.html">forecasting vignette</a>).</p>
 <p>On the log-likelihood scale: for <code>normal</code>,
 <code>binary</code>, <code>cbin</code>, <code>poisson</code>, and
 <code>ordinal</code> the stored pointwise log-likelihood is the
@@ -782,20 +765,20 @@ effects should add nothing.</p>
 <span><span class="co"># budget; for a real comparison use nscan &gt;= 2000 per fit and run them</span></span>
 <span><span class="co"># under `ame_parallel()` with 4 chains.</span></span>
 <span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>                                    burn <span class="op">=</span> <span class="fl">50</span>, nscan <span class="op">=</span> <span class="fl">300</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>                                    burn <span class="op">=</span> <span class="fl">30</span>, nscan <span class="op">=</span> <span class="fl">150</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                                    verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_uv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>                            burn <span class="op">=</span> <span class="fl">50</span>, nscan <span class="op">=</span> <span class="fl">300</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>                            burn <span class="op">=</span> <span class="fl">30</span>, nscan <span class="op">=</span> <span class="fl">150</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                            verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_ab</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>, family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>                            burn <span class="op">=</span> <span class="fl">50</span>, nscan <span class="op">=</span> <span class="fl">300</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>                            burn <span class="op">=</span> <span class="fl">30</span>, nscan <span class="op">=</span> <span class="fl">150</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                            verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span><span class="va">Y_list</span>, R <span class="op">=</span> <span class="fl">2</span>, dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>, dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                                family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>                                burn <span class="op">=</span> <span class="fl">50</span>, nscan <span class="op">=</span> <span class="fl">300</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>                                burn <span class="op">=</span> <span class="fl">30</span>, nscan <span class="op">=</span> <span class="fl">150</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                                verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p>For each specification we compute posterior predictive p-values (how
 often simulated statistics exceed observed): values near 0.5 indicate
@@ -821,10 +804,10 @@ systematically under- or over-generates.</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">gof_comparison</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            sd.rowmean sd.colmean dyad.dep cycle.dep trans.dep</span></span>
-<span><span class="co">#&gt; Static          0.900      0.917    0.517     0.500     0.333</span></span>
-<span><span class="co">#&gt; Dynamic_UV      0.883      0.933    0.367     0.483     0.283</span></span>
-<span><span class="co">#&gt; Dynamic_AB      1.000      1.000    0.550     0.600     0.333</span></span>
-<span><span class="co">#&gt; Full            1.000      0.983    0.417     0.483     0.300</span></span></code></pre></div>
+<span><span class="co">#&gt; Static          0.933      0.967    0.533     0.400     0.300</span></span>
+<span><span class="co">#&gt; Dynamic_UV      0.867      0.900    0.433     0.533     0.167</span></span>
+<span><span class="co">#&gt; Dynamic_AB      0.967      1.000    0.400     0.467     0.333</span></span>
+<span><span class="co">#&gt; Full            1.000      1.000    0.400     0.467     0.400</span></span></code></pre></div>
 <p><code>sd.rowmean</code> and <code>sd.colmean</code> sit near 1 for
 <em>every</em> specification – an artifact of fitting a heterogeneity
 model to homogeneous iid data, not evidence about dynamics – so compare

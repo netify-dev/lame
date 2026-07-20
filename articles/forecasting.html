@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2026-07-12</h4>
+            <h4 data-toc-skip class="date">2026-07-20</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/forecasting.Rmd" class="external-link"><code>vignettes/forecasting.Rmd</code></a></small>
       <div class="d-none name"><code>forecasting.Rmd</code></div>
@@ -165,7 +165,7 @@ we show it failing.</p>
 <span>    family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>    dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,      <span class="co"># the trade coefficient is AR(1)</span></span>
 <span>    dynamic_beta_kind <span class="op">=</span> <span class="st">"ar1"</span>,  <span class="co"># mean-reverting; switch to "rw1" for drift</span></span>
-<span>    nscan <span class="op">=</span> <span class="fl">800</span>, burn <span class="op">=</span> <span class="fl">200</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">150</span>, burn <span class="op">=</span> <span class="fl">30</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -174,7 +174,7 @@ we show it failing.</p>
 <span><span class="va">trade_row</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"^trade[._]dyad$|trade"</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">coef_path</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">coef_path</span><span class="op">[</span><span class="va">trade_row</span>, <span class="op">]</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    t1    t2    t3    t4    t5    t6 </span></span>
-<span><span class="co">#&gt; 0.891 0.847 0.570 0.508 0.520 0.504</span></span></code></pre></div>
+<span><span class="co">#&gt; 0.887 0.830 0.585 0.522 0.519 0.511</span></span></code></pre></div>
 <p>The recovered trade coefficient path tracks the simulated truth, and
 (as we confirm in Step 5) the posterior on
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
@@ -205,21 +205,21 @@ and is the right prior for permanent-drift coefficients.</p>
 <span><span class="va">fc_resp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
 <span><span class="co"># binary: each entry is a posterior-mean predicted probability</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="va">fc_resp</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.03937621 0.87313380</span></span>
+<span><span class="co">#&gt; [1] 0.03641859 0.86973303</span></span>
 <span></span>
 <span><span class="co"># by_draw = TRUE returns the full [n, n, h, n_draws] array</span></span>
 <span><span class="va">fc_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span>, by_draw <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fc_full</span><span class="op">)</span>            <span class="co"># n x n x 3 x n_draws</span></span>
-<span><span class="co">#&gt; [1]  30  30   3 160</span></span>
+<span><span class="co">#&gt; [1] 30 30  3 30</span></span>
 <span></span>
 <span><span class="co"># interval = "credible" returns a list of length-3 (lower / median / upper)</span></span>
 <span><span class="co"># matrices per period at the requested quantiles (default 95%)</span></span>
 <span><span class="va">fc_ci</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span>, interval <span class="op">=</span> <span class="st">"credible"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fc_ci</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>         <span class="co"># list($lower, $median, $upper), each n x n</span></span>
 <span><span class="co">#&gt; List of 3</span></span>
-<span><span class="co">#&gt;  $ lower : num [1:30, 1:30] 0.00448 0.05674 0.00818 0.09038 0.13514 ...</span></span>
-<span><span class="co">#&gt;  $ median: num [1:30, 1:30] 0.1501 0.0733 0.2218 0.1739 0.1927 ...</span></span>
-<span><span class="co">#&gt;  $ upper : num [1:30, 1:30] 0.6927 0.0936 0.7966 0.2961 0.2605 ...</span></span></code></pre></div>
+<span><span class="co">#&gt;  $ lower : num [1:30, 1:30] 0.0026 0.05097 0.00531 0.08077 0.1365 ...</span></span>
+<span><span class="co">#&gt;  $ median: num [1:30, 1:30] 0.1579 0.0706 0.2427 0.1746 0.1792 ...</span></span>
+<span><span class="co">#&gt;  $ upper : num [1:30, 1:30] 0.5898 0.0899 0.7164 0.2761 0.2537 ...</span></span></code></pre></div>
 <p>The typical cell of <code>fc_ci[[1]]</code> carries an informative
 <code>lower</code> / <code>median</code> / <code>upper</code> triple – a
 genuine sub-interval of [0, 1] rather than the whole range, because the
@@ -349,7 +349,7 @@ match the original <code>dimnames(Xdyad[[1]])[[3]]</code> from the fit
 <span><span class="va">delta_h3</span> <span class="op">&lt;-</span> <span class="va">fc_up</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span> <span class="op">-</span> <span class="va">fc_cf</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">delta_h3</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. </span></span>
-<span><span class="co">#&gt; -0.06080  0.04622  0.08240  0.07072  0.10297  0.13440</span></span></code></pre></div>
+<span><span class="co">#&gt; -0.04510  0.04352  0.07610  0.06669  0.09405  0.11882</span></span></code></pre></div>
 <p>The trade coefficient is positive and mean-reverting, so a one-unit
 increase in <code>trade</code> raises the posterior-mean cooperation
 probability at <code>h = 3</code> on average (the mean and median of
@@ -393,7 +393,7 @@ posterior median per coefficient and period; faceted by coefficient.</p>
 <p><code>predict(fit, h = ...)</code> fires a one-per-fit warning if the
 upper 97.5% credible bound on ρ_β reaches 0.99 (i.e. the posterior puts
 non-trivial mass near the unit root). On the mean-reverting fit above
-that bound sits at 0.964, so <strong>the warning does not fire</strong>
+that bound sits at 0.936, so <strong>the warning does not fire</strong>
 and the forecasts are well-posed. The two regimes still have
 qualitatively different forecast-variance behavior, and getting this
 distinction right matters for picking your horizon:</p>
@@ -518,7 +518,7 @@ versus the mean-reverting Step 1 fit:</p>
 <span><span class="va">w_sparse</span>  <span class="op">&lt;-</span> <span class="fu">width_by_h</span><span class="op">(</span><span class="va">fc_sparse</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>mean_reverting <span class="op">=</span> <span class="va">w_healthy</span>, near_unit_root <span class="op">=</span> <span class="va">w_sparse</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                 [,1]  [,2]  [,3]  [,4]  [,5]  [,6]</span></span>
-<span><span class="co">#&gt; mean_reverting 0.476 0.497 0.570 0.584 0.587 0.584</span></span>
+<span><span class="co">#&gt; mean_reverting 0.321 0.433 0.477 0.557 0.520 0.516</span></span>
 <span><span class="co">#&gt; near_unit_root 0.251 0.355 0.375 0.469 0.488 0.497</span></span>
 <span></span>
 <span><span class="co"># at h = 3, how many of the dyads the covariate actually moves (top</span></span>
@@ -544,12 +544,12 @@ versus the mean-reverting Step 1 fit:</p>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>, axis.ticks <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>          legend.position <span class="op">=</span> <span class="st">"top"</span>, legend.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="forecasting_files/figure-html/sparse-fail-width-1.png" class="r-plt" alt="Line plot of the across-dyad mean 95 percent forecast interval width at horizons one through six for two fits. The mean-reverting Step 1 fit's width is flat from roughly horizon three on, the saturation an AR(1) below the unit root predicts, while the near-unit-root sparse fit's width is still rising at horizon six, roughly double its one-step value." width="576"></p>
+<p><img src="forecasting_files/figure-html/sparse-fail-width-1.png" class="r-plt" alt="Line plot of the across-dyad mean 95 percent forecast interval width at horizons one through six for two fits. The mean-reverting Step 1 fit's width is flat from roughly horizon four on, the saturation an AR(1) below the unit root predicts, while the near-unit-root sparse fit's width is still rising at horizon six, roughly double its one-step value." width="576"></p>
 <p>Read the growth, not the levels: the sparse fit’s absolute widths are
 smaller only because most of its predicted probabilities sit near zero
 (the network is sparse). The mean-reverting fit’s width grows by a
-factor of just 1.2 across the whole horizon and is flat from about
-<code>h = 3</code> on – the saturation the AR(1) bullet above predicts.
+factor of just 1.6 across the whole horizon and is flat from about
+<code>h = 4</code> on – the saturation the AR(1) bullet above predicts.
 The near-unit-root fit’s width has grown by a factor of 2 by
 <code>h = 6</code> and is still climbing – the growth you get when
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
@@ -574,20 +574,20 @@ leave-future-out CV:</p>
 <span><span class="va">T_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">YPM</span><span class="op">)</span></span>
 <span><span class="va">lfo_periods</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">tail</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">T_fit</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="fl">2L</span>, <span class="va">T_fit</span> <span class="op">-</span> <span class="fl">2L</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">lfo_res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lfo.html">lfo</a></span><span class="op">(</span><span class="va">fit</span>, periods <span class="op">=</span> <span class="va">lfo_periods</span>, refit <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>               nscan <span class="op">=</span> <span class="fl">200</span>, burn <span class="op">=</span> <span class="fl">50</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span>               nscan <span class="op">=</span> <span class="fl">100</span>, burn <span class="op">=</span> <span class="fl">25</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">lfo_res</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Exact rolling-origin LFO</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Periods evaluated: <span style="color: #0000BB;">5</span> and <span style="color: #0000BB;">6</span></span></span>
 <span><span class="co">#&gt; Refit per leave-out: <span style="color: #0000BB;">TRUE</span></span></span>
-<span><span class="co">#&gt; Total elpd_lfo: <span style="color: #0000BB;">-1156.2</span></span></span>
+<span><span class="co">#&gt; Total elpd_lfo: <span style="color: #0000BB;">-1162.3</span></span></span>
 <span><span class="co">#&gt;  period      elpd n_obs</span></span>
-<span><span class="co">#&gt;       5 -581.8143   870</span></span>
-<span><span class="co">#&gt;       6 -574.3680   870</span></span></code></pre></div>
-<p>The <code>nscan = 200, burn = 50, odens = 5</code> settings inside
+<span><span class="co">#&gt;       5 -599.7921   870</span></span>
+<span><span class="co">#&gt;       6 -562.4691   870</span></span></code></pre></div>
+<p>The <code>nscan = 100, burn = 25, odens = 5</code> settings inside
 <code><a href="../reference/lfo.html">lfo()</a></code> are chosen so the vignette builds in well under a
-minute on a laptop. They give <code>200 / 5 = 40</code> stored draws per
+minute on a laptop. They give <code>100 / 5 = 20</code> stored draws per
 leave-out refit (burn-in is run and discarded, not subtracted from
 <code>nscan</code>), enough to return a sensible point estimate of
 per-period elpd for <em>demonstration</em>, but tighter than you should
@@ -621,7 +621,7 @@ well-calibrated forecast produces PIT values that are Uniform(0, 1).</p>
 <span>    <span class="va">Y</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span>,</span>
 <span>    family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>    dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>
-<span>    nscan <span class="op">=</span> <span class="fl">400</span>, burn <span class="op">=</span> <span class="fl">100</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">100</span>, burn <span class="op">=</span> <span class="fl">30</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>   <span class="co"># the randomised PIT draws are stochastic; seed for reproducibility</span></span>
@@ -633,9 +633,9 @@ well-calibrated forecast produces PIT values that are Uniform(0, 1).</p>
 <span><span class="co">#&gt; • Family: <span style="color: #0000BB;">"binary"</span></span></span>
 <span><span class="co">#&gt; • Forecast horizon: <span style="color: #0000BB;">1</span></span></span>
 <span><span class="co">#&gt; • Held-out dyads: <span style="color: #0000BB;">870</span></span></span>
-<span><span class="co">#&gt; • KS stat vs Uniform(0,1): <span style="color: #0000BB;">0.0417</span></span></span>
-<span><span class="co">#&gt; • KS p-value: <span style="color: #0000BB;">0.0973</span></span></span>
-<span><span class="co">#&gt; • Fraction in [0.025, 0.975]: <span style="color: #0000BB;">0.934</span> (expect <span style="color: #0000BB;">0.95</span>)</span></span>
+<span><span class="co">#&gt; • KS stat vs Uniform(0,1): <span style="color: #0000BB;">0.0204</span></span></span>
+<span><span class="co">#&gt; • KS p-value: <span style="color: #0000BB;">0.861</span></span></span>
+<span><span class="co">#&gt; • Fraction in [0.025, 0.975]: <span style="color: #0000BB;">0.943</span> (expect <span style="color: #0000BB;">0.95</span>)</span></span>
 <span><span class="co">#&gt; PIT values are consistent with Uniform(0, 1) at the 5% level.</span></span></code></pre></div>
 <p><code>plot(pit)</code> renders the PIT values against the Uniform(0,
 1) reference that a perfectly calibrated forecast would follow:</p>
@@ -664,14 +664,14 @@ remain meaningful either way.)</p>
 <p>Read the two summaries together. <code>pit$cover_95</code> – the
 fraction of held-out cells whose observed outcome falls in the central
 95% posterior-predictive interval, target 0.95 – is the
-<strong>stable</strong> summary; here it lands at about 0.93, close to
+<strong>stable</strong> summary; here it lands at about 0.94, close to
 nominal, so the forecast intervals have roughly the right width.
 <code>pit$ks_p</code> tests whether the full PIT distribution is
 Uniform(0, 1); a value below 0.05 flags mis-calibration. For a
 <strong>binary</strong> outcome the PIT is the randomised
 Czado-Gneiting-Held version, so on a single held-out period
 <code>ks_p</code> carries randomisation noise on top of ordinary
-sampling noise. Here it is 0.097 – above 0.05, so this run passes – but
+sampling noise. Here it is 0.861 – above 0.05, so this run passes – but
 redrawing the randomisation alone can move that p-value from below 0.05
 to far above it, so a single KS p-value on one held-out period neither
 confirms nor condemns the forecast. (We seed the chunk only so the
@@ -697,18 +697,17 @@ out-of-sample predictive performance. Both fits need
 <code>save_log_lik = TRUE</code> so <code><a href="../reference/loo.html">loo()</a></code> can read the
 stored pointwise log-likelihood matrix off <code>fit$log_lik</code>:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># reduced iterations so the vignette builds quickly; use nscan &gt;= 2000,</span></span>
-<span><span class="co"># burn &gt;= 500 for a comparison you will report.</span></span>
+<code class="sourceCode R"><span><span class="co"># run this after fitting both candidates with converged chains</span></span>
 <span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    <span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>    nscan <span class="op">=</span> <span class="fl">600</span>, burn <span class="op">=</span> <span class="fl">150</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">5000</span>, burn <span class="op">=</span> <span class="fl">1000</span>, odens <span class="op">=</span> <span class="fl">25</span>,</span>
 <span>    save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">fit_dyn</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    <span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>    dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>
-<span>    nscan <span class="op">=</span> <span class="fl">600</span>, burn <span class="op">=</span> <span class="fl">150</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">5000</span>, burn <span class="op">=</span> <span class="fl">1000</span>, odens <span class="op">=</span> <span class="fl">25</span>,</span>
 <span>    save_log_lik <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
@@ -718,39 +717,22 @@ stored pointwise log-likelihood matrix off <code>fit$log_lik</code>:</p>
 <span><span class="co"># list so the rows are labelled by model name rather than "model1"/"model2".</span></span>
 <span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>fit_static <span class="op">=</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">)</span>,</span>
 <span>                             fit_dyn    <span class="op">=</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.</span></span>
-<span><span class="co">#&gt; Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.</span></span>
-<span><span class="va">cmp</span></span>
-<span><span class="co">#&gt;       model elpd_diff se_diff p_worse diag_diff        diag_elpd</span></span>
-<span><span class="co">#&gt;     fit_dyn       0.0     0.0      NA           34 k_psis &gt; 0.52</span></span>
-<span><span class="co">#&gt;  fit_static     -22.7     7.3    1.00           39 k_psis &gt; 0.52</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Diagnostic flags present.</span></span>
-<span><span class="co">#&gt; See ?`loo-glossary` (sections `diag_diff` and `diag_elpd`)</span></span>
-<span><span class="co">#&gt; or https://mc-stan.org/loo/reference/loo-glossary.html.</span></span></code></pre></div>
-<p>(<code><a href="../reference/loo.html">loo()</a></code> may print a
-high-Pareto-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-warning at these short chain lengths – it is the usual PSIS
-importance-sampling caveat, not an error; lengthen the chains or fall
-back to <code><a href="../reference/loo.html">waic()</a></code> if it persists.)</p>
+<span><span class="va">cmp</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">best</span>     <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">cmp</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span>
+<span><span class="va">runnerup</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">cmp</span><span class="op">)</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span></span>
+<span><span class="va">diff_val</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">cmp</span><span class="op">[</span><span class="fl">2</span>, <span class="st">"elpd_diff"</span><span class="op">]</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">se_val</span>   <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">cmp</span><span class="op">[</span><span class="fl">2</span>, <span class="st">"se_diff"</span><span class="op">]</span>, <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">ratio</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">diff_val</span> <span class="op">/</span> <span class="va">se_val</span>, <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
 <p><strong>How to read this output.</strong> The top row is the
-preferred model; <code>elpd_diff</code> is always zero for it. Each
-subsequent row reports the <em>difference</em> in expected log pointwise
-predictive density relative to the top model, together with the standard
-error of that difference. Here <code>1</code> is preferred, beating
-<code>2</code> by about <code>22.7</code> elpd units with an SE of
-<code>7.3</code>, so <code>|elpd_diff| / se_diff</code>
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≈</mo><annotation encoding="application/x-tex">\approx</annotation></semantics></math><code>3.1</code>. A common rule of thumb reads a ratio near or above 2
-as a reasonably confident preference. A sociologist writing this up
-would say <strong>“the time-varying coefficient model is preferred over
-the static specification by about <code>22.7</code> elpd units (SE
-<code>7.3</code>), consistent with nontrivial drift in the effect over
-the panel window.”</strong> When <code>|elpd_diff|</code> is instead
-close to its SE the two specifications are predictively
-indistinguishable and the simpler static model is the defensible choice.
-(Because these are short demonstration chains, expect the exact numbers
-to move from run to run; report a comparison only after checking it is
-stable at production chain lengths.)</p>
+preferred model and has <code>elpd_diff = 0</code>. Each subsequent row
+gives the difference in expected log pointwise predictive density
+relative to that model and the standard error of the difference. A
+difference that is large relative to its standard error supports the
+preferred model; when the two are similar, the specifications are not
+distinguishable on this predictive criterion. Read the
+Pareto-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+diagnostics before interpreting the ranking.</p>
 <p>Because <code>family = "binary"</code> is one of the five families
 with an exact closed-form log-likelihood (<code>normal</code>,
 <code>binary</code>, <code>cbin</code>, <code>poisson</code>,
@@ -774,7 +756,7 @@ that family.</p>
 <code>save_log_lik = "chunked"</code> instead. The on-disk chunks are
 recovered transparently by <code><a href="../reference/loo.html">loo()</a></code>, or can be read back
 directly as a matrix with <code>read_log_lik(fit)</code>:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_chk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    <span class="va">Y</span>, Xdyad <span class="op">=</span> <span class="va">Xdyad</span>, family <span class="op">=</span> <span class="st">"binary"</span>, R <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>    dynamic_beta <span class="op">=</span> <span class="st">"dyad"</span>,</span>

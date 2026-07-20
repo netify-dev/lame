@@ -47,7 +47,8 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.3.1" id="lame-131">lame 1.3.1<a class="anchor" aria-label="anchor" href="#lame-131"></a></h2>
-<ul><li>Time-varying coefficients (<code>dynamic_beta</code>) compose freely with the multiplicative latent factors (<code>R &gt; 0</code>) and additive sender/receiver effects, for every family and network type. Coefficients can follow AR(1), random-walk, or Matern dynamics, and <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> carries that drift into its forecasts.</li>
+<ul><li>Fixed Rd markup reported by CRAN’s incoming checks.</li>
+<li>Time-varying coefficients (<code>dynamic_beta</code>) compose freely with the multiplicative latent factors (<code>R &gt; 0</code>) and additive sender/receiver effects, for every family and network type. Coefficients can follow AR(1), random-walk, or Matern dynamics, and <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> carries that drift into its forecasts.</li>
 <li>
 <code>netify</code> objects can be passed straight to <code><a href="../reference/ame.html">ame()</a></code>, <code><a href="../reference/lame.html">lame()</a></code>, and the ALS fitters; a network’s <code>symmetric</code> attribute is honored automatically, and named covariates are aligned to <code>Y</code> by actor.</li>
 <li>Set <code>posterior_opts = list(save_UV = TRUE)</code> to keep the per-draw latent factors (and the bipartite mixing matrix), so <code><a href="../reference/latent_positions.html">latent_positions()</a></code>, <code><a href="../reference/uv_plot.html">uv_plot()</a></code>, and the goodness-of-fit tools report posterior uncertainty directly.</li>

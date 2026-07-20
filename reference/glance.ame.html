@@ -83,12 +83,15 @@ a regression table.</p>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A one-row data frame with columns:</p><ul><li><p><code>nobs</code> – number of observed dyads (NA cells excluded).</p></li>
-<li><p><code>n_actors</code> – number of distinct actors (for bipartite,
-row + column actors).</p></li>
+<li><p><code>n_actors</code> – number of distinct actors; for bipartite
+fits this is the row-actor count (a 12 x 9 fit reports 12).</p></li>
+<li><p><code>n_row_actors</code>, <code>n_col_actors</code> – row and column
+actor counts for bipartite fits (<code>NA</code> for unipartite).</p></li>
 <li><p><code>n_periods</code> – number of time periods (1 for <code>ame</code>).</p></li>
 <li><p><code>n_stored</code> – number of stored MCMC draws.</p></li>
-<li><p><code>family</code> – outcome family ("normal","binary",...).</p></li>
-<li><p><code>mode</code> – "unipartite","bipartite".</p></li>
+<li><p><code>family</code> – outcome family, such as <code>"normal"</code> or
+<code>"binary"</code>.</p></li>
+<li><p><code>mode</code> – <code>"unipartite"</code> or <code>"bipartite"</code>.</p></li>
 <li><p><code>R</code> – latent-space dimension (or max of <code>R_row</code>,
 <code>R_col</code> for bipartite).</p></li>
 <li><p><code>dynamic_uv</code>, <code>dynamic_ab</code>, <code>dynamic_beta</code> –

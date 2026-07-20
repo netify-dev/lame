@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-07-12</h4>
+            <h4 data-toc-skip class="date">2026-07-20</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/lame.Rmd" class="external-link"><code>vignettes/lame.Rmd</code></a></small>
       <div class="d-none name"><code>lame.Rmd</code></div>
@@ -195,9 +195,9 @@ effect is <code>beta = 0.7</code>.</p>
 <span>    Xdyad <span class="op">=</span> <span class="va">X_list</span>,         <span class="co"># one similarity matrix per period</span></span>
 <span>    R <span class="op">=</span> <span class="fl">2</span>,                  <span class="co"># 2D latent space</span></span>
 <span>    family <span class="op">=</span> <span class="st">"binary"</span>,      <span class="co"># probit for 0/1 networks</span></span>
-<span>    burn <span class="op">=</span> <span class="fl">100</span>,             <span class="co"># burn-in (use 1000+ for real work)</span></span>
-<span>    nscan <span class="op">=</span> <span class="fl">1000</span>,           <span class="co"># post-burn-in samples (use 5000+ for real work)</span></span>
-<span>    odens <span class="op">=</span> <span class="fl">10</span>,             <span class="co"># thinning</span></span>
+<span>    burn <span class="op">=</span> <span class="fl">20</span>,              <span class="co"># compact burn-in for this example</span></span>
+<span>    nscan <span class="op">=</span> <span class="fl">100</span>,            <span class="co"># compact post-burn-in run for the vignette</span></span>
+<span>    odens <span class="op">=</span> <span class="fl">5</span>,              <span class="co"># thinning</span></span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>,        <span class="co"># suppress the progress bar / iteration log</span></span>
 <span>    plot <span class="op">=</span> <span class="cn">FALSE</span>            <span class="co"># don't pop up live MCMC diagnostic plots during sampling</span></span>
 <span>                            <span class="co"># `lame()` draws live diagnostics when plot = TRUE;</span></span>
@@ -224,8 +224,8 @@ effect is <code>beta = 0.7</code>.</p>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;                 Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept         -1.105    0.052  -21.29       0   -1.204   -1.008 ***</span></span>
-<span><span class="co">#&gt; similarity_dyad    0.743    0.054  13.878       0    0.636    0.854 ***</span></span>
+<span><span class="co">#&gt; intercept         -1.111    0.048 -23.083       0     -1.2   -1.034 ***</span></span>
+<span><span class="co">#&gt; similarity_dyad    0.742     0.05  14.902       0    0.681    0.856 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -233,10 +233,10 @@ effect is <code>beta = 0.7</code>.</p>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.064    0.024</span></span>
-<span><span class="co">#&gt; cab   -0.005    0.013</span></span>
-<span><span class="co">#&gt; vb     0.058    0.017</span></span>
-<span><span class="co">#&gt; rho   -0.123    0.090</span></span>
+<span><span class="co">#&gt; va     0.062    0.015</span></span>
+<span><span class="co">#&gt; cab   -0.009    0.011</span></span>
+<span><span class="co">#&gt; vb     0.054    0.015</span></span>
+<span><span class="co">#&gt; rho   -0.149    0.056</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
@@ -270,9 +270,9 @@ are <code>burn</code> (iterations discarded as burn-in),
 <code>nscan</code> (post-burn-in iterations kept for inference), and
 <code>odens</code> (thinning: keep every <code>odens</code>-th sample to
 reduce autocorrelation). With the settings above, we store
-<code>nscan / odens</code> = 1000 / 10 = 100 posterior samples (kept
-small for vignette build time). For a final run, aim for at least 1000
-stored samples with adequate effective sample sizes
+<code>nscan / odens</code> = 100 / 5 = 20 posterior samples (kept small
+for vignette build time). For a final run, aim for at least 1000 stored
+samples with adequate effective sample sizes
 (e.g. <code>burn = 1000, nscan = 25000, odens = 25</code>).</p>
 </div>
 <div class="section level2">
@@ -284,13 +284,13 @@ expect:</p>
 <code class="sourceCode R"><span><span class="co"># regression coefficients (posterior means)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       intercept similarity_dyad </span></span>
-<span><span class="co">#&gt;      -1.1053318       0.7429764</span></span>
+<span><span class="co">#&gt;      -1.1114299       0.7424192</span></span>
 <span></span>
 <span><span class="co"># 95% credible intervals</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                       2.5%     97.5%</span></span>
-<span><span class="co">#&gt; intercept       -1.2036719 -1.007647</span></span>
-<span><span class="co">#&gt; similarity_dyad  0.6355194  0.854040</span></span>
+<span><span class="co">#&gt;                       2.5%      97.5%</span></span>
+<span><span class="co">#&gt; intercept       -1.2004744 -1.0339873</span></span>
+<span><span class="co">#&gt; similarity_dyad  0.6814894  0.8558896</span></span>
 <span></span>
 <span><span class="co"># broom-style one-row-per-coefficient frame; ships with lame so it works</span></span>
 <span><span class="co"># without broom installed and dispatches through broom::tidy(fit) when</span></span>
@@ -301,8 +301,8 @@ expect:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 7</span></span></span>
 <span><span class="co">#&gt;   term            estimate std.error statistic p.value conf.low conf.high</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>              <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> intercept         -<span style="color: #BB0000;">1.11</span>     0.051<span style="text-decoration: underline;">9</span>     -<span style="color: #BB0000;">21.3</span>       0   -<span style="color: #BB0000;">1.20</span>     -<span style="color: #BB0000;">1.01</span> </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> similarity_dyad    0.743    0.053<span style="text-decoration: underline;">5</span>      13.9       0    0.636     0.854</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> intercept         -<span style="color: #BB0000;">1.11</span>     0.048<span style="text-decoration: underline;">1</span>     -<span style="color: #BB0000;">23.1</span>       0   -<span style="color: #BB0000;">1.20</span>     -<span style="color: #BB0000;">1.03</span> </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> similarity_dyad    0.742    0.049<span style="text-decoration: underline;">8</span>      14.9       0    0.681     0.856</span></span>
 <span></span>
 <span><span class="co"># n_row_actors / n_col_actors are bipartite-only and are NA on a unipartite</span></span>
 <span><span class="co"># fit like this one. elpd_loo is NA unless the model was fit with</span></span>
@@ -311,7 +311,7 @@ expect:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 13</span></span></span>
 <span><span class="co">#&gt;    nobs n_actors n_row_actors n_col_actors n_periods n_stored family mode      R</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">1</span>800       25           <span style="color: #BB0000;">NA</span>           <span style="color: #BB0000;">NA</span>         3      100 binary unip…     2</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>  <span style="text-decoration: underline;">1</span>800       25           <span style="color: #BB0000;">NA</span>           <span style="color: #BB0000;">NA</span>         3       20 binary unip…     2</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 4 more variables: dynamic_uv &lt;lgl&gt;, dynamic_ab &lt;lgl&gt;, dynamic_beta &lt;lgl&gt;,</span></span></span>
 <span><span class="co">#&gt; <span style="color: #949494;">#   elpd_loo &lt;dbl&gt;</span></span></span>
 <span></span>
@@ -328,12 +328,12 @@ expect:</p>
 <span><span class="co">#&gt; [1] 25 25</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Predicted probability range:"</span>,</span>
 <span>        <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">Y_hat</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Predicted probability range: 0 0.98</span></span>
+<span><span class="co">#&gt; Predicted probability range: 0 0.95</span></span>
 <span></span>
 <span><span class="co"># residuals: same list-of-matrices shape, observed minus predicted</span></span>
 <span><span class="va">resid_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Residual SD:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu">sd</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">resid_list</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Residual SD: 0.346</span></span></code></pre></div>
+<span><span class="co">#&gt; Residual SD: 0.352</span></span></code></pre></div>
 <p>The two regression coefficients (intercept and
 <code>similarity_dyad</code>) should land close to the simulation truth.
 Predicted probabilities span a wide range because dyads with high
@@ -428,15 +428,15 @@ in which the latent space captures genuine structure.</p>
 <span>    Xdyad <span class="op">=</span> <span class="va">X_list</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>,     <span class="co"># 3-D array [n, n, 1] with "similarity" slice name</span></span>
 <span>    R <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>    family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>    burn <span class="op">=</span> <span class="fl">100</span>,</span>
-<span>    nscan <span class="op">=</span> <span class="fl">1000</span>,</span>
-<span>    odens <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>    burn <span class="op">=</span> <span class="fl">20</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">100</span>,</span>
+<span>    odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_cs</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       intercept similarity_dyad </span></span>
-<span><span class="co">#&gt;      -1.1731778       0.7250034</span></span></code></pre></div>
+<span><span class="co">#&gt;      -1.1810772       0.7246746</span></span></code></pre></div>
 <p>The output and methods are the same. The difference is that
 <code><a href="../reference/lame.html">lame()</a></code> pools information across time periods, giving you
 more precise estimates when the structure is stable.</p>
@@ -463,9 +463,9 @@ near 0 = each period almost independent).</p>
 <span>    dynamic_ab <span class="op">=</span> <span class="cn">TRUE</span>,    <span class="co"># time-varying sociality/popularity</span></span>
 <span>    dynamic_uv <span class="op">=</span> <span class="cn">TRUE</span>,    <span class="co"># time-varying latent positions</span></span>
 <span>    family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>    burn <span class="op">=</span> <span class="fl">100</span>,</span>
-<span>    nscan <span class="op">=</span> <span class="fl">1000</span>,</span>
-<span>    odens <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>    burn <span class="op">=</span> <span class="fl">20</span>,</span>
+<span>    nscan <span class="op">=</span> <span class="fl">100</span>,</span>
+<span>    odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>    plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
@@ -480,14 +480,14 @@ near 0 = each period almost independent).</p>
 <span><span class="co">#&gt; Time periods: 3 </span></span>
 <span><span class="co">#&gt; Family: binary </span></span>
 <span><span class="co">#&gt; Mode: unipartite </span></span>
-<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.681 )</span></span>
-<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.455 )</span></span>
+<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.881 )</span></span>
+<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.8 )</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;                 Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept         -1.211    0.058 -20.786       0   -1.328   -1.103 ***</span></span>
-<span><span class="co">#&gt; similarity_dyad    0.818    0.058  14.083       0    0.688    0.915 ***</span></span>
+<span><span class="co">#&gt; intercept         -1.128    0.055 -20.337       0   -1.224   -1.028 ***</span></span>
+<span><span class="co">#&gt; similarity_dyad    0.754     0.04  18.962       0     0.69    0.816 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -495,10 +495,10 @@ near 0 = each period almost independent).</p>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.094    0.035</span></span>
-<span><span class="co">#&gt; cab    0.000    0.024</span></span>
-<span><span class="co">#&gt; vb     0.102    0.040</span></span>
-<span><span class="co">#&gt; rho   -0.044    0.070</span></span>
+<span><span class="co">#&gt; va     0.077    0.032</span></span>
+<span><span class="co">#&gt; cab    0.000    0.021</span></span>
+<span><span class="co">#&gt; vb     0.073    0.026</span></span>
+<span><span class="co">#&gt; rho   -0.149    0.071</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
@@ -546,7 +546,7 @@ again drives the ties.</p>
 <span>    mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
 <span>    R <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>    family <span class="op">=</span> <span class="st">"binary"</span>,</span>
-<span>    burn <span class="op">=</span> <span class="fl">100</span>, nscan <span class="op">=</span> <span class="fl">1000</span>, odens <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>    burn <span class="op">=</span> <span class="fl">20</span>, nscan <span class="op">=</span> <span class="fl">100</span>, odens <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>    verbose <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -569,8 +569,8 @@ again drives the ties.</p>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;                 Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept         -1.043    0.099 -10.522       0   -1.219   -0.868 ***</span></span>
-<span><span class="co">#&gt; similarity_dyad     0.68    0.095   7.192       0    0.492    0.847 ***</span></span>
+<span><span class="co">#&gt; intercept         -0.911    0.073 -12.555       0    -1.05   -0.796 ***</span></span>
+<span><span class="co">#&gt; similarity_dyad    0.604     0.06   10.01       0    0.503    0.709 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -578,9 +578,9 @@ again drives the ties.</p>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.433    0.140</span></span>
+<span><span class="co">#&gt; va     0.394    0.124</span></span>
 <span><span class="co">#&gt; cab    0.000    0.000</span></span>
-<span><span class="co">#&gt; vb     0.515    0.176</span></span>
+<span><span class="co">#&gt; vb     0.519    0.191</span></span>
 <span><span class="co">#&gt; rho    0.000    0.000</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
@@ -600,7 +600,7 @@ to
 to estimate, and the package fixes both at zero. The
 <code>similarity_dyad</code> coefficient should land near the simulation
 truth of <code>0.6</code> (with this seed the point estimate is about
-0.68, a little above the truth, and the 95% interval comfortably covers
+0.6, a little above the truth, and the 95% interval comfortably covers
 0.6). The <a href="bipartite.html">bipartite vignette</a> walks through
 the full workflow.</p>
 </div>
