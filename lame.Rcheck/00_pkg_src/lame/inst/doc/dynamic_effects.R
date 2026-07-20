@@ -73,16 +73,16 @@ autoplot(fit_db, coefs = "X1_dyad", probs = c(0.025, 0.5, 0.975)) +
 	     subtitle = "Median line, 95% credible interval ribbon",
 	     x = "Time period", y = "Coefficient value")
 
-## ----save-log-lik-eval, eval = requireNamespace("loo", quietly = TRUE)--------
-fit_ll <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
-               nscan = 2000, burn = 200, odens = 5,
-               dynamic_beta = "dyad",
-               save_log_lik = TRUE,
-               verbose = FALSE)
-
-dim(fit_ll$log_lik)        # [n_stored, n_observations]
-loo_db <- loo::loo(fit_ll)
-print(loo_db)
+## ----save-log-lik-eval, eval = FALSE------------------------------------------
+# fit_ll <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
+# 			   nscan = 2000, burn = 500, odens = 25,
+#                dynamic_beta = "dyad",
+#                save_log_lik = TRUE,
+#                verbose = FALSE)
+# 
+# dim(fit_ll$log_lik)        # [n_stored, n_observations]
+# loo_db <- loo::loo(fit_ll)
+# print(loo_db)
 
 ## ----message=FALSE------------------------------------------------------------
 library(lame)
@@ -182,20 +182,20 @@ ab_plot(fit_null, effect = "sender", plot_type = "trajectory")
 # budget; for a real comparison use nscan >= 2000 per fit and run them
 # under `ame_parallel()` with 4 chains.
 fit_static <- lame(Y_list, R = 2, family = "binary",
-									burn = 50, nscan = 300, odens = 5,
+									burn = 30, nscan = 150, odens = 5,
 									verbose = FALSE, plot = FALSE)
 
 fit_uv <- lame(Y_list, R = 2, dynamic_uv = TRUE, family = "binary",
-							burn = 50, nscan = 300, odens = 5,
+							burn = 30, nscan = 150, odens = 5,
 							verbose = FALSE, plot = FALSE)
 
 fit_ab <- lame(Y_list, R = 2, dynamic_ab = TRUE, family = "binary",
-							burn = 50, nscan = 300, odens = 5,
+							burn = 30, nscan = 150, odens = 5,
 							verbose = FALSE, plot = FALSE)
 
 fit_full <- lame(Y_list, R = 2, dynamic_uv = TRUE, dynamic_ab = TRUE,
 								family = "binary",
-								burn = 50, nscan = 300, odens = 5,
+								burn = 30, nscan = 150, odens = 5,
 								verbose = FALSE, plot = FALSE)
 
 ## -----------------------------------------------------------------------------

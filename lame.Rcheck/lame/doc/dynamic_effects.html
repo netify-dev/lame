@@ -12,7 +12,7 @@
 
 <meta name="author" content="Cassy Dorff, Tosin Salau, Shahryar Minhas" />
 
-<meta name="date" content="2026-07-12" />
+<meta name="date" content="2026-07-18" />
 
 <title>Dynamic Effects in Longitudinal AME Models</title>
 
@@ -341,7 +341,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <h1 class="title toc-ignore">Dynamic Effects in Longitudinal AME
 Models</h1>
 <h4 class="author">Cassy Dorff, Tosin Salau, Shahryar Minhas</h4>
-<h4 class="date">2026-07-12</h4>
+<h4 class="date">2026-07-18</h4>
 
 
 
@@ -706,33 +706,19 @@ a <code>[n_stored, n_obs]</code> pointwise log-likelihood matrix to
 <code>fit$log_lik</code>, which registered S3 methods hand directly to
 <code>loo::loo(fit)</code> and <code>loo::waic(fit)</code>:</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>fit_ll <span class="ot">&lt;-</span> <span class="fu">lame</span>(Y_db, <span class="at">Xdyad =</span> X_db_arr, <span class="at">family =</span> <span class="st">&quot;normal&quot;</span>, <span class="at">R =</span> <span class="dv">0</span>,</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>               <span class="at">nscan =</span> <span class="dv">2000</span>, <span class="at">burn =</span> <span class="dv">200</span>, <span class="at">odens =</span> <span class="dv">5</span>,</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>               <span class="at">nscan =</span> <span class="dv">2000</span>, <span class="at">burn =</span> <span class="dv">500</span>, <span class="at">odens =</span> <span class="dv">25</span>,</span>
 <span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>               <span class="at">dynamic_beta =</span> <span class="st">&quot;dyad&quot;</span>,</span>
 <span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>               <span class="at">save_log_lik =</span> <span class="cn">TRUE</span>,</span>
 <span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>               <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a></span>
 <span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="fu">dim</span>(fit_ll<span class="sc">$</span>log_lik)        <span class="co"># [n_stored, n_observations]</span></span>
-<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt; [1]  400 1050</span></span>
-<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>loo_db <span class="ot">&lt;-</span> loo<span class="sc">::</span><span class="fu">loo</span>(fit_ll)</span>
-<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="fu">print</span>(loo_db)</span>
-<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co">#&gt; Computed from 400 by 1050 log-likelihood matrix.</span></span>
-<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="co">#&gt;          Estimate   SE</span></span>
-<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co">#&gt; elpd_loo   -502.5 22.6</span></span>
-<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co">#&gt; p_loo        23.6  1.1</span></span>
-<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a><span class="co">#&gt; looic      1005.0 45.3</span></span>
-<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a><span class="co">#&gt; ------</span></span>
-<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a><span class="co">#&gt; MCSE of elpd_loo is 0.3.</span></span>
-<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a><span class="co">#&gt; MCSE and ESS estimates assume independent draws (r_eff=1).</span></span>
-<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a><span class="co">#&gt; All Pareto k estimates are good (k &lt; 0.62).</span></span>
-<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a><span class="co">#&gt; See help(&#39;pareto-k-diagnostic&#39;) for details.</span></span></code></pre></div>
-<p>This chunk uses a longer run on purpose: at very short chain lengths
-<code>loo()</code> prints a high-Pareto-<span class="math inline">\(k\)</span> warning with <code>NA</code> MCSE/ESS
-cells (the usual PSIS caveat, not an error), so lengthen the run before
-quoting <code>elpd_loo</code>. If the matrix would not fit in RAM,
-<code>save_log_lik = &quot;chunked&quot;</code> streams it to disk (see the <a href="forecasting.html">forecasting vignette</a>).</p>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>loo_db <span class="ot">&lt;-</span> loo<span class="sc">::</span><span class="fu">loo</span>(fit_ll)</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="fu">print</span>(loo_db)</span></code></pre></div>
+<p>The code is left unevaluated because a useful PSIS-LOO calculation
+needs more draws than a vignette should generate. Run it with a
+converged fit before using <code>elpd_loo</code>. If the matrix would
+not fit in RAM, <code>save_log_lik = &quot;chunked&quot;</code> streams it to disk
+(see the <a href="forecasting.html">forecasting vignette</a>).</p>
 <p>On the log-likelihood scale: for <code>normal</code>,
 <code>binary</code>, <code>cbin</code>, <code>poisson</code>, and
 <code>ordinal</code> the stored pointwise log-likelihood is the
@@ -965,20 +951,20 @@ effects should add nothing.</p>
 <span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="co"># budget; for a real comparison use nscan &gt;= 2000 per fit and run them</span></span>
 <span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co"># under `ame_parallel()` with 4 chains.</span></span>
 <span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>fit_static <span class="ot">&lt;-</span> <span class="fu">lame</span>(Y_list, <span class="at">R =</span> <span class="dv">2</span>, <span class="at">family =</span> <span class="st">&quot;binary&quot;</span>,</span>
-<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a>                                    <span class="at">burn =</span> <span class="dv">50</span>, <span class="at">nscan =</span> <span class="dv">300</span>, <span class="at">odens =</span> <span class="dv">5</span>,</span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a>                                    <span class="at">burn =</span> <span class="dv">30</span>, <span class="at">nscan =</span> <span class="dv">150</span>, <span class="at">odens =</span> <span class="dv">5</span>,</span>
 <span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a>                                    <span class="at">verbose =</span> <span class="cn">FALSE</span>, <span class="at">plot =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a></span>
 <span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a>fit_uv <span class="ot">&lt;-</span> <span class="fu">lame</span>(Y_list, <span class="at">R =</span> <span class="dv">2</span>, <span class="at">dynamic_uv =</span> <span class="cn">TRUE</span>, <span class="at">family =</span> <span class="st">&quot;binary&quot;</span>,</span>
-<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a>                            <span class="at">burn =</span> <span class="dv">50</span>, <span class="at">nscan =</span> <span class="dv">300</span>, <span class="at">odens =</span> <span class="dv">5</span>,</span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a>                            <span class="at">burn =</span> <span class="dv">30</span>, <span class="at">nscan =</span> <span class="dv">150</span>, <span class="at">odens =</span> <span class="dv">5</span>,</span>
 <span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a>                            <span class="at">verbose =</span> <span class="cn">FALSE</span>, <span class="at">plot =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb14-12"><a href="#cb14-12" tabindex="-1"></a></span>
 <span id="cb14-13"><a href="#cb14-13" tabindex="-1"></a>fit_ab <span class="ot">&lt;-</span> <span class="fu">lame</span>(Y_list, <span class="at">R =</span> <span class="dv">2</span>, <span class="at">dynamic_ab =</span> <span class="cn">TRUE</span>, <span class="at">family =</span> <span class="st">&quot;binary&quot;</span>,</span>
-<span id="cb14-14"><a href="#cb14-14" tabindex="-1"></a>                            <span class="at">burn =</span> <span class="dv">50</span>, <span class="at">nscan =</span> <span class="dv">300</span>, <span class="at">odens =</span> <span class="dv">5</span>,</span>
+<span id="cb14-14"><a href="#cb14-14" tabindex="-1"></a>                            <span class="at">burn =</span> <span class="dv">30</span>, <span class="at">nscan =</span> <span class="dv">150</span>, <span class="at">odens =</span> <span class="dv">5</span>,</span>
 <span id="cb14-15"><a href="#cb14-15" tabindex="-1"></a>                            <span class="at">verbose =</span> <span class="cn">FALSE</span>, <span class="at">plot =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb14-16"><a href="#cb14-16" tabindex="-1"></a></span>
 <span id="cb14-17"><a href="#cb14-17" tabindex="-1"></a>fit_full <span class="ot">&lt;-</span> <span class="fu">lame</span>(Y_list, <span class="at">R =</span> <span class="dv">2</span>, <span class="at">dynamic_uv =</span> <span class="cn">TRUE</span>, <span class="at">dynamic_ab =</span> <span class="cn">TRUE</span>,</span>
 <span id="cb14-18"><a href="#cb14-18" tabindex="-1"></a>                                <span class="at">family =</span> <span class="st">&quot;binary&quot;</span>,</span>
-<span id="cb14-19"><a href="#cb14-19" tabindex="-1"></a>                                <span class="at">burn =</span> <span class="dv">50</span>, <span class="at">nscan =</span> <span class="dv">300</span>, <span class="at">odens =</span> <span class="dv">5</span>,</span>
+<span id="cb14-19"><a href="#cb14-19" tabindex="-1"></a>                                <span class="at">burn =</span> <span class="dv">30</span>, <span class="at">nscan =</span> <span class="dv">150</span>, <span class="at">odens =</span> <span class="dv">5</span>,</span>
 <span id="cb14-20"><a href="#cb14-20" tabindex="-1"></a>                                <span class="at">verbose =</span> <span class="cn">FALSE</span>, <span class="at">plot =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
 <p>For each specification we compute posterior predictive p-values (how
 often simulated statistics exceed observed): values near 0.5 indicate
@@ -1003,10 +989,10 @@ systematically under- or over-generates.</p>
 <span id="cb15-17"><a href="#cb15-17" tabindex="-1"></a>)</span>
 <span id="cb15-18"><a href="#cb15-18" tabindex="-1"></a><span class="fu">round</span>(gof_comparison, <span class="dv">3</span>)</span>
 <span id="cb15-19"><a href="#cb15-19" tabindex="-1"></a><span class="co">#&gt;            sd.rowmean sd.colmean dyad.dep cycle.dep trans.dep</span></span>
-<span id="cb15-20"><a href="#cb15-20" tabindex="-1"></a><span class="co">#&gt; Static          0.900      0.950    0.550     0.633     0.317</span></span>
-<span id="cb15-21"><a href="#cb15-21" tabindex="-1"></a><span class="co">#&gt; Dynamic_UV      0.883      0.950    0.450     0.550     0.333</span></span>
-<span id="cb15-22"><a href="#cb15-22" tabindex="-1"></a><span class="co">#&gt; Dynamic_AB      1.000      1.000    0.583     0.617     0.317</span></span>
-<span id="cb15-23"><a href="#cb15-23" tabindex="-1"></a><span class="co">#&gt; Full            1.000      0.983    0.417     0.483     0.300</span></span></code></pre></div>
+<span id="cb15-20"><a href="#cb15-20" tabindex="-1"></a><span class="co">#&gt; Static          0.933      0.967    0.533     0.400     0.300</span></span>
+<span id="cb15-21"><a href="#cb15-21" tabindex="-1"></a><span class="co">#&gt; Dynamic_UV      0.867      0.900    0.433     0.533     0.167</span></span>
+<span id="cb15-22"><a href="#cb15-22" tabindex="-1"></a><span class="co">#&gt; Dynamic_AB      0.967      1.000    0.400     0.467     0.333</span></span>
+<span id="cb15-23"><a href="#cb15-23" tabindex="-1"></a><span class="co">#&gt; Full            1.000      1.000    0.400     0.467     0.400</span></span></code></pre></div>
 <p><code>sd.rowmean</code> and <code>sd.colmean</code> sit near 1 for
 <em>every</em> specification – an artifact of fitting a heterogeneity
 model to homogeneous iid data, not evidence about dynamics – so compare

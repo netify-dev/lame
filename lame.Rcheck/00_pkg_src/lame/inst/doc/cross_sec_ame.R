@@ -79,8 +79,8 @@ fit <- ame(Y,
 					rvar = TRUE,        # sender random effects
 					cvar = TRUE,        # receiver random effects
 					dcor = TRUE,        # dyadic correlation (reciprocity)
-					burn = 500,         # burn-in (lengthen for a final run)
-					nscan = 2000,       # post-burn-in iterations
+					burn = 100,         # compact burn-in for this worked example
+					nscan = 500,        # compact post-burn-in run for the vignette
 					odens = 25,         # thinning
 					verbose = FALSE,
 					gof = TRUE)
@@ -100,18 +100,17 @@ draws <- posterior::as_draws(fit)              # draws_array [iter, chain, var]
 posterior::summarise_draws(draws)              # mean, sd, q5, q95, rhat,
                                                # ess_bulk, ess_tail per param
 
-## ----ame-parallel-rhat, eval = requireNamespace("posterior", quietly = TRUE)----
-# reduced chains/iterations for a fast build; use n_chains = 4 and
-# nscan >= 2000 for a convergence check you will report.
-fit_mc <- ame_parallel(
-	Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
-	family = "binary", R = 2,
-	burn = 200, nscan = 800, odens = 10,
-	n_chains = 2, cores = 1,            # cores = 1 keeps the chunk portable
-	combine_method = "pool",            # pooled fit; chain_indicator is preserved
-	verbose = FALSE
-)
-posterior::summarise_draws(posterior::as_draws(fit_mc))
+## ----ame-parallel-rhat, eval = FALSE------------------------------------------
+# # run this with four chains and longer runs for a convergence assessment
+# fit_mc <- ame_parallel(
+# 	Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
+# 	family = "binary", R = 2,
+# 	burn = 1000, nscan = 5000, odens = 25,
+# 	n_chains = 4, cores = 4,            # use available cores when running locally
+# 	combine_method = "pool",            # pooled fit retains chain identity
+# 	verbose = FALSE
+# )
+# posterior::summarise_draws(posterior::as_draws(fit_mc))
 
 ## ----mh-counters--------------------------------------------------------------
 str(fit$mh_counters)
@@ -119,25 +118,25 @@ str(fit$mh_counters)
 ## ----prior-summary-cross------------------------------------------------------
 prior_summary(fit)
 
-## ----loo-cross, eval = requireNamespace("loo", quietly = TRUE), message = FALSE----
-# reduced iterations for a fast build; use nscan >= 2000 for a reported result.
-fit_ll <- ame(Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
-              family = "binary", R = 2,
-              burn = 200, nscan = 800, odens = 10,
-              save_log_lik = TRUE, verbose = FALSE)
-
-# alternative model: drop the dyadic covariate
-fit_ll_null <- ame(Y, Xrow = Xrow, Xcol = Xcol,
-                   family = "binary", R = 2,
-                   burn = 200, nscan = 800, odens = 10,
-                   save_log_lik = TRUE, verbose = FALSE)
-
-loo_dyad <- loo::loo(fit_ll)
-loo_null <- loo::loo(fit_ll_null)
-
-loo_dyad   # read the Pareto-k table before any elpd number
-
-loo::loo_compare(list(with_dyad = loo_dyad, no_dyad = loo_null))
+## ----loo-cross, eval = FALSE--------------------------------------------------
+# # run this after fitting both candidates with converged chains
+# fit_ll <- ame(Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
+#               family = "binary", R = 2,
+#               burn = 1000, nscan = 5000, odens = 25,
+#               save_log_lik = TRUE, verbose = FALSE)
+# 
+# # alternative model: drop the dyadic covariate
+# fit_ll_null <- ame(Y, Xrow = Xrow, Xcol = Xcol,
+#                    family = "binary", R = 2,
+#                    burn = 1000, nscan = 5000, odens = 25,
+#                    save_log_lik = TRUE, verbose = FALSE)
+# 
+# loo_dyad <- loo::loo(fit_ll)
+# loo_null <- loo::loo(fit_ll_null)
+# 
+# loo_dyad   # read the Pareto-k table before any elpd number
+# 
+# loo::loo_compare(list(with_dyad = loo_dyad, no_dyad = loo_null))
 
 ## ----gof-plot, fig.width=10, fig.height=6, fig.alt="Goodness-of-fit panels comparing observed network statistics (dashed orange vertical line) against the posterior predictive histograms (grey) for sender and receiver degree heterogeneity, dyadic dependence, triadic dependence, and transitivity. Observed and predicted differ on both colour and linetype so the cue survives grayscale printing and colour-blind viewing."----
 gof_plot(fit)
@@ -223,7 +222,7 @@ Y_train[test_idx]     <- NA      # mask test dyads from the likelihood
 fit_train <- ame(Y_train, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
                  R = 2, family = "binary",
                  rvar = TRUE, cvar = TRUE, dcor = TRUE,
-                 burn = 200, nscan = 800, odens = 10,   # reduced for build speed
+                 burn = 30, nscan = 100, odens = 5,     # compact vignette run
                  verbose = FALSE, gof = FALSE)
 
 pred_train <- predict(fit_train, type = "response")

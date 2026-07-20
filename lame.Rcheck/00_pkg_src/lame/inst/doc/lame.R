@@ -73,9 +73,9 @@ fit <- lame(
 	Xdyad = X_list,         # one similarity matrix per period
 	R = 2,                  # 2D latent space
 	family = "binary",      # probit for 0/1 networks
-	burn = 100,             # burn-in (use 1000+ for real work)
-	nscan = 1000,           # post-burn-in samples (use 5000+ for real work)
-	odens = 10,             # thinning
+	burn = 20,              # compact burn-in for this example
+	nscan = 100,            # compact post-burn-in run for the vignette
+	odens = 5,              # thinning
 	verbose = FALSE,        # suppress the progress bar / iteration log
 	plot = FALSE            # don't pop up live MCMC diagnostic plots during sampling
 	                        # `lame()` draws live diagnostics when plot = TRUE;
@@ -138,9 +138,9 @@ fit_cs <- ame(
 	Xdyad = X_list[[1]],     # 3-D array [n, n, 1] with "similarity" slice name
 	R = 2,
 	family = "binary",
-	burn = 100,
-	nscan = 1000,
-	odens = 10,
+	burn = 20,
+	nscan = 100,
+	odens = 5,
 	verbose = FALSE
 )
 
@@ -154,9 +154,9 @@ fit_dyn <- lame(
 	dynamic_ab = TRUE,    # time-varying sociality/popularity
 	dynamic_uv = TRUE,    # time-varying latent positions
 	family = "binary",
-	burn = 100,
-	nscan = 1000,
-	odens = 10,
+	burn = 20,
+	nscan = 100,
+	odens = 5,
 	verbose = FALSE,
 	plot = FALSE
 )
@@ -186,7 +186,7 @@ fit_bip <- lame(
 	mode = "bipartite",
 	R = 2,
 	family = "binary",
-	burn = 100, nscan = 1000, odens = 10,
+	burn = 20, nscan = 100, odens = 5,
 	verbose = FALSE, plot = FALSE
 )
 

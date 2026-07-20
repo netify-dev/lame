@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.1.6)  12 JUL 2026 16:23
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.1.6)  18 JUL 2026 19:05
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -353,7 +353,7 @@ File: l3backend-pdftex.def 2024-01-04 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count293
 \l__pdf_internal_box=\box58
 )
-(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.aux)
+(/tmp/RtmpUgkB6P/Rd2pdf1e16c19819ea/Rd2.aux)
 \openout1 = `Rd2.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 8.
@@ -390,8 +390,8 @@ LaTeX Font Info:    ... okay on input line 8.
 \everyMPtoPDFconversion=\toks30
 )
 Package hyperref Info: Link coloring ON on input line 8.
- (/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.out)
-(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.out)
+ (/tmp/RtmpUgkB6P/Rd2pdf1e16c19819ea/Rd2.out)
+(/tmp/RtmpUgkB6P/Rd2pdf1e16c19819ea/Rd2.out)
 \@outlinefile=\write4
 \openout4 = `Rd2.out'.
 
@@ -437,7 +437,7 @@ LaTeX Font Info:    Trying to load font information for T1+phv on input line 45
  (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2020/03/25 scalable font definitions for T1/phv.
 )
-(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.toc [2] [3] [4] [5] [6])
+(/tmp/RtmpUgkB6P/Rd2pdf1e16c19819ea/Rd2.toc [2] [3] [4] [5] [6])
 \tf@toc=\write5
 \openout5 = `Rd2.toc'.
 
@@ -679,108 +679,108 @@ mmary::modelsummary()
  []
 
 [74]
-Overfull \hbox (3.75877pt too wide) in paragraph at lines 4077--4079
+Overfull \hbox (3.75877pt too wide) in paragraph at lines 4080--4082
 []\T1/zi4/m/n/10 dynamic_uv[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 dynamic_ab[]\T1/
 ptm/m/n/10 , []\T1/zi4/m/n/10 dynamic_beta []\T1/ptm/m/n/10 -- log-i-cals; whet
 her each com-po-nent is time-varying. 
  []
 
 [75] [76]
-Overfull \hbox (46.01837pt too wide) in paragraph at lines 4192--4194
+Overfull \hbox (46.01837pt too wide) in paragraph at lines 4195--4197
 []\T1/ptm/m/n/10 To en-able pos-te-rior sam-pling dur-ing model es-ti-ma-tion, 
 use: []\T1/zi4/m/n/10 posterior_opts = posterior_options(save_UV
  []
 
 [77]
-Overfull \hbox (5.06746pt too wide) in paragraph at lines 4265--4271
+Overfull \hbox (5.06746pt too wide) in paragraph at lines 4268--4274
 \T1/ptm/m/n/10 plus any cus-tom GOF columns. Uni-par-tite names: "sd.row", "sd.
 col", "dyad.dep",
  []
 
 [78]
-Overfull \hbox (3.90765pt too wide) in paragraph at lines 4348--4351
+Overfull \hbox (3.90765pt too wide) in paragraph at lines 4351--4354
 []\T1/ptm/m/n/10 Count of 4-cycles (rect-an-gu-lar paths A1-B1-A2-B2-A1). High
  []
 
 [79]
-Overfull \hbox (2.92607pt too wide) in paragraph at lines 4389--4392
+Overfull \hbox (2.92607pt too wide) in paragraph at lines 4392--4395
 []\T1/ptm/m/n/10 Fundamental model mis-spec-i-fi-ca-tion. So-lu-tions: Change f
 am-
  []
 
 [80] [81]
-Overfull \hbox (1.04745pt too wide) in paragraph at lines 4519--4522
+Overfull \hbox (1.04745pt too wide) in paragraph at lines 4522--4525
 []\T1/ptm/m/n/10 character string spec-i-fy-ing the net-work type: "uni-par-tit
 e" or "bi-par-tite". If NULL
  []
 
 
-Overfull \hbox (15.33685pt too wide) in paragraph at lines 4519--4522
+Overfull \hbox (15.33685pt too wide) in paragraph at lines 4522--4525
 \T1/ptm/m/n/10 square = uni-par-tite). Note: square bi-par-tite net-works must 
 spec-ify mode="bipartite". 
  []
 
 
-Overfull \hbox (11.54604pt too wide) in paragraph at lines 4542--4544
+Overfull \hbox (11.54604pt too wide) in paragraph at lines 4545--4547
 []\T1/ptm/m/n/10 For bi-par-tite net-works with square di-men-sions (nA = nB), 
 you must ex-plic-itly spec-ify mode="bipartite"
  []
 
 [82] [83] [84] [85]
-Overfull \hbox (41.45892pt too wide) in paragraph at lines 4794--4801
+Overfull \hbox (41.45892pt too wide) in paragraph at lines 4797--4804
 \T1/ptm/m/n/10 the right "den-sity" ana-logue for con-tin-u-ous out-comes), []\
 T1/zi4/m/n/10 "reciprocity"[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 "transitivity"[]
 \T1/ptm/m/n/10 . 
  []
 
 [86] [87] [88] [89] [90]
-Overfull \hbox (38.49754pt too wide) in paragraph at lines 5051--5058
+Overfull \hbox (38.49754pt too wide) in paragraph at lines 5054--5061
 \T1/ptm/m/n/10 tra-jec-tory cubes; draw-level tra-jec-tory un-cer-tainty re-qui
 res re-fit-ting with []\T1/zi4/m/n/10 posterior_opts
  []
 
 
-Overfull \hbox (34.54904pt too wide) in paragraph at lines 5051--5058
+Overfull \hbox (34.54904pt too wide) in paragraph at lines 5054--5061
 \T1/zi4/m/n/10 = list(save_UV_draws = TRUE)[]\T1/ptm/m/n/10 , which at-taches t
 he per-iteration cubes as []\T1/zi4/m/n/10 fit$U_draws
  []
 
 [91] [92] [93]
-Overfull \hbox (0.99844pt too wide) in paragraph at lines 5192--5194
+Overfull \hbox (0.99844pt too wide) in paragraph at lines 5195--5197
 []\T1/ptm/m/n/10 For dy-namic_uv=TRUE: Shape pa-ram-e-ter for inverse-gamma
  []
 
 
-Overfull \hbox (0.43839pt too wide) in paragraph at lines 5204--5206
+Overfull \hbox (0.43839pt too wide) in paragraph at lines 5207--5209
 []\T1/ptm/m/n/10 For dy-namic_ab=TRUE: Shape pa-ram-e-ter for inverse-gamma
  []
 
 
-Overfull \hbox (1.36801pt too wide) in paragraph at lines 5218--5221
+Overfull \hbox (1.36801pt too wide) in paragraph at lines 5221--5224
 []\T1/ptm/m/n/10 For dy-namic_beta: Shape pa-ram-e-ter for the inverse-Gamma
  []
 
 [94]
-Overfull \hbox (22.12703pt too wide) in paragraph at lines 5268--5269
+Overfull \hbox (22.12703pt too wide) in paragraph at lines 5271--5272
 \T1/ptm/m/n/10 odic_save is se-lected. For ex-am-ple, on an Ap-ple OS out_file=
 "~/Desktop/ameFit.rda". 
  []
 
 
-Overfull \hbox (24.46808pt too wide) in paragraph at lines 5284--5307
+Overfull \hbox (24.46808pt too wide) in paragraph at lines 5287--5310
 []\T1/ptm/m/n/10 optional list of pos-te-rior draw-storage op-tions, usu-ally b
 uilt with [][][]\T1/zi4/m/n/10 posterior_options[][][][]\T1/ptm/m/n/10 .
  []
 
 
-Overfull \hbox (11.08902pt too wide) in paragraph at lines 5284--5307
+Overfull \hbox (11.08902pt too wide) in paragraph at lines 5287--5310
 \T1/ptm/m/n/10 Recog-nised names (un-known names trig-ger a warn-ing): []\T1/zi
 4/m/n/10 save_UV[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 save_UV_draws[]\T1/ptm/m/n/
 10 ,
  []
 
 
-Overfull \hbox (20.85963pt too wide) in paragraph at lines 5284--5307
+Overfull \hbox (20.85963pt too wide) in paragraph at lines 5287--5310
 []\T1/zi4/m/n/10 save_ab[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 thin_UV[]\T1/ptm/m/
 n/10 , []\T1/zi4/m/n/10 thin_ab[]\T1/ptm/m/n/10 . []\T1/zi4/m/n/10 save_UV = TR
 UE []\T1/ptm/m/n/10 (the [][][]\T1/zi4/m/n/10 ame[][][] []\T1/ptm/m/n/10 spelli
@@ -788,52 +788,52 @@ ng) and []\T1/zi4/m/n/10 save_UV_draws
  []
 
 
-Overfull \hbox (32.82782pt too wide) in paragraph at lines 5284--5307
+Overfull \hbox (32.82782pt too wide) in paragraph at lines 5287--5310
 \T1/ptm/m/n/10 iteration dy-namic latent-position cubes at ev-ery stored ([]\T1
 /zi4/m/n/10 odens[]\T1/ptm/m/n/10 ) it-er-a-tion on []\T1/zi4/m/n/10 fit$U_draw
 s
  []
 
 [95] [96]
-Overfull \hbox (6.90791pt too wide) in paragraph at lines 5396--5418
+Overfull \hbox (6.90791pt too wide) in paragraph at lines 5399--5421
 \T1/ptm/m/n/10 lects the ar-gu-ment for se-lect-ing which point-wise log-lik is
  stored on []\T1/zi4/m/n/10 fit$log_lik[]\T1/ptm/m/n/10 .
  []
 
 
-Overfull \hbox (1.5084pt too wide) in paragraph at lines 5424--5445
+Overfull \hbox (1.5084pt too wide) in paragraph at lines 5427--5448
 []\T1/ptm/m/n/10 in di-rected, sym-met-ric, and bi-par-tite pan-els. The snap-o
 nly []\T1/zi4/m/n/10 dynamic_uv = TRUE,
  []
 
 [97]
-Overfull \hbox (7.15948pt too wide) in paragraph at lines 5466--5468
+Overfull \hbox (7.15948pt too wide) in paragraph at lines 5469--5471
 []\T1/ptm/m/n/10 character (only used when []\T1/zi4/m/n/10 method = "als"[]\T1
 /ptm/m/n/10 ): []\T1/zi4/m/n/10 "parametric" []\T1/ptm/m/n/10 (de-fault) or []\
 T1/zi4/m/n/10 "block"[]\T1/ptm/m/n/10 . 
  []
 
 
-Overfull \hbox (28.26924pt too wide) in paragraph at lines 5473--5487
+Overfull \hbox (28.26924pt too wide) in paragraph at lines 5476--5490
 []\T1/ptm/m/n/10 optional path to a check-point file pro-duced by a pre-vi-ous 
 []\T1/zi4/m/n/10 lame(..., checkpoint_path
  []
 
 
-Overfull \hbox (46.61737pt too wide) in paragraph at lines 5473--5487
+Overfull \hbox (46.61737pt too wide) in paragraph at lines 5476--5490
 []\T1/zi4/m/n/10 nscan = K []\T1/ptm/m/n/10 to re-quest []\T1/zi4/m/n/10 K []\T
 1/ptm/m/n/10 ad-di-tional stored draws on the con-tin-u-a-tion. Note: []\T1/zi4
 /m/n/10 checkpoint_path
  []
 
 [98] [99] [100]
-Overfull \hbox (4.19713pt too wide) in paragraph at lines 5678--5685
+Overfull \hbox (4.19713pt too wide) in paragraph at lines 5681--5688
 []\T1/ptm/m/n/10 posterior sam-ples of re-gres-sion co-ef-fi-cients. A 2-dimens
 ional ma-trix []\T1/zi4/m/n/10 [n_stored,
  []
 
 [101]
-Overfull \hbox (51.29729pt too wide) in paragraph at lines 5726--5742
+Overfull \hbox (51.29729pt too wide) in paragraph at lines 5729--5745
 \T1/ptm/m/n/10 points, [][][]\T1/zi4/m/n/10 gof[][][] []\T1/ptm/m/n/10 for post
 -hoc goodness-of-fit com-pu-ta-tion, [][][]\T1/zi4/m/n/10 gof_plot[][][] []\T1/
 ptm/m/n/10 for vi-su-al-iz-ing GOF re-sults, [][][]\T1/zi4/m/n/10 latent_positi
@@ -841,87 +841,87 @@ ons[][][]
  []
 
 [102] [103]
-Overfull \hbox (10.7897pt too wide) in paragraph at lines 5888--5896
+Overfull \hbox (10.7897pt too wide) in paragraph at lines 5891--5899
 []\T1/zi4/m/n/10 fit$bootstrap[]\T1/ptm/m/n/10 . The down-stream ac-ces-sors ([
 ][][]\T1/zi4/m/n/10 confint.ame_als[][][][]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 su
 mmary[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 print[]\T1/ptm/m/n/10 )
  []
 
 [104] [105] [106]
-Overfull \hbox (37.06844pt too wide) in paragraph at lines 6031--6037
+Overfull \hbox (37.06844pt too wide) in paragraph at lines 6034--6040
 \T1/ptm/m/n/10 The com-bined fit's []\T1/zi4/m/n/10 $BETA []\T1/ptm/m/n/10 is a
  3-D ar-ray when []\T1/zi4/m/n/10 dynamic_beta []\T1/ptm/m/n/10 is on, and []\T
 1/zi4/m/n/10 posterior::rhat(as_draws(fit))
  []
 
 
-Overfull \hbox (3.89934pt too wide) in paragraph at lines 6062--6065
+Overfull \hbox (3.89934pt too wide) in paragraph at lines 6065--6068
 []\T1/ptm/m/n/10 Additional ar-gu-ments for-warded to [][][]\T1/zi4/m/n/10 lame
 [][][][]\T1/ptm/m/n/10 , in-clud-ing []\T1/zi4/m/n/10 dynamic_beta[]\T1/ptm/m/n
 /10 , []\T1/zi4/m/n/10 dynamic_uv[]\T1/ptm/m/n/10 ,
  []
 
 [107]
-Overfull \hbox (1.89783pt too wide) in paragraph at lines 6128--6140
+Overfull \hbox (1.89783pt too wide) in paragraph at lines 6131--6143
 []\T1/ptm/b/n/10 Equivalent con-sol-i-dated en-try point. []\T1/zi4/m/n/10 lame
 (resume_from = path, ...) []\T1/ptm/m/n/10 short-circuits to this func-
  []
 
 [108] [109] [110]
-Overfull \hbox (8.70937pt too wide) in paragraph at lines 6322--6324
+Overfull \hbox (8.70937pt too wide) in paragraph at lines 6325--6327
 []\T1/ptm/m/n/10 quantile of actor-period score changes used by []\T1/zi4/m/n/1
 0 snap_convergence = "quantile"[]\T1/ptm/m/n/10 . 
  []
 
 [111]
-Overfull \hbox (3.66855pt too wide) in paragraph at lines 6332--6336
+Overfull \hbox (3.66855pt too wide) in paragraph at lines 6335--6339
 []\T1/ptm/m/n/10 optional start-sensitivity pre-set. []\T1/zi4/m/n/10 "none" []
 \T1/ptm/m/n/10 runs one fit. []\T1/zi4/m/n/10 "quick" []\T1/ptm/m/n/10 and []\T
 1/zi4/m/n/10 "validation"
  []
 
 
-Overfull \hbox (22.08919pt too wide) in paragraph at lines 6370--6379
+Overfull \hbox (22.08919pt too wide) in paragraph at lines 6373--6382
 []\T1/ptm/m/n/10 For uni-par-tite fits, the tracked ob-jec-tive ([]\T1/zi4/m/n/
 10 fit$objective_trace[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 fit$convergence$final
 _objective[]\T1/ptm/m/n/10 )
  []
 
 [112] [113]
-Overfull \hbox (33.39894pt too wide) in paragraph at lines 6463--6467
+Overfull \hbox (33.39894pt too wide) in paragraph at lines 6466--6470
 \T1/ptm/m/n/10 ples are not avail-able. To en-able, fit the model with []\T1/zi
 4/m/n/10 posterior_opts = posterior_options(save_UV
  []
 
 [114]
-Overfull \hbox (32.18686pt too wide) in paragraph at lines 6570--6572
+Overfull \hbox (32.18686pt too wide) in paragraph at lines 6573--6575
 []\T1/ptm/m/n/10 a sym-met-ric ma-trix where en-try i,j is pro-por-tional to th
 e log con-di-tional bi-vari-ate den-sity of []\T1/zi4/m/n/10 z[i,j],z[j,i][]\T1
 /ptm/m/n/10 . 
  []
 
 [115] [116] [117] [118] [119] [120]
-Overfull \hbox (9.57814pt too wide) in paragraph at lines 6907--6913
+Overfull \hbox (9.57814pt too wide) in paragraph at lines 6910--6916
 \T1/ptm/m/n/10 and reload it in a fresh ses-sion, sup-ply an ex-plicit per-sis-
 tent []\T1/zi4/m/n/10 log_lik_path []\T1/ptm/m/n/10 (e.g. []\T1/zi4/m/n/10 "./l
 oglik_chunks"[]\T1/ptm/m/n/10 )
  []
 
 [121] [122]
-Overfull \hbox (19.82813pt too wide) in paragraph at lines 7025--7033
+Overfull \hbox (19.82813pt too wide) in paragraph at lines 7028--7036
 []\T1/ptm/m/n/10 re-turns the ab-so-lute dif-fer-ence []\T1/zi4/m/n/10 |x[i] - 
 x[j]|[]\T1/ptm/m/n/10 , the AME ana-logue of ERGM's []\T1/zi4/m/n/10 absdiff[]\
 T1/ptm/m/n/10 . []\T1/zi4/m/n/10 nodefactor(x)
  []
 
 [123] [124] [125] [126] [127] [128] [129] [130] [131] [132] [133]
-Overfull \hbox (6.90846pt too wide) in paragraph at lines 7620--7623
+Overfull \hbox (6.90846pt too wide) in paragraph at lines 7623--7626
 []\T1/ptm/m/n/10 Length-2 vec-tor of lower / up-per quan-tiles for the cred-i-b
 le in-ter-val when []\T1/zi4/m/n/10 interval
  []
 
 
-Overfull \hbox (116.56032pt too wide) in paragraph at lines 7647--7658
+Overfull \hbox (116.56032pt too wide) in paragraph at lines 7650--7661
 []\T1/zi4/m/n/10 .chain []\T1/ptm/m/n/10 / []\T1/zi4/m/n/10 .iteration []\T1/pt
 m/m/n/10 / []\T1/zi4/m/n/10 .value []\T1/ptm/m/n/10 con-ven-tion so that []\T1/
 zi4/m/n/10 tidybayes::spread_draws() []\T1/ptm/m/n/10 and []\T1/zi4/m/n/10 marg
@@ -930,34 +930,34 @@ inaleffects::posterior_draws()
 
 [134] [135] [136] [137] [138] [139] [140] [141] [142] [143] [144] [145]
 [146] [147] [148] [149] [150] [151]
-Overfull \hbox (19.12773pt too wide) in paragraph at lines 8657--8662
+Overfull \hbox (19.12773pt too wide) in paragraph at lines 8660--8665
 []\T1/ptm/m/n/10 Computes resid-u-als as the dif-fer-ence be-tween ob-served va
 l-ues and fit-ted val-ues. For []\T1/zi4/m/n/10 type = "response"[]\T1/ptm/m/n/
 10 ,
  []
 
 [152]
-Overfull \hbox (16.07748pt too wide) in paragraph at lines 8720--8725
+Overfull \hbox (16.07748pt too wide) in paragraph at lines 8723--8728
 []\T1/zi4/m/n/10 type = "response" []\T1/ptm/m/n/10 (de-fault) re-turns ob-serv
 ed []\T1/zi4/m/n/10 Y []\T1/ptm/m/n/10 mi-nus the response-scale fit-ted val-ue
 s, so []\T1/zi4/m/n/10 residuals()
  []
 
 [153]
-Overfull \hbox (61.17801pt too wide) in paragraph at lines 8779--8781
+Overfull \hbox (61.17801pt too wide) in paragraph at lines 8782--8784
 []\T1/ptm/m/n/10 Optional char-ac-ter vec-tor of co-ef-fi-cient names to sub-se
 t (matches []\T1/zi4/m/n/10 dimnames(fit$BETA)[[2]][]\T1/ptm/m/n/10 ). 
  []
 
 
-Overfull \hbox (9.2382pt too wide) in paragraph at lines 8798--8803
+Overfull \hbox (9.2382pt too wide) in paragraph at lines 8801--8806
 []\T1/zi4/m/n/10 n_iter_per_chain[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 T[]\T1/ptm
 /m/n/10 . []\T1/zi4/m/n/10 rhat_mvt []\T1/ptm/m/n/10 is the Brooks-Gelman mul-t
 i-vari-ate statis-tic; []\T1/zi4/m/n/10 rhat_max_univariate
  []
 
 [154] [155] [156] [157] [158]
-Overfull \hbox (6.52888pt too wide) in paragraph at lines 9056--9065
+Overfull \hbox (6.52888pt too wide) in paragraph at lines 9059--9068
 \T1/ptm/m/n/10 Wishart scale used in-ter-nally is $\OML/cmm/m/it/10 ^^Q[] \OMS/
 cmsy/m/n/10 ^^A \OML/cmm/m/it/10 Sab\OT1/cmr/m/n/10 0$\T1/ptm/m/n/10 , so the p
 rior mean of Sab is $\OML/cmm/m/it/10 ^^Q[]Sab\OT1/cmr/m/n/10 0\OML/cmm/m/it/10
@@ -967,7 +967,7 @@ rior mean of Sab is $\OML/cmm/m/it/10 ^^Q[]Sab\OT1/cmr/m/n/10 0\OML/cmm/m/it/10
 [159] [160] [161] [162] [163] [164] [165] [166] [167] [168] [169] [170]
 [171] [172] [173] [174] [175] [176] [177] [178] [179] [180] [181] [182]
 [183]
-Overfull \hbox (7.47821pt too wide) in paragraph at lines 10447--10449
+Overfull \hbox (7.47821pt too wide) in paragraph at lines 10452--10454
 []\T1/ptm/m/n/10 Block-diagonal in-no-va-tion scale ma-trix (p_dyn x p_dyn). Co
 m-bined with sigma^2
  []
@@ -975,7 +975,7 @@ m-bined with sigma^2
 [184] [185] [186] [187] [188] [189] [190] [191] [192] [193] [194] [195]
 [196] [197] [198] [199] [200] [201] [202] [203] [204] [205] [206] [207]
 [208] [209] [210] [211] [212] [213] [214]
-Overfull \hbox (5.8699pt too wide) in paragraph at lines 12235--12239
+Overfull \hbox (5.8699pt too wide) in paragraph at lines 12241--12245
 []\T1/ptm/m/n/10 Data frame with columns []\T1/zi4/m/n/10 term[]\T1/ptm/m/n/10 
 , []\T1/zi4/m/n/10 estimate[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 std.error[]\T1/p
 tm/m/n/10 , []\T1/zi4/m/n/10 statistic[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 p.val
@@ -984,14 +984,14 @@ ue[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 conf.low[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/
  []
 
 [215]
-Overfull \hbox (15.00745pt too wide) in paragraph at lines 12294--12300
+Overfull \hbox (15.00745pt too wide) in paragraph at lines 12300--12306
 []\T1/ptm/m/n/10 Only the in-ter-cept and dyadic-covariate co-ef-fi-cients are 
 re-turned, match-ing []\T1/zi4/m/n/10 coef(fit) []\T1/ptm/m/n/10 on the sandwic
 h-
  []
 
 
-Overfull \hbox (5.8699pt too wide) in paragraph at lines 12303--12307
+Overfull \hbox (5.8699pt too wide) in paragraph at lines 12309--12313
 []\T1/ptm/m/n/10 Data frame with columns []\T1/zi4/m/n/10 term[]\T1/ptm/m/n/10 
 , []\T1/zi4/m/n/10 estimate[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 std.error[]\T1/p
 tm/m/n/10 , []\T1/zi4/m/n/10 statistic[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 p.val
@@ -1000,25 +1000,25 @@ ue[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 conf.low[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/
  []
 
 
-Overfull \hbox (26.24979pt too wide) in paragraph at lines 12349--12351
+Overfull \hbox (26.24979pt too wide) in paragraph at lines 12355--12357
 []\T1/ptm/m/n/10 Data frame with columns []\T1/zi4/m/n/10 term, estimate, std.e
 rror, statistic, p.value, conf.low, conf.high,
  []
 
 [216]
-Overfull \hbox (7.55774pt too wide) in paragraph at lines 12385--12391
+Overfull \hbox (7.55774pt too wide) in paragraph at lines 12391--12397
 []\T1/ptm/m/n/10 Character vec-tor of spe-cific pa-ram-e-ter names to in-clude.
  Raw variance-component
  []
 
 [217] [218]
-Overfull \hbox (19.14891pt too wide) in paragraph at lines 12494--12496
+Overfull \hbox (19.14891pt too wide) in paragraph at lines 12500--12502
 []\T1/ptm/m/n/10 Named ar-gu-ments to over-write in the orig-i-nal call (e.g. [
 ]\T1/zi4/m/n/10 nscan = 5000[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 dynamic_beta
  []
 
 
-Overfull \hbox (6.39914pt too wide) in paragraph at lines 12530--12534
+Overfull \hbox (6.39914pt too wide) in paragraph at lines 12536--12540
 []\T1/ptm/m/n/10 if []\T1/zi4/m/n/10 ... []\T1/ptm/m/n/10 con-tains only the wa
 rm-start re-fit knobs ([]\T1/zi4/m/n/10 Y_new[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/1
 0 X_new[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 Z_new[]\T1/ptm/m/n/10 , []\T1/zi4/m/
@@ -1027,7 +1027,7 @@ n/10 max_iter[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 tol[]\T1/ptm/m/n/10 , []\T1/zi
  []
 
 [219]
-Overfull \hbox (14.75871pt too wide) in paragraph at lines 12534--12538
+Overfull \hbox (14.75871pt too wide) in paragraph at lines 12540--12544
 []\T1/ptm/m/n/10 otherwise (e.g. chang-ing []\T1/zi4/m/n/10 R[]\T1/ptm/m/n/10 ,
  []\T1/zi4/m/n/10 family[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 lambda[]\T1/ptm/m/n
 /10 , []\T1/zi4/m/n/10 bootstrap[]\T1/ptm/m/n/10 ) it re-evaluates the orig-i-n
@@ -1035,45 +1035,45 @@ al []\T1/zi4/m/n/10 object$call
  []
 
 [220] [221]
-Overfull \hbox (24.7388pt too wide) in paragraph at lines 12700--12704
+Overfull \hbox (24.7388pt too wide) in paragraph at lines 12706--12710
 []\T1/ptm/m/n/10 Optional char-ac-ter vec-tor of ac-tor names to high-light on 
 a []\T1/zi4/m/n/10 plot_type = "trajectory"
  []
 
 
-Overfull \hbox (5.71742pt too wide) in paragraph at lines 12700--12704
+Overfull \hbox (5.71742pt too wide) in paragraph at lines 12706--12710
 []\T1/ptm/m/n/10 plot. High-lighted ac-tors are coloured with the colour-blind-
 safe Okabe-Ito palette;
  []
 
 [222] [223]
-Overfull \hbox (48.0979pt too wide) in paragraph at lines 12816--12818
+Overfull \hbox (48.0979pt too wide) in paragraph at lines 12822--12824
 []\T1/zi4/m/n/10 "dyad" []\T1/ptm/m/n/10 (de-fault) for a dyad-clustered ro-bus
 t meat, or []\T1/zi4/m/n/10 "none" []\T1/ptm/m/n/10 for an HC0 (heteroskedastic
 ity-
  []
 
 [224]
-Overfull \hbox (1.62811pt too wide) in paragraph at lines 12844--12846
+Overfull \hbox (1.62811pt too wide) in paragraph at lines 12850--12852
 []\T1/ptm/m/n/10 A co-vari-ance ma-trix for []\T1/zi4/m/n/10 c(intercept, dyadi
 c coefficients)[]\T1/ptm/m/n/10 , with match-ing row/column names. 
  []
 
 
-Overfull \hbox (1.627pt too wide) in paragraph at lines 12884--12889
+Overfull \hbox (1.627pt too wide) in paragraph at lines 12890--12895
 []\T1/ptm/m/n/10 Longitudinal di-rected bi-nary net-work of in-ter-na-tional ec
 o-nomic sanc-tions among 35 coun-tries across
  []
 
 [225]
-Overfull \hbox (0.93892pt too wide) in paragraph at lines 12902--12904
+Overfull \hbox (0.93892pt too wide) in paragraph at lines 12908--12910
 []\T1/ptm/m/n/10 List of 4 ar-rays (35 x 35 x 2) of dyadic co-vari-ates: []\T1/
 zi4/m/n/10 distance []\T1/ptm/m/n/10 (ge-o-graphic) and []\T1/zi4/m/n/10 shared
 _igos
  []
 
 [226] [227] [228] [229] [230] [231] [232] [233]
-(/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.ind [234]
+(/tmp/RtmpUgkB6P/Rd2pdf1e16c19819ea/Rd2.ind [234]
 
 LaTeX Font Warning: Font shape `T1/zi4/m/it' undefined
 (Font)              using `T1/zi4/m/n' instead on input line 78.
@@ -1083,7 +1083,7 @@ LaTeX Font Warning: Font shape `T1/zi4/m/it' undefined
 ]
 LaTeX Font Info:    Font shape `T1/zi4/m/it' will be
 (Font)              scaled to size 10.0pt on input line 136.
- [236] [237] [238]) (/tmp/RtmpLaidHw/Rd2pdf313c1140102d7c/Rd2.aux)
+ [236] [237] [238]) (/tmp/RtmpUgkB6P/Rd2pdf1e16c19819ea/Rd2.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-22>
@@ -1097,12 +1097,12 @@ Package rerunfilecheck Info: File `Rd2.out' has not changed.
  ) 
 Here is how much of TeX's memory you used:
  12831 strings out of 474222
- 194465 string characters out of 5748734
+ 194439 string characters out of 5748734
  1940975 words of memory out of 5000000
  32926 multiletter control sequences out of 15000+600000
  602660 words of font info for 88 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 92i,6n,95p,1231b,737s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 92i,6n,95p,1147b,737s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
 pdfTeX warning (dest): name{Rfn.update} has been referenced but does not exist,
  replaced by a fixed one
@@ -1142,7 +1142,7 @@ r8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/s
 hare/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/te
 xmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/
 type1/urw/times/utmri8a.pfb>
-Output written on Rd2.pdf (238 pages, 704230 bytes).
+Output written on Rd2.pdf (238 pages, 704635 bytes).
 PDF statistics:
  5003 PDF objects out of 5155 (max. 8388607)
  4683 compressed objects within 47 object streams

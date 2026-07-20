@@ -17,12 +17,13 @@ directed contributions.}
 diagonal is ignored.}
 }
 \value{
-updated symmetric n x n latent matrix with \code{NA} on the
-diagonal.
+updated symmetric n x n latent matrix; the diagonal is refreshed
+with unconstrained normal draws around \code{diag(EZ)} so downstream
+samplers never see missing values.
 }
 \description{
-Symmetric-Z analogue of \code{\link{rZ_ord_fc}}: each unordered dyad
-{i, j} carries a single latent value (Z_ij = Z_ji) drawn from a
+Symmetric-Z analogue of \code{\link{rZ_ord_fc}}: each unordered actor pair
+carries one latent value (\code{Z[i, j] = Z[j, i]}) drawn from a
 truncated normal with mean equal to the average linear predictor
 (EZ_ij + EZ_ji) / 2 and variance 1 (the model's conditional). The
 lower triangle is mirrored after the upper-triangle draws so the full

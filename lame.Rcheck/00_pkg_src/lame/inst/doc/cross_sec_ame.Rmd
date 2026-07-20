@@ -142,8 +142,8 @@ fit <- ame(Y,
 					rvar = TRUE,        # sender random effects
 					cvar = TRUE,        # receiver random effects
 					dcor = TRUE,        # dyadic correlation (reciprocity)
-					burn = 500,         # burn-in (lengthen for a final run)
-					nscan = 2000,       # post-burn-in iterations
+					burn = 100,         # compact burn-in for this worked example
+					nscan = 500,        # compact post-burn-in run for the vignette
 					odens = 25,         # thinning
 					verbose = FALSE,
 					gof = TRUE)
@@ -179,7 +179,7 @@ The regression coefficients are not the whole story, though -- the slowest-mixin
 trace_plot(fit, params = "variance", include = "Dyadic Correlation")
 ```
 
-**What to look for:** Traces should fluctuate around a stable mean (long trends mean non-convergence) and densities should be smooth and unimodal. With `r nrow(fit$BETA)` post-burn-in samples most coefficients mix acceptably for a demo; the slowest at this seed is `rho` -- the reciprocity parameter that is chronically the slowest-mixing term in these fits (bulk ESS around 27 here, versus roughly 35--112 for the regression coefficients). Read low ESS as a *mixing* problem, not an *estimate* problem: point estimates such as `grade_diff`'s are stable from run to run even on short chains. But a slow-mixing parameter is exactly the one whose uncertainty you should not quote from a single short chain -- `rho` gets its real test in the multi-chain run below.
+**What to look for:** Traces should fluctuate around a stable mean (long trends mean non-convergence) and densities should be smooth and unimodal. This fit stores `r nrow(fit$BETA)` post-burn-in draws, enough to illustrate the workflow but not to establish convergence. `rho`, the reciprocity parameter, is often slower to mix than regression coefficients, so inspect it directly and use independent chains before drawing uncertainty statements from it.
 
 ### Numerical convergence diagnostics: `posterior::as_draws()`
 
@@ -192,27 +192,26 @@ posterior::summarise_draws(draws)              # mean, sd, q5, q95, rhat,
                                                # ess_bulk, ess_tail per param
 ```
 
-The conventional thresholds: split-$\hat R$ < 1.01 for every monitored parameter; `ess_bulk` and `ess_tail` $\ge$ 400 per chain. This demo stores only `r nrow(fit$BETA)` draws (one short chain), so it cannot reach the ESS target -- the largest `ess_bulk` in the table is only about 112, and `rho` sits lowest at about 27. The $\hat R$ column, by contrast, looks deceptively clean: every parameter comes back at or below about 1.08, with `rho` near 1.01--1.02. That is the trap of single-chain diagnostics: split-$\hat R$ computed on one chain compares the two halves of that chain, so it flags within-chain non-stationarity but cannot detect two chains that have each settled in different parts of the posterior. The parameter that actually fails to converge on this network -- `rho` -- looks fine in this table and only reveals itself when separate chains disagree, which is exactly what the four-chain fit below exposes ($\hat R \approx 1.8$). One row will look degenerate in both tables: `ve` is the latent residual variance, fixed at 1 for probit identification, so its draws are constant and `posterior` correctly reports NA for $\hat R$ and ESS -- ignore that row.
+The conventional thresholds are split-$\hat R$ < 1.01 for every monitored parameter and `ess_bulk` and `ess_tail` $\ge$ 400 per chain. This demonstration has only `r nrow(fit$BETA)` draws from one chain, so it is not a convergence assessment. Within-chain split-$\hat R$ can flag a drifting chain, but it cannot reveal independent chains that settle in different parts of the posterior. One row will look degenerate in this table: `ve` is the latent residual variance, fixed at 1 for probit identification, so its draws are constant and `posterior` correctly reports `NA` for $\hat R$ and ESS.
 
 ### Between-chain $\hat R$: `ame_parallel(n_chains = 4)`
 
 For real convergence assessment, run four chains from different seeds and let `summarise_draws()` compute Rhat across chains:
 
-```{r ame-parallel-rhat, eval = requireNamespace("posterior", quietly = TRUE)}
-# reduced chains/iterations for a fast build; use n_chains = 4 and
-# nscan >= 2000 for a convergence check you will report.
+```{r ame-parallel-rhat, eval = FALSE}
+# run this with four chains and longer runs for a convergence assessment
 fit_mc <- ame_parallel(
 	Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
 	family = "binary", R = 2,
-	burn = 200, nscan = 800, odens = 10,
-	n_chains = 2, cores = 1,            # cores = 1 keeps the chunk portable
-	combine_method = "pool",            # pooled fit; chain_indicator is preserved
+	burn = 1000, nscan = 5000, odens = 25,
+	n_chains = 4, cores = 4,            # use available cores when running locally
+	combine_method = "pool",            # pooled fit retains chain identity
 	verbose = FALSE
 )
 posterior::summarise_draws(posterior::as_draws(fit_mc))
 ```
 
-This is the payoff of running more than one chain. In the single-chain table above, `rho` looked merely mediocre -- $\hat R \approx 1.02$, bulk ESS around 27 -- for the reason just described: one chain can only be compared with itself. With a second, independently seeded chain the failure is unmistakable: the convergence banner flags `rho` at R-hat = 1.801, and `summarise_draws()` puts it at 1.63 with a bulk ESS of 3.7. (The two numbers differ because the banner computes the classic Gelman-Rubin ratio while `posterior` uses rank-normalized split-$\hat R$; both are far past the 1.01 bar.) This is the same reciprocity parameter the trace plots flagged as chronically slow-mixing. Do not report `rho`'s credible interval from a run that looks like this -- increase `nscan` and the number of chains until its $\hat R$ clears the threshold. Every other parameter sits at $\hat R \le 1.02$ across chains, so there is no sign of between-chain disagreement; the covariate and variance-component estimates still need a longer multi-chain run to clear the ESS bar before you quote their uncertainty.
+Independent chains provide the comparison a single-chain summary cannot. Read the resulting split-$\hat R$, bulk ESS, and tail ESS together. If a parameter such as `rho` remains above the $\hat R$ threshold or has a low ESS, increase the run length and inspect its traces before using its posterior interval.
 
 The pooled object carries a `chain_indicator` so `as_draws()` keeps chain identity separate; the same reshape feeds `bayesplot::mcmc_trace()` and `tidybayes::tidy_draws()` directly.
 
@@ -232,17 +231,17 @@ prior_summary(fit)
 
 If you refit with `save_log_lik = TRUE`, the fit carries a `[n_stored, n_obs]` pointwise log-likelihood matrix and `loo::loo(fit)` works directly via the registered S3 method:
 
-```{r loo-cross, eval = requireNamespace("loo", quietly = TRUE), message = FALSE}
-# reduced iterations for a fast build; use nscan >= 2000 for a reported result.
+```{r loo-cross, eval = FALSE}
+# run this after fitting both candidates with converged chains
 fit_ll <- ame(Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
               family = "binary", R = 2,
-              burn = 200, nscan = 800, odens = 10,
+              burn = 1000, nscan = 5000, odens = 25,
               save_log_lik = TRUE, verbose = FALSE)
 
 # alternative model: drop the dyadic covariate
 fit_ll_null <- ame(Y, Xrow = Xrow, Xcol = Xcol,
                    family = "binary", R = 2,
-                   burn = 200, nscan = 800, odens = 10,
+                   burn = 1000, nscan = 5000, odens = 25,
                    save_log_lik = TRUE, verbose = FALSE)
 
 loo_dyad <- loo::loo(fit_ll)
@@ -253,7 +252,7 @@ loo_dyad   # read the Pareto-k table before any elpd number
 loo::loo_compare(list(with_dyad = loo_dyad, no_dyad = loo_null))
 ```
 
-This time the diagnostics matter as much as the comparison. Start with the warning `loo()` raises and the Pareto-$k$ table it prints: 287 of the 992 dyads (28.9%) fall in the "bad" range ($0.47 < k \le 1$) and 11 more (1.1%) are "very bad" ($k > 1$), so for nearly a third of the observations the importance weights behind `elpd_loo` cannot be trusted. This failure mode is structural rather than a fluke: every dyad's likelihood depends on the actor-level random effects ($a_i$, $b_j$, $u_i'v_j$), so leaving one dyad out shifts the posterior enough to make the importance ratios heavy-tailed, and with only 80 stored draws there is little to stabilize them. Read the comparison in that light: `loo_compare()` sorts `with_dyad` first, but its 24.6-point advantage is smaller than its own standard error (`se_diff` 25.6) -- not decisive even at face value -- and with this many flagged dyads the honest conclusion is to not lean on `elpd_diff` at all. The workflow lesson: always read the Pareto-$k$ table *before* `elpd_diff`. For a comparison you can report, lengthen the run substantially (`nscan >= 2000`, more stored draws) and, for random-effects-dense network models like AME, prefer $K$-fold cross-validation over dyads -- or the held-out dyad evaluation shown below via `evaluate_heldout()` -- to PSIS-LOO.
+Start with the Pareto-$k$ table before reading `elpd_diff`. In an AME model, each dyad shares actor-level random effects ($a_i$, $b_j$, $u_i'v_j$) with many others, so leaving one dyad out can produce heavy-tailed importance weights. When many observations have large Pareto-$k$ values, use a held-out dyad evaluation or $K$-fold cross-validation rather than treating the PSIS-LOO ranking as decisive.
 
 For the `normal`, `binary`, `cbin`, `poisson`, and `ordinal` families the stored log-likelihood is the **exact family-specific Y density**, so `elpd_loo` is directly comparable to a `loo()` from a brms or rstanarm fit to the same family; see `?loo.ame` for the `frn` rank-likelihood caveat and `fit$log_lik_method`.
 
@@ -290,7 +289,7 @@ c(observed = round(obs, 3), sim_mean = round(mean(sim), 3),
   pp_p_right = round(mean(sim >= obs), 3))
 ```
 
-Read this the way you would read `ergm::gof()`: `pp_p_right` is the fraction of simulated networks at or above the observed value, so a value near 0 means the model under-predicts the statistic. On Add Health it comes back close to zero (around 0.08 in our run) -- the model produces triangles, but does not concentrate them per two-path the way the data do, the same structural gap the built-in panels showed. See `?gof` for adding further custom statistics (raw triangle counts, degree assortativity, and so on).
+Read this the way you would read `ergm::gof()`: `pp_p_right` is the fraction of simulated networks at or above the observed value, so a value near 0 means the model under-predicts the statistic. On Add Health it comes back at exactly zero (none of the 50 simulated networks reaches the observed ratio in this short run) -- the model produces triangles, but does not concentrate them per two-path the way the data do, the same structural gap the built-in panels showed. See `?gof` for adding further custom statistics (raw triangle counts, degree assortativity, and so on).
 
 ## Visualizing the Latent Space
 
@@ -362,7 +361,7 @@ cat("AUROC:", round(auroc, 3), "\n",
     "Baseline PR-AUC (density of Y):", round(mean(Y_vec[keep]), 3), "\n")
 ```
 
-Here that gap is wide: PR-AUC 0.603 against a density baseline of 0.128 (roughly five times the base-rate floor), and AUROC 0.874 against 0.5 for a random ranker. Both are in-sample numbers, though -- the held-out estimates in the next section are the ones to quote for any predictive claim.
+Here that gap is wide: PR-AUC 0.573 against a density baseline of 0.128 (roughly four and a half times the base-rate floor), and AUROC 0.868 against 0.5 for a random ranker. Both are in-sample numbers, though -- the held-out estimates in the next section are the ones to quote for any predictive claim.
 
 ### Held-out link prediction
 
@@ -383,7 +382,7 @@ Y_train[test_idx]     <- NA      # mask test dyads from the likelihood
 fit_train <- ame(Y_train, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
                  R = 2, family = "binary",
                  rvar = TRUE, cvar = TRUE, dcor = TRUE,
-                 burn = 200, nscan = 800, odens = 10,   # reduced for build speed
+                 burn = 30, nscan = 100, odens = 5,     # compact vignette run
                  verbose = FALSE, gof = FALSE)
 
 pred_train <- predict(fit_train, type = "response")
@@ -399,7 +398,7 @@ cat("Test dyads:", length(test_idx),
     " | positives:", sum(Y[test_idx] == 1), "\n")
 ```
 
-On the 198 held-out dyads (25 of them true friendships) the model posts AUROC 0.836 and PR-AUC 0.551 -- only a modest drop from the in-sample 0.874 / 0.603, the reassuring signal that the fit generalizes rather than memorizing the training dyads. PR-AUC is the number to weigh: a random ranker's PR-AUC equals the positive rate (about 0.13), so the model's precision runs roughly four times chance on dyads it never saw. With only 25 positive test dyads and a single short chain, read these as a sanity check rather than a benchmark -- report the positive count alongside them, and see `?evaluate_heldout` for the metric definitions and options.
+On the 198 held-out dyads (25 of them true friendships) the model posts AUROC 0.808 and PR-AUC 0.460 -- a drop from the in-sample 0.868 / 0.573, sharper for PR-AUC, but both numbers stay well clear of chance, the reassuring signal that the fit generalizes rather than memorizing the training dyads. PR-AUC is the number to weigh: a random ranker's PR-AUC equals the positive rate (about 0.13), so the model's precision runs roughly three and a half times chance on dyads it never saw. With only 25 positive test dyads and a single short chain, read these as a sanity check rather than a benchmark -- report the positive count alongside them, and see `?evaluate_heldout` for the metric definitions and options.
 
 ## Simulating from the Model
 

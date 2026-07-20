@@ -451,7 +451,7 @@ The boxplot alone makes the two models look closer than they are. In `gof_plot(f
 
 The latent dimensions (`R_row`, `R_col`) control how rich the multiplicative structure is; a practical way to choose them is to fit at several ranks and compare GOF statistics.
 
-```{r dimension_selection, message=FALSE, warning=FALSE}
+```{r dimension_selection, eval=FALSE}
 # include R=0 as a no-latent-space baseline
 dims_to_test <- list(
 	c(0, 0),
@@ -491,19 +491,13 @@ do.call(rbind, gof_results)
 
 These are one-sided posterior predictive tail probabilities, not formal test
 p-values: values near 0.5 mean the observed statistic lies in the bulk of the
-predictive distribution, values near 0 or 1 flag systematic over- or
-under-prediction. (For `ame()`, `fit$GOF` stores the observed statistic in
-row 1, so the tail probability includes the observed point itself -- a
-one-row bias that is negligible at these chain lengths.) The relationship to
-`R` is not monotonic, so a sensible heuristic is to pick the smallest `R` at
-which all three tail probabilities sit comfortably away from 0 and 1. Here
-`pval_rowmean` pins near 1 (about 0.99 at all three ranks), `pval_colmean`
-sits around 0.94-0.97, and `pval_fourcycles` stays in the bulk (about
-0.72-0.75): four-cycle clustering is adequately captured at every rank,
-while the over-prediction of degree heterogeneity does not improve with
-rank. No value of `R` rescues it -- the limitation is structural rather
-than a matter of adding latent dimensions, and that verdict is exactly the
-kind of read this diagnostic is for.
+predictive distribution, while values near 0 or 1 flag systematic over- or
+under-prediction. For `ame()`, `fit$GOF` stores the observed statistic in row
+1, so the calculation includes that one point. The relationship to `R` is not
+monotonic, so choose the smallest rank at which the important statistics fall
+away from the endpoints. If degree statistics remain at an endpoint across
+ranks while four-cycle statistics are well reproduced, adding dimensions is
+not addressing the source of the mismatch.
 
 ## Practical Guidance
 

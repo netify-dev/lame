@@ -112,9 +112,9 @@ fit <- lame(
 	dcor = TRUE,             # dyadic correlation (reciprocity)
 	R = 1,                   # 1-D multiplicative latent space
 	symmetric = FALSE,       # friendships are directed
-	burn = 500,              # burn-in
-	nscan = 4000,            # post-burn-in iterations
-	odens = 10,              # thinning -> 400 stored draws
+	burn = 30,               # short burn-in for this worked example
+	nscan = 150,             # compact post-burn-in run for the vignette
+	odens = 10,              # thinning -> 15 stored draws
 	posterior_opts = list(save_UV = TRUE),  # keep U/V draws: gives
 	                                        # latent_positions() real
 	                                        # posterior SDs below
@@ -155,13 +155,13 @@ The intercept itself is strongly negative, but the predictor at the average cova
 
 The model is estimated via MCMC, so convergence checks come first. `trace_plot` shows the sampled values over iterations (top panels) and the corresponding posterior densities (bottom panels) for each parameter.
 
-```{r overview-trace, fig.width=8, fig.height=8, dpi=100, dev="png", fig.alt="MCMC trace plots (top) and marginal posterior density plots (bottom) for each regression coefficient of the Dutch college fit; well-mixed fuzzy-caterpillar traces around a stable mean and smooth unimodal densities together indicate the chain has converged."}
+```{r overview-trace, fig.width=8, fig.height=8, dpi=100, dev="png", fig.alt="MCMC trace plots (top) and marginal posterior density plots (bottom) for each regression coefficient of the Dutch college fit; well-mixed fuzzy-caterpillar traces around a stable mean and smooth unimodal densities are the signatures of a converged chain."}
 trace_plot(fit, params = "beta")
 ```
 
 Trace plots should bounce around a stable mean without long-term trends or sticky regions, and density plots should be smooth and unimodal. Numerically, common MCMC checks are **split-$\hat R$ < 1.01** for monitored parameters and **bulk / tail ESS $\ge$ 400 per chain**.
 
-With `r nrow(fit$BETA)` stored samples, the regression coefficients mix well at this seed. The variance components mix more slowly than the regression coefficients -- compare their $\hat R$ and ESS columns in the `summarise_draws` table below. Which parameter mixes worst is seed-dependent in a short chain, so treat this fit as a compact worked example rather than a final diagnostic run.
+With `r nrow(fit$BETA)` stored samples, this run cannot meet those thresholds: the number of stored draws caps the ESS, and several $\hat R$ values in the `summarise_draws` table below land well above 1.01. Read the table as a demonstration of how to check these diagnostics, not as evidence of convergence -- for a real analysis, lengthen the chain (`burn` in the hundreds, `nscan` in the thousands) until every monitored parameter clears both thresholds. Which parameter mixes worst is seed-dependent in a short chain, so treat this fit as a compact worked example rather than a final diagnostic run.
 
 ### Bayesian-ecosystem diagnostics: `posterior::as_draws()`
 
@@ -185,7 +185,7 @@ gof_plot(fit)
 
 For a longitudinal model, `gof_plot` shows these statistics across time, encoding three series per panel with colour and linetype redundantly: the **observed series is a solid orange line with filled orange points**, the **posterior-predictive median is a dashed dark line**, and the **95% credible interval is a grey ribbon** (width set by `credible.level`). Observed values inside the ribbon are features the model reproduces; values outside flag structure it is missing -- itself a substantive finding, not a failure to report.
 
-Reading the figure: the fit reproduces the cyclic-triad structure (Triadic Dependence sits inside the band at five of the six periods) but under-predicts sender degree heterogeneity (observed above the band at five of six periods) and transitivity (above the band at every period) -- some students nominate many more friends than the additive $a_i$ plus latent $u_i$ can absorb, and triangle closure is systematically too low. Receiver heterogeneity and Dyadic Dependence (reciprocity) drift in and out of the band across the panel.
+Reading the figure: the fit comes closest on the cyclic-triad structure (Triadic Dependence sits inside the band at three of the six periods) but under-predicts sender degree heterogeneity (observed above the band at five of six periods) and transitivity (above the band at every period) -- some students nominate many more friends than the additive $a_i$ plus latent $u_i$ can absorb, and triangle closure is systematically too low. Receiver heterogeneity and Dyadic Dependence (reciprocity) drift in and out of the band across the panel.
 
 This is the standard signature of a latent-space model on a friendship network. AME assumes conditional dyadic independence, so triangle closure must be soaked up by clustering of the latent positions; ERGMs model it directly via terms like `gwesp`. The two classes are complementary: ERGM for triangle-closure questions, AME for stable, non-degenerate estimates with explicit actor heterogeneity and a coherent posterior to forecast or simulate from.
 
@@ -210,11 +210,13 @@ covariates and additive effects explain. We fit `R = 1`, so each student's
 sender position ($u_i$) and receiver position ($v_i$) is a single number --
 and a one-dimensional space should be *plotted* as one dimension (a 2-D
 scatter of a 1-D space piles every point onto a line and looks degenerate
-even when the positions are informative). Why not just fit `R = 2`? On
-these 32 students the second latent dimension competes with the three
-homophily dummies for the same signal: refitting with `R = 2` collapses
-the `same_male` and `same_smoker` effective sample sizes to about 15,
-versus healthy mixing at `R = 1`.
+even when the positions are informative). Why not just fit `R = 2`?
+Extra dimensions are not free: they can absorb signal the dyadic
+covariates would otherwise pick up, and a one-dimensional space is far
+easier to display and interpret. Parsimony wins here; to let the data
+adjudicate a rank choice, compare fits with `loo::loo_compare()` out
+of sample, as done for `R = 1` versus `R = 0` at the end of this
+vignette.
 
 The honest display for a 1-D space is a ranked dot plot: every student's
 sender and receiver position with a 95% interval, ordered by sender
@@ -241,10 +243,11 @@ ggplot(lp1, aes(x = value, y = actor, color = type)) +
 ```
 
 Three things to read off this plot. First, the dimension is genuinely
-informative: the extremes (around $+1.9$ at the top versus $-1.4$ at the
-bottom) are separated by roughly six times the width of a typical 95%
-interval, so the ordering is signal, not noise. Second, sender and receiver
-positions are strongly related (their correlation is about 0.7): students
+informative: the extremes (around $+1.8$ at the top versus $-1.2$ at the
+bottom) are separated by roughly two and a half times the width of a
+typical 95% interval, so the ordering is signal, not noise. Second, sender
+and receiver positions are strongly related (their correlation is about
+0.8): students
 near the top both seek out and attract the same friendship cluster. Third,
 the exceptions are the interesting actors -- students whose blue and orange
 points diverge are attractive to a cluster they do not themselves reach
@@ -374,7 +377,7 @@ fit_noUV <- lame(
 	family = "binary", rvar = TRUE, cvar = TRUE, dcor = TRUE,
 	R = 0,                          # no latent space
 	symmetric = FALSE,
-	burn = 500, nscan = 4000, odens = 10,
+	burn = 30, nscan = 150, odens = 10,
 	save_log_lik = TRUE,            # reused by loo_compare() below
 	verbose = FALSE, plot = FALSE
 )
@@ -406,10 +409,11 @@ autoplot(fit) +
 ```
 
 The coefplot is the visual form of the `tidy(fit)` table above: the
-three homophily terms sit clearly right of the dashed zero line --
-`same_program` largest (0.58), `same_male` next (0.45), `same_smoker`
-smallest (0.16) but still clear of zero -- while the nodal terms are
-mixed, with `smoker_col` and `program_col` straddling the line. The
+three homophily point estimates sit right of the dashed zero line --
+`same_program` largest (0.59), `same_male` next (0.43), `same_smoker`
+smallest (0.15), with an interval that crosses zero in this short
+demonstration run -- while the nodal terms are mixed, with
+`smoker_col` and `program_col` straddling the line. The
 same generic dispatches on `which = "uv"` (latent positions -- the
 ranked dot plot in the Latent Space section above) and `which = "ab"`
 (sender / receiver random effects):
@@ -478,9 +482,10 @@ real predictive work on this network. When `|elpd_diff|` is instead
 close to its SE, the simpler model is the defensible choice.
 
 This result sits comfortably beside the earlier `modelsummary` table,
-where the `R = 1` and `R = 0` coefficient columns were nearly
-identical. The two are not in tension: the latent space barely moves
-$\beta$ yet buys roughly `` `r dval` `` elpd units out of sample,
+where the `R = 1` and `R = 0` columns told the same homophily story
+(the nodal terms shift more, with wide overlapping intervals). The two
+are not in tension: the latent space leaves the homophily coefficients
+intact yet buys roughly `` `r dval` `` elpd units out of sample,
 because the predictive gain is carried by the estimated latent
 positions themselves -- the $u_i' v_j$ term in the linear predictor.
 Residual dyadic structure shows up in held-out predictive density long

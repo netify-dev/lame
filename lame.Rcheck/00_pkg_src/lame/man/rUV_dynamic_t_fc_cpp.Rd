@@ -46,7 +46,8 @@ List with updated U, V arrays and lambda_u, lambda_v local scales
 }
 \description{
 Like rUV_dynamic_fc_cpp but each AR(1) innovation is Student-t rather than
-Gaussian, via a scale-mixture: the innovation for u_{t,i} has variance
-sigma^2 / lambda_{t,i} with lambda_{t,i} ~ Gamma(nu/2, nu/2). Provides a
+Gaussian, via a scale-mixture: the innovation for \code{u[t, i]} has variance
+\code{sigma^2 / lambda[t, i]} with \code{lambda[t, i]} distributed as
+Gamma(nu/2, nu/2). Provides a
 continuous heavy-tailed alternative to the discrete snap-shift model.
 }

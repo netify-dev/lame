@@ -94,7 +94,7 @@ fit <- lame(
 	family = "binary", R = 0,
 	dynamic_beta = "dyad",      # the trade coefficient is AR(1)
 	dynamic_beta_kind = "ar1",  # mean-reverting; switch to "rw1" for drift
-	nscan = 800, burn = 200, odens = 5,
+	nscan = 150, burn = 30, odens = 5,
 	verbose = FALSE
 )
 
@@ -392,7 +392,7 @@ near-unit-root posterior does to the intervals, compare how the average
 95% forecast-interval width grows with the horizon on this fit versus
 the mean-reverting Step 1 fit:
 
-```{r sparse-fail-width, fig.width = 6, fig.height = 3.2, fig.alt="Line plot of the across-dyad mean 95 percent forecast interval width at horizons one through six for two fits. The mean-reverting Step 1 fit's width is flat from roughly horizon three on, the saturation an AR(1) below the unit root predicts, while the near-unit-root sparse fit's width is still rising at horizon six, roughly double its one-step value."}
+```{r sparse-fail-width, fig.width = 6, fig.height = 3.2, fig.alt="Line plot of the across-dyad mean 95 percent forecast interval width at horizons one through six for two fits. The mean-reverting Step 1 fit's width is flat from roughly horizon four on, the saturation an AR(1) below the unit root predicts, while the near-unit-root sparse fit's width is still rising at horizon six, roughly double its one-step value."}
 set.seed(1)
 fc_healthy <- predict(fit, h = 6, type = "response",
                       interval = "credible")
@@ -431,7 +431,7 @@ Read the growth, not the levels: the sparse fit's absolute widths are
 smaller only because most of its predicted probabilities sit near zero
 (the network is sparse). The mean-reverting fit's width grows by a
 factor of just `r round(w_healthy[6] / w_healthy[1], 1)` across the
-whole horizon and is flat from about `h = 3` on -- the saturation the
+whole horizon and is flat from about `h = 4` on -- the saturation the
 AR(1) bullet above predicts. The near-unit-root fit's width has grown
 by a factor of `r round(w_sparse[6] / w_sparse[1], 1)` by `h = 6` and
 is still climbing -- the growth you get when $\rho_\beta$ sits at the
@@ -457,13 +457,13 @@ set.seed(1)  # the internal h=1 forecast draws inside lfo() are stochastic; seed
 T_fit <- length(fit$YPM)
 lfo_periods <- tail(seq_len(T_fit), max(1L, min(2L, T_fit - 2L)))
 lfo_res <- lfo(fit, periods = lfo_periods, refit = TRUE,
-               nscan = 200, burn = 50, odens = 5, verbose = FALSE)
+			   nscan = 100, burn = 25, odens = 5, verbose = FALSE)
 print(lfo_res)
 ```
 
-The `nscan = 200, burn = 50, odens = 5` settings inside `lfo()` are
+The `nscan = 100, burn = 25, odens = 5` settings inside `lfo()` are
 chosen so the vignette builds in well under a minute on a laptop. They
-give `200 / 5 = 40` stored draws per leave-out refit (burn-in is run and discarded, not subtracted from `nscan`), enough to
+give `100 / 5 = 20` stored draws per leave-out refit (burn-in is run and discarded, not subtracted from `nscan`), enough to
 return a sensible point estimate of per-period elpd for *demonstration*,
 but tighter than you should use when the LFO output drives an inference.
 For real analyses, pass `nscan = 5000, burn = 1000, odens = 25` (or
@@ -496,7 +496,7 @@ fit_train <- lame(
 	Y[1:5], Xdyad = Xdyad[1:5],
 	family = "binary", R = 0,
 	dynamic_beta = "dyad",
-	nscan = 400, burn = 100, odens = 5,
+	nscan = 100, burn = 30, odens = 5,
 	verbose = FALSE
 )
 set.seed(1)   # the randomised PIT draws are stochastic; seed for reproducibility
@@ -534,7 +534,7 @@ way.)
 Read the two summaries together. `pit$cover_95` -- the fraction of
 held-out cells whose observed outcome falls in the central 95%
 posterior-predictive interval, target 0.95 -- is the **stable** summary;
-here it lands at about 0.93, close to nominal, so the forecast intervals
+here it lands at about 0.94, close to nominal, so the forecast intervals
 have roughly the right width. `pit$ks_p` tests whether the full PIT
 distribution is Uniform(0, 1); a value below 0.05 flags
 mis-calibration. For a **binary** outcome the PIT is the randomised
@@ -561,19 +561,18 @@ is the one-liner that ranks them on out-of-sample predictive
 performance. Both fits need `save_log_lik = TRUE` so `loo()` can read
 the stored pointwise log-likelihood matrix off `fit$log_lik`:
 
-```{r loo-compare}
-# reduced iterations so the vignette builds quickly; use nscan >= 2000,
-# burn >= 500 for a comparison you will report.
+```{r loo-compare, eval = FALSE}
+# run this after fitting both candidates with converged chains
 fit_static <- lame(
 	Y, Xdyad = Xdyad, family = "binary", R = 0,
-	nscan = 600, burn = 150, odens = 5,
+	nscan = 5000, burn = 1000, odens = 25,
 	save_log_lik = TRUE,
 	verbose = FALSE
 )
 fit_dyn <- lame(
 	Y, Xdyad = Xdyad, family = "binary", R = 0,
 	dynamic_beta = "dyad",
-	nscan = 600, burn = 150, odens = 5,
+	nscan = 5000, burn = 1000, odens = 25,
 	save_log_lik = TRUE,
 	verbose = FALSE
 )
@@ -586,7 +585,7 @@ cmp <- loo::loo_compare(list(fit_static = loo::loo(fit_static),
 cmp
 ```
 
-```{r loo-compare-read, echo = FALSE}
+```{r loo-compare-read, eval = FALSE}
 best     <- rownames(cmp)[1]
 runnerup <- rownames(cmp)[2]
 diff_val <- abs(round(cmp[2, "elpd_diff"], 1))
@@ -594,27 +593,13 @@ se_val   <- round(cmp[2, "se_diff"], 1)
 ratio    <- round(diff_val / se_val, 1)
 ```
 
-(`loo()` may print a high-Pareto-$k$ warning at these short chain
-lengths -- it is the usual PSIS importance-sampling caveat, not an error;
-lengthen the chains or fall back to `waic()` if it persists.)
-
-**How to read this output.** The top row is the preferred model;
-`elpd_diff` is always zero for it. Each subsequent row reports the
-*difference* in expected log pointwise predictive density relative to
-the top model, together with the standard error of that difference.
-Here `` `r best` `` is preferred, beating `` `r runnerup` `` by about
-`` `r diff_val` `` elpd units with an SE of `` `r se_val` ``, so
-`|elpd_diff| / se_diff` $\approx$ `` `r ratio` ``. A common rule of
-thumb reads a ratio near or above 2 as a reasonably confident
-preference. A sociologist writing this up would say **"the time-varying
-coefficient model is preferred over the static specification by about
-`` `r diff_val` `` elpd units (SE `` `r se_val` ``), consistent with
-nontrivial drift in the effect over the panel window."** When
-`|elpd_diff|` is instead close to its SE the two specifications are
-predictively indistinguishable and the simpler static model is the
-defensible choice. (Because these are short demonstration chains, expect
-the exact numbers to move from run to run; report a comparison only
-after checking it is stable at production chain lengths.)
+**How to read this output.** The top row is the preferred model and has
+`elpd_diff = 0`. Each subsequent row gives the difference in expected log
+pointwise predictive density relative to that model and the standard error of
+the difference. A difference that is large relative to its standard error
+supports the preferred model; when the two are similar, the specifications are
+not distinguishable on this predictive criterion. Read the Pareto-$k$
+diagnostics before interpreting the ranking.
 
 Because `family = "binary"` is one of the five families with an exact
 closed-form log-likelihood (`normal`, `binary`, `cbin`, `poisson`,

@@ -1,5 +1,6 @@
 # lame 1.3.1
 
+* Fixed Rd markup reported by CRAN's incoming checks.
 * Time-varying coefficients (`dynamic_beta`) compose freely with the
   multiplicative latent factors (`R > 0`) and additive sender/receiver effects,
   for every family and network type. Coefficients can follow AR(1),

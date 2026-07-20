@@ -59,9 +59,9 @@ rotational indeterminacy. This is essential for interpreting temporal
 trajectories of latent positions, since the latent space is only identified
 up to rotation at each time point.
 
-Uses Procrustes rotation: at each time step t, finds the orthogonal rotation
-matrix that best aligns U_t to U_{t-1} (minimizing Frobenius norm), then
-applies it sequentially from t=2 to T.
+Uses Procrustes rotation: at each time step, finds the orthogonal rotation
+matrix that best aligns the current sender coordinates to the preceding
+period, then applies it sequentially through the series.
 }
 \details{
 For unipartite networks, U and V are aligned independently using separate

@@ -46,7 +46,7 @@ fit <- lame(
 	family = "binary", R = 0,
 	dynamic_beta = "dyad",      # the trade coefficient is AR(1)
 	dynamic_beta_kind = "ar1",  # mean-reverting; switch to "rw1" for drift
-	nscan = 800, burn = 200, odens = 5,
+	nscan = 150, burn = 30, odens = 5,
 	verbose = FALSE
 )
 
@@ -181,7 +181,7 @@ set.seed(1)
 fc_sparse <- predict(fit_sparse, h = 6, type = "response",
                      interval = "credible")
 
-## ----sparse-fail-width, fig.width = 6, fig.height = 3.2, fig.alt="Line plot of the across-dyad mean 95 percent forecast interval width at horizons one through six for two fits. The mean-reverting Step 1 fit's width is flat from roughly horizon three on, the saturation an AR(1) below the unit root predicts, while the near-unit-root sparse fit's width is still rising at horizon six, roughly double its one-step value."----
+## ----sparse-fail-width, fig.width = 6, fig.height = 3.2, fig.alt="Line plot of the across-dyad mean 95 percent forecast interval width at horizons one through six for two fits. The mean-reverting Step 1 fit's width is flat from roughly horizon four on, the saturation an AR(1) below the unit root predicts, while the near-unit-root sparse fit's width is still rising at horizon six, roughly double its one-step value."----
 set.seed(1)
 fc_healthy <- predict(fit, h = 6, type = "response",
                       interval = "credible")
@@ -223,7 +223,7 @@ set.seed(1)  # the internal h=1 forecast draws inside lfo() are stochastic; seed
 T_fit <- length(fit$YPM)
 lfo_periods <- tail(seq_len(T_fit), max(1L, min(2L, T_fit - 2L)))
 lfo_res <- lfo(fit, periods = lfo_periods, refit = TRUE,
-               nscan = 200, burn = 50, odens = 5, verbose = FALSE)
+			   nscan = 100, burn = 25, odens = 5, verbose = FALSE)
 print(lfo_res)
 
 ## ----pit----------------------------------------------------------------------
@@ -232,7 +232,7 @@ fit_train <- lame(
 	Y[1:5], Xdyad = Xdyad[1:5],
 	family = "binary", R = 0,
 	dynamic_beta = "dyad",
-	nscan = 400, burn = 100, odens = 5,
+	nscan = 100, burn = 30, odens = 5,
 	verbose = FALSE
 )
 set.seed(1)   # the randomised PIT draws are stochastic; seed for reproducibility
@@ -242,36 +242,35 @@ print(pit)
 ## ----pit-plot, fig.height = 3.6, fig.alt="PIT calibration plot for the held-out period: the empirical distribution of probability-integral-transform values compared with the Uniform(0,1) reference. Bars or a curve tracking the reference indicate calibration; a U-shape signals an over-confident (too-narrow) forecast and a central hump signals an under-confident (too-wide) one."----
 plot(pit)
 
-## ----loo-compare--------------------------------------------------------------
-# reduced iterations so the vignette builds quickly; use nscan >= 2000,
-# burn >= 500 for a comparison you will report.
-fit_static <- lame(
-	Y, Xdyad = Xdyad, family = "binary", R = 0,
-	nscan = 600, burn = 150, odens = 5,
-	save_log_lik = TRUE,
-	verbose = FALSE
-)
-fit_dyn <- lame(
-	Y, Xdyad = Xdyad, family = "binary", R = 0,
-	dynamic_beta = "dyad",
-	nscan = 600, burn = 150, odens = 5,
-	save_log_lik = TRUE,
-	verbose = FALSE
-)
+## ----loo-compare, eval = FALSE------------------------------------------------
+# # run this after fitting both candidates with converged chains
+# fit_static <- lame(
+# 	Y, Xdyad = Xdyad, family = "binary", R = 0,
+# 	nscan = 5000, burn = 1000, odens = 25,
+# 	save_log_lik = TRUE,
+# 	verbose = FALSE
+# )
+# fit_dyn <- lame(
+# 	Y, Xdyad = Xdyad, family = "binary", R = 0,
+# 	dynamic_beta = "dyad",
+# 	nscan = 5000, burn = 1000, odens = 25,
+# 	save_log_lik = TRUE,
+# 	verbose = FALSE
+# )
+# 
+# # rank the two fits: the row with elpd_diff = 0 is the best,
+# # subsequent rows show elpd_diff and its SE relative to it. Pass a NAMED
+# # list so the rows are labelled by model name rather than "model1"/"model2".
+# cmp <- loo::loo_compare(list(fit_static = loo::loo(fit_static),
+#                              fit_dyn    = loo::loo(fit_dyn)))
+# cmp
 
-# rank the two fits: the row with elpd_diff = 0 is the best,
-# subsequent rows show elpd_diff and its SE relative to it. Pass a NAMED
-# list so the rows are labelled by model name rather than "model1"/"model2".
-cmp <- loo::loo_compare(list(fit_static = loo::loo(fit_static),
-                             fit_dyn    = loo::loo(fit_dyn)))
-cmp
-
-## ----loo-compare-read, echo = FALSE-------------------------------------------
-best     <- rownames(cmp)[1]
-runnerup <- rownames(cmp)[2]
-diff_val <- abs(round(cmp[2, "elpd_diff"], 1))
-se_val   <- round(cmp[2, "se_diff"], 1)
-ratio    <- round(diff_val / se_val, 1)
+## ----loo-compare-read, eval = FALSE-------------------------------------------
+# best     <- rownames(cmp)[1]
+# runnerup <- rownames(cmp)[2]
+# diff_val <- abs(round(cmp[2, "elpd_diff"], 1))
+# se_val   <- round(cmp[2, "se_diff"], 1)
+# ratio    <- round(diff_val / se_val, 1)
 
 ## ----chunked, eval = FALSE----------------------------------------------------
 # fit_chk <- lame(

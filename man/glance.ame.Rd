@@ -18,12 +18,15 @@
 A one-row data frame with columns:
 \itemize{
 \item \code{nobs} -- number of observed dyads (NA cells excluded).
-\item \code{n_actors} -- number of distinct actors (for bipartite,
-row + column actors).
+\item \code{n_actors} -- number of distinct actors; for bipartite
+fits this is the row-actor count (a 12 x 9 fit reports 12).
+\item \code{n_row_actors}, \code{n_col_actors} -- row and column
+actor counts for bipartite fits (\code{NA} for unipartite).
 \item \code{n_periods} -- number of time periods (1 for \code{ame}).
 \item \code{n_stored} -- number of stored MCMC draws.
-\item \code{family} -- outcome family ({"normal","binary",...}).
-\item \code{mode} -- {"unipartite","bipartite"}.
+\item \code{family} -- outcome family, such as \code{"normal"} or
+\code{"binary"}.
+\item \code{mode} -- \code{"unipartite"} or \code{"bipartite"}.
 \item \code{R} -- latent-space dimension (or max of \code{R_row},
 \code{R_col} for bipartite).
 \item \code{dynamic_uv}, \code{dynamic_ab}, \code{dynamic_beta} --

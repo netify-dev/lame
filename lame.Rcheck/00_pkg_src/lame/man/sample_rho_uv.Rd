@@ -38,7 +38,8 @@ AR(1) initial condition used by the dynamic UV kernels. The proposal is
 the conjugate Normal implied by the transitions and the
 Normal(prior_mean, prior_sd^2) prior, drawn truncated to (-0.99, 0.99)
 via the inverse CDF; the acceptance ratio supplies the t = 1 stationary
-factor f1(rho) = (1 - rho^2)^{nR/2} exp(-(1 - rho^2) S1 / (2 sigma^2))
+factor proportional to \code{(1 - rho^2)^(nR / 2) * exp(-(1 - rho^2) *
+S1 / (2 * sigma^2))}
 that the Gaussian proposal omits. Defaults (prior_mean = 0,
 prior_sd = 1) preserve the historical behaviour; lame::lame() passes
 the user-set prior$rho_uv_mean / prior$rho_uv_sd explicitly.

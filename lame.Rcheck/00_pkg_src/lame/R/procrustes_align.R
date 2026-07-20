@@ -6,9 +6,9 @@
 #' trajectories of latent positions, since the latent space is only identified
 #' up to rotation at each time point.
 #'
-#' Uses Procrustes rotation: at each time step t, finds the orthogonal rotation
-#' matrix that best aligns U_t to U_{t-1} (minimizing Frobenius norm), then
-#' applies it sequentially from t=2 to T.
+#' Uses Procrustes rotation: at each time step, finds the orthogonal rotation
+#' matrix that best aligns the current sender coordinates to the preceding
+#' period, then applies it sequentially through the series.
 #'
 #' @param object A fitted \code{ame} or \code{lame} object, or NULL if raw
 #'   arrays are provided via \code{U}/\code{V}/\code{G}.

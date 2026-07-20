@@ -63,9 +63,9 @@ fit <- lame(
 	dcor = TRUE,             # dyadic correlation (reciprocity)
 	R = 1,                   # 1-D multiplicative latent space
 	symmetric = FALSE,       # friendships are directed
-	burn = 500,              # burn-in
-	nscan = 4000,            # post-burn-in iterations
-	odens = 10,              # thinning -> 400 stored draws
+	burn = 30,               # short burn-in for this worked example
+	nscan = 150,             # compact post-burn-in run for the vignette
+	odens = 10,              # thinning -> 15 stored draws
 	posterior_opts = list(save_UV = TRUE),  # keep U/V draws: gives
 	                                        # latent_positions() real
 	                                        # posterior SDs below
@@ -85,7 +85,7 @@ c(intercept     = unname(bhat["intercept"]),
   centroid_lp   = centroid_lp,
   qnorm_density = qnorm(mean(unlist(Y), na.rm = TRUE)))
 
-## ----overview-trace, fig.width=8, fig.height=8, dpi=100, dev="png", fig.alt="MCMC trace plots (top) and marginal posterior density plots (bottom) for each regression coefficient of the Dutch college fit; well-mixed fuzzy-caterpillar traces around a stable mean and smooth unimodal densities together indicate the chain has converged."----
+## ----overview-trace, fig.width=8, fig.height=8, dpi=100, dev="png", fig.alt="MCMC trace plots (top) and marginal posterior density plots (bottom) for each regression coefficient of the Dutch college fit; well-mixed fuzzy-caterpillar traces around a stable mean and smooth unimodal densities are the signatures of a converged chain."----
 trace_plot(fit, params = "beta")
 
 ## ----as-draws-demo, eval = requireNamespace("posterior", quietly = TRUE)------
@@ -196,7 +196,7 @@ fit_noUV <- lame(
 	family = "binary", rvar = TRUE, cvar = TRUE, dcor = TRUE,
 	R = 0,                          # no latent space
 	symmetric = FALSE,
-	burn = 500, nscan = 4000, odens = 10,
+	burn = 30, nscan = 150, odens = 10,
 	save_log_lik = TRUE,            # reused by loo_compare() below
 	verbose = FALSE, plot = FALSE
 )

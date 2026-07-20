@@ -200,9 +200,9 @@ autoplot(fit_db, coefs = "X1_dyad", probs = c(0.025, 0.5, 0.975)) +
 
 Pass `save_log_lik = TRUE` and `lame` attaches a `[n_stored, n_obs]` pointwise log-likelihood matrix to `fit$log_lik`, which registered S3 methods hand directly to `loo::loo(fit)` and `loo::waic(fit)`:
 
-```{r save-log-lik-eval, eval = requireNamespace("loo", quietly = TRUE)}
+```{r save-log-lik-eval, eval = FALSE}
 fit_ll <- lame(Y_db, Xdyad = X_db_arr, family = "normal", R = 0,
-               nscan = 2000, burn = 200, odens = 5,
+			   nscan = 2000, burn = 500, odens = 25,
                dynamic_beta = "dyad",
                save_log_lik = TRUE,
                verbose = FALSE)
@@ -212,7 +212,7 @@ loo_db <- loo::loo(fit_ll)
 print(loo_db)
 ```
 
-This chunk uses a longer run on purpose: at very short chain lengths `loo()` prints a high-Pareto-$k$ warning with `NA` MCSE/ESS cells (the usual PSIS caveat, not an error), so lengthen the run before quoting `elpd_loo`. If the matrix would not fit in RAM, `save_log_lik = "chunked"` streams it to disk (see the [forecasting vignette](forecasting.html)).
+The code is left unevaluated because a useful PSIS-LOO calculation needs more draws than a vignette should generate. Run it with a converged fit before using `elpd_loo`. If the matrix would not fit in RAM, `save_log_lik = "chunked"` streams it to disk (see the [forecasting vignette](forecasting.html)).
 
 On the log-likelihood scale: for `normal`, `binary`, `cbin`, `poisson`, and `ordinal` the stored pointwise log-likelihood is the **exact family-specific Y density** on the response scale, so `elpd_loo` is directly comparable to a Stan / brms `loo()` on the same family and data (modulo satisfactory $\hat R$ / ESS). For the rank likelihood `frn`, the exact marginal needs GHK Monte Carlo (`log_lik_method = "observed_ghk"`, longitudinal path only); the default falls back to the augmented-Z normal density with a one-time warning. Inspect `fit$log_lik_method` for the branch used.
 
@@ -358,20 +358,20 @@ A natural workflow is to fit several specifications and compare their goodness-o
 # budget; for a real comparison use nscan >= 2000 per fit and run them
 # under `ame_parallel()` with 4 chains.
 fit_static <- lame(Y_list, R = 2, family = "binary",
-									burn = 50, nscan = 300, odens = 5,
+									burn = 30, nscan = 150, odens = 5,
 									verbose = FALSE, plot = FALSE)
 
 fit_uv <- lame(Y_list, R = 2, dynamic_uv = TRUE, family = "binary",
-							burn = 50, nscan = 300, odens = 5,
+							burn = 30, nscan = 150, odens = 5,
 							verbose = FALSE, plot = FALSE)
 
 fit_ab <- lame(Y_list, R = 2, dynamic_ab = TRUE, family = "binary",
-							burn = 50, nscan = 300, odens = 5,
+							burn = 30, nscan = 150, odens = 5,
 							verbose = FALSE, plot = FALSE)
 
 fit_full <- lame(Y_list, R = 2, dynamic_uv = TRUE, dynamic_ab = TRUE,
 								family = "binary",
-								burn = 50, nscan = 300, odens = 5,
+								burn = 30, nscan = 150, odens = 5,
 								verbose = FALSE, plot = FALSE)
 ```
 

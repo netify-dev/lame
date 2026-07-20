@@ -295,42 +295,42 @@ ggplot(gof_df, aes(x = model, y = value)) +
 		strip.text = element_text(color = "white", hjust = 0)
 	)
 
-## ----dimension_selection, message=FALSE, warning=FALSE------------------------
-# include R=0 as a no-latent-space baseline
-dims_to_test <- list(
-	c(0, 0),
-	c(1, 1),
-	c(2, 2)
-)
-
-# compute observed GOF statistics from the data
-obs_gof <- gof_stats(Y_bipartite, mode = "bipartite")
-
-gof_results <- list()
-for(i in seq_along(dims_to_test)) {
-	fit_temp <- ame(
-		Y = Y_bipartite,
-		mode = "bipartite",
-		R_row = dims_to_test[[i]][1],
-		R_col = dims_to_test[[i]][2],
-		family = "binary",
-		burn = 200,
-		nscan = 2500,
-		odens = 5,
-		verbose = FALSE
-	)
-	# posterior predictive tail probability: proportion of simulated
-	# statistics at or above the observed value (one-sided)
-	gof_results[[i]] <- c(
-		R_row = dims_to_test[[i]][1],
-		R_col = dims_to_test[[i]][2],
-		pval_rowmean = mean(fit_temp$GOF[, "sd.rowmean"] >= obs_gof["sd.rowmean"]),
-		pval_colmean = mean(fit_temp$GOF[, "sd.colmean"] >= obs_gof["sd.colmean"]),
-		pval_fourcycles = mean(fit_temp$GOF[, "four.cycles"] >= obs_gof["four.cycles"])
-	)
-}
-
-do.call(rbind, gof_results)
+## ----dimension_selection, eval=FALSE------------------------------------------
+# # include R=0 as a no-latent-space baseline
+# dims_to_test <- list(
+# 	c(0, 0),
+# 	c(1, 1),
+# 	c(2, 2)
+# )
+# 
+# # compute observed GOF statistics from the data
+# obs_gof <- gof_stats(Y_bipartite, mode = "bipartite")
+# 
+# gof_results <- list()
+# for(i in seq_along(dims_to_test)) {
+# 	fit_temp <- ame(
+# 		Y = Y_bipartite,
+# 		mode = "bipartite",
+# 		R_row = dims_to_test[[i]][1],
+# 		R_col = dims_to_test[[i]][2],
+# 		family = "binary",
+# 		burn = 200,
+# 		nscan = 2500,
+# 		odens = 5,
+# 		verbose = FALSE
+# 	)
+# 	# posterior predictive tail probability: proportion of simulated
+# 	# statistics at or above the observed value (one-sided)
+# 	gof_results[[i]] <- c(
+# 		R_row = dims_to_test[[i]][1],
+# 		R_col = dims_to_test[[i]][2],
+# 		pval_rowmean = mean(fit_temp$GOF[, "sd.rowmean"] >= obs_gof["sd.rowmean"]),
+# 		pval_colmean = mean(fit_temp$GOF[, "sd.colmean"] >= obs_gof["sd.colmean"]),
+# 		pval_fourcycles = mean(fit_temp$GOF[, "four.cycles"] >= obs_gof["four.cycles"])
+# 	)
+# }
+# 
+# do.call(rbind, gof_results)
 
 ## -----------------------------------------------------------------------------
 lp <- latent_positions(fit_cross)

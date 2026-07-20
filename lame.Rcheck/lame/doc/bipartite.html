@@ -12,7 +12,7 @@
 
 <meta name="author" content="Cassy Dorff, Shahryar Minhas, and Tosin Salau" />
 
-<meta name="date" content="2026-07-12" />
+<meta name="date" content="2026-07-18" />
 
 <title>Bipartite Network Analysis</title>
 
@@ -340,7 +340,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">Bipartite Network Analysis</h1>
 <h4 class="author">Cassy Dorff, Shahryar Minhas, and Tosin Salau</h4>
-<h4 class="date">2026-07-12</h4>
+<h4 class="date">2026-07-18</h4>
 
 
 
@@ -1093,28 +1093,18 @@ choose them is to fit at several ranks and compare GOF statistics.</p>
 <span id="cb18-32"><a href="#cb18-32" tabindex="-1"></a>    )</span>
 <span id="cb18-33"><a href="#cb18-33" tabindex="-1"></a>}</span>
 <span id="cb18-34"><a href="#cb18-34" tabindex="-1"></a></span>
-<span id="cb18-35"><a href="#cb18-35" tabindex="-1"></a><span class="fu">do.call</span>(rbind, gof_results)</span>
-<span id="cb18-36"><a href="#cb18-36" tabindex="-1"></a><span class="co">#&gt;      R_row R_col pval_rowmean pval_colmean pval_fourcycles</span></span>
-<span id="cb18-37"><a href="#cb18-37" tabindex="-1"></a><span class="co">#&gt; [1,]     0     0     0.994012    0.9740519       0.7165669</span></span>
-<span id="cb18-38"><a href="#cb18-38" tabindex="-1"></a><span class="co">#&gt; [2,]     1     1     0.998004    0.9680639       0.7485030</span></span>
-<span id="cb18-39"><a href="#cb18-39" tabindex="-1"></a><span class="co">#&gt; [3,]     2     2     0.994012    0.9361277       0.7544910</span></span></code></pre></div>
+<span id="cb18-35"><a href="#cb18-35" tabindex="-1"></a><span class="fu">do.call</span>(rbind, gof_results)</span></code></pre></div>
 <p>These are one-sided posterior predictive tail probabilities, not
 formal test p-values: values near 0.5 mean the observed statistic lies
-in the bulk of the predictive distribution, values near 0 or 1 flag
-systematic over- or under-prediction. (For <code>ame()</code>,
-<code>fit$GOF</code> stores the observed statistic in row 1, so the tail
-probability includes the observed point itself – a one-row bias that is
-negligible at these chain lengths.) The relationship to <code>R</code>
-is not monotonic, so a sensible heuristic is to pick the smallest
-<code>R</code> at which all three tail probabilities sit comfortably
-away from 0 and 1. Here <code>pval_rowmean</code> pins near 1 (about
-0.99 at all three ranks), <code>pval_colmean</code> sits around
-0.94-0.97, and <code>pval_fourcycles</code> stays in the bulk (about
-0.72-0.75): four-cycle clustering is adequately captured at every rank,
-while the over-prediction of degree heterogeneity does not improve with
-rank. No value of <code>R</code> rescues it – the limitation is
-structural rather than a matter of adding latent dimensions, and that
-verdict is exactly the kind of read this diagnostic is for.</p>
+in the bulk of the predictive distribution, while values near 0 or 1
+flag systematic over- or under-prediction. For <code>ame()</code>,
+<code>fit$GOF</code> stores the observed statistic in row 1, so the
+calculation includes that one point. The relationship to <code>R</code>
+is not monotonic, so choose the smallest rank at which the important
+statistics fall away from the endpoints. If degree statistics remain at
+an endpoint across ranks while four-cycle statistics are well
+reproduced, adding dimensions is not addressing the source of the
+mismatch.</p>
 </div>
 </div>
 <div id="practical-guidance" class="section level2">

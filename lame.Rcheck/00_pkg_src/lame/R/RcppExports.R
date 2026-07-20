@@ -232,7 +232,8 @@ init_dynamic_positions <- function(n, R, T, rho_uv, sigma_uv) {
 #' the conjugate Normal implied by the transitions and the
 #' Normal(prior_mean, prior_sd^2) prior, drawn truncated to (-0.99, 0.99)
 #' via the inverse CDF; the acceptance ratio supplies the t = 1 stationary
-#' factor f1(rho) = (1 - rho^2)^{nR/2} exp(-(1 - rho^2) S1 / (2 sigma^2))
+#' factor proportional to \code{(1 - rho^2)^(nR / 2) * exp(-(1 - rho^2) *
+#' S1 / (2 * sigma^2))}
 #' that the Gaussian proposal omits. Defaults (prior_mean = 0,
 #' prior_sd = 1) preserve the historical behaviour; lame::lame() passes
 #' the user-set prior$rho_uv_mean / prior$rho_uv_sd explicitly.
@@ -287,8 +288,9 @@ rUV_dynamic_snap_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, 
 #' Update dynamic latent positions with heavy-tailed (Student-t) AR(1) innovations
 #'
 #' Like rUV_dynamic_fc_cpp but each AR(1) innovation is Student-t rather than
-#' Gaussian, via a scale-mixture: the innovation for u_{t,i} has variance
-#' sigma^2 / lambda_{t,i} with lambda_{t,i} ~ Gamma(nu/2, nu/2). Provides a
+#' Gaussian, via a scale-mixture: the innovation for \code{u[t, i]} has variance
+#' \code{sigma^2 / lambda[t, i]} with \code{lambda[t, i]} distributed as
+#' Gamma(nu/2, nu/2). Provides a
 #' continuous heavy-tailed alternative to the discrete snap-shift model.
 #'
 #' @param U_current Current 3D array of U positions (n x R x T)

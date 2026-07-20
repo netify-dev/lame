@@ -13,7 +13,7 @@ library(lame)
 # 
 # t_als <- system.time(ame_als(Y, R = 2, family = "normal", verbose = FALSE))
 # t_mcmc <- system.time(ame(Y, R = 2, family = "normal", burn = 500,
-#                           nscan = 4000, odens = 25, verbose = FALSE, plot = FALSE))
+# 						  nscan = 4000, odens = 25, verbose = FALSE, plot = FALSE))
 # cat("ALS:  ", round(t_als["elapsed"], 2), "s\n",
 #     "MCMC: ", round(t_mcmc["elapsed"], 2), "s\n",
 #     "ratio:", round(t_mcmc["elapsed"] / t_als["elapsed"], 1), "x\n")
@@ -60,7 +60,7 @@ fb_b <- ame_als(Yb, Xdyad = Xd_arr, R = 0, family = "binary",
 
 # fit the same data with MCMC using a short chain for a quick comparison
 fit_mcmc <- ame(Yb, Xdyad = Xd_arr, family = "binary", R = 0,
-                burn = 200, nscan = 1000, odens = 5,
+				burn = 30, nscan = 100, odens = 5,
                 verbose = FALSE, plot = FALSE, gof = FALSE,
                 seed = 1)
 

@@ -97,7 +97,7 @@ rownames(Y) <- colnames(Y) <- paste0("a", sprintf("%03d", 1:n))
 
 t_als <- system.time(ame_als(Y, R = 2, family = "normal", verbose = FALSE))
 t_mcmc <- system.time(ame(Y, R = 2, family = "normal", burn = 500,
-                          nscan = 4000, odens = 25, verbose = FALSE, plot = FALSE))
+						  nscan = 4000, odens = 25, verbose = FALSE, plot = FALSE))
 cat("ALS:  ", round(t_als["elapsed"], 2), "s\n",
     "MCMC: ", round(t_mcmc["elapsed"], 2), "s\n",
     "ratio:", round(t_mcmc["elapsed"] / t_als["elapsed"], 1), "x\n")
@@ -241,19 +241,13 @@ bt <- ame_als_bootstrap(fb, R = 100, type = "parametric",
 summary(bt)
 ```
 
-Two rows of this table deserve a comment before you report anything from it.
-First, the `Boot SE` column is the raw standard deviation across replicates,
-and for `dyad1_dyad` it visibly disagrees with the interval printed next to
-it: an SE of 0.5385 would imply a Wald interval of roughly [-0.25, 1.86], yet
-the 95% percentile CI is [0.746, 1.0016] -- a width that corresponds to an SE
-of about 0.065. The gap comes from a single divergent binary IRLS replicate
-(1 of the 100 refits returned a coefficient of 6.2), which inflates the
-standard deviation while barely moving the percentile quantiles. That is
-exactly why the package defaults to percentile CIs: report the percentile
-interval, which is what `confint()` returns by default, not a Wald interval
-built from the printed SE.
+The `Boot SE` column is the raw standard deviation across replicates, whereas
+the interval reported by `confint()` is percentile-based by default. A small
+number of unstable binary IRLS refits can inflate the raw standard deviation
+without moving the percentile limits much, so use the percentile interval
+rather than constructing a Wald interval from `Boot SE`.
 
-Second, one row of the variance-components table is constant by construction:
+One row of the variance-components table is constant by construction:
 for the binary family the latent residual variance `ve` is fixed at 1 by
 probit identification, so its bootstrap SE is exactly zero and its interval
 is the point [1, 1] -- that row is expected, not a failed bootstrap. See
@@ -292,7 +286,7 @@ fb_b <- ame_als(Yb, Xdyad = Xd_arr, R = 0, family = "binary",
 
 # fit the same data with MCMC using a short chain for a quick comparison
 fit_mcmc <- ame(Yb, Xdyad = Xd_arr, family = "binary", R = 0,
-                burn = 200, nscan = 1000, odens = 5,
+				burn = 30, nscan = 100, odens = 5,
                 verbose = FALSE, plot = FALSE, gof = FALSE,
                 seed = 1)
 
