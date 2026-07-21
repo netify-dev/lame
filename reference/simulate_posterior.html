@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,7 @@
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">simulate_posterior</span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
 <span>  component <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"UV"</span>, <span class="st">"ab"</span>, <span class="st">"beta"</span>, <span class="st">"Y"</span><span class="op">)</span>,</span>
-<span>  n_samples <span class="op">=</span> <span class="fl">100</span>,</span>
+<span>  n_samples <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  use_full_cov <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -74,7 +74,11 @@
 
 
 <dt id="arg-n-samples">n_samples<a class="anchor" aria-label="anchor" href="#arg-n-samples"></a></dt>
-<dd><p>Number of posterior samples to generate</p></dd>
+<dd><p>Number of posterior samples to return. Defaults to
+<code>NULL</code>, which uses every saved draw when the fit stores them
+(see <code><a href="posterior_options.html">posterior_options</a></code>) and 100 otherwise. A smaller
+value draws a random subset, which widens Monte Carlo error in the
+tails of any interval computed from the result.</p></dd>
 
 
 <dt id="arg-use-full-cov">use_full_cov<a class="anchor" aria-label="anchor" href="#arg-use-full-cov"></a></dt>

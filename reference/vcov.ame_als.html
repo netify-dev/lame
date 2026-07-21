@@ -13,7 +13,7 @@ the bootstrap for those coefficients."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -75,7 +75,8 @@ the bootstrap for those coefficients.</p>
 
 <dt id="arg-cluster">cluster<a class="anchor" aria-label="anchor" href="#arg-cluster"></a></dt>
 <dd><p><code>"dyad"</code> (default) for a dyad-clustered robust meat, or
-<code>"none"</code> for an HC0 (heteroskedasticity-only) meat.</p></dd>
+<code>"none"</code> for an HC0 (heteroskedasticity-only) meat. Ignored when the
+fit carries a bootstrap, since the bootstrap covariance is returned.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -84,8 +85,11 @@ the bootstrap for those coefficients.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A covariance matrix for <code>c(intercept, dyadic coefficients)</code>,
-with matching row/column names.</p>
+    <p>A covariance matrix with matching row/column names. When the fit
+carries a <code>$bootstrap</code>, this is the bootstrap covariance over all
+estimated coefficients, matching <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>. Otherwise it is the
+conditional sandwich, covering <code>c(intercept, dyadic coefficients)</code>
+only.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

@@ -15,7 +15,7 @@ use the ame function."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -331,15 +331,25 @@ families</p></dd>
 <dt id="arg-prior">prior<a class="anchor" aria-label="anchor" href="#arg-prior"></a></dt>
 <dd><p>a list containing hyperparameters for the prior distributions.
 Available options and their defaults:</p><dl><dt>Sab0</dt>
-<dd><p>Prior covariance matrix for additive effects (default: diag(2)).
-A 2x2 matrix where Sab0\[1,1\] is the prior variance for row effects,
+<dd><p>Prior scale matrix for the additive-effects covariance. A 2x2
+matrix where Sab0\[1,1\] is the prior variance for row effects,
 Sab0\[2,2\] is the prior variance for column effects, and off-diagonals
-control correlation between row and column effects.</p></dd>
+control correlation between row and column effects. For the
+<code>"normal"</code> and <code>"poisson"</code> families, and for unipartite
+<code>"binary"</code>, this defaults to <code>diag(2)</code> scaled to the observed
+sender/receiver heterogeneity in <code>Y</code> rather than to a fixed
+<code>diag(2)</code>; see <code><a href="ame.html">ame</a></code> for the rationale. Pass
+<code>diag(2)</code> explicitly for a fixed unit-scale prior.</p></dd>
 
 <dt>eta0</dt>
-<dd><p>Prior degrees of freedom for covariance of multiplicative effects
-(default: 4 + 3 \* n/100, where n is the number of actors). Higher values
-impose stronger shrinkage on the latent factors.</p></dd>
+<dd><p>Prior degrees of freedom for the additive-effects covariance
+\(\Sigma_{ab}\) (default: round(4 \* vdfmlt) for <code>"binary"</code>
+fits, where vdfmlt is a probit-moment variance multiplier estimated
+from <code>Y</code>, and round(4 + 3 \* n/100) otherwise, where n is the
+number of actors). Higher values impose stronger shrinkage of the
+row/column effects toward the prior scale. The multiplicative-effects
+prior is fixed in the longitudinal sampler; <code>Suv0</code> and
+<code>kappa0</code> apply to <code><a href="ame.html">ame</a></code> only.</p></dd>
 
 <dt>etaab</dt>
 <dd><p>Prior degrees of freedom for covariance of additive effects
@@ -781,7 +791,7 @@ static. When <code>dynamic_beta</code> flags any coefficient as time-varying,
 dimension is the time period. Static coefficients are still present with
 their values replicated across the third dimension. <code>coef(fit)</code>
 collapses this to a <code>[p, T]</code> posterior-mean matrix.</p>
-<p><strong>Migration from amen.</strong> Under <code>amen::ame()</code> the
+<p><strong>Migration from amen.</strong> Under <code><a href="https://rdrr.io/pkg/amen/man/ame.html" class="external-link">amen::ame()</a></code> the
 <code>BETA</code> slot was always 2-D. Scripts that compute
 <code>apply(fit$BETA, 2, mean)</code> on an amen fit will silently
 aggregate across periods when run against a <code>lame()</code> fit
