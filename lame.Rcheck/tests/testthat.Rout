@@ -33,6 +33,7 @@ This message is displayed once per session.
 Note: Square matrix assumed to be unipartite. Use mode='bipartite' for square bipartite networks.
 i `family` = "bin" (amen-style) accepted as alias for "binary".
 i Use `family = "binary"` to avoid the alias message.
+i This note is shown once per session.
 i `to_lame()`: using `family = "binary"` (binary network). Pass `family` explicitly to override (e.g., "ordinal", "poisson").
 This message is displayed once per session.
 ! Unipartite network has only 2 unique actors. Networks with fewer than 4 actors may not be meaningful.
@@ -45,19 +46,25 @@ Number of chains: 2
 Samples per chain: "20, 20"
 Diagnostics cover regression coefficients and variance components.
 Skipping the R-hat convergence verdict for identical chains.
-[ FAIL 0 | WARN 0 | SKIP 74 | PASS 962 ]
+[ FAIL 0 | WARN 0 | SKIP 88 | PASS 978 ]
 
-══ Skipped tests (74) ══════════════════════════════════════════════════════════
-• On CRAN (73): 'test_ame_als.R:1:1', 'test_bipartite.R:1:1',
-  'test_bipartite_recovery.R:1:1', 'test_correctness_contract.R:40:2',
-  'test_correctness_contract.R:51:2', 'test_correctness_contract.R:70:2',
-  'test_correctness_contract.R:90:2', 'test_correctness_contract.R:106:2',
-  'test_correctness_contract.R:123:2', 'test_covariates_reconstruction.R:1:1',
-  'test_cowles_cutpoints.R:129:2', 'test_cowles_cutpoints.R:148:2',
-  'test_cowles_cutpoints.R:169:2', 'test_cowles_cutpoints.R:188:2',
-  'test_cowles_cutpoints.R:209:2', 'test_diagnostic_consistency.R:1:1',
-  'test_dynamic_G_ffbs.R:70:2', 'test_dynamic_G_ffbs.R:94:2',
-  'test_dynamic_beta.R:17:1', 'test_dynamic_beta_als.R:3:1',
+══ Skipped tests (88) ══════════════════════════════════════════════════════════
+• On CRAN (87): 'test_ame_als.R:1:1', 'test_amen_compat.R:55:2',
+  'test_amen_compat.R:64:2', 'test_amen_compat.R:73:2',
+  'test_amen_compat.R:85:2', 'test_amen_compat.R:97:2',
+  'test_amen_compat.R:110:2', 'test_amen_compat.R:130:2',
+  'test_amen_compat.R:169:2', 'test_amen_compat.R:208:2',
+  'test_amen_compat.R:227:2', 'test_bipartite.R:1:1',
+  'test_bipartite_recovery.R:1:1', 'test_bipartite_uvpm.R:1:1',
+  'test_correctness_contract.R:40:2', 'test_correctness_contract.R:51:2',
+  'test_correctness_contract.R:70:2', 'test_correctness_contract.R:90:2',
+  'test_correctness_contract.R:106:2', 'test_correctness_contract.R:123:2',
+  'test_covariates_reconstruction.R:1:1', 'test_cowles_cutpoints.R:129:2',
+  'test_cowles_cutpoints.R:148:2', 'test_cowles_cutpoints.R:169:2',
+  'test_cowles_cutpoints.R:188:2', 'test_cowles_cutpoints.R:209:2',
+  'test_diagnostic_consistency.R:1:1', 'test_dynamic_G_ffbs.R:70:2',
+  'test_dynamic_G_ffbs.R:94:2', 'test_dynamic_beta.R:17:1',
+  'test_dynamic_beta_als.R:3:1',
   'test_dynamic_beta_alt_kinds_multi_panel.R:3:1',
   'test_dynamic_beta_diagnostics_update.R:3:1',
   'test_dynamic_beta_per_actor_inloop.R:7:1',
@@ -65,32 +72,33 @@ Skipping the R-hat convergence verdict for identical chains.
   'test_dynamic_beta_tidy_forecast.R:3:1', 'test_dynamic_effects.R:1:1',
   'test_edge_cases.R:1:1', 'test_fixD_regressions.R:11:2',
   'test_fixD_regressions.R:34:2', 'test_fixD_regressions.R:56:2',
-  'test_fixD_regressions.R:83:2', 'test_forecast_counterfactual.R:28:2',
-  'test_forecast_counterfactual.R:52:2', 'test_forecast_counterfactual.R:61:2',
-  'test_forecast_counterfactual.R:71:2', 'test_ghk_loglik_rank.R:80:2',
-  'test_ghk_loglik_rank.R:115:2', 'test_ghk_loglik_rank.R:150:2',
-  'test_lame_dynamic_als.R:2:1', 'test_lame_snap_als.R:2:1',
-  'test_longitudinal_basic.R:1:1', 'test_per_actor.R:56:2',
-  'test_per_actor.R:83:2', 'test_per_actor.R:107:2',
+  'test_fixD_regressions.R:87:2', 'test_fixD_regressions.R:104:2',
+  'test_forecast_counterfactual.R:28:2', 'test_forecast_counterfactual.R:52:2',
+  'test_forecast_counterfactual.R:61:2', 'test_forecast_counterfactual.R:71:2',
+  'test_ghk_loglik_rank.R:80:2', 'test_ghk_loglik_rank.R:115:2',
+  'test_ghk_loglik_rank.R:150:2', 'test_lame_dynamic_als.R:2:1',
+  'test_lame_snap_als.R:2:1', 'test_longitudinal_basic.R:1:1',
+  'test_per_actor.R:56:2', 'test_per_actor.R:83:2', 'test_per_actor.R:107:2',
   'test_period_exposure.R:6:1', 'test_persona_fixes.R:758:2',
   'test_persona_fixes.R:784:2', 'test_persona_fixes.R:819:2',
   'test_persona_fixes.R:839:2', 'test_persona_fixes.R:859:2',
   'test_persona_fixes.R:883:2', 'test_persona_fixes.R:908:2',
   'test_posterior_utils.R:1:1', 'test_regression_guards.R:9:2',
   'test_regression_guards.R:30:2', 'test_regression_guards.R:45:2',
-  'test_regression_guards.R:74:2', 'test_regression_guards.R:116:2',
-  'test_regression_guards.R:135:2', 'test_regression_guards.R:166:2',
-  'test_regression_guards.R:206:2', 'test_simulate.R:1:1',
+  'test_regression_guards.R:74:2', 'test_regression_guards.R:169:2',
+  'test_regression_guards.R:188:2', 'test_regression_guards.R:219:2',
+  'test_regression_guards.R:259:2', 'test_simulate.R:1:1',
   'test_static_binary.R:1:1', 'test_static_bipartite.R:1:1',
   'test_static_bipartite_families.R:1:1', 'test_static_count.R:1:1',
   'test_static_gaussian.R:1:1', 'test_static_ordinal.R:1:1',
   'test_static_rank.R:1:1', 'test_static_recovery.R:1:1',
+  'test_suv_prior_regression.R:10:2', 'test_suv_prior_regression.R:32:2',
   'test_unipartite_recovery.R:1:1', 'test_utilities.R:1:1',
   'test_xrow_xcol.R:1:1'
 • file.exists(src) is not TRUE (1): 'test_dynamic_uv_contract.R:249:2'
 
-[ FAIL 0 | WARN 0 | SKIP 74 | PASS 962 ]
+[ FAIL 0 | WARN 0 | SKIP 88 | PASS 978 ]
 > 
 > proc.time()
    user  system elapsed 
- 20.546   0.405  16.494 
+ 20.247   0.349  18.365 

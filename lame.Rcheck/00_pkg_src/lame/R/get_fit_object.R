@@ -353,7 +353,7 @@ get_fit_object <- function(
 			ULUPM<-UVPM 
 			eULU<-eigen(ULUPM) 
 			eR<- which( rank(-abs(eULU$val),ties.method="first") <= R )
-			U<-eULU$vec[,seq(1,R,length=R),drop=FALSE]
+			U<-eULU$vec[,eR,drop=FALSE]
 			L<-eULU$val[eR]   
 			rownames(U)<-rownames(ULUPM)<-colnames(ULUPM)<-actors
 		}

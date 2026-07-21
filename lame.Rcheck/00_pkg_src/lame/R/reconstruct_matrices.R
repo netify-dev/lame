@@ -2,9 +2,9 @@
 #' 
 #' @description
 #' Helper functions to recover EZ (linear predictor) and UVPM (posterior
-#' mean of the multiplicative product) matrices. When the fit already
-#' stores the quantity (as \code{lame()} fits do for \code{UVPM}), the
-#' stored posterior mean is returned directly; otherwise it is
+#' mean of the multiplicative product) matrices. When the fit stores the
+#' quantity (\code{UVPM} on asymmetric fits, \code{ULUPM} on symmetric
+#' fits), the stored posterior mean is returned directly; otherwise it is
 #' reconstructed from the saved factors.
 #' 
 #' Note: EZ returns the linear predictor (\eqn{\eta}), not the response:
@@ -19,9 +19,9 @@
 #' @return Reconstructed matrix
 #' 
 #' @details
-#' \code{ame()} fits do not store these matrices (to save memory), so they
-#' are rebuilt from the posterior factor means. \code{lame()} fits store
-#' \code{UVPM}, which is returned as-is.
+#' Fits that carry the stored posterior mean (\code{UVPM} or, for
+#' symmetric fits, \code{ULUPM}) have it returned as-is; older fit objects
+#' without one are rebuilt from the posterior factor means.
 #' 
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' 
@@ -32,6 +32,14 @@ reconstruct_EZ <- function(fit, X = NULL) {
 		if(!is.null(fit$EZ)) return(fit$EZ)
 		stop("reconstruct_EZ for lame objects requires fit$EZ to be stored")
 	}
+	# legacy amen fits store EZ directly and carry no mode/symmetric
+	# metadata; the stored matrix is the quantity this accessor promises
+	if(is.null(fit[["mode", exact = TRUE]]) && !is.null(fit[["EZ", exact = TRUE]]) &&
+	   is.matrix(fit[["EZ", exact = TRUE]])) {
+		return(fit[["EZ", exact = TRUE]])
+	}
+	mode <- fit[["mode", exact = TRUE]]
+	symmetric <- isTRUE(fit[["symmetric", exact = TRUE]])
 	if(!is.null(fit$YPM)) {
 		n <- nrow(fit$YPM)
 		m <- ncol(fit$YPM)
@@ -62,12 +70,12 @@ reconstruct_EZ <- function(fit, X = NULL) {
 	
 	# additive effects
 	if(!is.null(fit$APM)) {
-		if(fit$mode == "bipartite") {
+		if(identical(mode, "bipartite")) {
 			for(i in 1:n) EZ[i,] <- EZ[i,] + fit$APM[i]
 			if(!is.null(fit$BPM)) {
 				for(j in 1:m) EZ[,j] <- EZ[,j] + fit$BPM[j]
 			}
-		} else if(fit$symmetric) {
+		} else if(symmetric) {
 			EZ <- EZ + outer(fit$APM, fit$APM, "+")
 		} else {
 			if(!is.null(fit$BPM)) {
@@ -76,11 +84,17 @@ reconstruct_EZ <- function(fit, X = NULL) {
 		}
 	}
 	
-	# multiplicative effects
-	if(!is.null(fit$U)) {
-		if(fit$mode == "bipartite" && !is.null(fit$G) && !is.null(fit$V)) {
+	# multiplicative effects. prefer the stored posterior-mean product
+	# (ULUPM on symmetric fits, UVPM otherwise) -- the quantity the additive
+	# terms are on scale with, and what predict()'s newdata path uses
+	if(!is.null(fit[["ULUPM"]])) {
+		EZ <- EZ + fit[["ULUPM"]]
+	} else if(!is.null(fit[["UVPM"]])) {
+		EZ <- EZ + fit[["UVPM"]]
+	} else if(!is.null(fit$U)) {
+		if(identical(mode, "bipartite") && !is.null(fit$G) && !is.null(fit$V)) {
 			EZ <- EZ + fit$U %*% fit$G %*% t(fit$V)
-		} else if(fit$symmetric && !is.null(fit$L)) {
+		} else if(symmetric && !is.null(fit$L)) {
 			if(is.matrix(fit$L)) {
 				EZ <- EZ + fit$U %*% fit$L %*% t(fit$U)
 			} else if(is.numeric(fit$L)) {
@@ -98,9 +112,13 @@ reconstruct_EZ <- function(fit, X = NULL) {
 #' @export
 reconstruct_UVPM <- function(fit) {
 	# the stored posterior mean is the quantity this accessor promises;
-	# prefer it whenever the fit carries one (lame fits do)
+	# prefer it whenever the fit carries one. symmetric fits hold the same
+	# quantity under ULUPM
 	if(!is.null(fit$UVPM)) {
 		return(fit$UVPM)
+	}
+	if(!is.null(fit$ULUPM)) {
+		return(fit$ULUPM)
 	}
 	if(is.null(fit$U)) {
 		return(NULL)
@@ -116,7 +134,7 @@ reconstruct_UVPM <- function(fit) {
 	fit$U <- .uv_last_slice(fit$U)
 	fit$V <- .uv_last_slice(fit$V)
 
-	if(fit$symmetric) {
+	if(isTRUE(fit[["symmetric", exact = TRUE]])) {
 		if(!is.null(fit$L) && !is.null(fit$U)) {
 			if(is.matrix(fit$L)) {
 				return(fit$U %*% fit$L %*% t(fit$U))
@@ -126,7 +144,8 @@ reconstruct_UVPM <- function(fit) {
 		}
 	} else {
 		if(!is.null(fit$V)) {
-			if(!is.null(fit$G) && fit$mode == "bipartite") {
+			if(!is.null(fit[["G", exact = TRUE]]) &&
+			   identical(fit[["mode", exact = TRUE]], "bipartite")) {
 				if(ncol(fit$U) == nrow(fit$G) && ncol(fit$G) == ncol(fit$V)) {
 					return(fit$U %*% fit$G %*% t(fit$V))
 				} else {

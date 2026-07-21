@@ -32,7 +32,11 @@ posterior_options <- function(
 #'
 #' @param fit Fitted ame model object
 #' @param component Character; which component to simulate: "UV", "ab", "beta", "Y"
-#' @param n_samples Number of posterior samples to generate
+#' @param n_samples Number of posterior samples to return. Defaults to
+#'   \code{NULL}, which uses every saved draw when the fit stores them
+#'   (see \code{\link{posterior_options}}) and 100 otherwise. A smaller
+#'   value draws a random subset, which widens Monte Carlo error in the
+#'   tails of any interval computed from the result.
 #' @param use_full_cov For UV component, whether to use empirical variance scaling (default FALSE)
 #' @param seed Random seed for reproducibility
 #' 
@@ -62,11 +66,11 @@ posterior_options <- function(
 simulate_posterior <- function(
 	fit, 
 	component = c("UV", "ab", "beta", "Y"),
-	n_samples = 100,
+	n_samples = NULL,
 	use_full_cov = FALSE,
 	seed = NULL
 	){
-	
+
 	component <- match.arg(component)
 	
 	if(!is.null(seed)) set.seed(seed)
@@ -90,6 +94,9 @@ simulate_posterior <- function(
 		}
 		
 	} else {
+		# the simulate-from-summaries paths have no stored draws to size
+		# against, so they keep the historical default
+		if(is.null(n_samples)) n_samples <- 100
 		if(component == "UV") {
 			simulate_UV_posterior(fit, n_samples, use_full_cov)
 		} else if(component == "ab") {
@@ -110,13 +117,8 @@ simulate_posterior <- function(
 #' @noRd
 sample_from_saved_UV <- function(fit, n_samples) {
 	n_saved <- dim(fit$U_samples)[3]
-	
-	if(n_samples > n_saved) {
-		cli::cli_warn("Requested {.val {n_samples}} samples but only {.val {n_saved}} available")
-		n_samples <- n_saved
-	}
-	
-	idx <- sample(n_saved, n_samples, replace = (n_samples > n_saved))
+	idx <- .saved_draw_index(n_samples, n_saved)
+	n_samples <- length(idx)
 
 	n_row <- nrow(fit$U_samples)
 	n_col <- nrow(fit$V_samples)
@@ -153,17 +155,11 @@ simulate_UV_posterior <- function(fit, n_samples, use_full_cov = FALSE) {
 #' @noRd
 sample_from_saved_ab <- function(fit, n_samples) {
 	n_saved <- ncol(fit$a_samples)
-	
-	if(n_samples > n_saved) {
-		cli::cli_warn("Requested {.val {n_samples}} samples but only {.val {n_saved}} available")
-		n_samples <- n_saved
-	}
-	
-	idx <- sample(n_saved, n_samples, replace = (n_samples > n_saved))
+	idx <- .saved_draw_index(n_samples, n_saved)
 
 	ab_samples <- list(
-		a = fit$a_samples[, idx],
-		b = fit$b_samples[, idx]
+		a = fit$a_samples[, idx, drop = FALSE],
+		b = fit$b_samples[, idx, drop = FALSE]
 	)
 	
 	return(ab_samples)
@@ -191,16 +187,30 @@ simulate_ab_posterior <- function(fit, n_samples) {
 #' Sample from saved beta posteriors
 #' @noRd
 sample_from_saved_beta <- function(fit, n_samples) {
-	n_saved <- nrow(fit$BETA)
-	
-	if(n_samples > n_saved) {
-		cli::cli_warn("Requested {.val {n_samples}} samples but only {.val {n_saved}} available")
-		n_samples <- n_saved
-	}
-	
-	idx <- sample(n_saved, n_samples, replace = (n_samples > n_saved))
-
+	idx <- .saved_draw_index(n_samples, nrow(fit$BETA))
 	return(fit$BETA[idx, , drop = FALSE])
+}
+
+####
+# saved_draw_index
+####
+
+#' Index into stored posterior draws
+#'
+#' Returns every draw in order when \code{n_samples} is \code{NULL} or at
+#' least the number stored, so intervals use the full posterior sample; a
+#' smaller request draws a random subset without replacement.
+#' @noRd
+.saved_draw_index <- function(n_samples, n_saved) {
+	if(is.null(n_samples) || n_samples >= n_saved) {
+		if(!is.null(n_samples) && n_samples > n_saved) {
+			cli::cli_warn(c(
+				"Requested {.val {n_samples}} samples but only {.val {n_saved}} are stored.",
+				"i" = "Returning all {.val {n_saved}} stored draws."))
+		}
+		return(seq_len(n_saved))
+	}
+	sort(sample(n_saved, n_samples))
 }
 
 ####

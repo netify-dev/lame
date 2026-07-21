@@ -1,13 +1,14 @@
 # cran-comments
 
-## Resubmission of lame 1.3.1 (new package)
+## Resubmission of lame, now 1.3.2 (new package)
 
 This resubmission addresses the Rd markup issues reported by CRAN's incoming
-checks on the previous submission of 1.3.1: the affected man pages
+checks on the previous submission (1.3.1): the affected man pages
 (`glance.ame.Rd`, `procrustes_align.Rd`, `rUV_dynamic_t_fc_cpp.Rd`,
 `rZ_ord_sym_fc.Rd`, `sample_rho_uv.Rd`) have been corrected and the package
-re-documented. The vignettes were also compacted so the suite rebuilds
-quickly on CRAN's builders.
+re-documented. The version was bumped to 1.3.2; it also folds in bug fixes
+made since that submission (see NEWS.md). The vignettes were compacted so
+the suite rebuilds quickly on CRAN's builders.
 
 ## Test environments
 

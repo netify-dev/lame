@@ -266,7 +266,7 @@ gof_plot(fit)
 
 In each panel the grey histogram is the posterior-predictive distribution from networks simulated out of the fitted model, and the **dashed orange vertical line is the observed value** (colour and linetype dual-encode the contrast so it survives grayscale printing and colour-blind viewing). See `?gof_plot` for the `statistics = ...` aliases and the exact column names stored in `fit$GOF`.
 
-The observed values for Sender and Receiver Degree Heterogeneity and for Dyadic Dependence (essentially empirical reciprocity) fall inside their posterior-predictive histograms -- those three features are explicitly modeled by the random effects, the variance components, and $\rho$. The two triad-level statistics tell a different story: observed Triadic Dependence sits in the upper tail, and observed Transitivity at the far right edge. AME under-predicts triangle closure on this network, the expected signature of conditional dyadic independence: the latent space soaks up some triangle structure through clustering of the $u_i$, but there is no explicit closure term. If transitivity is your substantive target, fit an ERGM; if it is a diagnostic concern only, increasing `R` sometimes helps modestly.
+The observed values for Sender and Receiver Degree Heterogeneity and for Dyadic Dependence (essentially empirical reciprocity) fall inside their posterior-predictive histograms -- those three features are explicitly modeled by the random effects, the variance components, and $\rho$. The two triad-level statistics tell a different story: observed Triadic Dependence sits toward the upper end of its histogram, and observed Transitivity in the upper tail. AME under-predicts triangle closure on this network, the expected signature of conditional dyadic independence: the latent space soaks up some triangle structure through clustering of the $u_i$, but there is no explicit closure term. If transitivity is your substantive target, fit an ERGM; if it is a diagnostic concern only, increasing `R` sometimes helps modestly.
 
 You can also compute GOF after the fact using the `gof()` function, which accepts custom statistics. The built-in `trans.dep` panel is a *correlation-style* clustering measure; ERGM users will typically want the raw clustering coefficient (`sna::gtrans`, the scalar summary that `gwesp(decay = 0, fixed = TRUE)` targets), which takes a few lines as a custom stat:
 
@@ -289,7 +289,7 @@ c(observed = round(obs, 3), sim_mean = round(mean(sim), 3),
   pp_p_right = round(mean(sim >= obs), 3))
 ```
 
-Read this the way you would read `ergm::gof()`: `pp_p_right` is the fraction of simulated networks at or above the observed value, so a value near 0 means the model under-predicts the statistic. On Add Health it comes back at exactly zero (none of the 50 simulated networks reaches the observed ratio in this short run) -- the model produces triangles, but does not concentrate them per two-path the way the data do, the same structural gap the built-in panels showed. See `?gof` for adding further custom statistics (raw triangle counts, degree assortativity, and so on).
+Read this the way you would read `ergm::gof()`: `pp_p_right` is the fraction of simulated networks at or above the observed value, so a value near 0 means the model under-predicts the statistic. On Add Health it comes back at 0.105 (only two of the simulated networks reach the observed ratio in this short run) -- the model produces triangles, but rarely concentrates them per two-path the way the data do, the same structural gap the built-in panels showed. See `?gof` for adding further custom statistics (raw triangle counts, degree assortativity, and so on).
 
 ## Visualizing the Latent Space
 
@@ -361,7 +361,7 @@ cat("AUROC:", round(auroc, 3), "\n",
     "Baseline PR-AUC (density of Y):", round(mean(Y_vec[keep]), 3), "\n")
 ```
 
-Here that gap is wide: PR-AUC 0.573 against a density baseline of 0.128 (roughly four and a half times the base-rate floor), and AUROC 0.868 against 0.5 for a random ranker. Both are in-sample numbers, though -- the held-out estimates in the next section are the ones to quote for any predictive claim.
+Here that gap is wide: PR-AUC 0.719 against a density baseline of 0.128 (roughly five and a half times the base-rate floor), and AUROC 0.921 against 0.5 for a random ranker. Both are in-sample numbers, though -- the held-out estimates in the next section are the ones to quote for any predictive claim.
 
 ### Held-out link prediction
 
@@ -398,7 +398,7 @@ cat("Test dyads:", length(test_idx),
     " | positives:", sum(Y[test_idx] == 1), "\n")
 ```
 
-On the 198 held-out dyads (25 of them true friendships) the model posts AUROC 0.808 and PR-AUC 0.460 -- a drop from the in-sample 0.868 / 0.573, sharper for PR-AUC, but both numbers stay well clear of chance, the reassuring signal that the fit generalizes rather than memorizing the training dyads. PR-AUC is the number to weigh: a random ranker's PR-AUC equals the positive rate (about 0.13), so the model's precision runs roughly three and a half times chance on dyads it never saw. With only 25 positive test dyads and a single short chain, read these as a sanity check rather than a benchmark -- report the positive count alongside them, and see `?evaluate_heldout` for the metric definitions and options.
+On the 198 held-out dyads (25 of them true friendships) the model posts AUROC 0.775 and PR-AUC 0.486 -- a drop from the in-sample 0.921 / 0.719, sharper for PR-AUC, but both numbers stay well clear of chance, the reassuring signal that the fit generalizes rather than memorizing the training dyads. PR-AUC is the number to weigh: a random ranker's PR-AUC equals the positive rate (about 0.13), so the model's precision runs nearly four times chance on dyads it never saw. With only 25 positive test dyads and a single short chain, read these as a sanity check rather than a benchmark -- report the positive count alongside them, and see `?evaluate_heldout` for the metric definitions and options.
 
 ## Simulating from the Model
 

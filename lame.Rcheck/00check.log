@@ -8,9 +8,9 @@
 * using session charset: UTF-8
 * using option ‘--as-cran’
 * checking for file ‘lame/DESCRIPTION’ ... OK
-* this is package ‘lame’ version ‘1.3.1’
+* this is package ‘lame’ version ‘1.3.2’
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... [3s/14s] NOTE
+* checking CRAN incoming feasibility ... [3s/15s] NOTE
 Maintainer: ‘Shahryar Minhas <minhassh@msu.edu>’
 
 New submission
@@ -22,12 +22,12 @@ New submission
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘lame’ can be installed ... [74s/75s] OK
+* checking whether package ‘lame’ can be installed ... [75s/74s] OK
 * used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
 * checking installed package size ... NOTE
   installed size is 28.1Mb
   sub-directories of 1Mb or more:
-    R      1.6Mb
+    R      1.7Mb
     data   1.4Mb
     doc    3.1Mb
     libs  21.2Mb
@@ -54,7 +54,7 @@ unable to verify current time
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [26s/26s] OK
+* checking R code for possible problems ... [24s/24s] OK
 * checking Rd files ... OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
@@ -83,13 +83,13 @@ Compilation used the following non-portable flag(s):
 * checking installed files from ‘inst/doc’ ... OK
 * checking files in ‘vignettes’ ... OK
 * checking examples ... OK
-* checking examples with --run-donttest ... [38s/39s] OK
+* checking examples with --run-donttest ... [37s/36s] OK
 * checking for unstated dependencies in ‘tests’ ... OK
-* checking tests ... [21s/17s] OK
-  Running ‘testthat.R’ [21s/17s]
+* checking tests ... [21s/18s] OK
+  Running ‘testthat.R’ [21s/18s]
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes in ‘inst/doc’ ... OK
-* checking re-building of vignette outputs ... [46s/48s] OK
+* checking re-building of vignette outputs ... [47s/48s] OK
 * checking PDF version of manual ... OK
 * checking HTML version of manual ... OK
 * checking for non-standard things in the check directory ... OK

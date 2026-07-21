@@ -230,3 +230,27 @@ test_that("simulate_Y_posterior generates reasonable predictions", {
 	expect_equal(Y_post_mean, Y_mean, tolerance = 1)
 	expect_equal(Y_post_sd, Y_sd, tolerance = 1)
 })
+
+test_that("simulate_posterior uses every stored draw by default", {
+	skip_on_cran()
+	set.seed(11); n = 14
+	Y = matrix(rbinom(n * n, 1, 0.3), n, n)
+	Y[lower.tri(Y)] = t(Y)[lower.tri(Y)]
+	diag(Y) = NA
+	dimnames(Y) = list(paste0("a", 1:n), paste0("a", 1:n))
+	fit = ame(Y, R = 2, symmetric = TRUE, family = "binary", burn = 20,
+	          nscan = 120, odens = 1, verbose = FALSE, gof = FALSE, seed = 5,
+	          posterior_opts = list(save_UV = TRUE, thin_UV = 1))
+	n_saved = dim(fit$U_samples)[3]
+
+	# default returns the full posterior sample, not a 100-draw subsample
+	expect_equal(dim(simulate_posterior(fit, "UV"))[3], n_saved)
+	# an explicit smaller request still subsamples
+	expect_equal(dim(simulate_posterior(fit, "UV", n_samples = 25))[3], 25)
+	# asking for more than exist warns and returns what is stored
+	expect_warning(uv <- simulate_posterior(fit, "UV", n_samples = n_saved + 50))
+	expect_equal(dim(uv)[3], n_saved)
+	# the draw mean reproduces the stored posterior-mean product
+	expect_equal(apply(simulate_posterior(fit, "UV"), c(1, 2), mean),
+	             unname(fit$ULUPM), tolerance = 1e-8)
+})

@@ -225,6 +225,7 @@ ame_bipartite <- function(
 	APS <- rep(0, nA)
 	BPS <- rep(0, nB)
 	YPS <- array(0, dim = c(nA, nB))
+	UVPS <- array(0, dim = c(nA, nB))
 	
 	# custom gof errors are reported once after fitting
 	.cg_tracker <- .new_custom_gof_err_tracker()
@@ -647,7 +648,7 @@ ame_bipartite <- function(
 				if(rvar) APS <- APS + a
 				if(cvar) BPS <- BPS + b
 				if(!is.null(U) && !is.null(V) && !is.null(G)) {
-					# uvps not accumulated for bipartite
+					UVPS <- UVPS + U %*% G %*% t(V)
 				}
 				
 				# save posterior samples if requested
@@ -792,6 +793,9 @@ ame_bipartite <- function(
 	YPM <- YPS / n_eff
 	rownames(YPM) <- rownames(Y)
 	colnames(YPM) <- colnames(Y)
+	UVPM <- UVPS / n_eff
+	rownames(UVPM) <- rownames(Y)
+	colnames(UVPM) <- colnames(Y)
 	
 	fit <- list(
 		BETA = BETA,
@@ -801,6 +805,7 @@ ame_bipartite <- function(
 		U = U,
 		V = V,
 		G = G,
+		UVPM = UVPM,
 		YPM = YPM,
 		GOF = GOF,
 		X = X,

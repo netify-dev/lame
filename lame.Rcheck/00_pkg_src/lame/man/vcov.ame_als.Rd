@@ -10,13 +10,17 @@
 \item{object}{an \code{ame_als} fit.}
 
 \item{cluster}{\code{"dyad"} (default) for a dyad-clustered robust meat, or
-\code{"none"} for an HC0 (heteroskedasticity-only) meat.}
+\code{"none"} for an HC0 (heteroskedasticity-only) meat. Ignored when the
+fit carries a bootstrap, since the bootstrap covariance is returned.}
 
 \item{...}{ignored.}
 }
 \value{
-A covariance matrix for \code{c(intercept, dyadic coefficients)},
-with matching row/column names.
+A covariance matrix with matching row/column names. When the fit
+carries a \code{$bootstrap}, this is the bootstrap covariance over all
+estimated coefficients, matching \code{coef()}. Otherwise it is the
+conditional sandwich, covering \code{c(intercept, dyadic coefficients)}
+only.
 }
 \description{
 Returns a heteroskedasticity-robust (optionally dyad-clustered) sandwich

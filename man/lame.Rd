@@ -224,13 +224,23 @@ families}
 \item{prior}{a list containing hyperparameters for the prior distributions.
 Available options and their defaults:
 \describe{
-\item{Sab0}{Prior covariance matrix for additive effects (default: diag(2)).
-A 2x2 matrix where Sab0\[1,1\] is the prior variance for row effects,
+\item{Sab0}{Prior scale matrix for the additive-effects covariance. A 2x2
+matrix where Sab0\[1,1\] is the prior variance for row effects,
 Sab0\[2,2\] is the prior variance for column effects, and off-diagonals
-control correlation between row and column effects.}
-\item{eta0}{Prior degrees of freedom for covariance of multiplicative effects
-(default: 4 + 3 \\* n/100, where n is the number of actors). Higher values
-impose stronger shrinkage on the latent factors.}
+control correlation between row and column effects. For the
+\code{"normal"} and \code{"poisson"} families, and for unipartite
+\code{"binary"}, this defaults to \code{diag(2)} scaled to the observed
+sender/receiver heterogeneity in \code{Y} rather than to a fixed
+\code{diag(2)}; see \code{\link{ame}} for the rationale. Pass
+\code{diag(2)} explicitly for a fixed unit-scale prior.}
+\item{eta0}{Prior degrees of freedom for the additive-effects covariance
+\eqn{\Sigma_{ab}} (default: round(4 \\* vdfmlt) for \code{"binary"}
+fits, where vdfmlt is a probit-moment variance multiplier estimated
+from \code{Y}, and round(4 + 3 \\* n/100) otherwise, where n is the
+number of actors). Higher values impose stronger shrinkage of the
+row/column effects toward the prior scale. The multiplicative-effects
+prior is fixed in the longitudinal sampler; \code{Suv0} and
+\code{kappa0} apply to \code{\link{ame}} only.}
 \item{etaab}{Prior degrees of freedom for covariance of additive effects
 (default: 4 + 3 \\* n/100). Controls shrinkage of row/column random effects.}
 \item{ab_min_observed}{Minimum observed sender/receiver cells used before a

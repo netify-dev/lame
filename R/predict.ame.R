@@ -107,12 +107,15 @@ predict.ame <- function(
 			names(beta_mean) <- beta_names
 			XB <- .xbeta_newdata(beta_mean, X, object$X, n, m)
 
-			# add sender/receiver random effects
+			# add sender/receiver random effects. symmetric fits store one
+			# additive effect (bpm is null) that enters both margins
 			if(!is.null(object$APM)) {
 				for(i in 1:n) XB[i,] <- XB[i,] + object$APM[i]
 			}
 			if(!is.null(object$BPM)) {
 				for(j in 1:m) XB[,j] <- XB[,j] + object$BPM[j]
+			} else if(isTRUE(object$symmetric) && !is.null(object$APM)) {
+				for(j in 1:m) XB[,j] <- XB[,j] + object$APM[j]
 			}
 			
 			# multiplicative effects
@@ -204,17 +207,22 @@ predict_distribution <- function(object, X, n_samples, include_uncertainty) {
 			}
 			if(!is.null(object$BPM)) {
 				XB <- sweep(XB, 2, object$BPM, "+")
+			} else if(isTRUE(object$symmetric) && !is.null(object$APM)) {
+				XB <- sweep(XB, 2, object$APM, "+")
 			}
 			
-			if(!is.null(object$U) && !is.null(object$V)) {
+			if(!is.null(object$U)) {
 				if(!is.null(object$U_samples) && !is.null(object$V_samples)) {
 					idx <- min(i, dim(object$U_samples)[3])
 					UV <- object$U_samples[,,idx] %*% t(object$V_samples[,,idx])
-				} else {
+					XB <- XB + UV
+				} else if(!is.null(object$V)) {
 					# no uv samples stored, use posterior means
-					UV <- object$U %*% t(object$V)
+					XB <- XB + object$U %*% t(object$V)
+				} else if(!is.null(object[["ULUPM"]])) {
+					# symmetric fits carry no v; use the stored posterior mean
+					XB <- XB + object[["ULUPM"]]
 				}
-				XB <- XB + UV
 			}
 			
 			# observation noise
@@ -312,13 +320,13 @@ fitted.ame <- function(object, ...) {
 residuals.ame <- function(object, type = c("response", "pearson"), ...) {
 	type <- match.arg(type)
 
-	if(!is.null(object$Y)) {
-		Y <- object$Y
-	} else if(!is.null(object$Y_obs)) {
-		Y <- object$Y_obs
-	} else {
-		cli::cli_warn("original Y not stored in model object, residuals may be incorrect")
-		Y <- object$YPM
+	# exact lookup: `$Y` partial-matches `$YPM` on fits that carry no Y (an
+	# amen fit, for one), which would make every residual exactly zero
+	Y <- object[["Y", exact = TRUE]] %||% object[["Y_obs", exact = TRUE]]
+	if(is.null(Y)) {
+		cli::cli_abort(c(
+			"This fit does not store the observed {.var Y}, so residuals cannot be computed.",
+			"i" = "Refit with {.fn lame::ame}, which retains {.var Y} on the fit object."))
 	}
 
 	if(type == "response") {
@@ -565,11 +573,13 @@ fitted.lame <- function(object, ...) {
 residuals.lame <- function(object, type = c("response", "pearson"), ...) {
 	type <- match.arg(type)
 
-	if(!is.null(object$Y)) {
-		Y <- object$Y
-	} else {
-		cli::cli_warn("original Y not stored in model object, residuals may be incorrect")
-		Y <- object$YPM
+	# exact lookup: `$Y` partial-matches `$YPM` on fits that carry no Y, which
+	# would make every residual exactly zero
+	Y <- object[["Y", exact = TRUE]]
+	if(is.null(Y)) {
+		cli::cli_abort(c(
+			"This fit does not store the observed {.var Y}, so residuals cannot be computed.",
+			"i" = "Refit with {.fn lame::lame}, which retains {.var Y} on the fit object."))
 	}
 
 	# convert 3d array to list of matrices if needed

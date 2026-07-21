@@ -7,7 +7,7 @@
 simulate_posterior(
   fit,
   component = c("UV", "ab", "beta", "Y"),
-  n_samples = 100,
+  n_samples = NULL,
   use_full_cov = FALSE,
   seed = NULL
 )
@@ -17,7 +17,11 @@ simulate_posterior(
 
 \item{component}{Character; which component to simulate: "UV", "ab", "beta", "Y"}
 
-\item{n_samples}{Number of posterior samples to generate}
+\item{n_samples}{Number of posterior samples to return. Defaults to
+\code{NULL}, which uses every saved draw when the fit stores them
+(see \code{\link{posterior_options}}) and 100 otherwise. A smaller
+value draws a random subset, which widens Monte Carlo error in the
+tails of any interval computed from the result.}
 
 \item{use_full_cov}{For UV component, whether to use empirical variance scaling (default FALSE)}
 

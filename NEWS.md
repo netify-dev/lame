@@ -1,6 +1,9 @@
-# lame 1.3.1
+# lame 1.3.2
 
 * Fixed Rd markup reported by CRAN's incoming checks.
+* Fixed a prior-scaling bug that could silently collapse the latent factors
+  (and attenuate coefficients) in asymmetric `ame()` fits with `R > 0`;
+  fits now match `amen`.
 * Time-varying coefficients (`dynamic_beta`) compose freely with the
   multiplicative latent factors (`R > 0`) and additive sender/receiver effects,
   for every family and network type. Coefficients can follow AR(1),
@@ -12,7 +15,9 @@
 * Set `posterior_opts = list(save_UV = TRUE)` to keep the per-draw latent
   factors (and the bipartite mixing matrix), so `latent_positions()`,
   `uv_plot()`, and the goodness-of-fit tools report posterior uncertainty
-  directly.
+  directly. Symmetric fits now store `V_samples` (`U L` per draw) alongside
+  `U_samples`, so the per-draw latent similarity `U L U'` is reconstructable
+  via `simulate_posterior(fit, "UV")`.
 * `summary()` on a `lame` fit exposes the coefficient table under
   `$coefficients`, matching `summary.ame` and the `broom`/`lm` idiom.
 

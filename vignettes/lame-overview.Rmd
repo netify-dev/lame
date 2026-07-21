@@ -185,7 +185,7 @@ gof_plot(fit)
 
 For a longitudinal model, `gof_plot` shows these statistics across time, encoding three series per panel with colour and linetype redundantly: the **observed series is a solid orange line with filled orange points**, the **posterior-predictive median is a dashed dark line**, and the **95% credible interval is a grey ribbon** (width set by `credible.level`). Observed values inside the ribbon are features the model reproduces; values outside flag structure it is missing -- itself a substantive finding, not a failure to report.
 
-Reading the figure: the fit comes closest on the cyclic-triad structure (Triadic Dependence sits inside the band at three of the six periods) but under-predicts sender degree heterogeneity (observed above the band at five of six periods) and transitivity (above the band at every period) -- some students nominate many more friends than the additive $a_i$ plus latent $u_i$ can absorb, and triangle closure is systematically too low. Receiver heterogeneity and Dyadic Dependence (reciprocity) drift in and out of the band across the panel.
+Reading the figure: the fit comes closest on the cyclic-triad structure (Triadic Dependence sits inside the band at four of the six periods) but under-predicts sender degree heterogeneity (observed above the band at every period) and transitivity (above the band at five of six periods) -- some students nominate many more friends than the additive $a_i$ plus latent $u_i$ can absorb, and triangle closure is systematically too low. Receiver heterogeneity drifts in and out of the band across the panel, while Dyadic Dependence (reciprocity) swings from one side of it to the other without settling inside.
 
 This is the standard signature of a latent-space model on a friendship network. AME assumes conditional dyadic independence, so triangle closure must be soaked up by clustering of the latent positions; ERGMs model it directly via terms like `gwesp`. The two classes are complementary: ERGM for triangle-closure questions, AME for stable, non-degenerate estimates with explicit actor heterogeneity and a coherent posterior to forecast or simulate from.
 
@@ -243,11 +243,11 @@ ggplot(lp1, aes(x = value, y = actor, color = type)) +
 ```
 
 Three things to read off this plot. First, the dimension is genuinely
-informative: the extremes (around $+1.8$ at the top versus $-1.2$ at the
-bottom) are separated by roughly two and a half times the width of a
+informative: the extremes (around $+1.7$ at the top versus $-1.1$ at the
+bottom) are separated by roughly twice the width of a
 typical 95% interval, so the ordering is signal, not noise. Second, sender
 and receiver positions are strongly related (their correlation is about
-0.8): students
+0.55): students
 near the top both seek out and attract the same friendship cluster. Third,
 the exceptions are the interesting actors -- students whose blue and orange
 points diverge are attractive to a cluster they do not themselves reach
@@ -409,10 +409,9 @@ autoplot(fit) +
 ```
 
 The coefplot is the visual form of the `tidy(fit)` table above: the
-three homophily point estimates sit right of the dashed zero line --
-`same_program` largest (0.59), `same_male` next (0.43), `same_smoker`
-smallest (0.15), with an interval that crosses zero in this short
-demonstration run -- while the nodal terms are mixed, with
+three homophily terms sit clear of the dashed zero line --
+`same_program` largest (0.57), `same_male` next (0.45), `same_smoker`
+smallest (0.16) -- while the nodal terms are mixed, with
 `smoker_col` and `program_col` straddling the line. The
 same generic dispatches on `which = "uv"` (latent positions -- the
 ranked dot plot in the Latent Space section above) and `which = "ab"`

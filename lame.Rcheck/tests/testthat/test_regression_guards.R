@@ -106,6 +106,59 @@ test_that("gof_plot ignores missing longitudinal predictive draws", {
 	expect_s3_class(p, "ggplot")
 })
 
+# gof_plot(statistics=) selects panels instead of aborting. two defects are
+# guarded: the warning path raised cli's "Multiple quantities for
+# pluralization" error because one message interpolated two vectors, and the
+# internal gof column names reported by names(fit$GOF) were rejected as
+# unknown even though only the display aliases were ever accepted.
+test_that("gof_plot statistics= accepts aliases, internal names, and warns on bad", {
+	skip_if_not_installed("ggplot2")
+
+	set.seed(2)
+	mk = function(nr, nc) matrix(runif(nr * nc, 1, 2), nr, nc)
+	gof_list = list(
+		sd.rowmean = mk(3, 9), sd.colmean = mk(3, 9),
+		dyad.dep   = mk(3, 9), cycle.dep  = mk(3, 9),
+		trans.dep  = mk(3, 9)
+	)
+	fit_l = structure(list(GOF = gof_list, mode = "unipartite"),
+	                  class = c("lame", "ame"))
+
+	n_facet = function(p) length(unique(ggplot2::ggplot_build(p)$data[[1]]$PANEL))
+
+	# documented alias selects exactly one panel
+	p1 = gof_plot(fit_l, statistics = "sd.row")
+	expect_s3_class(p1, "ggplot")
+	expect_identical(n_facet(p1), 1L)
+
+	# the internal column name reported by names(fit$GOF) is equally valid
+	p2 = expect_no_warning(gof_plot(fit_l, statistics = "sd.rowmean"))
+	expect_identical(n_facet(p2), 1L)
+	expect_no_warning(gof_plot(fit_l, statistics = "cycle.dep"))
+
+	# multiple statistics, mixing both spellings
+	p3 = expect_no_warning(gof_plot(fit_l, statistics = c("sd.rowmean", "trans.dep")))
+	expect_identical(n_facet(p3), 2L)
+
+	# an alias and its internal name name the same panel, not two
+	expect_identical(n_facet(gof_plot(fit_l, statistics = c("sd.row", "sd.rowmean"))), 1L)
+
+	# a genuinely unknown name warns cleanly and is dropped
+	expect_warning(gof_plot(fit_l, statistics = c("sd.row", "not.a.stat")),
+	               "Unknown gof statistic")
+	expect_s3_class(
+		suppressWarnings(gof_plot(fit_l, statistics = "not.a.stat")), "ggplot")
+
+	# same contract on the cross-sectional path
+	gof_mat = matrix(runif(9 * 5, 1, 2), 9, 5,
+	                 dimnames = list(NULL, names(gof_list)))
+	fit_a = structure(list(GOF = gof_mat, mode = "unipartite"), class = "ame")
+
+	expect_s3_class(expect_no_warning(gof_plot(fit_a, statistics = "sd.rowmean")), "ggplot")
+	expect_no_warning(gof_plot(fit_a, statistics = c("sd.row", "sd.col")))
+	expect_warning(gof_plot(fit_a, statistics = "bogus"), "Unknown gof statistic")
+})
+
 # near-separable sparse binary data stays finite and bounded under
 # dynamic_beta. (This test previously ALSO asserted the divergence-safeguard
 # warning fired; after the additive-effects update was routed through the

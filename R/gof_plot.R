@@ -133,9 +133,11 @@ if(getRversion() >= "2.15.1") {
 #' @param statistics Character vector of statistics to plot, or \code{NULL}
 #'        (default) for the standard panels plus any custom GOF columns.
 #'        Unipartite names: "sd.row", "sd.col", "dyad.dep", "triad.dep",
-#'        "trans.dep"; bipartite names: "sd.row", "sd.col", "four.cycles";
-#'        custom GOF columns may also be named. Unknown names are dropped
-#'        with a warning.
+#'        "trans.dep"; bipartite names: "sd.row", "sd.col", "four.cycles".
+#'        The internal GOF column names reported by \code{names(fit$GOF)}
+#'        ("sd.rowmean", "sd.colmean", "cycle.dep") are accepted as
+#'        equivalents; custom GOF columns may also be named. Unknown names
+#'        are dropped with a warning.
 #' @param credible.level Numeric between 0 and 1; credible interval level for
 #'        longitudinal plots (default 0.95)
 #' @param ncol Number of columns for faceted plot layout (default 2)
@@ -229,11 +231,24 @@ gof_plot <- function(
 	if (is.null(user_stats)) {
 		statistics <- c(default_stats, custom_cols)
 	} else {
-		bad <- setdiff(user_stats, names(stat.names))
+		# a statistic may be named either by its documented alias ("sd.row",
+		# "triad.dep") or by the internal gof column it maps to ("sd.rowmean",
+		# "cycle.dep"), which is what names(fit$GOF) reports. canonicalise the
+		# internal spellings onto the alias so both select the same panel once.
+		canonical <- names(stat.names)
+		names(canonical) <- unname(stat.names)
+		resolved <- ifelse(user_stats %in% names(canonical),
+												canonical[user_stats], user_stats)
+		known <- resolved %in% names(stat.names)
+		bad <- unique(user_stats[!known])
 		if (length(bad) > 0) {
-			cli::cli_warn("Unknown gof statistic{?s} dropped: {.val {bad}}. Available: {.val {names(stat.names)}}.")
+			avail <- unique(c(names(stat.names), unname(stat.names)))
+			cli::cli_warn(c(
+				"Unknown gof statistic{?s} dropped: {.val {bad}}.",
+				"i" = "Available statistics: {.val {avail}}."
+			))
 		}
-		statistics <- intersect(user_stats, names(stat.names))
+		statistics <- unique(resolved[known])
 		if (length(statistics) == 0) statistics <- default_stats
 	}
 	

@@ -370,9 +370,9 @@ ame_unipartite <- function(
 		if(posterior_opts$save_UV && R > 0) {
 			n_UV_samples <- ceiling(n_samples / posterior_opts$thin_UV)
 			U_samples <- array(NA_real_, dim = c(n, R, n_UV_samples))
-			if(!symmetric) {
-				V_samples <- array(NA_real_, dim = c(n, R, n_UV_samples))
-			}
+			# symmetric fits store V = U L per draw as well, so the latent
+			# similarity U L U' is reconstructable draw-by-draw
+			V_samples <- array(NA_real_, dim = c(n, R, n_UV_samples))
 		}
 		if(posterior_opts$save_ab && (rvar || cvar)) {
 			n_ab_samples <- ceiling(n_samples / posterior_opts$thin_ab)
@@ -719,9 +719,11 @@ ame_unipartite <- function(
 			if(!symmetric){
 				E <- Z - offset
 				
+				# rSuv_fc forms the prior scale internally as kappa0 * Suv0,
+				# so Suv0 is passed through unscaled
 				Suv0_use <- if(!is.null(prior$Suv0)) prior$Suv0 else diag(2*R)
 				kappa0_use <- if(!is.null(prior$kappa0)) prior$kappa0 else (2*R + 2)
-				Suv <- rSuv_fc(U, V, Suv0=Suv0_use/kappa0_use, kappa0=kappa0_use)
+				Suv <- rSuv_fc(U, V, Suv0=Suv0_use, kappa0=kappa0_use)
 				
 				UV<-rUV_fc(E, U, V, Suv, rho, s2, offset=0) 
 			}
@@ -832,7 +834,7 @@ ame_unipartite <- function(
 						UV_sample_idx <- UV_sample_idx + 1
 						if(UV_sample_idx <= dim(U_samples)[3]) {
 							U_samples[,,UV_sample_idx] <- U
-							if(!symmetric && !is.null(V_samples)) {
+							if(!is.null(V_samples)) {
 								V_samples[,,UV_sample_idx] <- V
 							}
 						}
@@ -960,7 +962,7 @@ ame_unipartite <- function(
 		# stash the resolved scalar g and the prior list (with sampler-side
 		# defaults filled in) so prior_summary() can show what was actually used
 		.resolved_prior <- prior
-		fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,L=NULL,
+		fit <- list(BETA=BETA,VC=VC,APM=APM,BPM=BPM,U=U,V=V,L=NULL,UVPM=UVPM,
 								YPM=YPM,GOF=GOF,X=X,Y=Y,start_vals=start_vals_final,model.name=model.name,
 								mode="unipartite",family=family,symmetric=symmetric,odmax=odmax,R=R,
 								n=n,p=dim(X)[3],rvar=rvar,cvar=cvar,dcor=dcor,
@@ -1000,8 +1002,10 @@ ame_unipartite <- function(
 		ULUPM<-UVPM
 		if(R > 0) {
 			eULU<-eigen(ULUPM)
+			# keep the R eigenvalues largest in magnitude and pair each with its
+			# own eigenvector, so U L U' is the rank-R truncation of ULUPM
 			eR<- which( rank(-abs(eULU$val),ties.method="first") <= R )
-			U<-eULU$vec[,seq(1,R,length=R),drop=FALSE]
+			U<-eULU$vec[,eR,drop=FALSE]
 			L<-diag(eULU$val[eR], nrow=R)
 			rownames(U)<-rownames(ULUPM)
 		} else {
@@ -1010,7 +1014,7 @@ ame_unipartite <- function(
 		}
 		YPM<-.5*(YPM+t(YPM))
 		start_vals_final <- list(Z=Z, beta=beta, a=a, b=b, U=U, V=U, rho=rho, s2=s2, Sab=Sab)
-		fit<-list(BETA=BETA,VC=VC,APM=APM,BPM=NULL,U=U,V=NULL,L=L,
+		fit<-list(BETA=BETA,VC=VC,APM=APM,BPM=NULL,U=U,V=NULL,L=L,ULUPM=ULUPM,
 							YPM=YPM,GOF=GOF,X=X,Y=Y,start_vals=start_vals_final,model.name=model.name,
 							mode="unipartite",family=family,symmetric=symmetric,odmax=odmax,R=R,
 							call=match.call(),n=n,p=dim(X)[3],rvar=rvar,cvar=cvar,dcor=dcor,

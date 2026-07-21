@@ -1,7 +1,7 @@
 Package: lame
 Title: Longitudinal Additive and Multiplicative Effects Models for
         Networks
-Version: 1.3.1
+Version: 1.3.2
 Authors@R: c(
     person("Cassy", "Dorff", role = "aut"),
     person("Shahryar", "Minhas", , "minhassh@msu.edu", role = c("aut", "cre")),
@@ -24,9 +24,9 @@ Imports: Rcpp, ggplot2, ggrepel, ggforce, gridExtra, coda, patchwork,
         grDevices, parallel, stats, utils
 Suggests: knitr, rmarkdown, testthat (>= 3.0.0), igraph, network,
         posterior, loo, digest, tibble, broom, generics, pROC, precrec,
-        statmod, dplyr, modelsummary
+        statmod, dplyr, modelsummary, callr, amen
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 NeedsCompilation: yes
-Packaged: 2026-07-18 23:00:48 UTC; s7m
-Built: R 4.3.3; x86_64-pc-linux-gnu; 2026-07-18 23:01:23 UTC; unix
+Packaged: 2026-07-21 01:09:12 UTC; s7m
+Built: R 4.3.3; x86_64-pc-linux-gnu; 2026-07-21 01:09:30 UTC; unix

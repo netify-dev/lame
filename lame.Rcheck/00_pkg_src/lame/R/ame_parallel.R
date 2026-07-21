@@ -335,12 +335,26 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 					out
 				}, U_list, V_list, G_list)) / n_chains
 		} else if (bip_G) {
-			UVprod_list <- Map(function(U, V, G) U %*% G %*% t(V), U_list, V_list, G_list)
-			combined$UVPM <- Reduce("+", UVprod_list) / n_chains
+			# average the stored per-chain posterior means when every chain
+			# carries one; the last-draw product is only a fallback for
+			# fits that store no uvpm
+			UVPM_list <- lapply(chain_list, function(x) x$UVPM)
+			if (!any(vapply(UVPM_list, is.null, logical(1)))) {
+				combined$UVPM <- Reduce("+", UVPM_list) / n_chains
+			} else {
+				UVprod_list <- Map(function(U, V, G) U %*% G %*% t(V), U_list, V_list, G_list)
+				combined$UVPM <- Reduce("+", UVprod_list) / n_chains
+			}
 		} else {
-			# pooled posterior-mean product (rotation-invariant)
-			UVprod_list <- Map(function(U, V) U %*% t(V), U_list, V_list)
-			UVprod <- Reduce("+", UVprod_list) / n_chains
+			# pooled posterior-mean product (rotation-invariant). prefer the
+			# stored full-rank per-chain posterior means; the factor product
+			# is a rank-R truncation kept as a fallback for fits without one
+			UVPM_list <- lapply(chain_list, function(x) x[["UVPM"]])
+			UVprod <- if (!any(vapply(UVPM_list, is.null, logical(1)))) {
+				Reduce("+", UVPM_list) / n_chains
+			} else {
+				Reduce("+", Map(function(U, V) U %*% t(V), U_list, V_list)) / n_chains
+			}
 			combined$UVPM <- UVprod
 			R_lat <- ncol(U_list[[1]])
 			sv <- svd(UVprod, nu = R_lat, nv = R_lat)
@@ -353,6 +367,26 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 	} else if (!is.null(combined$UVPM)) {
 		UVPM_list <- lapply(chain_list, function(x) x$UVPM)
 		combined$UVPM <- Reduce("+", UVPM_list) / n_chains
+	}
+
+	# symmetric fits store the multiplicative posterior mean as ulupm and
+	# carry v = NULL, so the block above skips them; average the stored
+	# per-chain ulupm when every chain carries one (otherwise keep chain
+	# 1's), and refresh u/l from the pooled matrix so u l u' stays its
+	# rank-r truncation
+	if(!is.null(combined$ULUPM)) {
+		ULUPM_list <- lapply(chain_list, function(x) x[["ULUPM"]])
+		if (!any(vapply(ULUPM_list, is.null, logical(1)))) {
+			combined$ULUPM <- Reduce("+", ULUPM_list) / n_chains
+			if (!is.null(combined$U)) {
+				R_lat <- ncol(combined$U)
+				eULU <- eigen(combined$ULUPM)
+				eR <- which(rank(-abs(eULU$val), ties.method = "first") <= R_lat)
+				combined$U <- eULU$vec[, eR, drop = FALSE]
+				combined$L <- diag(eULU$val[eR], nrow = R_lat)
+				rownames(combined$U) <- rownames(combined$ULUPM)
+			}
+		}
 	}
 
 	if(!is.null(combined$APM)) {

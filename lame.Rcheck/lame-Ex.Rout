@@ -1358,13 +1358,13 @@ Warning: `family` = "binary" but `Y` contains values other than 0/1.
   = TRUE)`.
 This message is displayed once per session.
 > head(lp)
-  actor dimension time      value posterior_sd type
-1 node1         1    1 -0.1684240           NA    U
-2 node2         1    1  0.4269292           NA    U
-3 node3         1    1  0.8392846           NA    U
-4 node4         1    1 -0.4980691           NA    U
-5 node5         1    1  0.2864206           NA    U
-6 node6         1    1  0.1130607           NA    U
+  actor dimension time       value posterior_sd type
+1 node1         1    1 -0.17077871           NA    U
+2 node2         1    1  0.46618420           NA    U
+3 node3         1    1  0.72643685           NA    U
+4 node4         1    1 -0.35782682           NA    U
+5 node5         1    1  0.34737342           NA    U
+6 node6         1    1  0.09108492           NA    U
 > ## End(No test)
 > 
 > 
@@ -1741,7 +1741,7 @@ function (E, U, V, s2 = 1, shrink = TRUE)
     uLoopIDs <- as.integer(rep(sample(1:n), 4) - 1)
     rUV_sym_fc_cpp(E, U, V, s2, shrink, uLoopIDs)
 }
-<bytecode: 0x594de59ed130>
+<bytecode: 0x5a6c8423f6d8>
 <environment: namespace:lame>
 > 
 > 
@@ -2181,7 +2181,7 @@ Time periods: 4
 > cleanEx()
 > options(digits = 7L)
 > base::cat("Time elapsed: ", proc.time() - base::get("ptime", pos = 'CheckExEnv'),"\n")
-Time elapsed:  37.998 0.132 38.572 0 0 
+Time elapsed:  37.093 0.134 35.933 0 0 
 > grDevices::dev.off()
 null device 
           1 

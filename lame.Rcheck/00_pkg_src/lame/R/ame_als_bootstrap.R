@@ -1096,9 +1096,20 @@ sampler_describe.ame <- function(object, verbose = TRUE) {
 		cli::cli_h3("Estimator")
 		cli::cli_text("Method: {.field Bayesian MCMC} (Gibbs / Metropolis-within-Gibbs)")
 		cli::cli_text("Origin: Hoff (2005, 2009) additive and multiplicative effects sampler")
-		cli::cli_text("Family: {.val {object$family %||% \"normal\"}}")
-		cli::cli_text("Mode: {.val {object$mode %||% \"unipartite\"}}")
-		cli::cli_text("Latent rank R: {.val {object$R %||% 0}}")
+		# an amen fit (class "ame") carries no family / R slots. report them as
+		# unknown rather than defaulting to "normal" and 0, which misdescribes a
+		# binary or higher-rank fit as a rank-0 gaussian one.
+		fam <- object[["family", exact = TRUE]]
+		rnk <- object[["R", exact = TRUE]]
+		if (is.null(fam) && is.null(rnk)) {
+			cli::cli_text("Family: {.val unknown} (no {.pkg lame} metadata; looks like an {.pkg amen} fit)")
+			cli::cli_text("Mode: {.val {object$mode %||% \"unipartite\"}}")
+			cli::cli_text("Latent rank R: {.val {if (is.matrix(object$U)) ncol(object$U) else 0L}} (recovered from {.code fit$U})")
+		} else {
+			cli::cli_text("Family: {.val {fam %||% \"normal\"}}")
+			cli::cli_text("Mode: {.val {object$mode %||% \"unipartite\"}}")
+			cli::cli_text("Latent rank R: {.val {rnk %||% 0}}")
+		}
 		n_iter <- if (!is.null(object$BETA)) dim(object$BETA)[1L] else NA_integer_
 		cli::cli_text("Stored draws: {.val {n_iter}}")
 		cli::cli_text("Uncertainty available: yes (posterior draws)")

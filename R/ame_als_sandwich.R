@@ -40,23 +40,45 @@
 #'
 #' @param object an \code{ame_als} fit.
 #' @param cluster \code{"dyad"} (default) for a dyad-clustered robust meat, or
-#'   \code{"none"} for an HC0 (heteroskedasticity-only) meat.
+#'   \code{"none"} for an HC0 (heteroskedasticity-only) meat. Ignored when the
+#'   fit carries a bootstrap, since the bootstrap covariance is returned.
 #' @param ... ignored.
-#' @return A covariance matrix for \code{c(intercept, dyadic coefficients)},
-#'   with matching row/column names.
+#' @return A covariance matrix with matching row/column names. When the fit
+#'   carries a \code{$bootstrap}, this is the bootstrap covariance over all
+#'   estimated coefficients, matching \code{coef()}. Otherwise it is the
+#'   conditional sandwich, covering \code{c(intercept, dyadic coefficients)}
+#'   only.
 #' @method vcov ame_als
 #' @seealso \code{\link{ame_als_bootstrap}} for bootstrap uncertainty
 #'   covering all parameters.
 #' @export
 vcov.ame_als <- function(object, cluster = c("dyad", "none"), ...) {
+	cluster_given <- !missing(cluster)
 	cluster <- match.arg(cluster)
 	# the sandwich is tied to the surrogate gaussian working likelihood.
 	# for the non-gaussian families (binary-transform, poisson-transform) it
 	# is anti-conservative because it conditions on the transformed working
 	# response and ignores the estimation uncertainty in the additive
 	# effects. the bootstrap is the recommended uncertainty for those fits.
-	if (object$family %in% c("binary", "poisson") &&
-	    is.null(object$bootstrap)) {
+	# when a bootstrap is attached, return its covariance so that vcov(),
+	# summary() and confint() all report the same uncertainty on one fit. the
+	# replicate matrix reproduces $bootstrap$se exactly under cov().
+	boot_coefs <- object$bootstrap[["coefs", exact = TRUE]]
+	if (is.matrix(boot_coefs)) {
+		# failed replicates are stored as NA rows; the se/ci machinery
+		# already drops them, so the covariance must too
+		boot_coefs <- boot_coefs[stats::complete.cases(boot_coefs), , drop = FALSE]
+	}
+	if (is.matrix(boot_coefs) && nrow(boot_coefs) > 1L) {
+		if (cluster_given) {
+			cli::cli_inform(c(
+				"i" = "{.arg cluster} applies to the sandwich only; this fit carries a bootstrap, so its covariance is returned."))
+		}
+		V <- stats::cov(boot_coefs)
+		dimnames(V) <- list(colnames(boot_coefs), colnames(boot_coefs))
+		return(V)
+	}
+	if (object$family %in% c("binary", "poisson")) {
 		cli::cli_warn(c(
 			"!" = "{.fn vcov.ame_als} for {.val {object$family}} returns the conditional sandwich on the surrogate working likelihood -- anti-conservative.",
 			"i" = "Refit with {.code ame_als(..., bootstrap = 200)} for fully propagated uncertainty.",

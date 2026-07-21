@@ -393,7 +393,8 @@ prediction_draws_long <- function(object,
 #' }
 #' @export
 glance.ame <- function(x, ...) {
-	Y <- x$Y %||% x$YPM
+	# exact lookup: `$Y` partial-matches `$YPM` on fits that carry no Y
+	Y <- x[["Y", exact = TRUE]] %||% x$YPM
 	nobs <- if (is.list(Y)) {
 		sum(vapply(Y, function(yt) sum(is.finite(yt)), integer(1L)))
 	} else if (is.array(Y)) {
@@ -430,8 +431,15 @@ glance.ame <- function(x, ...) {
 		}
 	}
 
+	# a fit from amen (class "ame") carries no $family / $R metadata. recover
+	# the latent rank from the stored U rather than reporting 0; family stays
+	# NA in the output, which is the visible signal that metadata is absent.
+	is_legacy <- is.null(x[["family", exact = TRUE]]) &&
+		is.null(x[["R", exact = TRUE]])
 	R_used <- if (is_bip) {
 		max(c(x$R_row %||% 0L, x$R_col %||% 0L, x$R %||% 0L))
+	} else if (is_legacy) {
+		if (is.matrix(x$U)) ncol(x$U) else 0L
 	} else {
 		x$R %||% 0L
 	}

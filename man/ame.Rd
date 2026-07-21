@@ -105,14 +105,26 @@ families}
 \item{prior}{a list containing hyperparameters for the prior distributions.
 Available options and their defaults:
 \describe{
-\item{Sab0}{Prior covariance matrix for additive effects (default: diag(2)).
-A 2x2 matrix where Sab0\[1,1\] is the prior variance for row effects,
+\item{Sab0}{Prior scale matrix for the additive-effects covariance. A 2x2
+matrix where Sab0\[1,1\] is the prior variance for row effects,
 Sab0\[2,2\] is the prior variance for column effects, and off-diagonals
-control correlation between row and column effects.}
-\item{eta0}{Prior degrees of freedom for covariance of multiplicative effects
-(default: 4 + 3 \\* n/100, where n is the number of actors). Higher values
-impose stronger shrinkage on the latent factors. Common values: 4-10 for
-weak shrinkage, 10-20 for moderate, >20 for strong shrinkage.}
+control correlation between row and column effects. For a unipartite
+fit this defaults to \code{diag(2)} scaled to the observed
+sender/receiver heterogeneity in \code{Y} (unconditionally for the
+continuous families, conditionally for the discrete ones); a
+bipartite fit defaults to \code{diag(2)}. See the note on the
+additive-effects variance scale in Details. Pass \code{diag(2)}
+explicitly for a fixed unit-scale prior.}
+\item{eta0}{Prior degrees of freedom for the additive-effects covariance
+\eqn{\Sigma_{ab}} (default: round(4 + 3 \\* n/100) for a unipartite
+continuous-family fit, round(4 \\* vdfmlt) for a unipartite
+discrete-family fit, and 4 + 3 \\* (nA + nB) / 200 for a bipartite
+fit -- except bipartite \code{"binary"}, which also uses
+round(4 \\* vdfmlt) -- where n is the number of actors and vdfmlt
+is a probit-moment variance multiplier estimated from \code{Y}).
+Higher values impose stronger shrinkage of the row/column effects
+toward the prior scale. The multiplicative-effects degrees of
+freedom are controlled by \code{kappa0}, not \code{eta0}.}
 \item{etaab}{Prior degrees of freedom for covariance of additive effects
 (default: 4 + 3 \\* n/100). Controls shrinkage of row/column random effects.
 Larger values shrink effects toward zero. \emph{Used by the bipartite
@@ -125,7 +137,17 @@ bipartite and longitudinal paths; for a unipartite \code{ame()} fit
 the regression prior is controlled by \code{g}.}}
 \item{s2u0}{Prior variance for multiplicative effects (default: 1).
 \emph{Used by the bipartite and longitudinal paths.}}
-\item{Suv0}{Prior covariance for multiplicative effects (default: identity matrix).}
+\item{Suv0}{Inverse-Wishart (inverse) scale matrix for the
+multiplicative-effects covariance. The prior scale is
+\code{kappa0 * Suv0} and the prior mean is
+\code{kappa0 * Suv0 / (kappa0 - 2 * R - 1)}. When not supplied it
+defaults to \code{diag(2 * R)} times a scale estimated from the
+data.}
+\item{kappa0}{Prior degrees of freedom for the multiplicative-effects
+covariance \eqn{\Sigma_{uv}} (default when R > 0: 2 \\* R + 2, times
+the same probit-moment multiplier as \code{eta0} for a unipartite
+discrete-family fit). Higher values impose stronger shrinkage of the
+latent factors toward the prior scale \code{kappa0 * Suv0}.}
 }
 Common usage: prior = list(Sab0 = diag(c(2, 2)), eta0 = 10) for moderate
 shrinkage, or prior = list(Sab0 = diag(c(0.5, 0.5))) for tighter control.
@@ -276,12 +298,15 @@ See \code{\link{gof}} for post-hoc computation and \code{\link{gof_plot}} for vi
 \item{a_samples}{Samples of row effects (n xiterations matrix)}
 \item{b_samples}{Samples of column effects (m xiterations matrix)}
 
-\strong{Note on reconstructing removed matrices:}
-To save memory, EZ (expected latent network) and UVPM/ULUPM (multiplicative products)
-are not stored but can be reconstructed using:
+\strong{Note on the latent-scale matrices:}
+The posterior-mean multiplicative product is stored on the fit
+(\code{UVPM}, or \code{ULUPM} for symmetric fits); EZ (the expected
+latent network) is not stored, to save memory. Accessors:
 \itemize{
 \item \code{reconstruct_EZ(fit)} - Returns linear predictor (link scale, not response scale)
-\item \code{reconstruct_UVPM(fit)} - Returns U\\%\emph{\\%t(V) or U\\%}\\%L\\%*\\%t(U)
+\item \code{reconstruct_UVPM(fit)} - Returns the stored posterior-mean
+multiplicative product (\code{UVPM} / \code{ULUPM}) when present,
+otherwise U\\%\emph{\\%t(V) or U\\%}\\%L\\%*\\%t(U)
 }
 
 \strong{Generating posterior distributions:}
@@ -323,7 +348,8 @@ bipartite, dyad correlation is fixed at 0.
 (\code{g}); \eqn{(a_i, b_i)} are jointly Normal with covariance
 \eqn{\Sigma_{ab}} (Inverse-Wishart prior \code{Sab0 / eta0});
 \eqn{u_i, v_j} are independent Normal with covariance
-\eqn{\Sigma_{uv}} (Inverse-Wishart prior \code{Suv0 / kappa0});
+\eqn{\Sigma_{uv}} (Inverse-Wishart prior with scale \code{kappa0 * Suv0}
+and \code{kappa0} degrees of freedom);
 the dyad-correlation \eqn{\rho} has an arc-sine prior on \eqn{(-1, 1)}
 (density proportional to \eqn{(1-\rho^2)^{-1/2}}), updated with
 Metropolis steps. See \code{prior_summary(fit)} for the priors
@@ -375,15 +401,35 @@ The model uses conjugate and semi-conjugate priors where possible:
 The inverse-Wishart prior on \eqn{\Sigma_{ab}} allows learning correlation between
 sender and receiver effects, capturing reciprocity patterns.
 
-Note on the additive-effects variance scale: for the \code{"normal"}
-and \code{"poisson"} families the default
-\code{Sab0 = diag(2)} with \code{eta0 = round(4 + 3n/100)} pseudo-actors
-pulls the additive-effects variances \code{va}/\code{vb} toward 1 at small
-\eqn{n} (measured roughly +50\\% upward bias at \eqn{n = 30} when the true
-variance is 0.3, and about +20\\% at \eqn{n = 100}). The binary/ordinal
-families adaptively scale \code{Sab0} and do not have this issue. Pass
-\code{prior = list(Sab0 = ..., eta0 = ...)} when the magnitude of
-sender/receiver heterogeneity matters at \eqn{n} below roughly 100.
+Note on the additive-effects variance scale: for a unipartite fit \code{Sab0}
+defaults to a data-scaled matrix rather than a fixed \code{diag(2)}. For the
+\code{"normal"} and \code{"poisson"} families the default is
+\code{Sab0 = diag(2) * vscale}, where \code{vscale} is an empirical-Bayes
+moment estimate of the sender/receiver variance: the mean of the variances of
+the centred row means and column means of \code{Y} (of \code{log1p(Y)} for
+\code{"poisson"}). The \code{"binary"}, \code{"ordinal"}, \code{"cbin"} and
+\code{"frn"} families apply the same idea to a probit-moment residual, but
+only when \code{start_vals} is not supplied and the design has at least one
+column; otherwise they fall back to \code{Sab0 = diag(2)} with
+\code{eta0 = 4}. A bipartite fit always uses \code{Sab0 = diag(2)}.
+Call \code{prior_summary()} on a fitted object to see the prior actually used.
+
+The data scaling matters because the inverse-Wishart prior contributes
+pseudo-data on the scale of \code{eta0 * Sab0} no matter what units \code{Y}
+is in, so a fixed \code{Sab0 = diag(2)} pulls the additive-effects variances
+\code{va}/\code{vb} upward whenever the true sender/receiver variance is well
+below 1, most visibly at small \eqn{n}. In Social Relations Model simulations
+the data-scaled default recovers small true variances with modest bias where
+a fixed \code{diag(2)} prior can nearly double them; the data-scaled prior is
+mildly more conservative in the opposite regime, when the true variance is
+large relative to the residual scale.
+
+This default differs from the \code{amen} package, whose
+\code{ame(family = "nrm")} leaves \code{Sab0 = diag(2)} and \code{eta0 = 4}.
+To reproduce \code{amen}'s additive-effects posterior, pass
+\code{prior = list(Sab0 = diag(2), eta0 = 4)}. The choice affects only
+\code{va}, \code{vb} and (weakly) \code{cab}; \code{ve} and \code{rho} are
+unchanged.
 
 \strong{Multiplicative Effects (Latent Factors):}
 

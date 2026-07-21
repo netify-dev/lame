@@ -19,9 +19,9 @@ Reconstructed matrix
 }
 \description{
 Helper functions to recover EZ (linear predictor) and UVPM (posterior
-mean of the multiplicative product) matrices. When the fit already
-stores the quantity (as \code{lame()} fits do for \code{UVPM}), the
-stored posterior mean is returned directly; otherwise it is
+mean of the multiplicative product) matrices. When the fit stores the
+quantity (\code{UVPM} on asymmetric fits, \code{ULUPM} on symmetric
+fits), the stored posterior mean is returned directly; otherwise it is
 reconstructed from the saved factors.
 
 Note: EZ returns the linear predictor (\eqn{\eta}), not the response:
@@ -33,9 +33,9 @@ Use YPM for predictions on the response scale.
 }
 }
 \details{
-\code{ame()} fits do not store these matrices (to save memory), so they
-are rebuilt from the posterior factor means. \code{lame()} fits store
-\code{UVPM}, which is returned as-is.
+Fits that carry the stored posterior mean (\code{UVPM} or, for
+symmetric fits, \code{ULUPM}) have it returned as-is; older fit objects
+without one are rebuilt from the posterior factor means.
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

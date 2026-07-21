@@ -52,15 +52,17 @@ print.ame <- function(x, ...) {
 		n <- x$n
 	} else if(!is.null(x$APM)) {
 		n <- length(x$APM)
-	} else if(!is.null(x$Y)) {
-		n <- nrow(x$Y)
+	} else if(!is.null(x[["Y", exact = TRUE]])) {
+		n <- nrow(x[["Y", exact = TRUE]])
 	} else {
 		n <- NA
 	}
 	
 	# bipartite dimensions
-	if(x$mode == "bipartite" && !is.null(x$Y)) {
-		cat("\nNetwork dimensions: ", nrow(x$Y), "x", ncol(x$Y), "\n")
+	# identical() guards a fit with no $mode (NULL == "bipartite" is logical(0),
+	# which errors under `&&`); exact lookup stops $Y partial-matching $YPM
+	if(identical(x$mode, "bipartite") && !is.null(x[["Y", exact = TRUE]])) {
+		cat("\nNetwork dimensions: ", nrow(x[["Y", exact = TRUE]]), "x", ncol(x[["Y", exact = TRUE]]), "\n")
 	} else {
 		cat("\nNetwork dimensions: ", n, "x", n, "\n")  
 	}

@@ -25,9 +25,11 @@ If "auto", determined by model class.}
 \item{statistics}{Character vector of statistics to plot, or \code{NULL}
 (default) for the standard panels plus any custom GOF columns.
 Unipartite names: "sd.row", "sd.col", "dyad.dep", "triad.dep",
-"trans.dep"; bipartite names: "sd.row", "sd.col", "four.cycles";
-custom GOF columns may also be named. Unknown names are dropped
-with a warning.}
+"trans.dep"; bipartite names: "sd.row", "sd.col", "four.cycles".
+The internal GOF column names reported by \code{names(fit$GOF)}
+("sd.rowmean", "sd.colmean", "cycle.dep") are accepted as
+equivalents; custom GOF columns may also be named. Unknown names
+are dropped with a warning.}
 
 \item{credible.level}{Numeric between 0 and 1; credible interval level for
 longitudinal plots (default 0.95)}

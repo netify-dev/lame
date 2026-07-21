@@ -70,13 +70,17 @@ test_that("#12 ame() stores each posterior draw once (no duplication, no crash)"
 	expect_lt(frac_dup, 0.1)
 
 	# symmetric + partially-specified posterior_opts must not crash, and
-	# V_samples must stay NULL for a symmetric fit
+	# V_samples (= U L per draw) must be stored so the per-draw latent
+	# similarity U L U' is reconstructable
 	Ys = Y; Ys[lower.tri(Ys)] <- t(Ys)[lower.tri(Ys)]
 	fsym = expect_no_error(
 		ame(Ys, R = 1, symmetric = TRUE, family = "normal", burn = 40, nscan = 80,
 		    odens = 2, verbose = FALSE, gof = FALSE, seed = 3,
 		    posterior_opts = list(save_UV = TRUE, thin_UV = 1)))
-	expect_null(fsym$V_samples)
+	expect_false(is.null(fsym$V_samples))
+	expect_equal(dim(fsym$V_samples), dim(fsym$U_samples))
+	s1 = fsym$U_samples[, , 1] %*% t(fsym$V_samples[, , 1])
+	expect_equal(s1, t(s1), tolerance = 1e-8)
 })
 
 test_that("#19 ame() samples Sab for poisson (additive variance not frozen)", {
@@ -94,4 +98,35 @@ test_that("#19 ame() samples Sab for poisson (additive variance not frozen)", {
 	expect_gt(sd(f$VC[, "va"]), 1e-4)
 	# and va should be nowhere near the frozen ~0.05 start value
 	expect_gt(mean(f$VC[, "va"]), 0.1)
+})
+
+test_that("ame() returns the posterior-mean multiplicative matrix (amen parity)", {
+	skip_on_cran()
+	set.seed(4); n = 14
+	nm = paste0("a", 1:n)
+
+	Ys = matrix(rbinom(n * n, 1, 0.3), n, n)
+	Ys[lower.tri(Ys)] = t(Ys)[lower.tri(Ys)]
+	diag(Ys) = NA
+	dimnames(Ys) = list(nm, nm)
+	fs = ame(Ys, R = 2, symmetric = TRUE, family = "binary", burn = 20,
+	         nscan = 100, odens = 1, verbose = FALSE, gof = FALSE, seed = 2)
+	expect_false(is.null(fs$ULUPM))
+	expect_equal(dim(fs$ULUPM), c(n, n))
+	expect_equal(rownames(fs$ULUPM), nm)
+	expect_equal(fs$ULUPM, t(fs$ULUPM), tolerance = 1e-10)
+
+	Ya = matrix(rnorm(n * n), n, n)
+	diag(Ya) = NA
+	dimnames(Ya) = list(nm, nm)
+	fa = ame(Ya, R = 2, family = "normal", burn = 20, nscan = 60, odens = 1,
+	         verbose = FALSE, gof = FALSE, seed = 2)
+	expect_false(is.null(fa$UVPM))
+	expect_equal(dim(fa$UVPM), c(n, n))
+
+	# R = 0 still returns the (zero) matrix rather than dropping the slot
+	f0 = ame(Ys, R = 0, symmetric = TRUE, family = "binary", burn = 20,
+	         nscan = 60, odens = 1, verbose = FALSE, gof = FALSE, seed = 2)
+	expect_false(is.null(f0$ULUPM))
+	expect_true(all(f0$ULUPM == 0))
 })

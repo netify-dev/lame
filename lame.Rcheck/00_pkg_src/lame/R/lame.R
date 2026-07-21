@@ -678,13 +678,23 @@
 #' @param prior a list containing hyperparameters for the prior distributions. 
 #' Available options and their defaults:
 #' \describe{
-#'   \item{Sab0}{Prior covariance matrix for additive effects (default: diag(2)). 
-#'         A 2x2 matrix where Sab0\\[1,1\\] is the prior variance for row effects,
+#'   \item{Sab0}{Prior scale matrix for the additive-effects covariance. A 2x2
+#'         matrix where Sab0\\[1,1\\] is the prior variance for row effects,
 #'         Sab0\\[2,2\\] is the prior variance for column effects, and off-diagonals
-#'         control correlation between row and column effects.}
-#'   \item{eta0}{Prior degrees of freedom for covariance of multiplicative effects 
-#'         (default: 4 + 3 \\* n/100, where n is the number of actors). Higher values 
-#'         impose stronger shrinkage on the latent factors.}
+#'         control correlation between row and column effects. For the
+#'         \code{"normal"} and \code{"poisson"} families, and for unipartite
+#'         \code{"binary"}, this defaults to \code{diag(2)} scaled to the observed
+#'         sender/receiver heterogeneity in \code{Y} rather than to a fixed
+#'         \code{diag(2)}; see \code{\link{ame}} for the rationale. Pass
+#'         \code{diag(2)} explicitly for a fixed unit-scale prior.}
+#'   \item{eta0}{Prior degrees of freedom for the additive-effects covariance
+#'         \eqn{\Sigma_{ab}} (default: round(4 \\* vdfmlt) for \code{"binary"}
+#'         fits, where vdfmlt is a probit-moment variance multiplier estimated
+#'         from \code{Y}, and round(4 + 3 \\* n/100) otherwise, where n is the
+#'         number of actors). Higher values impose stronger shrinkage of the
+#'         row/column effects toward the prior scale. The multiplicative-effects
+#'         prior is fixed in the longitudinal sampler; \code{Suv0} and
+#'         \code{kappa0} apply to \code{\link{ame}} only.}
 #'   \item{etaab}{Prior degrees of freedom for covariance of additive effects 
 #'         (default: 4 + 3 \\* n/100). Controls shrinkage of row/column random effects.}
 #'   \item{ab_min_observed}{Minimum observed sender/receiver cells used before a
@@ -1188,9 +1198,15 @@ lame <- function(
 	if (length(family) == 1L && is.character(family) &&
 	    family %in% names(amen_aliases)) {
 		new_family <- unname(amen_aliases[family])
-		cli::cli_inform(c(
-			"i" = "{.arg family} = {.val {family}} (amen-style) accepted as alias for {.val {new_family}}.",
-			"i" = "Use {.code family = \"{new_family}\"} to avoid the alias message."))
+		# announce the alias once per session; a porting script calls lame() in
+		# a loop and the reminder is identical on every call
+		if (!isTRUE(.lame_state$family_alias_msg_shown)) {
+			cli::cli_inform(c(
+				"i" = "{.arg family} = {.val {family}} (amen-style) accepted as alias for {.val {new_family}}.",
+				"i" = "Use {.code family = \"{new_family}\"} to avoid the alias message.",
+				"i" = "This note is shown once per session."))
+			.lame_state$family_alias_msg_shown <- TRUE
+		}
 		family <- new_family
 	}
 	if (length(family) != 1L || !is.character(family) ||
@@ -2765,10 +2781,11 @@ lame <- function(
 			# static multiplicative effects: per-draw latent-position matrices
 			U_SAMPLES <- array(NA_real_,
 				dim = c(if (bip) nA else n, if (bip) RA else R, n_uv_draws))
-			if (bip || !symmetric) {
-				V_SAMPLES <- array(NA_real_,
-					dim = c(if (bip) nB else n, if (bip) RB else R, n_uv_draws))
-			}
+			# symmetric fits store V = U L per draw as well: without the
+			# per-draw eigenvalues the latent similarity U L U' cannot be
+			# reconstructed draw-by-draw (simulate_posterior(fit, "UV"))
+			V_SAMPLES <- array(NA_real_,
+				dim = c(if (bip) nB else n, if (bip) RB else R, n_uv_draws))
 		} else {
 			cli::cli_warn(c(
 				"{.arg posterior_opts} latent draw storage ({.code save_UV} / {.code save_UV_draws}) requires a positive multiplicative rank; ignoring it.",
@@ -5677,10 +5694,17 @@ lame <- function(
 			if (is.null(dn[[2L]])) dn[[2L]] <- paste0("dim", seq_len(dim(draws)[2L]))
 			c(dn, list(paste0("draw", seq_len(dim(draws)[3L]))))
 		}
-		dimnames(U_SAMPLES) <- .uv_sample_dimnames(fit$U, U_SAMPLES)
+		dimnames(U_SAMPLES) <- .uv_sample_dimnames(fit[["U"]], U_SAMPLES)
 		fit$U_samples <- U_SAMPLES
 		if (!is.null(V_SAMPLES)) {
-			dimnames(V_SAMPLES) <- .uv_sample_dimnames(fit$V, V_SAMPLES)
+			# symmetric fits have no V element ($V would partial-match $VC);
+			# use exact indexing and fall back to U, whose rows are the same
+			# actors, when V is absent, unnamed, or shaped differently
+			v_exact <- fit[["V"]]
+			v_names_src <- if (!is.null(v_exact) && length(dim(v_exact)) >= 2L &&
+			    identical(dim(v_exact)[1:2], dim(V_SAMPLES)[1:2]) &&
+			    !is.null(dimnames(v_exact))) v_exact else fit[["U"]]
+			dimnames(V_SAMPLES) <- .uv_sample_dimnames(v_names_src, V_SAMPLES)
 			fit$V_samples <- V_SAMPLES
 		}
 	}

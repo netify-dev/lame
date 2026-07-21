@@ -24,7 +24,7 @@ rUV_rep_fc <-
 
 		R<-ncol(U) ; n<-nrow(U)
 		if(shrink) {
-			Suv<-rSuv_fc(U, V, Suv0=diag(2*R)/(n+R+2), kappa0=n+R+2)
+			Suv<-rSuv_fc(U, V, Suv0=diag(2*R)/(R+2), kappa0=R+2)
 		}
 		if(!shrink){ Suv<-diag(n,nrow=2*R)  }
 

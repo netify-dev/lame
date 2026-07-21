@@ -1,6 +1,25 @@
-# lame 1.3.1
+# lame 1.3.2
 
 * Fixed Rd markup reported by CRAN's incoming checks.
+* Fixed a prior-scaling bug that could silently collapse the latent factors
+  (and attenuate coefficients) in asymmetric `ame()` fits with `R > 0`;
+  fits now match `amen`.
+* All `ame()` fits return the posterior-mean multiplicative matrix (`UVPM` /
+  `ULUPM`); `reconstruct_UVPM()`, `reconstruct_EZ()`, and `ame_parallel()`
+  use the stored matrices.
+* Symmetric fits pair each retained eigenvalue with its own eigenvector when
+  deriving `U` and `L` from `ULUPM`.
+* `gof_plot(statistics = ...)` accepts the names in `names(fit$GOF)` and
+  warns rather than errors on unknown ones.
+* Legacy `amen`-class fits: `residuals()` aborts instead of returning zeros,
+  `print()` no longer errors, and `glance()` / `sampler_describe()` no
+  longer fabricate metadata.
+* `vcov.ame_als()` agrees with `summary()` / `confint()` on bootstrapped
+  fits.
+* The `family` alias message prints once per session.
+* Documented the adaptive `Sab0` / `eta0` prior defaults and the
+  `amen`-equivalent setting.
+* `simulate_posterior()` uses every stored draw by default.
 * Time-varying coefficients (`dynamic_beta`) compose freely with the
   multiplicative latent factors (`R > 0`) and additive sender/receiver effects,
   for every family and network type. Coefficients can follow AR(1),
@@ -12,7 +31,9 @@
 * Set `posterior_opts = list(save_UV = TRUE)` to keep the per-draw latent
   factors (and the bipartite mixing matrix), so `latent_positions()`,
   `uv_plot()`, and the goodness-of-fit tools report posterior uncertainty
-  directly.
+  directly. Symmetric fits now store `V_samples` (`U L` per draw) alongside
+  `U_samples`, so the per-draw latent similarity `U L U'` is reconstructable
+  via `simulate_posterior(fit, "UV")`.
 * `summary()` on a `lame` fit exposes the coefficient table under
   `$coefficients`, matching `summary.ame` and the `broom`/`lm` idiom.
 
