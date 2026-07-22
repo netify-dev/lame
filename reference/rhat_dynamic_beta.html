@@ -83,7 +83,7 @@ subset (matches <code>dimnames(fit$BETA)[[2]]</code>).</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Data frame with one row per coefficient: <code>coef</code>,
 <code>rhat_mvt</code>, <code>rhat_max_univariate</code>, <code>n_chains</code>,
-<code>n_iter_per_chain</code>, <code>T</code>. <code>rhat_mvt</code> is the
+<code>n_iter_per_chain</code>, <code>n_periods</code>. <code>rhat_mvt</code> is the
 Brooks-Gelman multivariate statistic; <code>rhat_max_univariate</code>
 is the max over per-(k,t) split-R-hat values for comparison.</p>
     </div>
@@ -119,11 +119,11 @@ For nearly degenerate covariances we add a tiny ridge to \(W_k\).</p>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `Y` will be thresholded to `1 * (Y &gt; 0)`; if you meant counts, use <span style="color: #0000BB;">"poisson"</span>,</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span>   or <span style="color: #0000BB;">"ordinal"</span>/<span style="color: #0000BB;">"normal"</span> as appropriate.</span>
 <span class="r-in"><span><span class="fu">rhat_dynamic_beta</span><span class="op">(</span><span class="va">fit_list</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        coef  rhat_mvt rhat_max_univariate n_chains n_iter_per_chain T</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 intercept 0.9652322            1.003289        2               12 4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2   X1_dyad 1.4857680            1.994606        2               12 4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3   X2_dyad 1.2703514            2.126998        2               12 4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4   X3_dyad 1.6227131            2.165537        2               12 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        coef  rhat_mvt rhat_max_univariate n_chains n_iter_per_chain n_periods</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 intercept 0.9652322            1.003289        2               12         4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2   X1_dyad 1.4857680            1.994606        2               12         4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3   X2_dyad 1.2703514            2.126998        2               12         4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4   X3_dyad 1.6227131            2.165537        2               12         4</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

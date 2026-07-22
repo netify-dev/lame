@@ -47,7 +47,9 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.3.2" id="lame-132">lame 1.3.2<a class="anchor" aria-label="anchor" href="#lame-132"></a></h2>
-<ul><li>Fixed Rd markup reported by CRAN’s incoming checks.</li>
+<ul><li>The package is now distributed under GPL-3 rather than MIT, matching the license of <code>amen</code>, from which several samplers and helpers are derived. Peter Hoff is credited as contributor and copyright holder; see <code>inst/COPYRIGHTS</code>.</li>
+<li>Fitting no longer leaves a <code>.Random.seed</code> behind in the global environment when the session had none, and <code><a href="../reference/lame.html">lame()</a></code> no longer sets <code>options(warn)</code>.</li>
+<li>Fixed Rd markup reported by CRAN’s incoming checks.</li>
 <li>Fixed a prior-scaling bug that could silently collapse the latent factors (and attenuate coefficients) in asymmetric <code><a href="../reference/ame.html">ame()</a></code> fits with <code>R &gt; 0</code>; fits now match <code>amen</code>.</li>
 <li>Time-varying coefficients (<code>dynamic_beta</code>) compose freely with the multiplicative latent factors (<code>R &gt; 0</code>) and additive sender/receiver effects, for every family and network type. Coefficients can follow AR(1), random-walk, or Matern dynamics, and <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> carries that drift into its forecasts.</li>
 <li>
