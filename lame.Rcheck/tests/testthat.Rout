@@ -101,4 +101,4 @@ Skipping the R-hat convergence verdict for identical chains.
 > 
 > proc.time()
    user  system elapsed 
- 35.295   0.841  31.137 
+ 33.567   0.721  29.825 

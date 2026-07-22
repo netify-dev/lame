@@ -1,6 +1,6 @@
 # cran-comments
 
-## Resubmission of lame, now 1.3.2 (new package)
+## Resubmission of lame, now 1.3.3 (new package)
 
 Thank you for the review. Every point raised has been addressed:
 
@@ -38,7 +38,7 @@ Thank you for the review. Every point raised has been addressed:
   is preserved rather than weakened; the former MIT `LICENSE` file has been
   removed accordingly.
 
-The version was bumped to 1.3.2; it also folds in bug fixes made since the
+The version was bumped to 1.3.3; it also folds in bug fixes made since the
 previous submission (see NEWS.md). The vignettes were compacted so the suite
 rebuilds quickly on CRAN's builders.
 

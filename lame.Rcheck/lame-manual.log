@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.1.6)  22 JUL 2026 08:02
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.1.6)  22 JUL 2026 08:31
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -353,7 +353,7 @@ File: l3backend-pdftex.def 2024-01-04 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count293
 \l__pdf_internal_box=\box58
 )
-(/tmp/RtmpkK67QN/Rd2pdf168a4418fcdbce/Rd2.aux)
+(/tmp/Rtmp0gEs4K/Rd2pdf16e5958ad00e8/Rd2.aux)
 \openout1 = `Rd2.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 8.
@@ -390,8 +390,8 @@ LaTeX Font Info:    ... okay on input line 8.
 \everyMPtoPDFconversion=\toks30
 )
 Package hyperref Info: Link coloring ON on input line 8.
- (/tmp/RtmpkK67QN/Rd2pdf168a4418fcdbce/Rd2.out)
-(/tmp/RtmpkK67QN/Rd2pdf168a4418fcdbce/Rd2.out)
+ (/tmp/Rtmp0gEs4K/Rd2pdf16e5958ad00e8/Rd2.out)
+(/tmp/Rtmp0gEs4K/Rd2pdf16e5958ad00e8/Rd2.out)
 \@outlinefile=\write4
 \openout4 = `Rd2.out'.
 
@@ -437,7 +437,7 @@ LaTeX Font Info:    Trying to load font information for T1+phv on input line 47
  (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2020/03/25 scalable font definitions for T1/phv.
 )
-(/tmp/RtmpkK67QN/Rd2pdf168a4418fcdbce/Rd2.toc [2] [3] [4] [5] [6])
+(/tmp/Rtmp0gEs4K/Rd2pdf16e5958ad00e8/Rd2.toc [2] [3] [4] [5] [6])
 \tf@toc=\write5
 \openout5 = `Rd2.toc'.
 
@@ -1070,7 +1070,7 @@ _igos
  []
 
 [228] [229] [230] [231] [232] [233] [234] [235]
-(/tmp/RtmpkK67QN/Rd2pdf168a4418fcdbce/Rd2.ind [236]
+(/tmp/Rtmp0gEs4K/Rd2pdf16e5958ad00e8/Rd2.ind [236]
 
 LaTeX Font Warning: Font shape `T1/zi4/m/it' undefined
 (Font)              using `T1/zi4/m/n' instead on input line 78.
@@ -1080,7 +1080,7 @@ LaTeX Font Warning: Font shape `T1/zi4/m/it' undefined
 ]
 LaTeX Font Info:    Font shape `T1/zi4/m/it' will be
 (Font)              scaled to size 10.0pt on input line 138.
- [238] [239] [240]) (/tmp/RtmpkK67QN/Rd2pdf168a4418fcdbce/Rd2.aux)
+ [238] [239] [240]) (/tmp/Rtmp0gEs4K/Rd2pdf16e5958ad00e8/Rd2.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-22>
@@ -1094,7 +1094,7 @@ Package rerunfilecheck Info: File `Rd2.out' has not changed.
  ) 
 Here is how much of TeX's memory you used:
  12833 strings out of 474222
- 194481 string characters out of 5748734
+ 194468 string characters out of 5748734
  1940975 words of memory out of 5000000
  32926 multiletter control sequences out of 15000+600000
  602660 words of font info for 88 fonts, out of 8000000 for 9000
@@ -1139,7 +1139,7 @@ r8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/s
 hare/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/te
 xmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/
 type1/urw/times/utmri8a.pfb>
-Output written on Rd2.pdf (240 pages, 709476 bytes).
+Output written on Rd2.pdf (240 pages, 709463 bytes).
 PDF statistics:
  5010 PDF objects out of 5155 (max. 8388607)
  4688 compressed objects within 47 object streams

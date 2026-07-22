@@ -1,4 +1,4 @@
-# lame 1.3.2
+# lame 1.3.3
 
 * The package is now distributed under GPL-3 rather than MIT, matching the
   license of `amen`, from which several samplers and helpers are derived.

@@ -1741,7 +1741,7 @@ function (E, U, V, s2 = 1, shrink = TRUE)
     uLoopIDs <- as.integer(rep(sample(1:n), 4) - 1)
     rUV_sym_fc_cpp(E, U, V, s2, shrink, uLoopIDs)
 }
-<bytecode: 0x59c636ecd6f8>
+<bytecode: 0x56935d77ffd8>
 <environment: namespace:lame>
 > 
 > 
@@ -2181,7 +2181,7 @@ Time periods: 4
 > cleanEx()
 > options(digits = 7L)
 > base::cat("Time elapsed: ", proc.time() - base::get("ptime", pos = 'CheckExEnv'),"\n")
-Time elapsed:  63.803 0.26 64.06 0 0 
+Time elapsed:  60.088 0.232 60.269 0 0 
 > grDevices::dev.off()
 null device 
           1 
