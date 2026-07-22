@@ -1727,11 +1727,15 @@ lame <- function(
 
 	# set random seed locally: restore the global rng stream on exit so a
 	# downstream random draw is not silently perturbed by fitting a model
-	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-		.old_seed <- get(".Random.seed", envir = globalenv())
-		on.exit(assign(".Random.seed", .old_seed, envir = globalenv()),
-		        add = TRUE)
-	}
+	.had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+	.old_seed <- if (.had_seed) get(".Random.seed", envir = globalenv()) else NULL
+	on.exit({
+		if (.had_seed) {
+			assign(".Random.seed", .old_seed, envir = globalenv())
+		} else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+			rm(".Random.seed", envir = globalenv())
+		}
+	}, add = TRUE)
 	set.seed(seed)
 
 	# lame() identifies actors by the row/column names of the y matrices.
@@ -2958,7 +2962,7 @@ lame <- function(
 		coef_names   = colnames(BETA),
 		coef_block   = .lame_coef_blocks(colnames(BETA), Xrow, Xcol, Xdyad, intercept, symmetric, bip),
 		intercept    = intercept,
-		T            = N,
+		Tn           = N,
 		family       = family,
 		mode         = mode)
 	# pre-build per-period long-format design matrices (n*n rows x p cols)
@@ -3188,13 +3192,6 @@ lame <- function(
 			" " = cli::col_grey("This is normal and does not affect model validity.")
 		))
 		cli::cli_end()
-	}
-	
-	# suppress armadillo warnings
-	old_warn <- options()$warn
-	if(symmetric) {
-		options(warn = -1)  # suppress all warnings during mcmc
-		on.exit(options(warn = old_warn), add = TRUE)
 	}
 	
 	# pre-allocate residual array once
@@ -5051,7 +5048,7 @@ lame <- function(
 						BETA[iter,]<-beta
 					}
 					rho_store <- if (isTRUE(dynamic_rho)) mean(rho, na.rm = TRUE) else rho
-					VC[iter,]<- c(Sab[upper.tri(Sab, diag = T)], rho_store,s2)
+					VC[iter,]<- c(Sab[upper.tri(Sab, diag = TRUE)], rho_store,s2)
 				}
 
 			# store dynamic parameters
@@ -5924,9 +5921,9 @@ lame <- function(
 		if (is.null(EZ)) return(NULL)
 		if (is.list(EZ)) return(EZ)
 		if (length(dim(EZ)) == 3L) {
-			T <- dim(EZ)[3]
-			out <- vector("list", T)
-			for (t in seq_len(T)) out[[t]] <- EZ[,,t]
+			Tn <- dim(EZ)[3]
+			out <- vector("list", Tn)
+			for (t in seq_len(Tn)) out[[t]] <- EZ[,,t]
 			return(out)
 		}
 		list(EZ)
@@ -5952,10 +5949,6 @@ lame <- function(
 		if (is.finite(rho_hat)) fit$rho_uv_aligned <- as.numeric(rho_hat)
 	}
 	####
-
-	if(symmetric) {
-		options(warn = old_warn)
-	}
 
 	# store bipartite mh proposal diagnostics
 	if(bip && RA > 0 && RB > 0) {

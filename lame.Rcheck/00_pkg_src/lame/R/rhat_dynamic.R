@@ -16,7 +16,7 @@
 #'   subset (matches \code{dimnames(fit$BETA)[[2]]}).
 #' @return Data frame with one row per coefficient: \code{coef},
 #'   \code{rhat_mvt}, \code{rhat_max_univariate}, \code{n_chains},
-#'   \code{n_iter_per_chain}, \code{T}. \code{rhat_mvt} is the
+#'   \code{n_iter_per_chain}, \code{n_periods}. \code{rhat_mvt} is the
 #'   Brooks-Gelman multivariate statistic; \code{rhat_max_univariate}
 #'   is the max over per-(k,t) split-R-hat values for comparison.
 #'
@@ -100,7 +100,7 @@ rhat_dynamic_beta <- function(fit_list, coefs = NULL) {
 		rhat_max_univariate = NA_real_,
 		n_chains = m,
 		n_iter_per_chain = n_iter,
-		T = T_per,
+		n_periods = T_per,
 		stringsAsFactors = FALSE
 	)
 

@@ -4,7 +4,7 @@
 
 #' Summarise the implied prior on a time-varying coefficient path
 #'
-#' Draws \code{ndraws} sample paths of length \code{T} from the
+#' Draws \code{ndraws} sample paths of length \code{n_periods} from the
 #' \code{dynamic_beta} prior (given a kind, AR(1) hyperparameters, and an
 #' inverse-gamma on the innovation variance) and reports the implied
 #' distribution of common summary statistics: maximum absolute first
@@ -19,7 +19,7 @@
 #' \code{kind = "rw2"}, the second-difference variance is sampled
 #' and the first two values use a diffuse \eqn{N(0, 10)} initial prior.
 #'
-#' @param T Length of the path (default 10).
+#' @param n_periods Length of the path (default 10).
 #' @param ndraws Number of paths to draw (default 5000).
 #' @param kind One of \code{"ar1"}, \code{"rw1"}, \code{"rw2"},
 #'   \code{"matern32"}. Default \code{"ar1"}. For \code{"matern32"} the
@@ -47,13 +47,13 @@
 #'   \item{\code{rho}}{Length \code{ndraws} vector of sampled rho values
 #'         (\code{NA} for kinds with fixed rho).}
 #'   \item{\code{sigma}}{Length \code{ndraws} vector of sampled sigma values.}
-#'   \item{\code{paths}}{\code{ndraws x T} matrix of sample paths.}
+#'   \item{\code{paths}}{\code{ndraws x n_periods} matrix of sample paths.}
 #' }
 #'
 #' @examples
 #' \donttest{
 #' # Default prior: AR(1) with rho_mean = 0.8, rho_sd = 0.15
-#' s <- dynamic_beta_prior_summary(T = 10, ndraws = 2000, seed = 1)
+#' s <- dynamic_beta_prior_summary(n_periods = 10, ndraws = 2000, seed = 1)
 #' s$summary
 #' # what's the probability that consecutive beta_t differ by more than 1?
 #' s$prob_max_diff_gt_threshold
@@ -65,7 +65,7 @@
 #'
 #' @export
 dynamic_beta_prior_summary <- function(
-	T            = 10L,
+	n_periods    = 10L,
 	ndraws       = 5000L,
 	kind         = c("ar1", "rw1", "rw2", "matern32"),
 	rho_mean     = 0.8,
@@ -79,8 +79,8 @@ dynamic_beta_prior_summary <- function(
 	seed         = NULL
 ) {
 	kind <- match.arg(kind)
-	if (T < 2L) {
-		stop("`T` must be at least 2.")
+	if (n_periods < 2L) {
+		stop("`n_periods` must be at least 2.")
 	}
 	if (!is.null(seed)) set.seed(seed)
 
@@ -104,7 +104,7 @@ dynamic_beta_prior_summary <- function(
 		ab <- c(a = m_z * kappa, b = (1 - m_z) * kappa)
 	}
 
-	paths <- matrix(NA_real_, ndraws, T)
+	paths <- matrix(NA_real_, ndraws, n_periods)
 	rho   <- rep(NA_real_, ndraws)
 	sigma <- rep(NA_real_, ndraws)
 
@@ -120,14 +120,14 @@ dynamic_beta_prior_summary <- function(
 			# stationary initial draw
 			init_sd <- sigma[m] / sqrt(max(1 - r^2, 1e-8))
 			paths[m, 1] <- stats::rnorm(1, 0, init_sd)
-			for (t in 2:T) {
+			for (t in 2:n_periods) {
 				paths[m, t] <- r * paths[m, t - 1] + stats::rnorm(1, 0, sigma[m])
 			}
 		} else if (kind == "rw1") {
 			# diffuse initial state; rho = 1 fixed
 			rho[m] <- 1
 			paths[m, 1] <- stats::rnorm(1, 0, 10)
-			for (t in 2:T) {
+			for (t in 2:n_periods) {
 				paths[m, t] <- paths[m, t - 1] + stats::rnorm(1, 0, sigma[m])
 			}
 		} else if (kind == "rw2") {
@@ -135,8 +135,8 @@ dynamic_beta_prior_summary <- function(
 			rho[m] <- NA_real_
 			paths[m, 1] <- stats::rnorm(1, 0, 10)
 			paths[m, 2] <- paths[m, 1] + stats::rnorm(1, 0, sigma[m])
-			if (T >= 3) {
-				for (t in 3:T) {
+			if (n_periods >= 3) {
+				for (t in 3:n_periods) {
 					paths[m, t] <- 2 * paths[m, t - 1] - paths[m, t - 2] +
 						stats::rnorm(1, 0, sigma[m])
 				}
@@ -146,18 +146,18 @@ dynamic_beta_prior_summary <- function(
 			# variance sigma^2 and length scale matern32_length_scale.
 			# k(d) = sigma^2 * (1 + sqrt(3) d / l) * exp(-sqrt(3) d / l)
 			rho[m] <- NA_real_
-			ts <- seq_len(T)
+			ts <- seq_len(n_periods)
 			D <- abs(outer(ts, ts, "-"))
 			l_scale <- max(matern32_length_scale, .Machine$double.eps)
 			r3 <- sqrt(3) * D / l_scale
 			K <- sigma[m]^2 * (1 + r3) * exp(-r3)
 			# tiny jitter for numerical stability
-			K <- K + diag(1e-8, T)
+			K <- K + diag(1e-8, n_periods)
 			L <- tryCatch(chol(K), error = function(e) {
 				# fall back to a diagonal draw on degenerate cov
-				diag(sqrt(diag(K)), T, T)
+				diag(sqrt(diag(K)), n_periods, n_periods)
 			})
-			paths[m, ] <- as.numeric(crossprod(L, stats::rnorm(T)))
+			paths[m, ] <- as.numeric(crossprod(L, stats::rnorm(n_periods)))
 		}
 	}
 
@@ -168,7 +168,7 @@ dynamic_beta_prior_summary <- function(
 	path_range  <- apply(paths, 1, function(x) diff(range(x)))
 	trend_cor   <- apply(paths, 1, function(x) {
 		# guard against constant paths (correlation undefined)
-		if (stats::sd(x) < 1e-10) NA_real_ else stats::cor(x, seq_len(T))
+		if (stats::sd(x) < 1e-10) NA_real_ else stats::cor(x, seq_len(n_periods))
 	})
 
 	qs <- function(v) {

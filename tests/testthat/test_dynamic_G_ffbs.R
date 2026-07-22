@@ -8,26 +8,26 @@
 
 test_that("ffbs_vecG returns G_cube and vecG_path with correct shapes", {
 	set.seed(11)
-	nA = 8; nB = 10; T = 4
+	nA = 8; nB = 10; Tn = 4
 	RA = 2; RB = 2
-	U_cube = array(rnorm(nA * RA * T), dim = c(nA, RA, T))
-	V_cube = array(rnorm(nB * RB * T), dim = c(nB, RB, T))
-	E_cube = array(rnorm(nA * nB * T), dim = c(nA, nB, T))
+	U_cube = array(rnorm(nA * RA * Tn), dim = c(nA, RA, Tn))
+	V_cube = array(rnorm(nB * RB * Tn), dim = c(nB, RB, Tn))
+	E_cube = array(rnorm(nA * nB * Tn), dim = c(nA, nB, Tn))
 	out = lame:::ffbs_vecG(E_cube, U_cube, V_cube,
 	                       s2 = 1, rho_G = 0.7, sigma_G2 = 0.1)
-	expect_equal(dim(out$G_cube), c(RA, RB, T))
-	expect_equal(dim(out$vecG_path), c(RA * RB, T))
+	expect_equal(dim(out$G_cube), c(RA, RB, Tn))
+	expect_equal(dim(out$vecG_path), c(RA * RB, Tn))
 	expect_true(all(is.finite(out$G_cube)))
 })
 
 test_that("ffbs_vecG zero-rank case returns empty G_cube cleanly", {
-	nA = 8; nB = 10; T = 3
-	U_cube = array(0, dim = c(nA, 0L, T))
-	V_cube = array(0, dim = c(nB, 0L, T))
-	E_cube = array(rnorm(nA * nB * T), dim = c(nA, nB, T))
+	nA = 8; nB = 10; Tn = 3
+	U_cube = array(0, dim = c(nA, 0L, Tn))
+	V_cube = array(0, dim = c(nB, 0L, Tn))
+	E_cube = array(rnorm(nA * nB * Tn), dim = c(nA, nB, Tn))
 	out = lame:::ffbs_vecG(E_cube, U_cube, V_cube,
 	                       s2 = 1, rho_G = 0.7, sigma_G2 = 0.1)
-	expect_equal(dim(out$G_cube), c(0L, 0L, T))
+	expect_equal(dim(out$G_cube), c(0L, 0L, Tn))
 })
 
 test_that("sample_rho_G_mh keeps rho in (-1, 1) over many sweeps", {
@@ -69,8 +69,8 @@ test_that("sample_sigma_G2 is positive and shrinks with more data", {
 test_that("dynamic_G = FALSE is byte-identical to default", {
 	skip_on_cran()
 	set.seed(2026)
-	nA = 8; nB = 10; T = 3
-	Y_list = lapply(seq_len(T), function(t) {
+	nA = 8; nB = 10; Tn = 3
+	Y_list = lapply(seq_len(Tn), function(t) {
 		mat = matrix(rbinom(nA * nB, 1, 0.3), nA, nB)
 		rownames(mat) = paste0("a", seq_len(nA))
 		colnames(mat) = paste0("b", seq_len(nB))
@@ -93,8 +93,8 @@ test_that("dynamic_G = FALSE is byte-identical to default", {
 test_that("dynamic_G = TRUE stores v8 outputs (G_cube + post_mean + RHO_G)", {
 	skip_on_cran()
 	set.seed(2027)
-	nA = 8; nB = 10; T = 4
-	Y_list = lapply(seq_len(T), function(t) {
+	nA = 8; nB = 10; Tn = 4
+	Y_list = lapply(seq_len(Tn), function(t) {
 		mat = matrix(rbinom(nA * nB, 1, 0.3), nA, nB)
 		rownames(mat) = paste0("a", seq_len(nA))
 		colnames(mat) = paste0("b", seq_len(nB))
@@ -107,9 +107,9 @@ test_that("dynamic_G = TRUE stores v8 outputs (G_cube + post_mean + RHO_G)", {
 		     nscan = 30, burn = 15, odens = 5,
 		     rvar = FALSE, cvar = FALSE, verbose = FALSE, seed = 13))
 	expect_true(isTRUE(fit$dynamic_G))
-	expect_equal(dim(fit$G_cube), c(2L, 2L, T))
-	expect_equal(dim(fit$G_cube_post_mean), c(2L, 2L, T))
-	expect_equal(dim(fit$G_cube_post_sd), c(2L, 2L, T))
+	expect_equal(dim(fit$G_cube), c(2L, 2L, Tn))
+	expect_equal(dim(fit$G_cube_post_mean), c(2L, 2L, Tn))
+	expect_equal(dim(fit$G_cube_post_sd), c(2L, 2L, Tn))
 	expect_true(all(is.finite(fit$G_cube_post_mean)))
 	expect_true(all(fit$G_cube_post_sd >= 0))
 	expect_true(length(fit$RHO_G) == 30 / 5)
@@ -120,10 +120,10 @@ test_that("dynamic_G = TRUE stores v8 outputs (G_cube + post_mean + RHO_G)", {
 
 test_that("rotation_drift_diagnostic returns numeric ratio + boolean flag", {
 	set.seed(31)
-	nA = 6; nB = 8; T = 4; RA = 2; RB = 2
-	U_cube = array(rnorm(nA * RA * T), dim = c(nA, RA, T))
-	V_cube = array(rnorm(nB * RB * T), dim = c(nB, RB, T))
-	G_cube = array(rnorm(RA * RB * T), dim = c(RA, RB, T))
+	nA = 6; nB = 8; Tn = 4; RA = 2; RB = 2
+	U_cube = array(rnorm(nA * RA * Tn), dim = c(nA, RA, Tn))
+	V_cube = array(rnorm(nB * RB * Tn), dim = c(nB, RB, Tn))
+	G_cube = array(rnorm(RA * RB * Tn), dim = c(RA, RB, Tn))
 	diag = lame:::.rotation_drift_diagnostic(G_cube, U_cube, V_cube)
 	expect_true(is.numeric(diag$ratio) || is.na(diag$ratio))
 	expect_true(is.logical(diag$flag))

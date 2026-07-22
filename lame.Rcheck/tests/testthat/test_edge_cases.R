@@ -105,11 +105,11 @@ test_that("longitudinal models handle varying network sizes", {
 	set.seed(6886)
 	
 	# networks with different missing patterns (simulating different sizes)
-	T = 4
+	Tn = 4
 	n_max = 20
 	Y_list = list()
 	
-	for(t in 1:T) {
+	for(t in 1:Tn) {
 		Y_t = matrix(rbinom(n_max*n_max, 1, 0.3), n_max, n_max)
 		
 		# add missing nodes (different pattern each time)

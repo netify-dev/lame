@@ -17,7 +17,7 @@ subset (matches \code{dimnames(fit$BETA)[[2]]}).}
 \value{
 Data frame with one row per coefficient: \code{coef},
 \code{rhat_mvt}, \code{rhat_max_univariate}, \code{n_chains},
-\code{n_iter_per_chain}, \code{T}. \code{rhat_mvt} is the
+\code{n_iter_per_chain}, \code{n_periods}. \code{rhat_mvt} is the
 Brooks-Gelman multivariate statistic; \code{rhat_max_univariate}
 is the max over per-(k,t) split-R-hat values for comparison.
 }

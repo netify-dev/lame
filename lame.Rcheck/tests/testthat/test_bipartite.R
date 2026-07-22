@@ -5,23 +5,23 @@ test_that("bipartite EZ computation works correctly", {
 	# set dimensions
 	nA = 5
 	nB = 7
-	T = 3
+	Tn = 3
 	RA = 2
 	RB = 3
 	
 	# create test data
-	base = array(rnorm(nA * nB * T), c(nA, nB, T))
-	a = matrix(rnorm(nA * T), nA, T)
-	b = matrix(rnorm(nB * T), nB, T)
-	U = array(rnorm(nA * RA * T), c(nA, RA, T))
-	V = array(rnorm(nB * RB * T), c(nB, RB, T))
+	base = array(rnorm(nA * nB * Tn), c(nA, nB, Tn))
+	a = matrix(rnorm(nA * Tn), nA, Tn)
+	b = matrix(rnorm(nB * Tn), nB, Tn)
+	U = array(rnorm(nA * RA * Tn), c(nA, RA, Tn))
+	V = array(rnorm(nB * RB * Tn), c(nB, RB, Tn))
 	G = matrix(rnorm(RA * RB), RA, RB)
 	
 	# test ez computation
 	EZ = lame:::get_EZ_bip_cpp(base, a, b, U, V, G)
 	
 	# check dimensions
-	expect_equal(dim(EZ), c(nA, nB, T))
+	expect_equal(dim(EZ), c(nA, nB, Tn))
 	
 	# check that values are finite
 	expect_true(all(is.finite(EZ)))
@@ -76,12 +76,12 @@ test_that("UV sampling for bipartite works", {
 	# setup
 	nA = 4
 	nB = 5
-	T = 2
+	Tn = 2
 	RA = 2
 	RB = 3
 	
-	R = array(rnorm(nA * nB * T), c(nA, nB, T))
-	V = array(rnorm(nB * RB * T), c(nB, RB, T))
+	R = array(rnorm(nA * nB * Tn), c(nA, nB, Tn))
+	V = array(rnorm(nB * RB * Tn), c(nB, RB, Tn))
 	G = matrix(rnorm(RA * RB), RA, RB)
 	lambdaU = rep(1, RA)
 	s2 = 1
@@ -89,27 +89,27 @@ test_that("UV sampling for bipartite works", {
 	# test u sampling
 	U_new = lame:::sample_U_bip_cpp(R, V, G, lambdaU, s2)
 	
-	expect_equal(dim(U_new), c(nA, RA, T))
+	expect_equal(dim(U_new), c(nA, RA, Tn))
 	expect_true(all(is.finite(U_new)))
 	
 	# test v sampling
 	lambdaV = rep(1, RB)
 	V_new = lame:::sample_V_bip_cpp(R, U_new, G, lambdaV, s2)
 	
-	expect_equal(dim(V_new), c(nB, RB, T))
+	expect_equal(dim(V_new), c(nB, RB, Tn))
 	expect_true(all(is.finite(V_new)))
 })
 
 test_that("G sampling and orientation works", {
 	nA = 4
 	nB = 5
-	T = 2
+	Tn = 2
 	RA = 3
 	RB = 2
 	
-	R = array(rnorm(nA * nB * T), c(nA, nB, T))
-	U = array(rnorm(nA * RA * T), c(nA, RA, T))
-	V = array(rnorm(nB * RB * T), c(nB, RB, T))
+	R = array(rnorm(nA * nB * Tn), c(nA, nB, Tn))
+	U = array(rnorm(nA * RA * Tn), c(nA, RA, Tn))
+	V = array(rnorm(nB * RB * Tn), c(nB, RB, Tn))
 	lambdaG = 1
 	s2 = 1
 	
@@ -148,7 +148,7 @@ test_that("bipartite initialization works", {
 	
 	init = lame:::init_bipartite_startvals(Y, family = "binary", 
 																	 nA = 5, nB = 7, 
-																	 RA = 2, RB = 3, T = 2)
+																	 RA = 2, RB = 3, Tn = 2)
 	
 	expect_equal(dim(init$Z), c(5, 7, 2))
 	# a and b are vectors (static effects), not matrices

@@ -69,14 +69,14 @@ sample_sigma_ab_cpp <- function(a_mat, b_mat, rho_ab, symmetric, prior_shape = 2
 #' Initialize dynamic additive effects with AR(1) structure
 #'
 #' @param n Number of actors
-#' @param T Number of time points
+#' @param Tn Number of time points
 #' @param rho_ab AR(1) parameter
 #' @param sigma_ab Innovation standard deviation
 #' @param mean_a Mean for row effects
 #' @param mean_b Mean for column effects
 #' @return List with initialized a and b matrices
-init_dynamic_ab_cpp <- function(n, T, rho_ab, sigma_ab, mean_a = 0.0, mean_b = 0.0) {
-    .Call(`_lame_init_dynamic_ab_cpp`, n, T, rho_ab, sigma_ab, mean_a, mean_b)
+init_dynamic_ab_cpp <- function(n, Tn, rho_ab, sigma_ab, mean_a = 0.0, mean_b = 0.0) {
+    .Call(`_lame_init_dynamic_ab_cpp`, n, Tn, rho_ab, sigma_ab, mean_a, mean_b)
 }
 
 #' Sample the dynamic-block beta path via FFBS
@@ -217,12 +217,12 @@ rUV_dynamic_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, s
 #'
 #' @param n Number of actors
 #' @param R Latent dimension
-#' @param T Number of time points
+#' @param Tn Number of time points
 #' @param rho_uv AR(1) parameter
 #' @param sigma_uv Innovation standard deviation
-#' @return 3D array of latent positions (n x R x T)
-init_dynamic_positions <- function(n, R, T, rho_uv, sigma_uv) {
-    .Call(`_lame_init_dynamic_positions`, n, R, T, rho_uv, sigma_uv)
+#' @return 3D array of latent positions (n x R x Tn)
+init_dynamic_positions <- function(n, R, Tn, rho_uv, sigma_uv) {
+    .Call(`_lame_init_dynamic_positions`, n, R, Tn, rho_uv, sigma_uv)
 }
 
 #' Sample AR(1) parameter for dynamic latent factors

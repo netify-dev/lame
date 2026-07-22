@@ -28,7 +28,7 @@ test_that(".exact_center_per_actor enforces zero-sum exactly per period", {
 	expect_lt(max(abs(col_sums)), 1e-12)
 })
 
-test_that(".sweep_per_actor_exact produces n_actors x T zero-sum draws", {
+test_that(".sweep_per_actor_exact produces n_actors x Tn zero-sum draws", {
 	set.seed(31)
 	n_actors = 6; T_per = 5
 	H_mat = matrix(runif(n_actors * T_per, 0.1, 1.0), n_actors, T_per)
@@ -55,13 +55,13 @@ test_that(".sweep_per_actor_exact collapses to zero for zero-precision case", {
 test_that("per_actor_identifiability = 'center' is byte-identical to default", {
 	skip_on_cran()
 	set.seed(2026)
-	n = 8; T = 3
-	Xdyad_list = lapply(seq_len(T), function(t) {
+	n = 8; Tn = 3
+	Xdyad_list = lapply(seq_len(Tn), function(t) {
 		x = array(rnorm(n*n), dim = c(n, n, 1))
 		dimnames(x) = list(NULL, NULL, "x1")
 		x
 	})
-	Y_list = lapply(seq_len(T), function(t) {
+	Y_list = lapply(seq_len(Tn), function(t) {
 		mat = matrix(rnorm(n*n), n, n); diag(mat) = NA; mat
 	})
 	f1 = lame(Y_list, Xdyad = Xdyad_list, family = "normal", R = 0,
@@ -82,13 +82,13 @@ test_that("per_actor_identifiability = 'center' is byte-identical to default", {
 test_that("exact_center preserves zero-sum exactly across all draws", {
 	skip_on_cran()
 	set.seed(2027)
-	n = 10; T = 4
-	Xdyad_list = lapply(seq_len(T), function(t) {
+	n = 10; Tn = 4
+	Xdyad_list = lapply(seq_len(Tn), function(t) {
 		x = array(rnorm(n*n), dim = c(n, n, 1))
 		dimnames(x) = list(NULL, NULL, "x1")
 		x
 	})
-	Y_list = lapply(seq_len(T), function(t) {
+	Y_list = lapply(seq_len(Tn), function(t) {
 		mat = matrix(rnorm(n*n), n, n); diag(mat) = NA; mat
 	})
 	fit = lame(Y_list, Xdyad = Xdyad_list, family = "normal", R = 0,
@@ -106,13 +106,13 @@ test_that("exact_center preserves zero-sum exactly across all draws", {
 test_that("exact_center end-to-end fit produces sensible posterior summaries", {
 	skip_on_cran()
 	set.seed(53)
-	n = 12; T = 4
-	Xdyad_list = lapply(seq_len(T), function(t) {
+	n = 12; Tn = 4
+	Xdyad_list = lapply(seq_len(Tn), function(t) {
 		x = array(rnorm(n*n), dim = c(n, n, 1))
 		dimnames(x) = list(NULL, NULL, "x1")
 		x
 	})
-	Y_list = lapply(seq_len(T), function(t) {
+	Y_list = lapply(seq_len(Tn), function(t) {
 		mat = matrix(rnorm(n*n), n, n); diag(mat) = NA; mat
 	})
 	fit = lame(Y_list, Xdyad = Xdyad_list, family = "normal", R = 0,
@@ -122,8 +122,8 @@ test_that("exact_center end-to-end fit produces sensible posterior summaries", {
 	           keep_per_actor = "summary",
 	           nscan = 60, burn = 30, odens = 5, verbose = FALSE, seed = 99)
 	# fit completes and stores the streaming summary
-	expect_equal(dim(fit$theta_actor_mean), c(n, T))
-	expect_equal(dim(fit$theta_actor_sd), c(n, T))
+	expect_equal(dim(fit$theta_actor_mean), c(n, Tn))
+	expect_equal(dim(fit$theta_actor_sd), c(n, Tn))
 	expect_true(all(is.finite(fit$theta_actor_mean)))
 	expect_true(all(fit$theta_actor_sd >= 0))
 	# rho_actor + sigma_actor chains run within sensible ranges

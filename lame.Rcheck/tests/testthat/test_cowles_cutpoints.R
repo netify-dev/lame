@@ -168,8 +168,8 @@ test_that("ame() explicit-cutpoint path stores ALPHA + ordinal_levels", {
 test_that("lame() panel explicit-cutpoint path runs and stores ALPHA", {
 	skip_on_cran()
 	set.seed(31)
-	n = 15; T = 3
-	Y_list = lapply(seq_len(T), function(t) {
+	n = 15; Tn = 3
+	Y_list = lapply(seq_len(Tn), function(t) {
 		EZ = matrix(rnorm(n*n) * 0.3, n, n); diag(EZ) = 0
 		Z = EZ + matrix(rnorm(n*n), n, n)
 		y = matrix(findInterval(Z, c(-Inf, 0, 0.8, 1.5, Inf)), n, n)
@@ -187,8 +187,8 @@ test_that("lame() panel explicit-cutpoint path runs and stores ALPHA", {
 test_that("ordinal_cutpoints = 'explicit' warns and falls back for bipartite", {
 	skip_on_cran()
 	set.seed(41)
-	nA = 8; nB = 10; T = 2
-	Y_list = lapply(seq_len(T), function(t) {
+	nA = 8; nB = 10; Tn = 2
+	Y_list = lapply(seq_len(Tn), function(t) {
 		mat = matrix(sample(1:3, nA*nB, replace = TRUE), nA, nB)
 		rownames(mat) = paste0("a", seq_len(nA))
 		colnames(mat) = paste0("b", seq_len(nB))

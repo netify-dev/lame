@@ -10,7 +10,7 @@
 * checking for file ‘lame/DESCRIPTION’ ... OK
 * this is package ‘lame’ version ‘1.3.2’
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... [3s/15s] NOTE
+* checking CRAN incoming feasibility ... [4s/16s] NOTE
 Maintainer: ‘Shahryar Minhas <minhassh@msu.edu>’
 
 New submission
@@ -22,7 +22,7 @@ New submission
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
 * checking for sufficient/correct file permissions ... OK
-* checking whether package ‘lame’ can be installed ... [75s/74s] OK
+* checking whether package ‘lame’ can be installed ... [119s/119s] OK
 * used C++ compiler: ‘g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0’
 * checking installed package size ... NOTE
   installed size is 28.1Mb
@@ -54,7 +54,7 @@ unable to verify current time
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [24s/24s] OK
+* checking R code for possible problems ... [40s/40s] OK
 * checking Rd files ... OK
 * checking Rd metadata ... OK
 * checking Rd line widths ... OK
@@ -82,14 +82,14 @@ Compilation used the following non-portable flag(s):
 * checking compiled code ... OK
 * checking installed files from ‘inst/doc’ ... OK
 * checking files in ‘vignettes’ ... OK
-* checking examples ... OK
-* checking examples with --run-donttest ... [37s/36s] OK
+* checking examples ... [11s/11s] OK
+* checking examples with --run-donttest ... [64s/64s] OK
 * checking for unstated dependencies in ‘tests’ ... OK
-* checking tests ... [21s/18s] OK
-  Running ‘testthat.R’ [21s/18s]
+* checking tests ... [36s/31s] OK
+  Running ‘testthat.R’ [36s/31s]
 * checking for unstated dependencies in vignettes ... OK
 * checking package vignettes in ‘inst/doc’ ... OK
-* checking re-building of vignette outputs ... [47s/48s] OK
+* checking re-building of vignette outputs ... [76s/77s] OK
 * checking PDF version of manual ... OK
 * checking HTML version of manual ... OK
 * checking for non-standard things in the check directory ... OK

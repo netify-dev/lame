@@ -4,12 +4,12 @@
 \alias{init_dynamic_ab_cpp}
 \title{Initialize dynamic additive effects with AR(1) structure}
 \usage{
-init_dynamic_ab_cpp(n, T, rho_ab, sigma_ab, mean_a = 0, mean_b = 0)
+init_dynamic_ab_cpp(n, Tn, rho_ab, sigma_ab, mean_a = 0, mean_b = 0)
 }
 \arguments{
 \item{n}{Number of actors}
 
-\item{T}{Number of time points}
+\item{Tn}{Number of time points}
 
 \item{rho_ab}{AR(1) parameter}
 

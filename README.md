@@ -483,7 +483,9 @@ The fast `ame_als()` / `lame_als()` estimator and its bootstrap are adapted from
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+GPL-3. Portions of this package are derived from the
+[amen](https://CRAN.R-project.org/package=amen) package (Copyright Peter D.
+Hoff, GPL-3); see `inst/COPYRIGHTS` for details.
 
 ## Support
 

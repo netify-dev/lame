@@ -2,36 +2,36 @@
 
 build_fc_fit = function(seed = 2026, nscan = 300, burn = 80) {
 	set.seed(seed)
-	n = 25; T = 5
+	n = 25; Tn = 5
 	rho_true = 0.7; beta_bar = 0.5
-	beta_t = numeric(T); beta_t[1] = 0.9
-	for (t in 2:T) beta_t[t] = beta_bar + rho_true * (beta_t[t-1] - beta_bar) +
+	beta_t = numeric(Tn); beta_t[1] = 0.9
+	for (t in 2:Tn) beta_t[t] = beta_bar + rho_true * (beta_t[t-1] - beta_bar) +
 		rnorm(1, 0, 0.15)
-	Xdyad = lapply(seq_len(T), function(t) {
+	Xdyad = lapply(seq_len(Tn), function(t) {
 		x = matrix(rnorm(n*n), n, n)
 		array(x, c(n, n, 1), dimnames = list(NULL, NULL, "trade"))
 	})
 	a = rnorm(n, 0, 0.4); b = rnorm(n, 0, 0.4)
-	Y = lapply(seq_len(T), function(t) {
+	Y = lapply(seq_len(Tn), function(t) {
 		eta = -0.5 + beta_t[t] * Xdyad[[t]][, , 1] + outer(a, b, "+")
 		Yt = matrix(rbinom(n*n, 1, pnorm(eta)), n, n); diag(Yt) = NA
 		rownames(Yt) = colnames(Yt) = sprintf("a%02d", seq_len(n)); Yt
 	})
-	names(Y) = paste0("t", seq_len(T))
+	names(Y) = paste0("t", seq_len(Tn))
 	list(fit = lame(Y, Xdyad = Xdyad, family = "binary", R = 0,
 	                dynamic_beta = "dyad", nscan = nscan, burn = burn,
 	                odens = 5, verbose = FALSE),
-	     Xdyad = Xdyad, T = T)
+	     Xdyad = Xdyad, Tn = Tn)
 }
 
 test_that("counterfactual raising a positive-coef covariate raises the link predictor", {
 	skip_on_cran()
 	obj = build_fc_fit()
-	fit = obj$fit; Xdyad = obj$Xdyad; T = obj$T
+	fit = obj$fit; Xdyad = obj$Xdyad; Tn = obj$Tn
 		# coefficient is positive
 	expect_gt(mean(coef(fit)["trade_dyad", ]), 0.2)
 
-	last_X = Xdyad[[T]]
+	last_X = Xdyad[[Tn]]
 	X_future = list(last_X, last_X, last_X)
 	X_up = lapply(X_future, function(x) { x[, , 1] = x[, , 1] + 1; x })
 

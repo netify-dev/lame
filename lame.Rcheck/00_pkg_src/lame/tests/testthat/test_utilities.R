@@ -6,12 +6,12 @@ library(lame)
 test_that("get_start_vals returns appropriate starting values", {
 	set.seed(6886)
 	n = 20
-	T = 1  # single time point for simplicity
+	Tn = 1  # single time point for simplicity
 	
 	# binary network - need 3d array
 	Y_bin_2d = matrix(rbinom(n*n, 1, 0.3), n, n)
 	diag(Y_bin_2d) = NA
-	Y_bin = array(Y_bin_2d, dim=c(n, n, T))
+	Y_bin = array(Y_bin_2d, dim=c(n, n, Tn))
 	
 	# call with proper parameters
 	starts_bin = get_start_vals(
@@ -30,7 +30,7 @@ test_that("get_start_vals returns appropriate starting values", {
 	# normal network - need 3d array
 	Y_norm_2d = matrix(rnorm(n*n), n, n)
 	diag(Y_norm_2d) = NA
-	Y_norm = array(Y_norm_2d, dim=c(n, n, T))
+	Y_norm = array(Y_norm_2d, dim=c(n, n, Tn))
 	
 	starts_norm = get_start_vals(
 		start_vals = NULL,
@@ -45,7 +45,7 @@ test_that("get_start_vals returns appropriate starting values", {
 	# so check dimensions and non-diagonal elements
 	expect_equal(dim(starts_norm$Z), dim(Y_norm))
 	# check that non-diagonal elements match
-	for(t in 1:T) {
+	for(t in 1:Tn) {
 		non_diag = !diag(n)
 		expect_equal(starts_norm$Z[,,t][non_diag], Y_norm[,,t][non_diag])
 	}
@@ -104,11 +104,11 @@ test_that("rSab_fc generates valid covariance samples", {
 
 test_that("check_format validates input correctly", {
 	n = 20
-	T = 3
+	Tn = 3
 	
 	# valid list of matrices
 	Y_list = list()
-	for(t in 1:T) {
+	for(t in 1:Tn) {
 		Y_t = matrix(rnorm(n*n), n, n)
 		diag(Y_t) = NA
 		rownames(Y_t) = colnames(Y_t) = paste0("Node", 1:n)
@@ -126,7 +126,7 @@ test_that("check_format validates input correctly", {
 	expect_error(check_format(Y_single))
 	
 	# for array input, it also expects a list
-	Y_array = array(rnorm(n*n*T), dim=c(n, n, T))
+	Y_array = array(rnorm(n*n*Tn), dim=c(n, n, Tn))
 	expect_error(check_format(Y_array))
 })
 
@@ -280,23 +280,23 @@ test_that("effective sample size calculation works", {
 
 test_that("array_to_list conversion works", {
 	n = 10
-	T = 4
+	Tn = 4
 	
 	# create array with actor names
-	Y_array = array(rnorm(n*n*T), dim=c(n, n, T))
+	Y_array = array(rnorm(n*n*Tn), dim=c(n, n, Tn))
 	rownames(Y_array) = colnames(Y_array) = paste0("Actor", 1:n)
 	
 	# create actor list (all actors present at all times)
-	actorList = lapply(1:T, function(t) paste0("Actor", 1:n))
+	actorList = lapply(1:Tn, function(t) paste0("Actor", 1:n))
 	
 	# convert to list (array_to_list needs all three parameters)
-	Y_list = array_to_list(Y_array, actorList, paste0("T", 1:T))
+	Y_list = array_to_list(Y_array, actorList, paste0("T", 1:Tn))
 	
 	expect_true(is.list(Y_list))
-	expect_equal(length(Y_list), T)
+	expect_equal(length(Y_list), Tn)
 	
 	# each element should be a matrix
-	for(t in 1:T) {
+	for(t in 1:Tn) {
 		expect_true(is.matrix(Y_list[[t]]))
 		expect_equal(dim(Y_list[[t]]), c(n, n))
 		# array_to_list sets diagonal to na (expected for network data)

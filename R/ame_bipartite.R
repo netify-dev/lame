@@ -24,11 +24,15 @@ ame_bipartite <- function(
 
 	#### parameter setup ####
 	# seed locally: restore the global rng stream on exit
-	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-		.old_seed <- get(".Random.seed", envir = globalenv())
-		on.exit(assign(".Random.seed", .old_seed, envir = globalenv()),
-		        add = TRUE)
-	}
+	.had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+	.old_seed <- if (.had_seed) get(".Random.seed", envir = globalenv()) else NULL
+	on.exit({
+		if (.had_seed) {
+			assign(".Random.seed", .old_seed, envir = globalenv())
+		} else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+			rm(".Random.seed", envir = globalenv())
+		}
+	}, add = TRUE)
 	set.seed(seed)
 	nA <- nrow(Y)
 	nB <- ncol(Y)

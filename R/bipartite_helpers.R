@@ -7,7 +7,7 @@
 #' @return List of starting values for bipartite MCMC
 #' @keywords internal
 init_bipartite_startvals <- function(
-	Y, family, nA, nB, RA, RB, T,
+	Y, family, nA, nB, RA, RB, Tn,
 	Xlist = NULL, odmax = NULL
 	){
 
@@ -18,9 +18,9 @@ init_bipartite_startvals <- function(
 	# bounds, which are themselves a function of the surrounding z, and a fully-
 	# na seed produces all-na bounds -> no movement. mirrors the cross-sectional
 	# init at r/ame_bipartite.r:117-150.
-	Z <- array(dim = c(nA, nB, T))
+	Z <- array(dim = c(nA, nB, Tn))
 
-	for(t in 1:T) {
+	for(t in 1:Tn) {
 		Yt <- Y[,,t]
 
 		if(family == "normal") {
@@ -85,15 +85,15 @@ init_bipartite_startvals <- function(
 	b <- rep(0, nB)
 
 	if(RA > 0) {
-		U <- array(rnorm(nA * RA * T, 0, 0.1), c(nA, RA, T))
+		U <- array(rnorm(nA * RA * Tn, 0, 0.1), c(nA, RA, Tn))
 	} else {
-		U <- array(0, c(nA, 1, T))
+		U <- array(0, c(nA, 1, Tn))
 	}
 
 	if(RB > 0) {
-		V <- array(rnorm(nB * RB * T, 0, 0.1), c(nB, RB, T))
+		V <- array(rnorm(nB * RB * Tn, 0, 0.1), c(nB, RB, Tn))
 	} else {
-		V <- array(0, c(nB, 1, T))
+		V <- array(0, c(nB, 1, Tn))
 	}
 
 	if(RA > 0 && RB > 0) {
@@ -144,17 +144,17 @@ sample_ab_bipartite <- function(
 	dims <- dim(Z)
 	nA <- dims[1]
 	nB <- dims[2]
-	T <- dims[3]
+	Tn <- dims[3]
 
 	R <- Z - EZ_without_ab
 
 	####
 	# sample row effects (a)
-	a <- matrix(0, nA, T)
-	prec_a <- T / s2 + 1 / sigma2_a
+	a <- matrix(0, nA, Tn)
+	prec_a <- Tn / s2 + 1 / sigma2_a
 
 	for(i in 1:nA) {
-		for(t in 1:T) {
+		for(t in 1:Tn) {
 			mean_a <- sum(R[i,,t], na.rm = TRUE) / (nB * s2)
 			mean_a <- mean_a / prec_a
 			a[i,t] <- rnorm(1, mean_a, sqrt(1/prec_a))
@@ -162,18 +162,18 @@ sample_ab_bipartite <- function(
 	}
 
 	# update residuals
-	for(t in 1:T) {
+	for(t in 1:Tn) {
 		R[,,t] <- R[,,t] - a[,t]
 	}
 	####
 
 	####
 	# sample column effects (b)
-	b <- matrix(0, nB, T)
-	prec_b <- T / s2 + 1 / sigma2_b
+	b <- matrix(0, nB, Tn)
+	prec_b <- Tn / s2 + 1 / sigma2_b
 
 	for(j in 1:nB) {
-		for(t in 1:T) {
+		for(t in 1:Tn) {
 			mean_b <- sum(R[,j,t], na.rm = TRUE) / (nA * s2)
 			mean_b <- mean_b / prec_b
 			b[j,t] <- rnorm(1, mean_b, sqrt(1/prec_b))
@@ -193,15 +193,15 @@ update_variances_bipartite <- function(
 	){
 	nA <- nrow(a)
 	nB <- nrow(b)
-	T <- ncol(a)
+	Tn <- ncol(a)
 
 	# sample row variance
-	shape_a <- (eta0_a + nA * T) / 2
+	shape_a <- (eta0_a + nA * Tn) / 2
 	rate_a <- (eta0_a * Sab0_aa + sum(a^2)) / 2
 	sigma2_a <- 1 / rgamma(1, shape_a, rate_a)
 
 	# sample column variance
-	shape_b <- (eta0_b + nB * T) / 2
+	shape_b <- (eta0_b + nB * Tn) / 2
 	rate_b <- (eta0_b * Sab0_bb + sum(b^2)) / 2
 	sigma2_b <- 1 / rgamma(1, shape_b, rate_b)
 
@@ -212,7 +212,7 @@ update_variances_bipartite <- function(
 #' @return List of observed and simulated GOF statistics
 #' @keywords internal
 compute_gof_bipartite <- function(Y_obs, Y_sim, family){
-	T <- dim(Y_obs)[3]
+	Tn <- dim(Y_obs)[3]
 
 	gof_stats <- list()
 
@@ -254,14 +254,14 @@ list_to_array_bipartite <- function(
 	){
 	nA <- length(rowActorSet)
 	nB <- length(colActorSet)
-	T <- length(Y_list)
+	Tn <- length(Y_list)
 
 	####
 	# fill y array
-	Y_array <- array(NA, c(nA, nB, T),
+	Y_array <- array(NA, c(nA, nB, Tn),
 		dimnames = list(rowActorSet, colActorSet, names(Y_list)))
 
-	for(t in 1:T) {
+	for(t in 1:Tn) {
 		Yt <- Y_list[[t]]
 		row_idx <- match(rownames(Yt), rowActorSet)
 		col_idx <- match(colnames(Yt), colActorSet)
@@ -286,8 +286,8 @@ list_to_array_bipartite <- function(
 	# coerce and reorder xdyad to match sorted actor sets
 	if(!is.null(Xdyad)) {
 		Xdyad <- .coerce_Xdyad_3d(Xdyad)
-		Xdyad_out <- vector("list", T)
-		for(t in 1:T) {
+		Xdyad_out <- vector("list", Tn)
+		for(t in 1:Tn) {
 			Xt <- Xdyad[[t]]
 			if(is.null(Xt)) { Xdyad_out[[t]] <- NULL; next }
 			pd_t <- dim(Xt)[3]
@@ -321,9 +321,9 @@ list_to_array_bipartite <- function(
 		row_nms <- .bip_apply_suffix(
 			if (is.null(colnames(Xrow[[1]]))) paste0("Xrow", seq_len(pr))
 			else colnames(Xrow[[1]]), "row")
-		Xrow_array <- array(NA, dim = c(nA, pr, T),
+		Xrow_array <- array(NA, dim = c(nA, pr, Tn),
 			dimnames = list(rowActorSet, row_nms, names(Y_list)))
-		for(t in 1:T) {
+		for(t in 1:Tn) {
 			Xrt <- Xrow[[t]]
 			if(is.null(Xrt)) next
 			row_idx <- match(rownames(Xrt), rowActorSet)
@@ -342,9 +342,9 @@ list_to_array_bipartite <- function(
 		col_nms <- .bip_apply_suffix(
 			if (is.null(colnames(Xcol[[1]]))) paste0("Xcol", seq_len(pc))
 			else colnames(Xcol[[1]]), "col")
-		Xcol_array <- array(NA, dim = c(nB, pc, T),
+		Xcol_array <- array(NA, dim = c(nB, pc, Tn),
 			dimnames = list(colActorSet, col_nms, names(Y_list)))
-		for(t in 1:T) {
+		for(t in 1:Tn) {
 			Xct <- Xcol[[t]]
 			if(is.null(Xct)) next
 			col_idx <- match(rownames(Xct), colActorSet)

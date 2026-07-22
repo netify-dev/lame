@@ -104,7 +104,7 @@ test_that("parse_dynamic_beta unknown name aborts", {
 	)
 })
 
-test_that("parse_dynamic_beta T < 2 aborts", {
+test_that("parse_dynamic_beta Tn < 2 aborts", {
 	expect_error(
 		lame:::parse_dynamic_beta(TRUE, c("intercept", "x1.dyad"),
 		                   c("intercept", "dyad"), TRUE, 1L, "normal", "unipartite"),
@@ -144,7 +144,7 @@ test_that("partial dynamic_beta (subset of coefs) gives the right mask", {
 
 # ------- s3 methods ----------------------------------------------------------
 
-test_that("coef.lame returns p x T matrix for dynamic_beta fit", {
+test_that("coef.lame returns p x Tn matrix for dynamic_beta fit", {
 	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
 	fit = lame(dat$Y, Xdyad = dat$Xdyad, family = "normal", R = 0,
 	            nscan = 30, burn = 5, odens = 1, dynamic_beta = TRUE, verbose = FALSE)
@@ -154,7 +154,7 @@ test_that("coef.lame returns p x T matrix for dynamic_beta fit", {
 	expect_equal(rownames(cf), c("intercept", "X1_dyad"))
 })
 
-test_that("vcov returns (p*T) x (p*T) for dynamic_beta fit", {
+test_that("vcov returns (p*Tn) x (p*Tn) for dynamic_beta fit", {
 	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
 	fit = lame(dat$Y, Xdyad = dat$Xdyad, family = "normal", R = 0,
 	            nscan = 30, burn = 5, odens = 1, dynamic_beta = TRUE, verbose = FALSE)
@@ -163,7 +163,7 @@ test_that("vcov returns (p*T) x (p*T) for dynamic_beta fit", {
 	expect_true(any(grepl("\\[t1\\]", rownames(V))))
 })
 
-test_that("confint returns (p*T) x 2 for dynamic_beta fit", {
+test_that("confint returns (p*Tn) x 2 for dynamic_beta fit", {
 	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
 	fit = lame(dat$Y, Xdyad = dat$Xdyad, family = "normal", R = 0,
 	            nscan = 30, burn = 5, odens = 1, dynamic_beta = TRUE, verbose = FALSE)
@@ -252,7 +252,7 @@ test_that("dynamic_beta works on bipartite normal", {
 
 # ------- edge cases ----------------------------------------------------------
 
-test_that("dynamic_beta + T = 1 aborts (validation in lame())", {
+test_that("dynamic_beta + Tn = 1 aborts (validation in lame())", {
 	set.seed(1)
 	Y = list(matrix(rnorm(36), 6, 6))
 	diag(Y[[1]]) = NA
@@ -300,11 +300,11 @@ test_that("tryErrorChecks$beta is initialised and stays at 0 on a healthy fit", 
 test_that("dynamic_beta drift is detected when truth is time-varying", {
 	# generate y_t = beta_t * x_t + noise with beta_t evolving linearly
 	set.seed(2026)
-	n = 10; T = 4
-	beta_t = seq(-0.5, 0.5, length.out = T)
-	X_list = replicate(T, matrix(rnorm(n * n), n, n), simplify = FALSE)
-	Y_list = vector("list", T)
-	for (t in seq_len(T)) {
+	n = 10; Tn = 4
+	beta_t = seq(-0.5, 0.5, length.out = Tn)
+	X_list = replicate(Tn, matrix(rnorm(n * n), n, n), simplify = FALSE)
+	Y_list = vector("list", Tn)
+	for (t in seq_len(Tn)) {
 		Y_t = beta_t[t] * X_list[[t]] + matrix(rnorm(n * n, 0, 0.3), n, n)
 		diag(Y_t) = NA
 		Y_list[[t]] = Y_t

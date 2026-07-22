@@ -37,7 +37,7 @@ rUV_rep_fc <-
 		}
 		get.Es<-function(Er,g,d){
 			n<-sqrt(length(Er))
-			return((g^2+d^2)*matrix(Er,n)+2*g*d*matrix(Er,n,byrow=T))
+			return((g^2+d^2)*matrix(Er,n)+2*g*d*matrix(Er,n,byrow=TRUE))
 		}
 
 		for(r in sample(1:R)) {
@@ -70,7 +70,7 @@ rUV_rep_fc <-
 			m0<- cbind(U,V[,-r])%*%b0
 			ssu<-max(sum(ur^2),1e-6)
 			a<- Time*(g^2+d^2)*ssu+1/v0 ; c<- -2*Time*g*d/(a^2+a*2*Time*g*d* ssu)
-			tEsu<-matrix(Esv.vec,nEsv,byrow=T)%*%ur
+			tEsu<-matrix(Esv.vec,nEsv,byrow=TRUE)%*%ur
 			m1<-tEsu/a + c*ur*sum((tEsu+m0/v0)*ur)  + m0/(a*v0)
 			ah<-sqrt(1/a) ; bh<-(sqrt(1/a+ ssu*c)- sqrt(1/a) )/ssu ; e<-rnorm(nrow(E.T[,,1]))
 			V[,r]<- m1 + ah*e + bh*ur*sum(ur*e)

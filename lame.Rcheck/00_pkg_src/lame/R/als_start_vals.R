@@ -29,7 +29,11 @@ als_start_vals <- function(fit, jitter = 0, seed = NULL) {
 		old_seed_exists <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
 		if (old_seed_exists) old_seed <- get(".Random.seed", envir = globalenv())
 		on.exit({
-			if (old_seed_exists) assign(".Random.seed", old_seed, envir = globalenv())
+			if (old_seed_exists) {
+				assign(".Random.seed", old_seed, envir = globalenv())
+			} else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+				rm(".Random.seed", envir = globalenv())
+			}
 		}, add = TRUE)
 		set.seed(seed)
 	}

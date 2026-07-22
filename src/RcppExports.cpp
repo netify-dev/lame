@@ -98,18 +98,18 @@ BEGIN_RCPP
 END_RCPP
 }
 // init_dynamic_ab_cpp
-List init_dynamic_ab_cpp(int n, int T, double rho_ab, double sigma_ab, double mean_a, double mean_b);
-RcppExport SEXP _lame_init_dynamic_ab_cpp(SEXP nSEXP, SEXP TSEXP, SEXP rho_abSEXP, SEXP sigma_abSEXP, SEXP mean_aSEXP, SEXP mean_bSEXP) {
+List init_dynamic_ab_cpp(int n, int Tn, double rho_ab, double sigma_ab, double mean_a, double mean_b);
+RcppExport SEXP _lame_init_dynamic_ab_cpp(SEXP nSEXP, SEXP TnSEXP, SEXP rho_abSEXP, SEXP sigma_abSEXP, SEXP mean_aSEXP, SEXP mean_bSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type Tn(TnSEXP);
     Rcpp::traits::input_parameter< double >::type rho_ab(rho_abSEXP);
     Rcpp::traits::input_parameter< double >::type sigma_ab(sigma_abSEXP);
     Rcpp::traits::input_parameter< double >::type mean_a(mean_aSEXP);
     Rcpp::traits::input_parameter< double >::type mean_b(mean_bSEXP);
-    rcpp_result_gen = Rcpp::wrap(init_dynamic_ab_cpp(n, T, rho_ab, sigma_ab, mean_a, mean_b));
+    rcpp_result_gen = Rcpp::wrap(init_dynamic_ab_cpp(n, Tn, rho_ab, sigma_ab, mean_a, mean_b));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -235,17 +235,17 @@ BEGIN_RCPP
 END_RCPP
 }
 // init_dynamic_positions
-arma::cube init_dynamic_positions(int n, int R, int T, double rho_uv, double sigma_uv);
-RcppExport SEXP _lame_init_dynamic_positions(SEXP nSEXP, SEXP RSEXP, SEXP TSEXP, SEXP rho_uvSEXP, SEXP sigma_uvSEXP) {
+arma::cube init_dynamic_positions(int n, int R, int Tn, double rho_uv, double sigma_uv);
+RcppExport SEXP _lame_init_dynamic_positions(SEXP nSEXP, SEXP RSEXP, SEXP TnSEXP, SEXP rho_uvSEXP, SEXP sigma_uvSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type n(nSEXP);
     Rcpp::traits::input_parameter< int >::type R(RSEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type Tn(TnSEXP);
     Rcpp::traits::input_parameter< double >::type rho_uv(rho_uvSEXP);
     Rcpp::traits::input_parameter< double >::type sigma_uv(sigma_uvSEXP);
-    rcpp_result_gen = Rcpp::wrap(init_dynamic_positions(n, R, T, rho_uv, sigma_uv));
+    rcpp_result_gen = Rcpp::wrap(init_dynamic_positions(n, R, Tn, rho_uv, sigma_uv));
     return rcpp_result_gen;
 END_RCPP
 }

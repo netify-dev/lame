@@ -49,11 +49,15 @@ nobs.ame_als <- function(object, ...) {
 #' @export
 simulate.ame_als <- function(object, nsim = 1, seed = NULL, ...) {
 	if (!is.null(seed)) {
-		if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-			.old_seed <- get(".Random.seed", envir = globalenv())
-			on.exit(assign(".Random.seed", .old_seed, envir = globalenv()),
-			        add = TRUE)
-		}
+		.had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+		.old_seed <- if (.had_seed) get(".Random.seed", envir = globalenv()) else NULL
+		on.exit({
+			if (.had_seed) {
+				assign(".Random.seed", .old_seed, envir = globalenv())
+			} else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+				rm(".Random.seed", envir = globalenv())
+			}
+		}, add = TRUE)
 		set.seed(seed)
 	}
 	nr <- object$dims$n_row; nc <- object$dims$n_col

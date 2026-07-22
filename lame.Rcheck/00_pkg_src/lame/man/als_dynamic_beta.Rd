@@ -61,11 +61,11 @@ effects.
 
 \examples{
 set.seed(1)
-n <- 10; T <- 4
-X <- replicate(T, array(rnorm(n*n*2), c(n, n, 2)), simplify = FALSE)
-beta_true <- rbind(seq(-1, 1, length.out = T), seq(0.5, -0.5, length.out = T))
-Y <- vector("list", T)
-for (t in seq_len(T)) {
+n <- 10; Tn <- 4
+X <- replicate(Tn, array(rnorm(n*n*2), c(n, n, 2)), simplify = FALSE)
+beta_true <- rbind(seq(-1, 1, length.out = Tn), seq(0.5, -0.5, length.out = Tn))
+Y <- vector("list", Tn)
+for (t in seq_len(Tn)) {
   Yt <- X[[t]][, , 1] * beta_true[1, t] + X[[t]][, , 2] * beta_true[2, t] +
         matrix(rnorm(n*n, 0, 0.2), n, n)
   diag(Yt) <- NA

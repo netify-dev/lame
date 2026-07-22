@@ -1118,11 +1118,15 @@ lame_snap_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
                           seed = 6886) {
 	# seed locally: restore the global rng stream on exit so a downstream
 	# random draw is not silently perturbed by having fit a model
-	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-		.old_seed <- get(".Random.seed", envir = globalenv())
-		on.exit(assign(".Random.seed", .old_seed, envir = globalenv()),
-		        add = TRUE)
-	}
+	.had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+	.old_seed <- if (.had_seed) get(".Random.seed", envir = globalenv()) else NULL
+	on.exit({
+		if (.had_seed) {
+			assign(".Random.seed", .old_seed, envir = globalenv())
+		} else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+			rm(".Random.seed", envir = globalenv())
+		}
+	}, add = TRUE)
 	family_missing <- missing(family)
 	mode_missing <- missing(mode)
 	symmetric_missing <- missing(symmetric)

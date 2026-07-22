@@ -7,9 +7,9 @@ skip_if_too_slow = function() {
 
 # -------- helpers --------
 
-mk_bip_linpred = function(nA, nB, T, seed, R_true = 0L, beta_true = c(0.8, -0.5)) {
+mk_bip_linpred = function(nA, nB, Tn, seed, R_true = 0L, beta_true = c(0.8, -0.5)) {
 	set.seed(seed)
-	X = lapply(seq_len(T), function(t) {
+	X = lapply(seq_len(Tn), function(t) {
 		array(stats::rnorm(nA * nB * length(beta_true)),
 		      c(nA, nB, length(beta_true)),
 		      dimnames = list(paste0("r", seq_len(nA)),
@@ -17,20 +17,20 @@ mk_bip_linpred = function(nA, nB, T, seed, R_true = 0L, beta_true = c(0.8, -0.5)
 		                      paste0("v", seq_along(beta_true))))
 	})
 	a = stats::rnorm(nA, 0, 0.3); b = stats::rnorm(nB, 0, 0.3)
-	EZ = lapply(seq_len(T), function(t) {
+	EZ = lapply(seq_len(Tn), function(t) {
 		eta = matrix(a, nA, nB) + matrix(b, nA, nB, byrow = TRUE)
 		for (k in seq_along(beta_true)) eta = eta + beta_true[k] * X[[t]][, , k]
 		eta
 	})
 	list(EZ = EZ, X = X, a = a, b = b, beta = beta_true,
-	     nA = nA, nB = nB, T = T)
+	     nA = nA, nB = nB, Tn = Tn)
 }
 
 # -------- bipartite poisson --------
 
 test_that("bipartite poisson runs and recovers the sign of a strong covariate", {
 	skip_if_too_slow()
-	d = mk_bip_linpred(nA = 25, nB = 18, T = 3, seed = 4105L, beta_true = c(0.6, -0.4))
+	d = mk_bip_linpred(nA = 25, nB = 18, Tn = 3, seed = 4105L, beta_true = c(0.6, -0.4))
 	Y = lapply(d$EZ, function(eta) {
 		yt = matrix(stats::rpois(d$nA * d$nB, lambda = exp(pmin(eta - 1, 5))),
 		            d$nA, d$nB)
@@ -54,7 +54,7 @@ test_that("bipartite poisson runs and recovers the sign of a strong covariate", 
 
 test_that("bipartite ordinal runs and recovers the sign of a strong covariate", {
 	skip_if_too_slow()
-	d = mk_bip_linpred(nA = 30, nB = 22, T = 3, seed = 4101L,
+	d = mk_bip_linpred(nA = 30, nB = 22, Tn = 3, seed = 4101L,
 	                    beta_true = c(0.8, -0.5))
 	Y = lapply(d$EZ, function(eta) {
 		Z = eta + matrix(stats::rnorm(d$nA * d$nB), d$nA, d$nB)
@@ -79,7 +79,7 @@ test_that("bipartite ordinal runs and recovers the sign of a strong covariate", 
 
 test_that("bipartite cbin runs and respects the row nomination cap", {
 	skip_if_too_slow()
-	d = mk_bip_linpred(nA = 30, nB = 25, T = 2, seed = 4102L,
+	d = mk_bip_linpred(nA = 30, nB = 25, Tn = 2, seed = 4102L,
 	                    beta_true = c(0.7, -0.4))
 	odmax = 5L
 	Y = lapply(d$EZ, function(eta) {
@@ -114,7 +114,7 @@ test_that("bipartite cbin runs and respects the row nomination cap", {
 test_that("bipartite frn runs and recovers the sign of a strong covariate", {
 	skip_if_too_slow()
 	# use a larger panel for a clearer sign check
-	d = mk_bip_linpred(nA = 40, nB = 32, T = 2, seed = 4103L,
+	d = mk_bip_linpred(nA = 40, nB = 32, Tn = 2, seed = 4103L,
 	                    beta_true = c(1.2, -1.0))
 	odmax = 6L
 	Y = lapply(d$EZ, function(eta) {

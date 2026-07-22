@@ -46,15 +46,15 @@ test_that("stationarity warning does NOT fire on a diffuse rho_beta posterior", 
 
 test_that("90%-NA Y fits without error and produces finite BETA", {
 	set.seed(2026)
-	n = 10; T = 3
-	Y = replicate(T, {
+	n = 10; Tn = 3
+	Y = replicate(Tn, {
 		z = matrix(rnorm(n*n), n, n); diag(z) = NA
 		# make the observed network very sparse
 		mask = matrix(stats::runif(n*n) > 0.10, n, n)
 		z[mask] = NA; diag(z) = NA
 		z
 	}, simplify = FALSE)
-	X = replicate(T, array(rnorm(n*n), c(n, n, 1)), simplify = FALSE)
+	X = replicate(Tn, array(rnorm(n*n), c(n, n, 1)), simplify = FALSE)
 	fit = lame(Y, Xdyad = X, family = "normal", R = 0,
 	            nscan = 30, burn = 5, odens = 5,
 	            dynamic_beta = "dyad", verbose = FALSE)
@@ -64,12 +64,12 @@ test_that("90%-NA Y fits without error and produces finite BETA", {
 
 test_that("extra missing dyads keep the dynamic beta sampler finite", {
 	set.seed(7)
-	n = 8; T = 3
+	n = 8; Tn = 3
 	# baseline y with only diagonal missing
-	Y_a = replicate(T, {z = matrix(rnorm(n*n), n, n); diag(z) = NA; z}, simplify = FALSE)
+	Y_a = replicate(Tn, {z = matrix(rnorm(n*n), n, n); diag(z) = NA; z}, simplify = FALSE)
 	# add one missing dyad pair
 	Y_b = lapply(Y_a, function(y) { y[1, 2] = NA; y[2, 1] = NA; y })
-	X = replicate(T, array(rnorm(n*n), c(n, n, 1)), simplify = FALSE)
+	X = replicate(Tn, array(rnorm(n*n), c(n, n, 1)), simplify = FALSE)
 	set.seed(1); fit_a = lame(Y_a, Xdyad = X, family = "normal", R = 0,
 	                           nscan = 30, burn = 5, odens = 5,
 	                           dynamic_beta = "dyad", verbose = FALSE)
@@ -100,11 +100,11 @@ test_that("detect_change_point errors when dynamic_beta is not active", {
 
 test_that("detect_change_point runs end-to-end on a step-function truth", {
 	set.seed(2026)
-	n = 8; T = 6
+	n = 8; Tn = 6
 	beta_true = c(rep(-0.6, 3), rep(0.6, 3))
-	X_list = replicate(T, matrix(rnorm(n*n), n, n), simplify = FALSE)
-	Y_list = vector("list", T)
-	for (t in seq_len(T)) {
+	X_list = replicate(Tn, matrix(rnorm(n*n), n, n), simplify = FALSE)
+	Y_list = vector("list", Tn)
+	for (t in seq_len(Tn)) {
 		Yt = beta_true[t] * X_list[[t]] + matrix(rnorm(n*n, 0, 0.1), n, n)
 		diag(Yt) = NA
 		rownames(Yt) = colnames(Yt) = paste0("a", seq_len(n))
@@ -148,7 +148,7 @@ test_that("invalid rho_mean outside bounds errors cleanly", {
 })
 
 test_that("T = 1 errors with informative message", {
-	expect_error(dynamic_beta_prior_summary(T = 1), "at least 2")
+	expect_error(dynamic_beta_prior_summary(Tn = 1), "at least 2")
 })
 
 test_that("freeze_call = TRUE stores a data snapshot on the fit", {

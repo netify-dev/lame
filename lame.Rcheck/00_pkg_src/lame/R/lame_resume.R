@@ -81,8 +81,20 @@ lame_resume <- function(path, nscan_more = NULL, ..., .envir = NULL) {
 	# the original run paid the burn-in cost; the continuation re-uses the
 	# saved rng stream and skips burn-in unless the user overrides it.
 	if (!"burn" %in% names(usr)) cl2$burn <- 0L
-	# restore the rng stream from the checkpoint
-	if (!is.null(ck$rng_state)) assign(".Random.seed", ck$rng_state, envir = .GlobalEnv)
+	# hand the checkpoint's rng stream to the continuation, then put the
+	# caller's stream back so resuming leaves their session untouched
+	if (!is.null(ck$rng_state)) {
+		.had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+		.old_seed <- if (.had_seed) get(".Random.seed", envir = globalenv()) else NULL
+		on.exit({
+			if (.had_seed) {
+				assign(".Random.seed", .old_seed, envir = globalenv())
+			} else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+				rm(".Random.seed", envir = globalenv())
+			}
+		}, add = TRUE)
+		assign(".Random.seed", ck$rng_state, envir = globalenv())
+	}
 	# evaluate in the user's frame. when called directly by a user from the
 	# top level, parent.frame() is globalenv() and y/xdyad references in the
 	# saved call resolve fine. when called via `do.call()` from the

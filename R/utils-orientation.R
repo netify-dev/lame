@@ -3,10 +3,10 @@
 # unipartite: u is [n, r, t]
 align_over_time_unip <- function(U) {
 	if (is.null(U) || length(dim(U)) != 3L) return(U)
-	T <- dim(U)[3]
-	if (T < 2L) return(U)
+	Tn <- dim(U)[3]
+	if (Tn < 2L) return(U)
 	U_al <- U
-	for (t in 2:T) {
+	for (t in 2:Tn) {
 		M <- crossprod(U_al[,,t], U_al[,,t-1])
 		if (!all(is.finite(M))) {
 			next
@@ -27,10 +27,10 @@ align_over_time_bip <- function(U, V, G) {
 	if (is.null(U) || is.null(V) || length(dim(U)) != 3L || length(dim(V)) != 3L) {
 		return(list(U = U, V = V, G = G))
 	}
-	T <- dim(U)[3]
-	if (T < 2L) return(list(U = U, V = V, G = G))
+	Tn <- dim(U)[3]
+	if (Tn < 2L) return(list(U = U, V = V, G = G))
 	U_al <- U; V_al <- V; G_al <- G
-	for (t in 2:T) {
+	for (t in 2:Tn) {
 		MU <- crossprod(U_al[,,t], U_al[,,t-1])
 		MV <- crossprod(V_al[,,t], V_al[,,t-1])
 		if (!all(is.finite(MU)) || !all(is.finite(MV))) {
@@ -56,10 +56,10 @@ align_over_time_bip <- function(U, V, G) {
 # estimate ar(1)-like persistence from aligned latent series
 estimate_rho_from_U <- function(U) {
 	if (is.null(U) || length(dim(U)) != 3L) return(NA_real_)
-	T <- dim(U)[3]
-	if (T < 2L) return(NA_real_)
+	Tn <- dim(U)[3]
+	if (Tn < 2L) return(NA_real_)
 	num <- 0; den <- 0
-	for (t in 2:T) {
+	for (t in 2:Tn) {
 		Ut  <- U[,,t]
 		Ut1 <- U[,,t-1]
 		num <- num + sum(Ut * Ut1, na.rm = TRUE)

@@ -27,11 +27,15 @@ ame_unipartite <- function(
 	#### parameter setup ####
 	# seed locally: restore the global rng stream on exit so a downstream
 	# random draw is not silently perturbed by having fit a model
-	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-		.old_seed <- get(".Random.seed", envir = globalenv())
-		on.exit(assign(".Random.seed", .old_seed, envir = globalenv()),
-		        add = TRUE)
-	}
+	.had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+	.old_seed <- if (.had_seed) get(".Random.seed", envir = globalenv()) else NULL
+	on.exit({
+		if (.had_seed) {
+			assign(".Random.seed", .old_seed, envir = globalenv())
+		} else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+			rm(".Random.seed", envir = globalenv())
+		}
+	}, add = TRUE)
 	set.seed(seed)
 	diag(Y) <- NA
 	if(is.element(family,c("binary","cbin"))) { Y<-1*(Y>0) }
@@ -815,10 +819,10 @@ ame_unipartite <- function(
 
 			if(!symmetric) {
 				BETA[sample_idx,] <- beta
-				VC[sample_idx,] <- c(Sab[upper.tri(Sab, diag = T)], rho, s2)
+				VC[sample_idx,] <- c(Sab[upper.tri(Sab, diag = TRUE)], rho, s2)
 
 				beta_running_mean <- beta_running_mean + (beta - beta_running_mean) / sample_idx
-				vc_running_mean <- vc_running_mean + (c(Sab[upper.tri(Sab, diag = T)], rho, s2) - vc_running_mean) / sample_idx
+				vc_running_mean <- vc_running_mean + (c(Sab[upper.tri(Sab, diag = TRUE)], rho, s2) - vc_running_mean) / sample_idx
 			}
 
 			# explicit-cutpoint alpha storage (alpha_2..alpha_{k-1}; alpha_1 = 0

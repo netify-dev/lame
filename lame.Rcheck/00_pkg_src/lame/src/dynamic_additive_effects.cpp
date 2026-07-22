@@ -301,18 +301,18 @@ double sample_sigma_ab_cpp(const arma::mat& a_mat, const arma::mat& b_mat,
 //' Initialize dynamic additive effects with AR(1) structure
 //'
 //' @param n Number of actors
-//' @param T Number of time points
+//' @param Tn Number of time points
 //' @param rho_ab AR(1) parameter
 //' @param sigma_ab Innovation standard deviation
 //' @param mean_a Mean for row effects
 //' @param mean_b Mean for column effects
 //' @return List with initialized a and b matrices
 // [[Rcpp::export]]
-List init_dynamic_ab_cpp(int n, int T, double rho_ab, double sigma_ab,
+List init_dynamic_ab_cpp(int n, int Tn, double rho_ab, double sigma_ab,
                          double mean_a = 0.0, double mean_b = 0.0) {
 
-  arma::mat a_mat(n, T);
-  arma::mat b_mat(n, T);
+  arma::mat a_mat(n, Tn);
+  arma::mat b_mat(n, Tn);
 
   double var_stat = sigma_ab * sigma_ab / (1.0 - rho_ab * rho_ab);
   double sd_stat = sqrt(var_stat);
@@ -321,7 +321,7 @@ List init_dynamic_ab_cpp(int n, int T, double rho_ab, double sigma_ab,
     a_mat(i, 0) = mean_a + R::rnorm(0, sd_stat);
     b_mat(i, 0) = mean_b + R::rnorm(0, sd_stat);
 
-    for(int t = 1; t < T; t++) {
+    for(int t = 1; t < Tn; t++) {
       a_mat(i, t) = rho_ab * a_mat(i, t-1) + R::rnorm(0, sigma_ab);
       b_mat(i, t) = rho_ab * b_mat(i, t-1) + R::rnorm(0, sigma_ab);
     }

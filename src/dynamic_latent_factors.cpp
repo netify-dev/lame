@@ -193,18 +193,18 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
 //'
 //' @param n Number of actors
 //' @param R Latent dimension
-//' @param T Number of time points
+//' @param Tn Number of time points
 //' @param rho_uv AR(1) parameter
 //' @param sigma_uv Innovation standard deviation
-//' @return 3D array of latent positions (n x R x T)
+//' @return 3D array of latent positions (n x R x Tn)
 // [[Rcpp::export]]
-arma::cube init_dynamic_positions(int n, int R, int T,
+arma::cube init_dynamic_positions(int n, int R, int Tn,
                                   double rho_uv, double sigma_uv) {
-  arma::cube positions(n, R, T);
+  arma::cube positions(n, R, Tn);
 
   positions.slice(0) = randn(n, R);
 
-  for(int t = 1; t < T; t++) {
+  for(int t = 1; t < Tn; t++) {
     for(int i = 0; i < n; i++) {
       for(int r = 0; r < R; r++) {
         double innov = R::rnorm(0.0, sigma_uv);

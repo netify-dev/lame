@@ -96,7 +96,7 @@
 # character; "" for static columns), group_names (the distinct dynamic
 # block labels), n_groups (length(group_names)).
 parse_dynamic_beta <- function(dynamic_beta, coef_names, coef_block,
-                               intercept, T, family, mode) {
+                               intercept, Tn, family, mode) {
 	p <- length(coef_names)
 	stopifnot(length(coef_block) == p)
 	# the empty / false / null case wires through as "nothing is dynamic"
@@ -112,10 +112,10 @@ parse_dynamic_beta <- function(dynamic_beta, coef_names, coef_block,
 		            n_groups = 0L))
 	}
 	# ar(1) prior is unidentified with a single time slice
-	if (!is.null(T) && T < 2L) {
+	if (!is.null(Tn) && Tn < 2L) {
 		cli::cli_abort(c(
 			"{.arg dynamic_beta} requires at least 2 time periods.",
-			"i" = "Got T = {T}; use {.fn ame} for a single cross-section or pass more periods."))
+			"i" = "Got {Tn}; use {.fn ame} for a single cross-section or pass more periods."))
 	}
 	# resolve the mask
 	mask <- rep(FALSE, p)
@@ -273,14 +273,14 @@ build_beta_state_scales <- function(beta_dyn, XtX_per_t, n_dyads_per_t,
 	# via prior$beta0_var.
 	dyn_idx <- beta_dyn$dynamic_idx
 	p_dyn   <- length(dyn_idx)
-	T       <- length(XtX_per_t)
-	out     <- vector("list", T)
+	Tn       <- length(XtX_per_t)
+	out     <- vector("list", Tn)
 	# stack and average the dynamic-block sub-xtx across periods so a
 	# period with all-zero design (rare but possible) still gets a sane
 	# scale matrix from its neighbours
 	XtX_dyn_avg <- matrix(0, p_dyn, p_dyn)
 	have <- 0L
-	for (t in seq_len(T)) {
+	for (t in seq_len(Tn)) {
 		Xt <- XtX_per_t[[t]]
 		if (is.null(Xt) || any(!is.finite(Xt))) next
 		XtX_dyn_avg <- XtX_dyn_avg + Xt[dyn_idx, dyn_idx, drop = FALSE]
@@ -306,7 +306,7 @@ build_beta_state_scales <- function(beta_dyn, XtX_per_t, n_dyads_per_t,
 	Lambda <- diag(scale_vec, p_dyn)
 	# use the same lambda for every period (the t-varying part of q_t comes
 	# from sigma_beta which is time-shared across periods within a block)
-	for (t in seq_len(T)) out[[t]] <- Lambda
+	for (t in seq_len(Tn)) out[[t]] <- Lambda
 	out
 }
 

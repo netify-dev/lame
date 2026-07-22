@@ -1,0 +1,27 @@
+Copyright and derivation notice for the lame package
+====================================================
+
+Portions of this package are derived from the 'amen' package
+(Additive and Multiplicative Effects Models for Networks and Relational
+Data), Copyright (c) Peter D. Hoff, distributed under GPL-3:
+
+  https://CRAN.R-project.org/package=amen
+
+lame extends the additive and multiplicative effects framework to
+longitudinal and bipartite networks. Several of its Gibbs samplers and
+numerical helpers were taken from, or adapted from, the corresponding
+routines in amen. Because amen is licensed under GPL-3, lame is
+distributed under GPL-3 as well.
+
+Files containing code written by or derived from Peter Hoff carry an
+`@author Peter Hoff` tag in their roxygen documentation. As of this
+version that covers 33 files under R/ and one under src/, including the
+following routines whose implementations remain substantially those of
+amen:
+
+  ldZgbme, llsrmRho, raSab_bin_fc, raSab_cbin_fc, raSab_frn_fc,
+  rbeta_ab_rep_fc, rrho_fc, rrho_mh_rep, rUV_fc, rUV_rep_fc,
+  rUV_sym_fc, rwish, simY_frn, simY_ord, sm2el, zscores
+
+All other code is Copyright (c) the lame authors (Cassy Dorff,
+Shahryar Minhas, Tosin Salau), also under GPL-3.

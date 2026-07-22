@@ -775,11 +775,15 @@ ame<-function (
 
 	# seed locally: restore the global rng stream on exit so a downstream
 	# random draw is not silently perturbed by having fit a model
-	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-		.old_seed <- get(".Random.seed", envir = globalenv())
-		on.exit(assign(".Random.seed", .old_seed, envir = globalenv()),
-		        add = TRUE)
-	}
+	.had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+	.old_seed <- if (.had_seed) get(".Random.seed", envir = globalenv()) else NULL
+	on.exit({
+		if (.had_seed) {
+			assign(".Random.seed", .old_seed, envir = globalenv())
+		} else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+			rm(".Random.seed", envir = globalenv())
+		}
+	}, add = TRUE)
 
 	# validate family; accept short amen spellings as aliases
 	valid_families <- c("normal", "binary", "ordinal",

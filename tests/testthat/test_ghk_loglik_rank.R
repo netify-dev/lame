@@ -79,13 +79,13 @@ test_that(".pointwise_loglik_observed_ghk_rank dispatches by family", {
 test_that("v8 GHK on frn produces finite, family-correct log_lik", {
 	skip_on_cran()
 	set.seed(41)
-	n = 10; T = 2
-	Xdyad_list = lapply(seq_len(T), function(t) {
+	n = 10; Tn = 2
+	Xdyad_list = lapply(seq_len(Tn), function(t) {
 		x = array(rnorm(n*n), dim = c(n, n, 1))
 		dimnames(x) = list(NULL, NULL, "x1")
 		x
 	})
-	Y_list = lapply(seq_len(T), function(t) {
+	Y_list = lapply(seq_len(Tn), function(t) {
 		Y = matrix(0, n, n)
 		for (i in 1:n) {
 			nominees = sample(setdiff(1:n, i), 3)
@@ -114,13 +114,13 @@ test_that("v8 GHK on frn produces finite, family-correct log_lik", {
 test_that("v8 GHK is reproducible given seed (halton_shift deterministic)", {
 	skip_on_cran()
 	set.seed(43)
-	n = 8; T = 2
-	Xdyad_list = lapply(seq_len(T), function(t) {
+	n = 8; Tn = 2
+	Xdyad_list = lapply(seq_len(Tn), function(t) {
 		x = array(rnorm(n*n), dim = c(n, n, 1))
 		dimnames(x) = list(NULL, NULL, "x1")
 		x
 	})
-	Y_list = lapply(seq_len(T), function(t) {
+	Y_list = lapply(seq_len(Tn), function(t) {
 		Y = matrix(0, n, n)
 		for (i in 1:n) {
 			nominees = sample(setdiff(1:n, i), 2)
@@ -149,8 +149,8 @@ test_that("v8 GHK is reproducible given seed (halton_shift deterministic)", {
 test_that("default log_lik_method = 'observed_exact' is byte-identical", {
 	skip_on_cran()
 	set.seed(45)
-	n = 8; T = 2
-	Y_list = lapply(seq_len(T), function(t) {
+	n = 8; Tn = 2
+	Y_list = lapply(seq_len(Tn), function(t) {
 		mat = matrix(rbinom(n*n, 1, 0.3), n, n)
 		diag(mat) = NA
 		mat

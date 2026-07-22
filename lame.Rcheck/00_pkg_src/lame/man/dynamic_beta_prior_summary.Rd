@@ -5,7 +5,7 @@
 \title{Summarise the implied prior on a time-varying coefficient path}
 \usage{
 dynamic_beta_prior_summary(
-  T = 10L,
+  n_periods = 10L,
   ndraws = 5000L,
   kind = c("ar1", "rw1", "rw2", "matern32"),
   rho_mean = 0.8,
@@ -20,7 +20,7 @@ dynamic_beta_prior_summary(
 )
 }
 \arguments{
-\item{T}{Length of the path (default 10).}
+\item{n_periods}{Length of the path (default 10).}
 
 \item{ndraws}{Number of paths to draw (default 5000).}
 
@@ -57,11 +57,11 @@ maximum absolute first difference exceeds \code{threshold}.}
 \item{\code{rho}}{Length \code{ndraws} vector of sampled rho values
 (\code{NA} for kinds with fixed rho).}
 \item{\code{sigma}}{Length \code{ndraws} vector of sampled sigma values.}
-\item{\code{paths}}{\code{ndraws x T} matrix of sample paths.}
+\item{\code{paths}}{\code{ndraws x n_periods} matrix of sample paths.}
 }
 }
 \description{
-Draws \code{ndraws} sample paths of length \code{T} from the
+Draws \code{ndraws} sample paths of length \code{n_periods} from the
 \code{dynamic_beta} prior (given a kind, AR(1) hyperparameters, and an
 inverse-gamma on the innovation variance) and reports the implied
 distribution of common summary statistics: maximum absolute first
@@ -80,7 +80,7 @@ and the first two values use a diffuse \eqn{N(0, 10)} initial prior.
 \examples{
 \donttest{
 # Default prior: AR(1) with rho_mean = 0.8, rho_sd = 0.15
-s <- dynamic_beta_prior_summary(T = 10, ndraws = 2000, seed = 1)
+s <- dynamic_beta_prior_summary(n_periods = 10, ndraws = 2000, seed = 1)
 s$summary
 # what's the probability that consecutive beta_t differ by more than 1?
 s$prob_max_diff_gt_threshold

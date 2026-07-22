@@ -1,25 +1,15 @@
 # lame 1.3.2
 
+* The package is now distributed under GPL-3 rather than MIT, matching the
+  license of `amen`, from which several samplers and helpers are derived.
+  Peter Hoff is credited as contributor and copyright holder; see
+  `inst/COPYRIGHTS`.
+* Fitting no longer leaves a `.Random.seed` behind in the global environment
+  when the session had none, and `lame()` no longer sets `options(warn)`.
 * Fixed Rd markup reported by CRAN's incoming checks.
 * Fixed a prior-scaling bug that could silently collapse the latent factors
   (and attenuate coefficients) in asymmetric `ame()` fits with `R > 0`;
   fits now match `amen`.
-* All `ame()` fits return the posterior-mean multiplicative matrix (`UVPM` /
-  `ULUPM`); `reconstruct_UVPM()`, `reconstruct_EZ()`, and `ame_parallel()`
-  use the stored matrices.
-* Symmetric fits pair each retained eigenvalue with its own eigenvector when
-  deriving `U` and `L` from `ULUPM`.
-* `gof_plot(statistics = ...)` accepts the names in `names(fit$GOF)` and
-  warns rather than errors on unknown ones.
-* Legacy `amen`-class fits: `residuals()` aborts instead of returning zeros,
-  `print()` no longer errors, and `glance()` / `sampler_describe()` no
-  longer fabricate metadata.
-* `vcov.ame_als()` agrees with `summary()` / `confint()` on bootstrapped
-  fits.
-* The `family` alias message prints once per session.
-* Documented the adaptive `Sab0` / `eta0` prior defaults and the
-  `amen`-equivalent setting.
-* `simulate_posterior()` uses every stored draw by default.
 * Time-varying coefficients (`dynamic_beta`) compose freely with the
   multiplicative latent factors (`R > 0`) and additive sender/receiver effects,
   for every family and network type. Coefficients can follow AR(1),

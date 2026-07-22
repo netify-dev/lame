@@ -12,7 +12,7 @@ init_bipartite_startvals(
   nB,
   RA,
   RB,
-  T,
+  Tn,
   Xlist = NULL,
   odmax = NULL
 )

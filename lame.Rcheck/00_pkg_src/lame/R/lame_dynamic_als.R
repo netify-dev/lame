@@ -1768,11 +1768,15 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	bootstrap_type <- match.arg(bootstrap_type)
 	# seed locally: restore the global rng stream on exit so a downstream
 	# random draw is not silently perturbed by having fit a model
-	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-		.old_seed <- get(".Random.seed", envir = globalenv())
-		on.exit(assign(".Random.seed", .old_seed, envir = globalenv()),
-		        add = TRUE)
-	}
+	.had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+	.old_seed <- if (.had_seed) get(".Random.seed", envir = globalenv()) else NULL
+	on.exit({
+		if (.had_seed) {
+			assign(".Random.seed", .old_seed, envir = globalenv())
+		} else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+			rm(".Random.seed", envir = globalenv())
+		}
+	}, add = TRUE)
 	amen_aliases <- c(nrm = "normal", bin = "binary", pois = "poisson")
 	if (length(family) == 1L && is.character(family) &&
 	    family %in% names(amen_aliases)) {
@@ -1930,7 +1934,7 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	}
 	beta_dyn_full <- parse_dynamic_beta(dynamic_beta_parse,
 	                                    full_layout$names, full_layout$block,
-	                                    intercept = TRUE, T = prep$Tt,
+	                                    intercept = TRUE, Tn = prep$Tt,
 	                                    family = family, mode = mode)
 	node_dynamic <- beta_dyn_full$mask &
 		full_layout$block %in% c("row", "col")

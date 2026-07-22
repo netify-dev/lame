@@ -84,9 +84,9 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 	if (!is.null(x$U)) {
 		if (is_dynamic_uv) {
 			R <- dim(x$U)[2]
-			T <- dim(x$U)[3]
+			Tn <- dim(x$U)[3]
 			param_info <- c(param_info,
-				"*" = "Multiplicative effects: {.val {R}}-dimensional {.emph (dynamic over {T} periods)}")
+				"*" = "Multiplicative effects: {.val {R}}-dimensional {.emph (dynamic over {Tn} periods)}")
 		} else {
 			param_info <- c(param_info,
 				"*" = "Multiplicative effects: {.val {ncol(x$U)}}-dimensional")

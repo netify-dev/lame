@@ -4,21 +4,21 @@
 \alias{init_dynamic_positions}
 \title{Initialize dynamic latent positions with AR(1) structure}
 \usage{
-init_dynamic_positions(n, R, T, rho_uv, sigma_uv)
+init_dynamic_positions(n, R, Tn, rho_uv, sigma_uv)
 }
 \arguments{
 \item{n}{Number of actors}
 
 \item{R}{Latent dimension}
 
-\item{T}{Number of time points}
+\item{Tn}{Number of time points}
 
 \item{rho_uv}{AR(1) parameter}
 
 \item{sigma_uv}{Innovation standard deviation}
 }
 \value{
-3D array of latent positions (n x R x T)
+3D array of latent positions (n x R x Tn)
 }
 \description{
 Initialize dynamic latent positions with AR(1) structure

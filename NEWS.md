@@ -1,5 +1,11 @@
 # lame 1.3.2
 
+* The package is now distributed under GPL-3 rather than MIT, matching the
+  license of `amen`, from which several samplers and helpers are derived.
+  Peter Hoff is credited as contributor and copyright holder; see
+  `inst/COPYRIGHTS`.
+* Fitting no longer leaves a `.Random.seed` behind in the global environment
+  when the session had none, and `lame()` no longer sets `options(warn)`.
 * Fixed Rd markup reported by CRAN's incoming checks.
 * Fixed a prior-scaling bug that could silently collapse the latent factors
   (and attenuate coefficients) in asymmetric `ame()` fits with `R > 0`;

@@ -43,12 +43,12 @@ test_that("predict.ame newdata stays correct for a dyad-only model", {
 # fit$sigma_ab, and print.lame() populates the sigma_innov column.
 test_that("dynamic_uv / dynamic_ab fits store innovation-SD chains", {
 	skip_on_cran()
-	set.seed(6886); n = 18; T = 4
-	Xl = lapply(seq_len(T), function(t) {
+	set.seed(6886); n = 18; Tn = 4
+	Xl = lapply(seq_len(Tn), function(t) {
 		x = matrix(rnorm(n*n), n, n)
 		array(x, c(n, n, 1), dimnames = list(NULL, NULL, "x1"))
 	})
-	Yl = lapply(seq_len(T), function(t) {
+	Yl = lapply(seq_len(Tn), function(t) {
 		y = matrix(rbinom(n*n, 1, 0.3), n, n); diag(y) = NA
 		rownames(y) = colnames(y) = paste0("a", seq_len(n)); y
 	})
@@ -72,12 +72,12 @@ test_that("dynamic_uv / dynamic_ab fits store innovation-SD chains", {
 # than crashing (u/v are 0-column matrices, not null).
 test_that("uv_plot / autoplot give a clean message on an R = 0 fit", {
 	skip_on_cran()
-	set.seed(1); n = 12; T = 3
-	Xl = lapply(seq_len(T), function(t) {
+	set.seed(1); n = 12; Tn = 3
+	Xl = lapply(seq_len(Tn), function(t) {
 		x = matrix(rnorm(n*n), n, n)
 		array(x, c(n, n, 1), dimnames = list(NULL, NULL, "x1"))
 	})
-	Yl = lapply(seq_len(T), function(t) {
+	Yl = lapply(seq_len(Tn), function(t) {
 		y = matrix(rbinom(n*n, 1, 0.3), n, n); diag(y) = NA
 		rownames(y) = colnames(y) = paste0("a", seq_len(n)); y
 	})
@@ -167,12 +167,12 @@ test_that("gof_plot statistics= accepts aliases, internal names, and warns on ba
 # silent. The substantive guarantees are the boundedness checks below.)
 test_that("dynamic_beta stays finite and bounded on sparse binary", {
 	skip_on_cran()
-	set.seed(7); n = 15; T = 6
-	Xl = lapply(seq_len(T), function(t) {
+	set.seed(7); n = 15; Tn = 6
+	Xl = lapply(seq_len(Tn), function(t) {
 		x = matrix(rnorm(n*n), n, n)
 		array(x, c(n, n, 1), dimnames = list(NULL, NULL, "x1"))
 	})
-	Yl = lapply(seq_len(T), function(t) {
+	Yl = lapply(seq_len(Tn), function(t) {
 		y = matrix(rbinom(n*n, 1, 0.02), n, n); diag(y) = NA
 		rownames(y) = colnames(y) = paste0("a", seq_len(n)); y
 	})
@@ -186,13 +186,13 @@ test_that("dynamic_beta stays finite and bounded on sparse binary", {
 
 test_that("dynamic_beta well-identified normal fit is not clipped", {
 	skip_on_cran()
-	set.seed(1); n = 15; T = 5
-	bt = seq(-0.5, 1.0, length.out = T)
-	Xl = lapply(seq_len(T), function(t) {
+	set.seed(1); n = 15; Tn = 5
+	bt = seq(-0.5, 1.0, length.out = Tn)
+	Xl = lapply(seq_len(Tn), function(t) {
 		x = matrix(rnorm(n*n), n, n)
 		array(x, c(n, n, 1), dimnames = list(NULL, NULL, "x1"))
 	})
-	Yl = lapply(seq_len(T), function(t) {
+	Yl = lapply(seq_len(Tn), function(t) {
 		y = bt[t] * Xl[[t]][, , 1] + matrix(rnorm(n*n, 0, 0.4), n, n)
 		diag(y) = NA; rownames(y) = colnames(y) = paste0("a", seq_len(n)); y
 	})
@@ -217,17 +217,17 @@ test_that("dynamic_beta well-identified normal fit is not clipped", {
 # actor reordering.
 test_that("predict.lame newdata reproduces in-sample EZ with nodal covariates", {
 	skip_on_cran()
-	set.seed(11); n = 14; T = 4
+	set.seed(11); n = 14; Tn = 4
 	pad = sprintf("a%02d", seq_len(n))
-	Xl = lapply(seq_len(T), function(t) {
+	Xl = lapply(seq_len(Tn), function(t) {
 		x = matrix(rnorm(n*n), n, n)
 		array(x, c(n, n, 1), dimnames = list(pad, pad, "x1"))
 	})
-	Xr = lapply(seq_len(T), function(t)
+	Xr = lapply(seq_len(Tn), function(t)
 		matrix(rnorm(n), n, 1, dimnames = list(pad, "r1")))
-	Xc = lapply(seq_len(T), function(t)
+	Xc = lapply(seq_len(Tn), function(t)
 		matrix(rnorm(n), n, 1, dimnames = list(pad, "c1")))
-	Yl = lapply(seq_len(T), function(t) {
+	Yl = lapply(seq_len(Tn), function(t) {
 		y = matrix(rbinom(n*n, 1, 0.3), n, n); diag(y) = NA
 		rownames(y) = colnames(y) = pad; y
 	})
@@ -241,10 +241,10 @@ test_that("predict.lame newdata reproduces in-sample EZ with nodal covariates", 
 	# counterfactual: +2 on the dyad covariate moves the link by 2 * its own
 	# coefficient at every period -- guards against re-introducing the nodal mix.
 	bm = coef(fit)
-	bdyad = if (is.matrix(bm)) bm["x1_dyad", ] else rep(bm["x1_dyad"], T)
+	bdyad = if (is.matrix(bm)) bm["x1_dyad", ] else rep(bm["x1_dyad"], Tn)
 	Xup = lapply(Xl, function(X) { X[, , 1] = X[, , 1] + 2; X })
 	ez_up = predict(fit, type = "link", newdata = Xup)
-	for (t in seq_len(T)) {
+	for (t in seq_len(Tn)) {
 		expect_equal(mean(ez_up[[t]] - ez_new[[t]], na.rm = TRUE),
 		             unname(2 * bdyad[t]), tolerance = 1e-6,
 		             info = paste("period", t))
@@ -257,12 +257,12 @@ test_that("predict.lame newdata reproduces in-sample EZ with nodal covariates", 
 # still lines up with the stored a / b / uv effects.
 test_that("predict.lame newdata realigns actors by name to the fit's order", {
 	skip_on_cran()
-	set.seed(11); n = 14; T = 3
+	set.seed(11); n = 14; Tn = 3
 	nm = paste0("a", seq_len(n))                  # a1..a14 sort non-naturally
 	stopifnot(!identical(nm, sort(nm)))            # guard: order really differs
-	Xl = lapply(seq_len(T), function(t)
+	Xl = lapply(seq_len(Tn), function(t)
 		array(matrix(rnorm(n*n), n, n), c(n, n, 1), dimnames = list(nm, nm, "x1")))
-	Yl = lapply(seq_len(T), function(t) {
+	Yl = lapply(seq_len(Tn), function(t) {
 		y = matrix(rbinom(n*n, 1, 0.3), n, n); diag(y) = NA
 		rownames(y) = colnames(y) = nm; y
 	})
