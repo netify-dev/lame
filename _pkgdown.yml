@@ -258,9 +258,7 @@ reference:
     - raSab_bin_fc
     - raSab_cbin_fc
     - raSab_frn_fc
-    - rrho_fc
     - rrho_mh
-    - rrho_mh_rep
     - rs2_fc
     - rs2_rep_fc
     - sample_ab_bipartite
@@ -295,8 +293,6 @@ reference:
     - get_start_vals
     - precomputeX
     - Xbeta
-    - ldZgbme
-    - llsrmRho
     - mhalf
     - rmvnorm
     - rwish
