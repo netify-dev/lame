@@ -61,7 +61,7 @@ beta posterior, and the panel-specific deviations.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">lame_multi</span><span class="op">(</span><span class="va">Y_list</span>, <span class="va">Xdyad_list</span>, <span class="va">...</span>, shared_dynamic_beta <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">lame_multi</span><span class="op">(</span><span class="va">Y_list</span>, <span class="va">Xdyad_list</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -80,13 +80,9 @@ dyadic covariate arrays.</p></dd>
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Arguments forwarded to <code><a href="lame.html">lame()</a></code> (e.g. family,
-R, mode, nscan, burn, odens, dynamic_beta, dynamic_beta_kind).</p></dd>
-
-
-<dt id="arg-shared-dynamic-beta">shared_dynamic_beta<a class="anchor" aria-label="anchor" href="#arg-shared-dynamic-beta"></a></dt>
-<dd><p>Logical; if <code>TRUE</code> (default), the
-shared beta posterior is computed (per-period when dynamic_beta
-is active).</p></dd>
+R, mode, nscan, burn, odens, dynamic_beta, dynamic_beta_kind).
+The pooled beta posterior is always returned, per-period when
+<code>dynamic_beta</code> is active (detected from the panel fits).</p></dd>
 
 </dl></div>
     <div class="section level2">

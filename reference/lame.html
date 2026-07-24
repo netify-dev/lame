@@ -892,7 +892,12 @@ $$b_{i,t} = \rho_{ab} b_{i,t-1} + \eta_{i,t}$$
 where \(\epsilon_{i,t}, \eta_{i,t} \sim N(0, \sigma_{ab}^2)\). This models
 time-varying individual activity levels (outdegree) and popularity (indegree).</p>
 <p>Dynamic additive effects are useful when sender activity and receiver
-popularity change over time rather than staying fixed across the whole panel.</p>
+popularity change over time rather than staying fixed across the whole panel.
+A <code>dynamic_ab</code> fit returns the posterior-mean paths on
+<code>fit$a_dynamic</code> / <code>fit$b_dynamic</code> (actor x period) and their
+per-period posterior standard deviations on <code>fit$a_dynamic_sd</code> /
+<code>fit$b_dynamic_sd</code>; <code>ab_plot(fit, plot_type = "ribbon")</code> uses the
+latter to draw a credible band around each actor's path.</p>
 <p><em>Prior Specification for Dynamic Parameters:</em></p><ul><li><p>\(\rho_{uv}, \rho_{ab} \sim TruncNormal(mean, sd, 0, 1)\):
 Ensures stationarity of AR(1) process</p></li>
 <li><p>\(\sigma_{uv}^2, \sigma_{ab}^2 \sim InverseGamma(shape, scale)\):

@@ -84,31 +84,33 @@ are static or dynamic and provides appropriate visualization options.</p>
 
 
 <dt id="arg-sorted">sorted<a class="anchor" aria-label="anchor" href="#arg-sorted"></a></dt>
-<dd><p>Logical; if TRUE (default), actors are sorted by effect magnitude</p></dd>
+<dd><p>Logical; if TRUE (default), actors are sorted by effect
+magnitude. Applies to <code>ame</code> / <code>lame</code> fits;
+<code>ame_als</code> fits are always sorted by value.</p></dd>
 
 
 <dt id="arg-labels">labels<a class="anchor" aria-label="anchor" href="#arg-labels"></a></dt>
 <dd><p>Logical; if TRUE, actor labels are shown on x-axis (default TRUE
-for n &lt;= 50 actors)</p></dd>
+for n &lt;= 50 actors). Applies to <code>ame</code> / <code>lame</code> fits.</p></dd>
 
 
 <dt id="arg-title">title<a class="anchor" aria-label="anchor" href="#arg-title"></a></dt>
-<dd><p>Optional title for the plot</p></dd>
+<dd><p>Optional title for the plot (<code>ame</code> / <code>lame</code> fits).</p></dd>
 
 
 <dt id="arg-time-point">time_point<a class="anchor" aria-label="anchor" href="#arg-time-point"></a></dt>
 <dd><p>For dynamic effects, which time point to plot (default: last).
-Can be numeric index, "all" for faceted plot, or "average" for time-averaged</p></dd>
+Can be a numeric index, "all" for a faceted plot, or "average" for time-averaged</p></dd>
 
 
 <dt id="arg-plot-type">plot_type<a class="anchor" aria-label="anchor" href="#arg-plot-type"></a></dt>
 <dd><p>For dynamic effects: "snapshot" (single time), "trajectory" (evolution over time),
-"faceted" (grid of time points), or "ribbon" (posterior credible bands over time).
-For static effects, this parameter is ignored.</p></dd>
+"faceted" (grid of time points), or "ribbon" (effect path with a 95\<!-- % posterior -->
+band per period). For static effects, this parameter is ignored.</p></dd>
 
 
 <dt id="arg-show-actors">show_actors<a class="anchor" aria-label="anchor" href="#arg-show-actors"></a></dt>
-<dd><p>Character vector of specific actors to highlight (for dynamic trajectory/ribbon plots)</p></dd>
+<dd><p>Character vector of specific actors to highlight (for dynamic trajectory / ribbon plots)</p></dd>
 
 </dl></div>
     <div class="section level2">
