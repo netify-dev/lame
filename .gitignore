@@ -21,3 +21,4 @@ src/*.dll
 .codex/
 .codex
 docs/llms.txt
+cran-comments.md
