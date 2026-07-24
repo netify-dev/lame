@@ -12,6 +12,7 @@ utils::globalVariables(c(
 	"U1", "U2", "V1", "V2", "from", "to", "weight",  # plot methods
 	"x_from", "y_from", "x_to", "y_to", "node",  # plot methods
 	"xend", "yend", "color", "size", "label",  # uv_plot aesthetics
+	"x_prev", "y_prev",  # uv_plot trajectory arrows
 	"r"  # ggforce::geom_circle aes
 ))
 

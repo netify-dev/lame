@@ -441,7 +441,12 @@
 #' 
 #' Dynamic additive effects are useful when sender activity and receiver
 #' popularity change over time rather than staying fixed across the whole panel.
-#' 
+#' A \code{dynamic_ab} fit returns the posterior-mean paths on
+#' \code{fit$a_dynamic} / \code{fit$b_dynamic} (actor x period) and their
+#' per-period posterior standard deviations on \code{fit$a_dynamic_sd} /
+#' \code{fit$b_dynamic_sd}; \code{ab_plot(fit, plot_type = "ribbon")} uses the
+#' latter to draw a credible band around each actor's path.
+#'
 #' \emph{Prior Specification for Dynamic Parameters:}
 #' \itemize{
 #'   \item \eqn{\rho_{uv}, \rho_{ab} \sim TruncNormal(mean, sd, 0, 1)}: 
@@ -5248,10 +5253,25 @@ lame <- function(
 					# initialize accumulation matrices
 					APS_dyn <- a_mat
 					BPS_dyn <- b_mat
+					# welford streaming mean / second moment for the per-time
+					# posterior sd (fit$a_dynamic_sd / fit$b_dynamic_sd)
+					ab_dyn_n   <- 0L
+					a_dyn_mean <- matrix(0, nrow(a_mat), ncol(a_mat))
+					a_dyn_m2   <- matrix(0, nrow(a_mat), ncol(a_mat))
+					b_dyn_mean <- matrix(0, nrow(b_mat), ncol(b_mat))
+					b_dyn_m2   <- matrix(0, nrow(b_mat), ncol(b_mat))
 				} else {
 					APS_dyn <- APS_dyn + a_mat
 					BPS_dyn <- BPS_dyn + b_mat
 				}
+				# streaming variance update, every stored draw (incl. iter 1)
+				ab_dyn_n   <- ab_dyn_n + 1L
+				d_a        <- a_mat - a_dyn_mean
+				a_dyn_mean <- a_dyn_mean + d_a / ab_dyn_n
+				a_dyn_m2   <- a_dyn_m2 + d_a * (a_mat - a_dyn_mean)
+				d_b        <- b_mat - b_dyn_mean
+				b_dyn_mean <- b_dyn_mean + d_b / ab_dyn_n
+				b_dyn_m2   <- b_dyn_m2 + d_b * (b_mat - b_dyn_mean)
 				APS <- APS + rowMeans(a_mat)
 				BPS <- BPS + rowMeans(b_mat)
 			} else {
@@ -5614,6 +5634,25 @@ lame <- function(
 		for (cc in LOG_LIK_CONNS) close(cc)
 		fit$log_lik_index <- obs_idx
 		fit$log_lik_chunks <- LOG_LIK_META
+	}
+	# per-time posterior sd of the dynamic additive effects, from the
+	# streaming second moment accumulated in the mcmc loop. matched to the
+	# a_dynamic / b_dynamic mean matrices by dimnames. symmetric fits carry
+	# only a_dynamic, so only a_dynamic_sd is attached there.
+	if (dynamic_ab && exists("a_dyn_m2", inherits = FALSE) && ab_dyn_n > 1L) {
+		.ab_denom <- ab_dyn_n - 1L
+		if (!is.null(fit$a_dynamic)) {
+			.a_sd <- sqrt(a_dyn_m2 / .ab_denom)
+			if (identical(dim(.a_sd), dim(fit$a_dynamic)))
+				dimnames(.a_sd) <- dimnames(fit$a_dynamic)
+			fit$a_dynamic_sd <- .a_sd
+		}
+		if (!is.null(fit$b_dynamic)) {
+			.b_sd <- sqrt(b_dyn_m2 / .ab_denom)
+			if (identical(dim(.b_sd), dim(fit$b_dynamic)))
+				dimnames(.b_sd) <- dimnames(fit$b_dynamic)
+			fit$b_dynamic_sd <- .b_sd
+		}
 	}
 		# record dynamic argument values on the fit for downstream tools
 	fit$dynamic_beta_pool <- dynamic_beta_pool

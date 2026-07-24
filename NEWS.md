@@ -1,5 +1,11 @@
 # lame 1.3.3
 
+* `dynamic_ab` fits now return the per-period posterior standard deviation of
+  the additive effects on `fit$a_dynamic_sd` / `fit$b_dynamic_sd`, and
+  `ab_plot(fit, plot_type = "ribbon")` draws a 95% credible band from them.
+  (Previously the ribbon plot required draws the longitudinal sampler never
+  stored, so it errored, and its fallback drew a constant-width band that
+  misrepresented per-period uncertainty.)
 * The package is now distributed under GPL-3 rather than MIT, matching the
   license of `amen`, from which several samplers and helpers are derived.
   Peter Hoff is credited as contributor and copyright holder; see

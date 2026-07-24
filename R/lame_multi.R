@@ -20,9 +20,8 @@
 #'   dyadic covariate arrays.
 #' @param ... Arguments forwarded to \code{lame()} (e.g. family,
 #'   R, mode, nscan, burn, odens, dynamic_beta, dynamic_beta_kind).
-#' @param shared_dynamic_beta Logical; if \code{TRUE} (default), the
-#'   shared beta posterior is computed (per-period when dynamic_beta
-#'   is active).
+#'   The pooled beta posterior is always returned, per-period when
+#'   \code{dynamic_beta} is active (detected from the panel fits).
 #'
 #' @return A list with
 #' \itemize{
@@ -54,8 +53,7 @@
 #' }
 #'
 #' @export
-lame_multi <- function(Y_list, Xdyad_list, ...,
-                       shared_dynamic_beta = TRUE) {
+lame_multi <- function(Y_list, Xdyad_list, ...) {
 	if (!is.list(Y_list) || length(Y_list) < 1L) {
 		cli::cli_abort("{.arg Y_list} must be a non-empty list of K panels.")
 	}
