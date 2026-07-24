@@ -1,43 +1,46 @@
 #' Gibbs update for multiplicative effects covariance
 #'
-#' Gibbs sampling for the covariance matrix of multiplicative effects U and V
-#' in the AME model. This function implements the inverse-Wishart posterior
-#' update for the covariance matrix of the stacked UV effects.
+#' Draws the covariance matrix of the stacked multiplicative row/column
+#' effects \eqn{[U, V]} from its full conditional inverse-Wishart
+#' distribution in the AME model.
 #'
 #' @usage rSuv_fc(U, V, Suv0=NULL, kappa0=NULL)
-#' @param U matrix of multiplicative row effects (n x R matrix where n is the
-#'   number of nodes and R is the dimension of multiplicative effects)
-#' @param V matrix of multiplicative column effects (n x R matrix)
-#' @param Suv0 prior (inverse) scale matrix for the prior distribution.
-#'   Default is identity matrix of dimension 2R x 2R, providing a weakly
-#'   informative prior.
-#' @param kappa0 prior degrees of freedom for the prior distribution.
-#'   Default is 2 + 2R, which is the minimum for a proper prior with a
-#'   2R x 2R covariance matrix.
-#' @return Updated covariance matrix Suv (2R x 2R matrix) for the stacked
-#'   effects \[U, V\]. The first R x R block contains covariances for U,
-#'   the last R x R block contains covariances for V, and the off-diagonal
-#'   blocks contain cross-covariances between U and V.
+#' @param U matrix of multiplicative row effects (n x R).
+#' @param V matrix of multiplicative column effects (n x R).
+#' @param Suv0 prior scale matrix (2R x 2R). Defaults to the identity,
+#'   a weakly informative choice.
+#' @param kappa0 prior degrees of freedom. Defaults to 2 + 2R, the
+#'   smallest value giving a proper prior for a 2R x 2R covariance.
+#' @return The sampled 2R x 2R covariance matrix for \eqn{[U, V]}: the
+#'   leading R x R block is the covariance of U, the trailing R x R block
+#'   is the covariance of V, and the off-diagonal blocks are the U-V
+#'   cross-covariances.
 #' @details
-#' The function updates the full covariance matrix for multiplicative effects
-#' using an inverse-Wishart distribution. The posterior distribution is:
-#' \deqn{Suv ~ IW(kappa0 * Suv0 + t(UV) \%*\% UV, n + kappa0)}
-#' where UV = cbind(U, V) is the stacked matrix of effects.
-#'
-#' This hierarchical prior allows for adaptive shrinkage of the multiplicative
-#' effects, with the amount of shrinkage determined by the data through the
-#' posterior update.
-#' @author Peter Hoff, Shahryar Minhas
+#' Stacking the effects columnwise as \eqn{W = [U, V]}, the conjugate
+#' inverse-Wishart update combines the prior scale \code{kappa0 * Suv0}
+#' with the residual cross-product \code{crossprod(W)} and adds the n
+#' observed rows to the degrees of freedom. A draw from the inverse
+#' Wishart is obtained by drawing from the Wishart with the inverted
+#' scale matrix (via \code{rwish}) and inverting the result.
+#' @author lame authors
+#' @keywords internal
 #' @export rSuv_fc
 rSuv_fc <- function(U, V, Suv0=NULL, kappa0=NULL)  {
 	n <- nrow(U)
 	R <- ncol(U)
+	dim_uv <- 2 * R
 
-	if(is.null(Suv0)){ Suv0 <- diag(2*R) }
-	if(is.null(kappa0)){ kappa0 <- 2 + 2*R }
+	if (is.null(Suv0)) { Suv0 <- diag(dim_uv) }
+	if (is.null(kappa0)) { kappa0 <- 2 + dim_uv }
 
-	UV <- cbind(U, V)
-	Suv <- solve(rwish(solve(kappa0*Suv0 + t(UV)%*%UV), n + kappa0))
+	stacked <- cbind(U, V)
+	cross <- crossprod(stacked)
 
-	return(Suv)
+	post_scale <- kappa0 * Suv0 + cross
+	post_df <- kappa0 + n
+
+	wishart_draw <- rwish(solve(post_scale), post_df)
+	Suv <- solve(wishart_draw)
+
+	Suv
 }

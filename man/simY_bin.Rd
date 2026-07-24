@@ -2,21 +2,25 @@
 % Please edit documentation in R/simY_bin.R
 \name{simY_bin}
 \alias{simY_bin}
-\title{Simulate a network, i.e. a binary relational matrix}
+\title{Simulate a binary relational matrix from latent means}
 \usage{
 simY_bin(EZ, rho)
 }
 \arguments{
-\item{EZ}{square matrix giving the expected value of the latent Z matrix}
+\item{EZ}{matrix giving the expected value of the latent \code{Z} matrix}
 
 \item{rho}{dyadic correlation}
 }
 \value{
-a square binary matrix
+a binary matrix matching the dimensions of \code{EZ}
 }
 \description{
-Simulates a network, i.e. a binary relational matrix
+Draws a latent Gaussian array with the given dyadic correlation and
+thresholds it at zero to produce a binary (0/1) sociomatrix. Self-ties on
+the diagonal of a square (unipartite) matrix are set to \code{NA};
+rectangular (bipartite) matrices are returned with every entry populated.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

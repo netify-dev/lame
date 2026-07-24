@@ -100,11 +100,9 @@ latent_positions.ame	latent_positions
 latent_positions.ame_als	latent_positions
 latent_positions.lame	latent_positions
 lazegalaw	lazegalaw
-ldZgbme	ldZgbme
 lfo	lfo
 list_to_array	list_to_array
 list_to_array_bipartite	list_to_array_bipartite
-llsrmRho	llsrmRho
 logLik.ame	logLik.ame
 logLik.ame_als	logLik.ame_als
 logLik.lame	logLik.ame
@@ -167,9 +165,7 @@ residuals.boot_ame	boot_ame-no-fitted
 residuals.lame	residuals.lame
 rhat_dynamic_beta	rhat_dynamic_beta
 rmvnorm	rmvnorm
-rrho_fc	rrho_fc
 rrho_mh	rrho_mh
-rrho_mh_rep	rrho_mh_rep
 rs2_fc	rs2_fc
 rs2_rep_fc	rs2_rep_fc
 rSab_fc	rSab_fc

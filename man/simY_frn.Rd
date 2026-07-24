@@ -2,7 +2,7 @@
 % Please edit documentation in R/simY_frn.R
 \name{simY_frn}
 \alias{simY_frn}
-\title{Simulate an relational matrix based on a fixed rank nomination scheme}
+\title{Simulate a relational matrix under a fixed rank nomination scheme}
 \usage{
 simY_frn(EZ, rho, odmax, YO)
 }
@@ -22,8 +22,13 @@ a square matrix, where higher values represent stronger
 relationships
 }
 \description{
-Simulate an relational matrix based on a fixed rank nomination scheme
+Simulate a sociomatrix of fixed rank nominations from a social relations
+model. A latent matrix \code{Z} is drawn from the SRM, and each sender's
+outgoing ties are converted into ranked nominations: at most \code{odmax}
+partners are nominated, only positive latent affinities qualify, and the
+retained nominations are numbered from weakest (1) to strongest.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

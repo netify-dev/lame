@@ -4,32 +4,33 @@
 \alias{rs2_fc}
 \title{Gibbs update for dyadic variance}
 \usage{
-rs2_fc(Z, rho,offset=0,nu0=NULL,s20=NULL)
+rs2_fc(Z, rho, offset = 0, nu0 = NULL, s20 = NULL)
 }
 \arguments{
-\item{Z}{n X n normal relational matrix}
+\item{Z}{n x n normal relational matrix}
 
-\item{rho}{current value of rho}
+\item{rho}{current within-dyad correlation}
 
-\item{offset}{matrix of the same dimension as Z. It is assumed that Z-offset
-is equal to dyadic noise, so the offset should contain any additive and
-multiplicative effects (such as \code{Xbeta(X,beta+ U\%*\%t(V) +  
-outer(a,b,"+")  } )}
+\item{offset}{matrix conformable with \code{Z}; \code{Z - offset} is treated
+as pure dyadic noise (so it should carry the additive and multiplicative
+mean structure)}
 
-\item{nu0}{prior degrees of freedom}
+\item{nu0}{prior degrees of freedom (defaults to 1)}
 
-\item{s20}{prior estimate of s2; when \code{NULL} (default) the
-empirical mean-square residual is used, so the prior carries
-\code{nu0} pseudo-observations at the scale of the data rather than
-an absolute guess of 1 (which corrupts s2 -- and through it rho --
-whenever Y is not on unit scale)}
+\item{s20}{prior scale for s2; when \code{NULL} the empirical mean of the
+decorrelated squared residuals is used so the prior sits at the data scale}
 }
 \value{
-a new value of s2
+a single draw of s2
 }
 \description{
-Gibbs update for dyadic variance
+Draw the dyadic residual variance \code{s2} from its inverse-gamma full
+conditional. The residual matrix \code{E = Z - offset} is decorrelated
+within reciprocal dyad pairs and along the diagonal, and the pooled sum of
+squares (together with an optional scaled-inverse-chi-square prior) yields
+the posterior draw.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

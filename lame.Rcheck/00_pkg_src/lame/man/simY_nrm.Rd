@@ -17,8 +17,10 @@ simY_nrm(EY, rho, s2)
 a square matrix
 }
 \description{
-Simulates a normal relational matrix
+Draws a Gaussian sociomatrix whose entries have expectation \code{EY},
+dyadic variance \code{s2} and within-dyad correlation \code{rho}.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

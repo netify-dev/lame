@@ -2,35 +2,40 @@
 % Please edit documentation in R/rZ_cbin_fc.R
 \name{rZ_cbin_fc}
 \alias{rZ_cbin_fc}
-\title{Simulate Z given fixed rank nomination data}
+\title{Draw latent Z for censored-binary nomination data}
 \usage{
 rZ_cbin_fc(Z, EZ, rho, Y, odmax, odobs)
 }
 \arguments{
-\item{Z}{a square matrix, the current value of Z}
+\item{Z}{current latent matrix (square).}
 
-\item{EZ}{expected value of Z}
+\item{EZ}{conditional mean of \code{Z}.}
 
-\item{rho}{dyadic correlation}
+\item{rho}{dyadic (within-dyad) correlation.}
 
-\item{Y}{square matrix of ranked nomination data}
+\item{Y}{observed nomination matrix, entries in \code{{0, 1}} with
+\code{NA} for unobserved cells.}
 
-\item{odmax}{a scalar or vector giving the maximum number of nominations for
-each individual}
+\item{odmax}{nomination cap, a scalar or length-\code{nrow(Z)} vector.}
 
-\item{odobs}{observed outdegree}
+\item{odobs}{observed out-degree per actor.}
 }
 \value{
-a square matrix, the new value of Z
+the updated latent matrix, same shape and dimnames as \code{Z}.
 }
 \description{
-Simulates a random latent matrix Z given its expectation, dyadic correlation
-and censored binary nomination data
-}
-\details{
-simulates Z under the constraints (1) Y\[i,j\]=1, Y\[i,k\]=0 => Z\[i,j\]>Z\[i,k\] ,
-(2) Y\[i,j\]=1 => Z\[i,j\]>0 , (3) Y\[i,j\]=0 & odobs\[i\]<odmax\[i\] => Z\[i,j\]<0
+Gibbs refresh of the latent normal matrix \code{Z} for the
+censored-binary (\code{cbin}) family, where each actor emits a capped
+set of binary nominations. Within every sending row the update honours
+three order constraints: a nominated tie has a positive latent value,
+every nominated tie dominates every non-nominated tie, and a
+non-nominated tie in a row that has not spent its full nomination
+budget (\code{odobs < odmax}) is held below zero. Reciprocal cells are
+coupled through the dyadic correlation \code{rho}; the self-loop
+diagonal and any missing cells are redrawn from their unconstrained
+conditionals.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

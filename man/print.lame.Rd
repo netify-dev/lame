@@ -29,5 +29,5 @@ dynamic block is printed instead of a separate paragraph per component.
 Disable the compact mode by passing \code{compact = FALSE}.
 }
 \author{
-Peter Hoff, Cassy Dorff, Shahryar Minhas
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

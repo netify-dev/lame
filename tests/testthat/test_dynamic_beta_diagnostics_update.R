@@ -147,8 +147,8 @@ test_that("invalid rho_mean outside bounds errors cleanly", {
 	             "must be strictly between")
 })
 
-test_that("T = 1 errors with informative message", {
-	expect_error(dynamic_beta_prior_summary(Tn = 1), "at least 2")
+test_that("n_periods = 1 errors with informative message", {
+	expect_error(dynamic_beta_prior_summary(n_periods = 1), "at least 2")
 })
 
 test_that("freeze_call = TRUE stores a data snapshot on the fit", {

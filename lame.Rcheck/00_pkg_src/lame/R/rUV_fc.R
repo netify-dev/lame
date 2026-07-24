@@ -14,50 +14,77 @@
 #' outer(a,b,"+")  }  )
 #'
 #' @return \item{U}{a new value of U} \item{V}{a new value of V}
-#' @author Peter Hoff
+#' @keywords internal
+#' @author lame authors
 #' @export rUV_fc
 rUV_fc <-
-function(Z,U,V,Suv,rho,s2=1,offset=0) {
-	E<-Z-offset
+function(Z, U, V, Suv, rho, s2 = 1, offset = 0) {
 
-	R<-ncol(U)
+	resid <- Z - offset
+	n_actor <- nrow(resid)
+	dim_uv <- ncol(U)
 
-		Se<-matrix(c(1,rho,rho,1),2,2)*s2
-		iSe2<-mhalf(solve(Se))
-		g<-iSe2[1,1] ; d<-iSe2[1,2]
+	# Symmetric inverse square-root of the 2x2 dyadic noise covariance
+	# Se = s2 * [[1,rho],[rho,1]].  Its eigenpairs are (1,1)/sqrt(2) with
+	# eigenvalue s2*(1+rho) and (1,-1)/sqrt(2) with eigenvalue s2*(1-rho),
+	# so Se^{-1/2} = [[wg,wd],[wd,wg]] with the closed form below.
+	inv_root_plus <- 1 / sqrt(s2 * (1 + rho))
+	inv_root_minus <- 1 / sqrt(s2 * (1 - rho))
+	wg <- 0.5 * (inv_root_plus + inv_root_minus)
+	wd <- 0.5 * (inv_root_plus - inv_root_minus)
+	diag_scale <- wg^2 + wd^2
+	cross_scale <- 2 * wg * wd
 
-		for(r in sample(1:R)) {
-			Er<- E - U[,-r]%*%t(V[,-r]) ;  Es<- (g^2+d^2)*Er+2*g*d*t(Er)
-
-			####
-			# update u[,r]
-			vr<-V[,r]
-			b0<- c(Suv[r,-r]%*%solve(Suv[-r,-r]))
-			v0<- c(Suv[r,r] - b0%*%Suv[-r,r])
-			m0<- cbind(U[,-r],V)%*%b0
-			ssv<-max(sum(vr^2),1e-6)
-			a<- (g^2+d^2)*ssv+1/v0 ; c<- -2*g*d/(a^2+a*2*g*d* ssv)
-			Esv<-Es%*%vr
-			m1<- Esv/a + c*vr*sum((Esv+m0/v0)*vr)  + m0/(a*v0)
-			ah<-sqrt(1/a) ; bh<-(sqrt(1/a+ ssv*c)- sqrt(1/a) )/ssv ; e<-rnorm(nrow(E))
-			U[,r]<- m1 + ah*e + bh*vr*sum(vr*e)
-			####
-
-			####
-			# update v[,r]
-			ur<-U[,r]
-			rv<-R+r
-			b0<- c(Suv[rv,-rv]%*%solve(Suv[-rv,-rv]))
-			v0<- c(Suv[rv,rv] - b0%*%Suv[-rv,rv])
-			m0<- cbind(U,V[,-r])%*%b0
-			ssu<-max(sum(ur^2),1e-6)
-			a<- (g^2+d^2)*ssu+1/v0 ; c<- -2*g*d/(a^2+a*2*g*d* ssu)
-			tEsu<-t(Es)%*%ur
-			m1<- tEsu/a + c*ur*sum((tEsu+m0/v0)*ur)  + m0/(a*v0)
-			ah<-sqrt(1/a) ; bh<-(sqrt(1/a+ ssu*c)- sqrt(1/a) )/ssu ; e<-rnorm(nrow(E))
-			V[,r]<- m1 + ah*e + bh*ur*sum(ur*e)
-			####
-		}
-
-		list(U=U,V=V)
+	# Draw a single actor-column of a factor matrix from its Gaussian full
+	# conditional N(mu, Lambda^{-1}), with
+	#   Lambda = diag_scale * ||partner||^2 * I + cross_scale * partner partner'
+	#            + (1/prior_var) * I
+	#   info   = whitened_signal + prior_mean / prior_var
+	# using an explicit precision matrix and a Cholesky-based sample.
+	draw_factor_column <- function(partner, whitened_signal, prior_mean, prior_var) {
+		partner_ss <- sum(partner^2)
+		precision <- diag(diag_scale * partner_ss + 1 / prior_var, n_actor)
+		precision <- precision + cross_scale * tcrossprod(partner)
+		info <- whitened_signal + prior_mean / prior_var
+		root <- chol(precision)
+		post_mean <- backsolve(root, backsolve(root, info, transpose = TRUE))
+		post_mean + backsolve(root, rnorm(n_actor))
 	}
+
+	for (r in sample(seq_len(dim_uv))) {
+
+		# Residual attributable to the r-th latent dimension, and its
+		# precision-whitened form Es = diag_scale*Er + cross_scale*Er'.
+		other <- setdiff(seq_len(dim_uv), r)
+		partial_resid <- resid - U[, other, drop = FALSE] %*% t(V[, other, drop = FALSE])
+		whitened_resid <- diag_scale * partial_resid + cross_scale * t(partial_resid)
+
+		## --- update column r of U, conditioning on the current V ---
+		u_index <- r
+		free <- setdiff(seq_len(2 * dim_uv), u_index)
+		reg_coef <- as.numeric(Suv[u_index, free] %*% solve(Suv[free, free]))
+		cond_var <- as.numeric(Suv[u_index, u_index] - reg_coef %*% Suv[free, u_index])
+		cond_mean <- cbind(U[, other, drop = FALSE], V) %*% reg_coef
+		v_col <- V[, r]
+		U[, r] <- draw_factor_column(
+			partner = v_col,
+			whitened_signal = whitened_resid %*% v_col,
+			prior_mean = cond_mean,
+			prior_var = cond_var)
+
+		## --- update column r of V, conditioning on the refreshed U ---
+		v_index <- dim_uv + r
+		free <- setdiff(seq_len(2 * dim_uv), v_index)
+		reg_coef <- as.numeric(Suv[v_index, free] %*% solve(Suv[free, free]))
+		cond_var <- as.numeric(Suv[v_index, v_index] - reg_coef %*% Suv[free, v_index])
+		cond_mean <- cbind(U, V[, other, drop = FALSE]) %*% reg_coef
+		u_col <- U[, r]
+		V[, r] <- draw_factor_column(
+			partner = u_col,
+			whitened_signal = crossprod(whitened_resid, u_col),
+			prior_mean = cond_mean,
+			prior_var = cond_var)
+	}
+
+	list(U = U, V = V)
+}

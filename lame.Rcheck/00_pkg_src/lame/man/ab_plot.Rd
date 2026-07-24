@@ -21,21 +21,23 @@ ab_plot(
 \item{effect}{Character string specifying which effect to plot:
 "sender" (default) or "receiver"}
 
-\item{sorted}{Logical; if TRUE (default), actors are sorted by effect magnitude}
+\item{sorted}{Logical; if TRUE (default), actors are sorted by effect
+magnitude. Applies to \code{ame} / \code{lame} fits;
+\code{ame_als} fits are always sorted by value.}
 
 \item{labels}{Logical; if TRUE, actor labels are shown on x-axis (default TRUE
-for n <= 50 actors)}
+for n <= 50 actors). Applies to \code{ame} / \code{lame} fits.}
 
-\item{title}{Optional title for the plot}
+\item{title}{Optional title for the plot (\code{ame} / \code{lame} fits).}
 
 \item{time_point}{For dynamic effects, which time point to plot (default: last).
-Can be numeric index, "all" for faceted plot, or "average" for time-averaged}
+Can be a numeric index, "all" for a faceted plot, or "average" for time-averaged}
 
 \item{plot_type}{For dynamic effects: "snapshot" (single time), "trajectory" (evolution over time),
-"faceted" (grid of time points), or "ribbon" (posterior credible bands over time).
-For static effects, this parameter is ignored.}
+"faceted" (grid of time points), or "ribbon" (effect path with a 95\\% posterior
+band per period). For static effects, this parameter is ignored.}
 
-\item{show_actors}{Character vector of specific actors to highlight (for dynamic trajectory/ribbon plots)}
+\item{show_actors}{Character vector of specific actors to highlight (for dynamic trajectory / ribbon plots)}
 }
 \value{
 A ggplot2 object that can be further customized

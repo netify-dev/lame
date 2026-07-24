@@ -1,107 +1,123 @@
-#' Computes the design socioarray of covariate values
+#' Assemble the dyadic design socioarray for an AME model
 #'
-#' Computes the design socioarray of covariate values for an AME fit
-#'
+#' Stacks the row, column and dyadic covariates into a single \eqn{n \times n
+#' \times p} array in which slice \eqn{k} holds the dyad-level values of the
+#' \eqn{k}th predictor. A sender attribute is broadcast down the rows, a
+#' receiver attribute is broadcast across the columns, and a dyadic covariate
+#' is copied verbatim. An intercept slice of ones is prepended unless it is
+#' switched off or would duplicate an already-constant predictor.
 #'
 #' @usage design_array(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n,warn=TRUE)
-#' @param Xrow an n x pr matrix of row covariates
-#' @param Xcol an n x pc matrix of column covariates
+#' @param Xrow an n x pr matrix of row (sender) covariates
+#' @param Xcol an n x pc matrix of column (receiver) covariates
 #' @param Xdyad an n x n x pd array of dyadic covariates
-#' @param intercept logical
+#' @param intercept logical; prepend a constant slice of ones
 #' @param n number of rows/columns
 #' @param warn logical; warn when missing covariate values are zero-filled
 #'   (default \code{TRUE}). Set \code{FALSE} when the caller has already
 #'   propagated the missingness into the response.
 #' @return an n x n x (pr+pc+pd+intercept) 3-way array
-#' @author Peter Hoff
+#' @author lame authors
+#' @keywords internal
 #' @export design_array
-design_array<-function(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n,warn=TRUE) {
+design_array <- function(Xrow=NULL, Xcol=NULL, Xdyad=NULL, intercept=TRUE, n, warn=TRUE) {
 
-	####
-	# coerce data.frames up front -- length(df) returns ncol(df), not nrow*ncol,
-	# which would give a fractional pr/pc and a subscript-out-of-bounds crash
-	# in the array allocation below. (the later as.matrix() calls happen after
-	# pr/pc are already wrong.)
+	# data.frames must be coerced before anything measures their size:
+	# length(df) reports the column count, not the cell count, which would
+	# corrupt every downstream dimension.
 	if (!is.null(Xrow) && is.data.frame(Xrow)) Xrow <- as.matrix(Xrow)
 	if (!is.null(Xcol) && is.data.frame(Xcol)) Xcol <- as.matrix(Xcol)
 
-	# covariate array
-	pr<-length(Xrow)/n
-	pc<-length(Xcol)/n
-	pd<-length(Xdyad)/n^2
-	X<-array(dim=c(n,n,pr+pc+pd))
-	dnX<-NULL
-	####
+	# collect the covariate layers one at a time; each layer is a full n x n
+	# matrix and gets a matching label. the array is materialised only once,
+	# after every layer is known.
+	layers <- vector("list", 0L)
+	labels <- character(0L)
 
-	####
-	# row covariates
-	if(pr>0) {
-		Xrow<-as.matrix(Xrow)
-		Xrowa<-array(dim=c(n,n,pr))
-		for( j in 1:pr ){ Xrowa[,,j]<-matrix( Xrow[,j], n,n) }
-		X[,,1:pr]<- Xrowa
-		row_names <- colnames(Xrow)
-		if(is.null(row_names)) {
-			row_names <- paste0("Xrow", 1:pr)
+	# --- sender (row) effects: entry (i, j) carries actor i's attribute ---
+	if (!is.null(Xrow)) {
+		Xrow <- as.matrix(Xrow)
+		pr   <- ncol(Xrow)
+		nms  <- colnames(Xrow)
+		if (is.null(nms)) nms <- paste0("Xrow", seq_len(pr))
+		for (k in seq_len(pr)) {
+			# recycling a length-n column down a matrix fills entry (i, j)
+			# with Xrow[i, k] for every j
+			layers <- c(layers, list(matrix(Xrow[, k], n, n)))
 		}
-		dnX<-c(dnX, .lame_apply_suffix(row_names, "row"))
+		labels <- c(labels, .lame_apply_suffix(nms, "row"))
 	}
-	####
 
-	####
-	# column covariates
-	if(pc>0) {
-		Xcol<-as.matrix(Xcol)
-		Xcola<-array(dim=c(n,n,pc))
-		for( j in 1:pc ){ Xcola[,,j]<-t(matrix( Xcol[,j], n,n)) }
-		X[,,pr+1:pc]<- Xcola
-		col_names <- colnames(Xcol)
-		if(is.null(col_names)) {
-			col_names <- paste0("Xcol", 1:pc)
+	# --- receiver (col) effects: entry (i, j) carries actor j's attribute ---
+	if (!is.null(Xcol)) {
+		Xcol <- as.matrix(Xcol)
+		pc   <- ncol(Xcol)
+		nms  <- colnames(Xcol)
+		if (is.null(nms)) nms <- paste0("Xcol", seq_len(pc))
+		for (k in seq_len(pc)) {
+			# filling by row puts Xcol[j, k] in entry (i, j) for every i
+			layers <- c(layers, list(matrix(Xcol[, k], n, n, byrow = TRUE)))
 		}
-		dnX<-c(dnX, .lame_apply_suffix(col_names, "col"))
+		labels <- c(labels, .lame_apply_suffix(nms, "col"))
 	}
-	####
 
-	####
-	# dyadic covariates
-	if(pd>0)                                                {
-		# capture the covariate name before the single-slice rebuild
-		dyad_names <- dimnames(Xdyad)[[3]]
-		if(pd==1){ Xdyad<-array(Xdyad,dim=c(n,n,pd)) }
-		X[,,pr+pc+1:pd]<-Xdyad
-		if(is.null(dyad_names)) {
-			dyad_names <- paste0("Xdyad", 1:pd)
+	# --- dyadic effects: the covariate surface is used as-is ---
+	if (!is.null(Xdyad)) {
+		dnms <- dimnames(Xdyad)[[3L]]
+		Xd   <- if (length(dim(Xdyad)) == 3L) Xdyad else array(Xdyad, dim = c(n, n, 1L))
+		pd   <- dim(Xd)[3L]
+		if (is.null(dnms)) dnms <- paste0("Xdyad", seq_len(pd))
+		for (k in seq_len(pd)) {
+			layers <- c(layers, list(Xd[, , k]))
 		}
-		dnX<-c(dnX, .lame_apply_suffix(dyad_names, "dyad"))
+		labels <- c(labels, .lame_apply_suffix(dnms, "dyad"))
 	}
-	####
 
-	####
-	# add intercept
-	if(!any(apply(X,3,function(x){var(c(x),na.rm=TRUE)})==0) & intercept ) {
-		X1<-array(dim=c(0,0,1)+dim(X))
-		X1[,,1]<-1 ; X1[,,-1]<-X
-		X<-X1
-		dnX<-c("intercept",dnX)
+	# stack the collected layers into the socioarray
+	p <- length(layers)
+	if (p > 0L) {
+		X <- array(unlist(layers, use.names = FALSE), dim = c(n, n, p))
+	} else {
+		X <- array(numeric(0L), dim = c(n, n, 0L))
 	}
-	####
 
-	####
-	# set variable names
-	if(dim(X)[[3]]>1) { dimnames(X)[[3]]<- dnX }
-	if(dim(X)[[3]]==1){ dimnames(X)[[3]]<- list(dnX) }
-	####
+	# decide on the intercept: keep it unless the user declined or one of the
+	# supplied covariates is already constant (which would make it redundant
+	# and the design rank-deficient).
+	use_intercept <- isTRUE(intercept)
+	if (use_intercept && p > 0L) {
+		layer_var <- apply(X, 3L, function(s) var(as.vector(s), na.rm = TRUE))
+		if (any(layer_var == 0, na.rm = TRUE)) use_intercept <- FALSE
+	}
 
-	####
-	# replace missing values with zeros
-	if( warn && sum(is.na(X)) > sum( is.na(apply(X,3,diag)) ) ) {
-		if(getOption("lame.warn.na", TRUE)) {
-			warning("Replacing NAs in design matrix with zeros", call. = FALSE)
+	if (use_intercept) {
+		ones <- array(1, dim = c(n, n, 1L))
+		if (p > 0L) {
+			X <- array(c(as.vector(ones), as.vector(X)), dim = c(n, n, p + 1L))
+		} else {
+			X <- ones
 		}
+		labels <- c("intercept", labels)
 	}
-	X[is.na(X)]<-0
-	####
+
+	# attach predictor names on the third dimension only (the first two
+	# dimensions stay anonymous, matching the estimation routines' expectations)
+	np <- dim(X)[3L]
+	if (np >= 1L) dimnames(X)[[3L]] <- labels
+
+	# zero-fill any remaining gaps. self-ties on the diagonal are structurally
+	# absent, so only genuinely missing off-diagonal covariate values are worth
+	# a warning.
+	if (anyNA(X)) {
+		if (warn) {
+			n_missing <- sum(is.na(X))
+			n_diag    <- sum(is.na(apply(X, 3L, diag)))
+			if (n_missing > n_diag && getOption("lame.warn.na", TRUE)) {
+				warning("Replacing NAs in design matrix with zeros", call. = FALSE)
+			}
+		}
+		X[is.na(X)] <- 0
+	}
 
 	X
 }

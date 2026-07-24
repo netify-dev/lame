@@ -2,30 +2,36 @@
 % Please edit documentation in R/rrho_mh.R
 \name{rrho_mh}
 \alias{rrho_mh}
-\title{Metropolis update for dyadic correlation}
+\title{Metropolis-Hastings update for the within-dyad correlation}
 \usage{
-rrho_mh(Z, rho, s2 = 1,offset=0, asp=NULL)
+rrho_mh(Z, rho, s2 = 1, offset = 0, asp = NULL)
 }
 \arguments{
-\item{Z}{n X n normal relational matrix}
+\item{Z}{n x n normal relational matrix.}
 
-\item{rho}{current value of rho}
+\item{rho}{current value of rho.}
 
-\item{s2}{current value of s2}
+\item{s2}{current value of the dyadic variance.}
 
-\item{offset}{matrix of the same dimension as Z. It is assumed that
-Z-offset is equal to dyadic noise, so the offset should contain any
-additive and multiplicative effects (such as
-\code{Xbeta(X,beta+ U\%*\%t(V) +  outer(a,b,"+")  }   )}
+\item{offset}{matrix matching \code{Z}; \code{Z - offset} is treated as
+dyadic noise (so it should absorb any additive/multiplicative effects).}
 
-\item{asp}{use arc sine prior (TRUE) or uniform prior (FALSE)}
+\item{asp}{logical; use an arc-sine prior (\code{TRUE}, the default when
+\code{NULL}) or a uniform prior (\code{FALSE}).}
 }
 \value{
-a new value of rho
+a new (scalar) value of rho.
 }
 \description{
-Metropolis update for dyadic correlation
+Draws a new value of the dyadic correlation rho from its full conditional
+using a random-walk-style Metropolis-Hastings step. Each dyad's pair of
+directed residuals is modelled as bivariate normal with unit variances
+(after scaling by the dyadic variance) and correlation rho; the proposal is
+a normal truncated to (-1, 1) and the acceptance ratio combines the
+bivariate-normal log-likelihood, an optional arc-sine prior, and the
+truncated-proposal normaliser.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

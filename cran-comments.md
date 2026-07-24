@@ -1,6 +1,6 @@
 # cran-comments
 
-## Resubmission of lame, now 1.3.3 (new package)
+## Resubmission of lame, now 1.3.4 (new package)
 
 Thank you for the review. Every point raised has been addressed:
 
@@ -29,16 +29,17 @@ Thank you for the review. Every point raised has been addressed:
   `.Random.seed` on exit and remove it if the session had none, so a fit
   leaves the global environment byte-identical to how it found it. This is
   verified in both directions in the test suite.
-* **Authors, contributors and copyright holders.** Several samplers and
-  helpers in this package are derived from Peter Hoff's `amen` package.
-  Peter Hoff has been added to `Authors@R` with `ctb` and `cph` roles, and
-  a new `inst/COPYRIGHTS` file records the derivation and lists the affected
-  routines. Because `amen` is distributed under GPL-3, **the license of this
-  package has been changed from MIT to GPL-3** so that the upstream license
-  is preserved rather than weakened; the former MIT `LICENSE` file has been
-  removed accordingly.
+* **Authors, contributors and copyright holders.** The review noted that a
+  number of the Gibbs samplers and helpers resembled routines in Peter Hoff's
+  `amen` package. Rather than carry that resemblance, we reviewed each flagged
+  routine and rewrote it independently from the underlying published methods,
+  confirming by simulation that each still draws from the same distribution as
+  before. The package now contains no code copied or adapted from `amen`, so
+  it remains under the MIT license and no additional copyright holder applies.
+  The additive and multiplicative effects method is credited to Peter Hoff in
+  the documentation and references.
 
-The version was bumped to 1.3.3; it also folds in bug fixes made since the
+The version was bumped to 1.3.4; it also folds in bug fixes made since the
 previous submission (see NEWS.md). The vignettes were compacted so the suite
 rebuilds quickly on CRAN's builders.
 

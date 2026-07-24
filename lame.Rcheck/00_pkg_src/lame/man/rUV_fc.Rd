@@ -31,5 +31,6 @@ outer(a,b,"+")  }  )}
 A Gibbs sampler for updating the multiplicative effect matrices U and V
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

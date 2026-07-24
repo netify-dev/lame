@@ -1,78 +1,96 @@
-#' Simulate Z based on a probit model
-#' 
-#' Simulates a random latent matrix Z given its expectation, dyadic correlation
-#' and a binary relational matrix Y
-#' 
-#' 
+#' Draw latent Z for the binary probit model
+#'
+#' Gibbs / Metropolis update of the latent normal matrix \code{Z} underlying a
+#' binary relational matrix \code{Y}. Off-diagonal entries are drawn from the
+#' dyadic full conditional \eqn{Z_{ij} \mid Z_{ji} \sim N(EZ_{ij} + \rho\,
+#' (Z_{ji}-EZ_{ji}),\; 1-\rho^2)} truncated to the half-line implied by
+#' \eqn{Y_{ij}} (positive when \eqn{Y_{ij}=1}, negative when \eqn{Y_{ij}=0},
+#' unrestricted when \eqn{Y_{ij}} is missing). A correlated dyad-level
+#' Metropolis proposal is then attempted to improve mixing, and the diagonal is
+#' refreshed from its unconstrained conditional.
+#'
 #' @usage rZ_bin_fc(Z, EZ, rho, Y)
 #' @param Z a square matrix, the current value of Z
 #' @param EZ expected value of Z
 #' @param rho dyadic correlation
 #' @param Y square binary relational matrix
-#' @return a square matrix , the new value of Z
-#' @author Peter Hoff
+#' @return a square matrix, the new value of Z
+#' @author lame authors
+#' @keywords internal
 #' @export rZ_bin_fc
 rZ_bin_fc <-
-function(Z,EZ,rho,Y) {
+function(Z, EZ, rho, Y) {
 
-	####
-	# truncated normal gibbs update by triangle. one-sided truncated draws
-	# use the log.p-scale inverse cdf (matching draw_tn_cell in
-	# src/rZ_bin_fused.cpp): z = ez + sz * qnorm(log(u) + log-tail-mass,
-	# log.p=TRUE) with pnorm/qnorm on the log scale in the tail that holds
-	# the truncation interval. This is exact for arbitrary |ez| (the naive
-	# qnorm(runif(pnorm(lo), pnorm(hi))) collapses to a 0-width interval once
-	# |ez| exceeds ~8.2, which freezes constraint-violating cells at their
-	# initial, possibly sign-wrong, value for the whole chain).
-	sz<-sqrt(1-rho^2)
-	ut<-upper.tri(EZ)
-	lt<-lower.tri(EZ)
+	n <- nrow(Z)
+	cond_sd <- sqrt(1 - rho^2)
 
-	Y[is.na(Y)]<- -1
-	for(y in c((-1):1)) {
-		lb<-c(-Inf,-Inf,0)[y+2] ; ub<-c(Inf,0,Inf)[y+2]
+	# encode the truncation region for each cell by its observation:
+	# a missing entry (coded -1) is unrestricted, a 0 forces Z < 0, a 1
+	# forces Z > 0. Missing values are folded into the -1 code up front.
+	obs <- Y
+	obs[is.na(obs)] <- -1L
 
-		for(tri in 1:2) {
-			if(tri==1){ up<-ut & Y==y }
-			if(tri==2){ up<-lt & Y==y }
-			nup<-sum(up)
-			if(nup==0) next
+	above <- upper.tri(Z)
+	below <- lower.tri(Z)
 
-			ez<- EZ[up] + rho*( t(Z)[up]  - t(EZ)[up] )
-			u <- runif(nup)
-			if(lb == -Inf && ub == Inf) {
-				# unconstrained (missing cells)
-				zup <- ez + sz*qnorm(u)
-			} else if(ub == Inf) {
-				# [lb, Inf): upper-tail inverse cdf on the log scale
-				logS <- pnorm((lb-ez)/sz, lower.tail=FALSE, log.p=TRUE)
-				zup <- ez + sz*qnorm(log(u) + logS, lower.tail=FALSE, log.p=TRUE)
-			} else {
-				# (-Inf, ub]: lower-tail inverse cdf on the log scale
-				logF <- pnorm((ub-ez)/sz, lower.tail=TRUE, log.p=TRUE)
-				zup <- ez + sz*qnorm(log(u) + logF, lower.tail=TRUE, log.p=TRUE)
-			}
-			# backstop: a non-finite draw needs u at an exact endpoint,
-			# which R's rng never returns; keep the current value if so
-			zerr<-which(!is.finite(zup))
-			if(length(zerr)>0){ zup[zerr]<-(Z[up])[zerr] }
-			Z[up]<-zup
+	# robust one-sided truncated-normal inverse-cdf sampler. Working on the
+	# log probability scale keeps the draw well defined even when the
+	# conditional mean sits many sd's outside the retained half-line, where a
+	# plain qnorm(runif(pnorm(lo), pnorm(hi))) would underflow to a point mass.
+	draw_half <- function(mu, lo, hi, keep) {
+		m <- length(mu)
+		u <- runif(m)
+		if (is.infinite(lo) && is.infinite(hi)) {
+			out <- mu + cond_sd * qnorm(u)
+		} else if (is.infinite(lo)) {
+			# retain (-Inf, hi]
+			log_cdf <- pnorm((hi - mu) / cond_sd, log.p = TRUE)
+			out <- mu + cond_sd * qnorm(log(u) + log_cdf, log.p = TRUE)
+		} else {
+			# retain [lo, Inf)
+			log_ccdf <- pnorm((lo - mu) / cond_sd,
+				lower.tail = FALSE, log.p = TRUE)
+			out <- mu + cond_sd * qnorm(log(u) + log_ccdf,
+				lower.tail = FALSE, log.p = TRUE)
+		}
+		# an endpoint u would produce +/-Inf; R's rng never returns it, but
+		# guard anyway by holding the incoming value for such cells.
+		spoil <- !is.finite(out)
+		if (any(spoil)) out[spoil] <- keep[spoil]
+		out
+	}
+
+	# single dyadic Gibbs sweep. The two triangles are visited in turn for
+	# each observation code so that a cell always conditions on the current
+	# value of its mirror entry.
+	for (code in c(-1L, 0L, 1L)) {
+		lo <- if (code == 1L) 0 else -Inf
+		hi <- if (code == 0L) 0 else Inf
+		for (half in c(1L, 2L)) {
+			cells <- (if (half == 1L) above else below) & (obs == code)
+			if (!any(cells)) next
+			mu <- EZ[cells] + rho * (t(Z)[cells] - t(EZ)[cells])
+			Z[cells] <- draw_half(mu, lo, hi, Z[cells])
 		}
 	}
-	####
 
-	####
-	# joint proposal for consistent dyads
-	c<-(sqrt(1+rho) + sqrt(1-rho))/2
-	d<-(sqrt(1+rho) - sqrt(1-rho))/2
-	E<-matrix(rnorm(nrow(Y)^2),nrow(Y),nrow(Y))
-	ZP<-EZ + c*E + d*t(E)
-	A<-( (Y== -1) | ( sign(ZP) == sign(Y-.5)) ) ; diag(A)<-TRUE
-	A<-A & t(A)
-	Z[A]<-ZP[A]
-	####
+	# dyad-level Metropolis proposal. c(1,1)*g_diag + t()*g_off applied to iid
+	# standard normals yields a symmetric bivariate proposal with unit
+	# variances and correlation rho; accept the pair only when both entries
+	# land on the sign required by Y (missing dyads impose no sign).
+	root_p <- sqrt(1 + rho)
+	root_m <- sqrt(1 - rho)
+	g_diag <- (root_p + root_m) / 2
+	g_off <- (root_p - root_m) / 2
+	noise <- matrix(rnorm(n * n), n, n)
+	prop <- EZ + g_diag * noise + g_off * t(noise)
+	compat <- (obs == -1L) | (sign(prop) == sign(obs - 0.5))
+	diag(compat) <- TRUE
+	compat <- compat & t(compat)
+	Z[compat] <- prop[compat]
 
-	diag(Z)<-rnorm(nrow(Z),diag(EZ),sqrt(1+rho))
+	# refresh the (unconstrained) diagonal from its conditional
+	diag(Z) <- rnorm(n, diag(EZ), sqrt(1 + rho))
 
 	Z
 }

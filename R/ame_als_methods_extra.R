@@ -242,10 +242,16 @@ ab_plot.ame_als <- function(fit, effect = c("sender", "receiver", "both"),
 		nm <- names(vec) %||% paste0("a", seq_along(vec))
 		df <- data.frame(actor = nm, value = unname(vec),
 		                 effect = lbl, stringsAsFactors = FALSE)
-		# bootstrap intervals when available
-		if (!is.null(bt) && !is.null(bt[[paste0(lbl, "_q")]])) {
-			q <- bt[[paste0(lbl, "_q")]]
-			df$lo <- q[, 1]; df$hi <- q[, 2]
+		# bootstrap intervals from the per-replicate a / b coefficient draws
+		# (bt$a_coefs / bt$b_coefs are [n_boot x n_actor]; failed replicates
+		# are NA rows and drop out of the quantile)
+		coef_mat <- if (!is.null(bt)) {
+			if (lbl == "sender") bt$a_coefs else bt$b_coefs
+		} else NULL
+		if (!is.null(coef_mat) && ncol(coef_mat) == nrow(df)) {
+			q <- apply(coef_mat, 2, stats::quantile,
+			           probs = c(0.025, 0.975), na.rm = TRUE)
+			df$lo <- q[1, ]; df$hi <- q[2, ]
 		} else {
 			df$lo <- NA_real_; df$hi <- NA_real_
 		}
@@ -267,9 +273,10 @@ ab_plot.ame_als <- function(fit, effect = c("sender", "receiver", "both"),
 	                    ggplot2::aes(x = .data$value, y = .data$actor)) +
 		ggplot2::geom_point()
 	if (!all(is.na(df_all$lo))) {
-		p <- p + ggplot2::geom_errorbarh(ggplot2::aes(xmin = .data$lo,
-		                                              xmax = .data$hi),
-		                                  height = 0.2, alpha = 0.6)
+		p <- p + ggplot2::geom_errorbar(ggplot2::aes(xmin = .data$lo,
+		                                             xmax = .data$hi),
+		                                orientation = "y",
+		                                width = 0.2, alpha = 0.6)
 	}
 	p + ggplot2::geom_vline(xintercept = 0, linetype = 3) +
 		ggplot2::facet_wrap(~ effect, scales = "free_y") +

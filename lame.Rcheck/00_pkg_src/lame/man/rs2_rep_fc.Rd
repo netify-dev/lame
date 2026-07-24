@@ -2,23 +2,27 @@
 % Please edit documentation in R/rs2_rep_fc.R
 \name{rs2_rep_fc}
 \alias{rs2_rep_fc}
-\title{Gibbs update for dyadic variance with independent replicate relational data}
+\title{Full-conditional draw of the dyadic variance for replicated relational data}
 \usage{
 rs2_rep_fc(E.T, rho)
 }
 \arguments{
-\item{E.T}{Array of square residual relational matrix series. The third
-dimension of the array is for different replicates. Each slice of the array
-according to the third dimension is a square residual relational matrix}
+\item{E.T}{numeric array of dimension n x n x N holding the residual
+matrices along the third margin (one square slice per replicate).}
 
-\item{rho}{current value of rho}
+\item{rho}{current value of the within-dyad correlation.}
 }
 \value{
-a new value of s2
+a single numeric draw of \code{s2}.
 }
 \description{
-Gibbs update for dyadic variance with independent replicate relational data
+Samples the dyadic variance \code{s2} from its Gibbs full conditional when
+the residual cube stacks several independent replicate networks that share a
+common within-dyad correlation \code{rho}. Each ordered dyad pair is whitened
+by the symmetric inverse square root of the 2x2 correlation matrix and the
+pooled whitened sum of squares drives an inverse-gamma draw.
 }
 \author{
-Peter Hoff, Yanjun He
+lame authors
 }
+\keyword{internal}

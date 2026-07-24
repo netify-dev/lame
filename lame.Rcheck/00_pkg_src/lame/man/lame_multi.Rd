@@ -4,7 +4,7 @@
 \alias{lame_multi}
 \title{Multi-panel lame() with shared coefficients}
 \usage{
-lame_multi(Y_list, Xdyad_list, ..., shared_dynamic_beta = TRUE)
+lame_multi(Y_list, Xdyad_list, ...)
 }
 \arguments{
 \item{Y_list}{A list of length K, each element a list (or 3-D array)
@@ -14,11 +14,9 @@ of T per-panel network observations.}
 dyadic covariate arrays.}
 
 \item{...}{Arguments forwarded to \code{lame()} (e.g. family,
-R, mode, nscan, burn, odens, dynamic_beta, dynamic_beta_kind).}
-
-\item{shared_dynamic_beta}{Logical; if \code{TRUE} (default), the
-shared beta posterior is computed (per-period when dynamic_beta
-is active).}
+R, mode, nscan, burn, odens, dynamic_beta, dynamic_beta_kind).
+The pooled beta posterior is always returned, per-period when
+\code{dynamic_beta} is active (detected from the panel fits).}
 }
 \value{
 A list with

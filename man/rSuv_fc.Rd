@@ -7,40 +7,36 @@
 rSuv_fc(U, V, Suv0=NULL, kappa0=NULL)
 }
 \arguments{
-\item{U}{matrix of multiplicative row effects (n x R matrix where n is the
-number of nodes and R is the dimension of multiplicative effects)}
+\item{U}{matrix of multiplicative row effects (n x R).}
 
-\item{V}{matrix of multiplicative column effects (n x R matrix)}
+\item{V}{matrix of multiplicative column effects (n x R).}
 
-\item{Suv0}{prior (inverse) scale matrix for the prior distribution.
-Default is identity matrix of dimension 2R x 2R, providing a weakly
-informative prior.}
+\item{Suv0}{prior scale matrix (2R x 2R). Defaults to the identity,
+a weakly informative choice.}
 
-\item{kappa0}{prior degrees of freedom for the prior distribution.
-Default is 2 + 2R, which is the minimum for a proper prior with a
-2R x 2R covariance matrix.}
+\item{kappa0}{prior degrees of freedom. Defaults to 2 + 2R, the
+smallest value giving a proper prior for a 2R x 2R covariance.}
 }
 \value{
-Updated covariance matrix Suv (2R x 2R matrix) for the stacked
-effects [U, V]. The first R x R block contains covariances for U,
-the last R x R block contains covariances for V, and the off-diagonal
-blocks contain cross-covariances between U and V.
+The sampled 2R x 2R covariance matrix for \eqn{[U, V]}: the
+leading R x R block is the covariance of U, the trailing R x R block
+is the covariance of V, and the off-diagonal blocks are the U-V
+cross-covariances.
 }
 \description{
-Gibbs sampling for the covariance matrix of multiplicative effects U and V
-in the AME model. This function implements the inverse-Wishart posterior
-update for the covariance matrix of the stacked UV effects.
+Draws the covariance matrix of the stacked multiplicative row/column
+effects \eqn{[U, V]} from its full conditional inverse-Wishart
+distribution in the AME model.
 }
 \details{
-The function updates the full covariance matrix for multiplicative effects
-using an inverse-Wishart distribution. The posterior distribution is:
-\deqn{Suv ~ IW(kappa0 * Suv0 + t(UV) \%*\% UV, n + kappa0)}
-where UV = cbind(U, V) is the stacked matrix of effects.
-
-This hierarchical prior allows for adaptive shrinkage of the multiplicative
-effects, with the amount of shrinkage determined by the data through the
-posterior update.
+Stacking the effects columnwise as \eqn{W = [U, V]}, the conjugate
+inverse-Wishart update combines the prior scale \code{kappa0 * Suv0}
+with the residual cross-product \code{crossprod(W)} and adds the n
+observed rows to the degrees of freedom. A draw from the inverse
+Wishart is obtained by drawing from the Wishart with the inverted
+scale matrix (via \code{rwish}) and inverting the result.
 }
 \author{
-Peter Hoff, Shahryar Minhas
+lame authors
 }
+\keyword{internal}

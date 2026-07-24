@@ -2,7 +2,7 @@
 % Please edit documentation in R/rZ_bin_fc.R
 \name{rZ_bin_fc}
 \alias{rZ_bin_fc}
-\title{Simulate Z based on a probit model}
+\title{Draw latent Z for the binary probit model}
 \usage{
 rZ_bin_fc(Z, EZ, rho, Y)
 }
@@ -16,12 +16,19 @@ rZ_bin_fc(Z, EZ, rho, Y)
 \item{Y}{square binary relational matrix}
 }
 \value{
-a square matrix , the new value of Z
+a square matrix, the new value of Z
 }
 \description{
-Simulates a random latent matrix Z given its expectation, dyadic correlation
-and a binary relational matrix Y
+Gibbs / Metropolis update of the latent normal matrix \code{Z} underlying a
+binary relational matrix \code{Y}. Off-diagonal entries are drawn from the
+dyadic full conditional \eqn{Z_{ij} \mid Z_{ji} \sim N(EZ_{ij} + \rho\,
+(Z_{ji}-EZ_{ji}),\; 1-\rho^2)} truncated to the half-line implied by
+\eqn{Y_{ij}} (positive when \eqn{Y_{ij}=1}, negative when \eqn{Y_{ij}=0},
+unrestricted when \eqn{Y_{ij}} is missing). A correlated dyad-level
+Metropolis proposal is then attempted to improve mixing, and the diagonal is
+refreshed from its unconstrained conditional.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

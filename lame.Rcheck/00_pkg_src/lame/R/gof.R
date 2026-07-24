@@ -82,7 +82,8 @@ gof <- function(
 		stop("Insufficient MCMC samples. Model must have at least 2 saved iterations. Check burn, nscan, and odens parameters.")
 	}
 	if (is.null(nsim)) {
-		nsim <- min(100, n_mcmc - 1)
+		# use every available posterior draw
+		nsim <- n_mcmc - 1
 	} else {
 		nsim <- min(nsim, n_mcmc - 1)
 	}

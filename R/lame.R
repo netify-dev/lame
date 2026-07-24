@@ -797,7 +797,7 @@
 #'   starts; snap ALS fits report snap-score, snap-class, top-period, and
 #'   fitted-surface differences.
 #' @param als_max_iter positive integer (only used when \code{method = "als"}):
-#'   maximum block-coordinate iterations for the ALS fit. Default \code{200}.
+#'   maximum block-coordinate iterations for the ALS fit. Default \code{1000}.
 #' @param als_tol optional positive scalar (only used when
 #'   \code{method = "als"}): convergence tolerance for the ALS objective and
 #'   fitted values. \code{NULL} keeps each ALS estimator's built-in default.
@@ -5147,6 +5147,12 @@ lame <- function(
 						n_mc = .lame_ghk_n_mc %||% 64L,
 						n_mc_fixed = !is.null(.lame_ghk_n_mc),
 						halton_shift = .lame_log_lik_halton_shift %||% 0)
+				} else if (identical(log_lik_method, "augmented")) {
+					# augmented-data contribution: gaussian density of the
+					# latent z around its mean, unit-scale for the non-normal
+					# families whose z carries variance 1
+					ll_row <- dnorm(Z[obs_idx], mean = ez_obs,
+					                sd = sqrt(s2), log = TRUE)
 				} else if (family == "normal") {
 					ll_row <- dnorm(y_obs, mean = ez_obs, sd = sqrt(s2), log = TRUE)
 				} else if (family == "binary" || family == "cbin") {

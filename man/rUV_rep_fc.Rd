@@ -2,15 +2,13 @@
 % Please edit documentation in R/rUV_rep_fc.R
 \name{rUV_rep_fc}
 \alias{rUV_rep_fc}
-\title{Gibbs sampling of U and V}
+\title{Gibbs sampling of U and V from replicated relational data}
 \usage{
 rUV_rep_fc(E.T,U,V,rho,s2=1,shrink=TRUE)
 }
 \arguments{
-\item{E.T}{Array of square residual relational matrix series with additive
-effects and covariates subtracted out. The third dimension of the array is
-for different replicates. Each slice of the array according to the third
-dimension is a square residual relational matrix.}
+\item{E.T}{Array of square residual relational matrices (additive
+effects and covariates removed). The third margin indexes replicates.}
 
 \item{U}{current value of U}
 
@@ -26,9 +24,13 @@ dimension is a square residual relational matrix.}
 \item{U}{a new value of U} \item{V}{a new value of V}
 }
 \description{
-A Gibbs sampler for updating the multiplicative effect matrices U and V,
-assuming they are the same across replicates.
+Draws the multiplicative-effect matrices U and V from their full
+conditional distributions, pooling information across the replicate
+slices of a residual array. Each factor column is updated in turn from
+its Gaussian full conditional, optionally under a hierarchical
+shrinkage prior on the stacked (U, V) rows.
 }
 \author{
-Peter Hoff, Yanjun He
+lame authors
 }
+\keyword{internal}

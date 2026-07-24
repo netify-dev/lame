@@ -5,16 +5,19 @@
 #' Post-MCMC per-actor time-varying slopes
 #'
 #' Computes a smoothed per-actor time-varying slope coefficient on a
-#' nodal covariate slice. For \code{kind = "row"}, each row-actor
-#' \eqn{i} gets a length-\eqn{T} slope path \eqn{\beta_{i,t}} on
-#' \code{Xrow[i, covariate_idx, t]}, fit by ridge-penalised least
-#' squares on the residual after the main MCMC linear predictor.
+#' slice of the combined dyadic design array (\code{fit$Xlist}). For
+#' \code{kind = "row"}, each row-actor \eqn{i} gets a length-\eqn{T} slope
+#' path \eqn{\beta_{i,t}} on the across-column mean of design slice
+#' \code{covariate_idx}, fit by ridge-penalised least squares on the
+#' residual after the main MCMC linear predictor; \code{kind = "col"} uses
+#' the across-row mean for each column-actor.
 #'
 #' @param fit A fitted \code{lame} object.
 #' @param kind \code{"row"} (default; per-row-actor slopes) or
 #'   \code{"col"} (per-column-actor slopes).
-#' @param covariate_idx Integer column index into the chosen nodal
-#'   covariate (\code{Xrow} or \code{Xcol}). Default \code{1L}.
+#' @param covariate_idx Integer index into the third (covariate) dimension
+#'   of the combined dyadic design array \code{fit$Xlist}. Slice 1 is the
+#'   intercept; dyadic covariates follow. Default \code{1L}.
 #' @param lambda Non-negative smoothing parameter (first-difference
 #'   penalty across periods). Default \code{1}.
 #'

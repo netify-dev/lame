@@ -1,41 +1,76 @@
-#' Simulate a and Sab from full conditional distributions under bin likelihood
-#' 
-#' Simulate a and Sab from full conditional distributions under bin likelihood
-#' 
-#' 
-#' @usage raSab_bin_fc(Z, Y, a, b, Sab, Sab0=NULL, eta0=NULL, SS = round(sqrt(nrow(Z))))
-#' @param Z a square matrix, the current value of Z
-#' @param Y square binary relational matrix
-#' @param a current value of row effects
-#' @param b current value of column effects
-#' @param Sab current value of Cov(a,b)
-#' @param Sab0 prior (inverse) scale matrix for the prior distribution
-#' @param eta0 prior degrees of freedom for the prior distribution
-#' @param SS number of iterations
-#' @return \item{Z}{new value of Z} \item{Sab}{new value of Sab} \item{a}{new
-#' value of a}
-#' @author Peter Hoff
+#' Sample additive row effects and their covariance for the binary family
+#'
+#' Joint Gibbs update of the social-relations additive row effects \code{a}
+#' and the additive-effect covariance \code{Sab} under a probit (binary)
+#' likelihood.  Given the latent normal scores \code{Z} and the observed 0/1
+#' matrix \code{Y}, each row effect is redrawn from its Gaussian full
+#' conditional (conditioned on the column effects \code{b} through \code{Sab})
+#' truncated to the interval that keeps every latent score sign-compatible with
+#' the observed responses.  The covariance \code{Sab} is then refreshed from its
+#' inverse-Wishart full conditional.
+#'
+#' @param Z square matrix of current latent normal scores
+#' @param Y square binary relational matrix (NA entries allowed)
+#' @param a current value of the row effects
+#' @param b current value of the column effects
+#' @param Sab current 2x2 covariance of the additive effects
+#' @param Sab0 prior inverse-scale matrix (defaults to the 2x2 identity)
+#' @param eta0 prior degrees of freedom (defaults to 4)
+#' @param SS number of inner Gibbs sweeps
+#' @return list with the updated \code{Z}, \code{a} and \code{Sab}
+#' @keywords internal
+#' @author lame authors
 #' @export raSab_bin_fc
 raSab_bin_fc <-
 function(Z,Y,a,b,Sab,Sab0=NULL,eta0=NULL,SS=round(sqrt(nrow(Z)))) {
-	if(is.null(Sab0)){ Sab0<-diag(2) }
-	if(is.null(eta0)){ eta0<-4 }
+	if(is.null(Sab0)){ Sab0 <- diag(2) }
+	if(is.null(eta0)){ eta0 <- 4 }
 
-	E<-Z-a%*%t(rep(1,nrow(Z))) 
-	MEL<-MEU<- -E
-	MEL[!is.na(Y) & Y==0]<- -Inf
-	MEU[!is.na(Y) & Y==1]<-Inf 
-	MEL[is.na(Y)]<- -Inf ; MEU[is.na(Y)]<- Inf
-	lba<-apply(MEL,1,max)
-	lba[is.na(lba)]<- -Inf
-	uba<-apply(MEU,1,min) 
-	uba[is.na(uba)]<- Inf
+	n <- nrow(Z)
 
-	for(ss in 1:SS) {
-		ea<-b*Sab[1,2]/Sab[2,2]
-		sa<-sqrt(Sab[1,1]-Sab[1,2]^2/Sab[2,2])
-		a<-ea+sa*qnorm(runif(nrow(Z),pnorm((lba-ea)/sa),pnorm((uba-ea)/sa)))
-		Sab<-solve(rwish(solve(eta0*Sab0+crossprod(cbind(a,b))),eta0+nrow(Z)))
+	# single inverse-Wishart draw with scale matrix psi and df degrees of
+	# freedom, built from a Bartlett-decomposed Wishart on the inverse scale
+	draw_inv_wishart <- function(psi, df) {
+		p <- nrow(psi)
+		root <- t(chol(solve(psi)))          # lower factor: solve(psi) = root %*% t(root)
+		bart <- matrix(0, p, p)
+		diag(bart) <- sqrt(rchisq(p, df - seq_len(p) + 1))
+		if(p > 1L){ bart[lower.tri(bart)] <- rnorm(p * (p - 1L) / 2L) }
+		wfac <- root %*% bart                # wfac %*% t(wfac) ~ Wishart(solve(psi), df)
+		solve(tcrossprod(wfac))              # its inverse is the IW(psi, df) draw
 	}
-	list(Z=E+a%*%t(rep(1,nrow(Z))),a=a,Sab=Sab)
+
+	# strip the current row effect from each latent score; the remainder is
+	# held fixed while a is resampled, so Z_ij = carry_ij + a_i throughout
+	carry <- Z - matrix(a, n, n)
+
+	# probit sign constraints on Z_ij = carry_ij + a_i give, per row i,
+	#   Y_ij == 1  ->  a_i > -carry_ij   (a lower limit)
+	#   Y_ij == 0  ->  a_i < -carry_ij   (an upper limit)
+	# missing cells contribute no limit
+	cut <- -carry
+	low_src <- cut ; low_src[is.na(Y) | Y != 1] <- -Inf
+	high_src <- cut ; high_src[is.na(Y) | Y != 0] <- Inf
+	a_low <- apply(low_src, 1, max)
+	a_high <- apply(high_src, 1, min)
+	a_low[is.na(a_low)] <- -Inf
+	a_high[is.na(a_high)] <- Inf
+
+	for(ss in seq_len(SS)) {
+		# a | b is Gaussian: regress a on b through the 2x2 covariance Sab
+		slope <- Sab[1, 2] / Sab[2, 2]
+		cond_mean <- slope * b
+		cond_sd <- sqrt(Sab[1, 1] - Sab[1, 2]^2 / Sab[2, 2])
+
+		# inverse-CDF sampling of the truncated normal on (a_low, a_high)
+		p_low <- pnorm((a_low - cond_mean) / cond_sd)
+		p_high <- pnorm((a_high - cond_mean) / cond_sd)
+		a <- cond_mean + cond_sd * qnorm(runif(n, p_low, p_high))
+
+		# Sab ~ inverse-Wishart(eta0 * Sab0 + [a b]'[a b], eta0 + n)
+		ab <- cbind(a, b)
+		Sab <- draw_inv_wishart(eta0 * Sab0 + crossprod(ab), eta0 + n)
+	}
+
+	list(Z = carry + matrix(a, n, n), a = a, Sab = Sab)
 }

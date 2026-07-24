@@ -2,7 +2,7 @@
 % Please edit documentation in R/rbeta_ab_fc.R
 \name{rbeta_ab_fc}
 \alias{rbeta_ab_fc}
-\title{Conditional simulation of additive effects and regression coefficients}
+\title{Joint Gibbs update of regression and additive effects (single relation)}
 \usage{
 rbeta_ab_fc(
   Z,
@@ -17,34 +17,40 @@ rbeta_ab_fc(
 )
 }
 \arguments{
-\item{Z}{n X n normal relational matrix}
+\item{Z}{n x n relational matrix (multiplicative effects already removed)}
 
-\item{Sab}{row and column covariance}
+\item{Sab}{2 x 2 covariance of the additive row/column effects}
 
-\item{rho}{dyadic correlation}
+\item{rho}{within-dyad (reciprocity) correlation}
 
-\item{X}{n x n x p covariate array}
+\item{X}{n x n x p covariate design array}
 
 \item{s2}{dyadic variance}
 
-\item{offset}{a matrix of the same dimension as Z. It is assumed that
-Z-offset follows a SRRM, so the offset should contain any multiplicative
-effects (such as \code{U\%*\% t(V) } )}
+\item{offset}{matrix subtracted from \code{Z} before sampling}
 
-\item{iV0}{prior precision matrix for regression parameters}
+\item{iV0}{prior precision for \code{beta}; a g-prior is used when NULL}
 
-\item{m0}{prior mean vector for regression parameters}
+\item{m0}{prior mean for \code{beta}; zero when NULL}
 
-\item{g}{prior variance scale for g-prior when iV0 is unspecified}
+\item{g}{g-prior variance scale used when \code{iV0} is NULL}
 }
 \value{
 \item{beta}{regression coefficients} \item{a}{additive row effects}
 \item{b}{additive column effects}
 }
 \description{
-Simulates from the joint full conditional distribution of (beta,a,b)
-in a social relations regression model
+Draws jointly from the full conditional of the regression coefficients
+\code{beta} together with the additive sender/receiver effects
+\code{a}, \code{b} for a single social-relations regression matrix. The
+within-dyad reciprocity covariance is whitened so every directed cell
+becomes a unit-variance Gaussian observation, the additive-effect prior
+\code{N(0,Sab)} is written through a square-root factor so a
+rank-deficient \code{Sab} is handled without inverting it, and the
+complete joint Gaussian precision over \code{(beta, factors)} is
+assembled from cell-level sufficient statistics and sampled in one draw.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

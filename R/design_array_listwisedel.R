@@ -10,7 +10,7 @@
 #' @param intercept logical
 #' @param n number of rows/columns
 #' @return an n x n x (pr+pc+pd+intercept) 3-way array
-#' @author Peter Hoff
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @export design_array_listwisedel
 design_array_listwisedel<-function(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n) {
 

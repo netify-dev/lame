@@ -52,7 +52,7 @@
 #'   \item{beta}{Matrix of regression coefficient estimates and statistics}
 #'   \item{variance}{Matrix of variance component estimates}
 #'   \item{n.periods}{Number of time periods in the longitudinal data}
-#' @author Peter Hoff, Cassy Dorff, Shahryar Minhas
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @seealso \code{\link{lame}}, \code{\link{print.summary.lame}}
 #' @method summary lame
 #' @export

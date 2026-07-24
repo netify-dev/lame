@@ -34,7 +34,7 @@
 #'     variance for the row and column effects (inverse-gamma update) with
 #'     zero covariance
 #' }
-#' @author Peter Hoff, Shahryar Minhas
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @export rSab_fc
 rSab_fc <- function(a, b, Sab0=NULL, eta0=NULL, rvar=TRUE, cvar=TRUE, symmetric=FALSE)  {
 	if(is.null(Sab0)){ Sab0 <- diag(2) }

@@ -24,5 +24,5 @@ an n x n x (pr+pc+pd+intercept) 3-way array
 Computes the design socioarray of covariate values for an AME fit
 }
 \author{
-Peter Hoff
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

@@ -68,5 +68,5 @@ The block also prints the per-block AR(1) hyperparameters
 \code{\link{lame}}, \code{\link{print.summary.lame}}
 }
 \author{
-Peter Hoff, Cassy Dorff, Shahryar Minhas
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

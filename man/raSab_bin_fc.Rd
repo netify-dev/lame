@@ -2,34 +2,50 @@
 % Please edit documentation in R/raSab_bin_fc.R
 \name{raSab_bin_fc}
 \alias{raSab_bin_fc}
-\title{Simulate a and Sab from full conditional distributions under bin likelihood}
+\title{Sample additive row effects and their covariance for the binary family}
 \usage{
-raSab_bin_fc(Z, Y, a, b, Sab, Sab0=NULL, eta0=NULL, SS = round(sqrt(nrow(Z))))
+raSab_bin_fc(
+  Z,
+  Y,
+  a,
+  b,
+  Sab,
+  Sab0 = NULL,
+  eta0 = NULL,
+  SS = round(sqrt(nrow(Z)))
+)
 }
 \arguments{
-\item{Z}{a square matrix, the current value of Z}
+\item{Z}{square matrix of current latent normal scores}
 
-\item{Y}{square binary relational matrix}
+\item{Y}{square binary relational matrix (NA entries allowed)}
 
-\item{a}{current value of row effects}
+\item{a}{current value of the row effects}
 
-\item{b}{current value of column effects}
+\item{b}{current value of the column effects}
 
-\item{Sab}{current value of Cov(a,b)}
+\item{Sab}{current 2x2 covariance of the additive effects}
 
-\item{Sab0}{prior (inverse) scale matrix for the prior distribution}
+\item{Sab0}{prior inverse-scale matrix (defaults to the 2x2 identity)}
 
-\item{eta0}{prior degrees of freedom for the prior distribution}
+\item{eta0}{prior degrees of freedom (defaults to 4)}
 
-\item{SS}{number of iterations}
+\item{SS}{number of inner Gibbs sweeps}
 }
 \value{
-\item{Z}{new value of Z} \item{Sab}{new value of Sab} \item{a}{new
-value of a}
+list with the updated \code{Z}, \code{a} and \code{Sab}
 }
 \description{
-Simulate a and Sab from full conditional distributions under bin likelihood
+Joint Gibbs update of the social-relations additive row effects \code{a}
+and the additive-effect covariance \code{Sab} under a probit (binary)
+likelihood.  Given the latent normal scores \code{Z} and the observed 0/1
+matrix \code{Y}, each row effect is redrawn from its Gaussian full
+conditional (conditioned on the column effects \code{b} through \code{Sab})
+truncated to the interval that keeps every latent score sign-compatible with
+the observed responses.  The covariance \code{Sab} is then refreshed from its
+inverse-Wishart full conditional.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

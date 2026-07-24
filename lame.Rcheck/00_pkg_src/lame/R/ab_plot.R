@@ -1,8 +1,3 @@
-# global variables for r cmd check
-if(getRversion() >= "2.15.1") {
-	utils::globalVariables(c("mean_effect", "x_prev", "y_prev"))
-}
-
 ####
 
 #' Visualize sender and receiver random effects
@@ -31,16 +26,18 @@ if(getRversion() >= "2.15.1") {
 #' @param fit An object of class "ame" or "lame" from fitting an AME model
 #' @param effect Character string specifying which effect to plot: 
 #'        "sender" (default) or "receiver"
-#' @param sorted Logical; if TRUE (default), actors are sorted by effect magnitude
+#' @param sorted Logical; if TRUE (default), actors are sorted by effect
+#'        magnitude. Applies to \code{ame} / \code{lame} fits;
+#'        \code{ame_als} fits are always sorted by value.
 #' @param labels Logical; if TRUE, actor labels are shown on x-axis (default TRUE
-#'        for n <= 50 actors)
-#' @param title Optional title for the plot
+#'        for n <= 50 actors). Applies to \code{ame} / \code{lame} fits.
+#' @param title Optional title for the plot (\code{ame} / \code{lame} fits).
 #' @param time_point For dynamic effects, which time point to plot (default: last).
-#'                   Can be numeric index, "all" for faceted plot, or "average" for time-averaged
+#'                   Can be a numeric index, "all" for a faceted plot, or "average" for time-averaged
 #' @param plot_type For dynamic effects: "snapshot" (single time), "trajectory" (evolution over time),
-#'                  "faceted" (grid of time points), or "ribbon" (posterior credible bands over time).
-#'                  For static effects, this parameter is ignored.
-#' @param show_actors Character vector of specific actors to highlight (for dynamic trajectory/ribbon plots)
+#'                  "faceted" (grid of time points), or "ribbon" (effect path with a 95\% posterior
+#'                  band per period). For static effects, this parameter is ignored.
+#' @param show_actors Character vector of specific actors to highlight (for dynamic trajectory / ribbon plots)
 #' @return A ggplot2 object that can be further customized
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
@@ -69,14 +66,7 @@ ab_plot <- function(fit,
 										plot_type = c("snapshot", "trajectory", "faceted", "ribbon"),
 										show_actors = NULL) {
 
-	# als fits estimate additive effects but have no posterior; delegate to
-	# the ame_als-specific lollipop chart instead of refusing the class.
-	if (inherits(fit, "ame_als")) {
-		eff <- match.arg(effect)
-		return(ab_plot.ame_als(fit, effect = eff))
-	}
-
-	if (!inherits(fit, c("ame", "lame"))) {
+	if (!inherits(fit, c("ame", "lame", "ame_als"))) {
 		stop("fit must be an object of class 'ame', 'lame', or 'ame_als'")
 	}
 	
@@ -93,6 +83,13 @@ ab_plot <- function(fit,
 																		time_point, plot_type, show_actors))
 	}
 
+	# Static ALS fits estimate additive effects but have no posterior; delegate
+	# to the ame_als-specific lollipop chart. Dynamic ALS fits must reach the
+	# branch above so plot_type and show_actors are honored.
+	if (inherits(fit, "ame_als")) {
+		return(ab_plot.ame_als(fit, effect = effect))
+	}
+
 	####
 
 	# static effect plots
@@ -103,6 +100,11 @@ ab_plot <- function(fit,
 		default_title <- if(is_bip) "Additive Row Actor Effects" else "Additive Sender Effects"
 	} else {
 		muEff <- fit$BPM
+		if (is.null(muEff)) {
+			cli::cli_abort(c(
+				"This fit has no receiver (b) effects.",
+				"i" = "Symmetric models store a single set of actor effects; use {.code effect = \"sender\"}."))
+		}
 		ylabel <- if(is_bip) "Column Actor Effects (b)" else "Receiver Effects (b)"
 		default_title <- if(is_bip) "Additive Column Actor Effects" else "Additive Receiver Effects"
 	}
@@ -242,10 +244,18 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
 			}
 			
 			return(p)
+		} else if (identical(time_point, "all")) {
+			return(ab_plot_dynamic_internal(fit, effect, sorted, labels, title,
+			                                NULL, "faceted", show_actors))
 		}
-		
+
+		if (!is.numeric(time_point)) {
+			cli::cli_abort(c(
+				"{.arg time_point} must be a number, {.val average}, or {.val all}.",
+				"i" = "Got {.val {time_point}}."))
+		}
 		if (time_point > n_times || time_point < 1) {
-			stop("time_point must be between 1 and ", n_times)
+			cli::cli_abort("{.arg time_point} must be between 1 and {n_times}.")
 		}
 		
 		muEff <- effects_mat[, time_point]
@@ -301,17 +311,13 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
 	####
 
 	} else if (plot_type == "trajectory") {
-		traj_data <- data.frame()
-		for (i in 1:n_actors) {
-			for (t in 1:n_times) {
-				traj_data <- rbind(traj_data, data.frame(
-					actor = actor_names[i],
-					time = t,
-					time_label = time_labels[t],
-					effect = effects_mat[i, t]
-				))
-			}
-		}
+		traj_data <- data.frame(
+			actor      = rep(actor_names, times = n_times),
+			time       = rep(seq_len(n_times), each = n_actors),
+			time_label = rep(time_labels, each = n_actors),
+			effect     = as.vector(effects_mat),
+			stringsAsFactors = FALSE
+		)
 		
 		if (!is.null(show_actors)) {
 			traj_data <- traj_data[traj_data$actor %in% show_actors, ]
@@ -360,18 +366,16 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
 			show_times <- round(seq(1, n_times, length.out = 6))
 		}
 		
-		facet_data <- data.frame()
-		for (t in show_times) {
-			for (i in 1:n_actors) {
-				facet_data <- rbind(facet_data, 
-					data.frame(
-						actor = actor_names[i],
-						time = time_labels[t],
-						effect = effects_mat[i, t]
-					)
-				)
-			}
-		}
+		sub <- effects_mat[, show_times, drop = FALSE]
+		facet_data <- data.frame(
+			actor  = rep(actor_names, times = length(show_times)),
+			# keep panels in chronological order; facet_wrap would otherwise
+			# sort the labels alphabetically
+			time   = factor(rep(time_labels[show_times], each = n_actors),
+			                levels = time_labels[show_times]),
+			effect = as.vector(sub),
+			stringsAsFactors = FALSE
+		)
 		
 		p <- ggplot(facet_data, aes(x = reorder(actor, effect), y = effect)) +
 			geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
@@ -400,40 +404,26 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
 	####
 
 	} else if (plot_type == "ribbon") {
-		# require saved mcmc samples for real credible intervals
-		has_samples <- FALSE
-		if (effect == "sender" && !is.null(fit$a_samples)) {
-			has_samples <- TRUE
-		} else if (effect == "receiver" && !is.null(fit$b_samples)) {
-			has_samples <- TRUE
-		}
-
-		if (!has_samples) {
+		# per-time posterior sd, stored by lame() alongside the a_dynamic /
+		# b_dynamic means. older fits (pre-1.3.3) do not carry it.
+		sd_mat <- if (effect == "sender") fit$a_dynamic_sd else fit$b_dynamic_sd
+		if (is.null(sd_mat)) {
 			cli::cli_abort(c(
-				"Ribbon plot requires saved MCMC samples for real credible intervals.",
-				"i" = "Re-fit with {.code posterior_opts = posterior_options(save_ab = TRUE)}",
-				"i" = "Or use {.code plot_type = \"trajectory\"} which shows posterior means."
-			))
+				"This fit has no per-time uncertainty for the additive effects.",
+				"i" = "Ribbon bands need {.code fit$a_dynamic_sd} / {.code fit$b_dynamic_sd}, added in lame 1.3.3.",
+				">" = "Re-fit with the current version, or use {.code plot_type = \"trajectory\"}."))
 		}
 
-		# compute real quantile-based credible intervals from saved samples
-		# a_samples: n_actors x n_mcmc_samples matrix
-		samples <- if (effect == "sender") fit$a_samples else fit$b_samples
-
-		ribbon_data <- data.frame()
-		for (i in 1:n_actors) {
-			for (t in 1:n_times) {
-				actor_draws <- samples[i, ]
-				ribbon_data <- rbind(ribbon_data, data.frame(
-					actor = actor_names[i],
-					time = t,
-					time_label = time_labels[t],
-					mean_effect = effects_mat[i, t],
-					lower = quantile(actor_draws, 0.025, na.rm = TRUE),
-					upper = quantile(actor_draws, 0.975, na.rm = TRUE)
-				))
-			}
-		}
+		# 95% normal-approximation band, mean +/- 1.96 * per-time posterior sd
+		ribbon_data <- data.frame(
+			actor      = rep(actor_names, times = n_times),
+			time       = rep(seq_len(n_times), each = n_actors),
+			time_label = rep(time_labels, each = n_actors),
+			mean_effect = as.vector(effects_mat),
+			lower      = as.vector(effects_mat - 1.96 * sd_mat),
+			upper      = as.vector(effects_mat + 1.96 * sd_mat),
+			stringsAsFactors = FALSE
+		)
 
 		if (!is.null(show_actors)) {
 			ribbon_data <- ribbon_data[ribbon_data$actor %in% show_actors, ]
@@ -452,7 +442,7 @@ ab_plot_dynamic_internal <- function(fit, effect, sorted, labels, title,
 			geom_ribbon(aes(ymin = lower, ymax = upper, fill = actor), alpha = 0.3) +
 			geom_line(aes(color = actor), linewidth = 1) +
 			geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-			scale_x_continuous(breaks = 1:n_times, labels = time_labels) +
+			scale_x_continuous(breaks = seq_len(n_times), labels = time_labels) +
 			theme_bw() +
 			theme(
 				panel.border    = element_blank(),

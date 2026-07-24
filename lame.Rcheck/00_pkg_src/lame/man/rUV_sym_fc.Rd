@@ -34,5 +34,5 @@ rUV_sym_fc
 
 }
 \author{
-Peter Hoff
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

@@ -52,5 +52,5 @@ zero covariance
 }
 }
 \author{
-Peter Hoff, Shahryar Minhas
+Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

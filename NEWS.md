@@ -1,21 +1,17 @@
-# lame 1.3.3
+# lame 1.3.4
 
-* `dynamic_ab` fits now return the per-period posterior standard deviation of
-  the additive effects on `fit$a_dynamic_sd` / `fit$b_dynamic_sd`, and
-  `ab_plot(fit, plot_type = "ribbon")` draws a 95% credible band from them.
-  (Previously the ribbon plot required draws the longitudinal sampler never
-  stored, so it errored, and its fallback drew a constant-width band that
-  misrepresented per-period uncertainty.)
-* The package is now distributed under GPL-3 rather than MIT, matching the
-  license of `amen`, from which several samplers and helpers are derived.
-  Peter Hoff is credited as contributor and copyright holder; see
-  `inst/COPYRIGHTS`.
-* Fitting no longer leaves a `.Random.seed` behind in the global environment
-  when the session had none, and `lame()` no longer sets `options(warn)`.
-* Fixed Rd markup reported by CRAN's incoming checks.
-* Fixed a prior-scaling bug that could silently collapse the latent factors
-  (and attenuate coefficients) in asymmetric `ame()` fits with `R > 0`;
-  fits now match `amen`.
+* The handful of Gibbs samplers and helpers once adapted from `amen` have been
+  rewritten from the underlying published methods, so the package carries no
+  derived code and stays under the MIT license.
+* Fixed a prior-scaling bug that could silently collapse the latent factors in
+  asymmetric `ame()` fits with `R > 0`; fits now match `amen`.
+* `dynamic_ab` fits carry per-period posterior SDs, so
+  `ab_plot(fit, plot_type = "ribbon")` draws a real credible band.
+* A few documented options now do what they say: `log_lik_method = "augmented"`,
+  `gof(nsim = NULL)` (uses all draws), and bootstrap error bars in `ab_plot()`
+  for `ame_als` fits. Dropped an unused argument and fixed some stale help text.
+* Fitting no longer leaves a `.Random.seed` behind or touches `options(warn)`.
+* Fixed Rd markup flagged by CRAN.
 * Time-varying coefficients (`dynamic_beta`) compose freely with the
   multiplicative latent factors (`R > 0`) and additive sender/receiver effects,
   for every family and network type. Coefficients can follow AR(1),

@@ -17,9 +17,18 @@ simY_ord(EZ, rho, Y)
 a square matrix
 }
 \description{
-Simulates an ordinal relational matrix having a particular marginal
-distribution
+Simulates an ordinal relational matrix whose marginal category
+frequencies match those of an observed ordinal matrix.
+}
+\details{
+A latent Gaussian relational array is drawn from the social relations
+model with mean \code{EZ} and within-dyad correlation \code{rho} via
+\code{simZ}. The latent values are then discretized into ordinal
+categories by cutting them at empirical quantiles chosen so that the
+proportion of entries falling in each category reproduces the marginal
+distribution of the observed categories of \code{Y}.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

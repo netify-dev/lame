@@ -61,8 +61,6 @@ confint.ame             Bayesian credible intervals for AME model
                         parameters
 confint.ame_als         Confidence intervals for a fast AME fit
 confint.boot_ame        Confidence intervals from a fast AME bootstrap
-design_array            Computes the design socioarray of covariate
-                        values
 design_array_listwisedel
                         Computes the design socioarray of covariate
                         values
@@ -119,12 +117,9 @@ lame_snap_als           Fast approximate dynamic snap-shift AME
                         estimator
 latent_positions        Extract latent positions as a tidy data frame
 lazegalaw               Lazega's law firm data
-ldZgbme                 log density for GBME models
 lfo                     Exact rolling-origin leave-future-out
                         cross-validation
 list_to_array           Convert list to array
-llsrmRho                SRM log likelihood evaluated on a grid of
-                        rho-values
 logLik.ame              Log-likelihood is not directly exposed for
                         ame() / lame() fits
 logLik.ame_als          Log-likelihood is not defined for a fast AME
@@ -145,7 +140,6 @@ posterior_options       Options for saving posterior samples during
                         MCMC
 posterior_quantiles     Extract posterior quantiles for model
                         components
-precomputeX             Precompute design matrix statistics
 predict.ame             Predict method for AME models
 predict.ame_als         Predictions from a fast AME fit
 predict.lame            Predict method for LAME models
@@ -173,8 +167,6 @@ prior_summary           Print the priors used by an AME / LAME /
 procrustes_align        Procrustes alignment of latent positions across
                         time
 rSab_fc                 Gibbs update for additive effects covariance
-rSuv_fc                 Gibbs update for multiplicative effects
-                        covariance
 rUV_dynamic_bip_fc_cpp
                         Bipartite dynamic UV Gibbs update
 rUV_dynamic_fc          Gibbs sampling of dynamic U and V with AR(1)
@@ -190,32 +182,15 @@ rUV_dynamic_t_fc        Gibbs sampling of dynamic U and V with
                         heavy-tailed (Student-t) innovations
 rUV_dynamic_t_fc_cpp    Update dynamic latent positions with
                         heavy-tailed (Student-t) AR(1) innovations
-rUV_fc                  Gibbs sampling of U and V
-rUV_rep_fc              Gibbs sampling of U and V
 rUV_sym_fc              Gibbs sampling of U and V
 rZ_bin_bip_batch_cpp    Batch binary Z sampling across all time periods
                         (bipartite, rho=0)
-rZ_bin_fc               Simulate Z based on a probit model
-rZ_cbin_fc              Simulate Z given fixed rank nomination data
-rZ_frn_fc               Simulate Z given fixed rank nomination data
 rZ_nrm_batch_cpp        Batch normal Z sampling across all time periods
 rZ_nrm_fc               Simulate missing values in a normal AME model
-rZ_ord_fc               Simulate Z given the partial ranks
 rZ_pois_fc              Gibbs update for latent variable in a Poisson
                         AME model
-raSab_bin_fc            Simulate a and Sab from full conditional
-                        distributions under bin likelihood
-raSab_cbin_fc           Simulate a and Sab from full conditional
-                        distributions under the cbin likelihood
-raSab_frn_fc            Simulate a and Sab from full conditional
-                        distributions under frn likelihood
 rbeta_ab_bip_gibbs_cpp
                         Full bipartite Gibbs update for beta, a, b
-rbeta_ab_fc             Conditional simulation of additive effects and
-                        regression coefficients
-rbeta_ab_rep_fc         Gibbs sampling of additive row and column
-                        effects and regression coefficient with
-                        independent replicate relational data
 read_log_lik            Read the per-iteration log-lik matrix back from
                         on-disk chunks
 reconstruct_EZ          Reconstruct EZ and UVPM matrices from AME model
@@ -227,14 +202,6 @@ rhat_dynamic_beta       Multivariate split-R-hat for dynamic_beta
                         coefficient paths
 rmvnorm                 Simulation from a multivariate normal
                         distribution
-rrho_fc                 Griddy Gibbs update for dyadic correlation
-rrho_mh                 Metropolis update for dyadic correlation
-rrho_mh_rep             Metropolis update for dyadic correlation with
-                        independent replicate data
-rs2_fc                  Gibbs update for dyadic variance
-rs2_rep_fc              Gibbs update for dyadic variance with
-                        independent replicate relational data
-rwish                   Simulation from a Wishart distribution
 sample_beta_dynamic_cpp
                         Sample the dynamic-block beta path via FFBS
 sample_beta_static_cpp
@@ -256,21 +223,13 @@ sample_sigma_uv         Sample innovation variance for dynamic latent
 sampler_describe        Describe the estimator behind a fitted object
 sampsonmonks            Sampson's monastery data
 sheep                   Sheep dominance data
-simY_bin                Simulate a network, i.e. a binary relational
-                        matrix
-simY_frn                Simulate an relational matrix based on a fixed
-                        rank nomination scheme
-simY_nrm                Simulate a normal relational matrix
-simY_ord                Simulate an ordinal relational matrix
 simY_pois               Simulate a Poisson relational matrix
-simZ                    Simulate Z given its expectation and covariance
 simulate.ame            Simulate networks from a fitted AME model
 simulate.ame_als        Simulate networks from a fitted ame_als model
 simulate.lame           Simulate longitudinal networks from a fitted
                         LAME model
 simulate_posterior      Simulate posterior distributions from fitted
                         AME model
-sm2el                   Sociomatrix to edgelist
 snap_category_summary   Summarize snap indices by actor category
 snap_index_draws        Extract posterior draws of snap indices
 snap_index_summary      Summarize posterior snap indices
@@ -301,4 +260,3 @@ vcov.boot_ame           Bootstrap covariance of the regression
                         coefficients
 vignette_data           TIES sanctions data for vignettes
 waic.ame                WAIC for AME / LAME fits
-zscores                 rank-based z-scores

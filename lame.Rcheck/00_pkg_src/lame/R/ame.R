@@ -3,8 +3,8 @@
 #' An MCMC routine providing a fit to an additive and multiplicative effects
 #' (AME) regression model to cross-sectional relational data of various types. 
 #' This function supports both unipartite (square) and bipartite (rectangular) 
-#' networks. For longitudinal networks, use the \code{lame} function. Original
-#' implementation by Peter Hoff.
+#' networks. For longitudinal networks, use the \code{lame} function. The
+#' additive and multiplicative effects framework is due to Hoff (2005, 2021).
 #' 
 #' @details
 #' This command provides posterior inference for parameters in AME models of
@@ -223,10 +223,11 @@
 #'         and longitudinal paths; ignored for a unipartite cross-sectional
 #'         \code{ame()} fit, which controls the additive prior through
 #'         \code{Sab0} and \code{eta0}.}}
-#'   \item{s20}{Prior variance for regression coefficients (default: 1).
-#'         Larger values allow for larger coefficient values. \emph{Used by the
-#'         bipartite and longitudinal paths; for a unipartite \code{ame()} fit
-#'         the regression prior is controlled by \code{g}.}}
+#'   \item{s20}{Prior scale for the dyadic residual variance
+#'         \eqn{v_e} (default: 1), entering the inverse-gamma draw as a
+#'         pseudo-observation scale. Larger values pull \eqn{v_e} upward.
+#'         The regression-coefficient prior is controlled separately by
+#'         \code{g}, not by \code{s20}.}
 #'   \item{s2u0}{Prior variance for multiplicative effects (default: 1).
 #'         \emph{Used by the bipartite and longitudinal paths.}}
 #'   \item{Suv0}{Inverse-Wishart (inverse) scale matrix for the

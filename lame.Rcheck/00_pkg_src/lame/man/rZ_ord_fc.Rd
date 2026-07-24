@@ -2,26 +2,35 @@
 % Please edit documentation in R/rZ_ord_fc.R
 \name{rZ_ord_fc}
 \alias{rZ_ord_fc}
-\title{Simulate Z given the partial ranks}
+\title{Full-conditional latent draw for the ordinal family}
 \usage{
 rZ_ord_fc(Z, EZ, rho, Y)
 }
 \arguments{
-\item{Z}{a square matrix, the current value of Z}
+\item{Z}{square latent matrix, current state.}
 
-\item{EZ}{expected value of Z}
+\item{EZ}{square matrix of latent means.}
 
-\item{rho}{dyadic correlation}
+\item{rho}{scalar within-dyad correlation.}
 
-\item{Y}{matrix of ordinal data}
+\item{Y}{square matrix of ordinal outcomes (may contain \code{NA}).}
 }
 \value{
-a square matrix, the new value of Z
+the updated square latent matrix \code{Z}.
 }
 \description{
-Simulates a random latent matrix Z given its expectation, dyadic correlation
-and partial rank information provided by W
+Refreshes the latent sociomatrix \code{Z} for an ordinal outcome. The
+observed ordinal categories in \code{Y} impose only rank information on
+\code{Z}: every latent value tied to category \eqn{c} must sit above all
+latent values of the next-lower category and below all latent values of the
+next-higher category. Within that rank-implied window each entry is redrawn
+from its dyadic full conditional, a truncated normal whose mean borrows the
+transpose partner through the within-dyad correlation \code{rho} and whose
+variance is \eqn{1-\rho^2}. Missing dyads carry no rank constraint and are
+drawn from the untruncated conditional. The diagonal is nuisance and is
+refreshed from an independent normal.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

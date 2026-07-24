@@ -1,14 +1,14 @@
-#' Gibbs sampling of U and V
+#' Gibbs sampling of U and V from replicated relational data
 #'
-#' A Gibbs sampler for updating the multiplicative effect matrices U and V,
-#' assuming they are the same across replicates.
-#'
+#' Draws the multiplicative-effect matrices U and V from their full
+#' conditional distributions, pooling information across the replicate
+#' slices of a residual array. Each factor column is updated in turn from
+#' its Gaussian full conditional, optionally under a hierarchical
+#' shrinkage prior on the stacked (U, V) rows.
 #'
 #' @usage rUV_rep_fc(E.T,U,V,rho,s2=1,shrink=TRUE)
-#' @param E.T Array of square residual relational matrix series with additive
-#' effects and covariates subtracted out. The third dimension of the array is
-#' for different replicates. Each slice of the array according to the third
-#' dimension is a square residual relational matrix.
+#' @param E.T Array of square residual relational matrices (additive
+#'   effects and covariates removed). The third margin indexes replicates.
 #' @param U current value of U
 #' @param V current value of V
 #' @param rho dyadic correlation
@@ -16,66 +16,82 @@
 #' @param shrink adaptively shrink the factors with a hierarchical prior
 #'
 #' @return \item{U}{a new value of U} \item{V}{a new value of V}
-#' @author Peter Hoff, Yanjun He
+#' @keywords internal
+#' @author lame authors
 #' @export rUV_rep_fc
 rUV_rep_fc <-
 	function(E.T,U,V,rho,s2=1,shrink=TRUE) {
-		Time<-dim(E.T)[3]
 
-		R<-ncol(U) ; n<-nrow(U)
+		grid_dim <- dim(E.T)
+		n <- grid_dim[1]
+		n_rep <- grid_dim[3]
+		R <- ncol(U)
+
+		## covariance of the stacked (U,V) rows: either resampled from its
+		## inverse-Wishart full conditional (shrinkage) or fixed diffuse
 		if(shrink) {
-			Suv<-rSuv_fc(U, V, Suv0=diag(2*R)/(R+2), kappa0=R+2)
-		}
-		if(!shrink){ Suv<-diag(n,nrow=2*R)  }
-
-		Se<-matrix(c(1,rho,rho,1),2,2)*s2
-		iSe2<-mhalf(solve(Se))
-		g<-iSe2[1,1] ; d<-iSe2[1,2]
-
-		get.Er<-function(E,UVmr){
-			return(E-UVmr)
-		}
-		get.Es<-function(Er,g,d){
-			n<-sqrt(length(Er))
-			return((g^2+d^2)*matrix(Er,n)+2*g*d*matrix(Er,n,byrow=TRUE))
+			cov_uv <- rSuv_fc(U, V, Suv0=diag(2*R)/(R+2), kappa0=R+2)
+		} else {
+			cov_uv <- diag(n, nrow=2*R)
 		}
 
-		for(r in sample(1:R)) {
-			UVmr<-tcrossprod(U[,-r],V[,-r])
-			Er.t<-apply(E.T,3,get.Er,UVmr)
-			Es.t<-apply(Er.t,2,get.Es,g,d)
+		## symmetric inverse square root of the 2x2 dyadic covariance
+		## Se = s2 * matrix(c(1,rho,rho,1),2); the eigenbasis is (1,1)/sqrt2
+		## and (1,-1)/sqrt2, giving a closed form for its whitening scalars
+		inv_root_sum <- 1/sqrt(s2*(1+rho))
+		inv_root_dif <- 1/sqrt(s2*(1-rho))
+		w_self <- (inv_root_sum + inv_root_dif)/2
+		w_swap <- (inv_root_sum - inv_root_dif)/2
+		coef_iso <- w_self^2 + w_swap^2
+		coef_mix <- 2*w_self*w_swap
 
-			####
-			# update u[,r]
-			vr<-V[,r]
-			b0<- c(Suv[r,-r]%*%solve(Suv[-r,-r]))
-			v0<- c(Suv[r,r] - b0%*%Suv[-r,r])
-			m0<- cbind(U[,-r],V)%*%b0
-			ssv<-max(sum(vr^2),1e-6)
-			a<- Time*(g^2+d^2)*ssv+1/v0 ; c<- -2*Time*g*d/(a^2+a*2*Time*g*d* ssv)
-			Esv.vec<-rowSums(Es.t)
-			nEsv<-sqrt(length(Esv.vec))
-			Esv<-matrix(Esv.vec,nEsv)%*%vr
-			m1<- Esv/a + c*vr*sum((Esv+m0/v0)*vr)  + m0/(a*v0)
-			ah<-sqrt(1/a) ; bh<-(sqrt(1/a+ ssv*c)- sqrt(1/a) )/ssv ; e<-rnorm(nrow(E.T[,,1]))
-			U[,r]<- m1 + ah*e + bh*vr*sum(vr*e)
-			####
+		## residual summed over replicate slices
+		E_sum <- rowSums(E.T, dims=2)
 
-			####
-			# update v[,r]
-			ur<-U[,r]
-			rv<-R+r
-			b0<- c(Suv[rv,-rv]%*%solve(Suv[-rv,-rv]))
-			v0<- c(Suv[rv,rv] - b0%*%Suv[-rv,rv])
-			m0<- cbind(U,V[,-r])%*%b0
-			ssu<-max(sum(ur^2),1e-6)
-			a<- Time*(g^2+d^2)*ssu+1/v0 ; c<- -2*Time*g*d/(a^2+a*2*Time*g*d* ssu)
-			tEsu<-matrix(Esv.vec,nEsv,byrow=TRUE)%*%ur
-			m1<-tEsu/a + c*ur*sum((tEsu+m0/v0)*ur)  + m0/(a*v0)
-			ah<-sqrt(1/a) ; bh<-(sqrt(1/a+ ssu*c)- sqrt(1/a) )/ssu ; e<-rnorm(nrow(E.T[,,1]))
-			V[,r]<- m1 + ah*e + bh*ur*sum(ur*e)
-			####
+		## sample an n-vector from N(prec^{-1} rhs, prec^{-1}) using the
+		## Cholesky factor of the precision matrix
+		gaussian_from_precision <- function(prec, rhs) {
+			upper <- chol(prec)
+			post_mean <- backsolve(upper, backsolve(upper, rhs, transpose=TRUE))
+			post_mean + backsolve(upper, rnorm(n))
 		}
 
-		list(U=U,V=V)
+		## conditional prior mean-coefficients and variance for row-block
+		## `pos` given the remaining 2R-1 factor coordinates
+		prior_pieces <- function(pos) {
+			others <- setdiff(seq_len(2*R), pos)
+			reg <- as.numeric(cov_uv[pos, others] %*% solve(cov_uv[others, others]))
+			cond_var <- as.numeric(cov_uv[pos, pos] - crossprod(reg, cov_uv[others, pos]))
+			list(reg=reg, cond_var=cond_var)
+		}
+
+		for(r in sample.int(R)) {
+
+			## residual with the r-th rank-one term stripped out, then
+			## whitened and symmetrised (pooled across replicates)
+			resid_sum <- E_sum - n_rep*tcrossprod(U[,-r,drop=FALSE], V[,-r,drop=FALSE])
+			white_sum <- coef_iso*resid_sum + coef_mix*t(resid_sum)
+
+			## ---- U[,r] | everything else ----
+			vr <- V[,r]
+			sq_v <- max(sum(vr^2), 1e-6)
+			pu <- prior_pieces(r)
+			mu_prior <- cbind(U[,-r,drop=FALSE], V) %*% pu$reg
+			prec_u <- diag(n_rep*coef_iso*sq_v + 1/pu$cond_var, n) +
+				(n_rep*coef_mix)*tcrossprod(vr)
+			rhs_u <- white_sum %*% vr + mu_prior/pu$cond_var
+			U[,r] <- gaussian_from_precision(prec_u, rhs_u)
+
+			## ---- V[,r] | everything else ----
+			ur <- U[,r]
+			sq_u <- max(sum(ur^2), 1e-6)
+			pv <- prior_pieces(R + r)
+			mv_prior <- cbind(U, V[,-r,drop=FALSE]) %*% pv$reg
+			prec_v <- diag(n_rep*coef_iso*sq_u + 1/pv$cond_var, n) +
+				(n_rep*coef_mix)*tcrossprod(ur)
+			rhs_v <- crossprod(white_sum, ur) + mv_prior/pv$cond_var
+			V[,r] <- gaussian_from_precision(prec_v, rhs_v)
+		}
+
+		list(U=U, V=V)
 	}

@@ -441,7 +441,12 @@
 #' 
 #' Dynamic additive effects are useful when sender activity and receiver
 #' popularity change over time rather than staying fixed across the whole panel.
-#' 
+#' A \code{dynamic_ab} fit returns the posterior-mean paths on
+#' \code{fit$a_dynamic} / \code{fit$b_dynamic} (actor x period) and their
+#' per-period posterior standard deviations on \code{fit$a_dynamic_sd} /
+#' \code{fit$b_dynamic_sd}; \code{ab_plot(fit, plot_type = "ribbon")} uses the
+#' latter to draw a credible band around each actor's path.
+#'
 #' \emph{Prior Specification for Dynamic Parameters:}
 #' \itemize{
 #'   \item \eqn{\rho_{uv}, \rho_{ab} \sim TruncNormal(mean, sd, 0, 1)}: 
@@ -792,7 +797,7 @@
 #'   starts; snap ALS fits report snap-score, snap-class, top-period, and
 #'   fitted-surface differences.
 #' @param als_max_iter positive integer (only used when \code{method = "als"}):
-#'   maximum block-coordinate iterations for the ALS fit. Default \code{200}.
+#'   maximum block-coordinate iterations for the ALS fit. Default \code{1000}.
 #' @param als_tol optional positive scalar (only used when
 #'   \code{method = "als"}): convergence tolerance for the ALS objective and
 #'   fitted values. \code{NULL} keeps each ALS estimator's built-in default.
@@ -5142,6 +5147,12 @@ lame <- function(
 						n_mc = .lame_ghk_n_mc %||% 64L,
 						n_mc_fixed = !is.null(.lame_ghk_n_mc),
 						halton_shift = .lame_log_lik_halton_shift %||% 0)
+				} else if (identical(log_lik_method, "augmented")) {
+					# augmented-data contribution: gaussian density of the
+					# latent z around its mean, unit-scale for the non-normal
+					# families whose z carries variance 1
+					ll_row <- dnorm(Z[obs_idx], mean = ez_obs,
+					                sd = sqrt(s2), log = TRUE)
 				} else if (family == "normal") {
 					ll_row <- dnorm(y_obs, mean = ez_obs, sd = sqrt(s2), log = TRUE)
 				} else if (family == "binary" || family == "cbin") {
@@ -5248,10 +5259,25 @@ lame <- function(
 					# initialize accumulation matrices
 					APS_dyn <- a_mat
 					BPS_dyn <- b_mat
+					# welford streaming mean / second moment for the per-time
+					# posterior sd (fit$a_dynamic_sd / fit$b_dynamic_sd)
+					ab_dyn_n   <- 0L
+					a_dyn_mean <- matrix(0, nrow(a_mat), ncol(a_mat))
+					a_dyn_m2   <- matrix(0, nrow(a_mat), ncol(a_mat))
+					b_dyn_mean <- matrix(0, nrow(b_mat), ncol(b_mat))
+					b_dyn_m2   <- matrix(0, nrow(b_mat), ncol(b_mat))
 				} else {
 					APS_dyn <- APS_dyn + a_mat
 					BPS_dyn <- BPS_dyn + b_mat
 				}
+				# streaming variance update, every stored draw (incl. iter 1)
+				ab_dyn_n   <- ab_dyn_n + 1L
+				d_a        <- a_mat - a_dyn_mean
+				a_dyn_mean <- a_dyn_mean + d_a / ab_dyn_n
+				a_dyn_m2   <- a_dyn_m2 + d_a * (a_mat - a_dyn_mean)
+				d_b        <- b_mat - b_dyn_mean
+				b_dyn_mean <- b_dyn_mean + d_b / ab_dyn_n
+				b_dyn_m2   <- b_dyn_m2 + d_b * (b_mat - b_dyn_mean)
 				APS <- APS + rowMeans(a_mat)
 				BPS <- BPS + rowMeans(b_mat)
 			} else {
@@ -5614,6 +5640,25 @@ lame <- function(
 		for (cc in LOG_LIK_CONNS) close(cc)
 		fit$log_lik_index <- obs_idx
 		fit$log_lik_chunks <- LOG_LIK_META
+	}
+	# per-time posterior sd of the dynamic additive effects, from the
+	# streaming second moment accumulated in the mcmc loop. matched to the
+	# a_dynamic / b_dynamic mean matrices by dimnames. symmetric fits carry
+	# only a_dynamic, so only a_dynamic_sd is attached there.
+	if (dynamic_ab && exists("a_dyn_m2", inherits = FALSE) && ab_dyn_n > 1L) {
+		.ab_denom <- ab_dyn_n - 1L
+		if (!is.null(fit$a_dynamic)) {
+			.a_sd <- sqrt(a_dyn_m2 / .ab_denom)
+			if (identical(dim(.a_sd), dim(fit$a_dynamic)))
+				dimnames(.a_sd) <- dimnames(fit$a_dynamic)
+			fit$a_dynamic_sd <- .a_sd
+		}
+		if (!is.null(fit$b_dynamic)) {
+			.b_sd <- sqrt(b_dyn_m2 / .ab_denom)
+			if (identical(dim(.b_sd), dim(fit$b_dynamic)))
+				dimnames(.b_sd) <- dimnames(fit$b_dynamic)
+			fit$b_dynamic_sd <- .b_sd
+		}
 	}
 		# record dynamic argument values on the fit for downstream tools
 	fit$dynamic_beta_pool <- dynamic_beta_pool

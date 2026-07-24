@@ -2,21 +2,20 @@
 % Please edit documentation in R/rbeta_ab_rep_fc.R
 \name{rbeta_ab_rep_fc}
 \alias{rbeta_ab_rep_fc}
-\title{Gibbs sampling of additive row and column effects and regression coefficient
-with independent replicate relational data}
+\title{Gibbs update of regression coefficients and additive effects for
+replicated relational data}
 \usage{
 rbeta_ab_rep_fc(Z.T,Sab,rho,X.T,s2=1)
 }
 \arguments{
-\item{Z.T}{n x n x T array, with the third dimension for replicates.
-Each slice of the array is a (latent) normal relational matrix, with
-multiplicative effects subtracted out}
+\item{Z.T}{n x n x T array of latent relations with multiplicative
+effects already removed; the third margin indexes the replicates}
 
-\item{Sab}{row and column covariance}
+\item{Sab}{2 x 2 covariance matrix of the additive row/column effects}
 
-\item{rho}{dyadic correlation}
+\item{rho}{within-dyad (reciprocity) correlation}
 
-\item{X.T}{n x n x p x T covariate array}
+\item{X.T}{n x n x p x T design array}
 
 \item{s2}{dyadic variance}
 }
@@ -25,10 +24,16 @@ multiplicative effects subtracted out}
 \item{b}{additive column effects}
 }
 \description{
-Simulates from the joint full conditional distribution of (a,b,beta),
-assuming same additive row and column effects and regression coefficient
-across replicates.
+Draws jointly from the full conditional distribution of the regression
+coefficients \code{beta} together with the additive sender/receiver
+effects \code{a} and \code{b}, pooling the information contained in the
+replicate slices of a longitudinal design that share a common
+\code{beta}, \code{a} and \code{b}. The draw is obtained by forming the
+complete joint Gaussian posterior precision matrix over
+\code{(beta, a, b)} from sufficient statistics accumulated across slices,
+after whitening the within-dyad correlation, and sampling from it.
 }
 \author{
-Peter Hoff, Yanjun He
+lame authors
 }
+\keyword{internal}

@@ -14,7 +14,7 @@
 #' @param digits Number of digits to display in the compact table. Default 3.
 #' @param ... additional arguments (not used)
 #' @return the lame object invisibly
-#' @author Peter Hoff, Cassy Dorff, Shahryar Minhas
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @method print lame
 #' @export
 #' @import cli

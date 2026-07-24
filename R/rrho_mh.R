@@ -1,52 +1,73 @@
-#' Metropolis update for dyadic correlation
-#' 
-#' Metropolis update for dyadic correlation
-#' 
-#' 
-#' @usage rrho_mh(Z, rho, s2 = 1,offset=0, asp=NULL)
-#' @param Z n X n normal relational matrix
-#' @param rho current value of rho
-#' @param s2 current value of s2
-#' @param offset matrix of the same dimension as Z. It is assumed that 
-#' Z-offset is equal to dyadic noise, so the offset should contain any 
-#' additive and multiplicative effects (such as 
-#' \code{Xbeta(X,beta+ U\%*\%t(V) +  outer(a,b,"+")  }   ) 
-#' @param asp use arc sine prior (TRUE) or uniform prior (FALSE) 
-#' 
-#' @return a new value of rho
-#' @author Peter Hoff
+#' Metropolis-Hastings update for the within-dyad correlation
+#'
+#' Draws a new value of the dyadic correlation rho from its full conditional
+#' using a random-walk-style Metropolis-Hastings step. Each dyad's pair of
+#' directed residuals is modelled as bivariate normal with unit variances
+#' (after scaling by the dyadic variance) and correlation rho; the proposal is
+#' a normal truncated to (-1, 1) and the acceptance ratio combines the
+#' bivariate-normal log-likelihood, an optional arc-sine prior, and the
+#' truncated-proposal normaliser.
+#'
+#' @param Z n x n normal relational matrix.
+#' @param rho current value of rho.
+#' @param s2 current value of the dyadic variance.
+#' @param offset matrix matching \code{Z}; \code{Z - offset} is treated as
+#'   dyadic noise (so it should absorb any additive/multiplicative effects).
+#' @param asp logical; use an arc-sine prior (\code{TRUE}, the default when
+#'   \code{NULL}) or a uniform prior (\code{FALSE}).
+#'
+#' @return a new (scalar) value of rho.
+#' @keywords internal
+#' @author lame authors
 #' @export rrho_mh
 rrho_mh <-
-function(Z,rho,s2=1,offset=0,asp=NULL) {
-	if(is.null(asp)){ asp<-TRUE } 
+function(Z, rho, s2 = 1, offset = 0, asp = NULL) {
 
-	E<-Z-offset
-	EM<-cbind(E[upper.tri(E)],t(E)[upper.tri(E)] )/sqrt(s2)
-	emcp<-sum(EM[,1]*EM[,2])
-	emss<-sum(EM^2)
+	if (is.null(asp)) { asp <- TRUE }
 
-	m<- nrow(EM)
-	sr<- 2*(1-cor(EM)[1,2]^2)/sqrt(m)
+	## --- standardized directed residual pairs, one per dyad -------------
+	resid <- (Z - offset) / sqrt(s2)
+	ut <- upper.tri(resid)
+	dir_out <- resid[ut]			# e_ij for i < j
+	dir_in  <- t(resid)[ut]			# e_ji for i < j
+	n_dyad <- length(dir_out)
 
-	rho1<-rho+sr*qnorm( runif(1,pnorm( (-1-rho)/sr),pnorm( (1-rho)/sr)))
+	## sufficient statistics for the bivariate-normal likelihood
+	cross_sum <- sum(dir_out * dir_in)			# sum e_ij e_ji
+	sq_sum    <- sum(dir_out^2) + sum(dir_in^2)	# sum e_ij^2 + e_ji^2
 
-	# reject-and-keep: proposals outside (-.995, .995) are auto-rejected so
-	# the chain stays in the truncated support. Combined with the
-	# (-1,1)-normalized proposal factor Z below this is exact for pi
-	# truncated to (-.995, .995).
-	if(!is.finite(rho1) || abs(rho1) > .995) { return(rho) }
+	## --- truncated-normal proposal on (-1, 1) ---------------------------
+	prop_sd <- 2 * (1 - cor(dir_out, dir_in)^2) / sqrt(n_dyad)
+	lo <- pnorm((-1 - rho) / prop_sd)
+	hi <- pnorm(( 1 - rho) / prop_sd)
+	rho_new <- rho + prop_sd * qnorm(runif(1, lo, hi))
 
-	# truncated-normal proposal normalizer Z(r) = Phi((1-r)/sr) - Phi((-1-r)/sr).
-	# The proposal is a normal truncated to (-1,1), so the Metropolis-Hastings
-	# ratio must include q(rho|rho1)/q(rho1|rho) = Z(rho)/Z(rho1); omitting it
-	# targets pi(rho)*Z(rho), biasing the chain away from |rho| -> 1.
-	lZ <- function(r) log(pnorm((1-r)/sr) - pnorm((-1-r)/sr))
+	## proposals outside the stable interior are rejected outright, keeping
+	## the chain within the truncated support (-0.995, 0.995)
+	if (!is.finite(rho_new) || abs(rho_new) > 0.995) { return(rho) }
 
-	lhr<-(-.5*(m*log(1-rho1^2)+(emss-2*rho1*emcp)/(1-rho1^2)))-
-			 (-.5*(m*log(1-rho^2 )+(emss-2*rho*emcp )/(1-rho^2 )))   +
-			 asp*( (-.5*log(1-rho1^2)) - (-.5*log(1-rho^2)) )        +
-			 ( lZ(rho) - lZ(rho1) )
+	## joint bivariate-normal log-likelihood (unit variances, corr r)
+	loglik <- function(r) {
+		omr2 <- 1 - r^2
+		-0.5 * (n_dyad * log(omr2) + (sq_sum - 2 * r * cross_sum) / omr2)
+	}
 
-	if(log(runif(1))<lhr) { rho<-rho1 }
+	## arc-sine prior log-density (up to an additive constant)
+	logprior <- function(r) {
+		if (asp) { -0.5 * log(1 - r^2) } else { 0 }
+	}
+
+	## log normaliser of the (-1, 1)-truncated normal proposal centred at r;
+	## required so q(rho | rho_new) / q(rho_new | rho) enters the MH ratio
+	logqnorm <- function(r) {
+		log(pnorm((1 - r) / prop_sd) - pnorm((-1 - r) / prop_sd))
+	}
+
+	log_accept <- (loglik(rho_new)   - loglik(rho)) +
+				  (logprior(rho_new) - logprior(rho)) +
+				  (logqnorm(rho)     - logqnorm(rho_new))
+
+	if (log_accept > log(runif(1))) { rho <- rho_new }
+
 	rho
 }

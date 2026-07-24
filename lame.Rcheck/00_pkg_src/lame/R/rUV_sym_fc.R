@@ -12,7 +12,7 @@
 #' @param s2 dyadic variance
 #' @param shrink adaptively shrink the factors with a hierarchical prior
 #' @return \item{U}{a new value of U} \item{V}{a new value of V}
-#' @author Peter Hoff
+#' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
 #' 
 #' U0<-matrix(rnorm(30,2),30,2) ; V0<-U0%*%diag(c(3,-2)) 

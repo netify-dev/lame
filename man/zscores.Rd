@@ -10,11 +10,13 @@ zscores(y)
 \item{y}{a numeric vector}
 }
 \value{
-a numeric vector
+a numeric vector of the same length as \code{y}
 }
 \description{
-Computes the normal scores corresponding to the ranks of a data vector
+Maps a numeric vector to normal quantiles determined by the ranks of its
+observed entries, leaving missing values as \code{NA}.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

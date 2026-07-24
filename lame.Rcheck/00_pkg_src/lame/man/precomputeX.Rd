@@ -2,26 +2,27 @@
 % Please edit documentation in R/precomputeX.R
 \name{precomputeX}
 \alias{precomputeX}
-\title{Precompute design matrix statistics}
+\title{Precompute design-array cross-product summaries}
 \usage{
 precomputeX(X)
 }
 \arguments{
-\item{X}{n x n x p covariate array}
+\item{X}{n x n x p array of dyadic covariates.}
 }
 \value{
-The input array with precomputed statistics as attributes:
-\item{Xr}{row sums}
-\item{Xc}{column sums}
-\item{mX}{matricized version}
-\item{mXt}{dyad-transposed matricized version}
-\item{XX}{regression sums of squares}
-\item{XXt}{crossproduct sums of squares}
+\code{X} unchanged in value but carrying the extra attributes
+\code{Xr} (n x p row margins), \code{Xc} (n x p column margins),
+\code{mX} (n^2 x p vectorised design), \code{mXt} (n^2 x p
+dyad-transposed vectorised design), \code{XX} (p x p Gram matrix
+\code{crossprod(mX)}) and \code{XXt} (p x p cross Gram matrix
+\code{crossprod(mX, mXt)}).
 }
 \description{
-Precomputes summary statistics of the design array X to speed up
-MCMC calculations in the AME model
+Attaches to a dyadic covariate array the row/column margins and the
+Gram matrices of its vectorised (and dyad-transposed) design, so that
+the regression update inside the MCMC need not recompute them.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

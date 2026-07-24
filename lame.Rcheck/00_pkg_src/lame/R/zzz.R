@@ -1,5 +1,5 @@
 #' @importFrom grDevices devAskNewPage
-#' @importFrom stats aggregate dnorm rbinom rWishart setNames
+#' @importFrom stats aggregate dnorm rbinom rchisq rWishart setNames
 #' @importFrom utils head object.size
 NULL
 

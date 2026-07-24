@@ -511,7 +511,7 @@ starts; snap ALS fits report snap-score, snap-class, top-period, and
 fitted-surface differences.}
 
 \item{als_max_iter}{positive integer (only used when \code{method = "als"}):
-maximum block-coordinate iterations for the ALS fit. Default \code{200}.}
+maximum block-coordinate iterations for the ALS fit. Default \code{1000}.}
 
 \item{als_tol}{optional positive scalar (only used when
 \code{method = "als"}): convergence tolerance for the ALS objective and
@@ -645,6 +645,11 @@ time-varying individual activity levels (outdegree) and popularity (indegree).
 
 Dynamic additive effects are useful when sender activity and receiver
 popularity change over time rather than staying fixed across the whole panel.
+A \code{dynamic_ab} fit returns the posterior-mean paths on
+\code{fit$a_dynamic} / \code{fit$b_dynamic} (actor x period) and their
+per-period posterior standard deviations on \code{fit$a_dynamic_sd} /
+\code{fit$b_dynamic_sd}; \code{ab_plot(fit, plot_type = "ribbon")} uses the
+latter to draw a credible band around each actor's path.
 
 \emph{Prior Specification for Dynamic Parameters:}
 \itemize{

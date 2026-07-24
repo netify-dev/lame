@@ -17,15 +17,17 @@ el2sm(el,directed=TRUE,nadiag=all(el[,1]!=el[,2]))
 a sociomatrix
 }
 \description{
-Construction of a sociomatrix from an edgelist
+Construct a sociomatrix from an edgelist. Each row of \code{el} gives the
+two endpoints of an edge and, optionally, a weight in a third column
+(unweighted edges default to 1).
 }
 \examples{
 
 Y<-matrix(rpois(10*10,.5),10,10) ; diag(Y)<-NA
-E<-sm2el(Y) 
-el2sm(E) - Y 
+E<-sm2el(Y)
+el2sm(E) - Y
 
 }
 \author{
-Peter Hoff
+lame authors
 }

@@ -40,5 +40,6 @@ value of a}
 Simulate a and Sab from full conditional distributions under frn likelihood
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

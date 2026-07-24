@@ -503,8 +503,8 @@ base::assign(".ptime", proc.time(), pos = "CheckExEnv")
 
 
 Y<-matrix(rpois(10*10,.5),10,10) ; diag(Y)<-NA
-E<-sm2el(Y) 
-el2sm(E) - Y 
+E<-sm2el(Y)
+el2sm(E) - Y
 
 
 
@@ -1027,27 +1027,6 @@ head(lp)
 base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
 base::cat("latent_positions", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
 cleanEx()
-nameEx("ldZgbme")
-### * ldZgbme
-
-flush(stderr()); flush(stdout())
-
-base::assign(".ptime", proc.time(), pos = "CheckExEnv")
-### Name: ldZgbme
-### Title: log density for GBME models
-### Aliases: ldZgbme
-
-### ** Examples
-
-## For (overdispersed) Poisson regression, use
-llYZ<-function(y,z){ dpois(y,z,log=TRUE) }
-
-
-
-
-base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
-base::cat("ldZgbme", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
-cleanEx()
 nameEx("lfo")
 ### * lfo
 
@@ -1374,18 +1353,19 @@ base::assign(".ptime", proc.time(), pos = "CheckExEnv")
 ### Name: rwish
 ### Title: Simulation from a Wishart distribution
 ### Aliases: rwish
+### Keywords: internal
 
 ### ** Examples
 
 
 ## The expectation is S0*nu
 
-S0<-rwish(diag(3)) 
+S0<-rwish(diag(3))
 
-SS<-matrix(0,3,3) 
+SS<-matrix(0,3,3)
 for(s in 1:1000) { SS<-SS+rwish(S0,5) }
 
-SS/s 
+SS/s
 
 S0*5
 
@@ -1496,13 +1476,14 @@ base::assign(".ptime", proc.time(), pos = "CheckExEnv")
 ### Name: sm2el
 ### Title: Sociomatrix to edgelist
 ### Aliases: sm2el
+### Keywords: internal
 
 ### ** Examples
 
 
 Y<-matrix(rpois(10*10,.5),10,10) ; diag(Y)<-NA
-E<-sm2el(Y) 
-el2sm(E) - Y 
+E<-sm2el(Y)
+el2sm(E) - Y
 
 
 

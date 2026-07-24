@@ -1,7 +1,7 @@
 # ggplot2 non-standard evaluation variables
 # listed here to avoid r cmd check warnings
 utils::globalVariables(c(
-	"mu", "ymax", "ymin", "id",  # ab_plot
+	"mu", "ymax", "ymin", "id", "mean_effect",  # ab_plot
 	"odmax",  # get_start_vals
 	"X1", "X2", "eff", "actor", "tPch",  # uv_plot
 	"Var2", "value", "x", "..density..", "y", "q90", "q95", "actual",  # gof_plot

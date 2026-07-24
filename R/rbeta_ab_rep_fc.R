@@ -1,133 +1,133 @@
-#' Gibbs sampling of additive row and column effects and regression coefficient
-#' with independent replicate relational data
+#' Gibbs update of regression coefficients and additive effects for
+#' replicated relational data
 #'
-#' Simulates from the joint full conditional distribution of (a,b,beta),
-#' assuming same additive row and column effects and regression coefficient
-#' across replicates.
-#'
+#' Draws jointly from the full conditional distribution of the regression
+#' coefficients \code{beta} together with the additive sender/receiver
+#' effects \code{a} and \code{b}, pooling the information contained in the
+#' replicate slices of a longitudinal design that share a common
+#' \code{beta}, \code{a} and \code{b}. The draw is obtained by forming the
+#' complete joint Gaussian posterior precision matrix over
+#' \code{(beta, a, b)} from sufficient statistics accumulated across slices,
+#' after whitening the within-dyad correlation, and sampling from it.
 #'
 #' @usage rbeta_ab_rep_fc(Z.T,Sab,rho,X.T,s2=1)
-#' @param Z.T n x n x T array, with the third dimension for replicates.
-#' Each slice of the array is a (latent) normal relational matrix, with
-#' multiplicative effects subtracted out
-#' @param Sab row and column covariance
-#' @param rho dyadic correlation
-#' @param X.T n x n x p x T covariate array
+#' @param Z.T n x n x T array of latent relations with multiplicative
+#' effects already removed; the third margin indexes the replicates
+#' @param Sab 2 x 2 covariance matrix of the additive row/column effects
+#' @param rho within-dyad (reciprocity) correlation
+#' @param X.T n x n x p x T design array
 #' @param s2 dyadic variance
 #' @return \item{beta}{regression coefficients} \item{a}{additive row effects}
 #' \item{b}{additive column effects}
-#' @author Peter Hoff, Yanjun He
+#' @author lame authors
+#' @keywords internal
 #' @export rbeta_ab_rep_fc
 rbeta_ab_rep_fc <-
 	function(Z.T,Sab,rho,X.T,s2=1)  {
-		####
-		# decorrelation setup
-		N<-dim(X.T)[4]
-		p<-dim(X.T)[3]
-		Se<-matrix(c(1,rho,rho,1),2,2)*s2
-		iSe2<-mhalf(solve(Se))
-		td<-iSe2[1,1] ; to<-iSe2[1,2]
+		n_rep <- dim(X.T)[4]
+		p <- dim(X.T)[3]
+		n <- dim(Z.T)[1]
 
-		if(any(!is.finite(Sab))) {
-			Sab <- diag(c(1, 1))
+		# --- whitening of the within-dyad covariance -------------------
+		# Each ordered pair (i,j) carries error covariance s2*[[1,rho],
+		# [rho,1]] with its mirror (j,i). Left-multiplying the stacked
+		# pair by W = (s2*[[1,rho],[rho,1]])^{-1/2} makes every directed
+		# observation unit-variance and mutually uncorrelated. W is
+		# symmetric with a common diagonal (w_d) and off-diagonal (w_o).
+		dyad_cov <- s2 * matrix(c(1, rho, rho, 1), 2, 2)
+		W <- mhalf(solve(dyad_cov))
+		w_d <- W[1, 1]
+		w_o <- W[1, 2]
+
+		# --- prior precision of a single actor's (a_i,b_i) pair ---------
+		Sab <- (Sab + t(Sab)) / 2
+		if (any(!is.finite(Sab))) { Sab <- diag(2) }
+		lam_min <- min(eigen(Sab, symmetric = TRUE, only.values = TRUE)$values)
+		if (!is.finite(lam_min) || lam_min < 1e-10) {
+			Sab <- Sab + diag(1e-6, 2)
 		}
-		Sab <- (Sab + t(Sab))/2
+		Pab <- solve(Sab)
 
-		Sabs<-iSe2%*%Sab%*%iSe2
-		Sabs <- (Sabs + t(Sabs))/2
+		# --- sufficient statistics accumulated over the replicates -----
+		# In the whitened frame directed observation (i,j) has mean
+		#   x_ij' beta + w_d*a_i + w_o*a_j + w_d*b_j + w_o*b_i .
+		Pbb  <- matrix(0, p, p)   # beta cross-product
+		g_b  <- numeric(p)        # beta linear term
+		Dr   <- matrix(0, n, p)   # whitened row-summed design, actor x cov
+		Dc   <- matrix(0, n, p)   # whitened col-summed design
+		yr   <- numeric(n)        # whitened row sums of the data
+		yc   <- numeric(n)        # whitened col sums of the data
 
-		# ridge for numerical stability
-		min_eig_check <- min(eigen(Sabs, symmetric=TRUE, only.values=TRUE)$values)
-		if(!is.finite(min_eig_check) || min_eig_check < 1e-10) {
-			Sabs <- Sabs + diag(1e-6, nrow(Sabs))
-		}
+		for (r in seq_len(n_rep)) {
+			Z  <- Z.T[, , r]
+			Zw <- w_d * Z + w_o * t(Z)
+			yr <- yr + rowSums(Zw)
+			yc <- yc + colSums(Zw)
 
-		tmp<-eigen(Sabs, symmetric=TRUE)
-		k<-sum(zapsmall(tmp$val)>0 )
-		####
+			if (p > 0) {
+				Xr <- array(X.T[, , , r], dim = c(n, n, p))
+				# flatten each covariate slice and its transpose
+				Fx  <- apply(Xr, 3, as.vector)                       # (n*n) x p
+				Fxt <- apply(aperm(Xr, c(2, 1, 3)), 3, as.vector)    # transposed
+				Dw  <- w_d * Fx + w_o * Fxt                          # whitened design
+				Pbb <- Pbb + crossprod(Dw)
+				# faint g-prior style ridge on beta (matches reference scaling)
+				Pbb <- Pbb + crossprod(Fx) / (n * n) / n_rep
+				g_b <- g_b + crossprod(Dw, as.vector(Zw))
 
-		####
-		# accumulate sufficient statistics across replicates
-		lb<-Qb<-Zr.T<-Zc.T<-Xr.T<-Xc.T<-0
-
-		for (t in 1:N){
-			Z<-Z.T[,,t]
-			X<-array(X.T[,,,t],dim=dim(X.T)[1:3])
-			p<-dim(X)[3]
-			Xr<-apply(X,c(1,3),sum)
-			Xc<-apply(X,c(2,3),sum)
-			mX<- apply(X,3,c)
-			mXt<-apply(aperm(X,c(2,1,3)),3,c)
-			XX<-t(mX)%*%mX
-			XXt<-t(mX)%*%mXt
-
-			mXs<-td*mX+to*mXt
-			XXs<-(to^2+td^2)*XX + 2*to*td*XXt
-			Zs<-td*Z+to*t(Z)
-			zr<-rowSums(Zs) ; zc<-colSums(Zs) ; zs<-sum(zc) ; n<-length(zr)
-
-			if(p>0) {
-				lb<-lb+crossprod(mXs,c(Zs))
-				Qb<-Qb+XXs + (XX/nrow(mXs))/N
+				rowSum <- apply(Xr, c(1, 3), sum)   # sum over receivers, n x p
+				colSum <- apply(Xr, c(2, 3), sum)   # sum over senders,   n x p
+				Dr <- Dr + (w_d * rowSum + w_o * colSum)
+				Dc <- Dc + (w_d * colSum + w_o * rowSum)
 			}
-
-			Xsr<-td*Xr + to*Xc
-			Xsc<-td*Xc + to*Xr
-
-			Zr.T<-Zr.T+zr
-			Zc.T<-Zc.T+zc
-			Xr.T<-Xr.T+Xsr
-			Xc.T<-Xc.T+Xsc
 		}
-		####
 
-		####
-		# row and column reduction
-		ab<-matrix(0,nrow(Z),2)
-		if(k>0) {
-			n<-nrow(Z.T[,,1])
-			G<-tmp$vec[,1:k] %*% sqrt(diag(tmp$val[1:k],nrow=k))
-			K<-matrix(c(0,1,1,0),2,2)
+		# --- precision blocks for the additive effects -----------------
+		# Summing the whitened loading vectors over all ordered pairs and
+		# replicates gives closed forms in terms of I and the all-ones J.
+		q_ii <- (w_d^2 + w_o^2) * n * n_rep   # diagonal weight
+		q_j  <- 2 * w_d * w_o * n_rep         # J weight for like blocks
+		I_n  <- diag(n)
+		J_n  <- matrix(1, n, n)
 
-			A<-N*n*t(G)%*%G + diag(k)
-			B<-N*t(G)%*%K%*%G
-			iA0<-solve(A)
-			C0<- -solve(A+ n*B)%*%B%*%iA0
+		Paa <- q_ii * I_n + q_j * J_n + Pab[1, 1] * I_n
+		Pbb_ab <- q_ii * I_n + q_j * J_n + Pab[2, 2] * I_n
+		Pab_x <- (w_d^2 + w_o^2) * n_rep * J_n +
+			2 * w_d * w_o * n * n_rep * I_n + Pab[1, 2] * I_n
 
-			iA<-G%*%iA0%*%t(G)
-			C<-G%*%C0%*%t(G)
+		# cross precision between beta and the additive effects
+		Pb_a <- w_d * t(Dr) + w_o * t(Dc)   # p x n
+		Pb_b <- w_d * t(Dc) + w_o * t(Dr)   # p x n
 
-			H<-iA%x%diag(n)+C%x%matrix(1,nrow=n,ncol=n)
-			Hrr<-H[1:n,1:n]
-			Hrc<-H[1:n,(n+1):(2*n)]
-			Hcr<-H[(n+1):(2*n),1:n]
-			Hcc<-H[(n+1):(2*n),(n+1):(2*n)]
-			Qb<-Qb-t(Xr.T)%*%Hrr%*%Xr.T-t(Xc.T)%*%Hcr%*%Xr.T-t(Xr.T)%*%Hrc%*%Xc.T-t(Xc.T)%*%Hcc%*%Xc.T
-			lb<-lb-t(Xr.T)%*%Hrr%*%Zr.T-t(Xc.T)%*%Hcr%*%Zr.T-t(Xr.T)%*%Hrc%*%Zc.T-t(Xc.T)%*%Hcc%*%Zc.T
+		# linear terms for a and b
+		g_a <- w_d * yr + w_o * yc
+		g_bb <- w_d * yc + w_o * yr
+
+		# --- assemble the joint posterior and draw ---------------------
+		if (p > 0) {
+			Prec <- rbind(
+				cbind(Pbb,       Pb_a,   Pb_b),
+				cbind(t(Pb_a),   Paa,    Pab_x),
+				cbind(t(Pb_b),   t(Pab_x), Pbb_ab)
+			)
+			g <- c(g_b, g_a, g_bb)
+			off <- p
+		} else {
+			Prec <- rbind(
+				cbind(Paa,    Pab_x),
+				cbind(t(Pab_x), Pbb_ab)
+			)
+			g <- c(g_a, g_bb)
+			off <- 0
 		}
-		####
 
-		####
-		# sample beta
-		if(p>0)  {
-			V.b<-solve(Qb)
-			M.b<-V.b%*%lb
-			beta<-c(rmvnorm(1,M.b,V.b))
-		}
-		if(p==0){ beta<-numeric(0) }
-		####
+		post_cov  <- solve(Prec)
+		post_mean <- post_cov %*% g
+		draw <- c(rmvnorm(1, c(post_mean), post_cov))
 
-		####
-		# sample a, b
-		Rr.T<-Zr.T-Xr.T%*%matrix(beta,ncol=1)
-		Rc.T<-Zc.T-Xc.T%*%matrix(beta,ncol=1)
+		beta <- if (p > 0) draw[seq_len(p)] else numeric(0)
+		a <- draw[off + seq_len(n)]
+		b <- draw[off + n + seq_len(n)]
 
-		m<-t(t(crossprod(rbind(c(Rr.T),c(Rc.T)),t(iA0%*%t(G)))) + rowSums(sum(Rr.T)*C0%*%t(G)) )
-		hiA0<-mhalf(iA0)
-		e<-matrix(rnorm(n*k),n,k)
-		w<-m+ t( t(e%*%hiA0) - c(((hiA0-mhalf(iA0+n*C0))/n)%*% colSums(e) ) )
-		ab.vec<- t(w%*%t(G)%*%solve(iSe2))
-		####
-
-		list(beta=beta,a=ab.vec[1,],b=ab.vec[2,] )
+		list(beta = beta, a = a, b = b)
 	}

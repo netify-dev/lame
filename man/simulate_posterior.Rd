@@ -8,7 +8,6 @@ simulate_posterior(
   fit,
   component = c("UV", "ab", "beta", "Y"),
   n_samples = NULL,
-  use_full_cov = FALSE,
   seed = NULL
 )
 }
@@ -22,8 +21,6 @@ simulate_posterior(
 (see \code{\link{posterior_options}}) and 100 otherwise. A smaller
 value draws a random subset, which widens Monte Carlo error in the
 tails of any interval computed from the result.}
-
-\item{use_full_cov}{For UV component, whether to use empirical variance scaling (default FALSE)}
 
 \item{seed}{Random seed for reproducibility}
 }

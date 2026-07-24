@@ -187,6 +187,11 @@ tidy <- function(x, ...) UseMethod("tidy")
 #' Returns a long-format data frame with one row per
 #' \code{(draw, i, j, period)} combination, giving the per-draw linear
 #' predictor (or response-scale prediction) at each dyad and period.
+#' Only the regression coefficients vary across \code{.draw}: the
+#' additive (\code{a}, \code{b}) and multiplicative (\code{U}, \code{V})
+#' effects are held at their posterior means, so the spread across draws
+#' reflects coefficient uncertainty only, not the full posterior of the
+#' linear predictor.
 #' Intended for \pkg{marginaleffects}- / \pkg{tidybayes}-style
 #' downstream summarisation: column names follow the
 #' \code{.draw} / \code{.chain} / \code{.iteration} / \code{.value}

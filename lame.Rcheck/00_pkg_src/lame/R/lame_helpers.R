@@ -100,8 +100,10 @@ as_lame_y <- function(x, na_diag = TRUE) {
 #' homophily covariate. \code{absdiff(x)} returns the absolute difference
 #' \code{|x[i] - x[j]|}, the AME analogue of ERGM's \code{absdiff}.
 #' \code{nodefactor(x)} returns the dyadic matrix of \code{x[i] + x[j]} for
-#' a numeric \code{x} (or a list of per-level binary dyadic indicators for
-#' a factor / character \code{x}).
+#' a numeric \code{x} (or, for a factor / character \code{x}, a named list
+#' with one matrix per level giving the dyadic co-membership count
+#' \code{(x[i] == level) + (x[j] == level)}, with entries 0, 1, or 2, the
+#' ERGM \code{nodefactor} semantics).
 #'
 #' All helpers return a matrix \emph{or} list of matrices that is ready to
 #' wrap into an \code{n x n x p} \code{Xdyad} array via \code{simplify2array}

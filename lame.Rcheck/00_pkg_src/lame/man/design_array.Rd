@@ -2,18 +2,18 @@
 % Please edit documentation in R/design_array.R
 \name{design_array}
 \alias{design_array}
-\title{Computes the design socioarray of covariate values}
+\title{Assemble the dyadic design socioarray for an AME model}
 \usage{
 design_array(Xrow=NULL,Xcol=NULL,Xdyad=NULL,intercept=TRUE,n,warn=TRUE)
 }
 \arguments{
-\item{Xrow}{an n x pr matrix of row covariates}
+\item{Xrow}{an n x pr matrix of row (sender) covariates}
 
-\item{Xcol}{an n x pc matrix of column covariates}
+\item{Xcol}{an n x pc matrix of column (receiver) covariates}
 
 \item{Xdyad}{an n x n x pd array of dyadic covariates}
 
-\item{intercept}{logical}
+\item{intercept}{logical; prepend a constant slice of ones}
 
 \item{n}{number of rows/columns}
 
@@ -25,8 +25,14 @@ propagated the missingness into the response.}
 an n x n x (pr+pc+pd+intercept) 3-way array
 }
 \description{
-Computes the design socioarray of covariate values for an AME fit
+Stacks the row, column and dyadic covariates into a single \eqn{n \times n
+\times p} array in which slice \eqn{k} holds the dyad-level values of the
+\eqn{k}th predictor. A sender attribute is broadcast down the rows, a
+receiver attribute is broadcast across the columns, and a dyadic covariate
+is copied verbatim. An intercept slice of ones is prepended unless it is
+switched off or would duplicate an already-constant predictor.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

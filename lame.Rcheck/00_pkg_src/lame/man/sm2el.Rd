@@ -12,7 +12,7 @@ sm2el(sm,directed=TRUE)
 \item{directed}{if TRUE, only use the upper triangular part of the matrix to enumerate edges}
 }
 \value{
-an edglist
+an edgelist
 }
 \description{
 Construction of an edgelist from a sociomatrix
@@ -20,10 +20,11 @@ Construction of an edgelist from a sociomatrix
 \examples{
 
 Y<-matrix(rpois(10*10,.5),10,10) ; diag(Y)<-NA
-E<-sm2el(Y) 
-el2sm(E) - Y 
+E<-sm2el(Y)
+el2sm(E) - Y
 
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

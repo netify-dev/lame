@@ -2,38 +2,44 @@
 % Please edit documentation in R/rZ_frn_fc.R
 \name{rZ_frn_fc}
 \alias{rZ_frn_fc}
-\title{Simulate Z given fixed rank nomination data}
+\title{Draw the latent Z matrix for fixed-rank-nomination data}
 \usage{
 rZ_frn_fc(Z, EZ, rho, Y, YL, odmax, odobs)
 }
 \arguments{
-\item{Z}{a square matrix, the current value of Z}
+\item{Z}{current latent sociomatrix (square).}
 
-\item{EZ}{expected value of Z}
+\item{EZ}{conditional mean matrix for \code{Z}.}
 
-\item{rho}{dyadic correlation}
+\item{rho}{within-dyad correlation.}
 
-\item{Y}{square matrix of ranked nomination data}
+\item{Y}{square matrix of observed ranked nominations (0 = no tie, NA on
+the diagonal / missing).}
 
-\item{YL}{list of ranked individuals, from least to most preferred in each
-row}
+\item{YL}{matrix whose \code{r}-th column gives, per row, the column index
+of the individual holding rank \code{r} (ascending preference).}
 
-\item{odmax}{a scalar or vector giving the maximum number of nominations for
-each individual}
+\item{odmax}{scalar or per-row maximum number of nominations allowed.}
 
-\item{odobs}{observed outdegree}
+\item{odobs}{per-row observed out-degree.}
 }
 \value{
-a square matrix, the new value of Z
+the updated square latent matrix \code{Z}.
 }
 \description{
-Simulates a random latent matrix Z given its expectation, dyadic correlation
-and fixed rank nomination data
+Gibbs update of the latent sociomatrix \code{Z} for a fixed-rank-nomination
+(FRN) outcome. Each row's latent values are drawn from truncated normals
+whose bounds encode three rank constraints: nominated ties outrank
+non-nominations, higher observed ranks map to larger latents, and a
+non-nomination made with spare out-degree capacity must stay negative.
 }
 \details{
-simulates Z under the constraints (1) Y\[i,j\]>Y\[i,k\] => Z\[i,j\]>Z\[i,k\] , (2)
-Y\[i,j\]>0 => Z\[i,j\]>0 , (3) Y\[i,j\]=0 & odobs\[i\]<odmax\[i\] => Z\[i,j\]<0
+The constraints realised are (1) \code{Y[i,j] > Y[i,k]} implies
+\code{Z[i,j] > Z[i,k]}, (2) \code{Y[i,j] > 0} implies \code{Z[i,j] > 0},
+and (3) \code{Y[i,j] == 0} with \code{odobs[i] < odmax[i]} implies
+\code{Z[i,j] < 0}.
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

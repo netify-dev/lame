@@ -37,7 +37,6 @@ posterior_options <- function(
 #'   (see \code{\link{posterior_options}}) and 100 otherwise. A smaller
 #'   value draws a random subset, which widens Monte Carlo error in the
 #'   tails of any interval computed from the result.
-#' @param use_full_cov For UV component, whether to use empirical variance scaling (default FALSE)
 #' @param seed Random seed for reproducibility
 #' 
 #' @return Array or matrix of posterior samples
@@ -67,7 +66,6 @@ simulate_posterior <- function(
 	fit, 
 	component = c("UV", "ab", "beta", "Y"),
 	n_samples = NULL,
-	use_full_cov = FALSE,
 	seed = NULL
 	){
 
@@ -98,7 +96,7 @@ simulate_posterior <- function(
 		# against, so they keep the historical default
 		if(is.null(n_samples)) n_samples <- 100
 		if(component == "UV") {
-			simulate_UV_posterior(fit, n_samples, use_full_cov)
+			simulate_UV_posterior(fit, n_samples)
 		} else if(component == "ab") {
 			simulate_ab_posterior(fit, n_samples)
 		} else if(component == "beta") {
@@ -138,7 +136,7 @@ sample_from_saved_UV <- function(fit, n_samples) {
 
 #' Simulate U/V from posterior -- requires saved MCMC samples
 #' @noRd
-simulate_UV_posterior <- function(fit, n_samples, use_full_cov = FALSE) {
+simulate_UV_posterior <- function(fit, n_samples) {
 
 	cli::cli_abort(c(
 		"Cannot simulate UV posterior without saved MCMC samples.",

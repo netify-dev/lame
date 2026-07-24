@@ -511,7 +511,7 @@ starts; snap ALS fits report snap-score, snap-class, top-period, and
 fitted-surface differences.}
 
 \item{als_max_iter}{positive integer (only used when \code{method = "als"}):
-maximum block-coordinate iterations for the ALS fit. Default \code{200}.}
+maximum block-coordinate iterations for the ALS fit. Default \code{1000}.}
 
 \item{als_tol}{optional positive scalar (only used when
 \code{method = "als"}): convergence tolerance for the ALS objective and

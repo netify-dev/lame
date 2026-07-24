@@ -39,5 +39,6 @@ Simulate a and Sab from full conditional distributions under the cbin
 likelihood
 }
 \author{
-Peter Hoff
+lame authors
 }
+\keyword{internal}

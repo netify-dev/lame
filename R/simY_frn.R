@@ -1,8 +1,11 @@
-#' Simulate an relational matrix based on a fixed rank nomination scheme
-#' 
-#' Simulate an relational matrix based on a fixed rank nomination scheme
-#' 
-#' 
+#' Simulate a relational matrix under a fixed rank nomination scheme
+#'
+#' Simulate a sociomatrix of fixed rank nominations from a social relations
+#' model. A latent matrix \code{Z} is drawn from the SRM, and each sender's
+#' outgoing ties are converted into ranked nominations: at most \code{odmax}
+#' partners are nominated, only positive latent affinities qualify, and the
+#' retained nominations are numbered from weakest (1) to strongest.
+#'
 #' @usage simY_frn(EZ, rho, odmax, YO)
 #' @param EZ a square matrix giving the expected value of the latent Z matrix
 #' @param rho dyadic correlation
@@ -12,24 +15,48 @@
 #' maintained
 #' @return a square matrix, where higher values represent stronger
 #' relationships
-#' @author Peter Hoff
+#' @keywords internal
+#' @author lame authors
 #' @export simY_frn
 simY_frn <-
-	function(EZ,rho,odmax,YO=NULL) {
-		if(length(odmax)==1) { odmax<-rep(odmax,nrow(EZ)) }
-		ZS<-simZ(EZ,rho)  
-		
-		if(nrow(ZS) == ncol(ZS)) diag(ZS)<- -Inf
-		if(!is.null(YO)) { ZS[is.na(YO)]<- -Inf }
+function(EZ,rho,odmax,YO=NULL) {
+	n_send <- nrow(EZ)
+	n_recv <- ncol(EZ)
 
-		YS<-ZS*0
-		for(i in 1:nrow(EZ)) {
-			rs<-rank(ZS[i,])  -  (ncol(EZ)-odmax[i])
-			YS[i,]<-rs*(rs>0)*(ZS[i,]>0)
-			YS[i,YS[i,]>0 ] <- match( YS[i,YS[i,]>0 ] ,sort(unique(YS[i,YS[i,]>0 ])))
+	# per-sender nomination budget
+	cap <- if(length(odmax)==1) rep(odmax,n_send) else odmax
+
+	# latent affinities under the social relations model
+	z_lat <- simZ(EZ,rho)
+
+	# self-ties are never eligible (only meaningful when square)
+	square <- (n_send==n_recv)
+	if(square) diag(z_lat) <- -Inf
+
+	# structurally missing cells are removed from contention
+	miss <- if(!is.null(YO)) is.na(YO) else NULL
+	if(!is.null(miss)) z_lat[miss] <- -Inf
+
+	nominations <- matrix(0,n_send,n_recv)
+
+	for(i in seq_len(n_send)) {
+		affinity <- z_lat[i,]
+
+		# ascending ranks: the largest affinity earns the top rank
+		asc_rank <- rank(affinity)
+
+		# eligible = among this sender's top-`cap[i]` targets AND strictly positive
+		eligible <- (asc_rank > n_recv - cap[i]) & (affinity > 0)
+
+		if(any(eligible)) {
+			# renumber the retained targets 1..k by increasing strength
+			nominations[i,eligible] <- rank(affinity[eligible])
 		}
-		if(nrow(YS) == ncol(YS)) diag(YS)<-NA
-		if(!is.null(YO)) { YS[is.na(YO)]<- NA }
-		
-		YS
 	}
+
+	# restore missingness markers in the returned matrix
+	if(square) diag(nominations) <- NA
+	if(!is.null(miss)) nominations[miss] <- NA
+
+	nominations
+}
