@@ -1,5 +1,6 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://netify-dev.github.io/lame/404.html</loc></url>
+<url><loc>https://netify-dev.github.io/lame/LICENSE-text.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/articles/bipartite.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/articles/cross_sec_ame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/articles/dynamic_effects.html</loc></url>
@@ -110,11 +111,9 @@
 <url><loc>https://netify-dev.github.io/lame/reference/lame_snap_als.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/latent_positions.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/lazegalaw.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/ldZgbme.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/lfo.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/list_to_array.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/list_to_array_bipartite.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/llsrmRho.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/logLik.ame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/logLik.ame_als.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/log_phi_diff.html</loc></url>
@@ -191,9 +190,7 @@
 <url><loc>https://netify-dev.github.io/lame/reference/residuals.lame.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rhat_dynamic_beta.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rmvnorm.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/rrho_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rrho_mh.html</loc></url>
-<url><loc>https://netify-dev.github.io/lame/reference/rrho_mh_rep.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rs2_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rs2_rep_fc.html</loc></url>
 <url><loc>https://netify-dev.github.io/lame/reference/rtnorm_interval_logp.html</loc></url>

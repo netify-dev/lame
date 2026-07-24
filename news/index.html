@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,13 +46,14 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.3.3" id="lame-133">lame 1.3.3<a class="anchor" aria-label="anchor" href="#lame-133"></a></h2>
-<ul><li>
-<code>dynamic_ab</code> fits now return the per-period posterior standard deviation of the additive effects on <code>fit$a_dynamic_sd</code> / <code>fit$b_dynamic_sd</code>, and <code>ab_plot(fit, plot_type = "ribbon")</code> draws a 95% credible band from them. (Previously the ribbon plot required draws the longitudinal sampler never stored, so it errored, and its fallback drew a constant-width band that misrepresented per-period uncertainty.)</li>
-<li>The package is now distributed under GPL-3 rather than MIT, matching the license of <code>amen</code>, from which several samplers and helpers are derived. Peter Hoff is credited as contributor and copyright holder; see <code>inst/COPYRIGHTS</code>.</li>
-<li>Fitting no longer leaves a <code>.Random.seed</code> behind in the global environment when the session had none, and <code><a href="../reference/lame.html">lame()</a></code> no longer sets <code>options(warn)</code>.</li>
-<li>Fixed Rd markup reported by CRAN’s incoming checks.</li>
-<li>Fixed a prior-scaling bug that could silently collapse the latent factors (and attenuate coefficients) in asymmetric <code><a href="../reference/ame.html">ame()</a></code> fits with <code>R &gt; 0</code>; fits now match <code>amen</code>.</li>
+<h2 class="pkg-version" data-toc-text="1.3.4" id="lame-134">lame 1.3.4<a class="anchor" aria-label="anchor" href="#lame-134"></a></h2>
+<ul><li>The handful of Gibbs samplers and helpers once adapted from <code>amen</code> have been rewritten from the underlying published methods, so the package carries no derived code and stays under the MIT license.</li>
+<li>Fixed a prior-scaling bug that could silently collapse the latent factors in asymmetric <code><a href="../reference/ame.html">ame()</a></code> fits with <code>R &gt; 0</code>; fits now match <code>amen</code>.</li>
+<li>
+<code>dynamic_ab</code> fits carry per-period posterior SDs, so <code>ab_plot(fit, plot_type = "ribbon")</code> draws a real credible band.</li>
+<li>A few documented options now do what they say: <code>log_lik_method = "augmented"</code>, <code>gof(nsim = NULL)</code> (uses all draws), and bootstrap error bars in <code><a href="../reference/ab_plot.html">ab_plot()</a></code> for <code>ame_als</code> fits. Dropped an unused argument and fixed some stale help text.</li>
+<li>Fitting no longer leaves a <code>.Random.seed</code> behind or touches <code>options(warn)</code>.</li>
+<li>Fixed Rd markup flagged by CRAN.</li>
 <li>Time-varying coefficients (<code>dynamic_beta</code>) compose freely with the multiplicative latent factors (<code>R &gt; 0</code>) and additive sender/receiver effects, for every family and network type. Coefficients can follow AR(1), random-walk, or Matern dynamics, and <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> carries that drift into its forecasts.</li>
 <li>
 <code>netify</code> objects can be passed straight to <code><a href="../reference/ame.html">ame()</a></code>, <code><a href="../reference/lame.html">lame()</a></code>, and the ALS fitters; a network’s <code>symmetric</code> attribute is honored automatically, and named covariates are aligned to <code>Y</code> by actor.</li>
@@ -60,7 +61,7 @@
 <li>
 <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on a <code>lame</code> fit exposes the coefficient table under <code>$coefficients</code>, matching <code>summary.ame</code> and the <code>broom</code>/<code>lm</code> idiom.</li>
 </ul><div class="section level3">
-<h3 id="known-limitations-1-3-3">Known limitations<a class="anchor" aria-label="anchor" href="#known-limitations-1-3-3"></a></h3>
+<h3 id="known-limitations-1-3-4">Known limitations<a class="anchor" aria-label="anchor" href="#known-limitations-1-3-4"></a></h3>
 <ul><li>Bipartite <code>fit$U</code> / <code>fit$V</code> are a single posterior draw (the rotation is unidentified); use <code>fit$YPM</code> or <code><a href="../reference/reconstruct_EZ.html">reconstruct_UVPM()</a></code> for the stable multiplicative structure.</li>
 <li>In the bipartite <code>dynamic_uv</code> path, latent persistence <code>rho_uv</code> is only weakly identified – read it qualitatively. The unipartite path is unaffected.</li>
 </ul></div>

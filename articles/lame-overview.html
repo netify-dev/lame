@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -266,16 +266,16 @@ the observed covariates do not capture. (Why <code>R = 1</code> and not
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;                   Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept           -2.477    0.753  -3.289   0.001   -3.794   -1.176  **</span></span>
-<span><span class="co">#&gt; male_row             0.812    0.573   1.418   0.156   -0.161    1.634    </span></span>
-<span><span class="co">#&gt; smoker_row          -0.926    0.435   -2.13   0.033   -1.562    -0.21   *</span></span>
-<span><span class="co">#&gt; program_row          0.429     0.14   3.056   0.002    0.264    0.648  **</span></span>
-<span><span class="co">#&gt; male_col             0.889    0.264   3.368   0.001    0.432     1.31 ***</span></span>
-<span><span class="co">#&gt; smoker_col           0.013    0.209   0.062   0.951   -0.341    0.305    </span></span>
-<span><span class="co">#&gt; program_col           0.11    0.115   0.955    0.34   -0.128    0.262    </span></span>
-<span><span class="co">#&gt; same_male_dyad       0.444    0.091    4.89       0    0.276    0.558 ***</span></span>
-<span><span class="co">#&gt; same_smoker_dyad     0.156    0.065   2.396   0.017    0.049    0.267   *</span></span>
-<span><span class="co">#&gt; same_program_dyad    0.568    0.049  11.518       0    0.491    0.638 ***</span></span>
+<span><span class="co">#&gt; intercept           -2.842     1.23  -2.311   0.021   -5.257   -1.645   *</span></span>
+<span><span class="co">#&gt; male_row             0.975    0.381   2.555   0.011    0.315    1.516   *</span></span>
+<span><span class="co">#&gt; smoker_row          -1.034    0.429  -2.411   0.016   -1.676   -0.307   *</span></span>
+<span><span class="co">#&gt; program_row           0.46    0.259   1.772   0.076    0.175    1.013   .</span></span>
+<span><span class="co">#&gt; male_col             1.089    0.219    4.96       0    0.628    1.389 ***</span></span>
+<span><span class="co">#&gt; smoker_col           0.015     0.19    0.08   0.936   -0.261    0.351    </span></span>
+<span><span class="co">#&gt; program_col          0.159    0.148   1.074   0.283   -0.076    0.381    </span></span>
+<span><span class="co">#&gt; same_male_dyad       0.479    0.057   8.444       0    0.381    0.566 ***</span></span>
+<span><span class="co">#&gt; same_smoker_dyad     0.183    0.044   4.213       0    0.112    0.248 ***</span></span>
+<span><span class="co">#&gt; same_program_dyad    0.571    0.061   9.369       0    0.475    0.669 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -283,10 +283,10 @@ the observed covariates do not capture. (Why <code>R = 1</code> and not
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.788    0.246</span></span>
-<span><span class="co">#&gt; cab    0.285    0.134</span></span>
-<span><span class="co">#&gt; vb     0.310    0.074</span></span>
-<span><span class="co">#&gt; rho    0.344    0.038</span></span>
+<span><span class="co">#&gt; va     0.867    0.249</span></span>
+<span><span class="co">#&gt; cab    0.290    0.096</span></span>
+<span><span class="co">#&gt; vb     0.322    0.083</span></span>
+<span><span class="co">#&gt; rho    0.325    0.036</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
@@ -306,7 +306,7 @@ once you add back the mean covariate contribution:</p>
 <span>  centroid_lp   <span class="op">=</span> <span class="va">centroid_lp</span>,</span>
 <span>  qnorm_density <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">qnorm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     intercept   centroid_lp qnorm_density </span></span>
-<span><span class="co">#&gt;   -2.47732430   -0.06050530    0.00842291</span></span></code></pre></div>
+<span><span class="co">#&gt;   -2.84155897   -0.07779080    0.00842291</span></span></code></pre></div>
 <p>The intercept itself is strongly negative, but the predictor at the
 average covariate profile (<code>centroid_lp</code>) sits close to
 <code>qnorm(density)</code> – the uncentered covariates account for
@@ -418,24 +418,23 @@ and <strong>bulk / tail ESS</strong> in one call.</p>
 <span><span class="co">#&gt; Warning: The ESS has been capped to avoid unstable estimates.</span></span>
 <span><span class="co">#&gt; Warning: The ESS has been capped to avoid unstable estimates.</span></span>
 <span><span class="co">#&gt; Warning: The ESS has been capped to avoid unstable estimates.</span></span>
-<span><span class="co">#&gt; Warning: The ESS has been capped to avoid unstable estimates.</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 15 × 10</span></span></span>
 <span><span class="co">#&gt;    variable            mean  median     sd    mad      q5    q95   rhat ess_bulk</span></span>
 <span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>              <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept        -<span style="color: #BB0000;">2.48</span>   -<span style="color: #BB0000;">2.44</span>   0.753  0.245  -<span style="color: #BB0000;">3.66</span>   -<span style="color: #BB0000;">1.40</span>   1.25     12.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> male_row          0.812   0.796  0.573  0.603  -<span style="color: #BB0000;">0.122</span>   1.62   0.974    10.5 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> smoker_row       -<span style="color: #BB0000;">0.926</span>  -<span style="color: #BB0000;">0.872</span>  0.435  0.586  -<span style="color: #BB0000;">1.50</span>   -<span style="color: #BB0000;">0.306</span>  0.932    16.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> program_row       0.429   0.401  0.140  0.172   0.268   0.646  1.14     12.3 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> male_col          0.889   0.914  0.264  0.256   0.519   1.27   0.955    16.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> smoker_col        0.013<span style="text-decoration: underline;">0</span>  0.055<span style="text-decoration: underline;">6</span> 0.209  0.252  -<span style="color: #BB0000;">0.327</span>   0.263  1.02     16.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> program_col       0.110   0.126  0.115  0.109  -<span style="color: #BB0000;">0.063</span><span style="color: #BB0000; text-decoration: underline;">2</span>  0.244  1.10     16.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_male_dyad    0.444   0.432  0.090<span style="text-decoration: underline;">8</span> 0.083<span style="text-decoration: underline;">5</span>  0.314   0.553  1.60      4.97</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> same_smoker_dyad  0.156   0.166  0.065<span style="text-decoration: underline;">0</span> 0.047<span style="text-decoration: underline;">8</span>  0.058<span style="text-decoration: underline;">7</span>  0.253  1.17     10.8 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> same_program_dy…  0.568   0.564  0.049<span style="text-decoration: underline;">3</span> 0.053<span style="text-decoration: underline;">8</span>  0.497   0.632  1.10     12.1 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> va                0.788   0.715  0.246  0.145   0.548   1.26   0.998    11.6 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> cab               0.285   0.254  0.134  0.099<span style="text-decoration: underline;">3</span>  0.139   0.520  1.04     16.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> vb                0.310   0.314  0.074<span style="text-decoration: underline;">5</span> 0.073<span style="text-decoration: underline;">2</span>  0.196   0.421  0.947    16.0 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">14</span> rho               0.344   0.333  0.037<span style="text-decoration: underline;">9</span> 0.019<span style="text-decoration: underline;">3</span>  0.305   0.408  0.927    16.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept        -<span style="color: #BB0000;">2.84</span>   -<span style="color: #BB0000;">2.37</span>   1.23   0.827  -<span style="color: #BB0000;">5.20</span>   -<span style="color: #BB0000;">1.65</span>   1.40     13.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> male_row          0.975   1.05   0.381  0.431   0.383   1.49   1.14      9.86</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> smoker_row       -<span style="color: #BB0000;">1.03</span>   -<span style="color: #BB0000;">1.05</span>   0.429  0.178  -<span style="color: #BB0000;">1.64</span>   -<span style="color: #BB0000;">0.313</span>  0.966    16.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> program_row       0.460   0.377  0.259  0.148   0.218   0.958  1.38     16.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> male_col          1.09    1.11   0.219  0.139   0.753   1.36   1.27      7.26</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> smoker_col        0.015<span style="text-decoration: underline;">2</span>  0.037<span style="text-decoration: underline;">6</span> 0.190  0.208  -<span style="color: #BB0000;">0.229</span>   0.314  1.02     16.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> program_col       0.159   0.138  0.148  0.121  -<span style="color: #BB0000;">0.069</span><span style="color: #BB0000; text-decoration: underline;">1</span>  0.373  1.16     16.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_male_dyad    0.479   0.474  0.056<span style="text-decoration: underline;">7</span> 0.037<span style="text-decoration: underline;">4</span>  0.406   0.564  0.958    12.1 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> same_smoker_dyad  0.183   0.188  0.043<span style="text-decoration: underline;">6</span> 0.050<span style="text-decoration: underline;">2</span>  0.125   0.244  0.962    16.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> same_program_dy…  0.571   0.583  0.061<span style="text-decoration: underline;">0</span> 0.066<span style="text-decoration: underline;">5</span>  0.486   0.653  1.25     11.8 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> va                0.867   0.906  0.249  0.276   0.536   1.22   0.927    16.0 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> cab               0.290   0.297  0.096<span style="text-decoration: underline;">4</span> 0.100   0.160   0.437  1.11     10.7 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">13</span> vb                0.322   0.303  0.083<span style="text-decoration: underline;">2</span> 0.078<span style="text-decoration: underline;">4</span>  0.229   0.458  1.11     12.7 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">14</span> rho               0.325   0.327  0.035<span style="text-decoration: underline;">7</span> 0.038<span style="text-decoration: underline;">1</span>  0.273   0.374  0.968    13.0 </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">15</span> ve                1       1      0      0       1       1     <span style="color: #BB0000;">NA</span>        <span style="color: #BB0000;">NA</span>   </span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: ess_tail &lt;dbl&gt;</span></span></span></code></pre></div>
 <p>A single-chain fit like this one has <code>chain = 1</code>, so
@@ -590,12 +589,12 @@ the <code><a href="../reference/latent_positions.html">latent_positions()</a></c
 <code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   actor dimension time       value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1   S01         1    1 -1.08827834    0.6228350    U</span></span>
-<span><span class="co">#&gt; 2   S02         1    1  0.04317727    0.3723720    U</span></span>
-<span><span class="co">#&gt; 3   S03         1    1  0.26156088    0.3190402    U</span></span>
-<span><span class="co">#&gt; 4   S04         1    1  0.51205543    0.3802944    U</span></span>
-<span><span class="co">#&gt; 5   S05         1    1  0.75870380    0.6417021    U</span></span>
-<span><span class="co">#&gt; 6   S06         1    1  0.92427798    0.5181684    U</span></span></code></pre></div>
+<span><span class="co">#&gt; 1   S01         1    1 -1.69217879    1.2629097    U</span></span>
+<span><span class="co">#&gt; 2   S02         1    1 -0.14694728    0.4667172    U</span></span>
+<span><span class="co">#&gt; 3   S03         1    1  0.09914408    0.7743679    U</span></span>
+<span><span class="co">#&gt; 4   S04         1    1  0.35976832    0.6822472    U</span></span>
+<span><span class="co">#&gt; 5   S05         1    1  0.52953437    1.0736528    U</span></span>
+<span><span class="co">#&gt; 6   S06         1    1  0.53141713    1.0800417    U</span></span></code></pre></div>
 <p>Each row gives one actor’s position on one latent dimension at one
 time point, with a <code>type</code> column distinguishing the sender
 position (<code>"U"</code>) from the receiver position
@@ -698,18 +697,18 @@ built from the Dutch-college data above:</p>
 <span><span class="co"># generics::tidy registration.</span></span>
 <span><span class="fu"><a href="../reference/tidy.html">tidy</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 10 × 7</span></span></span>
-<span><span class="co">#&gt;    term              estimate std.error statistic    p.value conf.low conf.high</span></span>
-<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept          -<span style="color: #BB0000;">2.48</span>      0.753    -<span style="color: #BB0000;">3.29</span>   0.001<span style="text-decoration: underline;">01</span>     -<span style="color: #BB0000;">3.79</span>      -<span style="color: #BB0000;">1.18</span> </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> male_row            0.812     0.573     1.42   0.156       -<span style="color: #BB0000;">0.161</span>      1.63 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> smoker_row         -<span style="color: #BB0000;">0.926</span>     0.435    -<span style="color: #BB0000;">2.13</span>   0.033<span style="text-decoration: underline;">2</span>      -<span style="color: #BB0000;">1.56</span>      -<span style="color: #BB0000;">0.210</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> program_row         0.429     0.140     3.06   0.002<span style="text-decoration: underline;">24</span>      0.264      0.648</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> male_col            0.889     0.264     3.37   0.000<span style="text-decoration: underline;">757</span>     0.432      1.31 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> smoker_col          0.013<span style="text-decoration: underline;">0</span>    0.209     0.061<span style="text-decoration: underline;">9</span> 0.951       -<span style="color: #BB0000;">0.341</span>      0.305</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> program_col         0.110     0.115     0.955  0.340       -<span style="color: #BB0000;">0.128</span>      0.262</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_male_dyad      0.444     0.090<span style="text-decoration: underline;">8</span>    4.89   0.000<span style="text-decoration: underline;">001</span>01   0.276      0.558</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> same_smoker_dyad    0.156     0.065<span style="text-decoration: underline;">0</span>    2.40   0.016<span style="text-decoration: underline;">6</span>       0.048<span style="text-decoration: underline;">8</span>     0.267</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> same_program_dyad   0.568     0.049<span style="text-decoration: underline;">3</span>   11.5    0            0.491      0.638</span></span></code></pre></div>
+<span><span class="co">#&gt;    term              estimate std.error statistic     p.value conf.low conf.high</span></span>
+<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> intercept          -<span style="color: #BB0000;">2.84</span>      1.23     -<span style="color: #BB0000;">2.31</span>   0.020<span style="text-decoration: underline;">8</span>       -<span style="color: #BB0000;">5.26</span>      -<span style="color: #BB0000;">1.64</span> </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> male_row            0.975     0.381     2.55   0.010<span style="text-decoration: underline;">6</span>        0.315      1.52 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> smoker_row         -<span style="color: #BB0000;">1.03</span>      0.429    -<span style="color: #BB0000;">2.41</span>   0.015<span style="text-decoration: underline;">9</span>       -<span style="color: #BB0000;">1.68</span>      -<span style="color: #BB0000;">0.307</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> program_row         0.460     0.259     1.77   0.076<span style="text-decoration: underline;">4</span>        0.175      1.01 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> male_col            1.09      0.219     4.96   0.000<span style="text-decoration: underline;">000</span>704   0.628      1.39 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> smoker_col          0.015<span style="text-decoration: underline;">2</span>    0.190     0.080<span style="text-decoration: underline;">2</span> 0.936        -<span style="color: #BB0000;">0.261</span>      0.351</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> program_col         0.159     0.148     1.07   0.283        -<span style="color: #BB0000;">0.076</span><span style="color: #BB0000; text-decoration: underline;">2</span>     0.381</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> same_male_dyad      0.479     0.056<span style="text-decoration: underline;">7</span>    8.44   0             0.381      0.566</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> same_smoker_dyad    0.183     0.043<span style="text-decoration: underline;">6</span>    4.21   0.000<span style="text-decoration: underline;">025</span>2     0.112      0.248</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> same_program_dyad   0.571     0.061<span style="text-decoration: underline;">0</span>    9.37   0             0.475      0.669</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="coefficient-tables-glance-tidy---modelsummary-gt-kableextra">Coefficient tables: <code>glance()</code> + <code>tidy()</code>
@@ -787,83 +786,83 @@ package consumes a <code>lame</code> fit directly – most compactly
 <tbody>
 <tr>
 <td data-row="1" data-col="1">intercept</td>
-                  <td data-row="1" data-col="2">-2.477</td>
+                  <td data-row="1" data-col="2">-2.842</td>
                 </tr>
 <tr>
 <td data-row="2" data-col="1"></td>
-                  <td data-row="2" data-col="2">[-3.794, -1.176]</td>
+                  <td data-row="2" data-col="2">[-5.257, -1.645]</td>
                 </tr>
 <tr>
 <td data-row="3" data-col="1">male_row</td>
-                  <td data-row="3" data-col="2">0.812</td>
+                  <td data-row="3" data-col="2">0.975</td>
                 </tr>
 <tr>
 <td data-row="4" data-col="1"></td>
-                  <td data-row="4" data-col="2">[-0.161, 1.634]</td>
+                  <td data-row="4" data-col="2">[0.315, 1.516]</td>
                 </tr>
 <tr>
 <td data-row="5" data-col="1">smoker_row</td>
-                  <td data-row="5" data-col="2">-0.926</td>
+                  <td data-row="5" data-col="2">-1.034</td>
                 </tr>
 <tr>
 <td data-row="6" data-col="1"></td>
-                  <td data-row="6" data-col="2">[-1.562, -0.210]</td>
+                  <td data-row="6" data-col="2">[-1.676, -0.307]</td>
                 </tr>
 <tr>
 <td data-row="7" data-col="1">program_row</td>
-                  <td data-row="7" data-col="2">0.429</td>
+                  <td data-row="7" data-col="2">0.460</td>
                 </tr>
 <tr>
 <td data-row="8" data-col="1"></td>
-                  <td data-row="8" data-col="2">[0.264, 0.648]</td>
+                  <td data-row="8" data-col="2">[0.175, 1.013]</td>
                 </tr>
 <tr>
 <td data-row="9" data-col="1">male_col</td>
-                  <td data-row="9" data-col="2">0.889</td>
+                  <td data-row="9" data-col="2">1.089</td>
                 </tr>
 <tr>
 <td data-row="10" data-col="1"></td>
-                  <td data-row="10" data-col="2">[0.432, 1.310]</td>
+                  <td data-row="10" data-col="2">[0.628, 1.389]</td>
                 </tr>
 <tr>
 <td data-row="11" data-col="1">smoker_col</td>
-                  <td data-row="11" data-col="2">0.013</td>
+                  <td data-row="11" data-col="2">0.015</td>
                 </tr>
 <tr>
 <td data-row="12" data-col="1"></td>
-                  <td data-row="12" data-col="2">[-0.341, 0.305]</td>
+                  <td data-row="12" data-col="2">[-0.261, 0.351]</td>
                 </tr>
 <tr>
 <td data-row="13" data-col="1">program_col</td>
-                  <td data-row="13" data-col="2">0.110</td>
+                  <td data-row="13" data-col="2">0.159</td>
                 </tr>
 <tr>
 <td data-row="14" data-col="1"></td>
-                  <td data-row="14" data-col="2">[-0.128, 0.262]</td>
+                  <td data-row="14" data-col="2">[-0.076, 0.381]</td>
                 </tr>
 <tr>
 <td data-row="15" data-col="1">same_male_dyad</td>
-                  <td data-row="15" data-col="2">0.444</td>
+                  <td data-row="15" data-col="2">0.479</td>
                 </tr>
 <tr>
 <td data-row="16" data-col="1"></td>
-                  <td data-row="16" data-col="2">[0.276, 0.558]</td>
+                  <td data-row="16" data-col="2">[0.381, 0.566]</td>
                 </tr>
 <tr>
 <td data-row="17" data-col="1">same_smoker_dyad</td>
-                  <td data-row="17" data-col="2">0.156</td>
+                  <td data-row="17" data-col="2">0.183</td>
                 </tr>
 <tr>
 <td data-row="18" data-col="1"></td>
-                  <td data-row="18" data-col="2">[0.049, 0.267]</td>
+                  <td data-row="18" data-col="2">[0.112, 0.248]</td>
                 </tr>
 <tr>
 <td data-row="19" data-col="1">same_program_dyad</td>
-                  <td data-row="19" data-col="2">0.568</td>
+                  <td data-row="19" data-col="2">0.571</td>
                 </tr>
 <tr>
 <td data-row="20" data-col="1"></td>
-                  <td data-row="20" data-col="2">[0.491, 0.638]</td>
+                  <td data-row="20" data-col="2">[0.475, 0.669]</td>
                 </tr>
 <tr>
 <td data-row="21" data-col="1">Num.Obs.</td>
@@ -969,103 +968,103 @@ no-latent-space variant (<code>R = 0</code>):</p>
 <tbody>
 <tr>
 <td data-row="1" data-col="1">intercept</td>
-                  <td data-row="1" data-col="2">-2.477</td>
-                  <td data-row="1" data-col="3">-1.903</td>
+                  <td data-row="1" data-col="2">-2.842</td>
+                  <td data-row="1" data-col="3">-1.937</td>
                 </tr>
 <tr>
 <td data-row="2" data-col="1"></td>
-                  <td data-row="2" data-col="2">[-3.794, -1.176]</td>
-                  <td data-row="2" data-col="3">[-4.085, 0.371]</td>
+                  <td data-row="2" data-col="2">[-5.257, -1.645]</td>
+                  <td data-row="2" data-col="3">[-3.444, -0.836]</td>
                 </tr>
 <tr>
 <td data-row="3" data-col="1">male_row</td>
-                  <td data-row="3" data-col="2">0.812</td>
-                  <td data-row="3" data-col="3">0.772</td>
+                  <td data-row="3" data-col="2">0.975</td>
+                  <td data-row="3" data-col="3">0.720</td>
                 </tr>
 <tr>
 <td data-row="4" data-col="1"></td>
-                  <td data-row="4" data-col="2">[-0.161, 1.634]</td>
-                  <td data-row="4" data-col="3">[0.349, 1.548]</td>
+                  <td data-row="4" data-col="2">[0.315, 1.516]</td>
+                  <td data-row="4" data-col="3">[0.051, 1.473]</td>
                 </tr>
 <tr>
 <td data-row="5" data-col="1">smoker_row</td>
-                  <td data-row="5" data-col="2">-0.926</td>
-                  <td data-row="5" data-col="3">-0.741</td>
+                  <td data-row="5" data-col="2">-1.034</td>
+                  <td data-row="5" data-col="3">-0.939</td>
                 </tr>
 <tr>
 <td data-row="6" data-col="1"></td>
-                  <td data-row="6" data-col="2">[-1.562, -0.210]</td>
-                  <td data-row="6" data-col="3">[-1.295, 0.120]</td>
+                  <td data-row="6" data-col="2">[-1.676, -0.307]</td>
+                  <td data-row="6" data-col="3">[-1.618, -0.371]</td>
                 </tr>
 <tr>
 <td data-row="7" data-col="1">program_row</td>
-                  <td data-row="7" data-col="2">0.429</td>
-                  <td data-row="7" data-col="3">0.332</td>
+                  <td data-row="7" data-col="2">0.460</td>
+                  <td data-row="7" data-col="3">0.316</td>
                 </tr>
 <tr>
 <td data-row="8" data-col="1"></td>
-                  <td data-row="8" data-col="2">[0.264, 0.648]</td>
-                  <td data-row="8" data-col="3">[-0.039, 0.591]</td>
+                  <td data-row="8" data-col="2">[0.175, 1.013]</td>
+                  <td data-row="8" data-col="3">[0.082, 0.553]</td>
                 </tr>
 <tr>
 <td data-row="9" data-col="1">male_col</td>
-                  <td data-row="9" data-col="2">0.889</td>
-                  <td data-row="9" data-col="3">0.838</td>
+                  <td data-row="9" data-col="2">1.089</td>
+                  <td data-row="9" data-col="3">0.967</td>
                 </tr>
 <tr>
 <td data-row="10" data-col="1"></td>
-                  <td data-row="10" data-col="2">[0.432, 1.310]</td>
-                  <td data-row="10" data-col="3">[0.446, 1.237]</td>
+                  <td data-row="10" data-col="2">[0.628, 1.389]</td>
+                  <td data-row="10" data-col="3">[0.585, 1.242]</td>
                 </tr>
 <tr>
 <td data-row="11" data-col="1">smoker_col</td>
-                  <td data-row="11" data-col="2">0.013</td>
-                  <td data-row="11" data-col="3">-0.020</td>
+                  <td data-row="11" data-col="2">0.015</td>
+                  <td data-row="11" data-col="3">-0.137</td>
                 </tr>
 <tr>
 <td data-row="12" data-col="1"></td>
-                  <td data-row="12" data-col="2">[-0.341, 0.305]</td>
-                  <td data-row="12" data-col="3">[-0.458, 0.447]</td>
+                  <td data-row="12" data-col="2">[-0.261, 0.351]</td>
+                  <td data-row="12" data-col="3">[-0.586, 0.325]</td>
                 </tr>
 <tr>
 <td data-row="13" data-col="1">program_col</td>
-                  <td data-row="13" data-col="2">0.110</td>
-                  <td data-row="13" data-col="3">0.024</td>
+                  <td data-row="13" data-col="2">0.159</td>
+                  <td data-row="13" data-col="3">0.080</td>
                 </tr>
 <tr>
 <td data-row="14" data-col="1"></td>
-                  <td data-row="14" data-col="2">[-0.128, 0.262]</td>
-                  <td data-row="14" data-col="3">[-0.290, 0.310]</td>
+                  <td data-row="14" data-col="2">[-0.076, 0.381]</td>
+                  <td data-row="14" data-col="3">[-0.127, 0.331]</td>
                 </tr>
 <tr>
 <td data-row="15" data-col="1">same_male_dyad</td>
-                  <td data-row="15" data-col="2">0.444</td>
-                  <td data-row="15" data-col="3">0.422</td>
+                  <td data-row="15" data-col="2">0.479</td>
+                  <td data-row="15" data-col="3">0.432</td>
                 </tr>
 <tr>
 <td data-row="16" data-col="1"></td>
-                  <td data-row="16" data-col="2">[0.276, 0.558]</td>
-                  <td data-row="16" data-col="3">[0.339, 0.508]</td>
+                  <td data-row="16" data-col="2">[0.381, 0.566]</td>
+                  <td data-row="16" data-col="3">[0.340, 0.500]</td>
                 </tr>
 <tr>
 <td data-row="17" data-col="1">same_smoker_dyad</td>
-                  <td data-row="17" data-col="2">0.156</td>
-                  <td data-row="17" data-col="3">0.194</td>
+                  <td data-row="17" data-col="2">0.183</td>
+                  <td data-row="17" data-col="3">0.190</td>
                 </tr>
 <tr>
 <td data-row="18" data-col="1"></td>
-                  <td data-row="18" data-col="2">[0.049, 0.267]</td>
-                  <td data-row="18" data-col="3">[0.112, 0.242]</td>
+                  <td data-row="18" data-col="2">[0.112, 0.248]</td>
+                  <td data-row="18" data-col="3">[0.103, 0.259]</td>
                 </tr>
 <tr>
 <td data-row="19" data-col="1">same_program_dyad</td>
-                  <td data-row="19" data-col="2">0.568</td>
-                  <td data-row="19" data-col="3">0.610</td>
+                  <td data-row="19" data-col="2">0.571</td>
+                  <td data-row="19" data-col="3">0.622</td>
                 </tr>
 <tr>
 <td data-row="20" data-col="1"></td>
-                  <td data-row="20" data-col="2">[0.491, 0.638]</td>
-                  <td data-row="20" data-col="3">[0.532, 0.685]</td>
+                  <td data-row="20" data-col="2">[0.475, 0.669]</td>
+                  <td data-row="20" data-col="3">[0.537, 0.696]</td>
                 </tr>
 <tr>
 <td data-row="21" data-col="1">Num.Obs.</td>
@@ -1192,12 +1191,12 @@ fits above already carry the pointwise log-likelihood, so
 <span><span class="va">cmp</span></span>
 <span><span class="co">#&gt;      model elpd_diff se_diff p_worse diag_diff          diag_elpd</span></span>
 <span><span class="co">#&gt;  latent_R1       0.0     0.0      NA           5952 k_psis &gt; 0.15</span></span>
-<span><span class="co">#&gt;  no_latent    -112.6    15.4    1.00           5952 k_psis &gt; 0.15</span></span></code></pre></div>
+<span><span class="co">#&gt;  no_latent    -147.2    18.9    1.00           5952 k_psis &gt; 0.15</span></span></code></pre></div>
 <p><strong>How to read the output.</strong> The top row is the preferred
 model (<code>elpd_diff = 0</code>); each subsequent row reports the elpd
 <em>difference</em> relative to it, with a standard error. Here
 <code>1</code> is preferred, beating <code>2</code> by about
-<code>112.6</code> elpd units (SE <code>15.4</code>); a ratio of
+<code>147.2</code> elpd units (SE <code>18.9</code>); a ratio of
 <code>|elpd_diff|/se_diff</code> near or above 2 is a reasonably
 confident preference, so the latent space is doing real predictive work
 on this network. When <code>|elpd_diff|</code> is instead close to its
@@ -1207,7 +1206,7 @@ SE, the simpler model is the defensible choice.</p>
 <code>R = 0</code> columns told the same homophily story (the nodal
 terms shift more, with wide overlapping intervals). The two are not in
 tension: the latent space leaves the homophily coefficients intact yet
-buys roughly <code>112.6</code> elpd units out of sample, because the
+buys roughly <code>147.2</code> elpd units out of sample, because the
 predictive gain is carried by the estimated latent positions themselves
 – the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>u</mi><mi>i</mi><mo>′</mo></msubsup><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i' v_j</annotation></semantics></math>
@@ -1251,7 +1250,7 @@ This vignette’s own session record:</p>
 <span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] netify_1.5.3    posterior_1.7.0 ggplot2_4.0.3   lame_1.3.3     </span></span>
+<span><span class="co">#&gt; [1] netify_1.5.3    posterior_1.7.0 ggplot2_4.0.3   lame_1.3.4     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
 <span><span class="co">#&gt;  [1] gtable_0.3.6          tensorA_0.36.2.1      xfun_0.60            </span></span>

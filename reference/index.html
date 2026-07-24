@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -968,7 +968,7 @@
           <code><a href="simY_bin.html">simY_bin()</a></code>
 
         </dt>
-        <dd>Simulate a network, i.e. a binary relational matrix</dd>
+        <dd>Simulate a binary relational matrix from latent means</dd>
 
         <dt>
 
@@ -989,14 +989,14 @@
           <code><a href="simY_frn.html">simY_frn()</a></code>
 
         </dt>
-        <dd>Simulate an relational matrix based on a fixed rank nomination scheme</dd>
+        <dd>Simulate a relational matrix under a fixed rank nomination scheme</dd>
 
         <dt>
 
           <code><a href="simZ.html">simZ()</a></code>
 
         </dt>
-        <dd>Simulate Z given its expectation and covariance</dd>
+        <dd>Simulate a latent relational Gaussian array</dd>
       </dl></div><div class="section level2">
       <h2 id="data-manipulation">Data Manipulation<a class="anchor" aria-label="anchor" href="#data-manipulation"></a></h2>
 
@@ -1121,14 +1121,14 @@
           <code><a href="rZ_bin_fc.html">rZ_bin_fc()</a></code>
 
         </dt>
-        <dd>Simulate Z based on a probit model</dd>
+        <dd>Draw latent Z for the binary probit model</dd>
 
         <dt>
 
           <code><a href="rZ_ord_fc.html">rZ_ord_fc()</a></code>
 
         </dt>
-        <dd>Simulate Z given the partial ranks</dd>
+        <dd>Full-conditional latent draw for the ordinal family</dd>
 
         <dt>
 
@@ -1142,28 +1142,28 @@
           <code><a href="rZ_cbin_fc.html">rZ_cbin_fc()</a></code>
 
         </dt>
-        <dd>Simulate Z given fixed rank nomination data</dd>
+        <dd>Draw latent Z for censored-binary nomination data</dd>
 
         <dt>
 
           <code><a href="rZ_frn_fc.html">rZ_frn_fc()</a></code>
 
         </dt>
-        <dd>Simulate Z given fixed rank nomination data</dd>
+        <dd>Draw the latent Z matrix for fixed-rank-nomination data</dd>
 
         <dt>
 
           <code><a href="rbeta_ab_fc.html">rbeta_ab_fc()</a></code>
 
         </dt>
-        <dd>Conditional simulation of additive effects and regression coefficients</dd>
+        <dd>Joint Gibbs update of regression and additive effects (single relation)</dd>
 
         <dt>
 
           <code><a href="rbeta_ab_rep_fc.html">rbeta_ab_rep_fc()</a></code>
 
         </dt>
-        <dd>Gibbs sampling of additive row and column effects and regression coefficient with independent replicate relational data</dd>
+        <dd>Gibbs update of regression coefficients and additive effects for replicated relational data</dd>
 
         <dt>
 
@@ -1191,7 +1191,7 @@
           <code><a href="rUV_rep_fc.html">rUV_rep_fc()</a></code>
 
         </dt>
-        <dd>Gibbs sampling of U and V</dd>
+        <dd>Gibbs sampling of U and V from replicated relational data</dd>
 
         <dt>
 
@@ -1247,7 +1247,7 @@
           <code><a href="raSab_bin_fc.html">raSab_bin_fc()</a></code>
 
         </dt>
-        <dd>Simulate a and Sab from full conditional distributions under bin likelihood</dd>
+        <dd>Sample additive row effects and their covariance for the binary family</dd>
 
         <dt>
 
@@ -1265,24 +1265,10 @@
 
         <dt>
 
-          <code><a href="rrho_fc.html">rrho_fc()</a></code>
-
-        </dt>
-        <dd>Griddy Gibbs update for dyadic correlation</dd>
-
-        <dt>
-
           <code><a href="rrho_mh.html">rrho_mh()</a></code>
 
         </dt>
-        <dd>Metropolis update for dyadic correlation</dd>
-
-        <dt>
-
-          <code><a href="rrho_mh_rep.html">rrho_mh_rep()</a></code>
-
-        </dt>
-        <dd>Metropolis update for dyadic correlation with independent replicate data</dd>
+        <dd>Metropolis-Hastings update for the within-dyad correlation</dd>
 
         <dt>
 
@@ -1296,7 +1282,7 @@
           <code><a href="rs2_rep_fc.html">rs2_rep_fc()</a></code>
 
         </dt>
-        <dd>Gibbs update for dyadic variance with independent replicate relational data</dd>
+        <dd>Full-conditional draw of the dyadic variance for replicated relational data</dd>
 
         <dt>
 
@@ -1459,7 +1445,7 @@
           <code><a href="design_array.html">design_array()</a></code>
 
         </dt>
-        <dd>Computes the design socioarray of covariate values</dd>
+        <dd>Assemble the dyadic design socioarray for an AME model</dd>
 
         <dt>
 
@@ -1494,7 +1480,7 @@
           <code><a href="precomputeX.html">precomputeX()</a></code>
 
         </dt>
-        <dd>Precompute design matrix statistics</dd>
+        <dd>Precompute design-array cross-product summaries</dd>
 
         <dt>
 
@@ -1502,20 +1488,6 @@
 
         </dt>
         <dd>Linear combinations of submatrices of an array</dd>
-
-        <dt>
-
-          <code><a href="ldZgbme.html">ldZgbme()</a></code>
-
-        </dt>
-        <dd>log density for GBME models</dd>
-
-        <dt>
-
-          <code><a href="llsrmRho.html">llsrmRho()</a></code>
-
-        </dt>
-        <dd>SRM log likelihood evaluated on a grid of rho-values</dd>
 
         <dt>
 

@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -174,7 +174,7 @@ we show it failing.</p>
 <span><span class="va">trade_row</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"^trade[._]dyad$|trade"</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">coef_path</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">coef_path</span><span class="op">[</span><span class="va">trade_row</span>, <span class="op">]</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    t1    t2    t3    t4    t5    t6 </span></span>
-<span><span class="co">#&gt; 0.887 0.830 0.585 0.522 0.519 0.511</span></span></code></pre></div>
+<span><span class="co">#&gt; 0.880 0.844 0.565 0.511 0.515 0.492</span></span></code></pre></div>
 <p>The recovered trade coefficient path tracks the simulated truth, and
 (as we confirm in Step 5) the posterior on
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
@@ -205,7 +205,7 @@ and is the right prior for permanent-drift coefficients.</p>
 <span><span class="va">fc_resp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span>
 <span><span class="co"># binary: each entry is a posterior-mean predicted probability</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="va">fc_resp</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.03641859 0.86973303</span></span>
+<span><span class="co">#&gt; [1] 0.03616548 0.87778566</span></span>
 <span></span>
 <span><span class="co"># by_draw = TRUE returns the full [n, n, h, n_draws] array</span></span>
 <span><span class="va">fc_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span>, by_draw <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -217,9 +217,9 @@ and is the right prior for permanent-drift coefficients.</p>
 <span><span class="va">fc_ci</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, h <span class="op">=</span> <span class="fl">3</span>, type <span class="op">=</span> <span class="st">"response"</span>, interval <span class="op">=</span> <span class="st">"credible"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fc_ci</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>         <span class="co"># list($lower, $median, $upper), each n x n</span></span>
 <span><span class="co">#&gt; List of 3</span></span>
-<span><span class="co">#&gt;  $ lower : num [1:30, 1:30] 0.0026 0.05097 0.00531 0.08077 0.1365 ...</span></span>
-<span><span class="co">#&gt;  $ median: num [1:30, 1:30] 0.1579 0.0706 0.2427 0.1746 0.1792 ...</span></span>
-<span><span class="co">#&gt;  $ upper : num [1:30, 1:30] 0.5898 0.0899 0.7164 0.2761 0.2537 ...</span></span></code></pre></div>
+<span><span class="co">#&gt;  $ lower : num [1:30, 1:30] 0.00776 0.06168 0.01338 0.0944 0.148 ...</span></span>
+<span><span class="co">#&gt;  $ median: num [1:30, 1:30] 0.162 0.076 0.233 0.174 0.195 ...</span></span>
+<span><span class="co">#&gt;  $ upper : num [1:30, 1:30] 0.5936 0.0926 0.7045 0.2624 0.2639 ...</span></span></code></pre></div>
 <p>The typical cell of <code>fc_ci[[1]]</code> carries an informative
 <code>lower</code> / <code>median</code> / <code>upper</code> triple – a
 genuine sub-interval of [0, 1] rather than the whole range, because the
@@ -349,7 +349,7 @@ match the original <code>dimnames(Xdyad[[1]])[[3]]</code> from the fit
 <span><span class="va">delta_h3</span> <span class="op">&lt;-</span> <span class="va">fc_up</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span> <span class="op">-</span> <span class="va">fc_cf</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">delta_h3</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. </span></span>
-<span><span class="co">#&gt; -0.04510  0.04352  0.07610  0.06669  0.09405  0.11882</span></span></code></pre></div>
+<span><span class="co">#&gt; -0.03506  0.05346  0.09025  0.07910  0.11019  0.13151</span></span></code></pre></div>
 <p>The trade coefficient is positive and mean-reverting, so a one-unit
 increase in <code>trade</code> raises the posterior-mean cooperation
 probability at <code>h = 3</code> on average (the mean and median of
@@ -393,7 +393,7 @@ posterior median per coefficient and period; faceted by coefficient.</p>
 <p><code>predict(fit, h = ...)</code> fires a one-per-fit warning if the
 upper 97.5% credible bound on ρ_β reaches 0.99 (i.e. the posterior puts
 non-trivial mass near the unit root). On the mean-reverting fit above
-that bound sits at 0.936, so <strong>the warning does not fire</strong>
+that bound sits at 0.923, so <strong>the warning does not fire</strong>
 and the forecasts are well-posed. The two regimes still have
 qualitatively different forecast-variance behavior, and getting this
 distinction right matters for picking your horizon:</p>
@@ -488,21 +488,15 @@ runs up against the unit root:</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">fit_sparse</span><span class="op">$</span><span class="va">RHO_BETA</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   50% 97.5% </span></span>
-<span><span class="co">#&gt; 0.860 0.994</span></span></code></pre></div>
+<span><span class="co">#&gt; 0.813 0.953</span></span></code></pre></div>
 <p>The upper 97.5% bound on
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mi>β</mi></msub><annotation encoding="application/x-tex">\rho_\beta</annotation></semantics></math>
-is now 0.994 – past the 0.99 threshold – so the forecast call itself
+is now 0.953 – past the 0.99 threshold – so the forecast call itself
 raises the warning:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">fc_sparse</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_sparse</span>, h <span class="op">=</span> <span class="fl">6</span>, type <span class="op">=</span> <span class="st">"response"</span>,</span>
-<span>                     interval <span class="op">=</span> <span class="st">"credible"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: <span style="color: #BBBB00;">!</span> Posterior 95% interval for `rho_beta` reaches <span style="color: #0000BB;">0.994</span>.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Under AR(1) the `h`-step forecast variance saturates at the stationary level</span></span>
-<span><span class="co">#&gt;   `sigma_beta^2 / (1 - rho_beta^2)`, which itself explodes as `rho_beta -&gt; 1`;</span></span>
-<span><span class="co">#&gt;   horizons beyond <span style="color: #0000BB;">"3"</span> become uninformative in this regime.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Consider refitting with `dynamic_beta_kind = "rw1"` if the underlying process</span></span>
-<span><span class="co">#&gt;   is genuinely unit-root.</span></span></code></pre></div>
+<span>                     interval <span class="op">=</span> <span class="st">"credible"</span><span class="op">)</span></span></code></pre></div>
 <p>That is the diagnostic doing its job at forecast time. To see what
 the near-unit-root posterior does to the intervals, compare how the
 average 95% forecast-interval width grows with the horizon on this fit
@@ -518,8 +512,8 @@ versus the mean-reverting Step 1 fit:</p>
 <span><span class="va">w_sparse</span>  <span class="op">&lt;-</span> <span class="fu">width_by_h</span><span class="op">(</span><span class="va">fc_sparse</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>mean_reverting <span class="op">=</span> <span class="va">w_healthy</span>, near_unit_root <span class="op">=</span> <span class="va">w_sparse</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                 [,1]  [,2]  [,3]  [,4]  [,5]  [,6]</span></span>
-<span><span class="co">#&gt; mean_reverting 0.321 0.433 0.477 0.557 0.520 0.516</span></span>
-<span><span class="co">#&gt; near_unit_root 0.251 0.355 0.375 0.469 0.488 0.497</span></span>
+<span><span class="co">#&gt; mean_reverting 0.313 0.401 0.458 0.500 0.526 0.496</span></span>
+<span><span class="co">#&gt; near_unit_root 0.227 0.280 0.413 0.473 0.471 0.447</span></span>
 <span></span>
 <span><span class="co"># at h = 3, how many of the dyads the covariate actually moves (top</span></span>
 <span><span class="co"># decile of |sanction_risk|) get an interval spanning nearly all of</span></span>
@@ -529,7 +523,7 @@ versus the mean-reverting Step 1 fit:</p>
 <span><span class="va">deg_h3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fc_sparse</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">lower</span><span class="op">[</span><span class="va">hi_x</span><span class="op">]</span> <span class="op">&lt;</span> <span class="fl">0.05</span> <span class="op">&amp;</span></span>
 <span>               <span class="va">fc_sparse</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">upper</span><span class="op">[</span><span class="va">hi_x</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0.95</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">deg_h3</span>, <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.45</span></span>
+<span><span class="co">#&gt; [1] 0.52</span></span>
 <span></span>
 <span><span class="va">width_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>    h     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">w_healthy</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span>,</span>
@@ -556,7 +550,7 @@ The near-unit-root fit’s width has grown by a factor of 2 by
 sits at the unit root, damped here only by the bounded [0, 1]
 probability scale. And the degeneracy lands exactly where it hurts:
 among the dyads the covariate actually moves (the top decile of
-<code>|sanction_risk|</code>), 45% of the <code>h = 3</code> intervals
+<code>|sanction_risk|</code>), 52% of the <code>h = 3</code> intervals
 already span essentially the whole unit interval, on a network whose
 observed density never exceeded 16%. A forecast interval of [0, 1] for a
 rare-event dyad says nothing at all – which is precisely what the
@@ -581,10 +575,10 @@ leave-future-out CV:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Periods evaluated: <span style="color: #0000BB;">5</span> and <span style="color: #0000BB;">6</span></span></span>
 <span><span class="co">#&gt; Refit per leave-out: <span style="color: #0000BB;">TRUE</span></span></span>
-<span><span class="co">#&gt; Total elpd_lfo: <span style="color: #0000BB;">-1162.3</span></span></span>
+<span><span class="co">#&gt; Total elpd_lfo: <span style="color: #0000BB;">-1189.6</span></span></span>
 <span><span class="co">#&gt;  period      elpd n_obs</span></span>
-<span><span class="co">#&gt;       5 -599.7921   870</span></span>
-<span><span class="co">#&gt;       6 -562.4691   870</span></span></code></pre></div>
+<span><span class="co">#&gt;       5 -621.6205   870</span></span>
+<span><span class="co">#&gt;       6 -567.9607   870</span></span></code></pre></div>
 <p>The <code>nscan = 100, burn = 25, odens = 5</code> settings inside
 <code><a href="../reference/lfo.html">lfo()</a></code> are chosen so the vignette builds in well under a
 minute on a laptop. They give <code>100 / 5 = 20</code> stored draws per
@@ -633,9 +627,9 @@ well-calibrated forecast produces PIT values that are Uniform(0, 1).</p>
 <span><span class="co">#&gt; • Family: <span style="color: #0000BB;">"binary"</span></span></span>
 <span><span class="co">#&gt; • Forecast horizon: <span style="color: #0000BB;">1</span></span></span>
 <span><span class="co">#&gt; • Held-out dyads: <span style="color: #0000BB;">870</span></span></span>
-<span><span class="co">#&gt; • KS stat vs Uniform(0,1): <span style="color: #0000BB;">0.0204</span></span></span>
-<span><span class="co">#&gt; • KS p-value: <span style="color: #0000BB;">0.861</span></span></span>
-<span><span class="co">#&gt; • Fraction in [0.025, 0.975]: <span style="color: #0000BB;">0.943</span> (expect <span style="color: #0000BB;">0.95</span>)</span></span>
+<span><span class="co">#&gt; • KS stat vs Uniform(0,1): <span style="color: #0000BB;">0.018</span></span></span>
+<span><span class="co">#&gt; • KS p-value: <span style="color: #0000BB;">0.941</span></span></span>
+<span><span class="co">#&gt; • Fraction in [0.025, 0.975]: <span style="color: #0000BB;">0.946</span> (expect <span style="color: #0000BB;">0.95</span>)</span></span>
 <span><span class="co">#&gt; PIT values are consistent with Uniform(0, 1) at the 5% level.</span></span></code></pre></div>
 <p><code>plot(pit)</code> renders the PIT values against the Uniform(0,
 1) reference that a perfectly calibrated forecast would follow:</p>
@@ -671,7 +665,7 @@ Uniform(0, 1); a value below 0.05 flags mis-calibration. For a
 <strong>binary</strong> outcome the PIT is the randomised
 Czado-Gneiting-Held version, so on a single held-out period
 <code>ks_p</code> carries randomisation noise on top of ordinary
-sampling noise. Here it is 0.861 – above 0.05, so this run passes – but
+sampling noise. Here it is 0.941 – above 0.05, so this run passes – but
 redrawing the randomisation alone can move that p-value from below 0.05
 to far above it, so a single KS p-value on one held-out period neither
 confirms nor condemns the forecast. (We seed the chunk only so the

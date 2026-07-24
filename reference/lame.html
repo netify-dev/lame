@@ -15,7 +15,7 @@ use the ame function."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -729,7 +729,7 @@ fitted-surface differences.</p></dd>
 
 <dt id="arg-als-max-iter">als_max_iter<a class="anchor" aria-label="anchor" href="#arg-als-max-iter"></a></dt>
 <dd><p>positive integer (only used when <code>method = "als"</code>):
-maximum block-coordinate iterations for the ALS fit. Default <code>200</code>.</p></dd>
+maximum block-coordinate iterations for the ALS fit. Default <code>1000</code>.</p></dd>
 
 
 <dt id="arg-als-tol">als_tol<a class="anchor" aria-label="anchor" href="#arg-als-tol"></a></dt>
@@ -1015,28 +1015,28 @@ explicitly with <code>netify::to_lame(lame = TRUE)</code>.</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 12  4  4</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span>            <span class="co"># [p, T] posterior-mean coefficient paths</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                   t1         t2         t3         t4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept 0.07716626 0.07716626 0.07716626 0.07716626</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad   0.49076649 0.46871668 0.44042800 0.43915069</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad   0.59285324 0.56979034 0.56463952 0.52249484</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad   0.71830706 0.70157998 0.70796983 0.64771462</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept 0.07826748 0.07826748 0.07826748 0.07826748</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad   0.49111731 0.44428714 0.44571817 0.45857251</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad   0.57504492 0.53712751 0.54922098 0.54269183</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad   0.70705884 0.66310812 0.71517498 0.67996897</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span>         <span class="co"># per-period 95% credible intervals</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                     2.5%     97.5%</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t1] 0.04044249 0.1187873</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t1]   0.40880598 0.5754233</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t1]   0.48775837 0.6524408</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t1]   0.57551953 0.8230361</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t2] 0.04044249 0.1187873</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t2]   0.37351362 0.5351765</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t2]   0.44252845 0.6697346</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t2]   0.54809567 0.8177825</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t3] 0.04044249 0.1187873</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t3]   0.34099710 0.5228001</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t3]   0.44566247 0.6604664</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t3]   0.54365883 0.8223741</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t4] 0.04044249 0.1187873</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t4]   0.34156095 0.5122625</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t4]   0.40711398 0.6061875</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t4]   0.53869386 0.7384885</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t1] 0.04120203 0.1162258</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t1]   0.39659728 0.5574730</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t1]   0.46336940 0.6543630</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t1]   0.57432997 0.8100819</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t2] 0.04120203 0.1162258</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t2]   0.33614094 0.5199627</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t2]   0.42941619 0.6286343</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t2]   0.54589670 0.7464563</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t3] 0.04120203 0.1162258</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t3]   0.36008943 0.5079309</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t3]   0.45680753 0.5965079</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t3]   0.60084123 0.7833216</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept[t4] 0.04120203 0.1162258</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad[t4]   0.35522172 0.5317025</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad[t4]   0.43112989 0.6066965</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad[t4]   0.55522092 0.7628115</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_dyn</span><span class="op">)</span>         <span class="co"># prints a "Dynamic coefficients per period" block</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> === Longitudinal AME Model Summary ===</span>
@@ -1047,15 +1047,15 @@ explicitly with <code>netify::to_lame(lame = TRUE)</code>.</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Time periods: 4 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: binary </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Mode: unipartite </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Dynamic regression coefficients: enabled, kind = 'ar1' (rho_beta = dyad : 0.97)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Dynamic regression coefficients: enabled, kind = 'ar1' (rho_beta = dyad : 0.9)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Regression coefficients:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>           Estimate StdError z_value p_value CI_lower CI_upper    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept    0.077    0.024   3.188   0.001     0.04    0.119  **</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad       0.46    0.056   8.209       0    0.366    0.534 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad      0.562    0.068   8.325       0    0.446    0.642 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad      0.694    0.086   8.092       0    0.551    0.799 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept    0.078    0.024   3.314   0.001    0.041    0.116 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad       0.46    0.052   8.766       0    0.362    0.523 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad      0.551    0.056   9.817       0    0.445    0.621 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad      0.691    0.069  10.036       0    0.569    0.771 ***</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span>
@@ -1063,18 +1063,18 @@ explicitly with <code>netify::to_lame(lame = TRUE)</code>.</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Dynamic coefficients per period:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> -------------------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>            Mean   Min   Max Drift Drift_pct Dynamic</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> intercept 0.077 0.077 0.077 0.000     0.000       N</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad   0.460 0.439 0.491 0.052    11.227       Y</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad   0.562 0.522 0.593 0.070    12.509       Y</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad   0.694 0.648 0.718 0.071    10.173       Y</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> intercept 0.078 0.078 0.078 0.000     0.000       N</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1_dyad   0.460 0.444 0.491 0.047    10.182       Y</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2_dyad   0.551 0.537 0.575 0.038     6.881       Y</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3_dyad   0.691 0.663 0.715 0.052     7.531       Y</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Variance components:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> -------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     Estimate StdError</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> va     0.216    0.042</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> cab    0.101    0.030</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> vb     0.152    0.053</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rho    0.269    0.060</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> va     0.184    0.056</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cab    0.091    0.038</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> vb     0.164    0.074</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rho    0.161    0.051</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ve     1.000    0.000</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   (va = sender, cab = sender-receiver covariance, vb = receiver,</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    rho = dyadic correlation, ve = residual variance)</span>
