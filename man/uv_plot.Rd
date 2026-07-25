@@ -106,12 +106,14 @@ latent positions shown as deviations}
 \item{Network overlay}{Optional display of actual network ties}
 }
 
-Interpretation:
+Interpretation (this is an eigenmodel, not a latent-distance model):
 \itemize{
-\item Nodes close together in latent space tend to have similar connection patterns
-\item The distance between sender position (U) and receiver position (V) relates
-to the likelihood of a tie
-\item Clustering in the latent space indicates community structure
+\item The latent contribution to a tie i -> j is the inner product u_i' v_j:
+sender and receiver vectors that align (small angle, large magnitude) raise
+the tie propensity, opposed vectors lower it. Euclidean distance between
+plotted points is not the operative quantity.
+\item Actors with similar sender (or receiver) vectors have similar connection
+patterns; clustering of vectors indicates community structure.
 }
 }
 \examples{

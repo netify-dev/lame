@@ -74,17 +74,23 @@ simulate_posterior <- function(
 	if(!is.null(seed)) set.seed(seed)
 	
 	has_samples <- switch(component,
-		UV = !is.null(fit$U_samples) && !is.null(fit$V_samples),
+		UV = (!is.null(fit$U_samples) && !is.null(fit$V_samples)) ||
+			(!is.null(fit$U_draws) && !is.null(fit$V_draws)),
 		ab = !is.null(fit$a_samples) && !is.null(fit$b_samples),
 		beta = !is.null(fit$BETA),
 		Y = FALSE  # always simulate y
 	)
-	
+
 	if(has_samples && component != "Y") {
 		cli::cli_text("Using saved MCMC samples for {.field {component}}")
-		
+
 		if(component == "UV") {
-			return(sample_from_saved_UV(fit, n_samples))
+			# dynamic_uv fits store the full 4-D trajectory in U_draws/V_draws
+			# rather than the 3-D U_samples/V_samples of a static fit
+			if(!is.null(fit$U_samples) && !is.null(fit$V_samples)) {
+				return(sample_from_saved_UV(fit, n_samples))
+			}
+			return(sample_from_saved_UV_dynamic(fit, n_samples))
 		} else if(component == "ab") {
 			return(sample_from_saved_ab(fit, n_samples))
 		} else if(component == "beta") {
@@ -126,8 +132,42 @@ sample_from_saved_UV <- function(fit, n_samples) {
 	for(i in 1:n_samples) {
 		UV_samples[,,i] <- fit$U_samples[,,idx[i]] %*% t(fit$V_samples[,,idx[i]])
 	}
-	
+
 	return(UV_samples)
+}
+
+####
+# sample_from_saved_uv_dynamic
+####
+
+#' Sample per-period latent similarity from a dynamic_uv fit
+#'
+#' dynamic_uv fits store the full latent trajectory as 4-D draws
+#' (\code{U_draws}/\code{V_draws}: actor x rank x time x draw) instead of the
+#' 3-D \code{U_samples}/\code{V_samples} of a static fit. Returns an
+#' actor x actor x time x draw array of \eqn{U_t V_t'} (rows x cols x time x
+#' draw for bipartite; symmetric fits store \eqn{V = U L} per draw, so the
+#' product is the \eqn{U L U'} similarity).
+#' @noRd
+sample_from_saved_UV_dynamic <- function(fit, n_samples) {
+	dU <- dim(fit$U_draws)            # n_row x R x T x draws
+	idx <- .saved_draw_index(n_samples, dU[4])
+	n_samples <- length(idx)
+	n_row <- dU[1]
+	n_col <- dim(fit$V_draws)[1]
+	TT    <- dU[3]
+
+	UV <- array(NA_real_, dim = c(n_row, n_col, TT, n_samples))
+	for(i in seq_len(n_samples)) {
+		for(t in seq_len(TT)) {
+			# matrix() keeps the rank dimension when R == 1 (a bare slice
+			# would drop to a vector and break the product)
+			Ut <- matrix(fit$U_draws[, , t, idx[i]], nrow = n_row)
+			Vt <- matrix(fit$V_draws[, , t, idx[i]], nrow = n_col)
+			UV[, , t, i] <- Ut %*% t(Vt)
+		}
+	}
+	UV
 }
 
 ####
@@ -185,7 +225,12 @@ simulate_ab_posterior <- function(fit, n_samples) {
 #' Sample from saved beta posteriors
 #' @noRd
 sample_from_saved_beta <- function(fit, n_samples) {
-	idx <- .saved_draw_index(n_samples, nrow(fit$BETA))
+	d <- dim(fit$BETA)
+	idx <- .saved_draw_index(n_samples, d[1])
+	if(length(d) == 3L) {
+		# dynamic_beta: BETA is draws x coefs x time
+		return(fit$BETA[idx, , , drop = FALSE])
+	}
 	return(fit$BETA[idx, , drop = FALSE])
 }
 

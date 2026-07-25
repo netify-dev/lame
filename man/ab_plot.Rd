@@ -6,7 +6,7 @@
 \usage{
 ab_plot(
   fit,
-  effect = c("sender", "receiver"),
+  effect = c("sender", "receiver", "both"),
   sorted = TRUE,
   labels = NULL,
   title = NULL,
@@ -19,7 +19,8 @@ ab_plot(
 \item{fit}{An object of class "ame" or "lame" from fitting an AME model}
 
 \item{effect}{Character string specifying which effect to plot:
-"sender" (default) or "receiver"}
+"sender" (default) or "receiver". For \code{ame_als} fits,
+"both" facets sender and receiver together.}
 
 \item{sorted}{Logical; if TRUE (default), actors are sorted by effect
 magnitude. Applies to \code{ame} / \code{lame} fits;

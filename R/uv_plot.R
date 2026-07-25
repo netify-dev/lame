@@ -22,11 +22,13 @@
 #'   \item{Network overlay}{Optional display of actual network ties}
 #' }
 #' 
-#' Interpretation:
-#' - Nodes close together in latent space tend to have similar connection patterns
-#' - The distance between sender position (U) and receiver position (V) relates
-#'   to the likelihood of a tie
-#' - Clustering in the latent space indicates community structure
+#' Interpretation (this is an eigenmodel, not a latent-distance model):
+#' - The latent contribution to a tie i -> j is the inner product u_i' v_j:
+#'   sender and receiver vectors that align (small angle, large magnitude) raise
+#'   the tie propensity, opposed vectors lower it. Euclidean distance between
+#'   plotted points is not the operative quantity.
+#' - Actors with similar sender (or receiver) vectors have similar connection
+#'   patterns; clustering of vectors indicates community structure.
 #' 
 #' @param fit An object of class "ame" or "lame" containing multiplicative effects,
 #'        or a network matrix Y if U and V are provided separately
@@ -112,7 +114,11 @@ uv_plot <- function(
 		is_dynamic <- FALSE
 		if (!is.null(U) && length(dim(U)) == 3) {
 			is_dynamic <- TRUE
-			if (plot_type != "snapshot" || (!is.null(time_point) && time_point != "average")) {
+			# snapshots (a single time slice) fall through to the static layout
+			# path below, so they honour layout / vscale / node.size / colours
+			# just like a static fit. only trajectory and faceted, which show
+			# movement across time, need the biplot renderer.
+			if (plot_type != "snapshot") {
 				return(uv_plot_dynamic_internal(fit, U, V, time_point, plot_type,
 																			 show_arrows, title, label.nodes,
 																			 label.size, colors, highlight = highlight))

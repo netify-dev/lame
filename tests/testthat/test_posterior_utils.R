@@ -254,3 +254,78 @@ test_that("simulate_posterior uses every stored draw by default", {
 	expect_equal(apply(simulate_posterior(fit, "UV"), c(1, 2), mean),
 	             unname(fit$ULUPM), tolerance = 1e-8)
 })
+
+# --- regression: dynamic-fit posterior extraction (1.3.5) --------------------
+# dynamic fits store latent draws in the 4-D U_draws/V_draws (not U_samples)
+# and a 3-D BETA; simulate_posterior() and the credible forecasts must handle
+# both instead of aborting or dropping actor names.
+
+.mk_sq_panel = function(n, T = 3, sym = FALSE, fam = "binary") {
+	lapply(seq_len(T), function(t) {
+		Y = matrix(rnorm(n * n), n, n)
+		if (sym) Y = (Y + t(Y)) / 2
+		if (fam == "binary") Y = (Y > 0) * 1
+		diag(Y) = NA
+		rownames(Y) = colnames(Y) = sprintf("a%02d", seq_len(n))
+		Y
+	})
+}
+
+test_that("simulate_posterior('UV') works on directed dynamic_uv fits", {
+	set.seed(6886)
+	f = lame(.mk_sq_panel(8), family = "binary", R = 2, dynamic_uv = TRUE,
+	         burn = 20, nscan = 60, odens = 2, verbose = FALSE, plot = FALSE,
+	         posterior_opts = list(save_UV = TRUE))
+	uv = simulate_posterior(f, "UV", n_samples = 6)
+	expect_length(dim(uv), 4L)          # actor x actor x time x draw
+	expect_equal(dim(uv)[1:2], c(8L, 8L))
+	expect_equal(dim(uv)[4], 6L)
+	expect_true(all(is.finite(uv)))
+})
+
+test_that("simulate_posterior('UV') is symmetric per period for symmetric dynamic fits", {
+	set.seed(1)
+	f = lame(.mk_sq_panel(8, sym = TRUE, fam = "normal"), family = "normal",
+	         symmetric = TRUE, R = 2, dynamic_uv = TRUE, burn = 20, nscan = 60,
+	         odens = 2, verbose = FALSE, plot = FALSE,
+	         posterior_opts = list(save_UV = TRUE))
+	uv = simulate_posterior(f, "UV", n_samples = 6)
+	m = apply(uv[, , 1, ], c(1, 2), mean)
+	expect_lt(max(abs(m - t(m)), na.rm = TRUE), 1e-6)
+})
+
+test_that("simulate_posterior('UV') on bipartite dynamic fits is nA x nB x T x draw", {
+	set.seed(2)
+	Y = lapply(1:3, function(t) {
+		m = matrix(rnorm(8 * 6), 8, 6)
+		rownames(m) = sprintf("r%02d", 1:8); colnames(m) = sprintf("c%02d", 1:6); m
+	})
+	f = lame(Y, mode = "bipartite", family = "normal", R = 2, dynamic_uv = TRUE,
+	         burn = 20, nscan = 60, odens = 2, verbose = FALSE, plot = FALSE,
+	         posterior_opts = list(save_UV = TRUE))
+	uv = simulate_posterior(f, "UV", n_samples = 5)
+	expect_equal(dim(uv)[1:2], c(8L, 6L))
+	expect_equal(dim(uv)[3], 3L)
+})
+
+test_that("simulate_posterior('beta') handles a 3-D dynamic_beta array", {
+	set.seed(3)
+	Y = .mk_sq_panel(8)
+	X = lapply(1:3, function(t) { a = array(rnorm(64), c(8, 8, 1)); dimnames(a)[[3]] = "x"; a })
+	f = lame(Y, Xdyad = X, family = "binary", R = 2, dynamic_beta = "dyad",
+	         burn = 20, nscan = 60, odens = 2, verbose = FALSE, plot = FALSE)
+	b = simulate_posterior(f, "beta", n_samples = 12)
+	expect_length(dim(b), 3L)           # draws x coefs x time
+	expect_equal(dim(b)[1], 12L)
+	expect_equal(dim(b)[3], 3L)
+})
+
+test_that("credible-interval forecasts carry actor dimnames", {
+	set.seed(4)
+	f = lame(.mk_sq_panel(8), family = "binary", R = 2, dynamic_uv = TRUE,
+	         burn = 20, nscan = 60, odens = 2, verbose = FALSE, plot = FALSE)
+	r = predict(f, h = 2, type = "response", interval = "credible")
+	expect_false(is.null(rownames(r[[1]]$median)))
+	expect_false(is.null(colnames(r[[1]]$lower)))
+	expect_false(is.null(rownames(r[[2]]$upper)))
+})

@@ -24,8 +24,9 @@
 #' are available to visualize how effects evolve over time.
 #' 
 #' @param fit An object of class "ame" or "lame" from fitting an AME model
-#' @param effect Character string specifying which effect to plot: 
-#'        "sender" (default) or "receiver"
+#' @param effect Character string specifying which effect to plot:
+#'        "sender" (default) or "receiver". For \code{ame_als} fits,
+#'        "both" facets sender and receiver together.
 #' @param sorted Logical; if TRUE (default), actors are sorted by effect
 #'        magnitude. Applies to \code{ame} / \code{lame} fits;
 #'        \code{ame_als} fits are always sorted by value.
@@ -58,7 +59,7 @@
 #' @import cli
 #' @importFrom stats reorder
 ab_plot <- function(fit,
-										effect = c("sender", "receiver"),
+										effect = c("sender", "receiver", "both"),
 										sorted = TRUE,
 										labels = NULL,
 										title = NULL,
@@ -73,11 +74,16 @@ ab_plot <- function(fit,
 	effect <- match.arg(effect)
 	plot_type <- match.arg(plot_type)
 
-	is_dynamic <- FALSE
-	if (!is.null(fit$a_dynamic) || !is.null(fit$b_dynamic)) {
-		is_dynamic <- TRUE
+	is_dynamic <- !is.null(fit$a_dynamic) || !is.null(fit$b_dynamic)
+
+	# "both" facets sender and receiver together, which only the static
+	# ame_als lollipop chart draws; every other path plots one margin at a time
+	if (effect == "both" && !(inherits(fit, "ame_als") && !is_dynamic)) {
+		cli::cli_abort(c(
+			"{.val both} is only supported for static {.cls ame_als} fits.",
+			"i" = "Plot {.val sender} and {.val receiver} separately for this fit."))
 	}
-	
+
 	if (is_dynamic) {
 		return(ab_plot_dynamic_internal(fit, effect, sorted, labels, title,
 																		time_point, plot_type, show_actors))

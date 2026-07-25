@@ -425,8 +425,10 @@ predict.lame <- function(object, newdata = NULL,
 		h_int <- as.integer(h)
 		return(lapply(seq_len(h_int), function(k) {
 			slab <- raw[, , k, , drop = FALSE]
-			# collapse the singleton 3rd dim
-			slab <- array(slab, c(dim(slab)[1L], dim(slab)[2L], dim(slab)[4L]))
+			# collapse the singleton 3rd dim, carrying the actor dimnames so
+			# the summarised matrices keep row/column names like the point path
+			slab <- array(slab, c(dim(slab)[1L], dim(slab)[2L], dim(slab)[4L]),
+			              dimnames = list(dimnames(raw)[[1L]], dimnames(raw)[[2L]], NULL))
 			list(
 				lower  = apply(slab, c(1L, 2L), stats::quantile,
 				               probs = probs[1L], na.rm = TRUE),

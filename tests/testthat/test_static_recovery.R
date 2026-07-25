@@ -88,6 +88,42 @@ test_that("ordinal AME recovers the dyadic coefficient", {
 	recovery_test("ordinal")
 })
 
+# rank family (frn): the recovery_test() helper cannot generate ranked
+# nomination data, so the rank representative is a standalone frn fit where a
+# dyadic covariate drives the ranks and the recovered coefficient is finite.
+test_that("Fixed rank nomination (frn) with covariates works", {
+	set.seed(6886)
+	n = 20
+
+	# generate covariate
+	X = matrix(rnorm(n*n, 0, 0.5), n, n)
+	diag(X) = NA
+
+	# create ranked nominations influenced by x
+	odmax = 4
+	Y = matrix(NA, n, n)
+
+	for(i in 1:n) {
+		# higher x values get better (lower) ranks
+		scores = X[i,]
+		scores[i] = NA
+		top_indices = order(scores, decreasing=TRUE, na.last=TRUE)[1:odmax]
+		Y[i, top_indices] = 1:odmax
+	}
+	diag(Y) = NA
+
+	# fit model
+	fit = ame(Y, Xdyad=X, R=0, family="frn", odmax=odmax,
+						burn=300, nscan=800, verbose = FALSE)
+
+	expect_true(!is.null(fit$BETA))
+	# for frn, positive x should lead to better (lower) ranks
+	if(ncol(fit$BETA) >= 2) {
+		beta_est = median(fit$BETA[,2])
+		expect_true(is.finite(beta_est))
+	}
+})
+
 # bipartite headline check: the rectangular ame() path with a dyadic covariate
 test_that("normal bipartite AME runs and produces a fit object", {
 	set.seed(6886)

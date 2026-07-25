@@ -1,4 +1,6 @@
-# tests for the dynamic_beta feature on lame() fits.
+# tests for the dynamic_beta feature on lame() fits (core: fitting, recovery,
+# validation guards, the in-loop per-actor slope sampler, alternative
+# transition kinds, multi-panel lame_multi, and the penalised-ALS path).
 #
 # the byte-identical-default contract is the most important guarantee here:
 # when dynamic_beta = false (the default), every slot of the lame fit must be
@@ -13,6 +15,10 @@
 #   * s3 methods (coef, vcov, confint, summary, print, predict, simulate,
 #     trace_plot, as_draws, fitted, residuals, prior_summary) all dispatch
 #   * cross-sectional ame() and als dispatchers reject dynamic_beta loudly
+#   * alt transition kinds (rw2, matern32), log_lik_method, dynamic_G,
+#     per_actor_slopes, and multi-panel lame_multi()
+#   * the in-loop per-actor slope sampler (dynamic_beta_per_actor)
+#   * the penalised-ALS estimator als_dynamic_beta()
 
 skip_on_cran()
 
@@ -226,17 +232,6 @@ test_that("a/b are sum-to-zero (within tolerance) when an intercept is in the mo
 	expect_lt(abs(sum(fit$BPM)), 1e-6)
 })
 
-test_that("partial dynamic_beta with no intercept-in-dyn still works", {
-	# only dyadic dynamic; intercept static -> no special constraint needed
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = expect_no_error(
-		lame(dat$Y, Xdyad = dat$Xdyad, family = "normal", R = 0,
-		     nscan = 20, burn = 5, odens = 1,
-		     dynamic_beta = "dyad", verbose = FALSE)
-	)
-	expect_equal(length(dim(fit$BETA)), 3L)
-})
-
 # ------- bipartite + dynamic_beta -------------------------------------------
 
 test_that("dynamic_beta works on bipartite normal", {
@@ -317,4 +312,368 @@ test_that("dynamic_beta drift is detected when truth is time-varying", {
 	# (we just check that the spread across periods covers a notable range)
 	dyad_per_t = apply(fit$BETA[, "X1_dyad", , drop = FALSE], 3, mean)
 	expect_gt(diff(range(dyad_per_t)), 0.2)
+})
+
+# =============================================================================
+# alt transition kinds, log_lik_method, dynamic_G, per_actor_slopes, multi-panel
+# =============================================================================
+
+.fit_dynamic_beta_alt = function(kind = "ar1", ll_method = "observed_exact",
+                                  suppress_messages = TRUE, ...) {
+	data(YX_bin_list, envir = environment())
+	set.seed(7)
+	expr = quote(suppressWarnings(lame(
+		YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
+		dynamic_beta = "dyad",
+		dynamic_beta_kind = kind,
+		log_lik_method = ll_method,
+		nscan = 60, burn = 20, odens = 5,
+		verbose = FALSE, plot = FALSE, ...)))
+	if (suppress_messages) suppressMessages(eval(expr)) else eval(expr)
+}
+
+test_that("dynamic_beta_kind = 'rw2' fits and is recorded as rw2", {
+	fit = .fit_dynamic_beta_alt(kind = "rw2")
+	expect_s3_class(fit, "lame")
+	expect_identical(fit$dynamic_beta_kind, "rw2")
+	expect_true(all(is.finite(fit$BETA)))
+	expect_length(dim(fit$BETA), 3L)
+})
+
+test_that("rw2 path has modest second differences", {
+	set.seed(11)
+	fit = .fit_dynamic_beta_alt(kind = "rw2")
+	post_mean = apply(fit$BETA, c(2, 3), mean)
+	d2 = t(apply(post_mean, 1, function(p) diff(diff(p))))
+	expect_lt(max(abs(d2)), 5)
+})
+
+test_that("dynamic_beta_kind = 'matern32' fits and is recorded as matern32", {
+	fit = .fit_dynamic_beta_alt(kind = "matern32")
+	expect_s3_class(fit, "lame")
+	expect_identical(fit$dynamic_beta_kind, "matern32")
+	expect_true(all(is.finite(fit$BETA)))
+	expect_length(dim(fit$BETA), 3L)
+})
+
+test_that("invalid dynamic_beta_kind aborts", {
+	data(YX_bin_list, envir = environment())
+	expect_error(suppressWarnings(suppressMessages(lame(
+		YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
+		dynamic_beta = "dyad", dynamic_beta_kind = "magic",
+		nscan = 30, burn = 10, odens = 5, verbose = FALSE, plot = FALSE))),
+		"dynamic_beta_kind")
+})
+
+test_that("log_lik_method default is observed_exact", {
+	fit = .fit_dynamic_beta_alt()
+	expect_identical(fit$log_lik_method, "observed_exact")
+})
+
+test_that("log_lik_method = 'observed_ghk' emits the bias note", {
+	expect_message(.fit_dynamic_beta_alt(ll_method = "observed_ghk", suppress_messages = FALSE),
+	               "biased downward")
+})
+
+test_that("observed_ghk produces a finite log-lik matrix on binary", {
+	data(YX_bin_list, envir = environment())
+	set.seed(7)
+	fit = suppressWarnings(suppressMessages(lame(
+		YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
+		log_lik_method = "observed_ghk",
+		save_log_lik = TRUE,
+		nscan = 60, burn = 20, odens = 5,
+		verbose = FALSE, plot = FALSE)))
+	expect_true(!is.null(fit[["log_lik"]]))
+	expect_true(all(is.finite(fit[["log_lik"]])))
+})
+
+test_that("log_lik_method = 'augmented' is accepted silently", {
+	expect_silent(.fit_dynamic_beta_alt(ll_method = "augmented"))
+})
+
+test_that("dynamic_G wired for bipartite + RA/RB > 0", {
+	set.seed(7)
+	nA = 8; nB = 6; T_per = 3
+	Y_list = lapply(seq_len(T_per), function(t) matrix(rnorm(nA*nB), nA, nB))
+	X_list = lapply(seq_len(T_per), function(t) array(rnorm(nA*nB*1), c(nA, nB, 1)))
+	fit = suppressWarnings(suppressMessages(lame(
+		Y_list, X_list, family = "normal", R = 2,
+		mode = "bipartite",
+		dynamic_G = TRUE,
+		nscan = 60, burn = 20, odens = 5,
+		verbose = FALSE, plot = FALSE)))
+	expect_true(isTRUE(fit$dynamic_G))
+	expect_equal(dim(fit$G_cube), c(2L, 2L, T_per))
+	expect_true(all(is.finite(fit$G_cube)))
+})
+
+test_that("dynamic_G on unipartite errors (G = I for unipartite)", {
+	data(YX_bin_list, envir = environment())
+	expect_error(suppressWarnings(suppressMessages(lame(
+		YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
+		dynamic_G = TRUE,
+		nscan = 30, burn = 10, odens = 5,
+		verbose = FALSE, plot = FALSE))),
+		"bipartite")
+})
+
+test_that("per_actor_slopes returns the expected shape and label", {
+	data(YX_bin_list, envir = environment())
+	set.seed(7)
+	fit = suppressWarnings(suppressMessages(lame(
+		YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
+		nscan = 60, burn = 20, odens = 5,
+		verbose = FALSE, plot = FALSE)))
+	pas = per_actor_slopes(fit, kind = "row", covariate_idx = 1L, lambda = 1)
+	expect_s3_class(pas, "per_actor_slopes")
+	expect_equal(dim(pas$slopes), c(50L, 4L))
+	expect_true(all(is.finite(pas$slopes)))
+})
+
+test_that("per_actor_slopes errors on bad lambda and bad kind", {
+	data(YX_bin_list, envir = environment())
+	set.seed(7)
+	fit = suppressWarnings(suppressMessages(lame(
+		YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
+		nscan = 30, burn = 10, odens = 5,
+		verbose = FALSE, plot = FALSE)))
+	expect_error(per_actor_slopes(fit, lambda = -1), "non-negative")
+	expect_error(per_actor_slopes(fit, kind = "bogus"))
+})
+
+test_that("lame_multi with K=1 falls through to standard lame()", {
+	data(YX_bin_list, envir = environment())
+	set.seed(7)
+	fm = suppressWarnings(suppressMessages(lame_multi(
+		Y_list = list(YX_bin_list$Y),
+		Xdyad_list = list(YX_bin_list$X),
+		family = "binary", R = 0,
+		nscan = 30, burn = 10, odens = 5, verbose = FALSE, plot = FALSE)))
+	expect_s3_class(fm, "lame_multi")
+	expect_equal(fm$K, 1L)
+})
+
+test_that("lame_multi with K=2 identical panels has zero deviations", {
+	data(YX_bin_list, envir = environment())
+	set.seed(7)
+	fm = suppressWarnings(suppressMessages(lame_multi(
+		Y_list = list(YX_bin_list$Y, YX_bin_list$Y),
+		Xdyad_list = list(YX_bin_list$X, YX_bin_list$X),
+		family = "binary", R = 0,
+		nscan = 30, burn = 10, odens = 5, verbose = FALSE, plot = FALSE)))
+	expect_equal(fm$K, 2L)
+	expect_length(fm$beta_deviations, 2L)
+	# identical panels should have near-zero deviations
+	for (k in seq_len(fm$K)) {
+		expect_lt(max(abs(fm$beta_deviations[[k]])), 1e-10)
+	}
+})
+
+test_that("lame_multi gives proper 1/K variance shrinkage with K identical panels", {
+	skip_on_cran()
+	data(YX_bin_list, envir = environment())
+	set.seed(7)
+	fm = suppressWarnings(suppressMessages(lame_multi(
+		Y_list = list(YX_bin_list$Y, YX_bin_list$Y, YX_bin_list$Y),
+		Xdyad_list = list(YX_bin_list$X, YX_bin_list$X, YX_bin_list$X),
+		family = "binary", R = 0,
+		nscan = 60, burn = 20, odens = 5,
+		verbose = FALSE, plot = FALSE)))
+	expect_equal(fm$K, 3L)
+	expect_lt(abs(fm$var_shrinkage - 1/3), 0.05)
+	expect_true(!is.null(fm$BETA_joint))
+	expect_true(!is.null(fm$beta_shared_se))
+})
+
+# =============================================================================
+# in-loop per-actor slope sampler (dynamic_beta_per_actor)
+# =============================================================================
+
+.make_per_actor_fixture = function(n = 20L, T_per = 5L,
+                                      beta_pop = 0.3, sigma_noise = 0.15,
+                                      seed = 7L) {
+	set.seed(seed)
+	actor_nms = sprintf("a%02d", seq_len(n))
+	X_list = lapply(seq_len(T_per), function(t) {
+		X = matrix(rnorm(n*n), n, n)
+		rownames(X) = colnames(X) = actor_nms
+		array(X, c(n, n, 1), dimnames = list(actor_nms, actor_nms, "X1"))
+	})
+	theta_true = matrix(rnorm(n*T_per, 0, 0.5), n, T_per,
+	                     dimnames = list(actor_nms, paste0("t", 1:T_per)))
+	theta_true = sweep(theta_true, 2L, colMeans(theta_true), "-")
+	Y_list = vector("list", T_per)
+	for (t in seq_len(T_per)) {
+		X_t = X_list[[t]][, , 1]
+		eta = beta_pop * X_t + theta_true[, t] * X_t
+		Y = eta + matrix(rnorm(n*n, 0, sigma_noise), n, n)
+		diag(Y) = NA
+		rownames(Y) = colnames(Y) = actor_nms
+		Y_list[[t]] = Y
+	}
+	list(Y = Y_list, X = X_list, theta_true = theta_true,
+	     beta_pop = beta_pop, actor_nms = actor_nms)
+}
+
+# -- structural --------------------------------------------------------
+
+test_that("dynamic_beta_per_actor records on fit + dim checks", {
+	fx = .make_per_actor_fixture()
+	set.seed(1); fit = suppressWarnings(suppressMessages(lame(
+		fx$Y, fx$X, family = "normal", R = 0,
+		dynamic_beta_per_actor = "row",
+		keep_per_actor = "draws",
+		nscan = 60, burn = 20, odens = 5,
+		verbose = FALSE, plot = FALSE)))
+	expect_identical(fit$dynamic_beta_per_actor, "row")
+	expect_true(!is.null(fit$THETA_ACTOR))
+	expect_equal(dim(fit$THETA_ACTOR)[2L], 20L)  # n_actors
+	expect_equal(dim(fit$THETA_ACTOR)[3L], 5L)   # t_per
+	expect_true(all(is.finite(fit$THETA_ACTOR)))
+})
+
+# -- zero-sum constraint per period -----------------------------------
+
+test_that("pairwise contrast preserves sum_i theta_{i,t} = 0 exactly", {
+	fx = .make_per_actor_fixture()
+	set.seed(1); fit = suppressWarnings(suppressMessages(lame(
+		fx$Y, fx$X, family = "normal", R = 0,
+		dynamic_beta_per_actor = "row",
+		keep_per_actor = "draws",
+		nscan = 80, burn = 20, odens = 5,
+		verbose = FALSE, plot = FALSE)))
+	# sum over actors should be ~0 for every draw and every period
+	zero_sum_check = apply(fit$THETA_ACTOR, c(1, 3), sum)
+	expect_lt(max(abs(zero_sum_check)), 1e-8)
+})
+
+# -- substantive recovery ---------------------------------------------
+
+test_that("per-actor sampler recovers truth with high correlation", {
+	fx = .make_per_actor_fixture()
+	set.seed(1); fit = suppressWarnings(suppressMessages(lame(
+		fx$Y, fx$X, family = "normal", R = 0,
+		dynamic_beta_per_actor = "row",
+		keep_per_actor = "draws",
+		nscan = 600, burn = 200, odens = 10,
+		verbose = FALSE, plot = FALSE)))
+	rho = cor(as.vector(fit$theta_actor_mean), as.vector(fx$theta_true))
+	expect_gt(rho, 0.85)  # 0.99 in longer runs; relax for fast tests
+	expect_lt(sqrt(mean((fit$theta_actor_mean - fx$theta_true)^2)), 0.30)
+})
+
+# -- byte-identical default -------------------------------------------
+
+test_that("dynamic_beta_per_actor = NULL leaves the base sampler unchanged", {
+	# null keeps the per-actor block inactive
+	fx = .make_per_actor_fixture()
+	set.seed(1); fit_null = suppressWarnings(suppressMessages(lame(
+		fx$Y, fx$X, family = "normal", R = 0,
+		nscan = 30, burn = 10, odens = 5,
+		verbose = FALSE, plot = FALSE)))
+	set.seed(1); fit_explicit_null = suppressWarnings(suppressMessages(lame(
+		fx$Y, fx$X, family = "normal", R = 0,
+		dynamic_beta_per_actor = NULL,
+		nscan = 30, burn = 10, odens = 5,
+		verbose = FALSE, plot = FALSE)))
+	expect_identical(fit_null$BETA, fit_explicit_null$BETA)
+	expect_identical(fit_null$EZ,   fit_explicit_null$EZ)
+})
+
+# -- storage modes ----------------------------------------------------
+
+test_that("keep_per_actor = 'summary' stores streaming mean + sd, no full draws", {
+	fx = .make_per_actor_fixture()
+	set.seed(1); fit = suppressWarnings(suppressMessages(lame(
+		fx$Y, fx$X, family = "normal", R = 0,
+		dynamic_beta_per_actor = "row",
+		keep_per_actor = "summary",
+		nscan = 60, burn = 20, odens = 5,
+		verbose = FALSE, plot = FALSE)))
+	expect_null(fit$THETA_ACTOR)
+	expect_true(!is.null(fit$theta_actor_mean))
+	expect_true(!is.null(fit$theta_actor_sd))
+	expect_equal(dim(fit$theta_actor_mean), c(20L, 5L))
+})
+
+# -- validation -------------------------------------------------------
+
+test_that("invalid dynamic_beta_per_actor aborts", {
+	fx = .make_per_actor_fixture()
+	expect_error(suppressWarnings(suppressMessages(lame(
+		fx$Y, fx$X, family = "normal", R = 0,
+		dynamic_beta_per_actor = "magic",
+		nscan = 30, burn = 10, odens = 5, verbose = FALSE, plot = FALSE))),
+		"must be one of")
+})
+
+# =============================================================================
+# penalised-ALS dynamic_beta (als_dynamic_beta)
+# =============================================================================
+
+test_that("penalised ALS with lambda=0 equals per-period least squares", {
+	set.seed(1)
+	n = 12L; T_per = 4L
+	X = replicate(T_per, array(rnorm(n*n*2), c(n, n, 2)), simplify = FALSE)
+	beta_true = rbind(seq(-1, 1, length.out = T_per),
+	                   seq(0.5, -0.5, length.out = T_per))
+	Y = vector("list", T_per)
+	for (t in seq_len(T_per)) {
+		Yt = X[[t]][, , 1] * beta_true[1, t] +
+		      X[[t]][, , 2] * beta_true[2, t] +
+		      matrix(rnorm(n*n, 0, 0.2), n, n)
+		diag(Yt) = NA
+		Y[[t]] = Yt
+	}
+	fit = als_dynamic_beta(Y, X, lambda = 0, intercept = FALSE)
+	expect_s3_class(fit, "als_dynamic_beta")
+	expect_equal(dim(fit$beta), c(2L, T_per))
+	# per-period least squares by hand
+	beta_ols = matrix(NA_real_, 2L, T_per)
+	for (t in seq_len(T_per)) {
+		ok = !is.na(Y[[t]])
+		yobs = Y[[t]][ok]
+		Xobs = cbind(X[[t]][, , 1][ok], X[[t]][, , 2][ok])
+		beta_ols[, t] = as.numeric(solve(crossprod(Xobs), crossprod(Xobs, yobs)))
+	}
+	expect_lt(max(abs(fit$beta - beta_ols)), 1e-6)
+})
+
+test_that("penalised ALS with large lambda gives near-constant beta path", {
+	set.seed(2)
+	n = 12L; T_per = 5L
+	X = replicate(T_per, array(rnorm(n*n*1), c(n, n, 1)), simplify = FALSE)
+	beta_true = seq(-1, 1, length.out = T_per)
+	Y = vector("list", T_per)
+	for (t in seq_len(T_per)) {
+		Yt = X[[t]][, , 1] * beta_true[t] +
+		      matrix(rnorm(n*n, 0, 0.2), n, n)
+		diag(Yt) = NA
+		Y[[t]] = Yt
+	}
+	fit_smooth = als_dynamic_beta(Y, X, lambda = 1e6, intercept = FALSE)
+	expect_lt(diff(range(fit_smooth$beta)), 1e-3)
+})
+
+test_that("penalised ALS coef() returns the beta matrix", {
+	set.seed(3)
+	n = 8L; T_per = 3L
+	X = replicate(T_per, array(rnorm(n*n*1), c(n, n, 1)), simplify = FALSE)
+	Y = lapply(X, function(xt) {
+		Yt = xt[, , 1] + matrix(rnorm(n*n, 0, 0.5), n, n)
+		diag(Yt) = NA; Yt
+	})
+	fit = als_dynamic_beta(Y, X, lambda = 1, intercept = TRUE)
+	cf = coef(fit)
+	expect_identical(cf, fit$beta)
+	expect_equal(nrow(cf), 2L)
+})
+
+test_that("penalised ALS errors on negative lambda", {
+	set.seed(4)
+	n = 5L
+	X = list(array(rnorm(n*n), c(n, n, 1)), array(rnorm(n*n), c(n, n, 1)))
+	Y = lapply(X, function(xt) xt[, , 1] + rnorm(n*n, 0, 0.1))
+	expect_error(als_dynamic_beta(Y, X, lambda = -1), "non-negative")
 })

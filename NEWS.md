@@ -1,3 +1,13 @@
+# lame 1.3.5
+
+* `uv_plot()` now honors `layout = "circle"` for dynamic snapshot plots; it was
+  silently drawing a biplot. Also corrected the latent-space description in the
+  help to the inner-product (eigenmodel) interpretation.
+* `simulate_posterior()` now returns latent-factor and coefficient draws for
+  dynamic fits (`dynamic_uv`, `dynamic_beta`) instead of erroring, and
+  credible-interval forecasts keep their actor names.
+* Tidied up the documentation and test suite.
+
 # lame 1.3.4
 
 * The handful of Gibbs samplers and helpers once adapted from `amen` have been
