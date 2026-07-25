@@ -13,7 +13,7 @@ clustering, transitivity, and other higher-order dependencies."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -213,10 +213,12 @@ latent positions shown as deviations</p></dd>
 <dd><p>Optional display of actual network ties</p></dd>
 
 
-</dl><p>Interpretation:</p><ul><li><p>Nodes close together in latent space tend to have similar connection patterns</p></li>
-<li><p>The distance between sender position (U) and receiver position (V) relates
-to the likelihood of a tie</p></li>
-<li><p>Clustering in the latent space indicates community structure</p></li>
+</dl><p>Interpretation (this is an eigenmodel, not a latent-distance model):</p><ul><li><p>The latent contribution to a tie i -&gt; j is the inner product u_i' v_j:
+sender and receiver vectors that align (small angle, large magnitude) raise
+the tie propensity, opposed vectors lower it. Euclidean distance between
+plotted points is not the operative quantity.</p></li>
+<li><p>Actors with similar sender (or receiver) vectors have similar connection
+patterns; clustering of vectors indicates community structure.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
