@@ -6,8 +6,14 @@
 #' @param thin_ab Integer; thinning interval for a/b samples (default 10)
 #'
 #' @return List of posterior saving options, to be passed to the
-#'   \code{posterior_opts} argument of \code{\link{ame}}:
-#'   \code{ame(Y, ..., posterior_opts = posterior_options(save_UV = TRUE))}
+#'   \code{posterior_opts} argument of \code{\link{ame}} or \code{\link{lame}}:
+#'   \code{ame(Y, ..., posterior_opts = posterior_options(save_UV = TRUE))} or
+#'   \code{lame(Y, ..., posterior_opts = posterior_options(save_UV = TRUE))}.
+#'   With \code{save_UV = TRUE}, static fits store \code{U_samples} /
+#'   \code{V_samples} (plus \code{G_samples} for bipartite fits) and
+#'   \code{dynamic_uv} fits store the per-period trajectory in
+#'   \code{U_draws} / \code{V_draws}; see \code{\link{latent_positions}} and
+#'   \code{\link{simulate_posterior}} for summarising them.
 #' 
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' 
@@ -129,8 +135,17 @@ sample_from_saved_UV <- function(fit, n_samples) {
 	
 	UV_samples <- array(NA, dim = c(n_row, n_col, n_samples))
 	
+	# bipartite fits carry a per-draw interaction matrix: the multiplicative
+	# term is U G V', so the draw must include G_samples to match fit$UVPM
+	has_G <- !is.null(fit$G_samples)
 	for(i in 1:n_samples) {
-		UV_samples[,,i] <- fit$U_samples[,,idx[i]] %*% t(fit$V_samples[,,idx[i]])
+		Ui <- matrix(fit$U_samples[,,idx[i]], nrow = n_row)
+		Vi <- matrix(fit$V_samples[,,idx[i]], nrow = n_col)
+		UV_samples[,,i] <- if(has_G) {
+			Ui %*% fit$G_samples[,,idx[i]] %*% t(Vi)
+		} else {
+			Ui %*% t(Vi)
+		}
 	}
 
 	return(UV_samples)
@@ -157,14 +172,18 @@ sample_from_saved_UV_dynamic <- function(fit, n_samples) {
 	n_col <- dim(fit$V_draws)[1]
 	TT    <- dU[3]
 
+	# bipartite dynamic fits keep a single interaction matrix per draw
+	# (static across time), so each period is U_t G V_t'
+	has_G <- !is.null(fit$G_samples)
 	UV <- array(NA_real_, dim = c(n_row, n_col, TT, n_samples))
 	for(i in seq_len(n_samples)) {
+		Gi <- if(has_G) fit$G_samples[, , idx[i]] else NULL
 		for(t in seq_len(TT)) {
 			# matrix() keeps the rank dimension when R == 1 (a bare slice
 			# would drop to a vector and break the product)
 			Ut <- matrix(fit$U_draws[, , t, idx[i]], nrow = n_row)
 			Vt <- matrix(fit$V_draws[, , t, idx[i]], nrow = n_col)
-			UV[, , t, i] <- Ut %*% t(Vt)
+			UV[, , t, i] <- if(has_G) Ut %*% Gi %*% t(Vt) else Ut %*% t(Vt)
 		}
 	}
 	UV

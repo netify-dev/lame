@@ -329,3 +329,33 @@ test_that("credible-interval forecasts carry actor dimnames", {
 	expect_false(is.null(colnames(r[[1]]$lower)))
 	expect_false(is.null(rownames(r[[2]]$upper)))
 })
+
+test_that("bipartite simulate_posterior('UV') includes G: draw-mean reproduces UVPM", {
+	set.seed(11)
+	mk = function() {
+		m = matrix(rnorm(8 * 6), 8, 6)
+		rownames(m) = sprintf("r%02d", 1:8); colnames(m) = sprintf("c%02d", 1:6); m
+	}
+	po = list(save_UV = TRUE)
+	# static ame()
+	fa = ame(mk(), mode = "bipartite", family = "normal", R = 2, burn = 20,
+	         nscan = 60, odens = 2, verbose = FALSE, plot = FALSE, posterior_opts = po)
+	expect_false(is.null(fa$G_samples))
+	ma = apply(simulate_posterior(fa, "UV"), c(1, 2), mean)
+	expect_equal(unname(ma), unname(fa$UVPM), tolerance = 1e-8)
+	# static lame()
+	fl = lame(replicate(3, mk(), simplify = FALSE), mode = "bipartite",
+	          family = "normal", R = 2, burn = 20, nscan = 60, odens = 2,
+	          verbose = FALSE, plot = FALSE, posterior_opts = po)
+	ml = apply(simulate_posterior(fl, "UV"), c(1, 2), mean)
+	expect_equal(unname(ml), unname(fl$UVPM), tolerance = 1e-8)
+	# dynamic_uv lame(): per-period product matches the stored per-period mean
+	fd = lame(replicate(3, mk(), simplify = FALSE), mode = "bipartite",
+	          family = "normal", R = 2, dynamic_uv = TRUE, burn = 20, nscan = 60,
+	          odens = 2, verbose = FALSE, plot = FALSE, posterior_opts = po)
+	ud = simulate_posterior(fd, "UV")
+	expect_equal(dim(ud)[1:3], c(8L, 6L, 3L))
+	md = apply(ud[, , 1, ], c(1, 2), mean)
+	ref = if (length(dim(fd$UVPM)) == 3L) fd$UVPM[, , 1] else fd$UVPM[[1]]
+	expect_gt(cor(c(md), c(ref)), 0.999)
+})

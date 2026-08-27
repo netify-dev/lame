@@ -4,8 +4,10 @@
   silently drawing a biplot. Also corrected the latent-space description in the
   help to the inner-product (eigenmodel) interpretation.
 * `simulate_posterior()` now returns latent-factor and coefficient draws for
-  dynamic fits (`dynamic_uv`, `dynamic_beta`) instead of erroring, and
-  credible-interval forecasts keep their actor names.
+  dynamic fits (`dynamic_uv`, `dynamic_beta`) instead of erroring, and its
+  bipartite draws include the interaction matrix `G` (they previously
+  reconstructed `U V'` rather than `U G V'`). Credible-interval forecasts keep
+  their actor names.
 * Tidied up the documentation and test suite.
 
 # lame 1.3.4
