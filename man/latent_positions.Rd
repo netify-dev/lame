@@ -22,9 +22,10 @@ object with R > 0.}
 \item{...}{Additional arguments (currently unused).}
 
 \item{align}{Logical. For dynamic models (\code{dynamic_uv = TRUE}), apply
-Procrustes alignment across time to remove rotational indeterminacy.
-Default is \code{FALSE} for \code{ame} objects and \code{TRUE} for
-\code{lame} objects.}
+Procrustes alignment across the time periods of this fit to remove
+rotational indeterminacy. Default is \code{FALSE} for \code{ame} objects
+(a single period, so there is nothing to align and the argument has no
+effect) and \code{TRUE} for \code{lame} objects.}
 }
 \value{
 A data frame with columns:
@@ -53,6 +54,16 @@ Extracts multiplicative latent factor positions (U and V) from a fitted
 tidy data frame suitable for plotting and analysis. Optionally applies
 Procrustes alignment for dynamic models and includes posterior standard
 deviations when posterior samples are available.
+}
+\details{
+Alignment only ever happens across the periods of one fit: with
+\code{align = TRUE} the fit is passed to \code{\link{procrustes_align}},
+which rotates each period onto the one before it. Nothing here aligns two
+different fits (two chains, or the same model with and without a
+covariate) to a common orientation, so their latent positions are not
+directly comparable. To compare fits that way, stack their \code{U}
+matrices into an \code{[n, R, 2]} array (same actors in the same order,
+same \code{R}) and call \code{procrustes_align(U = that_array)} on it.
 }
 \examples{
 \donttest{

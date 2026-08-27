@@ -44,6 +44,7 @@ ame(
   bootstrap_type = c("parametric", "block"),
   bootstrap_block_length = 1L,
   bootstrap_seed = NULL,
+  multistart = c("none", "cheap", "full"),
   save_log_lik = FALSE,
   ordinal_cutpoints = c("data_induced", "explicit"),
   print,
@@ -244,6 +245,12 @@ returns bootstrap intervals.}
 \item{bootstrap_block_length}{integer: block length for the block bootstrap.}
 
 \item{bootstrap_seed}{optional integer seed for the bootstrap.}
+
+\item{multistart}{character (only used when \code{method = "als"} and
+\code{R > 0}): \code{"none"} (default), \code{"cheap"} (4 starts), or
+\code{"full"} (8 starts). Forwarded to \code{\link{ame_als}}, which
+reruns the block-coordinate fit from several starts and keeps the one
+with the lowest objective.}
 
 \item{save_log_lik}{logical: when \code{TRUE}, attach a per-iteration
 pointwise log-likelihood matrix \code{fit$log_lik} (an
@@ -500,7 +507,10 @@ Symmetric (\code{symmetric = TRUE}) fits require a symmetric \code{Y}.
 \code{family = "ordinal"} with \code{symmetric = TRUE} is supported via the
 dedicated sampler in \code{R/rZ_ord_sym_fc.R}, which uses the
 symmetric-doubled precision and mirrors upper-triangle draws to the lower
-triangle so \eqn{Z = t(Z)} holds at every sweep.
+triangle so \eqn{Z = t(Z)} holds at every sweep. The rank-nomination
+families (\code{"cbin"}, \code{"frn"}) model each actor's own ranked
+nominations and are directed by construction, so \code{symmetric = TRUE}
+is rejected for them.
 
 \strong{Symmetric input with one triangle missing.} When
 \code{symmetric = TRUE} and one triangle of \code{Y} is fully \code{NA}

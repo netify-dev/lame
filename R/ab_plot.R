@@ -25,8 +25,12 @@
 #' 
 #' @param fit An object of class "ame" or "lame" from fitting an AME model
 #' @param effect Character string specifying which effect to plot:
-#'        "sender" (default) or "receiver". For \code{ame_als} fits,
-#'        "both" facets sender and receiver together.
+#'        "sender" (default), "receiver", or "both". "both" draws the sender
+#'        and receiver effects as two panels, each sorted on its own; for
+#'        dynamic fits it is available in the snapshot views
+#'        (\code{plot_type = "snapshot"}, one period or
+#'        \code{time_point = "average"}). Symmetric fits store a single set
+#'        of actor effects, so only "sender" applies to them.
 #' @param sorted Logical; if TRUE (default), actors are sorted by effect
 #'        magnitude. Applies to \code{ame} / \code{lame} fits;
 #'        \code{ame_als} fits are always sorted by value.
@@ -76,68 +80,129 @@ ab_plot <- function(fit,
 
 	is_dynamic <- !is.null(fit$a_dynamic) || !is.null(fit$b_dynamic)
 
-	# "both" facets sender and receiver together, which only the static
-	# ame_als lollipop chart draws; every other path plots one margin at a time
-	if (effect == "both" && !(inherits(fit, "ame_als") && !is_dynamic)) {
-		cli::cli_abort(c(
-			"{.val both} is only supported for static {.cls ame_als} fits.",
-			"i" = "Plot {.val sender} and {.val receiver} separately for this fit."))
+	# static ALS fits estimate additive effects but have no posterior; delegate
+	# to the ame_als-specific lollipop chart, which facets "both" itself.
+	# dynamic ALS fits fall through so plot_type and show_actors are honored.
+	if (inherits(fit, "ame_als") && !is_dynamic) {
+		return(ab_plot.ame_als(fit, effect = effect))
+	}
+
+	# "both" facets the two margins side by side. for dynamic fits only the
+	# snapshot views (one period, or the time average) have a single value
+	# per actor and margin; the trajectory / faceted / ribbon views already
+	# spend their panels and colours on time and actor.
+	if (effect == "both") {
+		if (is_dynamic && (plot_type != "snapshot" || identical(time_point, "all"))) {
+			view <- if (identical(time_point, "all")) {
+				'time_point = "all"'
+			} else {
+				paste0('plot_type = "', plot_type, '"')
+			}
+			cli::cli_abort(c(
+				"{.code effect = \"both\"} is only available for static fits and dynamic snapshots (one period, or {.code time_point = \"average\"}).",
+				"i" = "Plot {.val sender} and {.val receiver} separately with {.code {view}}."))
+		}
+		return(ab_plot_both_internal(fit, sorted, labels, title, time_point,
+		                             is_dynamic))
 	}
 
 	if (is_dynamic) {
 		return(ab_plot_dynamic_internal(fit, effect, sorted, labels, title,
-																		time_point, plot_type, show_actors))
-	}
-
-	# Static ALS fits estimate additive effects but have no posterior; delegate
-	# to the ame_als-specific lollipop chart. Dynamic ALS fits must reach the
-	# branch above so plot_type and show_actors are honored.
-	if (inherits(fit, "ame_als")) {
-		return(ab_plot.ame_als(fit, effect = effect))
+		                                time_point, plot_type, show_actors))
 	}
 
 	####
 
-	# static effect plots
+	# static single-margin plot
+	m <- .ab_margin_values(fit, effect)
+	muDf <- data.frame(mu = unname(m$mu), id = names(m$mu),
+	                   stringsAsFactors = FALSE)
+	.ab_lollipop(muDf, ylabel = m$ylabel, sorted = sorted, labels = labels,
+	             title = title, default_title = m$default_title)
+}
+
+####
+
+# one margin's effect vector with its axis label, panel name (the label
+# without any time suffix) and default title. static
+# fits read the posterior means (apm / bpm); dynamic fits read one column
+# of a_dynamic / b_dynamic (default: the last period) or the row means when
+# time_point = "average".
+.ab_margin_values <- function(fit, margin, time_point = NULL,
+                              is_dynamic = FALSE) {
 	is_bip <- identical(fit$mode, "bipartite")
-	if (effect == "sender") {
-		muEff <- fit$APM
-		ylabel <- if(is_bip) "Row Actor Effects (a)" else "Sender Effects (a)"
-		default_title <- if(is_bip) "Additive Row Actor Effects" else "Additive Sender Effects"
+	if (margin == "sender") {
+		what <- if (is_bip) "Row Actor" else "Sender"
+		ylabel <- paste0(what, " Effects (a)")
+		eff <- if (is_dynamic) fit$a_dynamic else fit$APM
 	} else {
-		muEff <- fit$BPM
-		if (is.null(muEff)) {
-			cli::cli_abort(c(
-				"This fit has no receiver (b) effects.",
-				"i" = "Symmetric models store a single set of actor effects; use {.code effect = \"sender\"}."))
+		what <- if (is_bip) "Column Actor" else "Receiver"
+		ylabel <- paste0(what, " Effects (b)")
+		eff <- if (is_dynamic) fit$b_dynamic else fit$BPM
+	}
+	if (is.null(eff)) {
+		cli::cli_abort(c(
+			"This fit has no receiver (b) effects.",
+			"i" = "Symmetric models store a single set of actor effects; use {.code effect = \"sender\"}."))
+	}
+	panel <- ylabel
+	suffix <- ""
+	if (is_dynamic) {
+		n_times <- ncol(eff)
+		actor_names <- rownames(eff) %||% paste0("Actor", seq_len(nrow(eff)))
+		time_labels <- colnames(eff) %||% paste0("T", seq_len(n_times))
+		if (identical(time_point, "average")) {
+			eff <- rowMeans(eff)
+			ylabel <- paste(ylabel, "(Time-Averaged)")
+			suffix <- " - Average Across Time"
+		} else {
+			if (is.null(time_point)) time_point <- n_times
+			if (!is.numeric(time_point)) {
+				cli::cli_abort(c(
+					"{.arg time_point} must be a number, {.val average}, or {.val all}.",
+					"i" = "Got {.val {time_point}}."))
+			}
+			if (time_point > n_times || time_point < 1) {
+				cli::cli_abort("{.arg time_point} must be between 1 and {n_times}.")
+			}
+			suffix <- paste0(" at ", time_labels[time_point])
+			eff <- eff[, time_point]
 		}
-		ylabel <- if(is_bip) "Column Actor Effects (b)" else "Receiver Effects (b)"
-		default_title <- if(is_bip) "Additive Column Actor Effects" else "Additive Receiver Effects"
+		names(eff) <- actor_names
+	} else if (is.null(names(eff))) {
+		names(eff) <- paste0("Actor", seq_along(eff))
 	}
-	
+	list(mu = eff, ylabel = ylabel, panel = panel, suffix = suffix,
+	     default_title = paste0(if (is_dynamic) "Dynamic " else "Additive ",
+	                            what, " Effects", suffix))
+}
+
+# lollipop chart of one effect per actor. mudf has columns mu and id, plus
+# margin (a factor) when the sender and receiver panels are drawn together;
+# each panel then sorts on its own.
+.ab_lollipop <- function(muDf, ylabel, sorted, labels, title, default_title) {
+	facet <- "margin" %in% names(muDf)
+	n_actors <- if (facet) max(table(muDf$margin)) else nrow(muDf)
 	if (is.null(labels)) {
-		labels <- length(muEff) <= 50
+		labels <- n_actors <= 50
 	}
-	
-	muDf <- data.frame(
-		mu = muEff,
-		id = names(muEff),
-		stringsAsFactors = FALSE
-	)
-	
-	if (sorted) {
-		muDf$id <- factor(muDf$id, levels = muDf$id[order(muDf$mu)])
+
+	# x is a per-panel key rather than the actor name so that each panel
+	# orders its own actors; the axis maps the keys back to the names
+	muDf$key <- if (facet) paste(muDf$margin, muDf$id, sep = "\r") else muDf$id
+	ord <- if (facet) {
+		if (sorted) order(muDf$margin, muDf$mu) else order(muDf$margin)
 	} else {
-		muDf$id <- factor(muDf$id, levels = muDf$id)
+		if (sorted) order(muDf$mu) else seq_len(nrow(muDf))
 	}
-	
-	muDf$ymax <- with(muDf, ifelse(mu >= 0, mu, 0))
-	muDf$ymin <- with(muDf, ifelse(mu < 0, mu, 0))
-	
-	p <- ggplot(muDf, aes(x = id, y = mu)) +
+	muDf$key <- factor(muDf$key, levels = muDf$key[ord])
+	key_labels <- stats::setNames(muDf$id, as.character(muDf$key))
+
+	p <- ggplot(muDf, aes(x = .data$key, y = .data$mu)) +
 		geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-		geom_segment(aes(xend = id, yend = 0)) +
+		geom_segment(aes(xend = .data$key, yend = 0)) +
 		geom_point(size = 2) +
+		scale_x_discrete(labels = key_labels) +
 		xlab("") +
 		ylab(ylabel) +
 		theme_bw() +
@@ -147,20 +212,27 @@ ab_plot <- function(fit,
 			legend.position  = "top"
 		)
 
+	if (facet) {
+		p <- p + facet_wrap(~ margin, scales = "free_x") +
+			theme(
+				strip.background = element_rect(fill = "black", color = "black"),
+				strip.text       = element_text(color = "white", hjust = 0)
+			)
+	}
+
 	if (!labels) {
 		p <- p + theme(
 			axis.text.x = element_blank()
-		) + xlab("Actors (Sorted by Effect Magnitude)")
+		) + xlab(if (sorted) "Actors (Sorted by Effect Magnitude)" else "Actors")
 	} else {
 		# scale label angle and size with n so n > 15 stays readable.
-		n_actors <- length(unique(muDf$id))
 		ang  <- if (n_actors > 30L) 90 else if (n_actors > 15L) 75 else 45
 		size <- if (n_actors > 30L) 7  else if (n_actors > 15L) 8  else 10
 		p <- p + theme(
 			axis.text.x = element_text(angle = ang, hjust = 1, size = size)
 		)
 	}
-	
+
 	if (!is.null(title)) {
 		p <- p + ggtitle(title)
 	} else if (sorted) {
@@ -168,8 +240,34 @@ ab_plot <- function(fit,
 	} else {
 		p <- p + ggtitle(default_title)
 	}
-	
-	return(p)
+
+	p
+}
+
+# sender and receiver effects side by side (effect = "both")
+ab_plot_both_internal <- function(fit, sorted, labels, title, time_point,
+                                  is_dynamic) {
+	a <- .ab_margin_values(fit, "sender", time_point, is_dynamic)
+	b <- .ab_margin_values(fit, "receiver", time_point, is_dynamic)
+	panels <- c(a$panel, b$panel)
+	muDf <- rbind(
+		data.frame(mu = unname(a$mu), id = names(a$mu), margin = panels[1L],
+		           stringsAsFactors = FALSE),
+		data.frame(mu = unname(b$mu), id = names(b$mu), margin = panels[2L],
+		           stringsAsFactors = FALSE))
+	muDf$margin <- factor(muDf$margin, levels = panels)
+	is_bip <- identical(fit$mode, "bipartite")
+	default_title <- paste0(
+		if (is_dynamic) "Dynamic " else "Additive ",
+		if (is_bip) "Row and Column Actor" else "Sender and Receiver",
+		" Effects", a$suffix)
+	ylabel <- if (identical(time_point, "average")) {
+		"Additive Effect (Time-Averaged)"
+	} else {
+		"Additive Effect"
+	}
+	.ab_lollipop(muDf, ylabel = ylabel, sorted = sorted, labels = labels,
+	             title = title, default_title = default_title)
 }
 
 ####

@@ -8,6 +8,22 @@
   bipartite draws include the interaction matrix `G` (they previously
   reconstructed `U V'` rather than `U G V'`). Credible-interval forecasts keep
   their actor names.
+* Fixed the bundled `sampsonmonks` data: the three liking layers (`like_m2`,
+  `like_m1`, `like`) had their actors in a different order from the array's
+  row/column names (a problem inherited from `amen`), so those layers were
+  mislabeled. All ten layers now share the same actor order.
+* `ab_plot(effect = "both")` now works for `ame` and `lame` fits, drawing the
+  sender and receiver effects as two panels (for dynamic fits, in the
+  snapshot views); it previously only worked for `ame_als` fits.
+* `ame()` and `lame()` gained a `multistart` argument that is forwarded to
+  the static ALS estimators when `method = "als"`; it used to be dropped
+  with an unused-argument error (`lame()`) or warning (`ame()`).
+* `symmetric = TRUE` with the rank-nomination families (`cbin`, `frn`) is now
+  rejected with an explanation; it used to route silently through the
+  directed samplers.
+* `latent_positions()` and `procrustes_align()` now say plainly that
+  alignment is across the periods of one fit, and how to align two fits by
+  hand.
 * Tidied up the documentation and test suite.
 
 # lame 1.3.4

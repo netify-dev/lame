@@ -1570,3 +1570,33 @@ test_that("summary.ame_als without bootstrap shows only Estimate column", {
 	s = summary(fit)
 	expect_equal(colnames(s$coefficients), "Estimate")
 })
+
+test_that("ame() and lame() forward multistart to the static ALS estimators", {
+	skip_on_cran()
+	set.seed(11); n = 14; Tt = 3
+	U0 = matrix(rnorm(n), n, 1); V0 = matrix(rnorm(n), n, 1)
+	Yl = lapply(seq_len(Tt), function(t) {
+		Y = tcrossprod(U0, V0) + matrix(rnorm(n * n, 0, 0.5), n, n)
+		diag(Y) = NA
+		Y
+	})
+	# lame() used to stop with "unused argument"; ame() warned and dropped it
+	fl = NULL
+	expect_no_warning({
+		fl = lame(Yl, R = 1, method = "als", multistart = "cheap", verbose = FALSE)
+	})
+	expect_identical(fl$multistart, "cheap")
+	expect_length(fl$multistart_sse, 4L)
+	fa = NULL
+	expect_no_warning({
+		fa = ame(Yl[[1]], R = 1, method = "als", multistart = "cheap",
+		         verbose = FALSE)
+	})
+	expect_identical(fa$multistart, "cheap")
+	expect_length(fa$multistart_sse, 4L)
+	# the dynamic ALS route has no multi-start: say so rather than drop it
+	expect_warning(
+		lame(Yl, R = 1, method = "als", dynamic_ab = TRUE, multistart = "cheap",
+		     verbose = FALSE),
+		"multistart")
+})

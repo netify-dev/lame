@@ -316,6 +316,11 @@
 #'   \code{"parametric"} (default) or \code{"block"}.
 #' @param bootstrap_block_length integer: block length for the block bootstrap.
 #' @param bootstrap_seed optional integer seed for the bootstrap.
+#' @param multistart character (only used when \code{method = "als"} and
+#'   \code{R > 0}): \code{"none"} (default), \code{"cheap"} (4 starts), or
+#'   \code{"full"} (8 starts). Forwarded to \code{\link{ame_als}}, which
+#'   reruns the block-coordinate fit from several starts and keeps the one
+#'   with the lowest objective.
 #' @param ... reserved for future use. Passing \code{lame()}-only
 #'   arguments (e.g. \code{dynamic_beta}, \code{period_exposure}) here
 #'   triggers a clean abort directing you to \code{\link{lame}}; passing
@@ -355,7 +360,10 @@
 #' \code{family = "ordinal"} with \code{symmetric = TRUE} is supported via the
 #' dedicated sampler in \code{R/rZ_ord_sym_fc.R}, which uses the
 #' symmetric-doubled precision and mirrors upper-triangle draws to the lower
-#' triangle so \eqn{Z = t(Z)} holds at every sweep.
+#' triangle so \eqn{Z = t(Z)} holds at every sweep. The rank-nomination
+#' families (\code{"cbin"}, \code{"frn"}) model each actor's own ranked
+#' nominations and are directed by construction, so \code{symmetric = TRUE}
+#' is rejected for them.
 #'
 #' \strong{Symmetric input with one triangle missing.} When
 #' \code{symmetric = TRUE} and one triangle of \code{Y} is fully \code{NA}
@@ -551,6 +559,7 @@ ame<-function (
 	bootstrap_type = c("parametric", "block"),
 	bootstrap_block_length = 1L,
 	bootstrap_seed = NULL,
+	multistart = c("none", "cheap", "full"),
 	save_log_lik = FALSE,
 	ordinal_cutpoints = c("data_induced", "explicit"),
 	print, ...,
@@ -660,6 +669,7 @@ ame<-function (
 		               "family", "mode", "symmetric",
 		               "bootstrap", "bootstrap_type",
 		               "bootstrap_block_length", "bootstrap_seed",
+		               "multistart",
 		               "verbose", "seed", "method", "intercept", "odmax",
 		               # silently absorb cosmetic-only mcmc args
 		               "model.name")
@@ -686,6 +696,7 @@ ame<-function (
 			bootstrap = bootstrap, bootstrap_type = bootstrap_type,
 			bootstrap_block_length = bootstrap_block_length,
 			bootstrap_seed = bootstrap_seed,
+			multistart = match.arg(multistart),
 			verbose = verbose, seed = seed))
 	}
 
@@ -810,6 +821,18 @@ ame<-function (
 		cli::cli_abort(c(
 			"{.arg family} = {.val {family}} is not a recognised family.",
 			"i" = "Choose one of: {.val {valid_families}}."))
+	}
+	# the censored-binary and fixed-rank-nomination families model each
+	# actor's own ranked nominations row by row (odmax nominations per
+	# nominator), so they are directed by construction. their z samplers
+	# take no notice of symmetric and would silently fit a directed model
+	# with a = b and u = v imposed on top.
+	if (isTRUE(symmetric) && !identical(mode, "bipartite") &&
+	    family %in% c("cbin", "frn")) {
+		cli::cli_abort(c(
+			"{.arg symmetric} = TRUE is not supported for {.code family = \"{family}\"}.",
+			"i" = "The {.val cbin} and {.val frn} families model each actor's own ranked nominations, so they are directed by construction.",
+			"i" = "Fit with {.code symmetric = FALSE}, or recode the ties and use {.val binary} / {.val ordinal} for a symmetric fit."))
 	}
 
 	####

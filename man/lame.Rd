@@ -64,6 +64,7 @@ lame(
   als_stability = c("none", "quick", "validation"),
   als_max_iter = 1000L,
   als_tol = NULL,
+  multistart = c("none", "cheap", "full"),
   bootstrap = 0L,
   bootstrap_type = c("parametric", "block"),
   bootstrap_block_length = 1L,
@@ -215,7 +216,9 @@ the details below}
 
 \item{intercept}{logical: fit model with an intercept?}
 
-\item{symmetric}{logical: is the sociomatrix symmetric?}
+\item{symmetric}{logical: is the sociomatrix symmetric? Not available for
+the \code{"cbin"} and \code{"frn"} families, whose per-actor ranked
+nominations are directed by construction.}
 
 \item{odmax}{a scalar integer or vector of length n giving the maximum
 number of nominations that each node may make - used for "frn" and "cbin"
@@ -516,6 +519,14 @@ maximum block-coordinate iterations for the ALS fit. Default \code{1000}.}
 \item{als_tol}{optional positive scalar (only used when
 \code{method = "als"}): convergence tolerance for the ALS objective and
 fitted values. \code{NULL} keeps each ALS estimator's built-in default.}
+
+\item{multistart}{character (only used when \code{method = "als"} with no
+dynamic arguments, and \code{R > 0}): \code{"none"} (default),
+\code{"cheap"} (4 starts), or \code{"full"} (8 starts). Forwarded to
+\code{\link{lame_als}}, which reruns the block-coordinate fit from
+several starts and keeps the one with the lowest objective. The dynamic
+and snap ALS routes have no multi-start and ignore this argument with a
+warning; use \code{als_stability} there instead.}
 
 \item{bootstrap}{integer (only used when \code{method = "als"}): number of
 bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N > 0}

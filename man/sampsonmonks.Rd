@@ -7,9 +7,12 @@
 A socioarray whose dimensions represent nominators, nominatees and relations.
 Each monk was asked to rank up to three other monks on a variety of positive
 and negative relations. A rank of three indicates the "highest" ranking for
-a particular relational variable. The relations \code{like_m2} and \code{like_m1}
-are evaluations of likeing at one and two timepoints previous to when the
-other relations were measured.
+a particular relational variable. The relations \code{like_m1} and \code{like_m2}
+are evaluations of liking at one and two timepoints previous to when the
+other relations (including \code{like}) were measured. In the copy of this
+array that circulated with \pkg{amen}, the three liking layers had their
+monks in a different order from the array's row and column names; they
+are re-aligned here so every layer follows the same actor labels.
 }
 \source{
 Originally available at \code{http://moreno.ss.uci.edu/data.html#sampson}

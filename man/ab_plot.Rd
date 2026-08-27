@@ -19,8 +19,12 @@ ab_plot(
 \item{fit}{An object of class "ame" or "lame" from fitting an AME model}
 
 \item{effect}{Character string specifying which effect to plot:
-"sender" (default) or "receiver". For \code{ame_als} fits,
-"both" facets sender and receiver together.}
+"sender" (default), "receiver", or "both". "both" draws the sender
+and receiver effects as two panels, each sorted on its own; for
+dynamic fits it is available in the snapshot views
+(\code{plot_type = "snapshot"}, one period or
+\code{time_point = "average"}). Symmetric fits store a single set
+of actor effects, so only "sender" applies to them.}
 
 \item{sorted}{Logical; if TRUE (default), actors are sorted by effect
 magnitude. Applies to \code{ame} / \code{lame} fits;

@@ -276,3 +276,30 @@ test_that("predict.lame newdata realigns actors by name to the fit's order", {
 	# the returned matrices are labelled in the fit's (sorted) order
 	expect_identical(rownames(ez_new[[1]]), sort(nm))
 })
+
+# symmetric = TRUE with the rank-nomination families used to route silently
+# through the directed samplers (their z updates ignore symmetric); now it
+# stops with an explanation, in ame() and lame() alike.
+test_that("symmetric = TRUE is rejected for the cbin and frn families", {
+	set.seed(5); n = 10
+	Y = matrix(0, n, n)
+	for (i in seq_len(n)) Y[i, sample(setdiff(seq_len(n), i), 3)] = 3:1
+	Y = pmax(Y, t(Y)); diag(Y) = NA
+	dimnames(Y) = list(paste0("a", 1:n), paste0("a", 1:n))
+	for (fam in c("frn", "cbin")) {
+		Yf = if (fam == "cbin") 1 * (Y > 0) else Y
+		expect_error(
+			ame(Yf, family = fam, odmax = rep(6, n), symmetric = TRUE,
+			    burn = 2, nscan = 4, odens = 1, verbose = FALSE),
+			"directed by construction")
+		expect_error(
+			lame(list(Yf, Yf), family = fam, odmax = rep(6, n), symmetric = TRUE,
+			     burn = 2, nscan = 4, odens = 1, verbose = FALSE),
+			"directed by construction")
+	}
+	# the directed fit is untouched
+	fit = suppressWarnings(
+		ame(Y, family = "frn", odmax = rep(6, n), symmetric = FALSE,
+		    burn = 2, nscan = 4, odens = 1, verbose = FALSE))
+	expect_s3_class(fit, "ame")
+})

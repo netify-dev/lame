@@ -305,3 +305,23 @@ test_that("array_to_list conversion works", {
 		expect_equal(Y_list[[t]], Y_expected)
 	}
 })
+
+test_that("sampsonmonks liking layers share the roster actor order (regression)", {
+	# the amen copy stored like_m2/like_m1/like in UCINET id order under roster
+	# dimnames, so those layers were mislabeled. these nominee sets are the
+	# canonical values (they match ergm::samplk1/2/3 cell for cell).
+	data("sampsonmonks", package = "lame")
+	S = sampsonmonks
+	expect_equal(dimnames(S)[[1]], dimnames(S)[[2]])
+	nominees = function(layer, monk) sort(names(which(S[monk, , layer] > 0)))
+	expect_equal(nominees("like_m2", "ROMUL"), sort(c("PETER", "VICTOR", "HUGH")))
+	expect_equal(nominees("like_m2", "JOHN"),  sort(c("BONAVEN", "HUGH", "BASIL")))
+	expect_equal(nominees("like_m1", "ROMUL"), sort(c("BONAVEN", "PETER", "AMAND")))
+	expect_equal(nominees("like_m1", "BASIL"), sort(c("JOHN", "ELIAS", "SIMP")))
+	expect_equal(nominees("like", "ROMUL"),    sort(c("BONAVEN", "AMBROSE", "PETER", "AMAND")))
+	expect_equal(nominees("like", "JOHN"),     sort(c("WINF", "HUGH", "BASIL")))
+	# liking should agree with esteem well above chance (0.72 when misaligned)
+	off = row(S[, , 1]) != col(S[, , 1])
+	agree = mean(((S[, , "like"] > 0) == (S[, , "esteem"] > 0))[off])
+	expect_gt(agree, 0.8)
+})

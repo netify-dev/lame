@@ -676,7 +676,9 @@
 #' @param family character: one of "normal","binary","ordinal","cbin","frn","poisson" - see
 #' the details below
 #' @param intercept logical: fit model with an intercept?
-#' @param symmetric logical: is the sociomatrix symmetric?
+#' @param symmetric logical: is the sociomatrix symmetric? Not available for
+#'   the \code{"cbin"} and \code{"frn"} families, whose per-actor ranked
+#'   nominations are directed by construction.
 #' @param odmax a scalar integer or vector of length n giving the maximum
 #' number of nominations that each node may make - used for "frn" and "cbin"
 #' families
@@ -801,6 +803,13 @@
 #' @param als_tol optional positive scalar (only used when
 #'   \code{method = "als"}): convergence tolerance for the ALS objective and
 #'   fitted values. \code{NULL} keeps each ALS estimator's built-in default.
+#' @param multistart character (only used when \code{method = "als"} with no
+#'   dynamic arguments, and \code{R > 0}): \code{"none"} (default),
+#'   \code{"cheap"} (4 starts), or \code{"full"} (8 starts). Forwarded to
+#'   \code{\link{lame_als}}, which reruns the block-coordinate fit from
+#'   several starts and keeps the one with the lowest objective. The dynamic
+#'   and snap ALS routes have no multi-start and ignore this argument with a
+#'   warning; use \code{als_stability} there instead.
 #' @param bootstrap integer (only used when \code{method = "als"}): number of
 #'   bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N > 0}
 #'   runs \code{N} replicates and attaches the result so that \code{\link{confint}}
@@ -1081,6 +1090,7 @@ lame <- function(
 			als_stability = c("none", "quick", "validation"),
 			als_max_iter = 1000L,
 			als_tol = NULL,
+			multistart = c("none", "cheap", "full"),
 			bootstrap = 0L,
 		bootstrap_type = c("parametric", "block"),
 		bootstrap_block_length = 1L,
@@ -1220,6 +1230,17 @@ lame <- function(
 			"{.arg family} = {.val {family}} is not a recognised family.",
 			"i" = "Choose one of: {.val {valid_families}}."))
 	}
+	# the censored-binary and fixed-rank-nomination families model each
+	# actor's own ranked nominations row by row (odmax nominations per
+	# nominator), so they are directed by construction. their z samplers
+	# take no notice of symmetric and would silently fit a directed model
+	# with a = b and u = v imposed on top.
+	if (isTRUE(symmetric) && !bip && family %in% c("cbin", "frn")) {
+		cli::cli_abort(c(
+			"{.arg symmetric} = TRUE is not supported for {.code family = \"{family}\"}.",
+			"i" = "The {.val cbin} and {.val frn} families model each actor's own ranked nominations, so they are directed by construction.",
+			"i" = "Fit with {.code symmetric = FALSE}, or recode the ties and use {.val binary} / {.val ordinal} for a symmetric fit."))
+	}
 	# resolve dynamic_beta_kind. accept "random_walk" as an alias for
 	# "rw1". "rw2" and "matern32" use the r-level joint gaussian sampler.
 	if (length(dynamic_beta_kind) > 1L) dynamic_beta_kind <- dynamic_beta_kind[[1L]]
@@ -1284,6 +1305,16 @@ lame <- function(
 			cli::cli_abort("{.arg bootstrap} must be a non-negative integer (0 = no bootstrap).")
 		}
 		bootstrap <- as.integer(bootstrap)
+		multistart <- match.arg(multistart)
+		# only the static lame_als() route reruns from several starts; the
+		# dynamic and snap routes offer als_stability instead
+		warn_als_no_multistart <- function(route) {
+			if (multistart != "none") {
+				cli::cli_warn(c(
+					"{.arg multistart} is not available for {route} and is ignored.",
+					"i" = "{.arg als_stability} is still available for start-sensitivity checks."))
+			}
+		}
 
 		dynamic_beta_requested <- !is.null(dynamic_beta) &&
 		    !(is.logical(dynamic_beta) && length(dynamic_beta) == 1L && isFALSE(dynamic_beta))
@@ -1315,6 +1346,7 @@ lame <- function(
 					"{.arg bootstrap} is not available for snap ALS and is ignored.",
 					"i" = "{.arg als_stability} is still available for start-sensitivity checks."))
 			}
+			warn_als_no_multistart("snap ALS")
 			if (verbose) {
 				cli::cli_inform(c(
 					"i" = "Using {.fn lame_snap_als} for snap dynamic UV with {.arg method} = {.val als}.",
@@ -1363,6 +1395,7 @@ lame <- function(
 		}
 		if (length(dyn_requested) > 0L) {
 			warn_als_mcmc_controls("dynamic ALS")
+			warn_als_no_multistart("dynamic ALS")
 			fit <- lame_dynamic_als(
 				Y = Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
 				R = R_als, R_row = R_row_als, R_col = R_col_als,
@@ -1391,6 +1424,7 @@ lame <- function(
 		               "bootstrap", "bootstrap_type",
 		               "bootstrap_block_length", "bootstrap_seed",
 		               "als_stability", "als_max_iter", "als_tol",
+		               "multistart",
 		               "verbose", "seed", "method", "intercept", "odmax",
 		               # absorb cosmetic-only mcmc args that have no als
 		               # equivalent and don't affect the point fit
@@ -1407,6 +1441,7 @@ lame <- function(
 			bootstrap = bootstrap, bootstrap_type = bootstrap_type,
 			bootstrap_block_length = bootstrap_block_length,
 			bootstrap_seed = bootstrap_seed,
+			multistart = multistart,
 			max_iter = als_max_iter,
 			tol = if (is.null(als_tol)) 1e-6 else als_tol,
 			verbose = verbose, seed = seed)

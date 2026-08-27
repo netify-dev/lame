@@ -53,6 +53,14 @@
 #' If U is a 2D matrix (static model with a single time point), it is returned
 #' unchanged with an informational message.
 #'
+#' Alignment is within one fit: each period of a single dynamic trajectory is
+#' rotated onto the period before it. Two different fits are never aligned to
+#' each other automatically. Because raw arrays are accepted, you can do that
+#' explicitly: stack the two fits' \code{U} matrices into an \code{[n, R, 2]}
+#' array (same actors in the same order, same \code{R}) and call
+#' \code{procrustes_align(U = that_array)}; the second slice comes back
+#' rotated onto the first.
+#'
 #' @seealso \code{\link{latent_positions}} for extracting aligned positions as
 #'   a tidy data frame, \code{\link{uv_plot}} for visualizing latent positions
 #'
