@@ -51,6 +51,15 @@
 <code><a href="../reference/uv_plot.html">uv_plot()</a></code> now honors <code>layout = "circle"</code> for dynamic snapshot plots; it was silently drawing a biplot. Also corrected the latent-space description in the help to the inner-product (eigenmodel) interpretation.</li>
 <li>
 <code><a href="../reference/simulate_posterior.html">simulate_posterior()</a></code> now returns latent-factor and coefficient draws for dynamic fits (<code>dynamic_uv</code>, <code>dynamic_beta</code>) instead of erroring, and its bipartite draws include the interaction matrix <code>G</code> (they previously reconstructed <code>U V'</code> rather than <code>U G V'</code>). Credible-interval forecasts keep their actor names.</li>
+<li>Fixed the bundled <code>sampsonmonks</code> data: the three liking layers (<code>like_m2</code>, <code>like_m1</code>, <code>like</code>) had their actors in a different order from the array’s row/column names (a problem inherited from <code>amen</code>), so those layers were mislabeled. All ten layers now share the same actor order.</li>
+<li>
+<code>ab_plot(effect = "both")</code> now works for <code>ame</code> and <code>lame</code> fits, drawing the sender and receiver effects as two panels (for dynamic fits, in the snapshot views); it previously only worked for <code>ame_als</code> fits.</li>
+<li>
+<code><a href="../reference/ame.html">ame()</a></code> and <code><a href="../reference/lame.html">lame()</a></code> gained a <code>multistart</code> argument that is forwarded to the static ALS estimators when <code>method = "als"</code>; it used to be dropped with an unused-argument error (<code><a href="../reference/lame.html">lame()</a></code>) or warning (<code><a href="../reference/ame.html">ame()</a></code>).</li>
+<li>
+<code>symmetric = TRUE</code> with the rank-nomination families (<code>cbin</code>, <code>frn</code>) is now rejected with an explanation; it used to route silently through the directed samplers.</li>
+<li>
+<code><a href="../reference/latent_positions.html">latent_positions()</a></code> and <code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> now say plainly that alignment is across the periods of one fit, and how to align two fits by hand.</li>
 <li>Tidied up the documentation and test suite.</li>
 </ul></div>
     <div class="section level2">

@@ -80,8 +80,12 @@ are static or dynamic and provides appropriate visualization options.</p>
 
 <dt id="arg-effect">effect<a class="anchor" aria-label="anchor" href="#arg-effect"></a></dt>
 <dd><p>Character string specifying which effect to plot:
-"sender" (default) or "receiver". For <code>ame_als</code> fits,
-"both" facets sender and receiver together.</p></dd>
+"sender" (default), "receiver", or "both". "both" draws the sender
+and receiver effects as two panels, each sorted on its own; for
+dynamic fits it is available in the snapshot views
+(<code>plot_type = "snapshot"</code>, one period or
+<code>time_point = "average"</code>). Symmetric fits store a single set
+of actor effects, so only "sender" applies to them.</p></dd>
 
 
 <dt id="arg-sorted">sorted<a class="anchor" aria-label="anchor" href="#arg-sorted"></a></dt>

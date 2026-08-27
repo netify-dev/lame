@@ -91,9 +91,10 @@ object with R &gt; 0.</p></dd>
 
 <dt id="arg-align">align<a class="anchor" aria-label="anchor" href="#arg-align"></a></dt>
 <dd><p>Logical. For dynamic models (<code>dynamic_uv = TRUE</code>), apply
-Procrustes alignment across time to remove rotational indeterminacy.
-Default is <code>FALSE</code> for <code>ame</code> objects and <code>TRUE</code> for
-<code>lame</code> objects.</p></dd>
+Procrustes alignment across the time periods of this fit to remove
+rotational indeterminacy. Default is <code>FALSE</code> for <code>ame</code> objects
+(a single period, so there is nothing to align and the argument has no
+effect) and <code>TRUE</code> for <code>lame</code> objects.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -126,6 +127,17 @@ only <code>"U"</code>.</p></dd>
 
 
 </dl><p>Returns a zero-row data frame with correct column names if R = 0.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Alignment only ever happens across the periods of one fit: with
+<code>align = TRUE</code> the fit is passed to <code><a href="procrustes_align.html">procrustes_align</a></code>,
+which rotates each period onto the one before it. Nothing here aligns two
+different fits (two chains, or the same model with and without a
+covariate) to a common orientation, so their latent positions are not
+directly comparable. To compare fits that way, stack their <code>U</code>
+matrices into an <code>[n, R, 2]</code> array (same actors in the same order,
+same <code>R</code>) and call <code>procrustes_align(U = that_array)</code> on it.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

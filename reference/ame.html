@@ -104,6 +104,7 @@ additive and multiplicative effects framework is due to Hoff (2005, 2021).</p>
 <span>  bootstrap_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"parametric"</span>, <span class="st">"block"</span><span class="op">)</span>,</span>
 <span>  bootstrap_block_length <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  bootstrap_seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  multistart <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"cheap"</span>, <span class="st">"full"</span><span class="op">)</span>,</span>
 <span>  save_log_lik <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  ordinal_cutpoints <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"data_induced"</span>, <span class="st">"explicit"</span><span class="op">)</span>,</span>
 <span>  <span class="va">print</span>,</span>
@@ -399,6 +400,14 @@ returns bootstrap intervals.</p></dd>
 <dd><p>optional integer seed for the bootstrap.</p></dd>
 
 
+<dt id="arg-multistart">multistart<a class="anchor" aria-label="anchor" href="#arg-multistart"></a></dt>
+<dd><p>character (only used when <code>method = "als"</code> and
+<code>R &gt; 0</code>): <code>"none"</code> (default), <code>"cheap"</code> (4 starts), or
+<code>"full"</code> (8 starts). Forwarded to <code><a href="ame_als.html">ame_als</a></code>, which
+reruns the block-coordinate fit from several starts and keeps the one
+with the lowest objective.</p></dd>
+
+
 <dt id="arg-save-log-lik">save_log_lik<a class="anchor" aria-label="anchor" href="#arg-save-log-lik"></a></dt>
 <dd><p>logical: when <code>TRUE</code>, attach a per-iteration
 pointwise log-likelihood matrix <code>fit$log_lik</code> (an
@@ -643,7 +652,10 @@ and dispatch per family; see also the inline comment in <code>R/lame.R</code>
 <code>family = "ordinal"</code> with <code>symmetric = TRUE</code> is supported via the
 dedicated sampler in <code>R/rZ_ord_sym_fc.R</code>, which uses the
 symmetric-doubled precision and mirrors upper-triangle draws to the lower
-triangle so \(Z = t(Z)\) holds at every sweep.</p>
+triangle so \(Z = t(Z)\) holds at every sweep. The rank-nomination
+families (<code>"cbin"</code>, <code>"frn"</code>) model each actor's own ranked
+nominations and are directed by construction, so <code>symmetric = TRUE</code>
+is rejected for them.</p>
 <p><strong>Symmetric input with one triangle missing.</strong> When
 <code>symmetric = TRUE</code> and one triangle of <code>Y</code> is fully <code>NA</code>
 (the user stored only the lower or upper triangle), the symmetry validator
