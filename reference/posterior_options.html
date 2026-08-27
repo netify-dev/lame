@@ -78,8 +78,14 @@
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>List of posterior saving options, to be passed to the
-<code>posterior_opts</code> argument of <code><a href="ame.html">ame</a></code>:
-<code>ame(Y, ..., posterior_opts = posterior_options(save_UV = TRUE))</code></p>
+<code>posterior_opts</code> argument of <code><a href="ame.html">ame</a></code> or <code><a href="lame.html">lame</a></code>:
+<code>ame(Y, ..., posterior_opts = posterior_options(save_UV = TRUE))</code> or
+<code>lame(Y, ..., posterior_opts = posterior_options(save_UV = TRUE))</code>.
+With <code>save_UV = TRUE</code>, static fits store <code>U_samples</code> /
+<code>V_samples</code> (plus <code>G_samples</code> for bipartite fits) and
+<code>dynamic_uv</code> fits store the per-period trajectory in
+<code>U_draws</code> / <code>V_draws</code>; see <code><a href="latent_positions.html">latent_positions</a></code> and
+<code><a href="simulate_posterior.html">simulate_posterior</a></code> for summarising them.</p>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
