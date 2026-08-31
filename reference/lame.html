@@ -978,7 +978,13 @@ the maximum number of links each row may have.</p>
 \(Y \sim \mathrm{Poisson}(\exp(z))\) with \(z \sim N(\eta, \sigma^2)\),
 a lognormal-mixed Poisson. The conditional mean given the latent \(z\) is
 \(\exp(z)\); the marginal mean is \(\exp(\eta + \sigma^2/2)\), not
-\(\exp(\eta)\).</p>
+\(\exp(\eta)\). On sparse count matrices (only a few dozen nonzero
+cells per period) the multiplicative factors are weakly identified:
+<code>UVPM</code> can differ across seeds while the fit is otherwise stable, and
+the level of the latent log-rates mixes slowly (the longitudinal sampler
+does not yet have the joint level move that <code><a href="ame.html">ame</a></code> uses). For such data compare seeds, use long chains, check
+<code>sum(unlist(fit$YPM))</code> against the observed total, and prefer
+<code>R = 0</code> unless the factors reproduce.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

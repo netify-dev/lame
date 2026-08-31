@@ -60,6 +60,8 @@
 <code>symmetric = TRUE</code> with the rank-nomination families (<code>cbin</code>, <code>frn</code>) is now rejected with an explanation; it used to route silently through the directed samplers.</li>
 <li>
 <code><a href="../reference/latent_positions.html">latent_positions()</a></code> and <code><a href="../reference/procrustes_align.html">procrustes_align()</a></code> now say plainly that alignment is across the periods of one fit, and how to align two fits by hand.</li>
+<li>Poisson fits with many zero cells no longer pin the actor effects and latent factors at zero and inflate the fitted level (about 3x at 5% density, 1.2-1.4x at 20%): their prior scale vanished as zeros dominated. <code><a href="../reference/ame.html">ame()</a></code> also gained a level move so the predicted total settles quickly; see the notes in <code><a href="../reference/ame.html">?ame</a></code>.</li>
+<li>Fixed a scale drift in bipartite <code>dynamic_uv</code> fits. Only the product <code>U G V'</code> is identified, and the leftover scale used to wander: <code>G</code> shrank toward zero while the latent coordinates grew, until they hit <code>prior$uv_max_abs</code> and the sampler began rejecting 20-40% of its own <code>U</code>/<code>V</code> proposals on realistic panel sizes. The scale is now pinned (<code>G</code> carries unit Frobenius norm), which leaves <code>U G V'</code> untouched. Estimates of the identified quantities were not affected, but the raw coordinate scale was arbitrary and sampling efficiency suffered. The warning for this case now says what to do instead of suggesting a longer chain, which made it worse.</li>
 <li>Tidied up the documentation and test suite.</li>
 </ul></div>
     <div class="section level2">
