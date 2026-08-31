@@ -158,7 +158,15 @@
 #' \eqn{Y \sim \mathrm{Poisson}(\exp(z))} with \eqn{z \sim N(\eta, \sigma^2)},
 #' a lognormal-mixed Poisson. The conditional mean given the latent \eqn{z} is
 #' \eqn{\exp(z)}; the marginal mean is \eqn{\exp(\eta + \sigma^2/2)}, not
-#' \eqn{\exp(\eta)}.
+#' \eqn{\exp(\eta)}. On sparse count matrices (only a few dozen nonzero
+#' cells) the multiplicative factors are weakly identified: \code{UVPM} can
+#' differ across seeds while the fit is otherwise stable. For such data
+#' compare seeds, check \code{sum(fit$YPM)} against the observed total, and
+#' prefer \code{R = 0} unless the factors reproduce. The sampler includes a
+#' joint level move on the latent log-rates and the intercept (acceptance
+#' rate in \code{fit$mh_counters$pois_shift_accept}) so the predicted total
+#' settles quickly even when most cells are zero; the dyadic variance
+#' \code{ve} still mixes slowly on such data, so use long chains.
 #' 
 #' @param Y For unipartite: an n x n square relational matrix. For bipartite:
 #' an nA x nB rectangular relational matrix where nA is the number of row

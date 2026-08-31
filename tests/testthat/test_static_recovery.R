@@ -152,3 +152,67 @@ test_that("binary bipartite AME runs", {
 	          burn = 50, nscan = 200, verbose = FALSE, plot = FALSE)
 	expect_s3_class(fit, "ame")
 })
+
+# sparse counts: the additive / multiplicative effect prior used to be scaled
+# by the variance of log1p(y) row / column means, which is ~0 when most cells
+# are zero, so a, b and uv' were pinned to zero, the heterogeneity was pushed
+# into s2 (ve climbing across the chain) and posterior-predictive totals ran
+# several times the observed count. the prior scale is now a log-rate moment
+# and z starts at the mean rate.
+test_that("poisson prior scale and start values are sane on sparse counts", {
+	set.seed(7); n = 30
+	Y = matrix(rpois(n * n, 0.05), n, n); diag(Y) = NA
+	# log-rate moments are o(1) even when almost every cell is zero
+	vs = .ame_pois_effect_scale(Y)
+	expect_true(is.finite(vs) && vs > 0.1 && vs < 10)
+	# dense, homogeneous counts give a small scale
+	Yd = matrix(rpois(n * n, 50), n, n); diag(Yd) = NA
+	expect_lt(.ame_pois_effect_scale(Yd), 0.1)
+	# zero cells start at the mean rate on sparse data, at log(y + 1) on dense
+	Z = .ame_pois_init_z(Y)
+	ybar = mean(Y, na.rm = TRUE)
+	expect_equal(Z[!is.na(Y) & Y == 0][1], log(ybar))
+	expect_equal(diag(Z)[1], log(ybar))
+	Zd = .ame_pois_init_z(Yd)
+	expect_equal(Zd[2, 1], log(Yd[2, 1] + 1))
+	# a square bipartite matrix keeps its real diagonal
+	Yb = Yd; diag(Yb) = 3
+	expect_equal(diag(.ame_pois_init_z(Yb, unipartite = FALSE))[1], log(4))
+	# the 3-d (lame) layout pools per-actor totals over periods
+	Y3 = array(c(Y, Y), c(n, n, 2))
+	ra = log((2 * rowSums(Y, na.rm = TRUE) + 0.5) / (2 * rowSums(!is.na(Y)) + 1))
+	rb = log((2 * colSums(Y, na.rm = TRUE) + 0.5) / (2 * colSums(!is.na(Y)) + 1))
+	expect_equal(.ame_pois_effect_scale(Y3), mean(c(var(ra), var(rb))))
+})
+
+test_that("poisson AME recovers actor heterogeneity on a sparse network", {
+	skip_on_cran()
+	set.seed(42); n = 40
+	a = rnorm(n, 0, 0.8); b = rnorm(n, 0, 0.8)
+	x = matrix(rnorm(n * n), n, n)
+	eta = -3.6 + 0.5 * x + outer(a, b, "+")
+	Y = matrix(rpois(n * n, exp(eta)), n, n); diag(Y) = NA
+	X = array(x, c(n, n, 1), dimnames = list(NULL, NULL, "x1"))
+	fit = ame(Y, Xdyad = X, family = "poisson", R = 0, burn = 500, nscan = 1000,
+	          odens = 5, seed = 1, gof = FALSE, verbose = FALSE)
+	# the effect prior is no longer pinned near zero
+	expect_gt(fit$prior$Sab0[1, 1], 0.05)
+	expect_gt(mean(fit$VC[, "va"]), 0.1)
+	expect_gt(cor(fit$APM, a), 0.4)
+	expect_gt(cor(fit$BPM, b), 0.4)
+	# the dyadic variance does not run away and the predicted total is in
+	# the neighbourhood of the observed one
+	S = nrow(fit$VC)
+	expect_lt(mean(fit$VC[seq(S - S %/% 4, S), "ve"]), 1)
+	tot = sum(Y, na.rm = TRUE)
+	expect_gt(sum(fit$YPM, na.rm = TRUE), 0.6 * tot)
+	expect_lt(sum(fit$YPM, na.rm = TRUE), 1.6 * tot)
+	# the joint (z, intercept) level move ran and accepted at a sane rate
+	acc = fit$mh_counters$pois_shift_accept
+	expect_true(is.numeric(acc) && acc > 0.05 && acc < 0.95)
+	# no intercept, no level move
+	fit0 = ame(Y, Xdyad = X, family = "poisson", R = 0, intercept = FALSE,
+	           burn = 20, nscan = 40, odens = 5, seed = 1, gof = FALSE,
+	           verbose = FALSE)
+	expect_null(fit0$mh_counters$pois_shift_accept)
+})

@@ -553,7 +553,13 @@
 #' \eqn{Y \sim \mathrm{Poisson}(\exp(z))} with \eqn{z \sim N(\eta, \sigma^2)},
 #' a lognormal-mixed Poisson. The conditional mean given the latent \eqn{z} is
 #' \eqn{\exp(z)}; the marginal mean is \eqn{\exp(\eta + \sigma^2/2)}, not
-#' \eqn{\exp(\eta)}.
+#' \eqn{\exp(\eta)}. On sparse count matrices (only a few dozen nonzero
+#' cells per period) the multiplicative factors are weakly identified:
+#' \code{UVPM} can differ across seeds while the fit is otherwise stable, and
+#' the level of the latent log-rates mixes slowly (the longitudinal sampler
+#' does not yet have the joint level move that \code{\link{ame}} uses). For such data compare seeds, use long chains, check
+#' \code{sum(unlist(fit$YPM))} against the observed total, and prefer
+#' \code{R = 0} unless the factors reproduce.
 #' 
 #' @param Y a T length list of relational matrices, or a 3D array of dimensions
 #' \code{[n_row, n_col, T]}, where T is the number of time periods. Named lists
@@ -2331,15 +2337,19 @@ lame <- function(
 			# scale the additive-effects prior to the data (see the
 			# matching block in ame_unipartite.R): an absolute diag(2)
 			# biases va/vb toward 1 and breaks scale equivariance
-			Ymom <- Y
-			if (family == "poisson") Ymom <- log1p(pmax(Ymom, 0))
-			Ec <- Ymom - mean(Ymom, na.rm = TRUE)
-			a_tmp <- apply(Ec, 1, mean, na.rm = TRUE); a_tmp[is.na(a_tmp)] <- 0
-			b_tmp <- apply(Ec, 2, mean, na.rm = TRUE); b_tmp[is.na(b_tmp)] <- 0
-			# var per side (a and b can have different lengths in bipartite)
-			vscale_ab <- mean(c(stats::var(a_tmp), stats::var(b_tmp)), na.rm = TRUE)
-			if (!is.finite(vscale_ab) || vscale_ab <= 0) {
-				vscale_ab <- max(stats::var(c(Ymom), na.rm = TRUE), 1e-12)
+			if (family == "poisson") {
+				# log-rate moments (see .ame_pois_effect_scale): log1p(y)
+				# means are ~0 on sparse counts and pinned a / b to zero
+				vscale_ab <- .ame_pois_effect_scale(Y)
+			} else {
+				Ec <- Y - mean(Y, na.rm = TRUE)
+				a_tmp <- apply(Ec, 1, mean, na.rm = TRUE); a_tmp[is.na(a_tmp)] <- 0
+				b_tmp <- apply(Ec, 2, mean, na.rm = TRUE); b_tmp[is.na(b_tmp)] <- 0
+				# var per side (a and b can have different lengths in bipartite)
+				vscale_ab <- mean(c(stats::var(a_tmp), stats::var(b_tmp)), na.rm = TRUE)
+				if (!is.finite(vscale_ab) || vscale_ab <= 0) {
+					vscale_ab <- max(stats::var(c(Y), na.rm = TRUE), 1e-12)
+				}
 			}
 			prior$Sab0 <- diag(2) * vscale_ab
 		} else if (family == "binary" && !bip) {
@@ -2505,7 +2515,8 @@ lame <- function(
 		Sab <- diag(c(sigma2_a, sigma2_b))  # independent variances
 	} else {
 		# unipartite initialization
-		startValsObj <- get_start_vals(start_vals,Y,family,xP=dim(X)[3],rvar,cvar,R,odmax=odmax)
+		startValsObj <- get_start_vals(start_vals,Y,family,xP=dim(X)[3],rvar,cvar,R,odmax=odmax,
+		                               bip=bip)
 		Z<-startValsObj$Z ; beta<-startValsObj$beta ; a<-startValsObj$a
 		b<-startValsObj$b ; U<-startValsObj$U ; V<-startValsObj$V
 		rho<-startValsObj$rho ; s2<-startValsObj$s2 ; Sab<-startValsObj$Sab
@@ -2681,6 +2692,8 @@ lame <- function(
 	asymLoopIDs <- lapply(1:(nscan + burn), function(x){ sample(1:R) })  
 	# track per-iteration sampler failures so the post-mcmc warning loop can
 	# surface them. each slot is bumped from the relevant trycatch handler.
+	# set when a U/V draw is finite but exceeds prior$uv_max_abs
+	uv_scale_bound_hit <- FALSE
 	tryErrorChecks<-list(
 		s2=0, betaAB=0, rho=0, UV=0, Z=0, beta=0,
 		rho_sigma_beta=0,   # dynamic_beta hyperparameter updates
@@ -4635,11 +4648,25 @@ lame <- function(
 						V <- apply(V_cube, c(1,2), mean)
 					} else {
 						tryErrorChecks$UV <- tryErrorChecks$UV + 1
+						# distinguish the unidentified-scale failure mode (the
+						# draw was finite but past uv_max_abs) from a genuine
+						# numerical failure, so the warning can advise correctly
+						if(!is.null(UV_try) && all(is.finite(UV_try$U)) &&
+						   all(is.finite(UV_try$V))) {
+							uv_scale_bound_hit <- TRUE
+						}
 						U_cube <- U_prev; V_cube <- V_prev
 						UV_try <- NULL  # ensure ar(1) guard treats this as failure
 					}
 
-					if(!is.null(UV_try) && s %% 10 == 0) {
+					# update the AR(1) hyperparameters every sweep. this used to run
+					# one sweep in ten, which starved rho_uv: it starts at the prior
+					# mean (0.9) and only crawls from there, so a default-length chain
+					# never arrived. on simulated panels with true rho_uv = 0.3 the
+					# throttled sampler reported 0.88 and the unthrottled one 0.35.
+					# the step is a scalar MH draw on sufficient statistics, so running
+					# it every sweep costs almost nothing.
+					if(!is.null(UV_try)) {
 						pmean_uv <- prior$rho_uv_mean %||% 0.9
 						psd_uv   <- prior$rho_uv_sd   %||% 0.1
 						rho_uv <- sample_rho_uv(U_cube, V_cube, sigma_uv, rho_uv,
@@ -4950,6 +4977,50 @@ lame <- function(
 					} else {
 						G <- G_prev
 						tryErrorChecks$G <- tryErrorChecks$G + 1L
+					}
+				}
+			}
+
+			# gauge fixing for the bipartite dynamic path. the likelihood
+			# identifies only the product U_t G V_t', so the leftover scale is
+			# free to slide between the latent coordinates and G. left alone it
+			# random walks: G collapses toward zero while U and V inflate until
+			# they cross uv_max_abs, after which the sampler rejects its own
+			# proposals. shrink the coordinates back toward unit RMS and let G
+			# absorb the scale, but only as far as G has room under its own cap:
+			# with a saturated binary likelihood the whole product is
+			# unidentified upward, and pushing scale into an already-large G just
+			# moves the rejections from U/V to G. shrink-only, so this can never
+			# drive the coordinates up into their bound. one global constant over
+			# every period and column, applied to sigma_uv as well, so U_t G V_t'
+			# is unchanged and the AR(1) law is carried along exactly (a
+			# per-period or per-column map would not preserve that law, which is
+			# why the old in-kernel balancing was removed).
+			if(bip && isTRUE(dynamic_uv) && RA > 0 && RB > 0 &&
+			   !is.null(G) && all(is.finite(G)) &&
+			   !is.null(U_cube) && !is.null(V_cube)) {
+				uv_sq <- c(as.numeric(U_cube)^2, as.numeric(V_cube)^2)
+				uv_sq <- uv_sq[is.finite(uv_sq)]
+				uv_rms <- if(length(uv_sq)) sqrt(mean(uv_sq)) else NA_real_
+				if(is.finite(uv_rms) && uv_rms > 1 + 1e-6) {
+					g_cap_gauge <- (prior$G_max %||% 100) * 0.5
+					g_now <- max(abs(G), na.rm = TRUE)
+					# largest shrink G can absorb before nearing its own cap
+					k_max <- if(g_now > 1e-12) sqrt(g_cap_gauge / g_now) else Inf
+					k <- min(uv_rms, k_max)
+					if(is.finite(k) && k > 1 + 1e-6) {
+						G_gauge <- G * (k * k)
+						if(all(is.finite(G_gauge))) {
+							G <- G_gauge
+							if(!is.null(G_cube)) G_cube <- G_cube * (k * k)
+							U_cube <- U_cube / k
+							V_cube <- V_cube / k
+							if(!is.null(U)) U <- U / k
+							if(!is.null(V)) V <- V / k
+							if(!is.null(sigma_uv) && is.finite(sigma_uv)) {
+								sigma_uv <- sigma_uv / k
+							}
+						}
 					}
 				}
 			}
@@ -5547,10 +5618,21 @@ lame <- function(
 		}
 	}
 	if(length(loud_params) > 0) {
+		hint <- if(isTRUE(uv_scale_bound_hit)) {
+			paste0("The latent coordinates hit {.arg prior$uv_max_abs}, so ",
+			       "{.code U}/{.code V} proposals are being rejected and the ",
+			       "scale is not identified. Increasing {.arg nscan} makes this ",
+			       "worse, not better; report {.code U G V'} rather than raw ",
+			       "coordinates and see {.code ?lame} on the latent scale.")
+		} else {
+			paste0("These parameters may not have converged. Consider increasing ",
+			       "{.arg nscan}, simplifying the model, or inspecting ",
+			       "{.code fit$tryErrorChecks}.")
+		}
 		cli::cli_warn(c(
 			"MCMC sampling failures exceeded 5% of iterations:",
 			"x" = "Affected parameters: {.val {loud_params}}",
-			"i" = "These parameters may not have converged. Consider increasing {.arg nscan}, simplifying the model, or inspecting {.code fit$tryErrorChecks}."))
+			"i" = hint))
 	}
 	if(length(soft_params) > 0) {
 		cli::cli_inform(c(

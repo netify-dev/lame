@@ -130,7 +130,9 @@ ame_bipartite <- function(
 				}
 			}
 		} else if(family == "poisson") {
-			Z <- log(Y + 1)
+			# zero cells start at the mean rate rather than at rate 1 (see
+			# .ame_pois_init_z); the square-bipartite diagonal is a real cell
+			Z <- .ame_pois_init_z(Y, unipartite = FALSE)
 		} else {
 			Z <- Y
 		}

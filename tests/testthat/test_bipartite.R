@@ -985,3 +985,74 @@ test_that("bipartite models handle covariates", {
 	beta_means = colMeans(fit$BETA)
 	expect_false(any(is.na(beta_means)))
 })
+
+test_that("bipartite dynamic_uv keeps the latent scale identified (regression)", {
+	# the U/V-vs-G scale is unidentified (only U G V' is), and before the gauge
+	# fix it random-walked: G collapsed toward 0 while U/V inflated past
+	# prior$uv_max_abs, after which the sampler rejected 20-40% of its own UV
+	# proposals. it only shows up at realistic panel sizes, which is why the
+	# smaller bipartite tests never caught it.
+	skip_on_cran()
+	set.seed(5)
+	nA = 25; nB = 20; TT = 8; rho_true = 0.6; sig = 0.7
+	a = rnorm(nA, 0, 0.4); b = rnorm(nB, 0, 0.4); Gt = diag(2)
+	U = array(0, c(nA, 2, TT)); V = array(0, c(nB, 2, TT))
+	U[, , 1] = matrix(rnorm(nA * 2, 0, sig), nA)
+	V[, , 1] = matrix(rnorm(nB * 2, 0, sig), nB)
+	sdin = sig * sqrt(1 - rho_true^2)
+	for (t in 2:TT) {
+		U[, , t] = rho_true * U[, , t - 1] + matrix(rnorm(nA * 2, 0, sdin), nA)
+		V[, , t] = rho_true * V[, , t - 1] + matrix(rnorm(nB * 2, 0, sdin), nB)
+	}
+	Y = lapply(1:TT, function(t) {
+		m = outer(a, b, "+") + U[, , t] %*% Gt %*% t(V[, , t]) +
+			matrix(rnorm(nA * nB, 0, 1), nA)
+		rownames(m) = sprintf("r%02d", 1:nA); colnames(m) = sprintf("c%02d", 1:nB); m
+	})
+	fit = lame(Y, mode = "bipartite", family = "normal", R = 2, dynamic_uv = TRUE,
+	           seed = 1, burn = 150, nscan = 600, odens = 4,
+	           verbose = FALSE, plot = FALSE)
+
+	iters = 150 + 600
+	# the UV sampler should not be rejecting its own proposals
+	expect_lt(fit$tryErrorChecks$UV / iters, 0.05)
+	# the gauge is pinned: G carries unit Frobenius norm, coordinates stay O(1)
+	expect_lt(max(abs(fit[["U"]]), na.rm = TRUE), 10)
+	expect_lt(max(abs(fit[["V"]]), na.rm = TRUE), 10)
+	expect_lt(max(abs(fit[["G"]]), na.rm = TRUE), 100)
+	# and the additive effects still recover
+	expect_gt(cor(fit$APM, a), 0.8)
+})
+
+test_that("bipartite dynamic_uv rho_uv converges on a low-persistence panel (regression)", {
+	# rho_uv starts at the prior mean (0.9) and used to be updated only every
+	# 10th sweep, so a default-length chain never travelled to a genuinely low
+	# persistence. on this panel the throttled sampler reported ~0.89 against a
+	# truth of 0.3; updating every sweep brings it to ~0.55 with the default
+	# (deliberately high) prior still pulling upward.
+	skip_on_cran()
+	set.seed(5)
+	nA = 25; nB = 20; TT = 8; rho_true = 0.3; sig = 0.7
+	a = rnorm(nA, 0, 0.4); b = rnorm(nB, 0, 0.4); Gt = diag(2)
+	U = array(0, c(nA, 2, TT)); V = array(0, c(nB, 2, TT))
+	U[, , 1] = matrix(rnorm(nA * 2, 0, sig), nA)
+	V[, , 1] = matrix(rnorm(nB * 2, 0, sig), nB)
+	sdin = sig * sqrt(1 - rho_true^2)
+	for (t in 2:TT) {
+		U[, , t] = rho_true * U[, , t - 1] + matrix(rnorm(nA * 2, 0, sdin), nA)
+		V[, , t] = rho_true * V[, , t - 1] + matrix(rnorm(nB * 2, 0, sdin), nB)
+	}
+	Y = lapply(1:TT, function(t) {
+		m = outer(a, b, "+") + U[, , t] %*% Gt %*% t(V[, , t]) +
+			matrix(rnorm(nA * nB, 0, 1), nA)
+		rownames(m) = sprintf("r%02d", 1:nA); colnames(m) = sprintf("c%02d", 1:nB); m
+	})
+	fit = lame(Y, mode = "bipartite", family = "normal", R = 2, dynamic_uv = TRUE,
+	           seed = 1, burn = 200, nscan = 800, odens = 4,
+	           verbose = FALSE, plot = FALSE)
+	rho_med = median(as.numeric(fit$rho_uv), na.rm = TRUE)
+	# the throttled sampler sat at ~0.89 here; anything that high means the
+	# chain is stuck at its starting value again
+	expect_lt(rho_med, 0.75)
+	expect_gt(rho_med, -1)
+})

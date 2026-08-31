@@ -24,6 +24,19 @@
 * `latent_positions()` and `procrustes_align()` now say plainly that
   alignment is across the periods of one fit, and how to align two fits by
   hand.
+* Poisson fits with many zero cells no longer pin the actor effects and latent
+  factors at zero and inflate the fitted level (about 3x at 5% density, 1.2-1.4x
+  at 20%): their prior scale vanished as zeros dominated. `ame()` also gained a
+  level move so the predicted total settles quickly; see the notes in `?ame`.
+* Fixed a scale drift in bipartite `dynamic_uv` fits. Only the product
+  `U G V'` is identified, and the leftover scale used to wander: `G` shrank
+  toward zero while the latent coordinates grew, until they hit
+  `prior$uv_max_abs` and the sampler began rejecting 20-40% of its own `U`/`V`
+  proposals on realistic panel sizes. The scale is now pinned (`G` carries unit
+  Frobenius norm), which leaves `U G V'` untouched. Estimates of the identified
+  quantities were not affected, but the raw coordinate scale was arbitrary and
+  sampling efficiency suffered. The warning for this case now says what to do
+  instead of suggesting a longer chain, which made it worse.
 * Tidied up the documentation and test suite.
 
 # lame 1.3.4

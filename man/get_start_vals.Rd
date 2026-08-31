@@ -4,7 +4,17 @@
 \alias{get_start_vals}
 \title{Get fitted object from MCMC results}
 \usage{
-get_start_vals(start_vals, Y, family, xP, rvar, cvar, R, odmax = NULL)
+get_start_vals(
+  start_vals,
+  Y,
+  family,
+  xP,
+  rvar,
+  cvar,
+  R,
+  odmax = NULL,
+  bip = FALSE
+)
 }
 \arguments{
 \item{start_vals}{List object that is null or contains
@@ -26,6 +36,10 @@ effects}
 \item{R}{Number of dimensions for multiplicative effects}
 
 \item{odmax}{vector of maximum ranks for cbin/frn families (optional)}
+
+\item{bip}{logical; \code{TRUE} for a bipartite (rectangular) panel, in
+which case the Poisson start values keep the diagonal of a square matrix
+as a real cell}
 }
 \value{
 List of starting values for MCMC

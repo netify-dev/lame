@@ -110,13 +110,23 @@ ame_unipartite <- function(
 		# (~+50% at n=30 when the true variance is 0.3) and breaks scale
 		# equivariance of the intercept/additive-effect split
 		if(is.null(prior$Sab0) || (is.null(prior$Suv0) && R > 0)) {
-			Ymom <- if (family == "poisson") log1p(pmax(Y, 0)) else Y
-			Ec <- Ymom - mean(Ymom, na.rm = TRUE)
-			a_tmp <- rowMeans(Ec, na.rm = TRUE); a_tmp[is.na(a_tmp)] <- 0
-			b_tmp <- colMeans(Ec, na.rm = TRUE); b_tmp[is.na(b_tmp)] <- 0
-			vscale_ab <- mean(c(stats::var(a_tmp), stats::var(b_tmp)), na.rm = TRUE)
-			if (!is.finite(vscale_ab) || vscale_ab <= 0) {
-				vscale_ab <- max(stats::var(c(Ymom), na.rm = TRUE), 1e-12)
+			if (family == "poisson") {
+				# moments on the log-rate scale, the scale of a, b and uv'
+				# under the log link. row / column means of log1p(y) were
+				# used before, but on sparse counts they are ~0 for every
+				# actor whatever the heterogeneity, so the prior scale came
+				# out ~1e-3, the additive and multiplicative effects were
+				# pinned to zero and all the heterogeneity was pushed into
+				# s2. the pseudo-count keeps all-zero actors finite.
+				vscale_ab <- .ame_pois_effect_scale(Y)
+			} else {
+				Ec <- Y - mean(Y, na.rm = TRUE)
+				a_tmp <- rowMeans(Ec, na.rm = TRUE); a_tmp[is.na(a_tmp)] <- 0
+				b_tmp <- colMeans(Ec, na.rm = TRUE); b_tmp[is.na(b_tmp)] <- 0
+				vscale_ab <- mean(c(stats::var(a_tmp), stats::var(b_tmp)), na.rm = TRUE)
+				if (!is.finite(vscale_ab) || vscale_ab <= 0) {
+					vscale_ab <- max(stats::var(c(Y), na.rm = TRUE), 1e-12)
+				}
 			}
 		}
 		if(is.null(prior$Sab0)) {
@@ -193,8 +203,13 @@ ame_unipartite <- function(
 		}
 	} 
 	if(family=="poisson") { 
-		Z<-log(Y+1) 
-		diag(Z)<-0
+		# start the latent log-rates near the observed rates: log(y + 1)
+		# puts every zero cell at rate 1, which on sparse counts is orders
+		# of magnitude above the mean rate, and the mh walk on z (step sd
+		# sqrt(s2)) then takes thousands of scans to bring the level down.
+		# a pseudo-count equal to the mean count (capped at 1 so dense
+		# data keep the log(y + 1) start) puts zero cells at the mean rate.
+		Z <- .ame_pois_init_z(Y)
 	}
 	
 	if(is.element(family,c("cbin","frn"))) {
@@ -492,6 +507,31 @@ ame_unipartite <- function(
 	X_precomp <- X
 	attributes(X_precomp) <- c(
 		attributes(X), list(Xr=Xr, Xc=Xc, mX=mX, mXt=mXt, XX=XX, XXt=XXt))
+
+	# poisson level move (applied in the mcmc loop after the beta update).
+	# the latent log-rate of a zero cell feels only the weak pull -exp(z)
+	# of its likelihood, so on sparse counts the level of z, and with it
+	# the intercept and the predicted total, takes thousands of scans to
+	# settle under the cell-wise mh walk. a joint translation z + delta,
+	# intercept + delta leaves every residual and variance component
+	# untouched, so its acceptance ratio is the poisson likelihood change
+	# plus the intercept-prior change, and it ties the level to the
+	# observed total directly. (a matching scale move on the residuals and
+	# s2 was tried and dropped: under the scale-free s2 prior that rs2_fc
+	# uses by default it walks s2 freely toward zero whenever the effects
+	# fit the nonzero cells, which the slow gibbs step had been masking.)
+	# the proposal scale is adapted during burn-in only.
+	pois_moves <- family == "poisson" && intercept && dim(X)[3] > 0 &&
+		all(mX[, 1] == 1) && !symmetric
+	if (pois_moves) {
+		pois_obs <- which(!is.na(Y))
+		pois_sumY <- sum(Y[pois_obs])
+		pois_iV0 <- .beta_prior_precision(XX, mX, g)
+		# ~2.4 posterior sds of the level (1/sqrt(sum y))
+		pois_shift_sd <- min(max(2.4 / sqrt(max(pois_sumY, 1)), 0.01), 1)
+		pois_shift_acc <- 0L
+		pois_win_shift <- 0L
+	}
 	
 	have_coda<-suppressWarnings(
 		try(requireNamespace("coda",quietly = TRUE),silent=TRUE))
@@ -711,6 +751,28 @@ ame_unipartite <- function(
 		b <- b_new
 		
 		EZ_cache <- Xbeta_cache + ab_outer_cache + UV_cache
+
+		if (pois_moves) {
+			# level move
+			delta <- rnorm(1, 0, pois_shift_sd)
+			lr <- delta * pois_sumY - (exp(delta) - 1) * sum(exp(Z[pois_obs])) -
+				0.5 * (2 * delta * sum(pois_iV0[1, ] * beta) + delta^2 * pois_iV0[1, 1])
+			if (is.finite(lr) && log(runif(1)) < lr) {
+				Z <- Z + delta
+				beta[1] <- beta[1] + delta
+				Xbeta_cache <- Xbeta_cache + delta
+				EZ_cache <- EZ_cache + delta
+				pois_shift_acc <- pois_shift_acc + 1L
+				pois_win_shift <- pois_win_shift + 1L
+			}
+			# adapt the proposal scale during burn-in, in windows of 50,
+			# toward an acceptance rate between 20% and 50% (bounded)
+			if (s <= burn && s %% 50L == 0L) {
+				if (pois_win_shift > 25L) pois_shift_sd <- min(pois_shift_sd * 1.5, 2)
+				if (pois_win_shift < 10L) pois_shift_sd <- max(pois_shift_sd / 1.5, 0.01)
+				pois_win_shift <- 0L
+			}
+		}
 		
 		if(R > 0) {
 			shrink<- (s>.5*burn)
@@ -972,7 +1034,8 @@ ame_unipartite <- function(
 								n=n,p=dim(X)[3],rvar=rvar,cvar=cvar,dcor=dcor,
 								g=g, prior=.resolved_prior,
 								tryErrorChecks=tryErrorChecks,
-								mh_counters=tryErrorChecks,
+								mh_counters=c(tryErrorChecks,
+									if (pois_moves) list(pois_shift_accept = pois_shift_acc / (nscan + burn))),
 								X_names=colnames(BETA),actor_names=rownames(Y))
 		
 		if(!is.null(posterior_opts)) {
@@ -1024,7 +1087,8 @@ ame_unipartite <- function(
 							call=match.call(),n=n,p=dim(X)[3],rvar=rvar,cvar=cvar,dcor=dcor,
 							g=g, prior=prior,                     # parity with the asymmetric path
 							tryErrorChecks=tryErrorChecks,
-							mh_counters=tryErrorChecks,
+							mh_counters=c(tryErrorChecks,
+									if (pois_moves) list(pois_shift_accept = pois_shift_acc / (nscan + burn))),
 							X_names=colnames(BETA),actor_names=rownames(Y))
 
 		if(!is.null(posterior_opts)) {
@@ -1084,4 +1148,42 @@ ame_unipartite <- function(
 	}
 
 	fit
+}
+
+####
+
+# prior scale for the additive / multiplicative effects of a poisson fit:
+# the variance across actors of the centred log row / column rates
+# (events per observed cell, with a half-count pseudo-observation so that
+# actors with no events stay finite). on dense counts this is the variance
+# of the actor log-rates; on sparse counts it is dominated by poisson
+# sampling noise and comes out O(1), a loose-but-finite scale that lets
+# the data decide. falls back to the unit log scale when undefined.
+.ame_pois_effect_scale <- function(Y) {
+	# y may be a matrix or an [n, m, t] array (lame); totals run over
+	# every dimension but the actor's own
+	Y <- pmax(Y, 0)
+	obs <- !is.na(Y)
+	a_tmp <- log((apply(Y, 1, sum, na.rm = TRUE) + 0.5) / (apply(obs, 1, sum) + 1))
+	b_tmp <- log((apply(Y, 2, sum, na.rm = TRUE) + 0.5) / (apply(obs, 2, sum) + 1))
+	a_tmp <- a_tmp - mean(a_tmp)
+	b_tmp <- b_tmp - mean(b_tmp)
+	vscale <- mean(c(stats::var(a_tmp), stats::var(b_tmp)), na.rm = TRUE)
+	if (!is.finite(vscale) || vscale <= 0) vscale <- 1
+	vscale
+}
+
+# starting latent log-rates for a poisson fit: log(y + c) with c the mean
+# count capped at 1, so zero cells start at the mean rate on sparse data
+# and at log(y + 1) on dense data. missing cells start at the mean
+# log-rate, and so does the diagonal of a unipartite network (never
+# observed there; a square bipartite matrix keeps its real diagonal).
+.ame_pois_init_z <- function(Y, unipartite = TRUE) {
+	ybar <- mean(Y, na.rm = TRUE)
+	if (!is.finite(ybar) || ybar <= 0) ybar <- 1
+	cc <- min(ybar, 1)
+	Z <- log(pmax(Y, 0) + cc)
+	Z[is.na(Z)] <- log(cc)
+	if (unipartite && nrow(Z) == ncol(Z)) diag(Z) <- log(cc)
+	Z
 }

@@ -12,11 +12,15 @@
 #' effects
 #' @param R Number of dimensions for multiplicative effects
 #' @param odmax vector of maximum ranks for cbin/frn families (optional)
+#' @param bip logical; \code{TRUE} for a bipartite (rectangular) panel, in
+#'   which case the Poisson start values keep the diagonal of a square matrix
+#'   as a real cell
 #' @return List of starting values for MCMC
 #' @author Shahryar Minhas
 #' @export get_start_vals
 
-get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NULL){
+get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NULL,
+                           bip = FALSE){
 
 	N <- dim(Y)[3]
 
@@ -53,8 +57,9 @@ get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NUL
 				Z[,,t]<-Z[,,t] - z01
 			}
 			if(family=="poisson"){
-				Z[,,t]<-log(Y[,,t]+1)
-				diag(Z[,,t])<-0
+				# zero cells start at the period's mean rate rather than at
+				# rate 1 (see .ame_pois_init_z in ame_unipartite.R)
+				Z[,,t] <- .ame_pois_init_z(Y[,,t], unipartite = !bip)
 			}
 
 			if(is.element(family,c("cbin","frn"))) {

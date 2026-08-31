@@ -57,18 +57,7 @@ rbeta_ab_fc <-
 		# dominating it; an absolute ridge would gain a spurious scale
 		# factor and crush the slopes on small-scale responses.
 		if (p > 0 && is.null(iV0)) {
-			iV0 <- (XX + 1e-6 * diag(diag(XX), nrow = nrow(XX))) / g
-
-			# The intercept is left almost unshrunk: widen its prior
-			# variance to ~100x the per-cell g-prior value. XX[1,1] counts
-			# the design cells carrying the all-ones column, so g/XX[1,1]
-			# is that per-cell variance and 100x puts the intercept prior
-			# sd near ten data sd's under near-complete data.
-			if (all(mX[, 1] == 1)) {
-				V0 <- solve(iV0)
-				V0[1, 1] <- V0[1, 1] + 100 * g / XX[1, 1]
-				iV0 <- solve(V0)
-			}
+			iV0 <- .beta_prior_precision(XX, mX, g)
 		}
 		if (is.null(m0)) { m0 <- rep(0, p) }
 
@@ -178,3 +167,25 @@ rbeta_ab_fc <-
 
 		list(beta = beta, a = ab[, 1], b = ab[, 2])
 	}
+
+####
+
+# default prior precision for beta: a zellner g-prior with a vanishing ridge
+# (a fixed fraction of the g-prior, so it shares the same 1/scale(Y)^2 units)
+# that conditions the precision without ever dominating it; an absolute ridge
+# would gain a spurious scale factor and crush the slopes on small-scale
+# responses. the intercept is left almost unshrunk: its prior variance is
+# widened to ~100x the per-cell g-prior value. XX[1,1] counts the design
+# cells carrying the all-ones column, so g/XX[1,1] is that per-cell variance
+# and 100x puts the intercept prior sd near ten data sd's under
+# near-complete data. shared by rbeta_ab_fc() and the poisson level move in
+# ame_unipartite() so both see the same prior.
+.beta_prior_precision <- function(XX, mX, g) {
+	iV0 <- (XX + 1e-6 * diag(diag(XX), nrow = nrow(XX))) / g
+	if (all(mX[, 1] == 1)) {
+		V0 <- solve(iV0)
+		V0[1, 1] <- V0[1, 1] + 100 * g / XX[1, 1]
+		iV0 <- solve(V0)
+	}
+	iV0
+}
