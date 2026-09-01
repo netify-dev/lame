@@ -103,7 +103,7 @@ uv_plot <- function(
 
 	if (!is.null(fit)) {
 		if (!inherits(fit, c("ame", "lame", "ame_als"))) {
-			stop("fit must be an object of class 'ame', 'lame' or 'ame_als'")
+			cli::cli_abort("fit must be an object of class 'ame', 'lame' or 'ame_als'")
 		}
 		if (is.null(U)) U <- fit$U
 		if (is.null(V)) V <- fit$V
@@ -179,12 +179,12 @@ uv_plot <- function(
 	if (.uv_empty(U) && .uv_empty(V)) {
 		if (!is.null(fit)) {
 			# do not substitute a raw-data svd for an r = 0 fit
-			stop("This fit has no multiplicative effects (R = 0); there is no ",
+			cli::cli_abort(paste0("This fit has no multiplicative effects (R = 0); there is no ",
 			     "estimated latent space to plot. Refit with R > 0, or use ",
-			     "ab_plot() for the additive effects.", call. = FALSE)
+			     "ab_plot() for the additive effects."))
 		}
 		if (is.null(Y)) {
-			stop("Must provide either a fit object with U and V, or a Y matrix to compute factors")
+			cli::cli_abort("Must provide either a fit object with U and V, or a Y matrix to compute factors")
 		}
 		Y_centered <- Y - mean(Y, na.rm = TRUE)
 		Y_centered[is.na(Y_centered)] <- 0
@@ -287,7 +287,7 @@ uv_plot <- function(
 
 	if (!is.null(colors)) {
 		if (length(colors) != nrow(node_data)) {
-			warning("Length of colors doesn't match number of nodes, ignoring colors")
+			cli::cli_warn("Length of colors doesn't match number of nodes, ignoring colors")
 			colors <- NULL
 		} else {
 			node_data$color <- colors

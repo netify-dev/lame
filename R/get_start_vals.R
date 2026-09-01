@@ -12,6 +12,11 @@
 #' effects
 #' @param R Number of dimensions for multiplicative effects
 #' @param odmax vector of maximum ranks for cbin/frn families (optional)
+#' @details In addition to the slots listed below, any of the dynamic
+#'   hyperparameter scalars \code{rho_uv}, \code{sigma_uv}, \code{rho_ab},
+#'   and \code{sigma_ab} present in \code{start_vals} (for example from
+#'   \code{\link{als_start_vals}}) are passed through so a dynamic MCMC run
+#'   can warm-start them.
 #' @param bip logical; \code{TRUE} for a bipartite (rectangular) panel, in
 #'   which case the Poisson start values keep the diagonal of a square matrix
 #'   as a real cell
@@ -64,7 +69,7 @@ get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NUL
 
 			if(is.element(family,c("cbin","frn"))) {
 				if(is.null(odmax)) {
-					stop("odmax must be provided for family=cbin/frn")
+					cli::cli_abort("odmax must be provided for family=cbin/frn")
 				}
 				Z[,,t]<-Y[,,t]
 				for(i in 1:nrow(Y[,,t])) {
@@ -131,10 +136,22 @@ get_start_vals <- function(start_vals, Y, family, xP, rvar, cvar, R, odmax = NUL
 		if(!is.null(user_start$Sab))  Sab  <- user_start$Sab
 	}
 
-	return(
-		list(
-			Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab
-		)
+	out <- list(
+		Z=Z, beta=beta, a=a, b=b, U=U, V=V, rho=rho, s2=s2, Sab=Sab
 	)
+
+	# dynamic hyperparameter scalars (e.g. from als_start_vals) ride along
+	# untouched; lame() reads them when the matching dynamic option is on
+	for(nm in c("rho_uv", "sigma_uv", "rho_ab", "sigma_ab")){
+		val <- user_start[[nm]]
+		if(!is.null(val)){
+			if(!is.numeric(val) || length(val) != 1L || !is.finite(val)){
+				cli::cli_abort("{.arg start_vals${nm}} must be a single finite number.")
+			}
+			out[[nm]] <- val
+		}
+	}
+
+	return(out)
 
 }

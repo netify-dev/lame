@@ -325,3 +325,27 @@ test_that("sampsonmonks liking layers share the roster actor order (regression)"
 	agree = mean(((S[, , "like"] > 0) == (S[, , "esteem"] > 0))[off])
 	expect_gt(agree, 0.8)
 })
+
+test_that("get_start_vals passes dynamic hyperparameter scalars through (regression)", {
+	# als_start_vals() emits rho_uv/sigma_uv/rho_ab/sigma_ab, and
+	# get_start_vals() must pass them through so a dynamic MCMC run can
+	# warm-start from an ALS fit
+	set.seed(1)
+	Y = array(rnorm(6 * 6 * 2), c(6, 6, 2))
+	for (t in 1:2) diag(Y[, , t]) = NA
+	sv = list(rho_uv = 0.55, sigma_uv = 0.4, rho_ab = 0.65, sigma_ab = 0.3)
+	out = get_start_vals(sv, Y, family = "normal", xP = 0,
+	                     rvar = TRUE, cvar = TRUE, R = 2)
+	expect_equal(out$rho_uv, 0.55)
+	expect_equal(out$sigma_uv, 0.4)
+	expect_equal(out$rho_ab, 0.65)
+	expect_equal(out$sigma_ab, 0.3)
+	# absent scalars stay absent rather than appearing as NULL-filled slots
+	out2 = get_start_vals(list(rho_uv = 0.5), Y, family = "normal", xP = 0,
+	                      rvar = TRUE, cvar = TRUE, R = 2)
+	expect_null(out2$sigma_uv)
+	# and junk is rejected loudly
+	expect_error(get_start_vals(list(rho_uv = "high"), Y, family = "normal",
+	                            xP = 0, rvar = TRUE, cvar = TRUE, R = 2),
+	             "finite")
+})

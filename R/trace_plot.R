@@ -75,7 +75,7 @@ trace_plot <- function(
 	){
 	
 	if (!inherits(fit, c("ame", "lame"))) {
-		stop("fit must be an object of class 'ame' or 'lame'")
+		cli::cli_abort("fit must be an object of class 'ame' or 'lame'")
 	}
 
 	params <- match.arg(params)
@@ -232,7 +232,7 @@ trace_plot <- function(
 	}
 	
 	if (nrow(plot_data) == 0) {
-		stop("No parameters to plot after filtering")
+		cli::cli_abort("No parameters to plot after filtering")
 	}
 
 	####
@@ -315,7 +315,7 @@ trace_plot <- function(
 			)
 		}
 	} else {
-		warning("Install 'patchwork' for combined trace and density plots. Returning trace plots only.")
+		cli::cli_warn("Install 'patchwork' for combined trace and density plots. Returning trace plots only.")
 		p <- trace_plots
 		if (!is.null(title)) {
 			p <- p + ggtitle(title)

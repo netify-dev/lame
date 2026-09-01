@@ -80,7 +80,7 @@ dynamic_beta_prior_summary <- function(
 ) {
 	kind <- match.arg(kind)
 	if (n_periods < 2L) {
-		stop("`n_periods` must be at least 2.")
+		cli::cli_abort("`n_periods` must be at least 2.")
 	}
 	if (!is.null(seed)) set.seed(seed)
 
@@ -95,11 +95,11 @@ dynamic_beta_prior_summary <- function(
 		m_z <- (rho_mean - rho_lower) / (rho_upper - rho_lower)
 		s_z <- rho_sd / (rho_upper - rho_lower)
 		if (m_z <= 0 || m_z >= 1) {
-			stop("`rho_mean` must be strictly between `rho_lower` and `rho_upper`.")
+			cli::cli_abort("`rho_mean` must be strictly between `rho_lower` and `rho_upper`.")
 		}
 		kappa <- m_z * (1 - m_z) / (s_z^2) - 1
 		if (kappa <= 0) {
-			stop("`rho_mean`/`rho_sd` imply invalid Beta prior (variance too large).")
+			cli::cli_abort("`rho_mean`/`rho_sd` imply invalid Beta prior (variance too large).")
 		}
 		ab <- c(a = m_z * kappa, b = (1 - m_z) * kappa)
 	}

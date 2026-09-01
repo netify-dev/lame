@@ -26,8 +26,7 @@ el2sm <- function(el, directed = TRUE, nadiag = all(el[, 1] != el[, 2])) {
 	weights <- if (ncol(el) >= 3L) {
 		w <- suppressWarnings(as.numeric(el[, 3L]))
 		if (anyNA(w)) {
-			stop("el2sm(): the weight column (column 3) is not numeric.",
-			     call. = FALSE)
+			cli::cli_abort("el2sm(): the weight column (column 3) is not numeric.")
 		}
 		w
 	} else {

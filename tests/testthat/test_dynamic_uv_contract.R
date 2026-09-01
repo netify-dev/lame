@@ -102,15 +102,20 @@ test_that("front-door dynamic ALS handles aliases, ignored controls, and update 
 		m
 	}, simplify = FALSE)
 
+	# als_max_iter = 2 leaves this binary fit deliberately unconverged, so it
+	# warns three times: ignored MCMC args, unmet convergence, and the
+	# objective-increase warning (which fires regardless of verbose)
 	expect_warning(
 		expect_warning(
-			{
-				fit = lame(Y, family = "bin", R = 0, method = "als",
-				           dynamic_ab = TRUE, nscan = 10, burn = 2, odens = 1,
-				           keep_snap_draws = "draws", time_index = c(1, 3),
-				           period_exposure = c(1, 2), checkpoint_path = tempfile(),
-				           als_max_iter = 2, verbose = FALSE)
-			},
+			expect_warning(
+				{
+					fit = lame(Y, family = "bin", R = 0, method = "als",
+					           dynamic_ab = TRUE, nscan = 10, burn = 2, odens = 1,
+					           keep_snap_draws = "draws", time_index = c(1, 3),
+					           period_exposure = c(1, 2), checkpoint_path = tempfile(),
+					           als_max_iter = 2, verbose = FALSE)
+				},
+				"objective increased"),
 			"did not meet"),
 		"ignored MCMC-only arguments")
 	expect_s3_class(fit, "lame_dynamic_als")

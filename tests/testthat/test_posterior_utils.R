@@ -257,8 +257,8 @@ test_that("simulate_posterior uses every stored draw by default", {
 
 # --- regression: dynamic-fit posterior extraction (1.3.5) --------------------
 # dynamic fits store latent draws in the 4-D U_draws/V_draws (not U_samples)
-# and a 3-D BETA; simulate_posterior() and the credible forecasts must handle
-# both instead of aborting or dropping actor names.
+# and a 3-D BETA; simulate_posterior() returns draws for both and the credible
+# forecasts keep their actor names.
 
 .mk_sq_panel = function(n, T = 3, sym = FALSE, fam = "binary") {
 	lapply(seq_len(T), function(t) {

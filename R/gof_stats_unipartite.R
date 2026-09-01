@@ -43,7 +43,7 @@
 #' @export
 gof_stats_unipartite <- function(Y) {
 	if(nrow(Y) != ncol(Y)) {
-		stop("Y must be a square matrix for unipartite networks. Use gof_stats_bipartite() for rectangular matrices.")
+		cli::cli_abort("Y must be a square matrix for unipartite networks. Use gof_stats_bipartite() for rectangular matrices.")
 	}
 	Y <- as.matrix(Y)
 	diag(Y) <- NA

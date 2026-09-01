@@ -304,7 +304,7 @@ test_that("posterior_opts save_UV_draws stores dynamic latent trajectory draws",
 # --- round 3: exact truncated-normal z augmentation (2026-07 fix sweep) ---
 
 test_that("bipartite binary ame() recovers the probit slope (no clip attenuation)", {
-	# the old z update clipped an unconstrained normal at 0 instead of
+	# the z update must draw a truncated normal at 0 rather than clip
 	# drawing the truncated-normal full conditional, attenuating the
 	# slope by ~32%
 	set.seed(21)
@@ -534,7 +534,7 @@ test_that("#9/#13 summary(lame)$coefficients aliases $beta", {
 
 test_that("#5 dynamic_beta drift percentage does not explode on a zero-crossing", {
 	# per-period means -0.3,-0.1,0.1,0.3 => time-average ~ 0, drift range ~ 0.6.
-	# the old 100 * range / |mean| formula returned ~100000% here.
+	# a 100 * range / |mean| formula would return ~100000% here.
 	niter = 40; Tt = 4
 	BETA = array(0, c(niter, 2, Tt),
 		dimnames = list(NULL, c("intercept", "x_dyad"), NULL))

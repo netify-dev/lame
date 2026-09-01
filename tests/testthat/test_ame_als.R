@@ -313,7 +313,7 @@ test_that("parametric bootstrap returns a well-formed boot_ame object", {
 	expect_true(all(bt$se >= 0))
 	expect_true(all(bt$ci_lo <= bt$ci_hi))
 	# expanded confint to include vc/a/b/u/v rows; restrict to beta
-	# for the old beta-only assertion.
+	# alongside the beta assertion.
 	ci = confint(bt, which = "beta")
 	expect_equal(nrow(ci), length(coef(fit)))
 	expect_equal(ncol(ci), 2L)
@@ -1154,7 +1154,7 @@ test_that("IRLS converges for R > 0 (penalized ALS factor solver)", {
 	expect_true(fb$converged)
 	# a directed R > 0 IRLS fit solves the penalized (MAP) factor sub-problem
 	# via the ridged ALS row solver (was the unpenalized mm->hybrid switch
-	# before the penalty landed; that solver overfit binary outcomes)
+	# an unpenalized solver overfits binary outcomes)
 	expect_identical(fb$lowrank_method, "als")
 	Yp = matrix(rpois(n * n, exp(0.3 + 0.4 * Xd + outer(a, b, "+") +
 	                             tcrossprod(U0, V0))), n, n); diag(Yp) = NA
@@ -1166,7 +1166,7 @@ test_that("IRLS converges for R > 0 (penalized ALS factor solver)", {
 # --------------------------------------------------------------------------
 # regression: penalized (MAP) factor block for the IRLS families
 #
-# before the penalty, the unpenalized rank-R binary/poisson factor block was
+# without the penalty, an unpenalized rank-R binary/poisson factor block is
 # an unregularized rank-R GLM MLE, which diverges by quasi-separation: on a
 # null-latent DGP the fitted var(UV') ran away (10+ on binary, ~1-3 on
 # poisson) and dragged the binary slope up by +37%. the penalty gives each
@@ -1176,7 +1176,7 @@ test_that("IRLS converges for R > 0 (penalized ALS factor solver)", {
 
 test_that("binary R>0 IRLS does not run away on a null-latent DGP", {
 	# no latent structure in the DGP: the penalized factor block must shrink
-	# var(UV') toward zero and keep the slope near truth, instead of the
+	# var(UV') toward zero and keep the slope near truth, rather than the
 	# unpenalized runaway (var(UV') ~ 10, slope +37%) it replaced
 	n = 30
 	slopes = numeric(3); vars = numeric(3)
@@ -1190,7 +1190,7 @@ test_that("binary R>0 IRLS does not run away on a null-latent DGP", {
 		O = tcrossprod(f$U, f$V)
 		slopes[s] = unname(coef(f)[2]); vars[s] = var(O[row(O) != col(O)])
 	}
-	# the latent variance no longer diverges (old unpenalized: ~10)
+	# the latent variance stays bounded under the penalty
 	expect_true(all(vars < 2))
 	# the slope stays bounded near the truth of 0.5 (old unpenalized: ~0.7)
 	expect_true(mean(slopes) > 0.3 && mean(slopes) < 0.75)
@@ -1580,7 +1580,7 @@ test_that("ame() and lame() forward multistart to the static ALS estimators", {
 		diag(Y) = NA
 		Y
 	})
-	# lame() used to stop with "unused argument"; ame() warned and dropped it
+	# both front doors accept multistart and forward it to the ALS estimators
 	fl = NULL
 	expect_no_warning({
 		fl = lame(Yl, R = 1, method = "als", multistart = "cheap", verbose = FALSE)
@@ -1599,4 +1599,23 @@ test_that("ame() and lame() forward multistart to the static ALS estimators", {
 		lame(Yl, R = 1, method = "als", dynamic_ab = TRUE, multistart = "cheap",
 		     verbose = FALSE),
 		"multistart")
+})
+
+test_that("static ALS fits expose the multiplicative surface as UVPM (regression)", {
+	set.seed(2)
+	n = 15
+	Y = matrix(rnorm(n * n), n, n); diag(Y) = NA
+	rownames(Y) = colnames(Y) = sprintf("a%02d", 1:n)
+	f = ame_als(Y, family = "normal", R = 2)
+	expect_false(is.null(f$UVPM))
+	expect_equal(dim(f$UVPM), c(n, n))
+	expect_equal(rownames(f$UVPM), rownames(Y))
+	# symmetric fits also carry the ULUPM alias, and it is symmetric
+	Ys = (Y + t(Y)) / 2
+	fs = ame_als(Ys, family = "normal", R = 2, symmetric = TRUE)
+	expect_false(is.null(fs$ULUPM))
+	expect_lt(max(abs(fs$ULUPM - t(fs$ULUPM)), na.rm = TRUE), 1e-8)
+	# R = 0 fits have no multiplicative surface to report
+	f0 = ame_als(Y, family = "normal", R = 0)
+	expect_null(f0$UVPM)
 })

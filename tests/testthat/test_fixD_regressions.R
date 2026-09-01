@@ -1,5 +1,5 @@
 # Regression tests for the "fix batch D" MCMC-correctness defects.
-# Each guards against a previously-confirmed bug re-appearing:
+# each test guards a confirmed bug against re-appearing:
 #   #1  symmetric ordinal Z kernel used variance 1/2 -> coefs attenuated ~1/sqrt(2)
 #   #11 lame() symmetric double-counted every dyad -> dyadic-coef sd too small by sqrt(2)
 #   #12 ame() duplicated the posterior_opts storage block -> every draw stored twice
@@ -32,13 +32,13 @@ test_that("#1 symmetric ordinal dyadic coef is not attenuated (~1/sqrt(2))", {
 
 test_that("#11 lame() symmetric dyadic-coef sd matches ame() (not sqrt(2) smaller)", {
 	skip_on_cran()
-	set.seed(7); n <- 35
-	Xd = matrix(rnorm(n * n), n, n); Xd <- (Xd + t(Xd)) / 2
-	E = matrix(rnorm(n * n), n, n); E <- (E + t(E)) / sqrt(2)
+	set.seed(7); n = 35
+	Xd = matrix(rnorm(n * n), n, n); Xd = (Xd + t(Xd)) / 2
+	E = matrix(rnorm(n * n), n, n); E = (E + t(E)) / sqrt(2)
 	av = rnorm(n, 0, 0.4)
 	Y = 0.3 + 0.8 * Xd + outer(av, av, "+") + E
-	Y = (Y + t(Y)) / 2; diag(Y) <- NA
-	dimnames(Y) <- list(paste0("a", 1:n), paste0("a", 1:n))
+	Y = (Y + t(Y)) / 2; diag(Y) = NA
+	dimnames(Y) = list(paste0("a", 1:n), paste0("a", 1:n))
 	Xa = array(Xd, c(n, n, 1), dimnames = list(rownames(Y), colnames(Y), "x1"))
 	fa = ame(Y, Xdyad = Xa, R = 0, symmetric = TRUE, family = "normal",
 	          burn = 400, nscan = 3000, odens = 2, verbose = FALSE, gof = FALSE, seed = 5)
@@ -54,10 +54,10 @@ test_that("#11 lame() symmetric dyadic-coef sd matches ame() (not sqrt(2) smalle
 
 test_that("#12 ame() stores each posterior draw once (no duplication, no crash)", {
 	skip_on_cran()
-	set.seed(1); n <- 18
+	set.seed(1); n = 18
 	Y = matrix(rnorm(n), n) %*% t(matrix(rnorm(n), n)) + matrix(rnorm(n * n), n, n)
-	diag(Y) <- NA
-	dimnames(Y) <- list(paste0("a", 1:n), paste0("a", 1:n))
+	diag(Y) = NA
+	dimnames(Y) = list(paste0("a", 1:n), paste0("a", 1:n))
 	f = ame(Y, R = 1, family = "normal", burn = 60, nscan = 240, odens = 4,
 	         verbose = FALSE, gof = FALSE, seed = 2,
 	         posterior_opts = list(save_UV = TRUE, save_ab = TRUE, thin_UV = 1, thin_ab = 1))
@@ -72,7 +72,7 @@ test_that("#12 ame() stores each posterior draw once (no duplication, no crash)"
 	# symmetric + partially-specified posterior_opts must not crash, and
 	# V_samples (= U L per draw) must be stored so the per-draw latent
 	# similarity U L U' is reconstructable
-	Ys = Y; Ys[lower.tri(Ys)] <- t(Ys)[lower.tri(Ys)]
+	Ys = Y; Ys[lower.tri(Ys)] = t(Ys)[lower.tri(Ys)]
 	fsym = expect_no_error(
 		ame(Ys, R = 1, symmetric = TRUE, family = "normal", burn = 40, nscan = 80,
 		    odens = 2, verbose = FALSE, gof = FALSE, seed = 3,
@@ -85,13 +85,13 @@ test_that("#12 ame() stores each posterior draw once (no duplication, no crash)"
 
 test_that("#19 ame() samples Sab for poisson (additive variance not frozen)", {
 	skip_on_cran()
-	set.seed(3); n <- 28
-	a = rnorm(n, 0, 0.5); b <- rnorm(n, 0, 0.5)
+	set.seed(3); n = 28
+	a = rnorm(n, 0, 0.5); b = rnorm(n, 0, 0.5)
 	X = array(rnorm(n * n), c(n, n, 1))
 	eta = 0.2 + 0.5 * X[, , 1] + outer(a, b, "+")
-	Y = matrix(rpois(n * n, exp(pmin(eta, 5))), n, n); diag(Y) <- NA
-	nm = sprintf("a%02d", 1:n); rownames(Y) <- colnames(Y) <- nm
-	dimnames(X) <- list(nm, nm, "x")
+	Y = matrix(rpois(n * n, exp(pmin(eta, 5))), n, n); diag(Y) = NA
+	nm = sprintf("a%02d", 1:n); rownames(Y) = colnames(Y) = nm
+	dimnames(X) = list(nm, nm, "x")
 	f = ame(Y, Xdyad = X, R = 0, family = "poisson", nscan = 1200, burn = 400,
 	         odens = 5, verbose = FALSE, gof = FALSE, seed = 7)
 	# frozen Sab => constant va column (sd == 0); a live sampler moves it.

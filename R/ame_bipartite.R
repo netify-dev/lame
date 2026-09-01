@@ -427,7 +427,7 @@ ame_bipartite <- function(
 		frn = function(Z, EZ, s2, Y) {
 			rZ_frn_bip_fc(Z, EZ, Y, YL_bip, odmax_vec, odobs_bip)
 		},
-		stop(paste("Unknown family:", family))
+		cli::cli_abort(paste("Unknown family:", family))
 	)
 	
 	needs_s2 <- family %in% c("normal", "poisson")

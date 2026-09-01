@@ -44,7 +44,7 @@ align_true_params = function(true_vals, orig_names, sorted_names) {
 # cross-sectional bipartite families.
 # mirrors test_bipartite_families.r for `lame()` but exercises the
 # `ame()` (cross-sectional) path through ame_bipartite(). the
-# families that used to abort or warn now route through the same
+# every family routes through the same
 # rectangular z samplers from r/rz_bipartite.r.
 mk_xs = function(family, nA = 18, nB = 14, seed = 40010L, odmax_val = 3L,
                   beta_true = c(0.6, -0.4)) {
@@ -987,11 +987,10 @@ test_that("bipartite models handle covariates", {
 })
 
 test_that("bipartite dynamic_uv keeps the latent scale identified (regression)", {
-	# the U/V-vs-G scale is unidentified (only U G V' is), and before the gauge
-	# fix it random-walked: G collapsed toward 0 while U/V inflated past
-	# prior$uv_max_abs, after which the sampler rejected 20-40% of its own UV
-	# proposals. it only shows up at realistic panel sizes, which is why the
-	# smaller bipartite tests never caught it.
+	# the U/V-vs-G scale is unidentified (only U G V' is), so without gauge
+	# fixing it random-walks: G collapses toward 0 while U/V inflate past
+	# prior$uv_max_abs and the sampler rejects its own UV proposals. the
+	# drift needs a realistic panel size to develop, hence the size here.
 	skip_on_cran()
 	set.seed(5)
 	nA = 25; nB = 20; TT = 8; rho_true = 0.6; sig = 0.7
@@ -1025,11 +1024,11 @@ test_that("bipartite dynamic_uv keeps the latent scale identified (regression)",
 })
 
 test_that("bipartite dynamic_uv rho_uv converges on a low-persistence panel (regression)", {
-	# rho_uv starts at the prior mean (0.9) and used to be updated only every
-	# 10th sweep, so a default-length chain never travelled to a genuinely low
-	# persistence. on this panel the throttled sampler reported ~0.89 against a
-	# truth of 0.3; updating every sweep brings it to ~0.55 with the default
-	# (deliberately high) prior still pulling upward.
+	# rho_uv starts at the prior mean (0.9), so recovering a genuinely low
+	# persistence requires the hyperparameter updates to run often enough for
+	# the chain to travel. with every-sweep updates this panel lands near 0.55
+	# against a truth of 0.3, with the deliberately high default prior still
+	# pulling upward.
 	skip_on_cran()
 	set.seed(5)
 	nA = 25; nB = 20; TT = 8; rho_true = 0.3; sig = 0.7
@@ -1051,8 +1050,7 @@ test_that("bipartite dynamic_uv rho_uv converges on a low-persistence panel (reg
 	           seed = 1, burn = 200, nscan = 800, odens = 4,
 	           verbose = FALSE, plot = FALSE)
 	rho_med = median(as.numeric(fit$rho_uv), na.rm = TRUE)
-	# the throttled sampler sat at ~0.89 here; anything that high means the
-	# chain is stuck at its starting value again
+	# a median near 0.9 here means the chain is stuck at its starting value
 	expect_lt(rho_med, 0.75)
 	expect_gt(rho_med, -1)
 })

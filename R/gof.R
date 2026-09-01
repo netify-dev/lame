@@ -58,7 +58,7 @@ gof <- function(
 		if (!is.null(fit$Y)) {
 			Y <- fit$Y
 		} else {
-			stop("Y must be provided either as argument or stored in fit object")
+			cli::cli_abort("Y must be provided either as argument or stored in fit object")
 		}
 	}
 
@@ -73,13 +73,13 @@ gof <- function(
 	}
 
 	if (is.null(fit$BETA) || is.null(fit$VC)) {
-		stop("Model must have BETA and VC posterior samples. Re-run with appropriate posterior_opts.")
+		cli::cli_abort("Model must have BETA and VC posterior samples. Re-run with appropriate posterior_opts.")
 	}
 
 	is_bipartite <- fit$mode == "bipartite"
 	n_mcmc <- nrow(fit$BETA)
 	if (n_mcmc < 2) {
-		stop("Insufficient MCMC samples. Model must have at least 2 saved iterations. Check burn, nscan, and odens parameters.")
+		cli::cli_abort("Insufficient MCMC samples. Model must have at least 2 saved iterations. Check burn, nscan, and odens parameters.")
 	}
 	if (is.null(nsim)) {
 		# use every available posterior draw
@@ -118,7 +118,7 @@ gof <- function(
 				}
 				obs_gof <- c(obs_gof, test_output)
 			}, error = function(e) {
-				warning("Custom GOF function failed. Skipping.")
+				cli::cli_warn("Custom GOF function failed. Skipping.")
 				custom_gof <- NULL
 			})
 		} else if (is.list(custom_gof)) {

@@ -1366,6 +1366,24 @@
 		longitudinal = longitudinal,
 		mu = mu, beta = beta, a = a, b = b,
 		U = U, V = V, L = L, G = if (prep$bip && R > 0) diag(R) else NULL,
+		# point estimate of the multiplicative surface (U L U' when symmetric,
+		# U V' otherwise; static ALS uses an identity G for bipartite fits),
+		# named to match the MCMC fit objects so comparison tooling can read
+		# either
+		UVPM = if (R > 0 && !is.null(fit$Omat)) {
+			m <- fit$Omat
+			if (!is.null(prep$row_names) && nrow(m) == length(prep$row_names))
+				rownames(m) <- prep$row_names
+			if (!is.null(prep$col_names) && ncol(m) == length(prep$col_names))
+				colnames(m) <- prep$col_names
+			m
+		} else NULL,
+		ULUPM = if (R > 0 && isTRUE(symmetric) && !is.null(fit$Omat)) {
+			m <- fit$Omat
+			if (!is.null(prep$row_names) && nrow(m) == length(prep$row_names))
+				dimnames(m) <- list(prep$row_names, prep$row_names)
+			m
+		} else NULL,
 		coefficients = coefficients,
 		VC = VC, s2 = ve, ve_working = ve_working,
 		EZ = EZ, fitted = fitted_list, YPM = fitted_list,
@@ -1922,6 +1940,10 @@
 #'   argument is retained for API consistency with \code{\link{ame}}.
 #'
 #' @return An object of class \code{"ame_als"}: a list with the point
+#'   estimates. When \code{R > 0} the fitted multiplicative surface is
+#'   exposed as \code{UVPM} (\code{U L U'} for symmetric fits, which also
+#'   carry it as \code{ULUPM}; \code{U V'} otherwise), matching the slot
+#'   names on MCMC fits.
 #'   estimates \code{mu}, \code{beta}, \code{a}, \code{b}, \code{U}, \code{V}
 #'   (\code{L} for symmetric models), the linear predictor \code{EZ},
 #'   response-scale \code{fitted} values, working-scale \code{residuals},

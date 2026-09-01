@@ -52,7 +52,7 @@ get_design_rep <- function(Y=Y, Xdyad, Xrow, Xcol, actorSet, intercept, n, N, pr
 		X[,,,t]<-Xt
 	}
 	if( (pr+pc+pd+intercept)>0 ){
-		dimnames(X) = list(actorSet,actorSet,dimnames(Xt)[[3]],dimnames(Y)[[3]])
+		dimnames(X) <- list(actorSet,actorSet,dimnames(Xt)[[3]],dimnames(Y)[[3]])
 	}
 	dimnames(X)[[4]]<-dimnames(Y)[[3]]
 	####

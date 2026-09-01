@@ -12,7 +12,7 @@
 		)
 		return(A)
 	}
-	stop("Xdyad element must be matrix or 3D array")
+	cli::cli_abort("Xdyad element must be matrix or 3D array")
 }
 
 # coerce every time-slice to a 3d array, naming 3rd dim if missing
@@ -90,9 +90,8 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 		rn <- rownames(Y[[t]])
 		if(is.null(rn)){
 			if(!all(dim(Y[[t]]) == n)){
-				stop("list_to_array(): Y slice ", t, " has no actor names and is ",
-				     "not ", n, "x", n, "; add dimnames so actors can be matched.",
-				     call. = FALSE)
+				cli::cli_abort(paste0("list_to_array(): Y slice ", t, " has no actor names and is ",
+				     "not ", n, "x", n, "; add dimnames so actors can be matched."))
 			}
 			tmp[,,t] <- Y[[t]]
 		} else {

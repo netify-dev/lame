@@ -90,8 +90,8 @@ gof_stats <- function(Y, mode = NULL, custom_gof = NULL) {
 		} else {
 			mode <- "unipartite"
 			if(!isTRUE(.lame_state$gof_stats_msg_shown)) {
-				message("Note: Square matrix assumed to be unipartite. ",
-								"Use mode='bipartite' for square bipartite networks.")
+				cli::cli_inform(paste0("Note: Square matrix assumed to be unipartite. ",
+								"Use mode='bipartite' for square bipartite networks."))
 				.lame_state$gof_stats_msg_shown <- TRUE
 			}
 		}

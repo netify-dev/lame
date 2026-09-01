@@ -297,9 +297,9 @@ List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list,
 	// caller freezes any stationary inflation once at initialization from
 	// the prior means. This makes p(beta_1) parameter-free so the
 	// transition-only rho/sigma conditionals (sample_rho_beta_cpp /
-	// sample_sigma_beta_cpp) are exact full conditionals. The previous
-	// version propagated a (rho, sigma)-dependent beta0_cov_eff through F/Q,
-	// which made the hyperparameter updates incoherent with the state draw.
+	// sample_sigma_beta_cpp) are exact full conditionals. Propagating a
+	// (rho, sigma)-dependent beta0_cov_eff through F/Q would make the
+	// hyperparameter updates incoherent with the state draw.
 
 	for (int t = 0; t < T; ++t) {
 		arma::vec m_p;

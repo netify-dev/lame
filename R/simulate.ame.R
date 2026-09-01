@@ -182,18 +182,17 @@ simulate.ame <- function(
 			X <- design_array(newdata$Xrow, newdata$Xcol, newdata$Xdyad,
 			                  intercept = has_int, n = n_row, warn = FALSE)
 			if (dim(X)[3] != ncol(BETA)) {
-				stop("newdata covariates produce ", dim(X)[3],
+				cli::cli_abort(paste0("newdata covariates produce ", dim(X)[3],
 				     " design columns but the fit has ", ncol(BETA),
-				     " coefficients. Supply the covariates the model was fit with.",
-				     call. = FALSE)
+				     " coefficients. Supply the covariates the model was fit with."))
 			}
 		}
 	} else {
 		if (!is.null(fit$X)) {
 			X <- fit$X
 		} else {
-			warning("Original covariates not stored in model. Using zero covariates. ",
-							"Consider providing covariates via newdata argument.")
+			cli::cli_warn(paste0("Original covariates not stored in model. Using zero covariates. ",
+							"Consider providing covariates via newdata argument."))
 			X <- array(0, dim = c(n_row, n_col, 1))
 		}
 	}
@@ -314,7 +313,7 @@ simulate.ame <- function(
 			# nonexistent fit$odm slot. use the posterior-predictive mean
 			# or the original y as a category template.
 			y_for_sim <- fit$Y %||% fit$YPM
-			if (is.null(y_for_sim)) stop("simulate.ame: ordinal needs `fit$Y` to be present.")
+			if (is.null(y_for_sim)) cli::cli_abort("simulate.ame: ordinal needs `fit$Y` to be present.")
 			Y_sim <- simY_ord(EZ, rho, y_for_sim)
 		} else if (family == "poisson") {
 			# include the latent overdispersion layer of the fitted model
@@ -329,7 +328,7 @@ simulate.ame <- function(
 			odmax <- if (!is.null(fit$odmax)) fit$odmax else rep(Inf, n_row)
 			Y_sim <- simY_frn(EZ, rho, odmax)
 		} else {
-			stop("Family ", family, " not yet implemented for simulation")
+			cli::cli_abort(paste0("Family ", family, " not yet implemented for simulation"))
 		}
 		
 		if (!bip) {

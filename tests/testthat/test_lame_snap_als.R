@@ -574,18 +574,21 @@ test_that("snap ALS scores align with MCMC snap probabilities on a small panel",
 	                         snap_pi_prior = c(1, 99),
 	                         snap_kappa = 3, align = "global",
 	                         verbose = FALSE)
+	# the joint (snap, sigma_uv) chain passes through a diffuse phase before
+	# settling, so run it to its settled regime; alignment with ALS is ~0.99
+	# there, against the 0.5 assertion below
 	fit_mcmc = suppressMessages(lame(
 		Y, R = 1, family = "normal", mode = "unipartite",
 		dynamic_uv = TRUE, dynamic_uv_kind = "snap",
-		nscan = 120, burn = 60, odens = 5,
+		nscan = 600, burn = 300, odens = 5,
 		keep_snap_draws = "draws",
 		gof = FALSE, plot = FALSE,
 		verbose = FALSE, seed = 123))
 
 	expect_false(is.null(fit_mcmc$snap_prob))
 	expect_false(is.null(fit_mcmc$snap_prob_v))
-	expect_equal(dim(fit_mcmc$snap_draws), c(24L, 6L, 3L))
-	expect_equal(dim(fit_mcmc$snap_draws_v), c(24L, 6L, 3L))
+	expect_equal(dim(fit_mcmc$snap_draws), c(120L, 6L, 3L))
+	expect_equal(dim(fit_mcmc$snap_draws_v), c(120L, 6L, 3L))
 	expect_true(all(is.na(fit_mcmc$snap_draws[, , 1L])))
 	expect_true(all(is.na(fit_mcmc$snap_draws_v[, , 1L])))
 	expect_equal(fit_mcmc$snap_prob,
@@ -599,7 +602,7 @@ test_that("snap ALS scores align with MCMC snap probabilities on a small panel",
 	expect_false(is.null(fit_mcmc$snap_draws_summary))
 	expect_equal(fit_mcmc$snap_draws_summary$mean, fit_mcmc$snap_prob)
 	idx = snap_index_draws(fit_mcmc, actors = 1:3, years = 2:3)
-	expect_equal(nrow(idx), 24L * 2L)
+	expect_equal(nrow(idx), 120L * 2L)
 	expect_true(all(c("draw", "year", "snap_index") %in% names(idx)))
 	idx_sum = snap_index_summary(fit_mcmc, actors = 1:3, years = 2:3)
 	expect_equal(nrow(idx_sum), 2L)

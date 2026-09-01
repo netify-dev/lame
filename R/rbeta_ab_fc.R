@@ -37,8 +37,8 @@ rbeta_ab_fc <-
 		# cell-level sufficient statistics must be attached to the design
 		if (is.null(attributes(X)$XX)) {
 			X <- precomputeX(X)
-			warning("Summary statistics of X are not precomputed. ",
-					"Run X<-precomputeX(X) to speed up calculations.")
+			cli::cli_warn(paste0("Summary statistics of X are not precomputed. ",
+					"Run X<-precomputeX(X) to speed up calculations."))
 		}
 
 		# statistics summed over all n^2 directed cells (produced by precomputeX)
@@ -91,7 +91,7 @@ rbeta_ab_fc <-
 		ev  <- eigen(Sab, symmetric = TRUE)
 		k   <- sum(zapsmall(ev$values) > 0)
 		if (k == 0) {
-			warning(paste("k=0, no positive eigenvalues in Sab. Eigenvalues:",
+			cli::cli_warn(paste("k=0, no positive eigenvalues in Sab. Eigenvalues:",
 						  paste(round(ev$values, 6), collapse = ", ")))
 		}
 

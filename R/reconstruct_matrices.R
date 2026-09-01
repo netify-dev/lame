@@ -30,7 +30,7 @@ reconstruct_EZ <- function(fit, X = NULL) {
 	# lame: ypm is a list, return stored ez directly
 	if(!is.null(fit$YPM) && is.list(fit$YPM)) {
 		if(!is.null(fit$EZ)) return(fit$EZ)
-		stop("reconstruct_EZ for lame objects requires fit$EZ to be stored")
+		cli::cli_abort("reconstruct_EZ for lame objects requires fit$EZ to be stored")
 	}
 	# legacy amen fits store EZ directly and carry no mode/symmetric
 	# metadata; the stored matrix is the quantity this accessor promises
@@ -44,7 +44,7 @@ reconstruct_EZ <- function(fit, X = NULL) {
 		n <- nrow(fit$YPM)
 		m <- ncol(fit$YPM)
 	} else {
-		stop("Cannot determine dimensions from fit object")
+		cli::cli_abort("Cannot determine dimensions from fit object")
 	}
 	
 	if(!is.null(fit$BETA)) {

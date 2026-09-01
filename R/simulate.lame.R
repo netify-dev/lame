@@ -218,7 +218,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 			n_time <- length(fit$Xlist)
 		} else {
 			n_time <- 10  # default
-			warning("Could not determine number of time periods from model. Using n_time=10")
+			cli::cli_warn("Could not determine number of time periods from model. Using n_time=10")
 		}
 	}
 	
@@ -261,7 +261,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 					if (cycle_index > 0 && cycle_index <= orig_length) {
 						Xlist[[t]] <- Xlist[[cycle_index]]
 					} else {
-						stop("Invalid cycle index: ", cycle_index, " for orig_length: ", orig_length)
+						cli::cli_abort(paste0("Invalid cycle index: ", cycle_index, " for orig_length: ", orig_length))
 					}
 				}
 			} else if (orig_length > n_time) {
@@ -279,14 +279,14 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 				if (cycle_index > 0 && cycle_index <= orig_length) {
 					Xlist[[t]] <- Xlist[[cycle_index]]
 				} else {
-					stop("Invalid cycle index: ", cycle_index, " for orig_length: ", orig_length)
+					cli::cli_abort(paste0("Invalid cycle index: ", cycle_index, " for orig_length: ", orig_length))
 				}
 			}
 		} else if (orig_length > n_time) {
 			Xlist <- Xlist[1:n_time]
 		}
 	} else {
-		warning("No covariates found. Using zero covariates.")
+		cli::cli_warn("No covariates found. Using zero covariates.")
 		Xlist <- lapply(1:n_time, function(t) {
 			array(0, dim = c(n_row, n_col, 1))
 		})
@@ -294,8 +294,8 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 	
 	# verify xlist length
 	if (length(Xlist) != n_time) {
-		warning("Xlist has length ", length(Xlist), " but n_time is ", n_time, 
-						". This may cause issues.")
+		cli::cli_warn(paste0("Xlist has length ", length(Xlist), " but n_time is ", n_time, 
+						". This may cause issues."))
 	}
 	
 	# temporal correlation parameters -- sample per-iteration to propagate uncertainty
@@ -498,7 +498,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 				y_for_sim <- if (is.list(fit$Y)) fit$Y[[t]] else
 					if (length(dim(fit$Y)) == 3L) fit$Y[, , t] else fit$Y
 				if (is.null(y_for_sim))
-					stop("simulate.lame: ordinal needs `fit$Y` for the category template.")
+					cli::cli_abort("simulate.lame: ordinal needs `fit$Y` for the category template.")
 				Y_sim <- simY_ord(EZ, rho, y_for_sim)
 			} else if (family == "poisson") {
 				# honor period_exposure on the fit; fall through to the
@@ -523,7 +523,7 @@ simulate.lame <- function(object, nsim = 100, seed = NULL, newdata = NULL,
 				odmax <- if (!is.null(fit$odmax)) fit$odmax else rep(Inf, n_row)
 				Y_sim <- simY_frn(EZ, rho, odmax)
 			} else {
-				stop("Family ", family, " not yet implemented for simulation")
+				cli::cli_abort(paste0("Family ", family, " not yet implemented for simulation"))
 			}
 			
 			if (!bip) {

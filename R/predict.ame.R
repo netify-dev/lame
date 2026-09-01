@@ -505,8 +505,8 @@ predict.lame <- function(object, newdata = NULL,
 		}
 	} else NULL
 	# the fitted per-period design (intercept + nodal + dyad slices, canonical
-	# order) used to hold the intercept and any xrow / xcol contributions
-	# fixed while only the dyadic covariates change. may be a per-period list
+	# order) holds the intercept and any xrow / xcol contributions fixed
+	# while only the dyadic covariates change. may be a per-period list
 	# (f$x), or null for a dyad-only fit where .build_full_design synthesises
 	# the intercept slice itself.
 	fitted_design_list <- object$X

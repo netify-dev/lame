@@ -113,7 +113,7 @@ design_array <- function(Xrow=NULL, Xcol=NULL, Xdyad=NULL, intercept=TRUE, n, wa
 			n_missing <- sum(is.na(X))
 			n_diag    <- sum(is.na(apply(X, 3L, diag)))
 			if (n_missing > n_diag && getOption("lame.warn.na", TRUE)) {
-				warning("Replacing NAs in design matrix with zeros", call. = FALSE)
+				cli::cli_warn("Replacing NAs in design matrix with zeros")
 			}
 		}
 		X[is.na(X)] <- 0

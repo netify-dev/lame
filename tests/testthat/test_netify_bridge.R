@@ -7,7 +7,7 @@ test_that("netify cross-sectional inputs work with ame and ame_als", {
 		stringsAsFactors = FALSE
 	)
 	df = df[df$i != df$j, , drop = FALSE]
-	df$y <- rbinom(nrow(df), 1, 0.35)
+	df$y = rbinom(nrow(df), 1, 0.35)
 
 	net = netify::netify(
 		df,
@@ -164,7 +164,7 @@ test_that("snap ALS accepts normal ragged bipartite netify panels", {
 	)
 	df = df[!(df$row == "r4" & df$year == 2001) &
 		!(df$col == "c4" & df$year < 2003), , drop = FALSE]
-	df$y <- rnorm(nrow(df))
+	df$y = rnorm(nrow(df))
 	roster = data.frame(
 		actor = c(paste0("r", seq_len(4)), paste0("c", seq_len(4))),
 		min_time = c(2001, 2001, 2001, 2002, 2001, 2001, 2001, 2003),

@@ -135,7 +135,7 @@ procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
 	}
 
 	if (is.null(U)) {
-		stop("No latent positions found. Either provide a fitted object with R > 0 or pass U directly.")
+		cli::cli_abort("No latent positions found. Either provide a fitted object with R > 0 or pass U directly.")
 	}
 
 	# static model has nothing to align

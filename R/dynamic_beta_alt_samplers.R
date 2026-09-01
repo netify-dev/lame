@@ -88,7 +88,7 @@
 		rw2      = .rw2_precision(T_per),
 		matern32 = .matern32_precision(T_per, length_scale,
 		                                time_positions = time_positions),
-		stop(sprintf("kind '%s' not handled by alt sampler", kind)))
+		cli::cli_abort(sprintf("kind '%s' not handled by alt sampler", kind)))
 }
 
 #' @noRd

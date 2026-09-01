@@ -106,7 +106,7 @@ test_that("gof_plot ignores missing longitudinal predictive draws", {
 	expect_s3_class(p, "ggplot")
 })
 
-# gof_plot(statistics=) selects panels instead of aborting. two defects are
+# gof_plot(statistics=) selects the requested panels. two defects are
 # guarded: the warning path raised cli's "Multiple quantities for
 # pluralization" error because one message interpolated two vectors, and the
 # internal gof column names reported by names(fit$GOF) were rejected as
@@ -160,7 +160,7 @@ test_that("gof_plot statistics= accepts aliases, internal names, and warns on ba
 })
 
 # near-separable sparse binary data stays finite and bounded under
-# dynamic_beta. (This test previously ALSO asserted the divergence-safeguard
+# dynamic_beta. (a divergence-safeguard clip assertion does not belong here
 # warning fired; after the additive-effects update was routed through the
 # joint rbeta_ab sampler the fit stays bounded on its own -- max |coef| ~2
 # instead of hitting the clip ceiling -- so the safeguard correctly stays
@@ -277,7 +277,7 @@ test_that("predict.lame newdata realigns actors by name to the fit's order", {
 	expect_identical(rownames(ez_new[[1]]), sort(nm))
 })
 
-# symmetric = TRUE with the rank-nomination families used to route silently
+# symmetric = TRUE with the rank-nomination families must not route silently
 # through the directed samplers (their z updates ignore symmetric); now it
 # stops with an explanation, in ame() and lame() alike.
 test_that("symmetric = TRUE is rejected for the cbin and frn families", {

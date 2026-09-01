@@ -199,9 +199,9 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
 
   replace_nonfinite(U_cube);
   replace_nonfinite(V_cube);
-  // note: the previous in-kernel U/V column scale balancing was a
-  // state-dependent map that did not preserve the AR(1) prior's law and
-  // has been removed; any rebalancing belongs on stored draws only.
+  // no in-kernel U/V column scale balancing: a state-dependent scale map
+  // does not preserve the AR(1) prior's law, so any rebalancing belongs
+  // on stored draws only.
 
   return List::create(Named("U") = U_cube, Named("V") = V_cube);
 }

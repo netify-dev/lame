@@ -37,6 +37,19 @@
   quantities were not affected, but the raw coordinate scale was arbitrary and
   sampling efficiency suffered. The warning for this case now says what to do
   instead of suggesting a longer chain, which made it worse.
+* Longitudinal fits estimate the latent-persistence parameters (`rho_uv`,
+  `sigma_uv`) more reliably: the unipartite sampler now updates them every
+  sweep instead of every tenth, matching the earlier bipartite fix, so they
+  no longer sit near their starting value on default-length chains.
+* Warm-starting a dynamic MCMC run from an ALS fit now carries the dynamic
+  hyperparameters along: `get_start_vals()` (and the bipartite path) pass
+  `rho_uv`, `sigma_uv`, `rho_ab`, and `sigma_ab` through instead of dropping
+  them.
+* ALS fits with `R > 0` expose the fitted multiplicative surface as `UVPM`
+  (and `ULUPM` for symmetric fits), matching the MCMC fit objects.
+* When the dynamic ALS objective diverges (near-separation on very sparse
+  panels), the warning now fires regardless of `verbose` and says what to do:
+  use MCMC or the static ALS route, which carries a MAP ridge for this case.
 * Tidied up the documentation and test suite.
 
 # lame 1.3.4

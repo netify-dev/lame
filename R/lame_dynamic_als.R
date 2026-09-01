@@ -2440,10 +2440,15 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	} else {
 		0L
 	}
-	if (verbose && dynamic_objective_increases > 0L) {
+	if (dynamic_objective_increases > 0L) {
+		# a monotone block-coordinate objective should never increase; on very
+		# sparse non-normal panels the irls working objective can diverge under
+		# near-separation, so the warning names the remedy and fires regardless
+		# of verbose
 		cli::cli_warn(c(
 			"{.fn lame_dynamic_als} objective increased in {dynamic_objective_increases} step{?s}.",
-			"i" = "For binary and Poisson fits this is the IRLS working objective, not a likelihood trace.",
+			"x" = "On sparse non-normal panels this usually means near-separation; the dynamic ALS point estimates are not trustworthy for this fit.",
+			"i" = "Use {.code method = \"mcmc\"} or the static ALS route ({.fn ame_als} / {.fn lame_als}), which carries a MAP ridge for this case.",
 			"i" = "Inspect {.code fit$diagnostics$objective_increases} and the fitted-value trace."))
 	}
 	if (isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "t") &&

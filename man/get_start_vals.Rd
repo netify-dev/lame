@@ -47,6 +47,13 @@ List of starting values for MCMC
 \description{
 Get fitted object from MCMC results
 }
+\details{
+In addition to the slots listed below, any of the dynamic
+hyperparameter scalars \code{rho_uv}, \code{sigma_uv}, \code{rho_ab},
+and \code{sigma_ab} present in \code{start_vals} (for example from
+\code{\link{als_start_vals}}) are passed through so a dynamic MCMC run
+can warm-start them.
+}
 \author{
 Shahryar Minhas
 }

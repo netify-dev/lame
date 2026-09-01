@@ -1769,7 +1769,7 @@ lame <- function(
 	}
 
 	#
-	if( nscan %% odens !=0  ){ stop('"odens" must be a multiple of "nscan"')}
+	if( nscan %% odens !=0  ){ cli::cli_abort('"odens" must be a multiple of "nscan"')}
 
 	# set random seed locally: restore the global rng stream on exit so a
 	# downstream random draw is not silently perturbed by fitting a model
@@ -1994,7 +1994,7 @@ lame <- function(
 	# set diag to na (only for square matrices)
 	N<-length(Y) ; pdLabs <- names(Y) 
 	if(!bip) {
-		Y<-lapply(Y, function(y){diag(y)=NA; return(y)})
+		Y<-lapply(Y, function(y){diag(y) <- NA; return(y)})
 	}
 	
 	# convert into large array format
@@ -2075,7 +2075,7 @@ lame <- function(
 		Xcol<-Xrow ; rvar<-cvar<-nvar 
 	}
 	if(bip && symmetric) {
-		warning("`symmetric` ignored for bipartite networks")
+		cli::cli_warn("`symmetric` ignored for bipartite networks")
 		symmetric <- FALSE
 	}
 	# validate latent ranks before use (same rules as ame(): a fractional
@@ -2104,7 +2104,7 @@ lame <- function(
 		}
 	} else {
 		if(!is.null(R_row) || !is.null(R_col)) {
-			warning("R_row/R_col ignored for unipartite networks")
+			cli::cli_warn("R_row/R_col ignored for unipartite networks")
 		}
 		RA <- RB <- as.integer(R %||% 0L)
 	}
@@ -2460,6 +2460,18 @@ lame <- function(
 		# bipartite initialization
 		startValsObj <- init_bipartite_startvals(Y, family, nA, nB, RA, RB, N, 
 																						Xlist, odmax)
+		# carry the dynamic hyperparameter scalars (e.g. from als_start_vals)
+		# onto the bipartite start object; the dynamic-init blocks below read
+		# them off startValsObj
+		if(is.list(start_vals)){
+			for(nm in c("rho_uv", "sigma_uv", "rho_ab", "sigma_ab")){
+				val <- start_vals[[nm]]
+				if(!is.null(val) && is.numeric(val) && length(val) == 1L &&
+				   is.finite(val)){
+					startValsObj[[nm]] <- val
+				}
+			}
+		}
 		Z <- startValsObj$Z
 		beta <- startValsObj$beta
 		a <- startValsObj$a
@@ -3413,7 +3425,7 @@ lame <- function(
 						if(length(beta) > 0) {
 							X_dims <- dim(Xlist_tmp[[t]])
 							if(X_dims[1] != nA || X_dims[2] != nB) {
-								stop(paste("Bipartite X dimension mismatch at time", t,
+								cli::cli_abort(paste("Bipartite X dimension mismatch at time", t,
 													": expected", nA, "x", nB,
 													"but got", X_dims[1], "x", X_dims[2]))
 							}
@@ -4659,13 +4671,9 @@ lame <- function(
 						UV_try <- NULL  # ensure ar(1) guard treats this as failure
 					}
 
-					# update the AR(1) hyperparameters every sweep. this used to run
-					# one sweep in ten, which starved rho_uv: it starts at the prior
-					# mean (0.9) and only crawls from there, so a default-length chain
-					# never arrived. on simulated panels with true rho_uv = 0.3 the
-					# throttled sampler reported 0.88 and the unthrottled one 0.35.
-					# the step is a scalar MH draw on sufficient statistics, so running
-					# it every sweep costs almost nothing.
+					# update the ar(1) hyperparameters every sweep: rho_uv starts
+					# at the prior mean and mixes slowly, and the step is a cheap
+					# scalar mh draw on sufficient statistics
 					if(!is.null(UV_try)) {
 						pmean_uv <- prior$rho_uv_mean %||% 0.9
 						psd_uv   <- prior$rho_uv_sd   %||% 0.1
@@ -4747,7 +4755,11 @@ lame <- function(
 						}
 					}
 
-					if(isTRUE(uv_update_ok) && s %% 10 == 0) {
+					# update the ar(1) hyperparameters every sweep: rho_uv and
+					# sigma_uv start at the prior mean and mix slowly on sparse
+					# panels, and the update is a cheap scalar draw on sufficient
+					# statistics
+					if(isTRUE(uv_update_ok)) {
 						pmean_uv <- prior$rho_uv_mean %||% 0.9
 						psd_uv   <- prior$rho_uv_sd   %||% 0.1
 						if(identical(dynamic_uv_kind, "snap") && !is.null(delta_uv)) {
@@ -4982,20 +4994,18 @@ lame <- function(
 			}
 
 			# gauge fixing for the bipartite dynamic path. the likelihood
-			# identifies only the product U_t G V_t', so the leftover scale is
-			# free to slide between the latent coordinates and G. left alone it
-			# random walks: G collapses toward zero while U and V inflate until
-			# they cross uv_max_abs, after which the sampler rejects its own
-			# proposals. shrink the coordinates back toward unit RMS and let G
-			# absorb the scale, but only as far as G has room under its own cap:
-			# with a saturated binary likelihood the whole product is
-			# unidentified upward, and pushing scale into an already-large G just
-			# moves the rejections from U/V to G. shrink-only, so this can never
-			# drive the coordinates up into their bound. one global constant over
-			# every period and column, applied to sigma_uv as well, so U_t G V_t'
-			# is unchanged and the AR(1) law is carried along exactly (a
-			# per-period or per-column map would not preserve that law, which is
-			# why the old in-kernel balancing was removed).
+			# identifies only the product U_t G V_t', so the leftover scale can
+			# slide between the latent coordinates and G until the coordinates
+			# cross uv_max_abs and proposals start being rejected. shrink the
+			# coordinates back toward unit rms and let G absorb the scale, but
+			# only as far as G has room under its own cap: with a saturated
+			# binary likelihood the whole product is unidentified upward, and
+			# pushing scale into an already-large G just moves the rejections
+			# from U/V to G. shrink-only, so the coordinates are never pushed
+			# toward their bound. one global constant over every period and
+			# column, applied to sigma_uv as well, keeps U_t G V_t' exactly
+			# unchanged and carries the ar(1) law along (a per-period or
+			# per-column map would not preserve that law).
 			if(bip && isTRUE(dynamic_uv) && RA > 0 && RB > 0 &&
 			   !is.null(G) && all(is.finite(G)) &&
 			   !is.null(U_cube) && !is.null(V_cube)) {

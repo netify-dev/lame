@@ -602,7 +602,7 @@ ame_unipartite <- function(
 		cbin = function(Z, EZ, rho, Y) rZ_cbin_fc(Z, EZ, rho, Y, odmax, odobs),
 		frn = function(Z, EZ, rho, Y) rZ_frn_fc(Z, EZ, rho, Y, YL, odmax, odobs),
 		poisson = rZ_pois_fc,
-		stop(paste("Unknown family:", family))
+		cli::cli_abort(paste("Unknown family:", family))
 	)
 	
 	simulate_Y_fn <- switch(family,
@@ -616,7 +616,7 @@ ame_unipartite <- function(
 		# GOF rejects correctly-specified overdispersed models and YPM is
 		# biased low by exp(-s2/2)
 		poisson = function(EZ, rho, s2) simY_pois(simZ(EZ, rho, s2)),
-		stop(paste("Unknown family:", family))
+		cli::cli_abort(paste("Unknown family:", family))
 	)
 	
 	needs_s2 <- family %in% c("normal", "poisson")

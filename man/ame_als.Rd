@@ -126,6 +126,10 @@ argument is retained for API consistency with \code{\link{ame}}.}
 }
 \value{
 An object of class \code{"ame_als"}: a list with the point
+estimates. When \code{R > 0} the fitted multiplicative surface is
+exposed as \code{UVPM} (\code{U L U'} for symmetric fits, which also
+carry it as \code{ULUPM}; \code{U V'} otherwise), matching the slot
+names on MCMC fits.
 estimates \code{mu}, \code{beta}, \code{a}, \code{b}, \code{U}, \code{V}
 (\code{L} for symmetric models), the linear predictor \code{EZ},
 response-scale \code{fitted} values, working-scale \code{residuals},

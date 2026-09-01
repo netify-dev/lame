@@ -72,7 +72,7 @@ ab_plot <- function(fit,
 										show_actors = NULL) {
 
 	if (!inherits(fit, c("ame", "lame", "ame_als"))) {
-		stop("fit must be an object of class 'ame', 'lame', or 'ame_als'")
+		cli::cli_abort("fit must be an object of class 'ame', 'lame', or 'ame_als'")
 	}
 	
 	effect <- match.arg(effect)

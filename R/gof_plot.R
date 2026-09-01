@@ -185,11 +185,11 @@ gof_plot <- function(
 	}
 
 	if (!inherits(fit, c("ame", "lame"))) {
-		stop("fit must be an object of class 'ame', 'lame', or 'ame_als'")
+		cli::cli_abort("fit must be an object of class 'ame', 'lame', or 'ame_als'")
 	}
 	
 	if (is.null(fit$GOF)) {
-		stop("No GOF statistics found. Re-run model with gof = TRUE")
+		cli::cli_abort("No GOF statistics found. Re-run model with gof = TRUE")
 	}
 	
 	type <- match.arg(type)
@@ -340,7 +340,7 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 		}
 		
 		if (nrow(pred_vals) == 0) {
-			warning("No posterior predictive samples available for GOF plots")
+			cli::cli_warn("No posterior predictive samples available for GOF plots")
 			next
 		}
 
@@ -400,7 +400,7 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 		} else if (requireNamespace("gridExtra", quietly = TRUE)) {
 			p <- gridExtra::grid.arrange(grobs = plot_list, ncol = ncol)
 		} else {
-			warning("Install 'patchwork' or 'gridExtra' for better plot layout")
+			cli::cli_warn("Install 'patchwork' or 'gridExtra' for better plot layout")
 			p <- plot_list[[1]]
 		}
 	}
@@ -454,7 +454,7 @@ gof_plot_longitudinal <- function(
 				gof_data[[t]] <- gof_t
 			}
 		} else {
-			warning("No time-indexed GOF found, using static GOF")
+			cli::cli_warn("No time-indexed GOF found, using static GOF")
 			return(gof_plot_static(fit, statistics, stat.names, ncol, line.size, title))
 		}
 	} else if (!is.null(fit$GOF) && length(dim(fit$GOF)) == 3) {
@@ -467,7 +467,7 @@ gof_plot_longitudinal <- function(
 			gof_data[[t]] <- gof_t
 		}
 	} else {
-		warning("No time-indexed GOF found, using static GOF")
+		cli::cli_warn("No time-indexed GOF found, using static GOF")
 		return(gof_plot_static(fit, statistics, stat.names, ncol, line.size, title))
 	}
 
@@ -522,9 +522,9 @@ gof_plot_longitudinal <- function(
 
 	# dual-encode the observed series (okabe-ito red + solid linetype with
 	# points; predictive median is grey dashed line, ribbon is grey shading)
-	# so the cue survives colour-blind viewers and grayscale printing. the
-	# colour / linetype scale provide a real legend instead of the prose-only
-	# "red = observed" convention.
+	# so the cue survives colour-blind viewers and grayscale printing, and
+	# the colour / linetype scale gives the observed series a real legend
+	# entry.
 	p <- ggplot(plot_data, aes(x = time)) +
 		geom_ribbon(aes(ymin = lower, ymax = upper,
 		                fill = "Posterior predictive 95%"),

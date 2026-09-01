@@ -27,7 +27,7 @@
 // contains the truncation interval. this is exact for arbitrary |ez|
 // (log-scale pnorm/qnorm stay accurate out to |ez| of several
 // hundred), so no probability clamp is needed and no draw can land
-// outside the truncation region: the earlier clamp + keep-current
+// outside the truncation region: a clamp-and-keep-current
 // fallback froze constraint-contradicting cells (|ez| beyond ~8.2)
 // at their initial, possibly sign-violating, values for the entire
 // chain. a non-finite backstop keeps the current value in the

@@ -29,8 +29,8 @@ static bool safe_inv_sympd_uv(const arma::mat& M, arma::mat& out) {
 // the likelihood (U_t V_t' invariant) and the isotropic AR(1) prior
 // (innovations u_t - rho u_{t-1} are rotated jointly, preserving their law),
 // so it leaves every rotation-invariant functional untouched. Per-period
-// rotations -- the previous behaviour -- are NOT a symmetry (they change the
-// innovations) and were removed.
+// rotations are NOT a symmetry here (they change the innovations), so no
+// per-period rotation is applied.
 static void common_rotation_uv(arma::cube& U, arma::cube& V) {
   const int n = U.n_rows;
   const int R = U.n_cols;
@@ -179,9 +179,9 @@ List rUV_dynamic_fc_cpp(arma::cube U_current, arma::cube V_current,
   }
 
   // gauge fixing: one common rotation across all time slices (posterior
-  // symmetry); the previous per-period Procrustes and U/V column scale
-  // balancing were state-dependent maps that broke the AR(1) prior's law
-  // and were removed from the kernel.
+  // symmetry). per-period Procrustes and U/V column scale balancing are
+  // state-dependent maps that break the AR(1) prior's law, so the kernel
+  // applies neither.
   if(shrink) {
     common_rotation_uv(U_new, V_new);
   }

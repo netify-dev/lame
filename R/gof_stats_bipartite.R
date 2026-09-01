@@ -53,7 +53,7 @@
 gof_stats_bipartite <- function(Y, warn_square = TRUE) {
 
 	if(warn_square && nrow(Y) == ncol(Y)) {
-		warning("Y appears to be square. Use gof_stats() for unipartite networks.")
+		cli::cli_warn("Y appears to be square. Use gof_stats() for unipartite networks.")
 	}
 	
 	gof <- numeric(3)

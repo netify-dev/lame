@@ -148,10 +148,10 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 	####
 	# validate covariate dimensions match y
 	for (t in seq_along(Y)) {
-		nr = nrow(Y[[t]])
-		nc = ncol(Y[[t]])
+		nr <- nrow(Y[[t]])
+		nc <- ncol(Y[[t]])
 		if (!is.null(Xdyad) && !is.null(Xdyad[[t]])) {
-			xd = Xdyad[[t]]
+			xd <- Xdyad[[t]]
 			if (nrow(xd) != nr || ncol(xd) != nc) {
 				cli::cli_abort(c(
 					"Xdyad dimensions must match Y at each time period.",
@@ -160,7 +160,7 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 			}
 		}
 		if (!is.null(Xrow) && !is.null(Xrow[[t]])) {
-			xr = Xrow[[t]]
+			xr <- Xrow[[t]]
 			if (is.matrix(xr) || is.data.frame(xr)) {
 				if (nrow(xr) != nr) {
 					cli::cli_abort(c(
@@ -171,7 +171,7 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 			}
 		}
 		if (!is.null(Xcol) && !is.null(Xcol[[t]])) {
-			xc = Xcol[[t]]
+			xc <- Xcol[[t]]
 			if (is.matrix(xc) || is.data.frame(xc)) {
 				if (nrow(xc) != nc) {
 					cli::cli_abort(c(

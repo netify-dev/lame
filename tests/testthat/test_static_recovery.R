@@ -153,12 +153,12 @@ test_that("binary bipartite AME runs", {
 	expect_s3_class(fit, "ame")
 })
 
-# sparse counts: the additive / multiplicative effect prior used to be scaled
-# by the variance of log1p(y) row / column means, which is ~0 when most cells
-# are zero, so a, b and uv' were pinned to zero, the heterogeneity was pushed
-# into s2 (ve climbing across the chain) and posterior-predictive totals ran
-# several times the observed count. the prior scale is now a log-rate moment
-# and z starts at the mean rate.
+# sparse counts: on a mostly-zero matrix the variance of log1p(y) row and
+# column means is ~0, so an effect prior scaled that way pins a, b and uv'
+# at zero and pushes all heterogeneity into s2. the prior scale must come
+# from a log-rate moment instead, keeping the additive effects alive and
+# the predictive totals near the observed count.
+
 test_that("poisson prior scale and start values are sane on sparse counts", {
 	set.seed(7); n = 30
 	Y = matrix(rpois(n * n, 0.05), n, n); diag(Y) = NA

@@ -55,7 +55,7 @@ test_that("residuals() on an amen fit aborts instead of returning zeros", {
 	skip_on_cran()
 	skip_if_no_amen()
 	afit = get_amen_fit()
-	# `$Y` partial-matches `$YPM` on an amen fit, which previously produced a
+	# `$Y` partial-matches `$YPM` on an amen fit, which without a guard yields a
 	# silently all-zero residual matrix
 	expect_error(residuals(afit), "does not store the observed")
 })
@@ -65,7 +65,7 @@ test_that("print() on an amen fit completes instead of hard-erroring", {
 	skip_if_no_amen()
 	afit = get_amen_fit()
 	# x$mode is NULL on an amen fit; `NULL == "bipartite"` under `&&`
-	# previously errored with 'missing value where TRUE/FALSE needed'
+	# guards the 'missing value where TRUE/FALSE needed' failure mode
 	expect_output(print(afit), "Additive and Multiplicative Effects")
 })
 

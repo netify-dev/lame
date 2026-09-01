@@ -39,7 +39,7 @@ List rZ_nrm_batch_cpp(arma::cube Z, const arma::cube& EZ,
     // cell whose reciprocal is observed is drawn from the exact
     // conditional N(EZ_ij + rho*(y_ji - EZ_ji), s2*(1 - rho^2)); pairs
     // with both cells missing get a joint bivariate draw with
-    // within-pair correlation rho. (the earlier snapshot-based scheme
+    // within-pair correlation rho. (a snapshot-based scheme
     // updated both cells of a both-missing pair synchronously from the
     // stale transpose, driving their stationary within-pair correlation
     // to 0 instead of rho.)
@@ -118,7 +118,7 @@ arma::cube rZ_bin_bip_batch_cpp(arma::cube Z, const arma::cube& EZ,
         } else if(Y_t(i,j) > 0.5) {
           // Y=1: truncated normal on [0, inf). exact log.p-scale
           // inverse cdf: tail-stable for arbitrary |ez| with no
-          // probability clamp (the earlier 1e-12 clamp produced
+          // probability clamp (a bare 1e-12 clamp produces
           // sign-violating draws once ez > ~7.03 and capped the
           // likelihood's restoring force)
           double logS = R::pnorm(-ez, 0.0, 1.0, 0, 1);

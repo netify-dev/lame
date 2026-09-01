@@ -1,5 +1,5 @@
 test_that("ab_plot honors dynamic ALS trajectories", {
-	fit <- list(
+	fit = list(
 		a = c(a1 = 0, a2 = 0),
 		b = c(a1 = 0, a2 = 0),
 		a_dynamic = matrix(
@@ -15,9 +15,9 @@ test_that("ab_plot honors dynamic ALS trajectories", {
 			dimnames = list(c("State A", "State B"), c("2001", "2002", "2003"))
 		)
 	)
-	class(fit) <- c("lame_dynamic_als", "lame_als", "ame_als")
+	class(fit) = c("lame_dynamic_als", "lame_als", "ame_als")
 
-	p <- ab_plot(
+	p = ab_plot(
 		fit,
 		effect = "sender",
 		plot_type = "trajectory",
