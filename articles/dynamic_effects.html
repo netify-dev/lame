@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2026-08-31</h4>
+            <h4 data-toc-skip class="date">2026-09-01</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/dynamic_effects.Rmd" class="external-link"><code>vignettes/dynamic_effects.Rmd</code></a></small>
       <div class="d-none name"><code>dynamic_effects.Rmd</code></div>
@@ -603,13 +603,13 @@ stationarity, with a negative intercept giving realistic density
 <span><span class="co">#&gt; Time periods: 5 </span></span>
 <span><span class="co">#&gt; Family: binary </span></span>
 <span><span class="co">#&gt; Mode: unipartite </span></span>
-<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.963 )</span></span>
-<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.606 )</span></span>
+<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.935 )</span></span>
+<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.561 )</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept   -1.066     0.06 -17.662       0   -1.175    -0.94 ***</span></span>
+<span><span class="co">#&gt; intercept    -1.06    0.062 -17.145       0   -1.179   -0.944 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -617,10 +617,10 @@ stationarity, with a negative intercept giving realistic density
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.092    0.042</span></span>
-<span><span class="co">#&gt; cab   -0.007    0.025</span></span>
-<span><span class="co">#&gt; vb     0.109    0.044</span></span>
-<span><span class="co">#&gt; rho   -0.055    0.068</span></span>
+<span><span class="co">#&gt; va     0.090    0.034</span></span>
+<span><span class="co">#&gt; cab   -0.009    0.020</span></span>
+<span><span class="co">#&gt; vb     0.099    0.033</span></span>
+<span><span class="co">#&gt; rho   -0.050    0.065</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
@@ -695,13 +695,13 @@ the prior alone produces when the data are uninformative.</p>
 <span><span class="co">#&gt; Time periods: 5 </span></span>
 <span><span class="co">#&gt; Family: binary </span></span>
 <span><span class="co">#&gt; Mode: unipartite </span></span>
-<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.799 )</span></span>
-<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.373 )</span></span>
+<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.791 )</span></span>
+<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.503 )</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper    </span></span>
-<span><span class="co">#&gt; intercept   -0.911    0.027  -33.44       0   -0.956   -0.857 ***</span></span>
+<span><span class="co">#&gt; intercept   -0.913    0.025 -36.937       0   -0.962   -0.871 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -709,10 +709,10 @@ the prior alone produces when the data are uninformative.</p>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.046    0.014</span></span>
-<span><span class="co">#&gt; cab   -0.002    0.010</span></span>
-<span><span class="co">#&gt; vb     0.045    0.013</span></span>
-<span><span class="co">#&gt; rho    0.070    0.043</span></span>
+<span><span class="co">#&gt; va     0.048    0.015</span></span>
+<span><span class="co">#&gt; cab    0.000    0.012</span></span>
+<span><span class="co">#&gt; vb     0.045    0.015</span></span>
+<span><span class="co">#&gt; rho    0.073    0.043</span></span>
 <span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span></code></pre></div>
@@ -720,9 +720,9 @@ the prior alone produces when the data are uninformative.</p>
 settings:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Independent data rho_uv:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_null</span><span class="op">$</span><span class="va">rho_uv</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Independent data rho_uv: 0.799</span></span>
+<span><span class="co">#&gt; Independent data rho_uv: 0.791</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Correlated data rho_uv:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_dyn_real</span><span class="op">$</span><span class="va">rho_uv</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Correlated data rho_uv: 0.963</span></span></code></pre></div>
+<span><span class="co">#&gt; Correlated data rho_uv: 0.935</span></span></code></pre></div>
 <p>Even with a deliberately tight prior centred at 0.95, the two
 posteriors diverge: the correlated fit lands in the upper AR(1) range
 (expect small-sample upward bias at
@@ -805,9 +805,9 @@ systematically under- or over-generates.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">gof_comparison</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            sd.rowmean sd.colmean dyad.dep cycle.dep trans.dep</span></span>
 <span><span class="co">#&gt; Static          0.967      0.967    0.433     0.500     0.333</span></span>
-<span><span class="co">#&gt; Dynamic_UV      0.933      0.933    0.533     0.467     0.400</span></span>
+<span><span class="co">#&gt; Dynamic_UV      0.933      0.933    0.467     0.700     0.333</span></span>
 <span><span class="co">#&gt; Dynamic_AB      1.000      1.000    0.533     0.533     0.400</span></span>
-<span><span class="co">#&gt; Full            1.000      1.000    0.367     0.667     0.367</span></span></code></pre></div>
+<span><span class="co">#&gt; Full            1.000      0.967    0.233     0.567     0.233</span></span></code></pre></div>
 <p><code>sd.rowmean</code> and <code>sd.colmean</code> sit near 1 for
 <em>every</em> specification – an artifact of fitting a heterogeneity
 model to homogeneous iid data, not evidence about dynamics – so compare
@@ -857,7 +857,7 @@ one:</p>
 <code class="sourceCode R"><span><span class="co"># align latent positions across time</span></span>
 <span><span class="va">aligned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/procrustes_align.html">procrustes_align</a></span><span class="op">(</span><span class="va">fit_null</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">aligned</span><span class="op">$</span><span class="va">U</span><span class="op">)</span>  <span class="co"># 3D array: actors x dimensions x time</span></span>
-<span><span class="co">#&gt;  num [1:30, 1:2, 1:5] -0.26043 0.07856 0.06056 0.16564 0.00521 ...</span></span>
+<span><span class="co">#&gt;  num [1:30, 1:2, 1:5] -0.1591 -0.0457 0.0566 0.0178 0.093 ...</span></span>
 <span><span class="co">#&gt;  - attr(*, "dimnames")=List of 3</span></span>
 <span><span class="co">#&gt;   ..$ : chr [1:30] "Actor1" "Actor10" "Actor11" "Actor12" ...</span></span>
 <span><span class="co">#&gt;   ..$ : NULL</span></span>
@@ -881,13 +881,13 @@ those SDs fold in some rotational wobble across draws:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit_null</span>, align <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
-<span><span class="co">#&gt;     actor dimension time        value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1  Actor1         1    1 -0.260429691    0.4699625    U</span></span>
-<span><span class="co">#&gt; 2 Actor10         1    1  0.078562328    0.4704766    U</span></span>
-<span><span class="co">#&gt; 3 Actor11         1    1  0.060560527    0.4019490    U</span></span>
-<span><span class="co">#&gt; 4 Actor12         1    1  0.165641775    0.5317388    U</span></span>
-<span><span class="co">#&gt; 5 Actor13         1    1  0.005207137    0.5112595    U</span></span>
-<span><span class="co">#&gt; 6 Actor14         1    1 -0.034462647    0.4542168    U</span></span></code></pre></div>
+<span><span class="co">#&gt;     actor dimension time       value posterior_sd type</span></span>
+<span><span class="co">#&gt; 1  Actor1         1    1 -0.15914189    0.4770814    U</span></span>
+<span><span class="co">#&gt; 2 Actor10         1    1 -0.04565130    0.5857334    U</span></span>
+<span><span class="co">#&gt; 3 Actor11         1    1  0.05656954    0.3926256    U</span></span>
+<span><span class="co">#&gt; 4 Actor12         1    1  0.01777214    0.6226725    U</span></span>
+<span><span class="co">#&gt; 5 Actor13         1    1  0.09299040    0.5125774    U</span></span>
+<span><span class="co">#&gt; 6 Actor14         1    1  0.00887980    0.5337766    U</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

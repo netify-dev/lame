@@ -242,6 +242,10 @@ argument is retained for API consistency with <code><a href="ame.html">ame</a></
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An object of class <code>"ame_als"</code>: a list with the point
+estimates. When <code>R &gt; 0</code> the fitted multiplicative surface is
+exposed as <code>UVPM</code> (<code>U L U'} for symmetric fits, which also
+carry it as \code{ULUPM}; \code{U V'</code> otherwise), matching the slot
+names on MCMC fits.
 estimates <code>mu</code>, <code>beta</code>, <code>a</code>, <code>b</code>, <code>U</code>, <code>V</code>
 (<code>L</code> for symmetric models), the linear predictor <code>EZ</code>,
 response-scale <code>fitted</code> values, working-scale <code>residuals</code>,
