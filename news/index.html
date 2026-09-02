@@ -66,6 +66,8 @@
 <li>Warm-starting a dynamic MCMC run from an ALS fit now carries the dynamic hyperparameters along: <code><a href="../reference/get_start_vals.html">get_start_vals()</a></code> (and the bipartite path) pass <code>rho_uv</code>, <code>sigma_uv</code>, <code>rho_ab</code>, and <code>sigma_ab</code> through instead of dropping them.</li>
 <li>ALS fits with <code>R &gt; 0</code> expose the fitted multiplicative surface as <code>UVPM</code> (and <code>ULUPM</code> for symmetric fits), matching the MCMC fit objects.</li>
 <li>When the dynamic ALS objective diverges (near-separation on very sparse panels), the warning now fires regardless of <code>verbose</code> and says what to do: use MCMC or the static ALS route, which carries a MAP ridge for this case.</li>
+<li>
+<code>dynamic_beta</code> combined with <code>dynamic_ab</code> now gives the additive effects a real AR(1): the per-period draws pool across neighbouring years and <code>rho_ab</code> / <code>sigma_ab</code> are sampled rather than sitting at their starting values.</li>
 <li>Tidied up the documentation and test suite.</li>
 </ul></div>
     <div class="section level2">
