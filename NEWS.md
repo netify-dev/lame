@@ -50,6 +50,10 @@
 * When the dynamic ALS objective diverges (near-separation on very sparse
   panels), the warning now fires regardless of `verbose` and says what to do:
   use MCMC or the static ALS route, which carries a MAP ridge for this case.
+* `dynamic_beta` combined with `dynamic_ab` now gives the additive effects a
+  real AR(1): the per-period draws pool across neighbouring years and
+  `rho_ab` / `sigma_ab` are sampled rather than sitting at their starting
+  values.
 * Tidied up the documentation and test suite.
 
 # lame 1.3.4

@@ -677,3 +677,28 @@ test_that("penalised ALS errors on negative lambda", {
 	Y = lapply(X, function(xt) xt[, , 1] + rnorm(n*n, 0, 0.1))
 	expect_error(als_dynamic_beta(Y, X, lambda = -1), "non-negative")
 })
+
+test_that("dynamic_beta + dynamic_ab samples the AR(1) hyperparameters (regression)", {
+	# the combination draws per-period additive effects under the AR(1)
+	# conditional prior and must sample rho_ab / sigma_ab; frozen values at
+	# the initialization (0.8 / 0.1 with zero variance) mean the AR(1)
+	# machinery is unreachable again
+	skip_on_cran()
+	set.seed(4)
+	n = 12; TT = 5
+	Y = lapply(1:TT, function(t) {
+		m = matrix(rnorm(n * n), n, n); diag(m) = NA
+		rownames(m) = colnames(m) = sprintf("a%02d", 1:n); m
+	})
+	X = lapply(1:TT, function(t) {
+		a = array(rnorm(n * n), c(n, n, 1)); dimnames(a)[[3]] = "x"; a
+	})
+	fit = suppressWarnings(lame(Y, Xdyad = X, family = "normal", R = 0,
+		dynamic_ab = TRUE, dynamic_beta = "dyad",
+		burn = 100, nscan = 400, odens = 2, seed = 1,
+		verbose = FALSE, plot = FALSE))
+	expect_gt(sd(as.numeric(fit$rho_ab)), 1e-6)
+	expect_gt(sd(as.numeric(fit$sigma_ab)), 1e-6)
+	expect_false(is.null(fit$a_dynamic))
+	expect_true(all(is.finite(fit$a_dynamic)))
+})

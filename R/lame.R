@@ -34,6 +34,71 @@
 		-Inf)
 }
 
+# ar(1) single-site conditional for one additive-effect path: given the
+# neighbouring periods of `mat` (n x N), the prior for column t is
+# N(m, v) per actor, with the stationary initial condition at t = 1
+.lame_ab_ar1_cond <- function(mat, t, N, rho, sigma) {
+	v_innov <- max(sigma * sigma, 1e-8)
+	n <- nrow(mat)
+	if (N == 1L) {
+		return(list(m = rep(0, n), v = v_innov))
+	}
+	prev <- if (t > 1L) mat[, t - 1L] else rep(0, n)
+	nxt  <- if (t < N)  mat[, t + 1L] else rep(0, n)
+	prev[!is.finite(prev)] <- 0
+	nxt[!is.finite(nxt)] <- 0
+	if (t == 1L) {
+		list(m = rho * nxt, v = v_innov)
+	} else if (t == N) {
+		list(m = rho * prev, v = v_innov)
+	} else {
+		list(m = rho * (prev + nxt) / (1 + rho * rho),
+		     v = v_innov / (1 + rho * rho))
+	}
+}
+
+# conjugate updates for the additive-effect ar(1) hyperparameters when the
+# two margins have different actor counts (bipartite). mirrors the
+# sufficient-statistic conditionals of the equal-margin c++ samplers,
+# including the stationary-initial-condition factor at t = 1
+.lame_ab_hyper_bip <- function(a_mat, b_mat, rho_ab, sigma_ab, prior) {
+	N <- ncol(a_mat)
+	if (N < 2L) return(list(rho_ab = rho_ab, sigma_ab = sigma_ab))
+	q1 <- 0; p1 <- 0L
+	a1 <- a_mat[, 1L][is.finite(a_mat[, 1L])]
+	b1 <- b_mat[, 1L][is.finite(b_mat[, 1L])]
+	q1 <- sum(a1 * a1) + sum(b1 * b1)
+	p1 <- length(a1) + length(b1)
+	one_m_rho2 <- 1 - min(rho_ab * rho_ab, 0.9801)
+	da <- a_mat[, -1L, drop = FALSE] - rho_ab * a_mat[, -N, drop = FALSE]
+	db <- b_mat[, -1L, drop = FALSE] - rho_ab * b_mat[, -N, drop = FALSE]
+	da <- da[is.finite(da)]; db <- db[is.finite(db)]
+	ss <- one_m_rho2 * q1 + sum(da * da) + sum(db * db)
+	cnt <- p1 + length(da) + length(db)
+	sigma2_new <- .lame_safe_inv_gamma(
+		shape = (prior$sigma_ab_shape %||% 2) + cnt / 2,
+		rate = (prior$sigma_ab_scale %||% 1) + ss / 2,
+		current = sigma_ab^2,
+		min_value = 1e-8)
+	if (is.finite(sigma2_new) && sigma2_new > 0) sigma_ab <- sqrt(sigma2_new)
+	sp <- 0; ssl <- 0
+	lag_a <- a_mat[, -N, drop = FALSE]; cur_a <- a_mat[, -1L, drop = FALSE]
+	ok <- is.finite(lag_a) & is.finite(cur_a)
+	sp <- sp + sum(cur_a[ok] * lag_a[ok]); ssl <- ssl + sum(lag_a[ok]^2)
+	lag_b <- b_mat[, -N, drop = FALSE]; cur_b <- b_mat[, -1L, drop = FALSE]
+	ok <- is.finite(lag_b) & is.finite(cur_b)
+	sp <- sp + sum(cur_b[ok] * lag_b[ok]); ssl <- ssl + sum(lag_b[ok]^2)
+	prior_prec <- 1 / ((prior$rho_ab_sd %||% 0.15)^2)
+	s2i <- 1 / (sigma_ab * sigma_ab)
+	var_post <- 1 / (ssl * s2i + prior_prec)
+	mean_post <- var_post * (sp * s2i + (prior$rho_ab_mean %||% 0.8) * prior_prec)
+	if (is.finite(var_post) && var_post > 0 && is.finite(mean_post)) {
+		rho_ab <- .lame_rho_uv_mh_stationary(rho_ab, mean_post, var_post,
+		                                     q1, p1, sigma_ab)
+	}
+	list(rho_ab = rho_ab, sigma_ab = sigma_ab)
+}
+
 # independence-MH step for rho_uv, coherent with the stationary AR(1)
 # initial condition used by the dynamic UV kernels. the proposal is the
 # conjugate Normal implied by the transitions + prior, drawn truncated to
@@ -3865,15 +3930,25 @@ lame <- function(
 				if (dynamic_ab) {
 					# per-period joint (a_t, b_t) draw via the same rbeta_ab
 					# machinery as the static branch (empty design, one-period
-					# panel). the Sab-whitened unit prior floor keeps the additive
-					# variance stable for the row-censored families (cbin/frn)
-					# when dynamic_beta is also active.
+					# panel), under the ar(1) conditional prior: each period is
+					# drawn centred on the ar(1) conditional mean from its
+					# neighbours with the conditional variance as the prior
+					# covariance, so the effects pool across time and the
+					# rho_ab / sigma_ab conditionals below see real ar(1) paths.
+					# the joint draw keeps the whitened-prior floor that holds
+					# the additive variance stable for the row-censored families
+					# (cbin/frn) when dynamic_beta is also active.
 					rho_ab_eff_t <- .lame_rho_scalar(rho)
 					for (t in seq_len(N)) {
+						ca <- .lame_ab_ar1_cond(a_mat, t, N, rho_ab, sigma_ab)
+						cb <- .lame_ab_ar1_cond(b_mat, t, N, rho_ab, sigma_ab)
 						Zr1 <- resid_cube[, , t, drop = FALSE]
+						Zr1[, , 1] <- Zr1[, , 1] - outer(ca$m, rep(1, n)) -
+							outer(rep(1, n), cb$m)
 						Zr1[!is.finite(Zr1)] <- 0
+						Sab_cond <- diag(c(ca$v, cb$v))
 						abd_t <- tryCatch(
-							rbeta_ab_rep_fc(Zr1, Sab, rho_ab_eff_t,
+							rbeta_ab_rep_fc(Zr1, Sab_cond, rho_ab_eff_t,
 							                array(0, dim = c(n, n, 0L, 1L)), s2_floor),
 							error = function(e) {
 								tryErrorChecks$betaAB <<- tryErrorChecks$betaAB + 1L
@@ -3882,12 +3957,15 @@ lame <- function(
 						if (!is.null(abd_t) && all(is.finite(abd_t$a)) &&
 						    all(is.finite(abd_t$b))) {
 							if (symmetric) {
-								at <- ((as.numeric(abd_t$a) + as.numeric(abd_t$b)) / 2) * nvar
-								a_mat[, t] <- .apply_H(at, ab_bases$H_a)
+								full <- ((ca$m + as.numeric(abd_t$a) +
+								          cb$m + as.numeric(abd_t$b)) / 2) * nvar
+								a_mat[, t] <- .apply_H(full, ab_bases$H_a)
 								b_mat[, t] <- a_mat[, t]
 							} else {
-								a_mat[, t] <- .apply_H(as.numeric(abd_t$a) * rvar, ab_bases$H_a)
-								b_mat[, t] <- .apply_H(as.numeric(abd_t$b) * cvar, ab_bases$H_b)
+								a_mat[, t] <- .apply_H((ca$m + as.numeric(abd_t$a)) * rvar,
+								                       ab_bases$H_a)
+								b_mat[, t] <- .apply_H((cb$m + as.numeric(abd_t$b)) * cvar,
+								                       ab_bases$H_b)
 							}
 						}
 					}
@@ -3933,26 +4011,32 @@ lame <- function(
 				if (dynamic_ab) {
 					# per-period joint (a_t, b_t) draw via the same bipartite
 					# rbeta_ab machinery as the static branch (empty design,
-					# one-period slice); carries the g-prior regularisation that
-					# keeps the additive variance stable for the row-censored
-					# families.
+					# one-period slice), under the ar(1) conditional prior: the
+					# slice is centred on the ar(1) conditional means and the
+					# conditional variances enter as the kernel's prior
+					# variances, so the effects pool across time and the
+					# rho_ab / sigma_ab conditionals below see real ar(1) paths.
 					Xempty_bip1 <- list(array(0, dim = c(nA, nB, 0L)))
 					for (t in seq_len(N)) {
+						ca <- .lame_ab_ar1_cond(a_mat, t, N, rho_ab, sigma_ab)
+						cb <- .lame_ab_ar1_cond(b_mat, t, N, rho_ab, sigma_ab)
 						Zb1 <- resid_cube[, , t, drop = FALSE]
+						Zb1[, , 1] <- Zb1[, , 1] - outer(ca$m, rep(1, nB)) -
+							outer(rep(1, nA), cb$m)
 						Zb1[!is.finite(Zb1)] <- 0
 						abd_t <- tryCatch(
 							rbeta_ab_bip_gibbs_cpp(
 								Zb1, Xempty_bip1, matrix(0, nA, nB),
-								a_mat[, t], b_mat[, t],
-								s2, as.numeric(g[1]), Sab[1, 1], Sab[2, 2], rvar, cvar),
+								a_mat[, t] - ca$m, b_mat[, t] - cb$m,
+								s2, as.numeric(g[1]), ca$v, cb$v, rvar, cvar),
 							error = function(e) {
 								tryErrorChecks$betaAB <<- tryErrorChecks$betaAB + 1L
 								NULL
 							})
 						if (!is.null(abd_t) && all(is.finite(abd_t$a)) &&
 						    all(is.finite(abd_t$b))) {
-							a_mat[, t] <- .apply_H(as.numeric(abd_t$a), ab_bases$H_a)
-							b_mat[, t] <- .apply_H(as.numeric(abd_t$b), ab_bases$H_b)
+							a_mat[, t] <- .apply_H(ca$m + as.numeric(abd_t$a), ab_bases$H_a)
+							b_mat[, t] <- .apply_H(cb$m + as.numeric(abd_t$b), ab_bases$H_b)
 						}
 					}
 					a <- a_mat[, 1]; b <- b_mat[, 1]
@@ -3986,6 +4070,25 @@ lame <- function(
 							if (!is.null(ab_bases$H_b)) b <- as.numeric(ab_bases$H_b %*% (t(ab_bases$H_b) %*% b))
 						}
 					}
+			}
+			# update the additive-effect ar(1) hyperparameters on the same
+			# cadence the plain dynamic_ab branch uses; the per-period draws
+			# above condition on them, so sampling them here closes the loop
+			if (dynamic_ab && N >= 2L && s %% 20 == 0 &&
+			    !is.null(rho_ab) && !is.null(sigma_ab)) {
+				if (!bip) {
+					rho_ab <- sample_rho_ab_cpp(a_mat, b_mat, sigma_ab, rho_ab,
+					                            symmetric,
+					                            prior_mean = prior$rho_ab_mean %||% 0.8,
+					                            prior_sd   = prior$rho_ab_sd   %||% 0.15)
+					sigma_ab <- sample_sigma_ab_cpp(a_mat, b_mat, rho_ab, symmetric,
+					                                prior_shape = prior$sigma_ab_shape %||% 2,
+					                                prior_scale = prior$sigma_ab_scale %||% 1)
+				} else {
+					hh <- .lame_ab_hyper_bip(a_mat, b_mat, rho_ab, sigma_ab, prior)
+					rho_ab <- hh$rho_ab
+					sigma_ab <- hh$sigma_ab
+				}
 			}
 			# update the per-block rho_beta and sigma_beta periodically. matches
 			# the dynamic_ab cadence (every 20 iterations) to keep this cheap.
