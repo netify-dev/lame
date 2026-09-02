@@ -58,12 +58,12 @@ lfo <- function(fit, periods = NULL, refit = TRUE, ...) {
 	T_per <- length(Y_list)
 	X_list <- fit$Xlist
 	if (is.null(X_list)) X_list <- rep(list(NULL), T_per)
-	# fit$Xlist stores the *augmented* design: when the original fit had an
+	# fit$Xlist stores the augmented design: when the original fit had an
 	# intercept, the first slice of each period's array is that intercept
-	# column. Passing the augmented list back through Xdyad would make every
-	# refit add a second intercept on top of the stored one (two exactly
-	# collinear slices whose coefficients are only jointly identified), so
-	# strip the stored slice and let the refit re-add its own.
+	# column. the refit adds its own intercept, so the stored slice is
+	# stripped here; otherwise the refit design carries two exactly
+	# collinear constant slices whose coefficients are only jointly
+	# identified.
 	has_icpt_slice <- function(X) {
 		if (is.null(X)) return(FALSE)
 		nm <- dimnames(X)[[3L]]

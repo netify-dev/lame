@@ -306,7 +306,7 @@ test_that("symmetric = TRUE is rejected for the cbin and frn families", {
 
 # lame() inspects names(sys.call()) to catch abbreviations of `model.name`.
 # that is NULL for an all-positional call or a `wrapper(...)` forward, and
-# startsWith() errored on it, so any thin wrapper around lame() crashed.
+# the guard must tolerate it so thin wrappers around lame() keep working.
 test_that("lame() runs when called through a wrapper that forwards dots", {
 	skip_on_cran()
 	data(YX_bin_list, envir = environment())

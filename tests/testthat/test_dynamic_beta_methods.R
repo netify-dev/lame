@@ -485,11 +485,10 @@ test_that("lfo errors when periods < 2", {
 	             "leave-out period")
 })
 
-# fit$Xlist stores the augmented design (intercept slice first). lfo() used
-# to pass it straight back as Xdyad, so every refit stacked a second
-# intercept on the stored one: two exactly collinear slices whose
-# coefficients were only jointly identified. capture the refit to check the
-# design it actually sees.
+# fit$Xlist stores the augmented design (intercept slice first). lfo() must
+# strip that slice before refitting, since the refit adds its own intercept
+# and a stacked pair of constant slices is only jointly identified. capture
+# the refit to check the design it actually sees.
 .capture_lfo_refit = function(fit, ...) {
 	cap = new.env()
 	real_lame = lame
@@ -518,7 +517,7 @@ test_that("lfo refit carries exactly one intercept (binary T=4, one covariate)",
 	expect_equal(dim(cap$Xdyad[[1L]])[3L], 1L)
 	expect_false("intercept" %in% dimnames(cap$Xdyad[[1L]])[[3L]])
 	# refit coefficients: one intercept + one covariate, nothing collinear.
-	# the buggy refit labelled the stacked slice "intercept_dyad", so match
+	# a stacked constant slice would be labelled "intercept_dyad", so match
 	# on the prefix rather than the exact name.
 	expect_equal(sum(startsWith(colnames(cap$fit$BETA), "intercept")), 1L)
 	expect_equal(ncol(cap$fit$BETA), 2L)
