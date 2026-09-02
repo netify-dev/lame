@@ -1,5 +1,12 @@
 # lame 1.3.5
 
+* `lfo()` refits no longer carry two intercepts. The stored design
+  (`fit$Xlist`) already includes the intercept slice, and `lfo()` passed it
+  back through `Xdyad`, so each refit added a second, exactly collinear
+  intercept; the stored slice is now stripped before refitting.
+* `lame()` no longer errors when called through a wrapper that forwards
+  `...` (or with only positional arguments); the `model.name`
+  partial-match guard assumed the call had names.
 * `uv_plot()` now honors `layout = "circle"` for dynamic snapshot plots; it was
   silently drawing a biplot. Also corrected the latent-space description in the
   help to the inner-product (eigenmodel) interpretation.

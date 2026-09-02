@@ -303,3 +303,17 @@ test_that("symmetric = TRUE is rejected for the cbin and frn families", {
 		    burn = 2, nscan = 4, odens = 1, verbose = FALSE))
 	expect_s3_class(fit, "ame")
 })
+
+# lame() inspects names(sys.call()) to catch abbreviations of `model.name`.
+# that is NULL for an all-positional call or a `wrapper(...)` forward, and
+# startsWith() errored on it, so any thin wrapper around lame() crashed.
+test_that("lame() runs when called through a wrapper that forwards dots", {
+	skip_on_cran()
+	data(YX_bin_list, envir = environment())
+	wrap = function(...) lame(...)
+	fit = suppressWarnings(wrap(YX_bin_list$Y, YX_bin_list$X, family = "binary",
+		R = 0, nscan = 20, burn = 5, odens = 5, verbose = FALSE, plot = FALSE))
+	expect_s3_class(fit, "lame")
+	# the partial-match guard itself still fires
+	expect_error(lame(YX_bin_list$Y, model = "bin"), "partially matched")
+})

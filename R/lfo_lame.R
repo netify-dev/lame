@@ -58,6 +58,21 @@ lfo <- function(fit, periods = NULL, refit = TRUE, ...) {
 	T_per <- length(Y_list)
 	X_list <- fit$Xlist
 	if (is.null(X_list)) X_list <- rep(list(NULL), T_per)
+	# fit$Xlist stores the *augmented* design: when the original fit had an
+	# intercept, the first slice of each period's array is that intercept
+	# column. Passing the augmented list back through Xdyad would make every
+	# refit add a second intercept on top of the stored one (two exactly
+	# collinear slices whose coefficients are only jointly identified), so
+	# strip the stored slice and let the refit re-add its own.
+	has_icpt_slice <- function(X) {
+		if (is.null(X)) return(FALSE)
+		nm <- dimnames(X)[[3L]]
+		!is.null(nm) && length(nm) >= 1L && nm[1L] == "intercept"
+	}
+	if (all(vapply(X_list, has_icpt_slice, logical(1L)))) {
+		X_list <- lapply(X_list, function(X) X[, , -1L, drop = FALSE])
+	}
+	X_is_empty <- all(vapply(X_list, function(X) is.null(X) || dim(X)[3L] == 0L, logical(1L)))
 
 	if (is.null(periods)) {
 		periods <- utils::tail(seq_len(T_per), 3L)
@@ -88,7 +103,7 @@ lfo <- function(fit, periods = NULL, refit = TRUE, ...) {
 		X_test  <- X_list[[t_out]]
 
 		refit_args <- list(
-			Y = Y_train, Xdyad = X_train,
+			Y = Y_train, Xdyad = if (X_is_empty) NULL else X_train,
 			family = family, R = R_rank,
 			dynamic_beta = dyn_beta,
 			dynamic_beta_kind = dyn_beta_kind,

@@ -1176,7 +1176,9 @@ lame <- function(
 	# the default family; catch abbreviated spellings of model.name.
 	# names that exactly match another formal (e.g. `mode`) are fine --
 	# exact matches always win over partial matching.
-	sc_nms <- names(sys.call())
+	# names() is NULL for an all-positional call or a `wrapper(...)`
+	# forward, and startsWith() errors on NULL, so coerce first.
+	sc_nms <- names(sys.call()) %||% character()
 	part <- sc_nms[nzchar(sc_nms) & sc_nms != "model.name" &
 	               startsWith("model.name", sc_nms) &
 	               !(sc_nms %in% names(formals(sys.function())))]

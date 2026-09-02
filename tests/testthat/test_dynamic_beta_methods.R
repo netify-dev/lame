@@ -485,6 +485,59 @@ test_that("lfo errors when periods < 2", {
 	             "leave-out period")
 })
 
+# fit$Xlist stores the augmented design (intercept slice first). lfo() used
+# to pass it straight back as Xdyad, so every refit stacked a second
+# intercept on the stored one: two exactly collinear slices whose
+# coefficients were only jointly identified. capture the refit to check the
+# design it actually sees.
+.capture_lfo_refit = function(fit, ...) {
+	cap = new.env()
+	real_lame = lame
+	testthat::local_mocked_bindings(lame = function(...) {
+		args = list(...)
+		cap$Xdyad = args$Xdyad
+		cap$fit = do.call(real_lame, args)
+		cap$fit
+	}, .package = "lame", .env = parent.frame())
+	cap$res = suppressWarnings(lfo(fit, ...))
+	cap
+}
+
+test_that("lfo refit carries exactly one intercept (binary T=4, one covariate)", {
+	data(YX_bin_list, envir = environment())
+	X1 = lapply(YX_bin_list$X, function(x) x[, , 1L, drop = FALSE])
+	fit = suppressWarnings(lame(YX_bin_list$Y, X1, family = "binary", R = 0,
+		nscan = 40, burn = 10, odens = 5, verbose = FALSE, plot = FALSE, seed = 7L))
+	# premise: the stored design is augmented with the intercept slice
+	expect_identical(dimnames(fit$Xlist[[1L]])[[3L]][1L], "intercept")
+
+	cap = .capture_lfo_refit(fit, periods = 4L, refit = TRUE,
+		nscan = 20L, burn = 5L, odens = 5L)
+	# refit design: the covariate only, no stored intercept slice
+	expect_equal(length(cap$Xdyad), 3L)
+	expect_equal(dim(cap$Xdyad[[1L]])[3L], 1L)
+	expect_false("intercept" %in% dimnames(cap$Xdyad[[1L]])[[3L]])
+	# refit coefficients: one intercept + one covariate, nothing collinear.
+	# the buggy refit labelled the stacked slice "intercept_dyad", so match
+	# on the prefix rather than the exact name.
+	expect_equal(sum(startsWith(colnames(cap$fit$BETA), "intercept")), 1L)
+	expect_equal(ncol(cap$fit$BETA), 2L)
+	expect_true(is.finite(cap$res$elpd_lfo))
+})
+
+test_that("lfo refit of an intercept-only fit passes Xdyad = NULL", {
+	data(YX_bin_list, envir = environment())
+	fit = suppressWarnings(lame(YX_bin_list$Y, family = "binary", R = 0,
+		nscan = 40, burn = 10, odens = 5, verbose = FALSE, plot = FALSE, seed = 7L))
+	expect_identical(dimnames(fit$Xlist[[1L]])[[3L]], "intercept")
+
+	cap = .capture_lfo_refit(fit, periods = 4L, refit = TRUE,
+		nscan = 20L, burn = 5L, odens = 5L)
+	expect_null(cap$Xdyad)
+	expect_identical(colnames(cap$fit$BETA), "intercept")
+	expect_true(is.finite(cap$res$elpd_lfo))
+})
+
 # =============================================================================
 # prediction + log-likelihood: transition kinds, counterfactual/forecast, autoplot, log-lik
 # =============================================================================
