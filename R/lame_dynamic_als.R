@@ -118,7 +118,7 @@
 
 .lda_solve_path <- function(obs_prec, rhs, lambda, kind = "rw1",
                             rho = 1, ridge = 1e-8,
-                            transition_weights = NULL) {
+                            transition_weights = NULL, level_prec = 0) {
 	Tt <- length(rhs)
 	P <- if (!is.null(transition_weights) && !identical(kind, "rw2")) {
 		.lda_path_penalty_weighted(
@@ -128,7 +128,7 @@
 		.lda_path_penalty(Tt, lambda, kind, rho)
 	}
 	K <- diag(obs_prec, nrow = Tt) + P
-	K <- K + diag(ridge, Tt)
+	K <- K + diag(ridge + level_prec, Tt)
 	.ae_safe_solve(K, rhs)
 }
 
@@ -615,7 +615,7 @@
 .lda_update_dynamic_ab <- function(Z, W, Xb, Oarr, a_mat, b_mat,
                                    lambda_ab, rho_ab, kind = "ar1",
                                    transition_a = NULL,
-                                   transition_b = NULL) {
+                                   transition_b = NULL, level_prec = 0) {
 	nr <- dim(Z)[1L]
 	nc <- dim(Z)[2L]
 	Tt <- dim(Z)[3L]
@@ -640,7 +640,8 @@
 		}
 		tw <- if (is.null(transition_a)) NULL else transition_a[i, ]
 		a_mat[i, ] <- .lda_solve_path(
-			den, rhs, lambda_ab, kind, rho_ab, transition_weights = tw)
+			den, rhs, lambda_ab, kind, rho_ab, transition_weights = tw,
+			level_prec = level_prec)
 	}
 	for (j in seq_len(nc)) {
 		rhs <- numeric(Tt)
@@ -661,7 +662,8 @@
 		}
 		tw <- if (is.null(transition_b)) NULL else transition_b[j, ]
 		b_mat[j, ] <- .lda_solve_path(
-			den, rhs, lambda_ab, kind, rho_ab, transition_weights = tw)
+			den, rhs, lambda_ab, kind, rho_ab, transition_weights = tw,
+			level_prec = level_prec)
 	}
 	for (t in seq_len(Tt)) {
 		a_mat[, t] <- a_mat[, t] - mean(a_mat[, t])
@@ -673,7 +675,8 @@
 .lda_update_dynamic_ab_symmetric <- function(Z, W, Xb, Oarr, a_mat,
                                              lambda_ab, rho_ab,
                                              kind = "ar1",
-                                             transition_a = NULL) {
+                                             transition_a = NULL,
+                                             level_prec = 0) {
 	n <- dim(Z)[1L]
 	Tt <- dim(Z)[3L]
 	mask <- is.finite(Z)
@@ -714,7 +717,8 @@
 		}
 		tw <- if (is.null(transition_a)) NULL else transition_a[i, ]
 		a_mat[i, ] <- .lda_solve_path(
-			den, rhs, lambda_ab, kind, rho_ab, transition_weights = tw)
+			den, rhs, lambda_ab, kind, rho_ab, transition_weights = tw,
+			level_prec = level_prec)
 	}
 	for (t in seq_len(Tt)) a_mat[, t] <- a_mat[, t] - mean(a_mat[, t])
 	list(a = a_mat, b = a_mat)
@@ -1255,7 +1259,8 @@
                            transition_u = NULL, transition_v = NULL,
                            dynamic_G = FALSE, G_cube = NULL,
                            lambda_g = 0, rho_g = 1,
-                           level_prec_uv = 0, level_prec_g = 0) {
+                           level_prec_uv = 0, level_prec_g = 0,
+                           level_prec_ab = 0) {
 	E <- .lda_eta(prep, coef_path, a_mat, b_mat, Oarr,
 	              symmetric = symmetric, beta_dyn = beta_dyn)
 	sse <- 0
@@ -1319,6 +1324,10 @@
 	# monitored objective is the exact penalized least-squares / IRLS
 	# working objective the block updates minimize
 	pen_level <- 0
+	if (level_prec_ab > 0) {
+		pen_level <- pen_level + level_prec_ab * (sum(a_mat^2, na.rm = TRUE) +
+			if (is.null(b_mat) || isTRUE(symmetric)) 0 else sum(b_mat^2, na.rm = TRUE))
+	}
 	if (level_prec_uv > 0 && !is.null(U) && !is.null(V)) {
 		pen_level <- pen_level + level_prec_uv * (sum(U^2) + sum(V^2))
 	}
@@ -1327,6 +1336,23 @@
 		pen_level <- pen_level + level_prec_g * sum(G_cube^2)
 	}
 	sse + pen_ab + pen_beta + pen_uv + pen_g + pen_level
+}
+
+# true deviance of a non-normal fit on the data scale plus the same penalty
+# terms the block updates minimize; the outer irls gate accepts a reweighted
+# iterate only when this falls, which is what keeps sparse binary and poisson
+# panels from running away under near-separation
+.lda_penalized_deviance <- function(prep, family, link, eta_list, pen) {
+	eta <- .lda_eta_array(eta_list)
+	y <- prep$Yarr
+	dev <- if (identical(family, "poisson")) {
+		.ae_dev_poisson(y, exp(pmin(pmax(eta, -20), 20)))
+	} else if (identical(link, "logit")) {
+		.ae_dev_binary(y, stats::plogis(eta))
+	} else {
+		.ae_dev_binary(y, stats::pnorm(eta))
+	}
+	dev + pen
 }
 
 .lda_default_lambdas <- function(prep, lambda_ab, lambda_beta, lambda_uv) {
@@ -1483,13 +1509,19 @@
                         obs_weights = NULL, irls_trace = NULL,
                         stability = NULL,
                         transition_u = NULL, transition_v = NULL,
-                        convergence_trace = NULL, tol = NULL) {
+                        convergence_trace = NULL, tol = NULL,
+                        reweight_steps = NULL) {
 	nr <- prep$nr
 	nc <- prep$nc
 	Tt <- prep$Tt
 	if (is.null(Oarr)) Oarr <- .lda_o_array(Omat, Tt)
 	objective_diff <- diff(objective_trace)
 	objective_increase_tol <- 1e-10 * (abs(utils::head(objective_trace, -1L)) + 1)
+	if (length(reweight_steps)) {
+		keep_diff <- setdiff(seq_along(objective_diff), reweight_steps)
+		objective_diff <- objective_diff[keep_diff]
+		objective_increase_tol <- objective_increase_tol[keep_diff]
+	}
 	objective_increases <- if (length(objective_diff) > 0L) {
 		sum(objective_diff > objective_increase_tol, na.rm = TRUE)
 	} else {
@@ -2208,20 +2240,54 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	g_level_active <- isTRUE(dynamic_G)
 	level_prec_uv <- if (uv_level_active) .lda_level_prec else 0
 	level_prec_g <- if (g_level_active) .lda_level_prec else 0
-	for (iter in seq_len(max_iter)) {
-		if (isTRUE(use_irls)) {
-			eta_start <- .lda_eta(prep, coef_path, a_mat, b_mat, Oarr,
-			                      symmetric = symmetric, beta_dyn = beta_dyn)
-			work <- .lda_irls_work(prep$Yarr, .lda_eta_array(eta_start),
-			                       family = family, link = link)
-			Z <- work$Z
-			W <- work$W
-			if (isTRUE(symmetric)) {
-				for (t in seq_len(prep$Tt)) {
-					Z[, , t] <- .ae_symmetrize(Z[, , t])
-					W[, , t] <- .ae_symmetrize(W[, , t])
-				}
+	# under a saturating likelihood an actor-period with no ties has nothing
+	# but the smoothness penalty holding its additive effect off infinity, so
+	# the non-normal families carry the same marginal level prior on the a/b
+	# paths that the factors already carry; the normal family does not need it
+	level_prec_ab <- if (isTRUE(use_irls) && isTRUE(dynamic_ab)) .lda_level_prec else 0
+	# non-normal families run irls as an outer loop: the working response and
+	# weights are rebuilt only once the block sweeps have converged on the
+	# current working problem, and a reweighted iterate is kept only if it
+	# lowers the true penalized deviance. on an overshoot the best state so
+	# far is restored and the fit stops. the normal family has no reweights
+	# and runs the block sweeps once
+	irls_maxit <- 12L
+	irls_tol <- 1e-4
+	# a short inner run per working problem behaves like damped irls: solving
+	# each reweighted problem to full tolerance over-fits the current working
+	# response before the next reweight can correct it
+	irls_inner_cap <- min(40L, as.integer(max_iter))
+	sweep_budget <- if (isTRUE(use_irls)) irls_inner_cap * irls_maxit else max_iter
+	outer_k <- 1L
+	iter_inner <- 0L
+	reweight_steps <- integer(0)
+	best_state <- NULL
+	best_pdev <- Inf
+	prev_pdev <- NA_real_
+	irls_reweight <- function() {
+		eta_start <- .lda_eta(prep, coef_path, a_mat, b_mat, Oarr,
+		                      symmetric = symmetric, beta_dyn = beta_dyn)
+		work <- .lda_irls_work(prep$Yarr, .lda_eta_array(eta_start),
+		                       family = family, link = link)
+		Zn <- work$Z
+		Wn <- work$W
+		if (isTRUE(symmetric)) {
+			for (t in seq_len(prep$Tt)) {
+				Zn[, , t] <- .ae_symmetrize(Zn[, , t])
+				Wn[, , t] <- .ae_symmetrize(Wn[, , t])
 			}
+		}
+		list(Z = Zn, W = Wn)
+	}
+	snapshot_state <- function() list(
+		coef_path = coef_path, a_mat = a_mat, b_mat = b_mat, U = U, V = V, L = L,
+		G_static = G_static, G_cube = G_cube, Oarr = Oarr, Omat = Omat, Z = Z, W = W)
+	for (iter in seq_len(sweep_budget)) {
+		iter_inner <- iter_inner + 1L
+		if (isTRUE(use_irls) && iter == 1L) {
+			rw <- irls_reweight()
+			Z <- rw$Z
+			W <- rw$W
 		}
 		transition_u <- .lda_transition_from_presence(prep$row_presence)
 		transition_v <- .lda_transition_from_presence(prep$col_presence)
@@ -2250,14 +2316,16 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 						Z, W, Xb, Oarr, a_mat,
 						lambda_ab = lambda_ab, rho_ab = rho_ab,
 						kind = "ar1",
-						transition_a = transition_a)
+						transition_a = transition_a,
+						level_prec = level_prec_ab)
 				} else {
 					.lda_update_dynamic_ab(
 						Z, W, Xb, Oarr, a_mat, b_mat,
 						lambda_ab = lambda_ab, rho_ab = rho_ab,
 						kind = "ar1",
 						transition_a = transition_a,
-						transition_b = transition_b)
+						transition_b = transition_b,
+						level_prec = level_prec_ab)
 				}
 			a_mat <- ab$a
 			b_mat <- ab$b
@@ -2374,9 +2442,9 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 		                      dynamic_G = dynamic_G, G_cube = G_cube,
 		                      lambda_g = lambda_g, rho_g = rho_g,
 		                      level_prec_uv = level_prec_uv,
-		                      level_prec_g = level_prec_g)
+		                      level_prec_g = level_prec_g,
+		                      level_prec_ab = level_prec_ab)
 		objective_trace <- c(objective_trace, obj)
-		if (isTRUE(use_irls)) irls_trace <- c(irls_trace, obj)
 		eta_now <- .lda_eta(prep, coef_path, a_mat, b_mat, Oarr,
 		                    symmetric = symmetric, beta_dyn = beta_dyn)
 		max_eta_delta <- if (is.null(old_eta)) Inf else {
@@ -2412,12 +2480,73 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 				max_parameter_delta = param_delta
 			)
 		)
-		if (iter > 1L) {
-			if (is.finite(rel_obj) && rel_obj < tol &&
-			    is.finite(max_eta_delta) && max_eta_delta < sqrt(tol)) {
+		# the relative objective change is only meaningful within one working
+		# problem, so it is not read on the first sweep after a reweight
+		if (iter_inner <= 1L) rel_obj <- NA_real_
+		inner_conv <- iter_inner > 1L && is.finite(rel_obj) && rel_obj < tol &&
+			is.finite(max_eta_delta) && max_eta_delta < sqrt(tol)
+		if (!isTRUE(use_irls)) {
+			if (inner_conv) {
 				converged <- TRUE
 				break
 			}
+			next
+		}
+		if (inner_conv || iter_inner >= irls_inner_cap) {
+			eta_now_list <- .lda_eta(prep, coef_path, a_mat, b_mat, Oarr,
+			                         symmetric = symmetric, beta_dyn = beta_dyn)
+			eta_arr <- .lda_eta_array(eta_now_list)
+			pen <- .lda_objective(eta_arr, array(1, dim(eta_arr)), prep, coef_path,
+			                      a_mat, b_mat, Oarr,
+			                      beta_dyn, lambda_beta, dynamic_beta_kind,
+			                      rho_beta, dynamic_ab, lambda_ab, rho_ab,
+			                      transition_a = transition_a,
+			                      transition_b = transition_b,
+			                      symmetric = symmetric,
+			                      dynamic_uv = dynamic_uv, U = U, V = V,
+			                      lambda_uv = lambda_uv, rho_uv = rho_uv,
+			                      transition_u = transition_u,
+			                      transition_v = transition_v,
+			                      dynamic_G = dynamic_G, G_cube = G_cube,
+			                      lambda_g = lambda_g, rho_g = rho_g,
+			                      level_prec_uv = level_prec_uv,
+			                      level_prec_g = level_prec_g,
+			                      level_prec_ab = level_prec_ab)
+			pdev <- .lda_penalized_deviance(prep, family, link, eta_now_list, pen)
+			irls_trace <- c(irls_trace, pdev)
+			if (!is.finite(pdev) || pdev > best_pdev) {
+				# overshoot: restore the best accepted state and stop
+				st <- best_state
+				if (!is.null(st)) {
+					coef_path <- st$coef_path; a_mat <- st$a_mat; b_mat <- st$b_mat
+					U <- st$U; V <- st$V; L <- st$L
+					G_static <- st$G_static; G_cube <- st$G_cube
+					Oarr <- st$Oarr; Omat <- st$Omat; Z <- st$Z; W <- st$W
+				}
+				# an overshoot after at least one accepted reweight means the best
+				# state is the minimizer along the irls path
+				converged <- outer_k >= 3L
+				break
+			}
+			best_state <- snapshot_state()
+			best_pdev <- pdev
+			if (is.finite(prev_pdev) &&
+			    abs(prev_pdev - pdev) / max(1, abs(prev_pdev)) < irls_tol) {
+				converged <- TRUE
+				break
+			}
+			if (outer_k >= irls_maxit) {
+				converged <- FALSE
+				break
+			}
+			prev_pdev <- pdev
+			outer_k <- outer_k + 1L
+			rw <- irls_reweight()
+			Z <- rw$Z
+			W <- rw$W
+			reweight_steps <- c(reweight_steps, iter)
+			iter_inner <- 0L
+			old_eta <- NULL
 		}
 	}
 
@@ -2435,21 +2564,27 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	}
 	dynamic_objective_diff <- diff(objective_trace)
 	dynamic_objective_increase_tol <- tol * (abs(utils::head(objective_trace, -1L)) + 1)
+	# a reweight changes the working problem, so the jump across it is not a
+	# monotonicity failure
+	if (length(reweight_steps)) {
+		keep_diff <- setdiff(seq_along(dynamic_objective_diff), reweight_steps)
+		dynamic_objective_diff <- dynamic_objective_diff[keep_diff]
+		dynamic_objective_increase_tol <- dynamic_objective_increase_tol[keep_diff]
+	}
 	dynamic_objective_increases <- if (length(dynamic_objective_diff) > 0L) {
 		sum(dynamic_objective_diff > dynamic_objective_increase_tol, na.rm = TRUE)
 	} else {
 		0L
 	}
 	if (dynamic_objective_increases > 0L) {
-		# a monotone block-coordinate objective should never increase; on very
-		# sparse non-normal panels the irls working objective can diverge under
-		# near-separation, so the warning names the remedy and fires regardless
-		# of verbose
+		# within one working problem the block-coordinate objective is monotone,
+		# so an increase here (reweight steps are already excluded) means a
+		# block update failed to descend; say so and fire regardless of verbose
 		cli::cli_warn(c(
-			"{.fn lame_dynamic_als} objective increased in {dynamic_objective_increases} step{?s}.",
-			"x" = "On sparse non-normal panels this usually means near-separation; the dynamic ALS point estimates are not trustworthy for this fit.",
-			"i" = "Use {.code method = \"mcmc\"} or the static ALS route ({.fn ame_als} / {.fn lame_als}), which carries a MAP ridge for this case.",
-			"i" = "Inspect {.code fit$diagnostics$objective_increases} and the fitted-value trace."))
+			"{.fn lame_dynamic_als} objective increased in {dynamic_objective_increases} step{?s} within a working problem.",
+			"x" = "The block updates did not descend monotonically, so treat these point estimates with caution.",
+			"i" = "Try a longer {.arg max_iter}, a different start, or {.code method = \"mcmc\"} for a fit with uncertainty.",
+			"i" = "Inspect {.code fit$diagnostics$objective_increases} and {.code fit$diagnostics$convergence_trace}."))
 	}
 	if (isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "t") &&
 	    !is.null(U) && length(dim(U)) == 3L) {
@@ -2477,7 +2612,8 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	                       transition_u = transition_u,
 	                       transition_v = transition_v,
 	                       convergence_trace = convergence_trace,
-	                       tol = tol)
+	                       tol = tol,
+	                       reweight_steps = reweight_steps)
 	if (!identical(stability, "none")) {
 		fit_out$stability <- .lda_dynamic_stability(
 			fit_out, starts = stability, seed = seed, call_args = call_args)

@@ -32,11 +32,18 @@
   `U G V'` is identified, and the leftover scale used to wander: `G` shrank
   toward zero while the latent coordinates grew, until they hit
   `prior$uv_max_abs` and the sampler began rejecting 20-40% of its own `U`/`V`
-  proposals on realistic panel sizes. The scale is now pinned (`G` carries unit
-  Frobenius norm), which leaves `U G V'` untouched. Estimates of the identified
-  quantities were not affected, but the raw coordinate scale was arbitrary and
-  sampling efficiency suffered. The warning for this case now says what to do
-  instead of suggesting a longer chain, which made it worse.
+  proposals on realistic panel sizes. The latent coordinates are now kept at
+  or below unit scale, with `G` absorbing the scale, which leaves `U G V'`
+  untouched. For normal outcomes each margin is held at unit scale, which also
+  stops the slow drift of scale into the interaction matrix on long
+  `dynamic_G` chains, so the raw coordinates and the persistence parameters
+  stay readable. For binary and Poisson outcomes the coordinates are only
+  ever shrunk: a saturated likelihood wants the product to grow without
+  bound, and pulling the coordinates back up would push all of that growth
+  into `G`. Estimates of the identified quantities were not affected, but the
+  raw coordinate scale was arbitrary and sampling efficiency suffered. The
+  warning for this case now says what to do instead of suggesting a longer
+  chain, which made it worse.
 * Longitudinal fits estimate the latent-persistence parameters (`rho_uv`,
   `sigma_uv`) more reliably: the unipartite sampler now updates them every
   sweep instead of every tenth, matching the earlier bipartite fix, so they
@@ -47,14 +54,33 @@
   them.
 * ALS fits with `R > 0` expose the fitted multiplicative surface as `UVPM`
   (and `ULUPM` for symmetric fits), matching the MCMC fit objects.
-* When the dynamic ALS objective diverges (near-separation on very sparse
-  panels), the warning now fires regardless of `verbose` and says what to do:
-  use MCMC or the static ALS route, which carries a MAP ridge for this case.
+* Dynamic ALS (`lame(method = "als")` with dynamic effects) no longer runs away
+  on sparse binary or Poisson panels. It now reweights only once the block
+  updates have settled or spent their step budget, keeps a reweighted step
+  only when the true penalized deviance falls, and falls back to the best
+  state on an overshoot, the same scheme the static route uses; the
+  non-normal families also carry a level prior on the dynamic sender and
+  receiver paths. A warning still fires if a block update fails to descend,
+  and now says so plainly.
 * `dynamic_beta` combined with `dynamic_ab` now gives the additive effects a
   real AR(1): the per-period draws pool across neighbouring years and
   `rho_ab` / `sigma_ab` are sampled rather than sitting at their starting
   values.
+* Bipartite `dynamic_G = TRUE` fits can no longer be poisoned by a single
+  non-finite state draw. The time-varying interaction matrix is accepted only
+  when every element is finite, its variance draw keeps the current value when
+  the state path is not finite, and the chain falls back to the last finite
+  draw otherwise; before, one bad draw made every later update fail and the
+  fit returned non-finite values for the rest of the run.
 * Tidied up the documentation and test suite.
+
+## Known limitations
+
+* In bipartite `dynamic_G = TRUE` fits with a binary or Poisson outcome, the
+  raw latent coordinates can drift toward zero over long chains while `G`
+  grows to compensate, and `rho_G` may then sit near its upper bound. The
+  fitted product `U G V'` (and so `EZ`, `YPM`, and the forecasts) is
+  unaffected; read the raw coordinates and `rho_G` qualitatively in that case.
 
 # lame 1.3.4
 

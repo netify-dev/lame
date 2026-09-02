@@ -822,3 +822,73 @@ test_that("dynamic_uv kernel does not double-shrink sigma_uv or |UV|", {
 	expect_gt(est[3] / truth_uv2, 0.85)
 	expect_lt(est[3] / truth_uv2, 1.2)
 })
+
+test_that("dynamic_G hyperparameter draw refuses a non-finite state path", {
+	# a NaN or Inf in the FFBS path must not turn sigma_G2 into NaN; the
+	# current value is kept and the chain stays finite
+	path = matrix(rnorm(8), 4, 2)
+	ok = sample_sigma_G2(path, rho_G = 0.7, s2_obs = 1, current = 0.2)
+	expect_true(is.finite(ok) && ok > 0)
+	path[2, 1] = NaN
+	expect_equal(sample_sigma_G2(path, rho_G = 0.7, s2_obs = 1, current = 0.2), 0.2)
+	path[2, 1] = Inf
+	expect_equal(sample_sigma_G2(path, rho_G = 0.7, s2_obs = 1, current = 0.2), 0.2)
+	expect_equal(sample_sigma_G2(matrix(rnorm(8), 4, 2), rho_G = NaN, s2_obs = 1, current = 0.3), 0.3)
+})
+
+test_that("bipartite dynamic_G fits keep every stored G and variance draw finite", {
+	skip_on_cran()
+	set.seed(21)
+	nA = 20; nB = 16; TT = 4
+	Y = lapply(1:TT, function(t) {
+		m = (matrix(rnorm(nA * nB), nA, nB) + 0.2 > 0) * 1
+		rownames(m) = sprintf("r%02d", 1:nA); colnames(m) = sprintf("c%02d", 1:nB); m
+	})
+	fit = suppressWarnings(lame(Y, mode = "bipartite", family = "binary",
+		R_row = 2, R_col = 2, dynamic_ab = TRUE, dynamic_uv = TRUE, dynamic_G = TRUE,
+		burn = 200, nscan = 800, odens = 4, seed = 8886, verbose = FALSE, plot = FALSE))
+	expect_true(all(is.finite(fit$SIGMA_G2)))
+	expect_true(all(is.finite(fit$RHO_G)))
+	expect_true(all(is.finite(fit$G_cube_post_mean)))
+	expect_true(all(is.finite(fit$VC[, "va"])))
+	expect_lt(max(fit$VC[, "va"]), 100)
+	expect_true(all(is.finite(unlist(fit$EZ))))
+})
+
+test_that("bipartite dynamic_G keeps both latent margins at unit scale (regression)", {
+	# the likelihood is flat along U / c, V * c, so over a long chain one
+	# margin can collapse while the other inflates and the interaction
+	# matrix grows to compensate; for a normal outcome the per-margin gauge
+	# holds both at unit rms, keeps G bounded, and lets rho_G move off its
+	# clamp
+	skip_on_cran()
+	set.seed(101)
+	nA = 30; nB = 50; TT = 4
+	a = rnorm(nA, 0, 0.5); b = rnorm(nB, 0, 0.5)
+	U = array(0, c(nA, 2, TT)); V = array(0, c(nB, 2, TT)); G = array(0, c(2, 2, TT))
+	U[, , 1] = matrix(rnorm(nA * 2, 0, 0.6), nA); V[, , 1] = matrix(rnorm(nB * 2, 0, 0.6), nB)
+	G[, , 1] = diag(c(1, -0.7))
+	for (t in 2:TT) {
+		U[, , t] = 0.8 * U[, , t - 1] + matrix(rnorm(nA * 2, 0, 0.36), nA)
+		V[, , t] = 0.8 * V[, , t - 1] + matrix(rnorm(nB * 2, 0, 0.36), nB)
+		G[, , t] = 0.8 * G[, , t - 1] + matrix(rnorm(4, 0, 0.2), 2)
+	}
+	Y = lapply(1:TT, function(t) {
+		m = outer(a, b, "+") + U[, , t] %*% G[, , t] %*% t(V[, , t]) + matrix(rnorm(nA * nB), nA)
+		rownames(m) = sprintf("s%03d", 1:nA); colnames(m) = sprintf("p%03d", 1:nB); m
+	})
+	fit = suppressWarnings(lame(Y, mode = "bipartite", family = "normal", R_row = 2, R_col = 2,
+		dynamic_ab = TRUE, dynamic_uv = TRUE, dynamic_G = TRUE,
+		burn = 500, nscan = 2000, odens = 10, seed = 8886, verbose = FALSE, plot = FALSE,
+		posterior_opts = list(save_UV = TRUE)))
+	rms = function(x) sqrt(mean(x^2, na.rm = TRUE))
+	nd = dim(fit$U_draws)[4]
+	expect_gt(rms(fit$U_draws[, , , nd]), 0.5)
+	expect_lt(rms(fit$U_draws[, , , nd]), 2)
+	expect_gt(rms(fit$V_draws[, , , nd]), 0.5)
+	expect_lt(rms(fit$V_draws[, , , nd]), 2)
+	expect_lt(max(abs(fit$G_cube)), 5)
+	expect_lt(median(fit$RHO_G), 0.97)
+	expect_true(all(is.finite(fit$VC[, "va"])))
+	expect_equal(fit$tryErrorChecks$G, 0)
+})

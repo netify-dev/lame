@@ -209,12 +209,19 @@ sample_rho_G_mh <- function(rho_G, vecG_path, sigma_G2, tau = 0.3) {
 #' @param s2_obs observation-noise variance (1 for probit/binary).
 #' @param v_cap_mult cap on the stationary G-state variance in units of
 #'   \code{s2_obs} (default 4).
+#' @param current the value currently held by the chain; returned unchanged
+#'   when the state path or the draw is not finite.
 #' @keywords internal
 sample_sigma_G2 <- function(vecG_path, rho_G, prior_shape = 2, prior_rate = 1,
-                            s2_obs = 1, v_cap_mult = 4) {
+                            s2_obs = 1, v_cap_mult = 4, current = NULL) {
 	N <- ncol(vecG_path)
 	p <- nrow(vecG_path)
 	if (p == 0L || N < 2L) return(min(1.0, v_cap_mult * max(s2_obs, 1e-8)))
+	# a non-finite state path cannot inform the variance; keep the current
+	# value rather than poisoning the chain with a NaN scale
+	if (!all(is.finite(vecG_path)) || !is.finite(rho_G)) {
+		return(current %||% min(1.0, v_cap_mult * max(s2_obs, 1e-8)))
+	}
 	# stationary at t = 1: g_1 ~ n(0, sigma^2 / (1 - rho^2)) ->
 	# (1 - rho^2) g_1^2 ~ sigma^2 * chi^2_1 in expectation; we treat the
 	# stationary contribution as an effective sum of squares too for
@@ -234,7 +241,11 @@ sample_sigma_G2 <- function(vecG_path, rho_G, prior_shape = 2, prior_rate = 1,
 	sig2 <- 1 / stats::rgamma(1, shape = shape_post, rate = rate_post)
 	# scale-identification cap: stationary variance sig2/(1-rho^2) <= cap
 	sig2_cap <- v_cap_mult * max(s2_obs, 1e-8) * rho2
-	min(sig2, sig2_cap)
+	out <- min(sig2, sig2_cap)
+	if (!is.finite(out) || out <= 0) {
+		return(current %||% sig2_cap)
+	}
+	out
 }
 
 #' Rotation-drift diagnostic for the canonical (U_t, G_t, V_t) trio

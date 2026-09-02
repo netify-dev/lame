@@ -10,7 +10,8 @@ sample_sigma_G2(
   prior_shape = 2,
   prior_rate = 1,
   s2_obs = 1,
-  v_cap_mult = 4
+  v_cap_mult = 4,
+  current = NULL
 )
 }
 \arguments{
@@ -18,6 +19,9 @@ sample_sigma_G2(
 
 \item{v_cap_mult}{cap on the stationary G-state variance in units of
 \code{s2_obs} (default 4).}
+
+\item{current}{the value currently held by the chain; returned unchanged
+when the state path or the draw is not finite.}
 }
 \description{
 Conjugate IG update on \code{sigma_G^2} given the AR(1) innovations

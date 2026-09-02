@@ -63,6 +63,18 @@ The block also prints the per-block AR(1) hyperparameters
 (\code{rho_beta = ...}). For per-period credible intervals use
 \code{\link{confint.lame}}.}
 }
+
+For dynamic fits the summary reports the posterior means of the
+persistence parameters \code{rho_uv} (latent positions) and
+\code{rho_ab} (additive effects). These are learned from period-to-period
+transitions, so on short panels, and on sparse bipartite panels where each
+period's positions are themselves uncertain, they lean on their priors
+(default means 0.9 and 0.8; see the \code{prior} argument of
+\code{\link{lame}}). Before reading a persistence value quantitatively,
+refit with a different prior mean (for example
+\code{prior = list(rho_uv_mean = 0.5)}) and check that the estimate
+moves little; if it tracks the prior, describe the persistence
+qualitatively rather than reporting the number.
 }
 \seealso{
 \code{\link{lame}}, \code{\link{print.summary.lame}}

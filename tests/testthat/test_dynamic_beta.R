@@ -680,9 +680,9 @@ test_that("penalised ALS errors on negative lambda", {
 
 test_that("dynamic_beta + dynamic_ab samples the AR(1) hyperparameters (regression)", {
 	# the combination draws per-period additive effects under the AR(1)
-	# conditional prior and must sample rho_ab / sigma_ab; frozen values at
+	# conditional prior and must sample rho_ab / sigma_ab; values frozen at
 	# the initialization (0.8 / 0.1 with zero variance) mean the AR(1)
-	# machinery is unreachable again
+	# machinery is not being reached
 	skip_on_cran()
 	set.seed(4)
 	n = 12; TT = 5
@@ -701,4 +701,27 @@ test_that("dynamic_beta + dynamic_ab samples the AR(1) hyperparameters (regressi
 	expect_gt(sd(as.numeric(fit$sigma_ab)), 1e-6)
 	expect_false(is.null(fit$a_dynamic))
 	expect_true(all(is.finite(fit$a_dynamic)))
+})
+
+test_that("symmetric dynamic_beta + dynamic_ab fits and merges coefficients (regression)", {
+	# the symmetric coefficient merge after the sampler indexes beta with the
+	# nodal-covariate index vectors, which must survive the AR(1) additive
+	# effect draws inside the loop
+	skip_on_cran()
+	set.seed(3)
+	n = 12; TT = 4
+	Y = lapply(1:TT, function(t) {
+		m = matrix(rnorm(n * n), n, n); m = (m + t(m)) / 2; diag(m) = NA
+		rownames(m) = colnames(m) = sprintf("a%02d", 1:n); m
+	})
+	X = lapply(1:TT, function(t) {
+		a = matrix(rnorm(n * n), n, n); a = (a + t(a)) / 2
+		a = array(a, c(n, n, 1)); dimnames(a)[[3]] = "x"; a
+	})
+	fit = suppressWarnings(lame(Y, Xdyad = X, family = "normal", symmetric = TRUE, R = 0,
+		dynamic_ab = TRUE, dynamic_beta = "dyad",
+		burn = 50, nscan = 150, odens = 5, seed = 1, verbose = FALSE, plot = FALSE))
+	expect_s3_class(fit, "lame")
+	expect_true(all(is.finite(fit$a_dynamic)))
+	expect_gt(sd(as.numeric(fit$rho_ab)), 1e-6)
 })

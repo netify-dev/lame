@@ -3940,13 +3940,13 @@ lame <- function(
 					# (cbin/frn) when dynamic_beta is also active.
 					rho_ab_eff_t <- .lame_rho_scalar(rho)
 					for (t in seq_len(N)) {
-						ca <- .lame_ab_ar1_cond(a_mat, t, N, rho_ab, sigma_ab)
-						cb <- .lame_ab_ar1_cond(b_mat, t, N, rho_ab, sigma_ab)
+						cond_a <- .lame_ab_ar1_cond(a_mat, t, N, rho_ab, sigma_ab)
+						cond_b <- .lame_ab_ar1_cond(b_mat, t, N, rho_ab, sigma_ab)
 						Zr1 <- resid_cube[, , t, drop = FALSE]
-						Zr1[, , 1] <- Zr1[, , 1] - outer(ca$m, rep(1, n)) -
-							outer(rep(1, n), cb$m)
+						Zr1[, , 1] <- Zr1[, , 1] - outer(cond_a$m, rep(1, n)) -
+							outer(rep(1, n), cond_b$m)
 						Zr1[!is.finite(Zr1)] <- 0
-						Sab_cond <- diag(c(ca$v, cb$v))
+						Sab_cond <- diag(c(cond_a$v, cond_b$v))
 						abd_t <- tryCatch(
 							rbeta_ab_rep_fc(Zr1, Sab_cond, rho_ab_eff_t,
 							                array(0, dim = c(n, n, 0L, 1L)), s2_floor),
@@ -3957,14 +3957,14 @@ lame <- function(
 						if (!is.null(abd_t) && all(is.finite(abd_t$a)) &&
 						    all(is.finite(abd_t$b))) {
 							if (symmetric) {
-								full <- ((ca$m + as.numeric(abd_t$a) +
-								          cb$m + as.numeric(abd_t$b)) / 2) * nvar
+								full <- ((cond_a$m + as.numeric(abd_t$a) +
+								          cond_b$m + as.numeric(abd_t$b)) / 2) * nvar
 								a_mat[, t] <- .apply_H(full, ab_bases$H_a)
 								b_mat[, t] <- a_mat[, t]
 							} else {
-								a_mat[, t] <- .apply_H((ca$m + as.numeric(abd_t$a)) * rvar,
+								a_mat[, t] <- .apply_H((cond_a$m + as.numeric(abd_t$a)) * rvar,
 								                       ab_bases$H_a)
-								b_mat[, t] <- .apply_H((cb$m + as.numeric(abd_t$b)) * cvar,
+								b_mat[, t] <- .apply_H((cond_b$m + as.numeric(abd_t$b)) * cvar,
 								                       ab_bases$H_b)
 							}
 						}
@@ -4018,25 +4018,25 @@ lame <- function(
 					# rho_ab / sigma_ab conditionals below see real ar(1) paths.
 					Xempty_bip1 <- list(array(0, dim = c(nA, nB, 0L)))
 					for (t in seq_len(N)) {
-						ca <- .lame_ab_ar1_cond(a_mat, t, N, rho_ab, sigma_ab)
-						cb <- .lame_ab_ar1_cond(b_mat, t, N, rho_ab, sigma_ab)
+						cond_a <- .lame_ab_ar1_cond(a_mat, t, N, rho_ab, sigma_ab)
+						cond_b <- .lame_ab_ar1_cond(b_mat, t, N, rho_ab, sigma_ab)
 						Zb1 <- resid_cube[, , t, drop = FALSE]
-						Zb1[, , 1] <- Zb1[, , 1] - outer(ca$m, rep(1, nB)) -
-							outer(rep(1, nA), cb$m)
+						Zb1[, , 1] <- Zb1[, , 1] - outer(cond_a$m, rep(1, nB)) -
+							outer(rep(1, nA), cond_b$m)
 						Zb1[!is.finite(Zb1)] <- 0
 						abd_t <- tryCatch(
 							rbeta_ab_bip_gibbs_cpp(
 								Zb1, Xempty_bip1, matrix(0, nA, nB),
-								a_mat[, t] - ca$m, b_mat[, t] - cb$m,
-								s2, as.numeric(g[1]), ca$v, cb$v, rvar, cvar),
+								a_mat[, t] - cond_a$m, b_mat[, t] - cond_b$m,
+								s2, as.numeric(g[1]), cond_a$v, cond_b$v, rvar, cvar),
 							error = function(e) {
 								tryErrorChecks$betaAB <<- tryErrorChecks$betaAB + 1L
 								NULL
 							})
 						if (!is.null(abd_t) && all(is.finite(abd_t$a)) &&
 						    all(is.finite(abd_t$b))) {
-							a_mat[, t] <- .apply_H(ca$m + as.numeric(abd_t$a), ab_bases$H_a)
-							b_mat[, t] <- .apply_H(cb$m + as.numeric(abd_t$b), ab_bases$H_b)
+							a_mat[, t] <- .apply_H(cond_a$m + as.numeric(abd_t$a), ab_bases$H_a)
+							b_mat[, t] <- .apply_H(cond_b$m + as.numeric(abd_t$b), ab_bases$H_b)
 						}
 					}
 					a <- a_mat[, 1]; b <- b_mat[, 1]
@@ -5024,6 +5024,7 @@ lame <- function(
 						G_cube <- array(0, dim = c(RA, RB, N))
 						for (t in seq_len(N)) G_cube[, , t] <- G
 					}
+					if (!exists("G_cube_last_ok", inherits = FALSE)) G_cube_last_ok <- G_cube
 					ffbs_out <- tryCatch(
 						ffbs_vecG(E_cube = E, U_cube = U_3d, V_cube = V_3d,
 							s2 = s2, rho_G = rho_G_state,
@@ -5032,8 +5033,19 @@ lame <- function(
 							tryErrorChecks$G <<- tryErrorChecks$G + 1L
 							NULL
 						})
+					# a draw is accepted only when every state is finite: a single
+					# non-finite g_t would otherwise stay in g_cube, turn sigma_g2
+					# into NaN, make every later ffbs call fail, and leave the chain
+					# emitting non-finite fitted values for the rest of the run
+					if (!is.null(ffbs_out) &&
+					    (!all(is.finite(ffbs_out$G_cube)) ||
+					     !all(is.finite(ffbs_out$vecG_path)))) {
+						tryErrorChecks$G <- tryErrorChecks$G + 1L
+						ffbs_out <- NULL
+					}
 					if (!is.null(ffbs_out)) {
 						G_cube <- ffbs_out$G_cube
+						G_cube_last_ok <- G_cube
 						# sample sigma_g2 conjugate ig, with the stationary-
 						# variance scale-identification cap (tied to the
 						# observation variance s2; for binary s2 = 1). this
@@ -5042,7 +5054,8 @@ lame <- function(
 						sigma_G2_state <- sample_sigma_G2(
 							vecG_path = ffbs_out$vecG_path,
 							rho_G = rho_G_state,
-							s2_obs = s2)
+							s2_obs = s2,
+							current = sigma_G2_state)
 						# sample rho_g via fisher-z logit mh
 						rho_step <- sample_rho_G_mh(
 							rho_G = rho_G_state,
@@ -5050,6 +5063,17 @@ lame <- function(
 							sigma_G2 = sigma_G2_state,
 							tau = 0.3)
 						rho_G_state <- rho_step$rho
+					}
+					# if the cube has gone non-finite by any other route, fall back
+					# to the last finite draw so the fitted values stay defined
+					if (!all(is.finite(G_cube))) {
+						tryErrorChecks$G <- tryErrorChecks$G + 1L
+						G_cube <- if (exists("G_cube_last_ok", inherits = FALSE) &&
+						              all(is.finite(G_cube_last_ok))) G_cube_last_ok else {
+							zc <- array(0, dim = c(RA, RB, N))
+							for (t in seq_len(N)) zc[, , t] <- diag(min(RA, RB), RA, RB)
+							zc
+						}
 					}
 					# working g uses the posterior-mean g_t across time for the
 					# next iteration's ez rebuild. the full cube is stored for
@@ -5100,38 +5124,70 @@ lame <- function(
 			# identifies only the product U_t G V_t', so the leftover scale can
 			# slide between the latent coordinates and G until the coordinates
 			# cross uv_max_abs and proposals start being rejected. shrink the
-			# coordinates back toward unit rms and let G absorb the scale, but
-			# only as far as G has room under its own cap: with a saturated
-			# binary likelihood the whole product is unidentified upward, and
-			# pushing scale into an already-large G just moves the rejections
-			# from U/V to G. shrink-only, so the coordinates are never pushed
-			# toward their bound. one global constant over every period and
-			# column, applied to sigma_uv as well, keeps U_t G V_t' exactly
-			# unchanged and carries the ar(1) law along (a per-period or
-			# per-column map would not preserve that law).
+			# coordinates toward unit rms and let G absorb the scale, but only
+			# as far as G has room under its own cap: with a saturated binary
+			# likelihood the whole product is unidentified upward, and pushing
+			# scale into an already-large G just moves the rejections from U/V
+			# to G. for normal outcomes the same map runs the other way when the
+			# coordinates have collapsed and the scale sits in G, so the raw
+			# coordinates stay readable and their ar(1) hyperparameters stay
+			# informed. one global constant over every period and column, applied
+			# to sigma_uv as well, keeps U_t G V_t' exactly unchanged and carries
+			# the ar(1) law along (a per-period or per-column map would not
+			# preserve that law).
 			if(bip && isTRUE(dynamic_uv) && RA > 0 && RB > 0 &&
 			   !is.null(G) && all(is.finite(G)) &&
 			   !is.null(U_cube) && !is.null(V_cube)) {
-				uv_sq <- c(as.numeric(U_cube)^2, as.numeric(V_cube)^2)
-				uv_sq <- uv_sq[is.finite(uv_sq)]
-				uv_rms <- if(length(uv_sq)) sqrt(mean(uv_sq)) else NA_real_
-				if(is.finite(uv_rms) && uv_rms > 1 + 1e-6) {
+				# each margin is normalised on its own: the likelihood is also flat
+				# along U / c, V * c, so a single joint constant lets one margin
+				# collapse while the other inflates and G grows to compensate
+				u_sq <- as.numeric(U_cube)^2; u_sq <- u_sq[is.finite(u_sq)]
+				v_sq <- as.numeric(V_cube)^2; v_sq <- v_sq[is.finite(v_sq)]
+				rms_u <- if(length(u_sq)) sqrt(mean(u_sq)) else NA_real_
+				rms_v <- if(length(v_sq)) sqrt(mean(v_sq)) else NA_real_
+				if(is.finite(rms_u) && is.finite(rms_v) && rms_u > 1e-8 && rms_v > 1e-8 &&
+				   (abs(log(rms_u)) > 1e-6 || abs(log(rms_v)) > 1e-6)) {
+					k_u <- rms_u
+					k_v <- rms_v
+					# inflating a margin moves scale out of G, which is only safe when
+					# the likelihood pins the scale of the linear predictor. a normal
+					# outcome always does. a binary or poisson outcome can saturate, and
+					# a saturated fit wants the product to grow without bound: pulling
+					# the coordinates back up would push all of that growth into G, so
+					# for those families the gauge only ever shrinks, and it shrinks the
+					# two margins by one joint factor so their balance is left to the
+					# prior
+					if(!identical(family, "normal")) {
+						joint_rms <- sqrt(mean(c(u_sq, v_sq)))
+						k_u <- k_v <- max(joint_rms, 1)
+					}
+					# stop short of the coordinate bound on that margin
+					if(k_u < 1) k_u <- max(k_u, sqrt(max(u_sq)) / (0.5 * uv_max_abs_iter))
+					if(k_v < 1) k_v <- max(k_v, sqrt(max(v_sq)) / (0.5 * uv_max_abs_iter))
+					# shrinking moves scale into G; stop short of G's own cap by
+					# scaling both factors back together
 					g_cap_gauge <- (prior$G_max %||% 100) * 0.5
 					g_now <- max(abs(G), na.rm = TRUE)
-					# largest shrink G can absorb before nearing its own cap
-					k_max <- if(g_now > 1e-12) sqrt(g_cap_gauge / g_now) else Inf
-					k <- min(uv_rms, k_max)
-					if(is.finite(k) && k > 1 + 1e-6) {
-						G_gauge <- G * (k * k)
+					g_factor <- k_u * k_v
+					if(g_factor > 1 && g_now > 1e-12 && g_now * g_factor > g_cap_gauge) {
+						sc <- sqrt(g_cap_gauge / (g_now * g_factor))
+						k_u <- max(k_u * sc, 1); k_v <- max(k_v * sc, 1)
+						g_factor <- k_u * k_v
+					}
+					if(is.finite(k_u) && is.finite(k_v) && k_u > 0 && k_v > 0 &&
+					   (abs(log(k_u)) > 1e-6 || abs(log(k_v)) > 1e-6)) {
+						G_gauge <- G * g_factor
 						if(all(is.finite(G_gauge))) {
 							G <- G_gauge
-							if(!is.null(G_cube)) G_cube <- G_cube * (k * k)
-							U_cube <- U_cube / k
-							V_cube <- V_cube / k
-							if(!is.null(U)) U <- U / k
-							if(!is.null(V)) V <- V / k
+							if(!is.null(G_cube)) G_cube <- G_cube * g_factor
+							U_cube <- U_cube / k_u
+							V_cube <- V_cube / k_v
+							if(!is.null(U)) U <- U / k_u
+							if(!is.null(V)) V <- V / k_v
+							# one innovation scale serves both margins, so carry it by
+							# the geometric mean; its own draw re-fits it next sweep
 							if(!is.null(sigma_uv) && is.finite(sigma_uv)) {
-								sigma_uv <- sigma_uv / k
+								sigma_uv <- sigma_uv / sqrt(k_u * k_v)
 							}
 						}
 					}

@@ -1165,3 +1165,37 @@ test_that("dynamic UV level prior does not degrade real drift recovery (defect 5
 	expect_gt(mean(per_t_cor), 0.7)
 	expect_gt(min(per_t_cor), 0.6)
 })
+
+test_that("dynamic ALS stays bounded on a sparse binary bipartite panel (regression)", {
+	# on a panel this sparse the binary likelihood separates; the outer irls
+	# gate must keep the linear predictor bounded, converge, and leave the
+	# planted structure recoverable
+	skip_on_cran()
+	set.seed(5)
+	nA = 30; nB = 60; TT = 6; rt = 0.6; sig = 0.7
+	a = rnorm(nA, 0, 0.4); b = rnorm(nB, 0, 0.4)
+	U = array(0, c(nA, 2, TT)); V = array(0, c(nB, 2, TT))
+	U[, , 1] = matrix(rnorm(nA * 2, 0, sig), nA)
+	V[, , 1] = matrix(rnorm(nB * 2, 0, sig), nB)
+	sdin = sig * sqrt(1 - rt^2)
+	for (t in 2:TT) {
+		U[, , t] = rt * U[, , t - 1] + matrix(rnorm(nA * 2, 0, sdin), nA)
+		V[, , t] = rt * V[, , t - 1] + matrix(rnorm(nB * 2, 0, sdin), nB)
+	}
+	tuv = lapply(1:TT, function(t) U[, , t] %*% t(V[, , t]))
+	Y = lapply(1:TT, function(t) {
+		m = (-2.6 + outer(a, b, "+") + tuv[[t]] + matrix(rnorm(nA * nB), nA) > 0) * 1
+		rownames(m) = sprintf("e%02d", 1:nA); colnames(m) = sprintf("i%02d", 1:nB); m
+	})
+	fit = expect_no_warning(lame(Y, mode = "bipartite", family = "binary", R = 2,
+		method = "als", dynamic_uv = TRUE, dynamic_ab = TRUE, verbose = FALSE))
+	expect_true(isTRUE(fit$converged))
+	# the accepted outer path never keeps a step that raised the deviance
+	expect_true(all(diff(fit$irls_trace[-length(fit$irls_trace)]) <= 1e-8))
+	expect_lt(max(abs(unlist(fit$EZ)), na.rm = TRUE), 60)
+	rec = mean(sapply(1:TT, function(t) {
+		uvpm_t = if (is.list(fit$UVPM)) fit$UVPM[[t]] else fit$UVPM[, , t]
+		cor(c(uvpm_t), c(tuv[[t]]))
+	}))
+	expect_gt(rec, 0.15)
+})
