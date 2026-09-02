@@ -582,13 +582,13 @@ structure from period to period.</p>
 <span><span class="co">#&gt; Time periods: 5 </span></span>
 <span><span class="co">#&gt; Family: normal </span></span>
 <span><span class="co">#&gt; Mode: bipartite </span></span>
-<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.92 )</span></span>
-<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.316 )</span></span>
+<span><span class="co">#&gt; Dynamic latent positions: enabled (rho_uv = 0.941 )</span></span>
+<span><span class="co">#&gt; Dynamic additive effects: enabled (rho_ab = 0.72 )</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients:</span></span>
 <span><span class="co">#&gt; ------------------------</span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper  </span></span>
-<span><span class="co">#&gt; intercept    0.005    0.015    0.32   0.749   -0.023     0.03  </span></span>
+<span><span class="co">#&gt; intercept    0.037    0.068   0.547   0.584   -0.102    0.179  </span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; Note: stars are a visual hint from posterior mean / SD only; for inference use the credible intervals.</span></span>
@@ -596,11 +596,11 @@ structure from period to period.</p>
 <span><span class="co">#&gt; Variance components:</span></span>
 <span><span class="co">#&gt; -------------------</span></span>
 <span><span class="co">#&gt;     Estimate StdError</span></span>
-<span><span class="co">#&gt; va     0.019    0.004</span></span>
+<span><span class="co">#&gt; va     2.762    4.685</span></span>
 <span><span class="co">#&gt; cab    0.000    0.000</span></span>
-<span><span class="co">#&gt; vb     0.016    0.004</span></span>
+<span><span class="co">#&gt; vb     0.029    0.022</span></span>
 <span><span class="co">#&gt; rho    0.000    0.000</span></span>
-<span><span class="co">#&gt; ve     0.263    0.013</span></span>
+<span><span class="co">#&gt; ve     0.459    1.004</span></span>
 <span><span class="co">#&gt;   (va = sender, cab = sender-receiver covariance, vb = receiver,</span></span>
 <span><span class="co">#&gt;    rho = dyadic correlation, ve = residual variance)</span></span>
 <span><span class="co">#&gt;   Note: bipartite model (rho fixed to 0, cab fixed to 0)</span></span></code></pre></div>
@@ -613,7 +613,7 @@ the latent positions (<code>rho_uv</code>) and additive effects
 <span>                        <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">rho_uv</span><span class="op">)</span>,</span>
 <span>                        <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">rho_uv</span>, <span class="fl">0.025</span><span class="op">)</span>,</span>
 <span>                        <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">$</span><span class="va">rho_uv</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; True rho_uv = 0.90 | posterior mean = 0.920 | 95% CI = [0.877, 0.958]</span></span></code></pre></div>
+<span><span class="co">#&gt; True rho_uv = 0.90 | posterior mean = 0.941 | 95% CI = [0.854, 0.974]</span></span></code></pre></div>
 <p><code>rho_uv</code> answers whether the latent structure
 <em>persists</em>: a posterior near 1 justifies pooling across time and
 forecasting from the trajectory; a posterior near 0 says positions
@@ -712,8 +712,8 @@ rank/censored families.</p>
 <span><span class="op">}</span></span>
 <span><span class="co">#&gt; G_cube_post_mean dimensions: 2 2 5 </span></span>
 <span><span class="co">#&gt; Frobenius norm of posterior-mean G_t per period:</span></span>
-<span><span class="co">#&gt; [1] 12.188 12.027 10.518  9.288  8.678</span></span>
-<span><span class="co">#&gt; Rotation-drift ratio (&gt;= 5 flags latent-rotation domination): 1.13</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 9.438 9.410 8.147 7.181 6.737</span></span>
+<span><span class="co">#&gt; Rotation-drift ratio (&gt;= 5 flags latent-rotation domination): 1.12</span></span></code></pre></div>
 <p>The Frobenius norms do drift – 6.920, 7.005, 5.607, 4.697, 4.341,
 down roughly a third from first period to last – which, read alone,
 would look like a genuinely time-varying interaction. They are not: the

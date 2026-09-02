@@ -64,7 +64,8 @@ density at t = 1. Default prior is IG(2, 1) on <code>sigma_G^2</code>.</p>
 <span>  prior_shape <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  prior_rate <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  s2_obs <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  v_cap_mult <span class="op">=</span> <span class="fl">4</span></span>
+<span>  v_cap_mult <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  current <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -79,6 +80,11 @@ density at t = 1. Default prior is IG(2, 1) on <code>sigma_G^2</code>.</p>
 <dt id="arg-v-cap-mult">v_cap_mult<a class="anchor" aria-label="anchor" href="#arg-v-cap-mult"></a></dt>
 <dd><p>cap on the stationary G-state variance in units of
 <code>s2_obs</code> (default 4).</p></dd>
+
+
+<dt id="arg-current">current<a class="anchor" aria-label="anchor" href="#arg-current"></a></dt>
+<dd><p>the value currently held by the chain; returned unchanged
+when the state path or the draw is not finite.</p></dd>
 
 </dl></div>
     <div class="section level2">

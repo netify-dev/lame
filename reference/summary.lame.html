@@ -152,7 +152,18 @@ dynamic, <code>"N"</code> if it was held static</p></dd>
 <code><a href="confint.ame.html">confint.lame</a></code>.</p></dd>
 
 
-</dl></div>
+</dl><p>For dynamic fits the summary reports the posterior means of the
+persistence parameters <code>rho_uv</code> (latent positions) and
+<code>rho_ab</code> (additive effects). These are learned from period-to-period
+transitions, so on short panels, and on sparse bipartite panels where each
+period's positions are themselves uncertain, they lean on their priors
+(default means 0.9 and 0.8; see the <code>prior</code> argument of
+<code><a href="lame.html">lame</a></code>). Before reading a persistence value quantitatively,
+refit with a different prior mean (for example
+<code>prior = list(rho_uv_mean = 0.5)</code>) and check that the estimate
+moves little; if it tracks the prior, describe the persistence
+qualitatively rather than reporting the number.</p>
+    </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="lame.html">lame</a></code>, <code><a href="print.summary.lame.html">print.summary.lame</a></code></p></div>
