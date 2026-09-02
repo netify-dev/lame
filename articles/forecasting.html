@@ -578,16 +578,22 @@ leave-future-out CV:</p>
 <span><span class="va">lfo_periods</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">tail</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">T_fit</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="fl">2L</span>, <span class="va">T_fit</span> <span class="op">-</span> <span class="fl">2L</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">lfo_res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lfo.html">lfo</a></span><span class="op">(</span><span class="va">fit</span>, periods <span class="op">=</span> <span class="va">lfo_periods</span>, refit <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>               nscan <span class="op">=</span> <span class="fl">100</span>, burn <span class="op">=</span> <span class="fl">25</span>, odens <span class="op">=</span> <span class="fl">5</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: <span style="color: #BBBB00;">!</span> Posterior 95% interval for `rho_beta` reaches <span style="color: #0000BB;">0.991</span>.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Under AR(1) the `h`-step forecast variance saturates at the stationary level</span></span>
+<span><span class="co">#&gt;   `sigma_beta^2 / (1 - rho_beta^2)`, which itself explodes as `rho_beta -&gt; 1`;</span></span>
+<span><span class="co">#&gt;   horizons beyond <span style="color: #0000BB;">"3"</span> become uninformative in this regime.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Consider refitting with `dynamic_beta_kind = "rw1"` if the underlying process</span></span>
+<span><span class="co">#&gt;   is genuinely unit-root.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">lfo_res</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Exact rolling-origin LFO</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Periods evaluated: <span style="color: #0000BB;">5</span> and <span style="color: #0000BB;">6</span></span></span>
 <span><span class="co">#&gt; Refit per leave-out: <span style="color: #0000BB;">TRUE</span></span></span>
-<span><span class="co">#&gt; Total elpd_lfo: <span style="color: #0000BB;">-1189.6</span></span></span>
+<span><span class="co">#&gt; Total elpd_lfo: <span style="color: #0000BB;">-1173.2</span></span></span>
 <span><span class="co">#&gt;  period      elpd n_obs</span></span>
-<span><span class="co">#&gt;       5 -621.6205   870</span></span>
-<span><span class="co">#&gt;       6 -567.9607   870</span></span></code></pre></div>
+<span><span class="co">#&gt;       5 -563.7163   870</span></span>
+<span><span class="co">#&gt;       6 -609.4845   870</span></span></code></pre></div>
 <p>The <code>nscan = 100, burn = 25, odens = 5</code> settings inside
 <code><a href="../reference/lfo.html">lfo()</a></code> are chosen so the vignette builds in well under a
 minute on a laptop. They give <code>100 / 5 = 20</code> stored draws per
