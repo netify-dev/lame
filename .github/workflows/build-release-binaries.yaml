@@ -159,6 +159,16 @@ jobs:
           if gh release view "$LAME_TAG" >/dev/null 2>&1; then
             gh release upload "$LAME_TAG" release-assets/* --clobber
             gh release edit "$LAME_TAG" --title "lame v${LAME_VERSION}" --latest
+            # a release carries the date it was first published, and replacing
+            # its assets does not change that, so a refreshed release still
+            # reads as months old. published_at is only stamped on a draft ->
+            # published transition, so send it through draft and back.
+            if gh release edit "$LAME_TAG" --draft=true; then
+              gh release edit "$LAME_TAG" --draft=false --latest \
+                --title "lame v${LAME_VERSION}"
+            else
+              echo "Could not re-publish ${LAME_TAG}; assets were still updated."
+            fi
           else
             gh release create "$LAME_TAG" release-assets/* \
               --title "lame v${LAME_VERSION}" \
