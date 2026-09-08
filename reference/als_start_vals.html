@@ -86,7 +86,14 @@ for multiple MCMC chains.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list that can be passed to <code>start_vals</code>.</p>
+    <p>A list that can be passed to <code>start_vals</code>. For a dynamic ALS
+fit it also carries <code>rho_uv</code>, <code>sigma_uv</code>, <code>rho_ab</code>, and
+<code>sigma_ab</code>, so the MCMC run starts its AR(1) hyperparameters from
+the ALS solution. Read these as starting values rather than estimates:
+the persistences are the values the ALS smoothness penalty used (the
+prior means unless <code>prior</code> set them), and the innovation scales are
+implied by the fitted paths, which the penalty shrinks, so they run
+below the posterior scale.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

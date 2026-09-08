@@ -709,7 +709,14 @@ Student-t <code>dynamic_uv</code> in directed, symmetric, and bipartite panels.
 The snap-only
 <code>dynamic_uv = TRUE, dynamic_uv_kind = "snap"</code> case routes to
 <code><a href="lame_snap_als.html">lame_snap_als</a></code> for supported normal unipartite and
-bipartite panels.
+bipartite panels. A dynamic ALS fit reports <code>rho_uv</code>,
+<code>rho_ab</code>, and <code>rho_beta</code> as the AR(1) persistences its
+smoothness penalties used, which are the prior means unless
+<code>prior</code> sets them, not as estimates; and <code>sigma_uv</code>,
+<code>sigma_ab</code>, and <code>sigma_beta</code> as the innovation scales
+implied by the fitted paths, which the penalty shrinks below the
+posterior scale. Both sets are starting values for a warm-started MCMC
+run via <code><a href="als_start_vals.html">als_start_vals</a></code>.
 Node-covariate coefficients use the same orthogonal additive-effect
 decomposition as <code><a href="lame_als.html">lame_als</a></code>; dynamic node coefficients use
 period-specific node values when selected by <code>dynamic_beta</code>, while
