@@ -1199,3 +1199,64 @@ test_that("dynamic ALS stays bounded on a sparse binary bipartite panel (regress
 	}))
 	expect_gt(rec, 0.15)
 })
+
+test_that("dynamic ALS reports innovation scales and prior-mean persistences for warm starts", {
+	# a dynamic als fit hands als_start_vals() the four ar(1) hyperparameters;
+	# the persistences are the penalty's settings (the mcmc prior means unless
+	# a prior sets them) and the innovation scales are implied by the paths
+	skip_on_cran()
+	set.seed(1)
+	N = 20; TT = 6
+	U = matrix(rnorm(N * 2), N, 2); V = matrix(rnorm(N * 2), N, 2)
+	a = rnorm(N, 0, 0.5); b = rnorm(N, 0, 0.5)
+	Y = lapply(1:TT, function(t) {
+		P = pnorm(-1.2 + outer(a, b, "+") + U %*% t(V))
+		M = matrix(rbinom(N * N, 1, P), N, N); diag(M) = NA
+		dimnames(M) = list(1:N, 1:N); M
+	})
+	fit = suppressWarnings(lame(Y, family = "binary", R = 2, dynamic_ab = TRUE,
+		dynamic_uv = TRUE, method = "als", seed = 1))
+	expect_equal(fit$rho_uv, 0.9)
+	expect_equal(fit$rho_ab, 0.8)
+	expect_true(is.finite(fit$sigma_uv) && fit$sigma_uv > 0)
+	expect_true(is.finite(fit$sigma_ab) && fit$sigma_ab > 0)
+	# path-scale values, not the flattened-matrix reading of a static U
+	expect_lt(fit$sigma_uv, 1)
+	expect_lt(fit$sigma_ab, 1)
+	sv = als_start_vals(fit)
+	expect_true(all(c("rho_uv", "sigma_uv", "rho_ab", "sigma_ab") %in% names(sv)))
+	expect_equal(sv$sigma_uv, fit$sigma_uv)
+	expect_equal(sv$sigma_ab, fit$sigma_ab)
+	# the mcmc accepts the warm start
+	m = suppressWarnings(lame(Y, family = "binary", R = 2, dynamic_ab = TRUE,
+		dynamic_uv = TRUE, start_vals = sv, burn = 10, nscan = 30, odens = 5,
+		seed = 1, verbose = FALSE, plot = FALSE))
+	expect_s3_class(m, "lame")
+	# a prior mean is honoured by the penalty and reported as such
+	fit2 = suppressWarnings(lame(Y, family = "binary", R = 2, dynamic_ab = TRUE,
+		dynamic_uv = TRUE, method = "als", seed = 1,
+		prior = list(rho_uv_mean = 0.5, rho_ab_mean = 0.6)))
+	expect_equal(fit2$rho_uv, 0.5)
+	expect_equal(fit2$rho_ab, 0.6)
+})
+
+test_that(".lda_innov_sd differences across periods only", {
+	set.seed(2)
+	N = 6; TT = 5; rho = 0.7
+	path = matrix(0, N, TT); path[, 1] = rnorm(N)
+	for (t in 2:TT) path[, t] = rho * path[, t - 1] + rnorm(N, 0, 0.3)
+	s = lame:::.lda_innov_sd(path, rho, TT)
+	expect_true(is.finite(s))
+	expect_lt(abs(s - 0.3), 0.15)
+	# a cube pools every series along its last dimension
+	cube = array(path, c(N, 1, TT))
+	expect_equal(lame:::.lda_innov_sd(cube, rho, TT), s)
+	# pooling two paths pools their innovations; with two copies the value
+	# differs from the single-path scale only through the n - 1 denominator
+	pooled = lame:::.lda_innov_sd(list(path, path), rho, TT)
+	expect_lt(abs(pooled / s - 1), 0.02)
+	# a static n x r matrix is not a path and contributes nothing
+	expect_null(lame:::.lda_innov_sd(matrix(rnorm(N * 2), N, 2), rho, TT))
+	expect_null(lame:::.lda_innov_sd(NULL, rho, TT))
+	expect_null(lame:::.lda_innov_sd(path[, 1, drop = FALSE], rho, 1L))
+})

@@ -13,7 +13,14 @@
 #'   for multiple MCMC chains.
 #' @param seed optional integer seed used for the jitter.
 #'
-#' @return A list that can be passed to \code{start_vals}.
+#' @return A list that can be passed to \code{start_vals}. For a dynamic ALS
+#'   fit it also carries \code{rho_uv}, \code{sigma_uv}, \code{rho_ab}, and
+#'   \code{sigma_ab}, so the MCMC run starts its AR(1) hyperparameters from
+#'   the ALS solution. Read these as starting values rather than estimates:
+#'   the persistences are the values the ALS smoothness penalty used (the
+#'   prior means unless \code{prior} set them), and the innovation scales are
+#'   implied by the fitted paths, which the penalty shrinks, so they run
+#'   below the posterior scale.
 #' @export
 als_start_vals <- function(fit, jitter = 0, seed = NULL) {
 	`%||%` <- function(x, y) if (is.null(x)) y else x

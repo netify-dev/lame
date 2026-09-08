@@ -1497,6 +1497,31 @@
 	     beta_names = unique(c(dec_r$beta_names, dec_c$beta_names)))
 }
 
+# innovation scale implied by a fitted ar(1) path: the standard deviation of
+# x_t - rho x_{t-1}, pooled over every series in every path supplied. the
+# smoothness penalty shrinks the fitted paths, so this runs below the
+# posterior scale (about half of it on simulated panels) and serves as a
+# starting value for the mcmc, not as an estimate. `periods` guards against a
+# static matrix being read as a path: only an object whose last dimension is
+# the panel length is differenced, anything else contributes nothing.
+.lda_innov_sd <- function(paths, rho, periods) {
+	if (!is.list(paths)) paths <- list(paths)
+	innov <- numeric(0)
+	for (path in paths) {
+		if (is.null(path)) next
+		d <- dim(path)
+		if (is.null(d) || periods < 2L || d[length(d)] != periods) next
+		M <- if (length(d) == 3L) matrix(path, ncol = d[3L]) else path
+		innov <- c(innov, as.numeric(M[, -1L, drop = FALSE] -
+			rho * M[, -ncol(M), drop = FALSE]))
+	}
+	innov <- innov[is.finite(innov)]
+	if (length(innov) < 2L) return(NULL)
+	out <- stats::sd(innov)
+	if (!is.finite(out) || out <= 0) return(NULL)
+	out
+}
+
 .lda_as_fit <- function(prep, family, mode, symmetric, R, R_row, R_col,
                         call, coef_path,
                         beta_dyn, dynamic_beta_kind, a_mat, b_mat, Omat, Oarr,
@@ -1690,14 +1715,21 @@
 		dynamic_rho = !is.null(rho_path) && length(rho_path) > 1L,
 		rho_path = rho_path,
 		rho_uv = if (isTRUE(dynamic_uv)) rho_uv else NULL,
-		sigma_uv = NULL,
+		sigma_uv = if (isTRUE(dynamic_uv)) .lda_innov_sd(list(U, V), rho_uv, Tt) else NULL,
 		rho_G = if (isTRUE(dynamic_G)) rho_g else NULL,
 		RHO_G = if (isTRUE(dynamic_G)) rho_g else NULL,
 		SIGMA_G2 = if (isTRUE(dynamic_G)) 1 / max(lambda_g, 1e-8) else NULL,
 		rho_ab = if (isTRUE(dynamic_ab)) rho_ab else NULL,
-		sigma_ab = NULL,
+		sigma_ab = if (isTRUE(dynamic_ab)) {
+			.lda_innov_sd(if (isTRUE(symmetric)) list(a_mat) else list(a_mat, b_mat), rho_ab, Tt)
+		} else NULL,
 		rho_beta = if (isTRUE(beta_dyn$any)) rho_beta else NULL,
-		sigma_beta = NULL,
+		# only the coefficients that evolve carry innovations; a static row
+		# would contribute (1 - rho) times its level and inflate the scale
+		sigma_beta = if (isTRUE(beta_dyn$any) && any(beta_mask) &&
+		                 nrow(coef_path) == length(beta_mask)) {
+			.lda_innov_sd(coef_path[beta_mask, , drop = FALSE], rho_beta, Tt)
+		} else NULL,
 		lambda_u = if (isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "t")) transition_u else NULL,
 		lambda_v = if (isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "t")) transition_v else NULL,
 		lambda_uv_als = if (isTRUE(dynamic_uv)) lambda_uv else NULL,
@@ -2014,9 +2046,13 @@ lame_dynamic_als <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL,
 	lambda_beta <- as.numeric(lams$beta)
 	lambda_uv <- as.numeric(lams$uv)
 	lambda_g <- as.numeric(.lda_default(prior$lambda_G_als, lambda_uv))
-	rho_ab <- .lda_clip_rho(prior$rho_ab_mean, 0.95)
-	rho_beta <- .lda_clip_rho(prior$rho_beta_mean, 0.95)
-	rho_uv <- .lda_clip_rho(prior$rho_uv_mean, 0.95)
+	# the ar(1) persistence each smoothness penalty uses. it is not estimated:
+	# absent a prior it sits at the same prior mean the mcmc path uses, so an
+	# als warm start hands the chain the value it would have started from
+	# anyway, and the reported rho_* fields read as the penalty's setting
+	rho_ab <- .lda_clip_rho(prior$rho_ab_mean, 0.8)
+	rho_beta <- .lda_clip_rho(prior$rho_beta_mean, 0.8)
+	rho_uv <- .lda_clip_rho(prior$rho_uv_mean, 0.9)
 	rho_g <- .lda_clip_rho(prior$rho_G_mean, rho_uv)
 
 	if (verbose) {

@@ -853,7 +853,14 @@
 #'   The snap-only
 #'   \code{dynamic_uv = TRUE, dynamic_uv_kind = "snap"} case routes to
 #'   \code{\link{lame_snap_als}} for supported normal unipartite and
-#'   bipartite panels.
+#'   bipartite panels. A dynamic ALS fit reports \code{rho_uv},
+#'   \code{rho_ab}, and \code{rho_beta} as the AR(1) persistences its
+#'   smoothness penalties used, which are the prior means unless
+#'   \code{prior} sets them, not as estimates; and \code{sigma_uv},
+#'   \code{sigma_ab}, and \code{sigma_beta} as the innovation scales
+#'   implied by the fitted paths, which the penalty shrinks below the
+#'   posterior scale. Both sets are starting values for a warm-started MCMC
+#'   run via \code{\link{als_start_vals}}.
 #'   Node-covariate coefficients use the same orthogonal additive-effect
 #'   decomposition as \code{\link{lame_als}}; dynamic node coefficients use
 #'   period-specific node values when selected by \code{dynamic_beta}, while

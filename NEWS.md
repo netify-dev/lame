@@ -59,6 +59,17 @@
   hyperparameters along: `get_start_vals()` (and the bipartite path) pass
   `rho_uv`, `sigma_uv`, `rho_ab`, and `sigma_ab` through instead of dropping
   them.
+* Dynamic ALS fits (`lame(method = "als")` with `dynamic_uv`, `dynamic_ab`,
+  or `dynamic_beta`) now report the innovation scales `sigma_uv`, `sigma_ab`,
+  and `sigma_beta` implied by their fitted paths, so `als_start_vals()` can
+  hand them to a warm-started MCMC run; they used to be `NULL`, which left
+  the slowest-mixing parameters of a sparse dynamic panel at their cold
+  defaults. Read them as starting values, not estimates: the smoothness
+  penalty shrinks the fitted paths, so the implied scales run at roughly
+  half the posterior scale. The persistences `rho_uv`, `rho_ab`, and
+  `rho_beta` on a dynamic ALS fit are the values its penalty used, not
+  estimates; absent a `prior` they now sit at the same prior means the MCMC
+  uses (0.9, 0.8, and 0.8) rather than at 0.95.
 * ALS fits with `R > 0` expose the fitted multiplicative surface as `UVPM`
   (and `ULUPM` for symmetric fits), matching the MCMC fit objects.
 * Dynamic ALS (`lame(method = "als")` with dynamic effects) no longer runs away
