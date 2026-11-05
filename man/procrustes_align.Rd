@@ -23,11 +23,11 @@ If \code{object} is provided and \code{U} is NULL, extracted from
 \code{object$U}.}
 
 \item{V}{Optional 3D array \code{[n, R, T]} of receiver latent positions.
-For unipartite asymmetric models, aligned independently. For bipartite
-models, aligned jointly with U via the G interaction matrix.}
+For unipartite asymmetric models, U and V share one rotation per period so U V' is unchanged. For bipartite
+models, aligned jointly with U through the G interaction matrix.}
 
 \item{G}{Optional \code{[R_row, R_col]} interaction matrix for bipartite
-models, transformed to preserve the invariant U G V'.}
+models; it is returned unchanged, and each period's U G V' is preserved.}
 
 \item{return_fit}{Logical. If TRUE and \code{object} is provided, returns
 a modified copy of the fit object with aligned latent positions.
@@ -35,10 +35,14 @@ Default FALSE.}
 
 \item{per_draw}{Logical. When TRUE, run Procrustes alignment per
 posterior draw rather than on the posterior-mean trajectory. This
-uses \code{object$U_full} / \code{object$V_full} (the per-draw
-posterior cubes -- populated when \code{posterior_opts} includes
-storing U/V) when present; otherwise falls back to mean-trajectory
-alignment and emits an informational note. Per-draw alignment is the
+uses \code{object$U_draws} / \code{object$V_draws} on a dynamic fit,
+or \code{object$U_samples} on a static one (populated by
+\code{posterior_opts = list(save_UV_draws = TRUE)}) when present;
+otherwise falls back to mean-trajectory
+alignment and emits an informational note. On a bipartite fit each draw
+is aligned with its own interaction-matrix draw from
+\code{object$G_samples}, so every draw's U G V' is unchanged; without
+those draws per-draw alignment is an error. Per-draw alignment is the
 methodologically correct treatment -- rotation indeterminacy is a
 per-draw property, not a per-mean one -- but is more memory-hungry.
 Default FALSE.}
@@ -48,7 +52,7 @@ Default FALSE.}
 \value{
 If \code{return_fit = FALSE} (default): a list with components
 \code{U} (aligned sender positions), \code{V} (aligned receiver positions,
-if applicable), and \code{G} (updated interaction matrix, for bipartite).
+if applicable), and \code{G} (the interaction matrix, for bipartite).
 
 If \code{return_fit = TRUE}: a copy of \code{object} with aligned latent
 positions replacing the originals.
@@ -64,13 +68,18 @@ matrix that best aligns the current sender coordinates to the preceding
 period, then applies it sequentially through the series.
 }
 \details{
-For unipartite networks, U and V are aligned independently using separate
-Procrustes rotations. For symmetric networks, only U is present and aligned.
+For directed unipartite networks, U and V share one Procrustes rotation per
+period, found from the stacked positions, so the product U V' is unchanged.
+For symmetric networks the product is \eqn{U L U'} with a diagonal L, which
+only a sign change of a column of U leaves unchanged; each period takes the
+column signs that best match the period before it.
 
-For bipartite networks, U and V are aligned jointly: separate rotation
-matrices are computed for U and V, and the G interaction matrix is updated
-as \code{G_aligned = t(R_U) \%*\% G \%*\% R_V} to preserve the product
-\code{U \%*\% G \%*\% t(V)}.
+For bipartite networks, one G serves every period, so a period's product
+\code{U \%*\% G \%*\% t(V)} is unchanged only by transformations
+\code{R_U}, \code{R_V} with \code{t(R_U) \%*\% G \%*\% R_V = G}. In the
+singular-vector bases of G these are sign changes of a singular direction,
+applied to U and V together; each period takes the sign changes that best
+match the period before it, and G is returned unchanged.
 
 If U is a 2D matrix (static model with a single time point), it is returned
 unchanged with an informational message.
@@ -88,10 +97,11 @@ rotated onto the first.
 data(YX_bin_list)
 # YX_bin_list$Y stores latent-scale values; threshold to 0/1 first
 Y_bin <- lapply(YX_bin_list$Y, function(y) 1 * (y > 0))
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- lame(Y_bin, Xdyad = YX_bin_list$X, R = 2,
             family = "binary", dynamic_uv = TRUE,
             burn = 5, nscan = 5, odens = 1,
-            verbose = FALSE)
+            verbose = FALSE, chains = 1)
 aligned <- procrustes_align(fit)
 str(aligned$U)  # aligned 3D array [n, R, T]
 }

@@ -73,8 +73,9 @@ are available to visualize how effects evolve over time.
 \donttest{
 # Fit an AME model
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X,
-           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE, chains = 1)
 
 # Visualize sender effects
 ab_plot(fit, effect = "sender")

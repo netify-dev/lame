@@ -7,19 +7,59 @@
 compute_mcmc_diagnostics(chain_list)
 }
 \arguments{
-\item{chain_list}{a list of fitted \code{ame}/\code{lame} objects, one per
-chain (each must carry a \code{BETA} matrix).}
+\item{chain_list}{A list of independently seeded fits from the same model:
+either \code{ame}/\code{lame} objects carrying \code{BETA}, or
+\code{lame_robust} objects. Do not mix fit classes.}
 }
 \value{
-A list with \code{rhat}, \code{ess}, \code{param_names} (over
-\code{BETA} and \code{VC}), \code{n_chains} and \code{n_samples}.
+A list with \code{rhat}, \code{rhat_classic}, \code{ess},
+\code{param_names} (over \code{BETA} and \code{VC}), \code{n_chains} and
+\code{n_samples}. For robust fits, additionally returns \code{ess_bulk},
+\code{ess_tail}, a full \code{diagnostics} data frame, and \code{pass}.
 }
 \description{
-Computes Gelman-Rubin R-hat and effective sample size (ESS) across two or
+Computes R-hat and effective sample size (ESS) across two or
 more independently-seeded chains, for both the regression coefficients
 (\code{BETA}) and the variance components (\code{VC}). ESS is computed on
 the pooled draws, so genuinely non-converged chains report a low ESS rather
 than an inflated one.
+}
+\details{
+\code{rhat} is the split rank-normalised R-hat of Vehtari et al. (2021), the
+larger of the bulk and tail values, as \code{posterior::rhat()} reports it.
+It is the statistic of the between-chain gate of \code{\link{ame}} and
+\code{\link{lame}}, computed on the first \code{min(n_samples)} draws of
+every chain, so for a two-chain fit it equals \code{fit$rhat} for every
+monitored coefficient and variance component, and it is the Rhat column of
+\code{summary()}. It is \code{NA} for a quantity that is constant in every
+chain and for chains with fewer than 8 draws. \code{rhat_classic} is the
+Gelman-Rubin statistic of the whole chains, without splitting or rank
+normalisation. The printed verdict compares \code{rhat} with the gate's
+threshold, 1.05.
+
+For \code{lame_robust} fits, the \pkg{posterior} package is required.
+Diagnostics include static coefficients, time intercepts, actor paths and
+levels, estimated hyperparameters, every off-diagonal latent product, and
+persistent pair precisions. Unused rank-zero factor hyperparameters and
+fixed Gaussian precisions are excluded. Chains must have identical inputs
+and priors, different seeds, and equal lengths of at least four retained
+draws. Robust \code{pass} requires both \code{rhat} and \code{rhat_classic}
+below 1.05 and finite positive ESS, bulk ESS and tail ESS for every
+included parameter. The individual R-hat and effective sample size values
+are reported for every included parameter.
+The existing \code{ame}/\code{lame} diagnostic scope remains coefficients
+and variance components.
+}
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+# each fit is one chain (chains = 1); compute_mcmc_diagnostics() compares them
+fit1 <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, seed = 1, verbose = FALSE, chains = 1)
+fit2 <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, seed = 2, verbose = FALSE, chains = 1)
+diag_out <- compute_mcmc_diagnostics(list(fit1, fit2))
+diag_out$rhat
+
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

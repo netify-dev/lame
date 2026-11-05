@@ -51,9 +51,10 @@ type.
 \examples{
 \donttest{
 data(YX_bin_list)
-fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X, family = "binary", R = 0,
             dynamic_beta = "dyad",
-            nscan = 60, burn = 15, odens = 5, verbose = FALSE)
+            nscan = 60, burn = 15, odens = 5, verbose = FALSE, chains = 1)
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   autoplot(fit)
 }

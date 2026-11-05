@@ -1,25 +1,28 @@
 #' Goodness of fit statistics
-#' 
+#'
 #' Calculates goodness of fit statistics for relational data matrices,
 #' evaluating second-order (dyadic) and third-order (triadic) dependence
 #' patterns. Can handle both unipartite and bipartite networks.
-#' 
-#' @usage gof_stats(Y, mode = NULL, custom_gof = NULL)
-#' @param Y a relational data matrix. For unipartite networks, a square n x n 
+#'
+#' @usage gof_stats(Y, mode = NULL, custom_gof = NULL, family = NULL)
+#' @param Y a relational data matrix. For unipartite networks, a square n x n
 #'   matrix where Y\\[i,j\\] represents the relationship from node i to node j.
-#'   For bipartite networks, an nA x nB matrix where Y\\[i,j\\] 
+#'   For bipartite networks, an nA x nB matrix where Y\\[i,j\\]
 #'   represents the relationship from node i in set A to node j in set B.
 #'   Missing values (NA) are allowed and will be handled appropriately.
 #' @param mode character string specifying the network type: "unipartite" or "bipartite".
 #'   If NULL (default), attempts to infer from matrix dimensions (rectangular = bipartite,
 #'   square = unipartite). Note: square bipartite networks must specify mode="bipartite".
+#' @param family optional outcome family, passed to bipartite diagnostics.
+#'   Gaussian outcomes use \code{four.cycle.dep}, the mean standardized
+#'   product around fully observed rectangles; see \code{\link{gof_stats_bipartite}}.
 #' @param custom_gof optional function or list of functions to compute custom GOF statistics.
 #'   Each function should take Y as input and return a named numeric value or vector.
 #'   Custom statistics will be added to the standard statistics.
 #' @return A named numeric vector containing goodness-of-fit statistics.
 #'   For unipartite networks:
 #'   \describe{
-#'     \item{sd.rowmean}{Standard deviation of row means. Measures the 
+#'     \item{sd.rowmean}{Standard deviation of row means. Measures the
 #'       heterogeneity in out-degree centrality (sender effects).}
 #'     \item{sd.colmean}{Standard deviation of column means. Measures the
 #'       heterogeneity in in-degree centrality (receiver effects).}
@@ -33,7 +36,7 @@
 #'     \item{sd.colmean}{Standard deviation of column means (receiver heterogeneity).}
 #'     \item{four.cycles}{Count of four-cycles in the bipartite network.}
 #'   }
-#'   
+#'
 #'   If custom_gof is provided, additional statistics will be included with their
 #'   user-specified names.
 #'
@@ -58,65 +61,67 @@
 #'   \item Model selection: choosing between models that better capture network dependencies
 #'   \item Descriptive analysis: summarizing key structural features of the network
 #' }
-#' 
-#' For bipartite networks with square dimensions (nA = nB), you must explicitly 
+#'
+#' For bipartite networks with square dimensions (nA = nB), you must explicitly
 #' specify mode="bipartite" to ensure correct statistics are calculated.
-#' 
+#'
 #' Missing values in Y are handled by pairwise deletion for correlations and
 #' are excluded from matrix products in triadic calculations.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @examples
-#' 
-#' data(YX_nrm) 
-#' 
+#'
+#' data(YX_nrm)
+#'
 #' # Auto-detect unipartite
-#' gof_stats(YX_nrm$Y) 
-#' 
+#' gof_stats(YX_nrm$Y)
+#'
 #' # Bipartite (rectangular) networks are auto-detected; mode can also
 #' # be given explicitly (required when a bipartite network is square)
 #' Y_bip <- matrix(rnorm(120), 10, 12)
-#' gof_stats(Y_bip, mode = "bipartite")
+#' gof_stats(Y_bip, mode = "bipartite", family = "normal")
 #'
 #' # Custom GOF function
 #' my_stat <- function(Y) { c(my_measure = sum(Y > 0, na.rm = TRUE)) }
 #' gof_stats(YX_nrm$Y, custom_gof = my_stat)
-#' 
+#'
 #' @export gof_stats
-gof_stats <- function(Y, mode = NULL, custom_gof = NULL) {
-	
-	if(is.null(mode)) {
-		if(nrow(Y) != ncol(Y)) {
+gof_stats <- function(Y, mode = NULL, custom_gof = NULL, family = NULL) {
+
+	if (is.null(mode)) {
+		if (nrow(Y) != ncol(Y)) {
 			mode <- "bipartite"
 		} else {
 			mode <- "unipartite"
-			if(!isTRUE(.lame_state$gof_stats_msg_shown)) {
-				cli::cli_inform(paste0("Note: Square matrix assumed to be unipartite. ",
-								"Use mode='bipartite' for square bipartite networks."))
+			if (!isTRUE(.lame_state$gof_stats_msg_shown)) {
+				cli::cli_inform(paste0(
+					"Note: Square matrix assumed to be unipartite. ",
+					"Use mode='bipartite' for square bipartite networks."
+				))
 				.lame_state$gof_stats_msg_shown <- TRUE
 			}
 		}
 	} else {
 		mode <- match.arg(mode, c("unipartite", "bipartite"))
 	}
-	
-	if(mode == "bipartite") {
-		standard_gof <- gof_stats_bipartite(Y)
+
+	if (mode == "bipartite") {
+		standard_gof <- gof_stats_bipartite(Y, warn_square = FALSE, family = family)
 	} else {
 		standard_gof <- gof_stats_unipartite(Y)
 	}
-	
-	if(!is.null(custom_gof)) {
+
+	if (!is.null(custom_gof)) {
 		custom_stats <- NULL
-		
-		if(is.function(custom_gof)) {
+
+		if (is.function(custom_gof)) {
 			custom_stats <- custom_gof(Y)
-		} else if(is.list(custom_gof)) {
+		} else if (is.list(custom_gof)) {
 			custom_stats <- numeric()
-			for(i in seq_along(custom_gof)) {
-				if(is.function(custom_gof[[i]])) {
+			for (i in seq_along(custom_gof)) {
+				if (is.function(custom_gof[[i]])) {
 					stat_result <- custom_gof[[i]](Y)
 					stat_name <- names(custom_gof)[i]
-					if(is.null(stat_name) || stat_name == "") {
+					if (is.null(stat_name) || stat_name == "") {
 						stat_name <- paste0("custom", i)
 					}
 					names(stat_result) <- stat_name
@@ -124,8 +129,8 @@ gof_stats <- function(Y, mode = NULL, custom_gof = NULL) {
 				}
 			}
 		}
-		
-		if(!is.null(custom_stats)) {
+
+		if (!is.null(custom_stats)) {
 			gof_result <- c(standard_gof, custom_stats)
 		} else {
 			gof_result <- standard_gof
@@ -133,6 +138,6 @@ gof_stats <- function(Y, mode = NULL, custom_gof = NULL) {
 	} else {
 		gof_result <- standard_gof
 	}
-	
+
 	return(gof_result)
 }

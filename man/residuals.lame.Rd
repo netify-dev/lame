@@ -17,5 +17,13 @@
 List of residual matrices (one per time point)
 }
 \description{
-Extract residuals from LAME model
+Response residuals are \code{Y - fitted(object)} in each period. Pearson
+residuals scale them by the standard deviation the family assigns to a
+response with that fitted value, as in \code{\link{residuals.ame}}: the
+residual variance for the normal family, \eqn{\mu (1 - \mu)} for binary and
+cbin, \eqn{\mu + \mu^2 (e^{\sigma^2_e} - 1)} for Poisson (the fitted mean
+\eqn{\mu} carries the exposure of the period), and the variance of the
+category distribution at the posterior-mean linear predictor for ordinal
+fits. The frn family has no cell-wise variance and is an error of class
+\code{lame_pearson_residuals}. A cell whose variance is zero is \code{NA}.
 }

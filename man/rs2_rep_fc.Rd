@@ -4,13 +4,15 @@
 \alias{rs2_rep_fc}
 \title{Full-conditional draw of the dyadic variance for replicated relational data}
 \usage{
-rs2_rep_fc(E.T, rho)
+rs2_rep_fc(E.T, rho, s20 = 1)
 }
 \arguments{
 \item{E.T}{numeric array of dimension n x n x N holding the residual
 matrices along the third margin (one square slice per replicate).}
 
 \item{rho}{current value of the within-dyad correlation.}
+
+\item{s20}{fixed positive prior scale for the residual variance (default 1).}
 }
 \value{
 a single numeric draw of \code{s2}.

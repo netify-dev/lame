@@ -2,76 +2,124 @@ skip_on_cran()
 
 # cross-function consistency
 
-####
-# setup: fit representative models
-####
+# setup: representative fits
 
 fit_ame_uni = local({
 	n = 15
 	dat = simulate_test_network(
-		n = n, family = "normal", R = 2,
-		beta_intercept = 1, beta_dyad = 0.5,
-		mode = "unipartite", seed = 8001
+		n = n,
+		family = "normal",
+		R = 2,
+		beta_intercept = 1,
+		beta_dyad = 0.5,
+		mode = "unipartite",
+		seed = 8001
 	)
 	ame(
-		dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
-		burn = 100, nscan = 200, odens = 1,
-		verbose = FALSE, gof = TRUE, seed = 42
+		dat$Y,
+		Xdyad = dat$Xdyad,
+		R = 2,
+		family = "normal",
+		burn = 100,
+		nscan = 200,
+		odens = 1,
+		verbose = FALSE,
+		gof = TRUE,
+		seed = 42
 	)
 })
 
 fit_ame_bip = local({
 	nA = 12; nB = 8
 	dat = simulate_test_network(
-		n = nA, nA = nA, nB = nB, family = "normal", R = 2,
-		beta_intercept = 1, beta_dyad = 0.5,
-		mode = "bipartite", seed = 8002
+		n = nA,
+		nA = nA,
+		nB = nB,
+		family = "normal",
+		R = 2,
+		beta_intercept = 1,
+		beta_dyad = 0.5,
+		mode = "bipartite",
+		seed = 8002
 	)
 	ame(
-		dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
-		mode = "bipartite", burn = 100, nscan = 200, odens = 1,
-		verbose = FALSE, gof = TRUE, seed = 42
+		dat$Y,
+		Xdyad = dat$Xdyad,
+		R = 2,
+		family = "normal",
+		mode = "bipartite",
+		burn = 100,
+		nscan = 200,
+		odens = 1,
+		verbose = FALSE,
+		gof = TRUE,
+		seed = 42
 	)
 })
 
 fit_lame_uni = local({
 	n = 15
 	dat = simulate_test_network(
-		n = n, n_time = 3, family = "normal", R = 2,
-		beta_intercept = 1, beta_dyad = 0.5,
-		mode = "unipartite", seed = 8003
+		n = n,
+		n_time = 3,
+		family = "normal",
+		R = 2,
+		beta_intercept = 1,
+		beta_dyad = 0.5,
+		mode = "unipartite",
+		seed = 8003
 	)
 	lame(
-		dat$Y, Xdyad = dat$Xdyad, R = 2, family = "normal",
-		burn = 100, nscan = 200, odens = 1,
-		verbose = FALSE, gof = TRUE, seed = 42
+		dat$Y,
+		Xdyad = dat$Xdyad,
+		R = 2,
+		family = "normal",
+		burn = 100,
+		nscan = 200,
+		odens = 1,
+		verbose = FALSE,
+		gof = TRUE,
+		seed = 42,
+		posterior_opts = posterior_options(save_ab = TRUE, save_UV = TRUE, thin_ab = 1, thin_UV = 1)
 	)
 })
 
 fit_lame_bip = local({
 	nA = 12; nB = 8
 	dat = simulate_test_network(
-		n = nA, nA = nA, nB = nB, n_time = 3, family = "normal", R = 2,
-		beta_intercept = 1, beta_dyad = 0.5,
-		mode = "bipartite", seed = 8004
+		n = nA,
+		nA = nA,
+		nB = nB,
+		n_time = 3,
+		family = "normal",
+		R = 2,
+		beta_intercept = 1,
+		beta_dyad = 0.5,
+		mode = "bipartite",
+		seed = 8004
 	)
 	Xdyad_list = lapply(dat$Xdyad, function(x) x[, , 1])
 	lame(
-		dat$Y, Xdyad = Xdyad_list, R = 2, family = "normal",
-		mode = "bipartite", burn = 100, nscan = 200, odens = 1,
-		verbose = FALSE, gof = TRUE, seed = 42
+		dat$Y,
+		Xdyad = Xdyad_list,
+		R = 2,
+		family = "normal",
+		mode = "bipartite",
+		burn = 100,
+		nscan = 200,
+		odens = 1,
+		verbose = FALSE,
+		gof = TRUE,
+		seed = 42
 	)
 })
 
-####
 # predict vs fitted
-####
 
 test_that("predict(type='response') ~ fitted() for ame unipartite", {
 	pred = predict(fit_ame_uni, type = "response")
 	fitt = fitted(fit_ame_uni)
-	# for normal family, response == link == ypm
-	# they should be very close (or identical for normal)
+	# for the normal family response, link and YPM agree
 	diff = abs(pred - fitt)
 	diff = diff[!is.na(diff)]
 	expect_true(max(diff) < 3.5)
@@ -82,8 +130,10 @@ test_that("predict(type='response') ~ fitted() for ame bipartite", {
 	fitt = fitted(fit_ame_bip)
 	diff = abs(pred - fitt)
 	diff = diff[!is.na(diff)]
-	expect_true(max(diff) < 5,
-		info = paste("Max predict-fitted diff:", round(max(diff), 3)))
+	expect_true(
+		max(diff) < 5,
+		info = paste("Max predict-fitted diff:", round(max(diff), 3))
+	)
 })
 
 test_that("predict(type='response') ~ fitted() for lame unipartite", {
@@ -109,17 +159,17 @@ test_that("predict(type='response') ~ fitted() for lame bipartite", {
 	}
 })
 
-####
-# coef/vcov/confint consistency
-####
+# coef, vcov and confint consistency
 
 test_that("confint centered near coef for ame unipartite", {
 	b = coef(fit_ame_uni)
 	ci = confint(fit_ame_uni, level = 0.95)
-	# each coef should be within its ci
+	# each coefficient lies within its interval
 	for (i in seq_along(b)) {
-		expect_true(b[i] >= ci[i, 1] && b[i] <= ci[i, 2],
-								info = paste("Coef", names(b)[i], "not within CI"))
+		expect_true(
+			b[i] >= ci[i, 1] && b[i] <= ci[i, 2],
+			info = paste("Coef", names(b)[i], "not within CI")
+		)
 	}
 })
 
@@ -142,25 +192,24 @@ test_that("confint centered near coef for lame unipartite", {
 test_that("diag(vcov) consistent with confint width for ame unipartite", {
 	v = vcov(fit_ame_uni)
 	ci = confint(fit_ame_uni, level = 0.95)
-	# ci width ~ 2 * 1.96 * sqrt(diag(vcov)) for approx normal posterior
+	# interval width is about 2 * 1.96 * sqrt(diag(vcov)) for a near-normal posterior
 	ci_width = ci[, 2] - ci[, 1]
 	approx_width = 2 * 1.96 * sqrt(diag(v))
-	# should be roughly proportional (within factor of 2)
+	# roughly proportional, within a factor of 2
 	ratio = ci_width / approx_width
-	expect_true(all(ratio > 0.3 & ratio < 3),
-							info = paste("Width ratios:", paste(round(ratio, 2), collapse = ", ")))
+	expect_true(
+		all(ratio > 0.3 & ratio < 3),
+		info = paste("Width ratios:", paste(round(ratio, 2), collapse = ", "))
+	)
 })
 
-####
-# residuals = y - fitted
-####
+# residuals = Y - fitted
 
 test_that("residuals = Y - fitted for ame unipartite", {
 	r = residuals(fit_ame_uni, type = "response")
 	fitt = fitted(fit_ame_uni)
 	Y = fit_ame_uni$Y
 	manual_r = Y - fitt
-	# should be identical
 	expect_equal(r, manual_r)
 })
 
@@ -176,35 +225,29 @@ test_that("residuals = Y - fitted for lame unipartite", {
 	r = suppressWarnings(residuals(fit_lame_uni, type = "response"))
 	fitt = fitted(fit_lame_uni)
 	Y_array = fit_lame_uni$Y
-	# convert y from 3d array to list
-	Y_list = lapply(seq_len(dim(Y_array)[3]), function(t) Y_array[,,t])
+	# Y from a 3-D array to a list
+	Y_list = lapply(seq_len(dim(Y_array)[3]), function(t) Y_array[, , t])
 	for (t in seq_along(r)) {
 		manual_r = Y_list[[t]] - fitt[[t]]
 		expect_equal(r[[t]], manual_r)
 	}
 })
 
-####
-# simulate mean ~ predict
-####
+# simulate mean vs predict
 
 test_that("simulate mean approximates predict for ame normal", {
-	# for normal family, mean of many simulations should approach predict
+	# for the normal family the mean of many simulations approaches predict
 	sim_obj = simulate(fit_ame_uni, nsim = 50)
 	sims = sim_obj$Y
-	# average across simulations
 	sim_mean = Reduce("+", sims) / length(sims)
 	pred = predict(fit_ame_uni, type = "response")
-	# should be roughly similar (with simulation noise)
 	diff = abs(sim_mean - pred)
 	diff = diff[!is.na(diff)]
-	# mean absolute difference should be moderate (generous tolerance for mcmc)
+	# mean absolute difference is moderate (generous tolerance for MCMC)
 	expect_true(mean(diff) < 2.0)
 })
 
-####
-# reconstruct_ez vs stored ez (lame only)
-####
+# reconstruct_EZ vs stored EZ (lame only)
 
 test_that("reconstruct_EZ matches stored EZ for lame unipartite", {
 	skip_if(is.null(fit_lame_uni$EZ), "EZ not stored in fit object")
@@ -214,8 +257,10 @@ test_that("reconstruct_EZ matches stored EZ for lame unipartite", {
 	for (t in seq_along(recon)) {
 		diff = abs(recon[[t]] - stored[[t]])
 		diff = diff[!is.na(diff)]
-		expect_true(max(diff) < 0.1,
-								info = paste("Max EZ diff at time", t, ":", max(diff)))
+		expect_true(
+			max(diff) < 0.1,
+			info = paste("Max EZ diff at time", t, ":", max(diff))
+		)
 	}
 })
 
@@ -231,21 +276,30 @@ test_that("reconstruct_EZ matches stored EZ for lame bipartite", {
 	}
 })
 
-####
-# predict == fitted for non-identity link families
-####
+# predict equals fitted for non-identity link families
 
 fit_ame_bin = local({
 	n = 15
 	dat = simulate_test_network(
-		n = n, family = "binary", R = 2,
-		beta_intercept = 0, beta_dyad = 0.5,
-		mode = "unipartite", seed = 8010
+		n = n,
+		family = "binary",
+		R = 2,
+		beta_intercept = 0,
+		beta_dyad = 0.5,
+		mode = "unipartite",
+		seed = 8010
 	)
 	ame(
-		dat$Y, Xdyad = dat$Xdyad, R = 2, family = "binary",
-		burn = 100, nscan = 200, odens = 1,
-		verbose = FALSE, gof = FALSE, seed = 42
+		dat$Y,
+		Xdyad = dat$Xdyad,
+		R = 2,
+		family = "binary",
+		burn = 100,
+		nscan = 200,
+		odens = 1,
+		verbose = FALSE,
+		gof = FALSE,
+		seed = 42
 	)
 })
 
@@ -261,14 +315,12 @@ test_that("predict(type='response') values are probabilities for binary ame", {
 	expect_true(all(vals >= 0 & vals <= 1))
 })
 
-####
 # gof() on lame objects
-####
 
 test_that("gof() works on lame objects", {
 	result = gof(fit_lame_uni, nsim = 5, verbose = FALSE)
 	expect_true(is.matrix(result))
-	expect_equal(nrow(result), 6)  # 1 obs + 5 sims
+	expect_equal(nrow(result), 6) # 1 obs + 5 sims
 	expect_true("sd.rowmean" %in% colnames(result))
 	expect_true(all(is.finite(result[1, ])))
 })

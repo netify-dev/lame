@@ -85,8 +85,12 @@ static inline double draw_tn_cell(double z_old, double ez, double sz,
 }
 
 // [[Rcpp::export]]
-arma::mat rZ_bin_fused_cpp(arma::mat Z, const arma::mat& EZ, double rho,
-                           const arma::mat& Y) {
+arma::mat rZ_bin_fused_cpp(const arma::mat& Z_state, const arma::mat& EZ,
+                           double rho, const arma::mat& Y) {
+	// rcpparmadillo wraps the caller's array instead of copying it, so the
+	// kernel works on a copy of its own: a call the caller falls back from
+	// has to leave the state it was given exactly as it was
+	arma::mat Z = Z_state;
 
 	// this kernel assumes square (unipartite) networks
 	if (Z.n_rows != Z.n_cols) {

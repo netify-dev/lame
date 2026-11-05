@@ -4,21 +4,28 @@
 \alias{comtrade}
 \title{Comtrade data}
 \format{
-A list consisting of a socioarray \code{Trade} and a vector
-\code{dollars2010} of inflation rates. The socioarray gives
-yearly trade volume (exports and imports)
-in dollars for 10 different commodity classes
-for eleven years between 229 countries. This gives a five-way
-array. The first index is the reporting country, so
-\code{Trade[i,j,t,k,1]} is what \code{i} reports for exports to
-\code{j}, but in general this is not the same as
-\code{Trade[j,i,t,k,2]}, what \code{j} reports as importing from \code{i}.
+A four-way array of dimension 30 x 30 x 6 x 10 (exporter,
+importer, commodity class, year) with dimnames giving the country names,
+the classes (chemicals; crude materials, inedible, except fuels; food and
+live animals; machinery and transport equipment; manufactured goods
+classified chiefly by material; miscellaneous manufactured articles) and
+the years. Each value is the change from the previous year in the natural
+logarithm of exports measured in 2000 US dollars. For example, the 1996
+slice records changes from 1995 to 1996. Values are growth measures, not
+log levels or raw trade volumes; negative values indicate decreases.
+The 1,800 missing cells are the within-country diagonals.
+The first index is the reporting (exporting) country.
 }
 \source{
+Hoff, P. D. (2011), Section 4 of \emph{Separable covariance arrays
+via the Tucker product, with applications to multivariate relational data},
+\doi{10.1214/11-BA606}.
+Original processed array:
+\url{https://www2.stat.duke.edu/~pdh10/Code/hoff_2011_ba/}.
+Underlying trade and inflation data:
 \url{https://comtrade.un.org/}, \url{https://www.measuringworth.com/}
 }
 \description{
-Eleven years of import and export data between 229 countries.
-The data use the SITC Rev. 1 commodity classification, aggregated at the
-first level (AG1).
+Ten years (1996 to 2005) of bilateral trade among 30 countries in six
+SITC Rev. 1 commodity classes aggregated at the first level (AG1).
 }

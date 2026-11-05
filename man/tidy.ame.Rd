@@ -35,14 +35,12 @@ deviations; \code{statistic} is \code{estimate / std.error}.
 }
 \details{
 \strong{Note on \code{p.value}.} This column is included for
-\pkg{broom} compatibility but is \emph{not} a classical test. It is a
-two-sided Normal approximation based on the posterior mean and marginal
-posterior standard deviation, matching the calculation in
-\code{summary(fit)}. Use it as a compact signal that the marginal posterior
-is far from zero, and report it alongside the \code{conf.low} /
-\code{conf.high} credible interval. When sign certainty matters, compute it
-directly from \code{x$BETA}, for example
-\code{mean(sign(BETA) == sign(mean(BETA)))}.
+\pkg{broom} compatibility; it is a posterior summary, not a classical test:
+the two-sided Normal tail probability of the posterior mean over the marginal
+posterior standard deviation, matching \code{summary(fit)}. The
+\code{conf.low} / \code{conf.high} columns are the credible interval. The
+posterior probability of the sign is available directly from \code{x$BETA},
+for example \code{mean(sign(BETA) == sign(mean(BETA)))}.
 
 Loaded as an S3 method against \code{generics::tidy} when the
 \pkg{generics} package is available; works as
@@ -51,8 +49,9 @@ Loaded as an S3 method against \code{generics::tidy} when the
 \examples{
 \donttest{
 data(YX_bin_list)
-fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
-            nscan = 100, burn = 20, odens = 5, verbose = FALSE)
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X, family = "binary", R = 0,
+            nscan = 100, burn = 20, odens = 5, verbose = FALSE, chains = 1)
 tidy(fit)
 }
 

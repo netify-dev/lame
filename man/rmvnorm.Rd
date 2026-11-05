@@ -7,20 +7,29 @@
 rmvnorm(n, mu, Sigma, Sigma.chol = NULL)
 }
 \arguments{
-\item{n}{sample size}
+\item{n}{nonnegative integer sample size}
 
-\item{mu}{multivariate mean vector}
+\item{mu}{finite numeric multivariate mean vector}
 
-\item{Sigma}{covariance matrix}
+\item{Sigma}{finite symmetric positive semidefinite covariance matrix}
 
-\item{Sigma.chol}{Cholesky factorization of \code{Sigma}}
+\item{Sigma.chol}{optional finite square factor whose crossproduct is
+\code{Sigma}; when supplied, this factor determines the covariance}
 }
 \value{
 a matrix with \code{n} rows
 }
 \description{
 Simulates a matrix where the rows are i.i.d. samples from a multivariate
-normal distribution
+normal distribution. Positive semidefinite covariances are supported,
+including degenerate distributions with zero-variance directions.
+}
+\examples{
+set.seed(1)
+mu <- c(0, 1)
+Sigma <- matrix(c(1, 0.3, 0.3, 1), 2, 2)
+draws <- rmvnorm(100, mu, Sigma)
+colMeans(draws)
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

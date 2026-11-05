@@ -16,7 +16,8 @@ rUV_dynamic_snap_fc(
   delta_u_current = NULL,
   delta_v_current = NULL,
   shrink = TRUE,
-  symmetric = FALSE
+  symmetric = FALSE,
+  rho = 0
 )
 }
 \arguments{
@@ -45,6 +46,9 @@ a zero matrix is used.}
 \item{shrink}{whether to apply shrinkage (default TRUE)}
 
 \item{symmetric}{whether the network is symmetric (default FALSE)}
+
+\item{rho}{dyadic correlation between the (i, j) and (j, i) residuals
+(default 0)}
 }
 \value{
 list with updated U, V arrays and delta_u, delta_v snap indicators
@@ -57,3 +61,4 @@ per actor-period by a Gaussian log-marginal model selection.
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }
+\keyword{internal}

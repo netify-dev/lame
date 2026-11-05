@@ -37,8 +37,9 @@ for display and does not perform any new computations or data generation.
 \donttest{
 # Fit model
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
-           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE, chains = 1)
 
 # Display summary
 print(fit)

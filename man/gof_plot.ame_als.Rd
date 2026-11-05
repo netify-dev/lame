@@ -23,13 +23,27 @@ Bootstrap-style analogue of the MCMC \code{\link{gof_plot}}: draws
 \code{nsim} simulated networks from the fitted ALS model, computes the
 standard network statistics (\code{sd.rowmean}, \code{sd.colmean},
 \code{dyad.dep}, \code{cycle.dep}, \code{trans.dep} for unipartite;
-\code{sd.rowmean}, \code{sd.colmean}, \code{four.cycles} for bipartite) on
-each replicate, and overlays the observed value on a histogram of replicate
-values.
+\code{sd.rowmean}, \code{sd.colmean}, \code{four.cycles} for bipartite,
+replacing the count with weighted \code{four.cycle.dep} for Gaussian
+outcomes) on
+each replicate, and compares the observed value with the replicates.
 }
 \details{
+A cross-sectional fit gives one histogram per statistic with the observed
+value overlaid. A longitudinal fit gives, as \code{\link{gof_plot}} does for
+an MCMC \code{lame} fit, the statistics of \emph{every} time slice: for each
+statistic, the observed value in each period against the median and the
+central 95 percent of the simulated values in that period.
+
 Uses \code{\link{simulate.ame_als}} for the replicates and is therefore
 conditional on the fitted point estimates: the noise is resampled, but
 \code{mu, beta, a, b, U, V} are held fixed. The MCMC \code{gof_plot.ame}
 also averages over posterior movement in those parameters.
+}
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+fit <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
+gof_plot(fit, nsim = 20, seed = 1)
 }

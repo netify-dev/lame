@@ -36,8 +36,9 @@ For more detailed visualizations, use the specialized functions:
 \donttest{
 # Fit an AME model
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2, gof = TRUE,
-           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE, chains = 1)
 
 # Quick diagnostic plot (shows trace plots)
 plot(fit)

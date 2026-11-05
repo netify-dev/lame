@@ -7,10 +7,8 @@
 #' returns a single score row and warns that intervals cannot be read as
 #' posterior intervals.
 #'
-#' @param fit a \code{\link{lame}} fit with snap-shift MCMC output, or a
-#'   \code{\link{lame_snap_als}} fit. MCMC fits should be run with retained
-#'   snap draws for posterior uncertainty; ALS fits contribute their
-#'   \code{snap_prob} scores as one score row.
+#' @param fit a \code{\link{lame}} fit with snap-shift MCMC output, run with
+#'   retained snap draws for posterior uncertainty.
 #' @param actors optional actor names or indices. Default uses every actor on
 #'   the selected side.
 #' @param years optional year/period names or indices. Default uses every
@@ -19,16 +17,40 @@
 #'   receiver/column-side indicators.
 #' @return A data frame with columns \code{draw}, \code{year}, \code{side},
 #'   \code{n_actors}, and \code{snap_index}.
+#' @examples
+#' set.seed(1)
+#' n <- 12; Tt <- 3
+#' Y <- lapply(seq_len(Tt), function(t) {
+#'   m <- matrix(rnorm(n * n), n, n); diag(m) <- NA; m
+#' })
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
+#' fit <- lame(Y, R = 1, dynamic_uv = TRUE, dynamic_uv_kind = "snap",
+#'             keep_snap_draws = "draws",
+#'             nscan = 20, burn = 5, odens = 1, verbose = FALSE, plot = FALSE, chains = 1)
+#' draws <- snap_index_draws(fit, side = "u")
+#' head(draws)
 #' @export
-snap_index_draws <- function(fit, actors = NULL, years = NULL,
-                             side = c("u", "v")) {
+snap_index_draws <- function(
+	fit,
+	actors = NULL,
+	years = NULL,
+	side = c("u", "v")
+) {
 	side <- match.arg(side)
 	obj <- .lame_snap_draw_array(fit, side)
 	arr <- obj$array
-	actor_idx <- .lame_snap_select_dim(actors, dimnames(arr)[[2L]],
-	                                   dim(arr)[2L], "actors")
-	year_idx <- .lame_snap_select_dim(years, dimnames(arr)[[3L]],
-	                                  dim(arr)[3L], "years")
+	actor_idx <- .lame_snap_select_dim(
+		actors,
+		dimnames(arr)[[2L]],
+		dim(arr)[2L],
+		"actors"
+	)
+	year_idx <- .lame_snap_select_dim(
+		years,
+		dimnames(arr)[[3L]],
+		dim(arr)[3L],
+		"years"
+	)
 	mat <- .lame_snap_index_matrix(arr, actor_idx, year_idx)
 	draw_names <- dimnames(arr)[[1L]]
 	year_names <- dimnames(arr)[[3L]][year_idx]
@@ -38,7 +60,8 @@ snap_index_draws <- function(fit, actors = NULL, years = NULL,
 		side = side,
 		n_actors = length(actor_idx),
 		snap_index = as.vector(mat),
-		stringsAsFactors = FALSE)
+		stringsAsFactors = FALSE
+	)
 	attr(out, "snap_draw_source") <- obj$source
 	out
 }
@@ -48,10 +71,25 @@ snap_index_draws <- function(fit, actors = NULL, years = NULL,
 #' @inheritParams snap_index_draws
 #' @param probs numeric quantiles to report.
 #' @return A data frame with one row per selected year.
+#' @examples
+#' set.seed(1)
+#' n <- 12; Tt <- 3
+#' Y <- lapply(seq_len(Tt), function(t) {
+#'   m <- matrix(rnorm(n * n), n, n); diag(m) <- NA; m
+#' })
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
+#' fit <- lame(Y, R = 1, dynamic_uv = TRUE, dynamic_uv_kind = "snap",
+#'             keep_snap_draws = "draws",
+#'             nscan = 20, burn = 5, odens = 1, verbose = FALSE, plot = FALSE, chains = 1)
+#' snap_index_summary(fit, side = "u")
 #' @export
-snap_index_summary <- function(fit, actors = NULL, years = NULL,
-                               side = c("u", "v"),
-                               probs = c(.025, .1, .5, .9, .975)) {
+snap_index_summary <- function(
+	fit,
+	actors = NULL,
+	years = NULL,
+	side = c("u", "v"),
+	probs = c(.025, .1, .5, .9, .975)
+) {
 	side <- match.arg(side)
 	d <- snap_index_draws(fit, actors = actors, years = years, side = side)
 	years_out <- unique(d$year)
@@ -67,7 +105,8 @@ snap_index_summary <- function(fit, actors = NULL, years = NULL,
 			sd = stats::sd(x, na.rm = TRUE),
 			t(q),
 			check.names = FALSE,
-			stringsAsFactors = FALSE)
+			stringsAsFactors = FALSE
+		)
 	})
 	out <- do.call(rbind, rows)
 	q_names <- .lame_snap_prob_names(probs)
@@ -84,14 +123,33 @@ snap_index_summary <- function(fit, actors = NULL, years = NULL,
 #' @param groups a named list mapping group names to actor names/indices, or a
 #'   named vector whose values are group labels and whose names are actors.
 #' @return A data frame with one row per group-year.
+#' @examples
+#' set.seed(1)
+#' n <- 12; Tt <- 3
+#' Y <- lapply(seq_len(Tt), function(t) {
+#'   m <- matrix(rnorm(n * n), n, n); diag(m) <- NA; m
+#' })
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
+#' fit <- lame(Y, R = 1, dynamic_uv = TRUE, dynamic_uv_kind = "snap",
+#'             keep_snap_draws = "draws",
+#'             nscan = 20, burn = 5, odens = 1, verbose = FALSE, plot = FALSE, chains = 1)
+#' snap_category_summary(fit, groups = list(g1 = 1:6, g2 = 7:12), side = "u")
 #' @export
-snap_category_summary <- function(fit, groups, years = NULL,
-                                  side = c("u", "v")) {
+snap_category_summary <- function(
+	fit,
+	groups,
+	years = NULL,
+	side = c("u", "v")
+) {
 	side <- match.arg(side)
 	groups <- .lame_snap_normalize_groups(groups)
 	rows <- lapply(names(groups), function(g) {
-		out <- snap_index_summary(fit, actors = groups[[g]], years = years,
-		                          side = side)
+		out <- snap_index_summary(
+			fit,
+			actors = groups[[g]],
+			years = years,
+			side = side
+		)
 		out$group <- g
 		out
 	})
@@ -108,19 +166,46 @@ snap_category_summary <- function(fit, groups, years = NULL,
 #'
 #' @inheritParams snap_index_draws
 #' @return A data frame with year-level index means and rank probabilities.
+#' @examples
+#' set.seed(1)
+#' n <- 12; Tt <- 3
+#' Y <- lapply(seq_len(Tt), function(t) {
+#'   m <- matrix(rnorm(n * n), n, n); diag(m) <- NA; m
+#' })
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
+#' fit <- lame(Y, R = 1, dynamic_uv = TRUE, dynamic_uv_kind = "snap",
+#'             keep_snap_draws = "draws",
+#'             nscan = 20, burn = 5, odens = 1, verbose = FALSE, plot = FALSE, chains = 1)
+#' snap_rank_summary(fit, side = "u")
 #' @export
-snap_rank_summary <- function(fit, actors = NULL, years = NULL,
-                              side = c("u", "v")) {
+snap_rank_summary <- function(
+	fit,
+	actors = NULL,
+	years = NULL,
+	side = c("u", "v")
+) {
 	side <- match.arg(side)
 	obj <- .lame_snap_draw_array(fit, side)
 	arr <- obj$array
-	actor_idx <- .lame_snap_select_dim(actors, dimnames(arr)[[2L]],
-	                                   dim(arr)[2L], "actors")
-	year_idx <- .lame_snap_select_dim(years, dimnames(arr)[[3L]],
-	                                  dim(arr)[3L], "years")
+	actor_idx <- .lame_snap_select_dim(
+		actors,
+		dimnames(arr)[[2L]],
+		dim(arr)[2L],
+		"actors"
+	)
+	year_idx <- .lame_snap_select_dim(
+		years,
+		dimnames(arr)[[3L]],
+		dim(arr)[3L],
+		"years"
+	)
 	mat <- .lame_snap_index_matrix(arr, actor_idx, year_idx)
-	rank_mat <- matrix(NA_real_, nrow = nrow(mat), ncol = ncol(mat),
-	                   dimnames = dimnames(mat))
+	rank_mat <- matrix(
+		NA_real_,
+		nrow = nrow(mat),
+		ncol = ncol(mat),
+		dimnames = dimnames(mat)
+	)
 	for (ii in seq_len(nrow(mat))) {
 		x <- mat[ii, ]
 		if (!all(!is.finite(x))) {
@@ -138,7 +223,8 @@ snap_rank_summary <- function(fit, actors = NULL, years = NULL,
 		prob_top_3 = colMeans(rank_mat <= top_k, na.rm = TRUE),
 		rank_mean = colMeans(rank_mat, na.rm = TRUE),
 		rank_median = apply(rank_mat, 2L, stats::median, na.rm = TRUE),
-		stringsAsFactors = FALSE)
+		stringsAsFactors = FALSE
+	)
 	out[] <- lapply(out, function(x) {
 		if (is.numeric(x)) {
 			x[!is.finite(x)] <- NA_real_
@@ -164,26 +250,25 @@ snap_rank_summary <- function(fit, actors = NULL, years = NULL,
 	if (is.null(prob)) {
 		cli::cli_abort(c(
 			"No snap output found for side {.val {side}}.",
-			"i" = "For MCMC snap uncertainty, refit with {.code keep_snap_draws = \"draws\"}."))
+			"i" = "For MCMC snap uncertainty, refit with {.code keep_snap_draws = \"draws\"}."
+		))
 	}
-	is_als <- inherits(fit, "lame_snap_als")
-	source <- if (is_als) "als_score" else "posterior_mean"
-	draw_label <- if (is_als) "als_score" else "posterior_mean"
 	cli::cli_warn(c(
 		"No retained snap-indicator draws found on {.code fit${draw_name}}.",
-		"i" = if (is_als) {
-			"Using {.code fit${prob_name}} as one ALS score row; intervals and rank probabilities are not posterior uncertainty."
-		} else {
-			"Using {.code fit${prob_name}} as one posterior-mean row; intervals and rank probabilities are not posterior uncertainty."
-		}))
+		"i" = "Using {.code fit${prob_name}} as one posterior-mean row; intervals and rank probabilities are not posterior uncertainty."
+	))
+	source <- "posterior_mean"
+	draw_label <- "posterior_mean"
 	actor_names <- rownames(prob)
 	if (is.null(actor_names)) actor_names <- paste0("actor", seq_len(nrow(prob)))
 	time_names <- colnames(prob)
 	if (is.null(time_names)) time_names <- paste0("t", seq_len(ncol(prob)))
 	arr <- array(prob, dim = c(1L, nrow(prob), ncol(prob)))
-	dimnames(arr) <- list(draw = draw_label,
-	                      actor = actor_names,
-	                      time = time_names)
+	dimnames(arr) <- list(
+		draw = draw_label,
+		actor = actor_names,
+		time = time_names
+	)
 	list(array = arr, source = source)
 }
 

@@ -1,9 +1,6 @@
-# per-actor dynamic beta with exact gaussian
-# conditioning for the sum-to-zero centering constraint.
-# tests cover: (a) helper math, (b) byte-identical-default contract for
-# "center", (c) "exact_center" preserves zero-sum exactly per draw,
-# (d) end-to-end recovery on a known dgp, (e) ffbs path posterior
-# variance is correctly returned.
+# per-actor dynamic beta with exact Gaussian conditioning on the sum-to-zero constraint:
+# helper math, the default "center" contract, exact zero sums under "exact_center",
+# recovery on a known dgp, and the returned FFBS path variance
 
 test_that(".actor_ffbs_path returns theta and V of length T", {
 	set.seed(11)
@@ -33,22 +30,30 @@ test_that(".sweep_per_actor_exact produces n_actors x Tn zero-sum draws", {
 	n_actors = 6; T_per = 5
 	H_mat = matrix(runif(n_actors * T_per, 0.1, 1.0), n_actors, T_per)
 	h_mat = matrix(rnorm(n_actors * T_per), n_actors, T_per)
-	theta = lame:::.sweep_per_actor_exact(H_mat, h_mat,
-	                                    rho_actor = 0.7, sigma_actor2 = 0.1)
+	theta = lame:::.sweep_per_actor_exact(
+		H_mat,
+		h_mat,
+		rho_actor = 0.7,
+		sigma_actor2 = 0.1
+	)
 	expect_equal(dim(theta), c(n_actors, T_per))
 	# zero-sum per period
 	expect_lt(max(abs(colSums(theta))), 1e-12)
 })
 
 test_that(".sweep_per_actor_exact collapses to zero for zero-precision case", {
-	# when h = 0 (no observation precision), the data does nothing and the
-	# prior is centered at zero. projection should give zero (up to mc).
+	# with h = 0 the data carry no information and the prior is centered at zero,
+	# so the projection gives zero up to Monte Carlo error
 	set.seed(41)
 	n_actors = 5; T_per = 4
-	H_mat = matrix(0.001, n_actors, T_per)  # near-zero precision
+	H_mat = matrix(0.001, n_actors, T_per) # near-zero precision
 	h_mat = matrix(0, n_actors, T_per)
-	theta = lame:::.sweep_per_actor_exact(H_mat, h_mat,
-	                                    rho_actor = 0.5, sigma_actor2 = 0.05)
+	theta = lame:::.sweep_per_actor_exact(
+		H_mat,
+		h_mat,
+		rho_actor = 0.5,
+		sigma_actor2 = 0.05
+	)
 	expect_lt(max(abs(colSums(theta))), 1e-10)
 })
 
@@ -57,24 +62,42 @@ test_that("per_actor_identifiability = 'center' is byte-identical to default", {
 	set.seed(2026)
 	n = 8; Tn = 3
 	Xdyad_list = lapply(seq_len(Tn), function(t) {
-		x = array(rnorm(n*n), dim = c(n, n, 1))
+		x = array(rnorm(n * n), dim = c(n, n, 1))
 		dimnames(x) = list(NULL, NULL, "x1")
 		x
 	})
 	Y_list = lapply(seq_len(Tn), function(t) {
-		mat = matrix(rnorm(n*n), n, n); diag(mat) = NA; mat
+		mat = matrix(rnorm(n * n), n, n); diag(mat) = NA; mat
 	})
-	f1 = lame(Y_list, Xdyad = Xdyad_list, family = "normal", R = 0,
-	          dynamic_beta_per_actor = "row",
-	          per_actor_covariate_idx = 1L,
-	          keep_per_actor = "draws",
-	          nscan = 20, burn = 10, odens = 5, verbose = FALSE, seed = 7)
-	f2 = lame(Y_list, Xdyad = Xdyad_list, family = "normal", R = 0,
-	          dynamic_beta_per_actor = "row",
-	          per_actor_covariate_idx = 1L,
-	          per_actor_identifiability = "center",
-	          keep_per_actor = "draws",
-	          nscan = 20, burn = 10, odens = 5, verbose = FALSE, seed = 7)
+	f1 = lame(
+		Y_list,
+		Xdyad = Xdyad_list,
+		family = "normal",
+		R = 0,
+		dynamic_beta_per_actor = "row",
+		per_actor_covariate_idx = 1L,
+		keep_per_actor = "draws",
+		nscan = 20,
+		burn = 10,
+		odens = 5,
+		verbose = FALSE,
+		seed = 7
+	)
+	f2 = lame(
+		Y_list,
+		Xdyad = Xdyad_list,
+		family = "normal",
+		R = 0,
+		dynamic_beta_per_actor = "row",
+		per_actor_covariate_idx = 1L,
+		per_actor_identifiability = "center",
+		keep_per_actor = "draws",
+		nscan = 20,
+		burn = 10,
+		odens = 5,
+		verbose = FALSE,
+		seed = 7
+	)
 	expect_identical(f1$THETA_ACTOR, f2$THETA_ACTOR)
 	expect_identical(f1$RHO_ACTOR, f2$RHO_ACTOR)
 })
@@ -84,19 +107,28 @@ test_that("exact_center preserves zero-sum exactly across all draws", {
 	set.seed(2027)
 	n = 10; Tn = 4
 	Xdyad_list = lapply(seq_len(Tn), function(t) {
-		x = array(rnorm(n*n), dim = c(n, n, 1))
+		x = array(rnorm(n * n), dim = c(n, n, 1))
 		dimnames(x) = list(NULL, NULL, "x1")
 		x
 	})
 	Y_list = lapply(seq_len(Tn), function(t) {
-		mat = matrix(rnorm(n*n), n, n); diag(mat) = NA; mat
+		mat = matrix(rnorm(n * n), n, n); diag(mat) = NA; mat
 	})
-	fit = lame(Y_list, Xdyad = Xdyad_list, family = "normal", R = 0,
-	           dynamic_beta_per_actor = "row",
-	           per_actor_covariate_idx = 1L,
-	           per_actor_identifiability = "exact_center",
-	           keep_per_actor = "draws",
-	           nscan = 30, burn = 15, odens = 5, verbose = FALSE, seed = 13)
+	fit = lame(
+		Y_list,
+		Xdyad = Xdyad_list,
+		family = "normal",
+		R = 0,
+		dynamic_beta_per_actor = "row",
+		per_actor_covariate_idx = 1L,
+		per_actor_identifiability = "exact_center",
+		keep_per_actor = "draws",
+		nscan = 30,
+		burn = 15,
+		odens = 5,
+		verbose = FALSE,
+		seed = 13
+	)
 	expect_equal(fit$per_actor_identifiability, "exact_center")
 	# zero-sum to machine precision across every draw and period
 	per_draw_per_period_sums = apply(fit$THETA_ACTOR, c(1, 3), sum)
@@ -108,25 +140,34 @@ test_that("exact_center end-to-end fit produces sensible posterior summaries", {
 	set.seed(53)
 	n = 12; Tn = 4
 	Xdyad_list = lapply(seq_len(Tn), function(t) {
-		x = array(rnorm(n*n), dim = c(n, n, 1))
+		x = array(rnorm(n * n), dim = c(n, n, 1))
 		dimnames(x) = list(NULL, NULL, "x1")
 		x
 	})
 	Y_list = lapply(seq_len(Tn), function(t) {
-		mat = matrix(rnorm(n*n), n, n); diag(mat) = NA; mat
+		mat = matrix(rnorm(n * n), n, n); diag(mat) = NA; mat
 	})
-	fit = lame(Y_list, Xdyad = Xdyad_list, family = "normal", R = 0,
-	           dynamic_beta_per_actor = "row",
-	           per_actor_covariate_idx = 1L,
-	           per_actor_identifiability = "exact_center",
-	           keep_per_actor = "summary",
-	           nscan = 60, burn = 30, odens = 5, verbose = FALSE, seed = 99)
+	fit = lame(
+		Y_list,
+		Xdyad = Xdyad_list,
+		family = "normal",
+		R = 0,
+		dynamic_beta_per_actor = "row",
+		per_actor_covariate_idx = 1L,
+		per_actor_identifiability = "exact_center",
+		keep_per_actor = "summary",
+		nscan = 60,
+		burn = 30,
+		odens = 5,
+		verbose = FALSE,
+		seed = 99
+	)
 	# fit completes and stores the streaming summary
 	expect_equal(dim(fit$theta_actor_mean), c(n, Tn))
 	expect_equal(dim(fit$theta_actor_sd), c(n, Tn))
 	expect_true(all(is.finite(fit$theta_actor_mean)))
 	expect_true(all(fit$theta_actor_sd >= 0))
-	# rho_actor + sigma_actor chains run within sensible ranges
+	# rho_actor and sigma_actor chains stay in sensible ranges
 	expect_true(all(abs(fit$RHO_ACTOR) < 1))
 	expect_true(all(fit$SIGMA_ACTOR > 0))
 })

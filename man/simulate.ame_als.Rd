@@ -23,8 +23,11 @@ one list-of-matrices per slice for a longitudinal fit).
 \description{
 Draws \code{nsim} replicates of \code{Y} from the fitted ALS mean structure:
 \code{mu}, \code{beta}, \code{a}, \code{b}, \code{U}, \code{V}, and the
-family-appropriate noise distribution. For directed unipartite normal and
-binary fits, reciprocal dyads use the fitted residual \code{rho}. The returned
+family-appropriate noise distribution. For directed unipartite normal,
+binary and Poisson fits, reciprocal dyads use the fitted \code{rho}. Binary IRLS fits
+use their stated marginal link and a Gaussian copula with the fitted
+dyadic correlation. Square bipartite networks retain their diagonal cells.
+The returned
 object has class
 \code{"ame.sim"} so it is compatible with \code{plot_ppc_*}-style consumers
 (where applicable).

@@ -31,3 +31,10 @@ intervals: this is a point estimator. If the fit was produced via
 \code{ame_als(..., bootstrap = N)}, bootstrap 95\\% intervals are drawn as
 error bars.
 }
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+fit <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
+ab_plot(fit, effect = "sender")
+}

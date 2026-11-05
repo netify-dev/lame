@@ -11,7 +11,9 @@ ame_als_bootstrap(
   type = c("parametric", "block"),
   block_length = 1,
   seed = NULL,
-  verbose = TRUE
+  verbose = TRUE,
+  max_iter = 200L,
+  tol = 1e-06
 )
 
 boot_ame(
@@ -20,14 +22,18 @@ boot_ame(
   type = c("parametric", "block"),
   block_length = 1,
   seed = NULL,
-  verbose = TRUE
+  verbose = TRUE,
+  max_iter = 200L,
+  tol = 1e-06
 )
 }
 \arguments{
 \item{object}{an \code{ame_als} object from \code{\link{ame_als}}
 or \code{\link{lame_als}}.}
 
-\item{R}{integer number of bootstrap replicates (default 200).}
+\item{R}{integer number of bootstrap replicates (default 200); at least 10.
+A block bootstrap reads the ends of its interval from the tails of the
+replicates, so use 200 or more.}
 
 \item{type}{\code{"parametric"} (default) or \code{"block"}; see Description.}
 
@@ -40,6 +46,18 @@ the parametric bootstrap.}
 \item{seed}{optional integer random seed.}
 
 \item{verbose}{logical; print progress (default \code{TRUE}).}
+
+\item{max_iter}{positive integer iteration budget for each refit (default
+200). A replicate that does not converge is retried on the same data
+with four times this budget. A static Gaussian or working-scale refit
+that still fails also tries a fresh spectral start and retains it only
+if it converges with a lower objective. An unfinished low-rank Gaussian
+refit also tries seven starts from the fixed internal seed 6886, retaining
+only converged fits with no worse objective. A replicate that still has not
+converged is dropped, and more than 5 percent dropped is an error.}
+
+\item{tol}{positive convergence tolerance for each refit (default
+\code{1e-6}).}
 }
 \value{
 An object of class \code{"boot_ame"} with components including
@@ -47,8 +65,27 @@ An object of class \code{"boot_ame"} with components including
 \code{ci_lo}, \code{ci_hi}, \code{point_est}, \code{param_names};
 \code{vc_*} for the variance components; \code{a_coefs}, \code{b_coefs},
 \code{se_a}, \code{se_b}; \code{U_aligned}, \code{V_aligned},
-\code{U_raw}, \code{V_raw}, \code{se_U}, \code{se_V} (when \code{R > 0});
-and \code{n_valid}, \code{n_total}, \code{type}, \code{family}.
+\code{U_raw}, \code{V_raw}, \code{se_U}, \code{se_V} (when \code{R > 0}
+and the factors are static; \code{NA} for the columns whose singular values
+are not separated), \code{sv_separation} (the singular values of the point
+estimate, the gaps and their z-scores in bootstrap standard deviations, the
+threshold, and which columns are \code{resolved}) and \code{subspace} (the
+principal angles, in degrees, of the replicate factor spaces to the point
+estimate's, and their \code{largest} angle by side);
+\code{n_valid}, \code{n_total}, \code{n_failed}, \code{fail_reason}
+(per replicate: \code{""}, \code{"nonconverged"}, \code{"split"},
+\code{"error"} or \code{"nonfinite"}), \code{max_fail_share},
+\code{boot_refit_start} (the start each replicate kept),
+\code{optimum_check}, \code{n_other_start} (replicates that kept a start
+other than the warm one), \code{vc_uncentred} (the variance components with
+no interval because their replicates are not centred on the estimate, when
+there are any), \code{withheld} (a data frame of the parameters with no
+standard error or interval, their \code{kind} --- \code{"coefficient"} or
+\code{"vc"} or \code{"effects"} --- and the \code{reason}; \code{NULL}
+when every parameter has one), \code{n_blocks} (the number of resampling blocks of a block
+bootstrap, \code{NA} otherwise), \code{estimator_eb} (whether the fit is
+empirical Bayes, which sets the interval of \code{va} and \code{vb}),
+\code{type}, \code{family}.
 }
 \description{
 Computes bootstrap standard errors and percentile confidence intervals for
@@ -68,16 +105,216 @@ Available for both cross-sectional and longitudinal fits.}
 \code{block_length = 1} slices are resampled independently;
 \code{block_length > 1} draws contiguous blocks (a moving-block
 bootstrap), which preserves short-run temporal dependence. Longitudinal
-fits only (requires \code{T > 1}); with few slices its intervals are
-necessarily coarse.}
+fits only, and only when the panel supplies at least
+\code{ceiling(T / block_length) >= 10} resampling blocks: below that the
+ends of the interval are the extreme replicates (a plain percentile
+interval covered the dyadic coefficient in 0.83 of the panels at five
+blocks), so the call warns and
+uses \code{parametric} instead. The returned object records the
+scheme actually used in \code{type} and the one asked for in
+\code{requested_type}. The interval end points are read at expanded
+percentile levels, and the scheme returns no standard error or interval
+for the parameters that vary over actors and not over time; see
+\emph{Block bootstrap} below.}
 }
 
 Every replicate is refit by \code{\link{ame_als_refit}}, warm-started
 from the original point estimate so that replicates do not drift to
-different local optima. Replicates that error or return non-finite values
-are dropped and counted (\code{n_valid} / \code{n_total}). Standard errors
-are replicate column standard deviations; confidence intervals use the
-percentile method.
+different local optima. An empirical-Bayes fit
+(\code{fit$bias_correct$method == "eb"}, the default for normal, binary and Poisson
+fits; see \code{\link{ame_als}}) has every replicate refit with the same estimator,
+re-estimating the covariance of the actor effects from the fitted one, and
+draws the replicate effects uncentred, since the fitted intercept is the
+population intercept; the intervals then describe the empirical-Bayes
+estimator, and agree with the Laplace standard errors of
+\code{\link{vcov.ame_als}} where those are calibrated. A fit carrying the
+split-sample jackknife
+(\code{fit$bias_correct$method == "jackknife"}) has every replicate
+corrected the same
+way, so the intervals describe the corrected estimator; a replicate whose
+split cannot be refit is dropped and counted like any failed replicate. A
+fit carrying the parametric-bootstrap correction
+(\code{fit$bias_correct$method == "bootstrap"}) has the bias it estimated
+removed from every replicate rather than re-estimated, so a replicate costs
+one refit; the bias moves slowly with the parameters, and the replicate
+spread is that of the corrected estimator to first order. A binary
+replicate in which an actor has a single outcome value on a side records
+that actor's effect there as \code{-Inf} (no tie) or \code{Inf} (only
+ties), its maximum-likelihood value, so the actor's interval is open on
+that side and its standard error is \code{Inf}; an actor the original fit
+leaves out is \code{NA} throughout. A dynamic ALS fit is refit dynamically, on the
+parametric route only: a block resample reorders the time axis the
+temporal penalties are defined along. Only a penalised normal-family dynamic
+fit (\code{bias_correct = "none"}) has a bootstrap, and its time-varying
+factors are not summarised. Every replicate redraws the additive paths (an
+actor level with the fitted level variance plus an AR(1) deviation), so the
+standard errors carry the variability of the actors: the intercept's
+interval is for the population intercept (it covered 0.90 and 0.82 of 100
+panels of 20 actors and 8 periods and 40 of 30 and 12, against 0.08 and
+0.07 when the fitted paths were held fixed, which covers the realized
+intercept only) and the dyadic coefficient's covered 0.91 and 0.95. The
+bootstrap of \code{\link{lame}} (\code{bootstrap = N}) draws its replicates
+the same way. The
+default dynamic empirical-Bayes fit of every family refuses a bootstrap, with
+an error of class \code{"lame_dynamic_eb_unsupported"}, and carries standard
+errors in \code{vcov()} and \code{confint()} instead (Laplace ones for a
+binary or Poisson fit, the exact Gaussian marginal ones for a normal fit). A
+penalised binary or Poisson dynamic fit refuses it with an error of class
+\code{"lame_als_bootstrap_unsupported"}. These refusals come before the
+replicate count is checked.
+Standard errors are replicate column standard deviations; confidence
+intervals use the percentile method.
+
+\strong{Replicates.} At least 10 valid replicates are needed
+(\code{R} below 10 is an error of class
+\code{"lame_als_bootstrap_replicates"}; \code{bootstrap = N} in
+\code{\link{ame_als}} and \code{\link{lame_als}} needs 30, and a 95 percent
+percentile interval is best read from 200 or more). A replicate whose refit has
+not converged is retried on the same data with four times the budget and,
+failing that, dropped: it never enters an interval. A replicate that errors,
+returns non-finite values or cannot carry the split-sample correction is
+dropped too, and every dropped replicate is counted
+(\code{n_failed}, with the reason in \code{fail_reason}). A dropped replicate
+is usually an extreme one, so the nominal level of a percentile interval can
+move by at most the share dropped; more than 5 percent of the \code{R}
+replicates dropped is an error of class
+\code{"lame_als_bootstrap_convergence"}, raised at the replicate that crosses
+the cap, with no interval from the rest.
+
+\strong{One optimum per replicate.} The replicates of a fit with a
+multiplicative term (\code{R > 0}) are refit from the point estimate and
+also from the start the original fit used (the cold spectral start and, for a
+fit with \code{multistart}, its random starts); the converged refit with the
+lowest objective is kept, so a replicate cannot sit at a worse local optimum
+than the original procedure finds on its data. The start each replicate kept
+is in \code{boot_refit_start}, and \code{optimum_check} says what was
+compared. Without a multiplicative term the optimum is unique and a replicate
+is refit once. (An empirical-Bayes refit starts from the variational state of
+the fit and is not compared with other starts.) The point estimate of every
+coefficient must lie inside the central 95 percent of its own replicates: if
+it does not, the replicates are distributed around another optimum, or the
+estimator is biased by more than two standard errors, and the call is an
+error of class \code{"lame_als_bootstrap_optimum"} that carries the
+bootstrap as its \code{boot} field. A variance component whose estimate lies
+outside its replicate interval is the bias of its estimator in a regime a
+percentile interval cannot describe (the variance of the lognormal layer of a
+count network without extra-Poisson noise is the usual case): its standard
+error and interval are \code{NA}, it is named in \code{vc_uncentred} with the
+estimate and the replicate range, and the rest of the bootstrap stands.
+
+\strong{Block bootstrap.} A statistic that varies over \eqn{B} resampling
+blocks has a percentile interval that falls short of its level: in the
+simulations below a 95 percent interval covered the dyadic coefficient
+in 0.90 of the panels over ten to thirty blocks. The end points of a
+block interval are therefore read at the expanded percentile levels
+\eqn{\Phi(\sqrt{B / (B - 1)}\, t_{B - 1, \alpha / 2})}{Phi(sqrt(B / (B - 1)) * qt(alpha / 2, B - 1))}
+(Hesterberg, 2015): 0.9 and 99.1 percent for a 95 percent interval at ten
+blocks, 1.6 and 98.4 percent at twenty. \code{n_blocks} records \eqn{B}, and
+\code{confint()}, \code{tidy()} and the interval columns of \code{print()}
+and \code{summary()} use these levels. The number of replicates matters
+more here than for a parametric bootstrap, since the end points sit in the
+tails of the replicates: use 200 or more.
+
+A block resample redraws the time slices and holds the actors fixed, so it
+carries the variability of the data over time and none of the variability
+over actors. The parameters whose sampling variability is that over actors
+have no standard error and no interval under \code{type = "block"}: they
+are \code{NA}, named in \code{withheld} with the reason, and \code{print()}
+and \code{summary()} say so. \code{type = "parametric"} gives them. They are
+the node-covariate coefficients, \code{va}, \code{vb} and \code{cab}, and,
+for an empirical-Bayes fit, the intercept (the population intercept) and the
+additive effects and factors, which are shrunk toward their prior mean: the
+replicates vary around the shrunk estimates, not around the effects. The
+residual variance \code{ve} has none either: a refit to a resample, which
+repeats some slices and omits others, absorbs more of the noise than the
+original fit, so its replicates sit below the estimate. The intercept of a
+fixed-effects fit is the mean of its linear predictor over the observed
+actors (the additive effects sum to zero), and its interval is for that
+quantity and not for a population intercept.
+
+Coverage of the 95 percent interval was measured on directed normal-family
+panels of 15 to 40 actors and 10 to 30 periods with a time-varying dyadic
+covariate, static node covariates, random actor effects (standard
+deviation 0.6) and reciprocal errors (correlation 0.3), at block lengths 1
+to 3, with 100 to 200 replicates a bootstrap and 80 to 150 panels a cell
+(1720 bootstraps of simulated panels in all, 530 of them with 200 replicates).
+Coverage of the 95 percent interval, over all panels with ten or more blocks
+(plain percentile), at the levels above with 200 replicates (expanded), and
+for the parametric scheme on the same panels:
+\tabular{lccc}{
+\strong{parameter} \tab \strong{plain} \tab \strong{expanded} \tab \strong{parametric} \cr
+dyadic coefficients \tab 0.90 \tab 0.95 \tab 0.93 \cr
+intercept, fixed-effects fit \tab 0.89 \tab 0.93 \tab 0.92 \cr
+\code{rho} \tab 0.90 \tab 0.94 \tab 0.94 \cr
+additive effects \tab 0.90 \tab 0.94 \tab 0.93 \cr
+multiplicative term (\code{R = 1}) \tab 0.91 to 0.92 \tab 0.94 \tab 0.93 \cr
+\code{ve} \tab 0.87 \tab 0.89 \tab 0.94 \cr
+node-covariate coefficients \tab 0.07 to 0.11 \tab 0.11 to 0.13 \tab 0.90 \cr
+\code{va}, \code{vb}, \code{cab} \tab 0.12 to 0.14 \tab 0.15 to 0.17 \tab 0.92 to 0.98
+}
+The first five rows keep their intervals (for a fit by the fixed-effects
+estimator, \code{bias_correct = "none"}). The parametric column is the
+interval of the parametric scheme with its own corrections. The intercept of a
+fixed-effects fit is the mean of its linear predictor, so a replicate's
+intercept carries the projection of the redrawn actor effects on the node
+covariates, which the realized intercept does not: the replicate intercept
+is taken relative to it (the interval was 2.6 times the sampling standard
+deviation, coverage 1.00, before; now 0.92 of 500 panels, standard error 0.94
+of the sampling standard deviation), and the node-covariate coefficients keep
+that variation (0.90). The variances \code{va} and \code{vb} are biased and
+their replicates reproduce the bias (a percentile interval covered 0.82 to
+0.89 of the fixed-effects panels and 0.65 to 0.75 of the empirical-Bayes
+ones), so their parametric intervals are bias-corrected: the basic interval on
+the log scale for a fixed-effects fit (0.92 to 0.98 at 15, 20 and 40 actors)
+and the basic interval for an empirical-Bayes fit, whose estimate is biased
+upward by an amount that does not scale with it (0.91 to 0.97 at 20 and 30
+actors).
+On binary empirical-Bayes panels of 20
+actors and 12 periods (80 panels) the block intervals covered the dyadic
+coefficient in 0.91 of the panels and \code{rho} in 0.94, and the intercept in
+0.19, the node-covariate coefficients in 0.25 and 0.26, \code{va},
+\code{vb} and \code{cab} in 0.43, 0.28 and 0.33 and the additive effects in
+0.67 and 0.63 (0.93 for the parametric scheme). The same holds for the
+empirical-Bayes normal fit, the default for the normal family (20 actors, 12
+to 20 periods, 160 panels, 200 replicates): the block intervals covered the
+dyadic coefficient in 0.96 to 1.00 of the panels and \code{rho} in 0.93 to
+0.98, and the intercept in 0.03 to 0.13, the node-covariate coefficients in
+0.05 to 0.10, \code{va}, \code{vb} and \code{cab} in 0.02 to 0.18 and the
+additive effects in 0.27 to 0.39; \code{ve} covered 0.91 to 0.95 and has no
+interval. The fixed-effects rows above are the fits made with
+\code{bias_correct = "none"}.
+
+\strong{Fixed-effects fits.} A binary fit by the fixed-effects estimator
+(\code{bias_correct = "none"}) has no bootstrap: an error of class
+\code{"lame_als_bootstrap_bias"}, raised before anything is fitted by
+\code{\link{ame_als}} and \code{\link{lame_als}}. The dyadic coefficient of
+such a fit carries the incidental-parameters bias, every replicate is
+refit at the biased estimate and reproduces it, and the percentile
+interval sits about twice the bias from the truth. A 95 percent
+interval covered the dyadic coefficient in 0.54, 0.72, 0.76 and 0.84 of 100
+simulated panels of 30 actors and one period, 60 and two, 100 and two, and 30
+and four; the bias relative to the standard error falls slowly with the number
+of actors (0.85, 0.71, 0.57, 0.40) and the fit passes the size rule of
+\code{\link{ame_als}} at 100 actors and two periods. The default
+empirical-Bayes estimator, or the split-sample or parametric-bootstrap
+correction, is the fit to bootstrap. The 95 percent interval of a corrected fit
+covered the dyadic coefficient in 0.940 (jackknife) and 0.940 (bootstrap
+correction) of 150 simulated panels of 30 actors and four periods, and in
+0.945 and 0.953 of 145 and 150 panels of 60 actors and two (200 replicates; Monte
+Carlo standard error 0.019). Over those four cells the intervals for the dyadic
+coefficient, \code{va} and \code{vb} covered 0.944, 0.940 and 0.943 of 595
+panels (standard error 0.010), and the standard error of the dyadic
+coefficient was 0.99 to 1.04 times its sampling standard deviation; 5 of
+the 600 panels were refused by the refit rule or the size rule. A replicate of a
+jackknife-corrected fit repeats the split-sample correction, and a replicate of
+a bootstrap-corrected fit has the stored bias removed. Scaling that
+stored bias by each replicate's own estimate changed the coverage of 60 panels
+in each of two cells by at most 0.02 and is not used; repeating the
+bootstrap correction in every replicate costs about 60 refits a replicate. A fixed-effects Poisson fit
+has no incidental-parameters bias in its dyadic coefficient (0.93 to 0.94)
+or its variance components, but its intercept does: it has no interval
+under either scheme (0.61, 0.85 and 0.73 of panels of 30 actors and one
+period, 60 and two, and 100 and two).
 }
 \details{
 \strong{Choice of inference.} The Social Influence Regression paper of
@@ -99,13 +336,22 @@ components are rotation-invariant and are aggregated directly. The
 multiplicative factors \code{U}, \code{V} are \emph{not}: each replicate is
 Procrustes-aligned to the original fit before its standard errors are
 computed. The object stores both the raw and aligned replicate factors so
-the effect of alignment can be inspected. The alignment is well-determined
-only when the multiplicative singular values are well separated; with
-near-equal singular values the per-column \code{U}/\code{V} standard errors
-reflect an unstable rotation, and the subspace --- or, for symmetric models,
-the eigenvalues \code{L} --- is the summary of record. For a symmetric model
-the eigenvalues \code{L} of the multiplicative term are aggregated and
-reported as the primary multiplicative-uncertainty summary.
+the effect of alignment can be inspected. The alignment identifies a column
+only when its singular value is separated from its neighbours': two adjacent
+singular values (eigenvalues, for a symmetric model) count as separated when
+their gap in the point estimate is at least 5 bootstrap standard deviations of
+that gap (\code{sv_separation$threshold}; the rotation the alignment applies to
+the pair is then under 4 degrees at the median and under 10 at the 90th
+percentile, against 9 and 25 when the two are equal). The \code{U} and \code{V}
+columns that are not separated from a neighbour have \code{NA} for the
+column-wise standard errors (\code{se_U}, \code{se_V}, and their unaligned
+\code{_raw} versions) and \code{NA} intervals in \code{confint()}. What is
+reported for every fit with a multiplicative term, separated or not, is the
+uncertainty of the subspaces the factors span, which a rotation of the columns
+does not change: the principal angles, in degrees, between each replicate's
+row-factor (and column-factor) space and the point estimate's
+(\code{subspace}). For a symmetric model the eigenvalues \code{L} of the
+multiplicative term are aggregated and reported as well.
 
 \strong{The parametric bootstrap} is a full parametric bootstrap of the AME
 model: each replicate draws fresh additive random effects \code{a}, \code{b}
@@ -118,20 +364,23 @@ errors their actor-level sampling-variability component.
 \strong{Assumptions.} The block bootstrap treats the time slices as
 exchangeable replicates of the static-effects model --- appropriate for that
 model, but not for strongly trended or serially dependent series (use the
-dynamic \code{\link{lame}} there); with only a few time slices it is
-necessarily coarse, its intervals correspondingly imprecise and somewhat
-anti-conservative, so \code{parametric} is the default. A variance component
-fit with \code{R > 0} can still carry a small residual parametric-bootstrap
-bias (the low-rank refit re-absorbs simulated noise); \code{summary()} flags
-any point estimate that falls outside its interval. A binary IRLS fit can
-carry a finite-sample (incidental-parameters) bias in the point estimator
-itself, which the bootstrap reproduces rather than removes. The MCMC
+dynamic \code{\link{lame}} there). The block bootstrap needs at least ten
+resampling blocks, so \code{parametric} (the default) is
+substituted, with a warning, on a panel that supplies fewer than ten
+blocks. The finite-sample
+(incidental-parameters) stretch of a binary IRLS fit is removed from the
+point estimate and from every replicate by the empirical-Bayes estimator
+(\code{bias_correct}, on by default for binary, Poisson and normal fits) or, when
+requested, the split-sample jackknife or the parametric-bootstrap
+correction; a binary fit that carries none of them has no bootstrap
+(\emph{Fixed-effects fits} above). The MCMC
 \code{\link{ame}} / \code{\link{lame}} path gives posterior summaries when
 that is the target.
 }
 \examples{
 \donttest{
-Y <- replicate(6, { m <- matrix(rnorm(225), 15, 15); diag(m) <- NA; m },
+# twelve periods supply the ten resampling blocks the block scheme needs
+Y <- replicate(12, { m <- matrix(rnorm(225), 15, 15); diag(m) <- NA; m },
                simplify = FALSE)
 fit <- lame_als(Y, R = 1, family = "normal", verbose = FALSE)
 # post-hoc bootstrap of an existing fit:
@@ -150,6 +399,10 @@ Minhas, S. and Hoff, P. D. (2025). Decomposing Network Dynamics: Social
 Influence Regression. \emph{Political Analysis}. The block and parametric
 bootstrap follow the inference scheme of \code{sir::boot_sir()} developed
 for the SIR estimator.
+
+Hesterberg, T. C. (2015). What teachers should know about the bootstrap:
+resampling in the undergraduate statistics curriculum. \emph{The American
+Statistician} 69(4), 371--386.
 }
 \seealso{
 \code{\link{ame_als}} and \code{\link{lame_als}}, both of

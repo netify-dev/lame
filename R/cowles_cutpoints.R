@@ -1,13 +1,6 @@
-# cowles (1996) z-marginalised metropolis-hastings update for explicit
-# ordinal cutpoints, an alternative to the
-# data-induced cutpoint convention. default behaviour unchanged
-# (`ordinal_cutpoints = "data_induced"`); the explicit path is opt-in
-# via `ordinal_cutpoints = "explicit"` and stores a posterior on
-# `fit$alpha` with `alpha_1 = 0` as the identification anchor.
-#
-# reference: cowles, m. k. (1996). accelerating monte carlo markov chain
-# convergence for cumulative-link generalized linear models. statistics
-# and computing, 6, 101--111.
+# Z-marginalised Metropolis-Hastings update of explicit ordinal cutpoints
+# (ordinal_cutpoints = "explicit"), stored in fit$alpha with alpha_1 = 0 as the anchor;
+# Cowles (1996), Statistics and Computing 6, 101-111
 
 #' Numerically stable log(Phi(hi) - Phi(lo))
 #'
@@ -18,59 +11,74 @@
 #'
 #' @param hi numeric, upper bound
 #' @param lo numeric, lower bound (must be <= hi elementwise)
+#' @param width optional original interval widths, before centering the bounds.
+#'   Retains legitimate short intervals whose centered endpoints round together.
 #' @return numeric, log(Phi(hi) - Phi(lo))
 #' @keywords internal
-log_phi_diff <- function(hi, lo) {
-	# stable in both tails. for points in the lower tail we use the
-	# lower-tail log cdf and compute log(exp(a) - exp(b)) where a > b.
-	# for the upper tail we flip to the upper-tail log cdf (1 - phi) and
-	# compute log(exp(b') - exp(a')) where b' > a' because the survival
-	# function is monotone-decreasing. we dispatch elementwise off the
-	# midpoint sign so an array with both regimes is handled correctly.
+log_phi_diff <- function(hi, lo, width = NULL) {
+	if (length(hi) != length(lo) || anyNA(hi) || anyNA(lo))
+		stop("Normal interval bounds must have matching lengths and no missing values.")
+	if (is.null(width)) width <- hi - lo
+	if (length(width) != length(hi) || anyNA(width))
+		stop("Normal interval widths must match their bounds.")
 	out <- rep(-Inf, length(hi))
-	mid <- (hi + lo) / 2
-	lower <- which(is.finite(hi) & is.finite(lo) & mid <= 0)
-	upper <- which(is.finite(hi) & is.finite(lo) & mid > 0)
-	# infinite-bound case: lo = -inf or hi = +inf collapses to a single cdf
-	inf_lo <- which(!is.finite(lo) & is.finite(hi))
-	inf_hi <- which(is.finite(lo) & !is.finite(hi))
+	mid <- hi / 2 + lo / 2
+	lower <- which(is.finite(hi) & is.finite(lo) & hi > lo & mid <= 0)
+	upper <- which(is.finite(hi) & is.finite(lo) & hi > lo & mid > 0)
 	if (length(lower)) {
 		a <- stats::pnorm(hi[lower], log.p = TRUE)
 		b <- stats::pnorm(lo[lower], log.p = TRUE)
-		out[lower] <- a + log1p(-exp(b - a))
+		out[lower] <- a + log(-expm1(b - a))
 	}
 	if (length(upper)) {
-		# survival-function form: p(lo < x <= hi) = s(lo) - s(hi),
-		# s(.) = pnorm(., lower.tail = false). both s values are
-		# representable as log-tail probs without cancellation.
-		ap <- stats::pnorm(hi[upper], lower.tail = FALSE, log.p = TRUE)
-		bp <- stats::pnorm(lo[upper], lower.tail = FALSE, log.p = TRUE)
-		# bp > ap because s is decreasing and lo < hi
-		out[upper] <- bp + log1p(-exp(ap - bp))
+		a <- stats::pnorm(hi[upper], lower.tail = FALSE, log.p = TRUE)
+		b <- stats::pnorm(lo[upper], lower.tail = FALSE, log.p = TRUE)
+		out[upper] <- b + log(-expm1(a - b))
 	}
-	if (length(inf_lo)) {
-		out[inf_lo] <- stats::pnorm(hi[inf_lo], log.p = TRUE)
+	inf_lo <- which(lo == -Inf & is.finite(hi))
+	inf_hi <- which(is.finite(lo) & hi == Inf)
+	out[inf_lo] <- stats::pnorm(hi[inf_lo], log.p = TRUE)
+	out[inf_hi] <- stats::pnorm(lo[inf_hi], lower.tail = FALSE, log.p = TRUE)
+	out[lo == -Inf & hi == Inf] <- 0
+	# a short interval whose shifted endpoints round together is integrated about its midpoint:
+	# P = width * phi(mid) * integral[-1/2,1/2] exp(-mid*width*u - (width*u)^2/2) du,
+	# restricted to a smooth, bounded integrand
+	short <- which(
+		is.finite(mid) & is.finite(width) & width > 0 &
+			width <= 1e-3 & abs(mid * width) <= 1e-2
+	)
+	for (k in short) {
+		w <- width[k]; m <- mid[k]
+		v <- stats::integrate(
+			function(u) exp(-m * w * u - (w * u)^2 / 2),
+			-.5,
+			.5,
+			rel.tol = 1e-12,
+			abs.tol = 0,
+			subdivisions = 100L
+		)$value
+		out[k] <- stats::dnorm(m, log = TRUE) + log(w) + log(v)
 	}
-	if (length(inf_hi)) {
-		out[inf_hi] <- stats::pnorm(lo[inf_hi], lower.tail = FALSE, log.p = TRUE)
-	}
-	out[!is.finite(out)] <- -Inf
+	unresolved <- is.finite(hi) & is.finite(lo) & is.finite(width) &
+		width > 0 & !is.finite(out)
+	if (any(unresolved))
+		stop("Positive normal interval probability cannot be resolved numerically.")
 	out
 }
 
 # alpha <-> delta reparameterisation
 .alpha_to_delta <- function(alpha) {
-	# alpha is length (k-1) with alpha[1] = 0; delta is length (k-2)
+	# alpha has length K - 1 with alpha[1] = 0; delta has length K - 2
 	if (length(alpha) <= 1L) return(numeric(0))
 	log(diff(alpha))
 }
 
 .delta_to_alpha <- function(delta) {
-	# returns length (k-1), anchored at alpha[1] = 0
+	# length K - 1, anchored at alpha[1] = 0
 	c(0, cumsum(exp(delta)))
 }
 
-# initial alpha from empirical cdf (probit inverse), anchored at alpha[1] = 0
+# initial alpha from the empirical CDF (probit inverse), anchored at alpha[1] = 0
 .init_alpha_from_data <- function(Y) {
 	obs <- Y[is.finite(Y)]
 	lvls <- sort(unique(obs))
@@ -78,14 +86,16 @@ log_phi_diff <- function(hi, lo) {
 	if (K < 2L) {
 		cli::cli_abort(c(
 			"ordinal_cutpoints = 'explicit' requires at least 2 distinct observed categories.",
-			"i" = "Found {K}; check {.arg Y} or use a different family."))
+			"i" = "Found {K}; check {.arg Y} or use a different family."
+		))
 	}
-	# guard against empty interior class (cutpoint posterior improper)
+	# warn about sparse categories, whose cutpoints are weakly identified
 	counts <- tabulate(match(obs, lvls))
 	if (any(counts < 5L) && K >= 3L) {
 		cli::cli_warn(c(
 			"ordinal_cutpoints = 'explicit': category counts {.val {counts}} have at least one cell below 5.",
-			"i" = "Cutpoint posterior may be weakly identified. Consider collapsing categories."))
+			"i" = "A category with fewer than 5 observations leaves its cutpoint weakly identified; collapsing categories removes it."
+		))
 	}
 	# probit inverse of cumulative proportions, shifted so alpha[1] = 0
 	props <- cumsum(counts[-K]) / length(obs)
@@ -94,21 +104,18 @@ log_phi_diff <- function(hi, lo) {
 	alpha_raw - alpha_raw[1L]
 }
 
-# z-marginalised ordinal log-likelihood at cutpoints alpha:
-# sum_{ij} log{pnorm(alpha_y - eta) - pnorm(alpha_y_minus_1 - eta)}
-# under z ~ N(eta, 1) the marginal category probability is
-# pnorm(alpha_k - eta) - pnorm(alpha_{k-1} - eta) for both the symmetric
-# and asymmetric models (variance 1). the symmetric path counts each
-# dyad once via the upper-triangle mask in sample_alpha_cowles, so no
-# variance rescaling is applied.
-# `y_int` is the integer-recoded y in 1..k (na for missing); `alpha_full`
-# is c(-inf, alpha, inf) of length k+1.
-.ord_marginal_loglik <- function(alpha_full, eta_obs, Y_int_obs, symmetric) {
-	scale <- 1
+# Z-marginalised ordinal log-likelihood at cutpoints alpha,
+# sum log{pnorm(alpha_y - eta) - pnorm(alpha_{y-1} - eta)}; `alpha_full` is
+# c(-Inf, alpha, Inf), and the symmetric caller already counts each dyad once
+.ord_marginal_loglik <- function(alpha_full, eta_obs, Y_int_obs) {
 	hi <- alpha_full[Y_int_obs + 1L]
 	lo <- alpha_full[Y_int_obs]
-	log_p <- log_phi_diff(scale * (hi - eta_obs), scale * (lo - eta_obs))
-	sum(log_p[is.finite(log_p)])
+	log_p <- log_phi_diff(
+		hi - eta_obs,
+		lo - eta_obs,
+		width = hi - lo
+	)
+	sum(log_p)
 }
 
 #' Cowles MH update for explicit ordinal cutpoints (Z-marginalised)
@@ -139,7 +146,7 @@ log_phi_diff <- function(hi, lo) {
 sample_alpha_cowles <- function(alpha, Y_int, EZ, tau_prop, symmetric = FALSE) {
 	K_minus_1 <- length(alpha)
 	if (K_minus_1 < 2L) {
-		# k = 2 (binary): no free cutpoint to update
+		# K = 2 (binary): no free cutpoint to update
 		return(list(alpha = alpha, delta = numeric(0), accept = FALSE))
 	}
 
@@ -147,32 +154,34 @@ sample_alpha_cowles <- function(alpha, Y_int, EZ, tau_prop, symmetric = FALSE) {
 	# information per cutpoint is not double-counted
 	obs_mask <- !is.na(Y_int)
 	if (isTRUE(symmetric)) {
-		ut <- upper.tri(Y_int)
-		if (length(dim(Y_int)) == 2L) obs_mask <- obs_mask & ut
+		ut <- upper.tri(matrix(FALSE, dim(Y_int)[1L], dim(Y_int)[2L]))
+		if (length(dim(Y_int)) == 3L) ut <- array(ut, dim(Y_int))
+		obs_mask <- obs_mask & ut
 	}
 	if (!any(obs_mask)) {
 		return(list(alpha = alpha, delta = .alpha_to_delta(alpha), accept = FALSE))
 	}
 	Y_obs <- Y_int[obs_mask]
-	EZ_obs <- EZ[obs_mask]
+	EZ_obs <- if (isTRUE(symmetric)) {
+		EZ_mirror <- if (length(dim(EZ)) == 3L) aperm(EZ, c(2L, 1L, 3L)) else t(EZ)
+		(EZ[obs_mask] + EZ_mirror[obs_mask]) / 2
+	} else EZ[obs_mask]
 
 	delta <- .alpha_to_delta(alpha)
 	delta_prop <- delta + tau_prop * stats::rnorm(length(delta))
 	alpha_prop <- .delta_to_alpha(delta_prop)
 
-	K <- K_minus_1 + 1L  # number of categories
-	af_curr <- c(-Inf, alpha,      Inf)
+	af_curr <- c(-Inf, alpha, Inf)
 	af_prop <- c(-Inf, alpha_prop, Inf)
 
-	ll_curr <- .ord_marginal_loglik(af_curr, EZ_obs, Y_obs, symmetric)
-	ll_prop <- .ord_marginal_loglik(af_prop, EZ_obs, Y_obs, symmetric)
+	ll_curr <- .ord_marginal_loglik(af_curr, EZ_obs, Y_obs)
+	ll_prop <- .ord_marginal_loglik(af_prop, EZ_obs, Y_obs)
 
-	# jacobian of delta -> alpha is product of exp(delta_k), so log |j*|/|j|
-	# = sum(delta* - delta). flat prior on ordered alpha; the proposal
-	# itself is symmetric in delta.
+	# log Jacobian of delta -> alpha; the prior on ordered alpha is flat and the proposal
+	# is symmetric in delta
 	log_jac <- sum(delta_prop) - sum(delta)
 	log_a <- (ll_prop - ll_curr) + log_jac
-	# numerical sanity: nan means support violated
+	# a non-finite ratio means the support is violated
 	if (!is.finite(log_a)) {
 		return(list(alpha = alpha, delta = delta, accept = FALSE))
 	}
@@ -194,33 +203,31 @@ sample_alpha_cowles <- function(alpha, Y_int, EZ, tau_prop, symmetric = FALSE) {
 #' @param EZ expected value of Z (linear predictor)
 #' @param Y_int integer-recoded ordinal Y (1..K)
 #' @param alpha length-(K-1) cutpoints with \code{alpha[1] = 0}
+#' @param rho directed within-dyad correlation; zero for independent cells.
 #' @return updated Z
 #' @keywords internal
-rZ_ord_explicit_fc <- function(Z, EZ, Y_int, alpha) {
+rZ_ord_explicit_fc <- function(Z, EZ, Y_int, alpha, rho = 0) {
+	if (length(rho) != 1L || !is.finite(rho) || abs(rho) >= 1)
+		stop("Explicit ordinal correlation must be finite and inside (-1, 1).")
+	if (rho != 0) return(.rZ_ord_explicit_correlated_fc(Z, EZ, Y_int, alpha, rho))
 	af <- c(-Inf, alpha, Inf)
 	obs <- !is.na(Y_int)
-	if (!any(obs)) return(Z)
-	# truncated normal per cell
-	lo <- af[Y_int[obs]]
-	hi <- af[Y_int[obs] + 1L]
-	ez_obs <- EZ[obs]
-	u <- stats::runif(sum(obs))
-	# inverse-cdf on the truncation interval
-	plo <- stats::pnorm(lo - ez_obs)
-	phi <- stats::pnorm(hi - ez_obs)
-	# guard against degenerate (plo == phi) by widening minimally
-	deg <- (phi - plo) < 1e-12
-	if (any(deg)) {
-		# midpoint fallback at the cell mean
-		mid <- (lo[deg] + hi[deg]) / 2
-		mid[!is.finite(mid)] <- ez_obs[deg][!is.finite(mid)]
-		Z[obs][deg] <- mid
+	if (any(!is.finite(EZ)) || any(!is.finite(alpha)) ||
+			any(diff(alpha) <= 0) || any(Y_int[obs] != as.integer(Y_int[obs])) ||
+			any(Y_int[obs] < 1L | Y_int[obs] > length(alpha) + 1L)) {
+		stop("Invalid explicit ordinal latent-state inputs.")
 	}
-	if (any(!deg)) {
-		z_new <- ez_obs[!deg] + stats::qnorm(
-			plo[!deg] + u[!deg] * (phi[!deg] - plo[!deg]))
-		Z[obs][!deg] <- z_new
+	if (any(obs)) {
+		lo <- af[Y_int[obs]]; hi <- af[Y_int[obs] + 1L]
+		draw <- rtnorm_interval_logp(EZ[obs], lo, hi)
+		if (any(!is.finite(draw)) || any(draw <= lo | draw >= hi)) {
+			stop("Explicit ordinal truncated-normal draw is numerically unresolved.")
+		}
+		Z[obs] <- draw
 	}
+	# missing cells, including nuisance diagonals, have no rank constraint
+	if (any(!obs)) Z[!obs] <- stats::rnorm(sum(!obs), EZ[!obs])
+	if (any(!is.finite(Z))) stop("Explicit ordinal latent draw is outside numerical range.")
 	Z
 }
 
@@ -238,30 +245,40 @@ rZ_ord_explicit_fc <- function(Z, EZ, Y_int, alpha) {
 #' @keywords internal
 rZ_ord_sym_explicit_fc <- function(Z, EZ, Y_int, alpha) {
 	n <- nrow(Y_int)
+	obs_input <- !is.na(Y_int)
+	if (any(!is.finite(EZ)) || any(!is.finite(alpha)) ||
+			any(diff(alpha) <= 0) || any(Y_int[obs_input] != as.integer(Y_int[obs_input])) ||
+			any(Y_int[obs_input] < 1L | Y_int[obs_input] > length(alpha) + 1L)) {
+		stop("Invalid explicit ordinal latent-state inputs.")
+	}
 	ut <- upper.tri(Z)
 	af <- c(-Inf, alpha, Inf)
 	sd_sym <- 1
-	# upper triangle observed cells
+	# observed upper-triangle cells
 	obs <- ut & !is.na(Y_int)
 	if (any(obs)) {
 		Y_obs <- Y_int[obs]
 		ez_avg <- (EZ[obs] + t(EZ)[obs]) / 2
 		lo <- af[Y_obs]
 		hi <- af[Y_obs + 1L]
-		plo <- stats::pnorm((lo - ez_avg) / sd_sym)
-		phi <- stats::pnorm((hi - ez_avg) / sd_sym)
-		u <- stats::runif(length(ez_avg))
-		# stable truncation interval sample
-		z_new <- ez_avg + sd_sym * stats::qnorm(plo + u * (phi - plo))
-		# guard degenerate
-		bad <- !is.finite(z_new)
-		if (any(bad)) z_new[bad] <- (lo[bad] + hi[bad]) / 2
+		z_new <- sd_sym * rtnorm_interval_logp(ez_avg / sd_sym, lo / sd_sym, hi / sd_sym)
+		if (any(!is.finite(z_new)) || any(z_new <= lo | z_new >= hi)) {
+			stop("Symmetric explicit ordinal truncated-normal draw is numerically unresolved.")
+		}
 		Z[obs] <- z_new
 		# mirror to lower triangle
 		mirror_idx <- which(obs, arr.ind = TRUE)[, c(2L, 1L), drop = FALSE]
 		Z[mirror_idx] <- z_new
 	}
-	# diagonal: unconstrained prior draw (matches existing convention)
+	# missing unordered dyads carry no category constraint
+	missing <- ut & is.na(Y_int)
+	if (any(missing)) {
+		Z[missing] <- stats::rnorm(sum(missing), (EZ[missing] + t(EZ)[missing]) / 2)
+		mirror <- which(missing, arr.ind = TRUE)[, c(2L, 1L), drop = FALSE]
+		Z[mirror] <- Z[missing]
+	}
+	# diagonal: unconstrained prior draw
 	diag(Z) <- stats::rnorm(n, diag(EZ), 1)
+	if (any(!is.finite(Z))) stop("Symmetric explicit ordinal latent draw is outside numerical range.")
 	Z
 }

@@ -22,7 +22,9 @@
 \item{level}{confidence level (default 0.95).}
 
 \item{ci_type}{interval type: \code{"percentile"} (default) uses the
-replicate quantiles directly and matches the intervals reported by
+replicate quantiles directly (for a block bootstrap, those at the
+expanded percentile levels of \code{\link{ame_als_bootstrap}}) and
+matches the intervals reported by
 \code{summary()} and \code{tidy()} on the same fit; \code{"basic"}
 reflects the replicate quantiles about the point estimate
 (\eqn{2\hat\theta - q}), which corrects first-order bias and can be
@@ -41,6 +43,11 @@ intercept + regression coefficients + variance components + sender effects
 }
 \value{
 A matrix with one row per parameter and lower/upper bound columns.
+The rows of the \code{U} and \code{V} columns whose singular values are
+not separated from a neighbour's, of a variance component with no
+interval (\code{vc_uncentred}), and of a parameter the bootstrap returns
+no interval for (\code{withheld}), are \code{NA}; see
+\code{\link{ame_als_bootstrap}}.
 }
 \description{
 Bootstrap confidence intervals for the intercept and regression

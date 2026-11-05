@@ -1,6 +1,5 @@
-# prior-elicitation helper for dynamic_beta. draws sample paths from
-# the prior and reports max first-difference, roughness, range, and
-# trend correlation so the user can sanity-check before fitting.
+# prior-elicitation helper for dynamic_beta: summaries of paths drawn from the prior,
+# to check it before fitting
 
 #' Summarise the implied prior on a time-varying coefficient path
 #'
@@ -65,31 +64,30 @@
 #'
 #' @export
 dynamic_beta_prior_summary <- function(
-	n_periods    = 10L,
-	ndraws       = 5000L,
-	kind         = c("ar1", "rw1", "rw2", "matern32"),
-	rho_mean     = 0.8,
-	rho_sd       = 0.15,
-	rho_lower    = 0,
-	rho_upper    = 0.999,
-	sigma_shape  = 2,
-	sigma_scale  = 1,
+	n_periods = 10L,
+	ndraws = 5000L,
+	kind = c("ar1", "rw1", "rw2", "matern32"),
+	rho_mean = 0.8,
+	rho_sd = 0.15,
+	rho_lower = 0,
+	rho_upper = 0.999,
+	sigma_shape = 2,
+	sigma_scale = 1,
 	matern32_length_scale = 2,
-	threshold    = 1,
-	seed         = NULL
+	threshold = 1,
+	seed = NULL
 ) {
 	kind <- match.arg(kind)
+	if (!is.numeric(n_periods) || length(n_periods) != 1L || !is.finite(n_periods)) {
+		cli::cli_abort("{.arg n_periods} must be a single number of periods, not {.cls {class(n_periods)}}.")
+	}
 	if (n_periods < 2L) {
 		cli::cli_abort("`n_periods` must be at least 2.")
 	}
 	if (!is.null(seed)) set.seed(seed)
 
-	# ar(1) only: translate (rho_mean, rho_sd) to beta(a, b) on the
-	# standardised rho. uses the method-of-moments inversion:
-	#   m_z = (rho_mean - rho_lower) / (rho_upper - rho_lower)
-	#   s_z = rho_sd / (rho_upper - rho_lower)
-	#   kappa = m_z(1 - m_z)/s_z^2 - 1
-	#   a = m_z * kappa,  b = (1 - m_z) * kappa.
+	# AR(1): Beta(a, b) on the standardised rho by the method of moments,
+	#   kappa = m_z (1 - m_z) / s_z^2 - 1,  a = m_z kappa,  b = (1 - m_z) kappa
 	ab <- NULL
 	if (kind == "ar1") {
 		m_z <- (rho_mean - rho_lower) / (rho_upper - rho_lower)
@@ -105,11 +103,11 @@ dynamic_beta_prior_summary <- function(
 	}
 
 	paths <- matrix(NA_real_, ndraws, n_periods)
-	rho   <- rep(NA_real_, ndraws)
+	rho <- rep(NA_real_, ndraws)
 	sigma <- rep(NA_real_, ndraws)
 
 	for (m in seq_len(ndraws)) {
-		# sample sigma from ig(shape, scale): var = scale / gamma(shape, 1)
+		# sigma^2 from IG(shape, scale)
 		s2 <- sigma_scale / stats::rgamma(1, shape = sigma_shape, rate = 1)
 		sigma[m] <- sqrt(s2)
 
@@ -124,14 +122,13 @@ dynamic_beta_prior_summary <- function(
 				paths[m, t] <- r * paths[m, t - 1] + stats::rnorm(1, 0, sigma[m])
 			}
 		} else if (kind == "rw1") {
-			# diffuse initial state; rho = 1 fixed
+			# diffuse initial state; rho = 1
 			rho[m] <- 1
 			paths[m, 1] <- stats::rnorm(1, 0, 10)
 			for (t in 2:n_periods) {
 				paths[m, t] <- paths[m, t - 1] + stats::rnorm(1, 0, sigma[m])
 			}
 		} else if (kind == "rw2") {
-			# rw2: second-difference innovation
 			rho[m] <- NA_real_
 			paths[m, 1] <- stats::rnorm(1, 0, 10)
 			paths[m, 2] <- paths[m, 1] + stats::rnorm(1, 0, sigma[m])
@@ -142,19 +139,17 @@ dynamic_beta_prior_summary <- function(
 				}
 			}
 		} else {
-			# matern32: draw from continuous-time matérn-3/2 gp with marginal
-			# variance sigma^2 and length scale matern32_length_scale.
-			# k(d) = sigma^2 * (1 + sqrt(3) d / l) * exp(-sqrt(3) d / l)
+			# continuous-time Matern-3/2 GP, k(d) = sigma^2 (1 + sqrt(3) d / l) exp(-sqrt(3) d / l)
 			rho[m] <- NA_real_
 			ts <- seq_len(n_periods)
 			D <- abs(outer(ts, ts, "-"))
 			l_scale <- max(matern32_length_scale, .Machine$double.eps)
 			r3 <- sqrt(3) * D / l_scale
 			K <- sigma[m]^2 * (1 + r3) * exp(-r3)
-			# tiny jitter for numerical stability
+			# jitter for numerical stability
 			K <- K + diag(1e-8, n_periods)
 			L <- tryCatch(chol(K), error = function(e) {
-				# fall back to a diagonal draw on degenerate cov
+				# diagonal draw when the covariance is degenerate
 				diag(sqrt(diag(K)), n_periods, n_periods)
 			})
 			paths[m, ] <- as.numeric(crossprod(L, stats::rnorm(n_periods)))
@@ -162,11 +157,11 @@ dynamic_beta_prior_summary <- function(
 	}
 
 	# summary statistics on the sampled paths
-	diffs       <- t(apply(paths, 1, diff))
-	max_abs_d1  <- apply(abs(diffs), 1, max)
-	roughness   <- rowSums(diffs^2)
-	path_range  <- apply(paths, 1, function(x) diff(range(x)))
-	trend_cor   <- apply(paths, 1, function(x) {
+	diffs <- t(apply(paths, 1, diff))
+	max_abs_d1 <- apply(abs(diffs), 1, max)
+	roughness <- rowSums(diffs^2)
+	path_range <- apply(paths, 1, function(x) diff(range(x)))
+	trend_cor <- apply(paths, 1, function(x) {
 		# guard against constant paths (correlation undefined)
 		if (stats::sd(x) < 1e-10) NA_real_ else stats::cor(x, seq_len(n_periods))
 	})
@@ -179,18 +174,18 @@ dynamic_beta_prior_summary <- function(
 
 	summary_df <- data.frame(
 		quantity = c("max_abs_first_diff", "roughness", "range", "trend_cor"),
-		q05      = c(qs(max_abs_d1)[1], qs(roughness)[1], qs(path_range)[1], qs(trend_cor)[1]),
-		q50      = c(qs(max_abs_d1)[2], qs(roughness)[2], qs(path_range)[2], qs(trend_cor)[2]),
-		q95      = c(qs(max_abs_d1)[3], qs(roughness)[3], qs(path_range)[3], qs(trend_cor)[3]),
+		q05 = c(qs(max_abs_d1)[1], qs(roughness)[1], qs(path_range)[1], qs(trend_cor)[1]),
+		q50 = c(qs(max_abs_d1)[2], qs(roughness)[2], qs(path_range)[2], qs(trend_cor)[2]),
+		q95 = c(qs(max_abs_d1)[3], qs(roughness)[3], qs(path_range)[3], qs(trend_cor)[3]),
 		row.names = NULL
 	)
 
 	list(
-		summary                    = summary_df,
+		summary = summary_df,
 		prob_max_diff_gt_threshold = mean(max_abs_d1 > threshold, na.rm = TRUE),
-		rho                        = rho,
-		sigma                      = sigma,
-		paths                      = paths,
-		kind                       = kind
+		rho = rho,
+		sigma = sigma,
+		paths = paths,
+		kind = kind
 	)
 }

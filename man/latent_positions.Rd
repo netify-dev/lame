@@ -21,11 +21,10 @@ object with R > 0.}
 
 \item{...}{Additional arguments (currently unused).}
 
-\item{align}{Logical. For dynamic models (\code{dynamic_uv = TRUE}), apply
-Procrustes alignment across the time periods of this fit to remove
-rotational indeterminacy. Default is \code{FALSE} for \code{ame} objects
-(a single period, so there is nothing to align and the argument has no
-effect) and \code{TRUE} for \code{lame} objects.}
+\item{align}{Logical. For dynamic \code{ame_als} fits, apply Procrustes
+alignment across the time periods of the fit. It has no effect on
+\code{ame} fits (a single period) or on \code{lame} fits, whose dynamic
+positions are aligned when the model is fitted (see Details).}
 }
 \value{
 A data frame with columns:
@@ -38,9 +37,10 @@ labels from the input; static (cross-sectional) fits return
 behaves the same in both cases.}
 \item{value}{Numeric. The posterior mean latent position.}
 \item{posterior_sd}{Numeric. Posterior standard deviation of the latent
-position, or \code{NA} if posterior samples are not available.
-To enable, fit the model with
-\code{posterior_opts = posterior_options(save_UV = TRUE)}.}
+position, or \code{NA} if posterior draws are not available. To enable,
+fit the model with \code{posterior_opts = posterior_options(save_UV = TRUE)}
+(static positions) or \code{posterior_opts = list(save_UV_draws = TRUE)}
+(dynamic positions).}
 \item{type}{Character. \code{"U"} for sender/row positions,
 \code{"V"} for receiver/column positions. Symmetric models have
 only \code{"U"}.}
@@ -51,14 +51,23 @@ Returns a zero-row data frame with correct column names if R = 0.
 \description{
 Extracts multiplicative latent factor positions (U and V) from a fitted
 \code{ame}, \code{lame} or \code{ame_als} model and returns them as a
-tidy data frame suitable for plotting and analysis. Optionally applies
-Procrustes alignment for dynamic models and includes posterior standard
-deviations when posterior samples are available.
+tidy data frame suitable for plotting and analysis, with posterior standard
+deviations when posterior draws of the positions are available.
 }
 \details{
-Alignment only ever happens across the periods of one fit: with
-\code{align = TRUE} the fit is passed to \code{\link{procrustes_align}},
-which rotates each period onto the one before it. Nothing here aligns two
+The latent product of each period is identified, the positions only up to a
+rotation or sign change that leaves the product unchanged. The positions of
+a \code{lame} fit with \code{dynamic_uv = TRUE} therefore factor the
+posterior mean product of every period at the fitted rank: \eqn{U_t V_t'}
+with the scale split evenly between \eqn{U_t} and \eqn{V_t};
+\eqn{U_t L U_t'} for symmetric fits, with \code{fit$L} fixed across periods;
+and \eqn{U_t G V_t'} for bipartite fits, with a diagonal \code{fit$G} fixed
+across periods. Each period is matched to the one before by moves that keep
+its product. The posterior standard deviations come from the saved draws
+(\code{posterior_opts = list(save_UV_draws = TRUE)}), each draw factored the
+same way and matched onto the reported positions.
+
+Alignment only ever happens across the periods of one fit. Nothing here aligns two
 different fits (two chains, or the same model with and without a
 covariate) to a common orientation, so their latent positions are not
 directly comparable. To compare fits that way, stack their \code{U}
@@ -68,8 +77,9 @@ same \code{R}) and call \code{procrustes_align(U = that_array)} on it.
 \examples{
 \donttest{
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
-           burn = 5, nscan = 5, odens = 1, verbose = FALSE)
+           burn = 5, nscan = 5, odens = 1, verbose = FALSE, chains = 1)
 lp <- latent_positions(fit)
 head(lp)
 }

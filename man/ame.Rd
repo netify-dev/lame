@@ -37,7 +37,8 @@ ame(
   save_interval = 0.25,
   posterior_opts = NULL,
   n_chains = 1,
-  cores = 1,
+  cores = NULL,
+  chains = .lame_chains_default(),
   use_sparse_matrices = FALSE,
   method = c("mcmc", "als"),
   bootstrap = 0L,
@@ -49,7 +50,9 @@ ame(
   ordinal_cutpoints = c("data_induced", "explicit"),
   print,
   ...,
-  model.name = NULL
+  log_lik_method = c("observed_exact", "observed_approx"),
+  model.name = NULL,
+  bias_correct = NULL
 )
 }
 \arguments{
@@ -76,12 +79,17 @@ an nB x pc matrix of column-node covariates. A \code{data.frame} is accepted and
 
 \item{cvar}{logical: fit column random effects (asymmetric case)?}
 
-\item{dcor}{logical: fit a dyadic correlation (asymmetric case)? Note: not used for bipartite networks.}
+\item{dcor}{logical: fit a dyadic correlation (asymmetric case)? Note: not used for bipartite networks. With \code{method = "als"} the argument goes to \code{\link{ame_als}}, whose directed binary probit, Poisson or normal fit then has the correlation in its likelihood.}
 
 \item{nvar}{logical: fit nodal random effects (symmetric case)?}
 
 \item{R}{integer: dimension of the multiplicative effects (can be zero). For bipartite networks,
-this is used as the default for both R_row and R_col if they are not specified.}
+this is used as the default for both R_row and R_col if they are not specified.
+A binary fit whose multiplicative term reproduces the observed ties
+exactly is separated: the size of the term is then set by its prior, the
+fit says so, and the signs and the fitted probabilities are what the data
+determine; a smaller \code{R} (down to zero for a panel whose ties barely
+change over time) reproduces them without saturating.}
 
 \item{R_row}{integer: for bipartite networks, dimension of row node multiplicative effects (defaults to R)}
 
@@ -101,7 +109,53 @@ for the model assumptions behind each family.}
 
 \item{odmax}{a scalar integer or vector of length n giving the maximum
 number of nominations that each node may make - used for "frn" and "cbin"
-families}
+families. A cap below a row's observed out-degree contradicts \code{Y} and
+is an error.
+A cap that most rows' observed outdegrees reach erases the cross-row
+spread in outdegree that the sender effects rest on: a row at its cap
+shows only that its level is high enough to fill the cap. The sampler
+pools the prior scale of the row side with the column side once
+80 percent of the observed rows
+(60 percent in a single
+period) nominate the full \code{odmax}, counting a row with hidden cells
+by what a full cap thins to at its observed share;
+\code{fit$odmax_saturated_share} records the share and
+\code{fit$odmax_sat_threshold} the threshold. \code{va}, \code{vb} and
+\code{cab} are reported at every share: on simulated panels of 24 to 30
+actors their 95 percent intervals covered the generating values in 0.88
+to 1.00 of the panels at every share, with and without a fifth of the
+cells hidden and at generating sender sds of 0.25, 0.5 and 1 (at 0.25
+the posterior mean of \code{va} runs up to 2.3 times the generating
+variance while the interval still covers). \code{va} and the level of the rows follow the design. A design of two periods
+or more with a cap share of 0.5 or more and a posterior-mean \code{va} from
+0.5 to 1.5 reports the intercept and the row-covariate coefficients as not
+estimated: the rows below the cap carry too little of the spread of the
+senders and the posterior of \code{va} sits near its prior. In simulated
+panels (24 actors, 4 and 6 periods, one chain at the package defaults,
+1440 fits at generating sender sds of 0.5, 1 and 1.5) the intercept was
+covered in 0.89 of the 312 panels in that region (0.76 at sd 0.5 and 1.5,
+0.97 at sd 1) and in 0.96 of the 1128 outside it. \code{va} is reported in
+the region: its interval covered 0.91 of the 312 panels (0.79 at sd 0.5,
+1.00 at sd 1, 0.72 at sd 1.5) and 0.99 outside it. The posterior mean
+of \code{va} ran 0.18 and 0.23 above the generating variance at sd 0.5
+(shares 0.3 and 0.7), 0.08 and 0.00 above it at sd 1 and 0.02 and 0.18
+below it at sd 1.5. In a single period (\code{ame()} and
+one-period \code{lame()} fits) a row at its cap leaves the level of the
+rows unbounded above: with every row at the cap the intercept interval
+covered 0.64 of the panels, and with cells hidden and a share from 0.5 it
+covered 0.84, against 0.98 or more elsewhere. The intercept and any
+row-covariate coefficient are reported as not estimated there, with the
+draws kept in \code{fit$BETA}. On 200 simulated 170 by 100 bipartite panels
+(cap 10, shares 0.3 and 0.7) the intercept was covered in 1.00 of the
+panels, \code{vb} in 0.98 to 1.00 and \code{va} in 0.90 to 1.00, its
+posterior mean 0.09 to 0.15 below the generating variance; nothing is withheld there.
+When the effects prior is supplied (\code{prior$Sab0}, \code{eta0} or
+\code{etaab}), the fit names the prior in the summary
+(\code{fit$prior_supplied} records it); a prior on the effects does not
+fix the level of a row, so the intercept stays withheld in those designs, and
+\code{va} is reported under that prior.
+A cap the design itself imposes cannot be relaxed: read \code{APM} /
+\code{BPM} as relative sender and receiver levels there.}
 
 \item{prior}{a list containing hyperparameters for the prior distributions.
 Available options and their defaults:
@@ -113,15 +167,18 @@ control correlation between row and column effects. For a unipartite
 fit this defaults to \code{diag(2)} scaled to the observed
 sender/receiver heterogeneity in \code{Y} (unconditionally for the
 continuous families, conditionally for the discrete ones); a
-bipartite fit defaults to \code{diag(2)}. See the note on the
+bipartite fit is scaled the same way, with one scale for both
+sides (a single period is too little to read the sender side of a
+capped \code{"cbin"} or \code{"frn"} panel on its own, so the
+scale is read over every row, not only the rows below the cap as
+for panels; see \code{Sab0} in \code{\link{lame}}). See the note on the
 additive-effects variance scale in Details. Pass \code{diag(2)}
 explicitly for a fixed unit-scale prior.}
 \item{eta0}{Prior degrees of freedom for the additive-effects covariance
-\eqn{\Sigma_{ab}} (default: round(4 + 3 \\* n/100) for a unipartite
-continuous-family fit, round(4 \\* vdfmlt) for a unipartite
-discrete-family fit, and 4 + 3 \\* (nA + nB) / 200 for a bipartite
-fit -- except bipartite \code{"binary"}, which also uses
-round(4 \\* vdfmlt) -- where n is the number of actors and vdfmlt
+\eqn{\Sigma_{ab}} (default: round(4 + 3 \\* n/100) for a continuous-family
+fit, unipartite or bipartite (n is then the number of row actors,
+as in \code{\link{lame}}), and round(4 \\* vdfmlt) for a
+discrete-family fit, where n is the number of actors and vdfmlt
 is a probit-moment variance multiplier estimated from \code{Y}).
 Higher values impose stronger shrinkage of the row/column effects
 toward the prior scale. The multiplicative-effects degrees of
@@ -132,37 +189,183 @@ Larger values shrink effects toward zero. \emph{Used by the bipartite
 and longitudinal paths; ignored for a unipartite cross-sectional
 \code{ame()} fit, which controls the additive prior through
 \code{Sab0} and \code{eta0}.}}
-\item{s20}{Prior scale for the dyadic residual variance
-\eqn{v_e} (default: 1), entering the inverse-gamma draw as a
-pseudo-observation scale. Larger values pull \eqn{v_e} upward.
-The regression-coefficient prior is controlled separately by
-\code{g}, not by \code{s20}.}
+\item{s20}{Fixed positive prior scale for the dyadic residual variance
+\eqn{v_e}. The prior has one degree of freedom. By default, normal
+fits use the variance of the observed responses, computed once before
+sampling; constant responses use their mean square, or 1 if all zero.
+Poisson fits use 1 on the latent log-rate scale. The resolved scale is
+reported as \code{fit$s2_prior_scale}. It is never recomputed from the
+current residuals. A supplied value overrides this default. In a
+bipartite cross-sectional \code{ame()} fit, \code{s20} also
+multiplies the coefficient prior variance (\code{g * s20}); its
+default there is the variance of the response for the normal family
+(so that the prior is the same in any unit of the response) and 1 on
+the latent scale of the other families; elsewhere that prior is
+controlled separately by \code{g}.}
 \item{s2u0}{Prior variance for multiplicative effects (default: 1).
 \emph{Used by the bipartite and longitudinal paths.}}
 \item{Suv0}{Inverse-Wishart (inverse) scale matrix for the
 multiplicative-effects covariance. The prior scale is
 \code{kappa0 * Suv0} and the prior mean is
 \code{kappa0 * Suv0 / (kappa0 - 2 * R - 1)}. When not supplied it
-defaults to \code{diag(2 * R)} times a scale estimated from the
-data.}
+is \code{s * diag(2 * R)}, \eqn{s} the scale of the additive effects
+estimated from the data, the one the default \code{Sab0} reads: for
+\code{"binary"}, the variance of the actor means of the
+standardised residuals \eqn{(y - \bar y) / \phi(\Phi^{-1}(\bar y))}
+of the less frequent value; for \code{"ordinal"}, \code{"cbin"} and
+\code{"frn"}, the same probit moments of the ranks; for
+\code{"poisson"}, the variance of the centred log row and column
+rates; for \code{"normal"}, the square root of the mean variance of
+the row and column means of the centred response (in the unit of the
+response, as the product \eqn{u_i'v_j} is). Every period of a
+\code{\link{lame}} panel enters, and a single period gives the value of
+\code{ame()}.
+\code{\link{lame}} has the same default. A bipartite network has no covariance of this kind
+(the rows of its factors have a unit-free N(0, I) prior and the interaction matrix carries the
+scale), and supplying \code{Suv0} or \code{kappa0} for one is an error of class
+\code{"lame_prior_unused"}.}
 \item{kappa0}{Prior degrees of freedom for the multiplicative-effects
-covariance \eqn{\Sigma_{uv}} (default when R > 0: 2 \\* R + 2, times
-the same probit-moment multiplier as \code{eta0} for a unipartite
-discrete-family fit). Higher values impose stronger shrinkage of the
-latent factors toward the prior scale \code{kappa0 * Suv0}.}
+covariance \eqn{\Sigma_{uv}}. The default when R > 0 is
+\code{round((2 * R + 2) * m)}: \eqn{2R + 2}, the smallest value for
+which the prior has a finite mean, times
+\eqn{m = 0.25 / \overline{p(1 - p)}}, the inverse Bernoulli
+information of the cells relative to a cell at \eqn{p = 1/2}, with
+\eqn{p} the probit fit of
+the additive moments, for the \code{"binary"}, \code{"cbin"} and
+\code{"frn"} families (\eqn{m \ge 1}), and \eqn{m = 1} for the
+others. A sparse network has little information per cell about its
+factors, and the prior then holds \eqn{\Sigma_{uv}} near the data
+scale \eqn{s I} with more pseudo-observations; \eqn{m} depends on
+the density, not on the number of actors. Higher values impose
+stronger shrinkage of the latent factors toward the prior scale.}
+\item{actor_move}{Logical, default \code{TRUE}. For \code{"poisson"} and
+\code{"ordinal"} fits (unipartite, directed or symmetric, and
+bipartite): translate each actor's level together with the latent
+values of its row and column (an exact draw: the Gaussian density of
+the latent array is unchanged, so the conditional is the level prior
+times the Poisson factor, or the interval the ranks or cutpoints
+allow), draw the location of the latent array (ordinal), and, for the
+Poisson family, translate the coefficients and move the dyadic
+variance and correlation together with the latent residuals and
+redraw the positions with the latent values of their rows and columns. The
+augmented sweep moves an actor with no events, and the intercept and
+the spread of the levels with it, by steps of order
+\code{sqrt(s2 / number of cells)}, which takes thousands of sweeps on a
+sparse panel; the updates leave the posterior unchanged. For binary fits (unipartite,
+directed or symmetric, with any additive margin in the model, a fit
+with none drawing the positions alone, and bipartite; complete or with
+missing cells and actors):
+redraw each actor's level and static position from its exact
+conditional with the latent array integrated out (an elliptical
+slice step). The augmented sweep moves an actor whose cells hold no
+events by a step of order \code{1 / sqrt(number of cells)} however
+wide its posterior is, so such an actor relaxes slowly; the update
+leaves the posterior unchanged. A bipartite fit of any family with an
+intercept also draws, exactly, along the ridge that the intercept
+shares with the means of its (uncentred) additive effects (a shift of
+the intercept and the opposite shift of the levels changes no
+predictor, so the draw has no likelihood term). For directed
+\code{"cbin"} and \code{"frn"} fits (unipartite or bipartite), each
+receiver's level is translated together with its latent column, an
+exact draw from the prior of the level cut to the interval the order
+constraints of the column leave (the augmented sweep moves a receiver
+nobody nominates by the same slow step), the rows free above translate
+with the intercept against the rows with room, and a directed fit with
+\code{dcor = TRUE} updates the dyadic correlation with the
+non-nominations integrated out (see the Details of
+\code{\link{lame}}). \code{FALSE} omits them; the work is recorded in
+\code{fit$actor_move}.}
+\item{chain_extensions}{Number of times a chain that is still moving at
+the end of the run is continued before the call is refused (default 3;
+0 refuses at the first flag). See the convergence policy.}
+\item{actor_move_every}{Number of sweeps between visits of that update
+(default 10, and 2 for the Poisson translations; 1 for the translations of \code{"cbin"} and
+\code{"frn"} fits, whose reciprocity update runs on every tenth
+visit, and for the draw along the intercept ridge of bipartite fits
+of the other families).}
+\item{uv_g_scale_move}{Logical, default \code{TRUE}. For bipartite fits with
+positions: each sweep also draws, exactly, the factors by which the
+columns of the positions and the rows and columns of the interaction
+matrix are rescaled without changing their product, because the unit
+priors anchor the split of scale between them weakly and the
+conditional updates cross it slowly. \code{FALSE} omits it; its work is
+recorded in \code{fit$uv_g_scale_move}.}
+\item{uv_split_move}{Logical, default \code{TRUE}. For directed fits with latent factors
+(\code{R > 0}): draw the split of the scale between \eqn{U} and \eqn{V}
+exactly (\eqn{U \to cU}, \eqn{V \to V/c} leaves the product and the likelihood
+unchanged; with the covariance of the rows integrated out \eqn{\log c} has the
+matrix-t density along the orbit and is drawn by a slice step). The conditional
+draws moved the split by a few percent per sweep against a posterior sd of
+0.2 to 0.5. Recorded in \code{fit$uv_split_move}.}
+\item{sparse_position_move}{Logical, default \code{TRUE}. For directed \code{"cbin"},
+\code{"frn"} and \code{"ordinal"} fits with latent factors (\code{R > 0}): each
+sweep also draws the position of every sender and receiver together with the
+latent values of its row or column, exactly. Moving \eqn{u_i} changes the
+predictor of row \eqn{i} by a different amount in each column; carrying the
+latent values along changes no residual, so the conditional of the position is
+its prior times the indicator that the shifted row is still a latent row the
+data allow, drawn by an elliptical slice step. Actors the data bound on one
+side only (no nominations, no nominators, only the lowest category) move across
+their wide posterior in a few sweeps instead of by random walk. Not applied to
+\code{"cbin"} / \code{"frn"} panels with hidden cells. Recorded in
+\code{fit$sparse_position_move}.
+An ordinal fit that runs it visits the level translations of
+\code{actor_move} every sweep unless \code{actor_move_every} says otherwise.}
+\item{sparse_position_every}{Sweeps between visits of \code{sparse_position_move}
+(default 1: every sweep).}
+\item{cov_ridge_move}{Logical, default \code{TRUE}. For bipartite fits with a row
+or column covariate (a design slice that is constant along the columns or
+the rows): each sweep also draws, exactly, the amount by which the
+coefficient and the additive effects of that margin trade against one
+another without changing any cell's predictor. The two conditional
+draws cross this ridge slowly (a row coefficient had 18 to 44 effective
+draws of 1,600 in a nomination panel). Directed unipartite fits of \code{ame()} and
+\code{lame()} (static or dynamic additive effects, static coefficients) take the same
+draw. \code{FALSE} omits it.}
+\item{ordinal_scale_move}{Logical, default \code{TRUE}. For
+\code{"ordinal"} fits: each sweep also draws, exactly, the scale of the
+whole state (the coefficients, the additive effects and the latent
+array together, with the free cutpoints of
+\code{ordinal_cutpoints = "explicit"}) and, with the default
+data-induced cutpoints, the shift and the scale of the latent array
+alone, along transformations that keep every rank. The windows the ranks
+leave the latent values move the implied cutpoints by steps of
+\code{1 / number of cells}, while the scale of the configuration has
+a posterior of width \code{1 / sqrt(number of cells)} and the
+coefficients and the dyadic correlation follow it: on 150 actors a
+dyadic coefficient had 8 effective draws of 600 and the correlation 95,
+now 600 and 400. \code{FALSE} omits it; its work is recorded in
+\code{fit$ordinal_scale_move}. See \code{\link{lame}}.}
+\item{binary_scale_move}{Logical, default \code{TRUE}. For \code{"binary"}
+fits: every \code{binary_scale_every} sweeps the coefficients and the
+additive effects are multiplied by a factor drawn exactly from its
+conditional density, with the latent array integrated out. The
+augmented sweep crosses that direction by steps of
+\code{1 / sqrt(number of cells)}, and when a covariate separates the
+ties the posterior along it is tens of times wider: on 30 actors,
+after 8,000 sweeps, the separating coefficient of a directed panel had
+12 effective draws of 2,000, now 460, and that of a bipartite panel,
+which had drifted over those sweeps (14.0 and 15.6 for two seeds),
+now has a posterior mean of 59 at 2,000, 8,000 and 32,000 sweeps. \code{FALSE} omits it; its
+work is recorded in \code{fit$binary_scale_move}. See
+\code{\link{lame}}.}
+\item{binary_scale_every}{Positive whole number, default 5: the sweeps
+between the draws of that factor.}
 }
 Common usage: prior = list(Sab0 = diag(c(2, 2)), eta0 = 10) for moderate
 shrinkage, or prior = list(Sab0 = diag(c(0.5, 0.5))) for tighter control.
 For a unipartite cross-sectional \code{ame()} fit the prior is controlled by
 \code{Sab0}, \code{eta0}, \code{Suv0} and \code{g}.}
 
-\item{g}{optional \strong{scalar} for the Zellner g-prior on regression
-coefficients (\code{beta ~ N(0, g * sigma^2 * solve(XtX))} where
-\code{XtX} is the design cross-product). If not specified, defaults are:
-for \code{normal} family, \code{g = n * var(Y)}; for other families,
-\code{g = n} (number of
-non-missing dyads). Per-coefficient (vector) \code{g} is not currently
-supported by the unipartite path -- pass a scalar.
+\item{g}{optional \strong{scalar} regression prior scale, independent of
+the residual variance. The unipartite Gaussian block uses precision
+\code{(XtX + 1e-6 * diag(diag(XtX))) / g}; an all-ones first column
+additionally receives intercept variance \code{100 * g / XtX[1,1]}.
+If not specified, \code{g = n_observed_cells * var(Y)} for normal data
+and \code{g = n_observed_cells} otherwise, where observed cells exclude
+the diagonal (before covariate-missingness propagation). Per-coefficient (vector) \code{g} is not supported by the
+unipartite path. A finite positive \code{g} is required when regression
+coefficients are fitted; invalid scales are not replaced or clipped.
 \emph{Note:} \code{g} is a top-level argument to \code{ame()},
 \strong{not} an element of \code{prior = list(...)}; passing
 \code{prior = list(g = 0.1)} is a no-op (warned about).}
@@ -217,13 +420,23 @@ usually built with \code{\link{posterior_options}}. Recognised names
 arrays; bipartite fits also store the interaction-matrix draws on
 \code{fit$G_samples}); \code{save_UV_draws} (the \code{\link{lame}}
 spelling) is accepted as an alias. \code{save_ab = TRUE} stores
-additive-effect draws on \code{fit$a_samples} / \code{fit$b_samples}.
+additive-effect draws on \code{fit$a_samples} / \code{fit$b_samples}
+(a symmetric fit has one effect per actor: the two hold the same draws).
 \code{thin_UV} / \code{thin_ab} thin the stored draws. Default
 \code{NULL}.}
 
-\item{n_chains}{integer: number of MCMC chains to run (default: 1)}
+\item{n_chains}{integer: the older name of \code{chains}.}
 
-\item{cores}{integer: number of cores for parallel chains (default: 1)}
+\item{cores}{integer or \code{NULL}: workers for the chains. The chains run
+forked on Unix, at most one worker per chain; \code{NULL} uses
+\code{getOption("lame.cores")} if set and otherwise all cores but one.
+Windows runs the chains one after the other.}
+
+\item{chains}{integer: the number of independently seeded chains (default 2,
+or \code{getOption("lame.chains")}). Chain \eqn{k} runs with seed
+\code{seed + 1000 * (k - 1)}. With \code{chains > 1} the chains are checked,
+compared and pooled (see the convergence policy); \code{chains = 1} runs one
+chain and the drift check only.}
 
 \item{use_sparse_matrices}{logical: use sparse matrix storage for large networks? (default: FALSE).
 Recommended only for truly sparse networks (< 10\% non-zero entries).}
@@ -231,13 +444,13 @@ Recommended only for truly sparse networks (< 10\% non-zero entries).}
 \item{method}{character: \code{"mcmc"} (default, the Bayesian MCMC fit) or
 \code{"als"} (the fast, MCMC-free iterative block coordinate descent point
 estimator). When \code{method = "als"}, MCMC-specific arguments (\code{nscan},
-\code{burn}, \code{odens}, \code{prior}, ...) are warned about and ignored;
-the call forwards to \code{\link{ame_als}}.}
+\code{burn}, \code{odens}, ...) are warned about and ignored; the call
+forwards to \code{\link{ame_als}}, which uses \code{prior$s20}.}
 
 \item{bootstrap}{integer (only used when \code{method = "als"}): number of
-bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N > 0}
+bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N >= 30}
 runs \code{N} replicates and attaches the result so that \code{\link{confint}}
-returns bootstrap intervals.}
+returns bootstrap intervals (a smaller positive \code{N} is an error).}
 
 \item{bootstrap_type}{character (only used when \code{method = "als"}):
 \code{"parametric"} (default) or \code{"block"}.}
@@ -252,20 +465,20 @@ returns bootstrap intervals.}
 reruns the block-coordinate fit from several starts and keeps the one
 with the lowest objective.}
 
-\item{save_log_lik}{logical: when \code{TRUE}, attach a per-iteration
-pointwise log-likelihood matrix \code{fit$log_lik} (an
-\code{n_iter x n_obs} array), required for \code{loo(fit)} and
-\code{waic(fit)}. For families normal, binary, cbin, poisson,
-and ordinal this is the exact observed-data log density of Y
-(\code{fit$log_lik_method = "observed_exact"}); only frn falls
-back to the augmented-Z normal approximation on the latent scale
-(with a one-time warning). Default \code{FALSE} (no log_lik storage;
-default fit is byte-identical to previous releases).}
+\item{save_log_lik}{logical: attach a per-iteration matrix of matched
+observed marginal scores. LOO and WAIC additionally require a verified
+observed likelihood factorization; directed residual dyad correlation
+prevents cellwise factorization. Default \code{FALSE}.}
 
 \item{ordinal_cutpoints}{character: cutpoint convention for
 \code{family = "ordinal"}. \code{"data_induced"} (default) uses the
-data-induced cutpoints; \code{"explicit"} samples explicit cutpoints via
-a Cowles (1996) Metropolis-Hastings update. Ignored for other families.}
+data-induced cutpoints; \code{"explicit"} samples ordered cutpoints with the first fixed at zero and unit latent residual
+variance. Independent directed and symmetric models use the Cowles (1996)
+marginal Metropolis-Hastings update. Directed models with \code{dcor = TRUE}
+use cutpoint Gibbs updates conditional on the correlated latent observations.
+Explicit cutpoints are supported for unipartite models; predictions retain
+the original numeric category labels and use each saved cutpoint draw.
+Ignored for other families.}
 
 \item{print}{Deprecated. Use \code{verbose} instead.}
 
@@ -275,36 +488,126 @@ triggers a clean abort directing you to \code{\link{lame}}; passing
 any other unrecognised name warns so typos are visible rather than
 silently dropped.}
 
+\item{log_lik_method}{\code{"observed_exact"} (default) supports normal,
+binary, Poisson-lognormal and explicit-cutpoint ordinal marginal scores.
+Poisson integration uses an adaptive log-integral with concavity tail
+bounds. Capped
+nominations, fixed ranks and data-induced ordinal models are refused.
+\code{"observed_approx"} retains the existing approximate diagnostic
+scores for these families without claiming an observed likelihood.
+AME does not save latent Z draws for augmented scoring. Inspect
+\code{fit$log_lik_contract}; approximate diagnostics cannot be used
+for observed-data LOO or WAIC.}
+
 \item{model.name}{optional string for model selection output}
+
+\item{bias_correct}{character or \code{NULL} (only used when
+\code{method = "als"}): how the ALS point estimate
+handles the finite-sample bias of a fixed-effects fit, forwarded to
+\code{\link{ame_als}}. \code{NULL} (default) fits a normal, binary or
+count network by the empirical-Bayes estimator (\code{"eb"}; Laplace standard
+errors from \code{vcov()}), directed, bipartite or undirected, with or
+without a latent rank (see \code{bias_correct} in
+\code{\link{ame_als}}). \code{"none"} returns the
+fixed-effects estimate at any size; \code{"jackknife"} and
+\code{"bootstrap"} require that correction of it.}
 }
 \value{
 \strong{Posterior Samples (full MCMC chains):}
 \item{BETA}{Regression coefficients (\code{nscan/odens} x p matrix; one
 row per stored draw)}
 \item{VC}{Variance components (\code{nscan/odens} x k matrix)}
-\item{GOF}{Goodness-of-fit statistics ((\code{nscan/odens} + 1) x 5 matrix).
+\item{GOF}{Goodness-of-fit statistics ((\code{nscan/odens} + 1) x 5 matrix;
+three columns, \code{sd.rowmean}, \code{sd.colmean} and \code{four.cycles},
+for \code{mode = "bipartite"}).
 First row contains observed values, remaining rows contain posterior predictive samples.
 See \code{\link{gof}} for post-hoc computation and \code{\link{gof_plot}} for visualization.}
 
 \strong{Posterior Means (averaged over chain):}
 \item{APM}{Additive row/sender effects (n-vector)}
+\item{APM_sd, BPM_sd}{posterior standard deviation of each additive effect
+(static effects), used by \code{simulate()} to draw the effects}
 \item{BPM}{Additive column/receiver effects (m-vector); NULL for symmetric networks}
 \item{U}{Multiplicative row/sender factors (n xR matrix)}
 \item{V}{Multiplicative column/receiver factors (m xR matrix); NULL for symmetric networks}
 \item{L}{Eigenvalue matrix (R xR diagonal); symmetric networks only}
-\item{YPM}{Posterior mean of Y on response scale (for predictions and imputing missing values)}
+\item{YPM}{Stored response-scale fitted value: the average of the outcomes
+replicated at each stored draw, except for Poisson fits, where it is the mean
+count \eqn{\exp(\eta + \sigma^2 / 2)} at the posterior means of the linear
+predictor and of the residual variance; see the Poisson model details.}
 
 \strong{Metadata:}
 \item{family}{Model family (normal, binary, etc.)}
 \item{mode}{Network mode (unipartite or bipartite)}
+\item{sampler_health}{For MCMC fits, counts of numerical failures,
+separated from valid prior-bound rejections. A numerical failure (a caught
+collapsed reciprocity or utility-refresh error in unipartite fits, a failed
+U, V or G draw in bipartite ones) aborts the fit with an error of class
+\code{lame_sampler_failure} that carries the counts in its \code{health}
+field, so a returned fit has none. A proposal outside the prior's box
+(\code{prior$uv_max_abs}, \code{prior$G_max}) is a Metropolis rejection of
+the model: that conditional keeps its state, and the rejections are counted
+here. U and V proposal counts in bipartite fits are per proposed actor row
+and G counts per Gaussian interaction-matrix draw.}
+\item{sampler_health_iterations}{Number of burn-in plus production sweeps
+included in the MCMC health counts. U and V proposal counts in bipartite
+fits can exceed this number because each sweep visits multiple actor rows.}
+\item{uv_g_scale_move}{For bipartite fits with positions, the number of sweeps
+and of rescaled coordinates of the draw along the scale ridge of the positions
+and the interaction matrix (see \code{uv_g_scale_move} in \code{prior}); absent
+when the update did not run}
+\item{ordinal_scale_move}{For \code{"ordinal"} fits, the sweeps the scale moves
+visited (\code{visits}) and the sweeps at which the scale of the whole state
+moved (\code{orbit_moved}); absent when the moves did not run}
+\item{poisson_period_move}{For \code{"poisson"} fits, the sweeps the scale move
+visited (\code{visits}) and its proposals and accepts (\code{scale_attempts},
+\code{scale_accepts}, and for the correlation alone \code{scale_rho_attempts},
+\code{scale_rho_accepts}); absent when the move did not run}
+\item{binary_scale_move}{For \code{"binary"} fits, the draws of the scale of the linear
+predictor (\code{visits}), the evaluations of its density they used (\code{evals}) and the
+draws that moved the state (\code{moved}); absent when the draw did not run}
+\item{actor_move}{For Poisson and ordinal fits, the work of the translations of
+the levels with the latent array: \code{visits}, the level translations drawn
+(\code{level_calls}), the likelihood evaluations of the Poisson ones
+(\code{level_evals}), \code{stuck} and \code{skipped} steps, the draws of the
+location of the latent array (\code{location_calls}, ordinal), the
+coefficient translations (\code{coef_calls}, \code{coef_evals},
+\code{coef_stuck}; Poisson), the position steps (\code{uv_calls},
+\code{uv_evals}, \code{uv_stuck}; Poisson with positions) and the attempts and accepts of the scale move of
+the dyadic variance and correlation (\code{scale_attempts},
+\code{scale_accepts}, \code{rho_attempts}, \code{rho_accepts}; Poisson);
+for binary fits, the work of the collapsed
+per-actor update: \code{visits}, the slice steps of the level translations
+(\code{level_calls}) and of the static positions (\code{uv_calls}), the
+likelihood evaluations they used (\code{level_evals}, \code{uv_evals}), the
+steps that failed to terminate (\code{stuck}) and, for bipartite fits, the
+draws along the ridge of the intercept and the additive-effect means
+(\code{ridge_calls}); for \code{"cbin"} and \code{"frn"} fits, the work of
+the receiver-level translation: \code{visits}, the
+receivers moved (\code{col_calls}) and the receivers left to the sampler
+because the current state lay outside the interval the translation needs
+(\code{col_skips}), the sweeps in which the level update moved a set of rows
+(\code{level_calls}) and the rows it moved (\code{level_rows}), the proposals
+and accepts of the reciprocity update (\code{rho_attempts},
+\code{rho_accepts}) and, for a bipartite fit, \code{ridge_calls}; for the
+other families of a bipartite fit with an intercept, \code{visits} and the
+draws along the ridge of the intercept and the level means
+(\code{ridge_calls}); absent when the updates did not run (see
+\code{actor_move} in \code{prior})}
 \item{symmetric}{Logical indicating if network is symmetric}
 \item{R}{Dimension of multiplicative effects}
+\item{prior_supplied}{\code{TRUE} when \code{prior} carried \code{Sab0},
+\code{eta0} or \code{etaab}: where the data alone leave the effect
+variances to the prior (a saturated nomination cap, see \code{odmax}),
+the reporting methods then show them under the supplied prior instead of
+as not estimated}
 
 \strong{Optional Posterior Samples (if requested via posterior_options):}
-\item{U_samples}{Samples of U (n xR xiterations array)}
-\item{V_samples}{Samples of V (m xR xiterations array)}
-\item{a_samples}{Samples of row effects (n xiterations matrix)}
-\item{b_samples}{Samples of column effects (m xiterations matrix)}
+\item{U_samples}{Samples of U (n x R x iterations array)}
+\item{V_samples}{Samples of V (m x R x iterations array)}
+\item{a_samples}{Samples of row effects (n x iterations matrix)}
+\item{b_samples}{Samples of column effects (m x iterations matrix); in a
+symmetric fit the same draws as \code{a_samples}}
 
 \strong{Note on the latent-scale matrices:}
 The posterior-mean multiplicative product is stored on the fit
@@ -332,7 +635,7 @@ additive and multiplicative effects framework is due to Hoff (2005, 2021).
 }
 \details{
 This command provides posterior inference for parameters in AME models of
-cross-sectional relational data, assuming one of eight possible data types/models.
+cross-sectional relational data, assuming one of six possible data types/models.
 The function supports both unipartite networks (square adjacency matrices) and
 bipartite networks (rectangular adjacency matrices with distinct row and column
 node sets) for single time point analysis.
@@ -358,23 +661,33 @@ bipartite, dyad correlation is fixed at 0.
 \eqn{u_i, v_j} are independent Normal with covariance
 \eqn{\Sigma_{uv}} (Inverse-Wishart prior with scale \code{kappa0 * Suv0}
 and \code{kappa0} degrees of freedom);
-the dyad-correlation \eqn{\rho} has an arc-sine prior on \eqn{(-1, 1)}
-(density proportional to \eqn{(1-\rho^2)^{-1/2}}), updated with
-Metropolis steps. See \code{prior_summary(fit)} for the priors
-actually used.
+the dyad-correlation \eqn{\rho} has the prior \eqn{2\,\mathrm{Beta}(2, 2) - 1}
+on \eqn{(-1, 1)} (density proportional to \eqn{1-\rho^2}, the prior
+\code{\link{lame}} uses), updated with Metropolis steps. See
+\code{prior_summary(fit)} for the priors actually used.
 
 \strong{Choosing R.} The multiplicative rank \code{R} controls the
 dimensionality of latent homophily / heterogeneity not explained
 by covariates and additive effects. \code{R = 0} fits an
 additive-only social-relations model; \code{R = 1} or \code{2} is
-typical for small / medium networks; \code{R > floor(n/3)} is rarely
-identifiable and will issue a warning. Latent factors capture
+typical for small / medium networks. A rank above \code{floor(n/3)} is
+fitted like any other (on 18-actor panels with a rank-2 truth, ranks 6 to 17
+ran without numerical failure; the chain mixed more slowly and the fitted
+values lost accuracy gradually as the rank grew past the truth), so compare
+ranks by their fit rather than by a cap. Latent factors capture
 unobserved structure (clusters, hub patterns, transitive triangles
 the covariates miss) and are accessed at \code{fit$U}, \code{fit$V}.
 
 \strong{Identifiability.} The latent factor term \eqn{u_i' D v_j}
 is invariant to rotation and reflection of \eqn{U, V}; the package
 canonicalises with an SVD so successive draws are interpretable.
+For unipartite fits with both resolved actor margins enabled, reporting
+centers static latent positions and transfers the removed row, column and
+grand-mean components to the actor effects and intercept. A symmetric shared
+actor absorbs half the grand constant in each margin when no intercept is
+fitted. Restricted unipartite models retain sampled coordinates in their
+stored factor draws. This reporting map
+preserves each draw's predictor and leaves the sampler state unchanged.
 For visual stability across posterior summaries see
 \code{\link{procrustes_align}} and \code{\link{latent_positions}}.
 
@@ -402,8 +715,9 @@ The model uses conjugate and semi-conjugate priors where possible:
 \item Additive effects: \eqn{(a_i, b_i)' \sim N(0, \Sigma_{ab})} jointly
 \item Covariance: \eqn{\Sigma_{ab} \sim IW(\eta_0, \eta_0 S_{ab0})} (inverse-Wishart)
 \item Multiplicative effects: Hierarchical shrinkage via \eqn{\eta_0}
-\item Dyadic correlation: arc-sine prior on \eqn{(-1, 1)}, density
-\eqn{p(\rho) \propto (1-\rho^2)^{-1/2}}, with Metropolis updates
+\item Dyadic correlation: \eqn{2\,\mathrm{Beta}(2, 2) - 1} prior on
+\eqn{(-1, 1)}, density \eqn{p(\rho) \propto 1-\rho^2} (the prior of
+\code{\link{lame}}), with Metropolis updates
 }
 
 The inverse-Wishart prior on \eqn{\Sigma_{ab}} allows learning correlation between
@@ -419,25 +733,22 @@ the centred row means and column means of \code{Y} (of \code{log1p(Y)} for
 \code{"frn"} families apply the same idea to a probit-moment residual, but
 only when \code{start_vals} is not supplied and the design has at least one
 column; otherwise they fall back to \code{Sab0 = diag(2)} with
-\code{eta0 = 4}. A bipartite fit always uses \code{Sab0 = diag(2)}.
+\code{eta0 = 4}. A bipartite fit scales \code{Sab0} the same way (one scale
+for both sides).
 Call \code{prior_summary()} on a fitted object to see the prior actually used.
 
 The data scaling matters because the inverse-Wishart prior contributes
 pseudo-data on the scale of \code{eta0 * Sab0} no matter what units \code{Y}
 is in, so a fixed \code{Sab0 = diag(2)} pulls the additive-effects variances
 \code{va}/\code{vb} upward whenever the true sender/receiver variance is well
-below 1, most visibly at small \eqn{n}. In Social Relations Model simulations
-the data-scaled default recovers small true variances with modest bias where
-a fixed \code{diag(2)} prior can nearly double them; the data-scaled prior is
-mildly more conservative in the opposite regime, when the true variance is
-large relative to the residual scale.
+below 1, most visibly at small \eqn{n}. The data-scaled default sets the
+prior on the scale of \code{Y}; \code{prior_summary()} prints it.
 
-This default differs from the \code{amen} package, whose
-\code{ame(family = "nrm")} leaves \code{Sab0 = diag(2)} and \code{eta0 = 4}.
-To reproduce \code{amen}'s additive-effects posterior, pass
-\code{prior = list(Sab0 = diag(2), eta0 = 4)}. The choice affects only
-\code{va}, \code{vb} and (weakly) \code{cab}; \code{ve} and \code{rho} are
-unchanged.
+To use a fixed identity scale instead, pass
+\code{prior = list(Sab0 = diag(2), eta0 = 4)}. Changing this prior can
+affect other jointly estimated quantities as well as \code{va},
+\code{vb} and \code{cab}. Matching these prior settings alone does not
+establish equivalence to another package's posterior.
 
 \strong{Multiplicative Effects (Latent Factors):}
 
@@ -470,8 +781,9 @@ The following data types/models are available:
 
 "binary": A binary probit AME model (probit link: \eqn{P(Y=1) = \Phi(\eta)}).
 
-"ordinal": An ordinal probit AME model (cumulative probit link). An intercept is not
-identifiable in this model.
+"ordinal": An ordinal probit AME model (cumulative probit link). An intercept
+is not identifiable with data-induced cutpoints. Explicit cutpoints anchored
+at zero support an intercept.
 
 "cbin": An AME model for censored binary data (probit link with censoring). The value of
 'odmax' specifies the maximum number of links each row may have.
@@ -480,19 +792,18 @@ identifiable in this model.
 the rank indicates a stronger relationship. The value of 'odmax' specifies
 the maximum number of links each row may have.
 
-"poisson": An overdispersed Poisson AME model for count data:
-\eqn{Y \sim \mathrm{Poisson}(\exp(z))} with \eqn{z \sim N(\eta, \sigma^2)},
-a lognormal-mixed Poisson. The conditional mean given the latent \eqn{z} is
-\eqn{\exp(z)}; the marginal mean is \eqn{\exp(\eta + \sigma^2/2)}, not
-\eqn{\exp(\eta)}. On sparse count matrices (only a few dozen nonzero
-cells) the multiplicative factors are weakly identified: \code{UVPM} can
-differ across seeds while the fit is otherwise stable. For such data
-compare seeds, check \code{sum(fit$YPM)} against the observed total, and
-prefer \code{R = 0} unless the factors reproduce. The sampler includes a
-joint level move on the latent log-rates and the intercept (acceptance
-rate in \code{fit$mh_counters$pois_shift_accept}) so the predicted total
-settles quickly even when most cells are zero; the dyadic variance
-\code{ve} still mixes slowly on such data, so use long chains.
+"poisson": An overdispersed Poisson-lognormal model for counts (negative
+or non-integer observed values are an error):
+\eqn{Y \sim \mathrm{Poisson}(e \exp(z))} with
+\eqn{z \sim N(\eta, \sigma^2)}. Given \eqn{\eta} and \eqn{\sigma^2}, a
+cell's mean count is \eqn{e \exp(\eta + \sigma^2/2)}. \code{YPM},
+\code{fitted()} and \code{predict(type = "response")} report it at the
+posterior mean \eqn{\eta} of the linear predictor and the posterior mean
+\eqn{\sigma^2} of the residual variance, the form the fast estimators
+report. Predictive quantiles and event probabilities come from posterior
+predictive draws (\code{simulate()}, \code{predict(type = "distribution")}).
+Zero exposure gives a structural zero count (cross-sectional fits use unit
+exposure).
 }
 \section{Supported family x mode combinations}{
 
@@ -511,10 +822,18 @@ frn              \tab yes                 \tab yes                \cr
 poisson          \tab yes                 \tab yes                \cr
 }
 
-Symmetric (\code{symmetric = TRUE}) fits require a symmetric \code{Y}.
+Symmetric (\code{symmetric = TRUE}) fits require a symmetric \code{Y} and
+symmetric \code{Xdyad} slices: the regression term of a symmetric fit is
+symmetric, so an asymmetric slice is an error (class
+\code{lame_symmetric_xdyad}) that names the slice. Replace it by
+\code{(X + t(X)) / 2}. A value missing in one triangle of a slice is not an
+asymmetry: it is filled from the other triangle (see \emph{Missing
+covariates}). \code{\link{lame}} applies the same checks to every period,
+and the ALS routes (\code{method = "als"}, \code{\link{ame_als}}) refuse an
+asymmetric slice the same way.
 \code{family = "ordinal"} with \code{symmetric = TRUE} is supported via the
-dedicated sampler in \code{R/rZ_ord_sym_fc.R}, which uses the
-symmetric-doubled precision and mirrors upper-triangle draws to the lower
+unit-variance unordered-dyad samplers for either cutpoint convention,
+which mirror upper-triangle draws to the lower
 triangle so \eqn{Z = t(Z)} holds at every sweep. The rank-nomination
 families (\code{"cbin"}, \code{"frn"}) model each actor's own ranked
 nominations and are directed by construction, so \code{symmetric = TRUE}
@@ -522,13 +841,11 @@ is rejected for them.
 
 \strong{Symmetric input with one triangle missing.} When
 \code{symmetric = TRUE} and one triangle of \code{Y} is fully \code{NA}
-(the user stored only the lower or upper triangle), the symmetry validator
-\code{any(is.finite(Y - t(Y)))} evaluates \code{FALSE} and the call
-proceeds: the sampler then treats the populated triangle as the
-symmetric data and mirrors it. This is usually intended, but if the
-upper / lower triangles were meant to differ, the model is silently
-fitting half the data. Audit \code{anyNA(Y[upper.tri(Y)]) !=
-anyNA(Y[lower.tri(Y)])} before calling if you are unsure.
+(the user stored only the lower or upper triangle), the symmetry check
+\code{any(is.finite(Y - t(Y)))} is \code{FALSE}, and the call stops with an
+error instead of mirroring the populated triangle. Symmetrize \code{Y}
+explicitly (for example \code{Y[lower.tri(Y)] <- t(Y)[lower.tri(Y)]})
+before calling; \code{lame()} applies the same check to every period.
 }
 
 \section{Data preparation}{
@@ -540,6 +857,26 @@ and pass that object as \code{Y}. \code{ame()} will call
 \pkg{network} object and only need a plain adjacency matrix,
 \code{\link{as_lame_y}} is still available as a small convenience helper.
 
+Directed normal MCMC models with estimated reciprocity use the prior
+\eqn{2\,\mathrm{Beta}(2, 2) - 1} on the full open interval \eqn{(-1,1)},
+with density proportional to \eqn{1 - \rho^2}. If every observed reciprocal
+response pair is exactly equal, the posterior can be improper at
+\eqn{\rho = 1}. A conservative structural check counts reciprocal pairs and
+bounds the antisymmetric actor/regression design dimension. With
+multiplicative rank \code{R}, it also includes a conservative \code{n * R}
+factor bound. The check refuses cases where the pair count exceeds that
+combined bound by four or more (the posterior is improper from that excess
+under this prior; under the arc-sine prior of versions before 1.4.0 it was
+improper from an excess of one); it does not certify propriety of other
+designs. For an undirected network,
+use \code{symmetric = TRUE}; to fix reciprocity at zero in a directed
+model, use \code{dcor = FALSE}. An exactly symmetric \code{Y} fitted with
+\code{symmetric = FALSE} is allowed: the two cells of a dyad are equal, so
+the residuals of reciprocal cells are equal and the posterior of the
+dyadic correlation concentrates near one (with \code{dcor = FALSE} the two
+cells count as two observations). A message says so and points at
+\code{symmetric = TRUE}, which fits the undirected model.
+
 For an undirected/symmetric network, pass \code{symmetric = TRUE}; for a
 rectangular two-mode network (students x courses, donors x candidates), pass
 \code{mode = "bipartite"} or build the \pkg{netify} object with
@@ -547,6 +884,38 @@ rectangular two-mode network (students x courses, donors x candidates), pass
 numeric matrix or a data.frame (coerced internally); \code{Xdyad} must be a
 3-D array \code{n x n x p} of numeric covariates with no
 \code{Inf}/\code{NaN}.
+}
+
+\section{Missing covariates}{
+
+A cell whose dyadic covariate, sender (row) covariate or receiver (column)
+covariate is missing is an unobserved tie, for unipartite and bipartite
+networks alike: it is set to \code{NA} in \code{Y} before the design is
+built, the sampler augments it like any other missing cell, and the
+covariate coefficients are estimated from the complete cells. A message
+gives the number of such cells. A missing value is never modelled as 0,
+which would bias the coefficient of a covariate that is not centred. In an
+undirected network (\code{symmetric = TRUE}) a dyad has one covariate value:
+a hole in one triangle of a dyadic covariate is filled from the other
+triangle (a message gives the number of values), so the slice stays
+symmetric and the dyad stays observed, and a dyad missing in both triangles
+is unobserved. A missing node covariate removes the actor's row and column.
+A covariate that is missing everywhere stops the fit. \code{\link{lame}}
+(per period) and the ALS routes (\code{\link{ame_als}}) apply the same rule
+and give the same messages.
+}
+
+\section{Collinear covariates}{
+
+A regression design whose columns are exactly aliased over the observed
+cells (a covariate that duplicates another, or one that is a linear
+combination of others, counting the intercept and the sender and receiver
+covariates) is an error of class \code{lame_design_rank}. It names the
+aliased columns and the combination each equals: the data cannot separate
+their coefficients, so the posterior along that direction would be the
+prior's alone. A column is aliased when it is a combination of the columns
+before it to a relative 1e-8 (as \code{lm()} reports them); a design that is
+only nearly collinear is fitted.
 }
 
 \section{When to use AME vs ERGM}{
@@ -639,15 +1008,71 @@ silently dropped).
 }
 }
 
+\section{Chains and convergence policy}{
+
+\code{ame()} runs \code{chains} chains (default 2; \code{options(lame.chains = k)}
+sets another default). Chain \eqn{k} is seeded with \code{seed + 1000 * (k - 1)},
+so \code{chains = 1} is the first chain of a two-chain fit. On Unix the chains
+run forked, on at most \code{cores} workers (all cores but one by default); on
+Windows they run one after the other. The draws do not depend on the number of
+workers. The result is the pooled fit of \code{\link{combine_ame_chains}}, with
+\code{fit$chains}, \code{fit$chain_seeds}, \code{fit$rhat} (the R-hat of the
+monitored set), the state each chain stopped in, and the \code{chain_indicator}
+that \code{as_draws()} and \code{trace_plot()} use. Two chains cost twice the CPU
+time and about the same wall time on a multicore machine.
+
+At the end of the post-burn run every chain is checked, and the chains are
+compared with each other. Within a chain, the first and last thirds of the
+stored draws of the intercept (or first coefficient), \code{va}, \code{vb},
+\code{ve} and \code{rho} are compared with batch-means standard errors (ten
+batches per third); a quantity is flagged when the two means differ by more than
+3 standard errors and by more than half a posterior standard deviation of the
+whole series. Between chains, the split rank-normalised R-hat (Vehtari et al.,
+2021) of the monitored set is compared with 1.05: every regression coefficient,
+\code{va}, \code{vb}, \code{cab}, \code{ve}, \code{rho}, and summaries of the
+additive and latent structure recorded at every stored draw (the rms of
+\code{a} and \code{b}, the largest actor effect, the rms of the latent product
+\eqn{UV'}, the norm of \code{G} of a bipartite fit and the split of scale between
+\code{U} and \code{V} of a directed fit). The dyadic products are not
+monitored. Quantities a fit reports as not estimated are left out, and a run
+with fewer than 60 stored draws per chain is not checked.
+The gate is computed on the draws the returned fit holds (the last block of
+every chain), and \code{summary()} and \code{\link{compute_mcmc_diagnostics}}
+report the same statistic of the same draws: the Rhat column of
+\code{summary()} is \code{fit$rhat} for every monitored coefficient and
+variance component.
+
+When a chain drifts or an R-hat exceeds 1.05, every chain is extended by a block
+of \code{nscan} sweeps from its own final state (the seeds advance by the sweeps
+already run); the flagged block counts as extra burn-in, its draws are
+discarded, and both checks run again. Up to \code{prior$chain_extensions}
+extensions are made (default 3, so at most four times \code{nscan} post-burn
+sweeps per chain). The returned fit has the same number of stored draws as a fit
+that needed no extension, and \code{fit$auto_extend} records the extensions, the
+sweeps discarded and the quantities that triggered each. If the last block is
+still flagged, \code{ame()} stops with an error of class
+\code{lame_chain_unsettled}: its \code{fits} field holds the chains, \code{fit}
+the pooled fit of the last block, \code{rhat} the monitored table and
+\code{moving} the offending quantities, and \code{lame_resume(e$fit, nscan =
+nscan)} continues every chain (\code{lame_resume(e$fits[[k]], nscan = nscan)}
+one). \code{prior = list(chain_extensions = 0)} refuses at the first flag;
+\code{chains = 1} runs one chain with the drift check only. There is no mode
+that returns a flagged fit. The measured false-extension rate and power are in
+\code{\link{lame}}.
+}
+
 \examples{
 \donttest{
-data(YX_bin)
-fit <- ame(YX_bin$Y, Xdyad = YX_bin$X, burn = 10, nscan = 100, odens = 1,
-           family = "binary", verbose = FALSE)
+data(YX_nrm)
+# the default runs two chains and compares them on the regression
+# coefficients and variance components
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, burn = 100, nscan = 600, odens = 10,
+           verbose = FALSE)
 summary(fit)
-# Note: you should run the Markov chain much longer in practice
+fit$rhat  # between-chain split R-hat; every value is below 1.05
+# the defaults (burn = 500, nscan = 10000, odens = 25) are the length of a final run
 }
- 
+
 }
 \seealso{
 \code{\link{lame}} for longitudinal models,

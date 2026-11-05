@@ -15,7 +15,7 @@ rSuv_fc(U, V, Suv0=NULL, kappa0=NULL)
 a weakly informative choice.}
 
 \item{kappa0}{prior degrees of freedom. Defaults to 2 + 2R, the
-smallest value giving a proper prior for a 2R x 2R covariance.}
+smallest integer giving a finite prior mean for a 2R x 2R covariance.}
 }
 \value{
 The sampled 2R x 2R covariance matrix for \eqn{[U, V]}: the

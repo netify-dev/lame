@@ -1,5 +1,29 @@
-.rUV_dynamic_validate <- function(U, V, ET, rho_uv, sigma_uv, s2,
-                                  symmetric = FALSE, extra = list()) {
+# the snap and t kernels draw a symmetric product's rows in parallel, which is not
+# a Gibbs sweep of u l u', so they refuse symmetric fits
+.rUV_dynamic_refuse_symmetric <- function(symmetric, kind) {
+	if (isTRUE(symmetric)) {
+		cli::cli_abort(
+			c(
+				"The {.val {kind}} position kernel is not available for symmetric networks.",
+				"i" = "Use {.fn rUV_dynamic_fc}, the ar1 kernel, which draws a symmetric product row by row."
+			),
+			class = "lame_symmetric_kind"
+		)
+	}
+	invisible(TRUE)
+}
+
+.rUV_dynamic_validate <- function(
+	U,
+	V,
+	ET,
+	rho_uv,
+	sigma_uv,
+	s2,
+	symmetric = FALSE,
+	rho = 0,
+	extra = list()
+) {
 	dU <- dim(U)
 	dV <- dim(V)
 	dE <- dim(ET)
@@ -9,18 +33,21 @@
 	if (dU[2L] != dV[2L]) {
 		cli::cli_abort(c(
 			"{.arg U} and {.arg V} must have the same latent rank.",
-			"i" = "Got dim(U)[2] = {dU[2L]} and dim(V)[2] = {dV[2L]}."))
+			"i" = "Got dim(U)[2] = {dU[2L]} and dim(V)[2] = {dV[2L]}."
+		))
 	}
 	if (dU[3L] != dV[3L]) {
 		cli::cli_abort(c(
 			"{.arg U} and {.arg V} must have the same number of time periods.",
-			"i" = "Got dim(U)[3] = {dU[3L]} and dim(V)[3] = {dV[3L]}."))
+			"i" = "Got dim(U)[3] = {dU[3L]} and dim(V)[3] = {dV[3L]}."
+		))
 	}
 	if (length(dE) != 3L ||
-	    !identical(as.integer(dE), as.integer(c(dU[1L], dV[1L], dU[3L])))) {
+			!identical(as.integer(dE), as.integer(c(dU[1L], dV[1L], dU[3L])))) {
 		cli::cli_abort(c(
 			"{.arg ET} must have dimensions nrow(U) by nrow(V) by n_time.",
-			"i" = "Expected [{paste(c(dU[1L], dV[1L], dU[3L]), collapse = ', ')}], got [{paste(dE, collapse = ', ')}]."))
+			"i" = "Expected [{paste(c(dU[1L], dV[1L], dU[3L]), collapse = ', ')}], got [{paste(dE, collapse = ', ')}]."
+		))
 	}
 	if (isTRUE(symmetric) && dU[1L] != dV[1L]) {
 		cli::cli_abort("{.arg symmetric} = TRUE requires U and V to have the same number of actors.")
@@ -35,6 +62,9 @@
 	if (sigma_uv <= 0 || s2 <= 0) {
 		cli::cli_abort("{.arg sigma_uv} and {.arg s2} must be positive.")
 	}
+	if (!is.numeric(rho) || length(rho) != 1L || !is.finite(rho) || abs(rho) >= 1) {
+		cli::cli_abort("{.arg rho} must be a single number in (-1, 1).")
+	}
 	invisible(list(dU = dU, dV = dV, dE = dE))
 }
 
@@ -43,7 +73,8 @@
 #' Updates latent factor positions U and V that evolve over time according to
 #' an AR(1) process: u_\{i,t\} = rho * u_\{i,t-1\} + epsilon_\{i,t\}
 #'
-#' @usage rUV_dynamic_fc(U, V, ET, rho_uv, sigma_uv, s2, shrink=TRUE, symmetric=FALSE)
+#' @usage rUV_dynamic_fc(U, V, ET, rho_uv, sigma_uv, s2, shrink=TRUE, symmetric=FALSE,
+#'   rho=0)
 #' @param U 3D array of current U positions (n x R x T)
 #' @param V 3D array of current V positions (n x R x T)
 #' @param ET 3D array of residuals (n x n x T)
@@ -51,14 +82,40 @@
 #' @param sigma_uv Innovation standard deviation for latent positions
 #' @param s2 dyadic variance
 #' @param shrink whether to apply shrinkage (default TRUE)
-#' @param symmetric whether the network is symmetric (default FALSE)
+#' @param symmetric whether the network is symmetric (default FALSE). A
+#'   symmetric call takes \code{V = U L}, the mirrored coordinates of the
+#'   product \code{U L t(U)} (\code{L} the signed diagonal), draws the rows of
+#'   \code{U} one at a time given the current coordinates of the other actors
+#'   (the self cell left out), and returns \code{V = U}; \code{rho} is not used.
+#' @param rho dyadic correlation between the (i, j) and (j, i) residuals
+#'   (default 0). Each actor's coordinates are then drawn from the exact
+#'   pair-whitened full conditional.
 #' @return list with updated U and V arrays
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
+#' @keywords internal
 #' @export rUV_dynamic_fc
-rUV_dynamic_fc <- function(U, V, ET, rho_uv, sigma_uv, s2, shrink=TRUE, symmetric=FALSE) {
-	.rUV_dynamic_validate(U, V, ET, rho_uv, sigma_uv, s2,
-	                      symmetric = symmetric)
-	rUV_dynamic_fc_cpp(U, V, ET, rho_uv, sigma_uv, s2, shrink, symmetric)
+rUV_dynamic_fc <- function(
+	U,
+	V,
+	ET,
+	rho_uv,
+	sigma_uv,
+	s2,
+	shrink = TRUE,
+	symmetric = FALSE,
+	rho = 0
+) {
+	.rUV_dynamic_validate(
+		U,
+		V,
+		ET,
+		rho_uv,
+		sigma_uv,
+		s2,
+		symmetric = symmetric,
+		rho = rho
+	)
+	rUV_dynamic_fc_cpp(U, V, ET, rho_uv, sigma_uv, s2, shrink, symmetric, rho)
 }
 
 #' Gibbs sampling of dynamic U and V with snap-shift dynamics
@@ -81,17 +138,41 @@ rUV_dynamic_fc <- function(U, V, ET, rho_uv, sigma_uv, s2, shrink=TRUE, symmetri
 #'   a zero matrix is used.
 #' @param shrink whether to apply shrinkage (default TRUE)
 #' @param symmetric whether the network is symmetric (default FALSE)
+#' @param rho dyadic correlation between the (i, j) and (j, i) residuals
+#'   (default 0)
 #' @return list with updated U, V arrays and delta_u, delta_v snap indicators
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
+#' @keywords internal
 #' @export rUV_dynamic_snap_fc
-rUV_dynamic_snap_fc <- function(U, V, ET, rho_uv, sigma_uv, s2, kappa, pi_snap,
-		delta_u_current = NULL, delta_v_current = NULL,
-		shrink = TRUE, symmetric = FALSE) {
+rUV_dynamic_snap_fc <- function(
+	U,
+	V,
+	ET,
+	rho_uv,
+	sigma_uv,
+	s2,
+	kappa,
+	pi_snap,
+	delta_u_current = NULL,
+	delta_v_current = NULL,
+	shrink = TRUE,
+	symmetric = FALSE,
+	rho = 0
+) {
+	.rUV_dynamic_refuse_symmetric(symmetric, "snap")
 	dU <- dim(U)
 	dV <- dim(V)
-	.rUV_dynamic_validate(U, V, ET, rho_uv, sigma_uv, s2,
-	                      symmetric = symmetric,
-	                      extra = list(kappa = kappa, pi_snap = pi_snap))
+	.rUV_dynamic_validate(
+		U,
+		V,
+		ET,
+		rho_uv,
+		sigma_uv,
+		s2,
+		symmetric = symmetric,
+		rho = rho,
+		extra = list(kappa = kappa, pi_snap = pi_snap)
+	)
 	if (kappa <= 0 || pi_snap <= 0 || pi_snap >= 1) {
 		cli::cli_abort("{.arg kappa} must be positive and {.arg pi_snap} must be in (0, 1).")
 	}
@@ -109,8 +190,21 @@ rUV_dynamic_snap_fc <- function(U, V, ET, rho_uv, sigma_uv, s2, kappa, pi_snap,
 	}
 	delta_u_current[, 1L] <- 0
 	delta_v_current[, 1L] <- 0
-	rUV_dynamic_snap_fc_cpp(U, V, ET, rho_uv, sigma_uv, s2, kappa, pi_snap,
-	                        delta_u_current, delta_v_current, shrink, symmetric)
+	rUV_dynamic_snap_fc_cpp(
+		U,
+		V,
+		ET,
+		rho_uv,
+		sigma_uv,
+		s2,
+		kappa,
+		pi_snap,
+		delta_u_current,
+		delta_v_current,
+		shrink,
+		symmetric,
+		rho
+	)
 }
 
 #' Gibbs sampling of dynamic U and V with heavy-tailed (Student-t) innovations
@@ -129,16 +223,40 @@ rUV_dynamic_snap_fc <- function(U, V, ET, rho_uv, sigma_uv, s2, kappa, pi_snap,
 #' @param lambda_v current local scales for V (n x T)
 #' @param shrink whether to apply shrinkage (default TRUE)
 #' @param symmetric whether the network is symmetric (default FALSE)
+#' @param rho dyadic correlation between the (i, j) and (j, i) residuals
+#'   (default 0)
 #' @return list with updated U, V arrays and lambda_u, lambda_v local scales
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
+#' @keywords internal
 #' @export rUV_dynamic_t_fc
-rUV_dynamic_t_fc <- function(U, V, ET, rho_uv, sigma_uv, s2, nu,
-		lambda_u = NULL, lambda_v = NULL, shrink = TRUE, symmetric = FALSE) {
+rUV_dynamic_t_fc <- function(
+	U,
+	V,
+	ET,
+	rho_uv,
+	sigma_uv,
+	s2,
+	nu,
+	lambda_u = NULL,
+	lambda_v = NULL,
+	shrink = TRUE,
+	symmetric = FALSE,
+	rho = 0
+) {
+	.rUV_dynamic_refuse_symmetric(symmetric, "t")
 	dU <- dim(U)
 	dV <- dim(V)
-	.rUV_dynamic_validate(U, V, ET, rho_uv, sigma_uv, s2,
-	                      symmetric = symmetric,
-	                      extra = list(nu = nu))
+	.rUV_dynamic_validate(
+		U,
+		V,
+		ET,
+		rho_uv,
+		sigma_uv,
+		s2,
+		symmetric = symmetric,
+		rho = rho,
+		extra = list(nu = nu)
+	)
 	if (nu <= 2) {
 		cli::cli_abort("{.arg nu} must be greater than 2.")
 	}
@@ -154,5 +272,18 @@ rUV_dynamic_t_fc <- function(U, V, ET, rho_uv, sigma_uv, s2, nu,
 	if (!identical(dim(lambda_v), c(dV[1L], dV[3L]))) {
 		cli::cli_abort("{.arg lambda_v} must have dimensions nrow(V) by n_time.")
 	}
-	rUV_dynamic_t_fc_cpp(U, V, ET, rho_uv, sigma_uv, s2, nu, lambda_u, lambda_v, shrink, symmetric)
+	rUV_dynamic_t_fc_cpp(
+		U,
+		V,
+		ET,
+		rho_uv,
+		sigma_uv,
+		s2,
+		nu,
+		lambda_u,
+		lambda_v,
+		shrink,
+		symmetric,
+		rho
+	)
 }

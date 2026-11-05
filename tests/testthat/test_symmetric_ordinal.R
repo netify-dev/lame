@@ -1,10 +1,6 @@
-# symmetric ordinal in ame().
-# verifies that the ordinal-symmetric path:
-#   (i) does not abort
-#   (ii) returns a symmetric ypm
-#   (iii) recovers a known dyadic-covariate sign
-#   (iv) uses variance 1 (each unordered dyad once) so dyadic coefficients
-#        are not attenuated relative to the asymmetric sampler
+# symmetric ordinal in ame(): the path runs, returns a symmetric YPM, recovers a dyadic-covariate sign, and uses
+# variance 1 (each unordered dyad once) so the dyadic coefficients are not attenuated
+skip_on_cran()
 
 skip_if_too_slow = function() {
 	if (identical(Sys.getenv("LAME_FAST_TESTS"), "1")) skip("LAME_FAST_TESTS = 1")
@@ -28,19 +24,30 @@ test_that("ame(symmetric = TRUE, family = 'ordinal') runs end-to-end", {
 	Y = as.integer(cut(Zsym, c(-Inf, -0.5, 0.3, 1.0, Inf), labels = FALSE))
 	dim(Y) = c(n, n)
 	dimnames(Y) = dimnames(X1)
-	# enforce symmetry from the upper triangle
+	# symmetry from the upper triangle
 	Y[lower.tri(Y)] = t(Y)[lower.tri(Y)]
 	diag(Y) = NA
 
 	Xa = array(X1, c(n, n, 1))
 	dimnames(Xa) = list(NULL, NULL, "Xdyad")
 
-	fit = ame(Y, Xdyad = Xa, family = "ordinal", symmetric = TRUE,
-	          R = 0, nscan = 200, burn = 50, odens = 5,
-	          verbose = FALSE, plot = FALSE, gof = FALSE, seed = 5201L)
+	fit = ame(
+		Y,
+		Xdyad = Xa,
+		family = "ordinal",
+		symmetric = TRUE,
+		R = 0,
+		nscan = 200,
+		burn = 50,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE,
+		seed = 5201L
+	)
 
 	expect_true(inherits(fit, "ame"))
-	# beta recovered as 1 column (the dyadic covariate)
+	# BETA has one column (the dyadic covariate)
 	expect_equal(ncol(fit$BETA), 1L)
 	expect_true("Xdyad_dyad" %in% colnames(fit$BETA))
 	# sign recovery
@@ -70,24 +77,58 @@ test_that("symmetric ordinal posterior YPM (and EZ) is symmetric", {
 	Xa = array(X1, c(n, n, 1))
 	dimnames(Xa) = list(NULL, NULL, "Xdyad")
 
-	fit = ame(Y, Xdyad = Xa, family = "ordinal", symmetric = TRUE,
-	          R = 0, nscan = 150, burn = 30, odens = 5,
-	          verbose = FALSE, plot = FALSE, gof = FALSE, seed = 5202L)
+	fit = ame(
+		Y,
+		Xdyad = Xa,
+		family = "ordinal",
+		symmetric = TRUE,
+		R = 0,
+		nscan = 150,
+		burn = 30,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE,
+		seed = 5202L
+	)
 
-	# the ez stored on the fit should be symmetric to numerical precision
-	# (ame returns ypm as a matrix for cross-sectional fits)
+	# the stored EZ is symmetric to numerical precision
 	if (!is.null(fit$EZ)) {
-		expect_true(isTRUE(all.equal(fit$EZ, t(fit$EZ),
-		                              check.attributes = FALSE,
-		                              tolerance = 1e-8)))
+		expect_true(isTRUE(all.equal(
+			fit$EZ,
+			t(fit$EZ),
+			check.attributes = FALSE,
+			tolerance = 1e-8
+		)))
 	}
-	# ypm is the posterior-predictive mean of y; for ordinal it is a
-	# probability-weighted category mean, still symmetric under symmetric y
+	# YPM is the posterior-predictive mean of Y; for ordinal a probability-weighted category mean, still symmetric
 	ypm = fit$YPM
 	if (is.matrix(ypm)) {
-		# fill diag with t(diag) so the symmetry check ignores it
+		# copy the diagonal so the symmetry check ignores it
 		diag(ypm) = diag(t(ypm))
-		expect_true(isTRUE(all.equal(ypm, t(ypm), check.attributes = FALSE,
-		                              tolerance = 1e-6)))
+		expect_true(isTRUE(all.equal(
+			ypm,
+			t(ypm),
+			check.attributes = FALSE,
+			tolerance = 1e-6
+		)))
 	}
+})
+
+test_that("rZ_ord_sym_fc stays finite under extreme predictors and an inverted start", {
+	set.seed(6886)
+	n = 10
+	Y = matrix(sample(1:3, n * n, replace = TRUE), n, n)
+	Y[lower.tri(Y)] = t(Y)[lower.tri(Y)]
+	diag(Y) = NA
+	# a block of actors far below every cutpoint saturates the normal CDF
+	EZ = matrix(0, n, n)
+	EZ[1:3, ] = -30
+	EZ[, 1:3] = -30
+	# a start whose ranks disagree with Y inverts the truncation window
+	Z = matrix(runif(n * n, 2, 3), n, n)
+	Z[lower.tri(Z)] = t(Z)[lower.tri(Z)]
+	for (k in 1:30) Z = rZ_ord_sym_fc(Z, EZ, Y)
+	expect_true(all(is.finite(Z)))
+	expect_equal(Z, t(Z))
 })

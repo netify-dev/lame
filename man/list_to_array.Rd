@@ -23,6 +23,18 @@ transforms Y, Xdyad, Xrow, and Xcol to arrays
 \description{
 Convert list to array
 }
+\examples{
+n <- 12
+actors <- paste0("a", 1:n)
+Y <- lapply(1:3, function(t) {
+  m <- matrix(rnorm(n * n), n, n)
+  dimnames(m) <- list(actors, actors)
+  m
+})
+names(Y) <- paste0("t", 1:3)
+out <- list_to_array(actors, Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL)
+dim(out$Y)
+}
 \author{
 Shahryar Minhas
 }

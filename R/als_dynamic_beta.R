@@ -1,7 +1,6 @@
-# penalised als time-varying beta point estimator.
-# minimises sum_t ||y_t - x_t beta_t||^2 + lambda sum_t ||beta_t - beta_{t-1}||^2.
-# lambda = 0 reduces to per-period ols; large lambda collapses to a
-# single pooled beta. returns a point estimate, not a posterior.
+# penalised ALS point estimator of time-varying beta, minimising
+# sum_t ||y_t - X_t beta_t||^2 + lambda sum_t ||beta_t - beta_{t-1}||^2
+# (lambda = 0 gives per-period OLS; large lambda pools to one beta)
 
 #' Penalised ALS time-varying coefficient estimate
 #'
@@ -31,7 +30,9 @@
 #'   \code{TRUE}).
 #'
 #' @return A list with \code{beta} (a \eqn{p \times T} matrix of
-#'   estimates), \code{lambda}, \code{residual_ss} (sum of squared
+#'   estimates; rows \code{"intercept"} and then the names of the covariate
+#'   slices of \code{Xdyad}, or \code{"x1"}, \code{"x2"}, ... when the slices
+#'   are unnamed; columns \code{"t1"}, ..., \code{"tT"}), \code{lambda}, \code{residual_ss} (sum of squared
 #'   residuals across periods), \code{intercept}, and
 #'   \code{call}. Class \code{"als_dynamic_beta"}.
 #'
@@ -73,7 +74,7 @@
 als_dynamic_beta <- function(Y, Xdyad, lambda = 0, intercept = TRUE) {
 	if (lambda < 0) cli::cli_abort("{.arg lambda} must be non-negative.")
 
-	# normalise y to list-of-matrices
+	# Y as a list of matrices
 	if (is.array(Y) && length(dim(Y)) == 3L) {
 		Y <- lapply(seq_len(dim(Y)[3L]), function(t) Y[, , t])
 	}
@@ -81,14 +82,22 @@ als_dynamic_beta <- function(Y, Xdyad, lambda = 0, intercept = TRUE) {
 	T_per <- length(Y)
 	if (T_per < 2L) cli::cli_abort("Need at least two periods.")
 
-	# normalise xdyad to list-of-arrays
+	# Xdyad as a list of arrays
 	if (is.array(Xdyad) && length(dim(Xdyad)) == 4L) {
 		Xdyad <- lapply(seq_len(dim(Xdyad)[4L]), function(t) Xdyad[, , , t])
 	}
 	if (length(Xdyad) != T_per) {
 		cli::cli_abort("{.arg Xdyad} must have one element per time period.")
 	}
-	# per-period (y_t, x_t) on observed dyads
+	# coefficient names: intercept, then the covariate slice names (x1, x2, ... when unnamed)
+	X1 <- Xdyad[[1L]]
+	p_cov <- if (length(dim(X1)) == 2L) 1L else dim(X1)[3L]
+	slice_names <- if (length(dim(X1)) == 3L) dimnames(X1)[[3L]] else NULL
+	if (is.null(slice_names) || anyNA(slice_names) || any(!nzchar(slice_names))) {
+		slice_names <- paste0("x", seq_len(p_cov))
+	}
+	cov_names <- c(if (intercept) "intercept", slice_names)
+	# per-period (y_t, X_t) on observed dyads
 	y_list <- list(); X_list <- list()
 	for (t in seq_len(T_per)) {
 		Yt <- Y[[t]]; Xt <- Xdyad[[t]]
@@ -98,17 +107,17 @@ als_dynamic_beta <- function(Y, Xdyad, lambda = 0, intercept = TRUE) {
 		p_in <- dim(Xt)[3L]
 		X_obs <- matrix(NA_real_, nrow = length(y_obs), ncol = p_in)
 		for (k in seq_len(p_in)) X_obs[, k] <- Xt[, , k][ok]
-		if (intercept) X_obs <- cbind(intercept = 1, X_obs)
+		if (p_in != p_cov) {
+			cli::cli_abort("{.arg Xdyad} must have the same number of covariates ({p_cov}) in every period.")
+		}
+		if (intercept) X_obs <- cbind(1, X_obs)
 		y_list[[t]] <- y_obs
 		X_list[[t]] <- X_obs
 	}
 	p <- ncol(X_list[[1L]])
-	cov_names <- colnames(X_list[[1L]]) %||% paste0("v", seq_len(p))
 
-	# build the block-diagonal normal equations:
-	#   h = blockdiag(x_t' x_t) + lambda * d' d
-	#   g = blockdiag(x_t' y_t)
-	# d is the first-difference operator on the stacked beta = (beta_1, ..., beta_t)
+	# block-diagonal normal equations H = blockdiag(X_t' X_t) + lambda * D'D and g = (X_t' y_t),
+	# with D the first-difference operator on the stacked (beta_1, ..., beta_T)
 	H <- matrix(0, p * T_per, p * T_per)
 	g <- numeric(p * T_per)
 	for (t in seq_len(T_per)) {
@@ -118,41 +127,44 @@ als_dynamic_beta <- function(Y, Xdyad, lambda = 0, intercept = TRUE) {
 		g[idx] <- crossprod(Xt, yt)
 	}
 	if (lambda > 0) {
-		# add lambda * d'd to h where d differences adjacent periods
+		# add lambda * D'D, where D differences adjacent periods
 		Dblock <- diag(p)
 		for (t in seq_len(T_per - 1L)) {
 			i1 <- ((t - 1L) * p + 1L):(t * p)
 			i2 <- (t * p + 1L):((t + 1L) * p)
-			# d row block: [-i, i] => d'd contributes i to (t,t) and (t+1,t+1),
-			# -i to (t,t+1) and (t+1,t)
+			# each difference block adds lambda * I on the diagonal and -lambda * I off it
 			H[i1, i1] <- H[i1, i1] + lambda * Dblock
 			H[i2, i2] <- H[i2, i2] + lambda * Dblock
 			H[i1, i2] <- H[i1, i2] - lambda * Dblock
 			H[i2, i1] <- H[i2, i1] - lambda * Dblock
 		}
 	}
-	# tiny ridge for numerical safety when h is rank-deficient
+	# tiny ridge in case H is rank-deficient
 	H <- H + diag(1e-10, nrow(H))
 
 	beta_stack <- tryCatch(
 		solve(H, g),
-		error = function(e) MASS::ginv(H) %*% g)
-	beta_mat <- matrix(beta_stack, nrow = p, ncol = T_per,
-	                   dimnames = list(cov_names, paste0("t", seq_len(T_per))))
+		error = function(e) MASS::ginv(H) %*% g
+	)
+	beta_mat <- matrix(
+		beta_stack,
+		nrow = p,
+		ncol = T_per,
+		dimnames = list(cov_names, paste0("t", seq_len(T_per)))
+	)
 
-	# residual sum of squares
 	rss <- sum(vapply(seq_len(T_per), function(t) {
 		r <- y_list[[t]] - X_list[[t]] %*% beta_mat[, t]
 		sum(r^2)
 	}, numeric(1L)))
 
 	res <- list(
-		beta         = beta_mat,
-		lambda       = lambda,
-		residual_ss  = rss,
-		intercept    = intercept,
-		call         = match.call(),
-		label        = "penalised ALS estimate"
+		beta = beta_mat,
+		lambda = lambda,
+		residual_ss = rss,
+		intercept = intercept,
+		call = match.call(),
+		label = "penalised ALS estimate"
 	)
 	class(res) <- c("als_dynamic_beta", "list")
 	res
@@ -167,13 +179,15 @@ als_dynamic_beta <- function(Y, Xdyad, lambda = 0, intercept = TRUE) {
 #' @export
 #' @method print als_dynamic_beta
 print.als_dynamic_beta <- function(x, digits = 4, ...) {
-	cli::cli_h2("Penalised ALS time-varying beta")
-	cli::cli_ul(c(
-		"lambda: {.val {x$lambda}}",
-		"residual SS: {.val {signif(x$residual_ss, 5)}}",
-		"label: {.emph {x$label}} (NOT a posterior summary)"
-	))
-	print(round(x$beta, digits))
+	.lame_cli_stdout({
+		cli::cli_h2("Penalised ALS time-varying beta")
+		cli::cli_ul(c(
+			"lambda: {.val {x$lambda}}",
+			"residual SS: {.val {signif(x$residual_ss, 5)}}",
+			"label: {.emph {x$label}} (NOT a posterior summary)"
+		))
+		cli::cli_verbatim(utils::capture.output(print(round(x$beta, digits))))
+	})
 	invisible(x)
 }
 

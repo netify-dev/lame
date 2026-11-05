@@ -4,12 +4,21 @@
 \alias{rUV_dynamic_bip_fc_cpp}
 \title{Bipartite dynamic UV Gibbs update}
 \usage{
-rUV_dynamic_bip_fc_cpp(U_cube, V_cube, E, G, rho_uv, sigma_uv, s2)
+rUV_dynamic_bip_fc_cpp(
+  U_state,
+  V_state,
+  E,
+  G,
+  rho_uv,
+  sigma_uv,
+  s2,
+  max_abs = -1
+)
 }
 \arguments{
-\item{U_cube}{3D array (nA x RA x T)}
+\item{U_state}{3D array (nA x RA x T)}
 
-\item{V_cube}{3D array (nB x RB x T)}
+\item{V_state}{3D array (nB x RB x T)}
 
 \item{E}{3D array of residuals (nA x nB x T)}
 
@@ -20,6 +29,9 @@ rUV_dynamic_bip_fc_cpp(U_cube, V_cube, E, G, rho_uv, sigma_uv, s2)
 \item{sigma_uv}{Innovation standard deviation}
 
 \item{s2}{Dyadic variance}
+
+\item{max_abs}{Optional positive coordinate bound; nonpositive or infinite
+values disable it. Each actor conditional respects the bound.}
 }
 \value{
 List with updated U_cube, V_cube

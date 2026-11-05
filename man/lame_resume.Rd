@@ -7,8 +7,14 @@
 lame_resume(path, nscan_more = NULL, ..., .envir = NULL)
 }
 \arguments{
-\item{path}{Checkpoint file path (the one passed as
-\code{checkpoint_path} to \code{lame()}).}
+\item{path}{Checkpoint RDS file path, as written through
+\code{checkpoint_path}, or a fitted \code{lame} / \code{ame} object
+(for instance the \code{fit} carried by a \code{lame_chain_unsettled}
+error). A fit is continued from the state it stopped in, with the call that
+produced it, \code{burn = 0} and the seed advanced by the sweeps it ran.
+For a pooled multi-chain fit every chain is continued from its own final state,
+and the chains are checked and compared again (see \code{\link{ame}}); a single
+chain of a refused call is continued with \code{lame_resume(e$fits[[k]])}.}
 
 \item{nscan_more}{Optional integer, the new \code{nscan} for the
 continuation. If \code{NULL}, the original \code{nscan} is used.}
@@ -27,42 +33,74 @@ A fitted \code{lame} object.
 For a fit started with \code{lame(..., checkpoint_path = "X.rds")}
 that terminated early (either via \code{max_seconds} or an external
 interruption), continues the chain from the most recent checkpoint.
-The implementation is pragmatic: it loads the saved RNG state and
-re-invokes \code{lame()} with the original call arguments. The
-result is a fresh fit that picks up where the previous one left
-off in the random-number stream; the underlying MCMC counter
-restarts at 1.
+The checkpoint holds the full sampler state (latent matrix,
+coefficients, additive and multiplicative effects, variance
+components, dynamic coefficient paths, auxiliary states and adapted
+proposal scales) together with the seed
+and the original call. The continuation re-invokes \code{lame()} with
+that state as \code{start_vals}, completing any unfinished burn-in,
+and with \code{seed} advanced by the number of
+completed iterations, so it does not replay the first run's random
+stream. The result is a fresh fit whose stored draws start where the
+checkpointed chain stopped; draws stored before the interruption are
+not carried over. \code{nscan_more} requests additional production sweeps;
+the saved thinning setting \code{odens} determines how many draws are retained.
 }
 \details{
 \strong{Equivalent consolidated entry point.}
 \code{lame(resume_from = path, ...)} short-circuits to this
 function with the user-supplied overrides forwarded; pass
 \code{nscan = K} on the resume call to request \code{K}
-additional stored draws. Both call shapes are supported. The
-\code{lame_resume(path, ...)} form is safer for nested calls: the
-consolidated form re-evaluates the
-saved \code{lame()} call in \code{parent.frame()}, which is
-the \code{lame()} frame whose required formal arguments
-(\code{Y}, \code{Xdyad}, etc.) were not supplied on the
-resume call. Prefer \code{lame_resume(path, ...)} when calling
-from inside other functions or from non-global scopes.
+additional post-burn sweeps. Both call shapes evaluate saved data arguments
+in the caller's frame, so objects referenced by the original call must
+remain available there.
 
 Use \code{nscan_more = K} to override the \code{nscan} value to
-\code{K} for the continuation. Other arguments can be overridden by
-passing them to \code{...}.
+\code{K} for the continuation. A fit continued from the object runs with the
+arguments of its call, \code{max_seconds} included: a fit that stopped at its
+time limit stops again at the same limit unless \code{max_seconds = Inf} is passed.
+The continuation holds \code{nscan_more / odens} draws per chain
+(\code{chains * nscan_more / odens} pooled) when it runs to the end, plus one
+block of each extension. Other arguments can be overridden by
+passing them to \code{...}. Older checkpoints without the complete
+transition state are treated as warm starts with a fresh burn-in and a
+warning. A \code{start_vals}, \code{burn} or
+\code{seed} passed there replaces the checkpoint's choice.
+
+Tempered checkpoints restore every replica and the complete primary and
+auxiliary RNG streams, completing any unfinished original burn-in. The
+returned fit contains only newly retained draws, which exactly continue an
+uninterrupted run. Data, priors, seed, thinning and sampler changes are
+refused; start a new fit to change the model. Output settings, time limits
+and the number of additional production sweeps may be changed.
+
+Checkpoints retain resolved priors independently of the original call.
+Where the checkpoint type permits a \code{prior} override, it can be supplied
+explicitly. Otherwise a continuation uses those
+settings even if a caller variable or a package default has changed.
+The original user settings are retained separately for training-window refits.
+Complete older Gaussian bipartite AR(1) checkpoints without frozen priors
+retain their former persistence defaults (mean 0.9, SD 0.1) when the saved
+call did not supply them.
 }
 \examples{
 \donttest{
 ck <- tempfile(fileext = ".rds")
 data(YX_bin_list)
 # short run with very-aggressive max_seconds to force early termination
-fit1 <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
-             nscan = 5000, burn = 50, odens = 5,
+fit1 <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X,
+             family = "binary", R = 0, nscan = 5000, burn = 50, odens = 5,
              checkpoint_path = ck, checkpoint_every = 50L,
              max_seconds = 0.5, verbose = FALSE)
 if (isTRUE(fit1$terminated_early)) {
-  fit2 <- lame_resume(ck, nscan_more = 200)
+  # each chain wrote its own checkpoint (ck with _chain1, _chain2 before
+  # the extension): continue one chain from its file, or every chain
+  # from the returned fit
+  fit2 <- lame_resume(sub(".rds", "_chain1.rds", ck, fixed = TRUE), nscan_more = 200)
   dim(fit2$BETA)
+  # the time limit of the call applies again unless it is lifted
+  fit3 <- lame_resume(fit1, nscan_more = 200, max_seconds = Inf)
+  nrow(fit3$BETA)  # 2 chains * 200 / 5 = 80
 }
 }
 

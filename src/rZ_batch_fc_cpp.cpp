@@ -19,18 +19,27 @@ using namespace Rcpp;
 //' @param Y 3D array of observed values (n x n x T)
 //' @return List with updated Z and E_nrm (residuals)
 // [[Rcpp::export]]
-List rZ_nrm_batch_cpp(arma::cube Z, const arma::cube& EZ,
+List rZ_nrm_batch_cpp(const arma::cube& Z, const arma::cube& EZ,
                        double rho, double s2, const arma::cube& Y) {
   const int n = Z.n_rows;
   const int m = Z.n_cols;
   const int T = Z.n_slices;
-  const double sz = sqrt(1.0 - rho * rho) * sqrt(s2);
+  if (n == m && (!std::isfinite(rho) || std::abs(rho) >= 1.0))
+    Rcpp::stop("Directed dyadic correlation must lie strictly between -1 and 1.");
+  if (!std::isfinite(s2) || s2 <= 0.0)
+    Rcpp::stop("Residual variance must be finite and positive.");
+
+  // rcpparmadillo wraps the caller's array instead of copying it, so the
+  // kernel works on a copy of its own: a call the caller falls back from
+  // has to leave the state it was given exactly as it was
+  arma::cube Z_new = Z;
+  const double sz = sqrt((1.0 - rho) * (1.0 + rho)) * sqrt(s2);
   const double sqrts2 = sqrt(s2);
 
   arma::cube E_nrm(n, m, T);
 
   for(int t = 0; t < T; t++) {
-    arma::mat& Z_t = Z.slice(t);
+    arma::mat& Z_t = Z_new.slice(t);
     const arma::mat& EZ_t = EZ.slice(t);
     const arma::mat& Y_t = Y.slice(t);
 
@@ -43,9 +52,9 @@ List rZ_nrm_batch_cpp(arma::cube Z, const arma::cube& EZ,
     // updated both cells of a both-missing pair synchronously from the
     // stale transpose, driving their stationary within-pair correlation
     // to 0 instead of rho.)
-    if(n == m && std::abs(rho) > 1e-10) {
+    if(n == m && rho != 0.0) {
       const double cc = (std::sqrt(1.0 + rho) + std::sqrt(1.0 - rho)) / 2.0;
-      const double dd = (std::sqrt(1.0 + rho) - std::sqrt(1.0 - rho)) / 2.0;
+      const double dd = rho / (std::sqrt(1.0 + rho) + std::sqrt(1.0 - rho));
 
       for(int j = 1; j < m; j++) {
         for(int i = 0; i < j; i++) {
@@ -86,7 +95,7 @@ List rZ_nrm_batch_cpp(arma::cube Z, const arma::cube& EZ,
     E_nrm.slice(t) = Z_t - EZ_t;
   }
 
-  return List::create(Named("Z") = Z, Named("E_nrm") = E_nrm);
+  return List::create(Named("Z") = Z_new, Named("E_nrm") = E_nrm);
 }
 
 //' Batch binary Z sampling across all time periods (bipartite, rho=0)
@@ -98,14 +107,19 @@ List rZ_nrm_batch_cpp(arma::cube Z, const arma::cube& EZ,
 //' @param Y 3D array of observed values (nA x nB x T)
 //' @return Updated Z array
 // [[Rcpp::export]]
-arma::cube rZ_bin_bip_batch_cpp(arma::cube Z, const arma::cube& EZ,
+arma::cube rZ_bin_bip_batch_cpp(const arma::cube& Z, const arma::cube& EZ,
                                  const arma::cube& Y) {
   const int nA = Z.n_rows;
   const int nB = Z.n_cols;
   const int T = Z.n_slices;
 
+  // rcpparmadillo wraps the caller's array instead of copying it, so the
+  // kernel works on a copy of its own: a call the caller falls back from
+  // has to leave the state it was given exactly as it was
+  arma::cube Z_new = Z;
+
   for(int t = 0; t < T; t++) {
-    arma::mat& Z_t = Z.slice(t);
+    arma::mat& Z_t = Z_new.slice(t);
     const arma::mat& EZ_t = EZ.slice(t);
     const arma::mat& Y_t = Y.slice(t);
 
@@ -141,5 +155,5 @@ arma::cube rZ_bin_bip_batch_cpp(arma::cube Z, const arma::cube& EZ,
     }
   }
 
-  return Z;
+  return Z_new;
 }

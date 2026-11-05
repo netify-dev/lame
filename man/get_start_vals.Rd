@@ -13,7 +13,8 @@ get_start_vals(
   cvar,
   R,
   odmax = NULL,
-  bip = FALSE
+  bip = FALSE,
+  unit_var = 1
 )
 }
 \arguments{
@@ -40,6 +41,11 @@ effects}
 \item{bip}{logical; \code{TRUE} for a bipartite (rectangular) panel, in
 which case the Poisson start values keep the diagonal of a square matrix
 as a real cell}
+
+\item{unit_var}{the unit of the response, the variance a normal response
+is measured in (1 where the link fixes the scale of the latent response):
+the starting dyadic variance, the spread of the starting coefficients and
+the floor of the starting covariance of the effects are written in it}
 }
 \value{
 List of starting values for MCMC
@@ -52,8 +58,12 @@ In addition to the slots listed below, any of the dynamic
 hyperparameter scalars \code{rho_uv}, \code{sigma_uv}, \code{rho_ab},
 and \code{sigma_ab} present in \code{start_vals} (for example from
 \code{\link{als_start_vals}}) are passed through so a dynamic MCMC run
-can warm-start them.
+can warm-start them, as are the adapted step sizes
+\code{level_move_sd} and \code{dev_move_sd} of the binary scale move, so
+that a run continued with \code{\link{lame_resume}} keeps the step it
+had tuned rather than re-adapting from the default.
 }
 \author{
 Shahryar Minhas
 }
+\keyword{internal}

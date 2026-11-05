@@ -19,7 +19,9 @@ sample_beta_dynamic_cpp(
   dyad_rho,
   bipartite,
   symmetric,
-  use_dyad_rho
+  use_dyad_rho,
+  Omega_in = NULL,
+  h_in = NULL
 )
 }
 \arguments{
@@ -63,6 +65,11 @@ the transition-only hyperparameter conditionals remain exact.}
 
 \item{use_dyad_rho}{Whether to use the dyad-corr branch (TRUE only for
 unipartite, asymmetric, with a non-zero rho).}
+
+\item{Omega_in, h_in}{Optional per-period sufficient statistics, as
+returned by \code{beta_dynamic_stats_cpp} for the same arguments (a
+p_dyn x p_dyn x T array and a T x p_dyn matrix); the filter then reads
+them instead of accumulating them again. The default (NULL) accumulates.}
 }
 \value{
 List with: path -- a (T x p_dyn) matrix of beta draws (one row

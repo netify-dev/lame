@@ -13,7 +13,10 @@ posterior_quantiles(
 \arguments{
 \item{fit}{Fitted ame model object}
 
-\item{component}{Character; which component: "beta", "UV", "ab"}
+\item{component}{Character; which component: "beta", "UV", "ab". The
+additive effects "ab" come back as a list of the row (\code{a}) and
+column (\code{b}) quantiles; a symmetric fit has one effect per actor, so
+\code{b} equals \code{a}.}
 
 \item{probs}{Numeric vector of probabilities for quantiles}
 }
@@ -22,6 +25,16 @@ Matrix or array of posterior quantiles
 }
 \description{
 Extract posterior quantiles for model components
+}
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+X <- array(rnorm(n * n), dim = c(n, n, 1))
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- ame(Y, Xdyad = X, R = 1, nscan = 20, burn = 5, odens = 1, verbose = FALSE, chains = 1)
+posterior_quantiles(fit, component = "beta")
+
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

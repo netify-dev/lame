@@ -12,7 +12,7 @@ reconstruct_UVPM(fit)
 \arguments{
 \item{fit}{Fitted AME model object}
 
-\item{X}{Covariate array (optional, will use fit$X if available)}
+\item{X}{Covariate array (optional, will use \code{fit$X} if available)}
 }
 \value{
 Reconstructed matrix
@@ -36,6 +36,17 @@ Use YPM for predictions on the response scale.
 Fits that carry the stored posterior mean (\code{UVPM} or, for
 symmetric fits, \code{ULUPM}) have it returned as-is; older fit objects
 without one are rebuilt from the posterior factor means.
+}
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, verbose = FALSE, chains = 1)
+EZ <- reconstruct_EZ(fit)
+UVPM <- reconstruct_UVPM(fit)
+dim(EZ)
+
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

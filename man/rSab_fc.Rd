@@ -4,7 +4,8 @@
 \alias{rSab_fc}
 \title{Gibbs update for additive effects covariance}
 \usage{
-rSab_fc(a, b, Sab0=NULL, eta0=NULL, rvar=TRUE, cvar=TRUE, symmetric=FALSE)
+rSab_fc(a, b, Sab0=NULL, eta0=NULL, rvar=TRUE, cvar=TRUE, symmetric=FALSE,
+  center=FALSE, tiny=1e-8)
 }
 \arguments{
 \item{a}{vector of row random effects (additive sender effects)}
@@ -22,13 +23,20 @@ same convention, so a given \code{prior$Sab0} means the same prior
 everywhere. Default is diag(2) (weakly informative).}
 
 \item{eta0}{prior degrees of freedom for the prior distribution.
-Default is 4, which is the minimum for a proper prior with 2x2 matrix.}
+Default is 4, the smallest integer giving a finite prior mean for a 2x2 covariance.}
 
 \item{rvar}{logical: should row variance be updated? (default TRUE)}
 
 \item{cvar}{logical: should column variance be updated? (default TRUE)}
 
 \item{symmetric}{logical: is this a symmetric network? (default FALSE)}
+
+\item{center}{Logical: are the supplied actor effects constrained to sum
+to zero? If so, remove one degree of freedom from the covariance update.
+Defaults to FALSE for unconstrained effects.}
+
+\item{tiny}{the variance a margin that is switched off (\code{rvar} or \code{cvar} FALSE) keeps: 1e-8 in
+the unit of the response (default 1e-8, the value for a link-fixed latent scale).}
 }
 \value{
 Updated covariance matrix Sab (2x2 matrix with variances on diagonal
@@ -54,3 +62,4 @@ zero covariance
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }
+\keyword{internal}

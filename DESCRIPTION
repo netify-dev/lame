@@ -1,6 +1,6 @@
 Package: lame
 Title: Longitudinal Additive and Multiplicative Effects Models for Networks
-Version: 1.3.5
+Version: 1.4.1
 Authors@R: c(
     person("Cassy", "Dorff", role = "aut"),
     person("Shahryar", "Minhas", , "minhassh@msu.edu", role = c("aut", "cre")),
@@ -15,12 +15,13 @@ Depends: R (>= 3.5.0)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
+Config/roxygen2/version: 8.0.0
 LinkingTo: 
     Rcpp,
     RcppArmadillo
 Imports:
     Rcpp,
+    pbivnorm,
     ggplot2,
     ggrepel,
     ggforce,
@@ -40,7 +41,8 @@ Imports:
 Suggests:
     knitr,
     rmarkdown,
-    testthat (>= 3.0.0),
+    testthat (>= 3.1.7),
+    withr,
     igraph,
     network,
     posterior,
@@ -58,3 +60,4 @@ Suggests:
     amen
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+SystemRequirements: C++17

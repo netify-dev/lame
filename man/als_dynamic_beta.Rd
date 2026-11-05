@@ -22,7 +22,9 @@ third dimension time).}
 }
 \value{
 A list with \code{beta} (a \eqn{p \times T} matrix of
-estimates), \code{lambda}, \code{residual_ss} (sum of squared
+estimates; rows \code{"intercept"} and then the names of the covariate
+slices of \code{Xdyad}, or \code{"x1"}, \code{"x2"}, ... when the slices
+are unnamed; columns \code{"t1"}, ..., \code{"tT"}), \code{lambda}, \code{residual_ss} (sum of squared
 residuals across periods), \code{intercept}, and
 \code{call}. Class \code{"als_dynamic_beta"}.
 }

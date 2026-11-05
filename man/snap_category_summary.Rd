@@ -7,10 +7,8 @@
 snap_category_summary(fit, groups, years = NULL, side = c("u", "v"))
 }
 \arguments{
-\item{fit}{a \code{\link{lame}} fit with snap-shift MCMC output, or a
-\code{\link{lame_snap_als}} fit. MCMC fits should be run with retained
-snap draws for posterior uncertainty; ALS fits contribute their
-\code{snap_prob} scores as one score row.}
+\item{fit}{a \code{\link{lame}} fit with snap-shift MCMC output, run with
+retained snap draws for posterior uncertainty.}
 
 \item{groups}{a named list mapping group names to actor names/indices, or a
 named vector whose values are group labels and whose names are actors.}
@@ -26,4 +24,16 @@ A data frame with one row per group-year.
 }
 \description{
 Summarize snap indices by actor category
+}
+\examples{
+set.seed(1)
+n <- 12; Tt <- 3
+Y <- lapply(seq_len(Tt), function(t) {
+  m <- matrix(rnorm(n * n), n, n); diag(m) <- NA; m
+})
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(Y, R = 1, dynamic_uv = TRUE, dynamic_uv_kind = "snap",
+            keep_snap_draws = "draws",
+            nscan = 20, burn = 5, odens = 1, verbose = FALSE, plot = FALSE, chains = 1)
+snap_category_summary(fit, groups = list(g1 = 1:6, g2 = 7:12), side = "u")
 }

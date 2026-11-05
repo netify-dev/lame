@@ -17,8 +17,9 @@ mean structure)}
 
 \item{nu0}{prior degrees of freedom (defaults to 1)}
 
-\item{s20}{prior scale for s2; when \code{NULL} the empirical mean of the
-decorrelated squared residuals is used so the prior sits at the data scale}
+\item{s20}{fixed positive prior scale for s2 (default 1). Model-fitting
+callers compute a data-scaled value once before sampling; do not
+recompute this scale from current residuals within a chain.}
 }
 \value{
 a single draw of s2

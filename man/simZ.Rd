@@ -4,7 +4,7 @@
 \alias{simZ}
 \title{Simulate a latent relational Gaussian array}
 \usage{
-simZ(EZ, rho, s2 = 1)
+simZ(EZ, rho, s2 = 1, bipartite = FALSE)
 }
 \arguments{
 \item{EZ}{expected value of Z}
@@ -12,6 +12,9 @@ simZ(EZ, rho, s2 = 1)
 \item{rho}{dyadic correlation}
 
 \item{s2}{dyadic variance}
+
+\item{bipartite}{whether row and column actors form disjoint sets; keeps
+diagonal cells even when the matrix is square.}
 }
 \value{
 a simulated value of Z

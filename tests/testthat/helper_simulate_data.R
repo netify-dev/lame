@@ -1,31 +1,29 @@
-# helper function to generate simulated network data with known parameters
-# for testing parameter recovery across families, modes, and temporal settings.
-#
-# this file is auto-loaded by testthat before any test files run.
+# simulated network data with known parameters for recovery tests across families, modes and temporal settings
+# testthat loads this file before the test files
 
 simulate_test_network = function(
-		n = 20,
-		n_time = 1,
-		family = "normal",
-		R = 0,
-		beta_intercept = 0,
-		beta_dyad = 0.5,
-		rvar = TRUE,
-		cvar = TRUE,
-		rho = 0,
-		s2 = 1,
-		sd_a = 0.5,
-		sd_b = 0.5,
-		rho_uv = NULL,
-		rho_ab = NULL,
-		sigma_uv = 0.3,
-		sigma_ab = 0.3,
-		mode = "unipartite",
-		nA = NULL,
-		nB = NULL,
-		odmax = 3,
-		symmetric = FALSE,
-		seed = 42
+	n = 20,
+	n_time = 1,
+	family = "normal",
+	R = 0,
+	beta_intercept = 0,
+	beta_dyad = 0.5,
+	rvar = TRUE,
+	cvar = TRUE,
+	rho = 0,
+	s2 = 1,
+	sd_a = 0.5,
+	sd_b = 0.5,
+	rho_uv = NULL,
+	rho_ab = NULL,
+	sigma_uv = 0.3,
+	sigma_ab = 0.3,
+	mode = "unipartite",
+	nA = NULL,
+	nB = NULL,
+	odmax = 3,
+	symmetric = FALSE,
+	seed = 42
 ) {
 	set.seed(seed)
 
@@ -79,7 +77,7 @@ simulate_test_network = function(
 		list(U = U, V = V)
 	}
 
-	# compute z = intercept + beta*x + outer(a,b) + uv' + noise
+	# z = intercept + beta * x + outer(a, b) + UV' + noise
 	compute_Z = function(Xd, a, b, U, V) {
 		eta = beta_intercept + beta_dyad * Xd
 		eta[is.na(Xd)] = beta_intercept
@@ -87,13 +85,18 @@ simulate_test_network = function(
 		if (R > 0) eta = eta + tcrossprod(U, V)
 		if (symmetric && !bip) eta = (eta + t(eta)) / 2
 		Z = eta + matrix(rnorm(nr * nc, 0, sqrt(s2)), nr, nc)
+		# symmetric fits carry one latent per unordered dyad, so the error
+		# term is mirrored as well; symmetrising eta alone would leave y
+		# asymmetric
+		if (symmetric && !bip) Z[lower.tri(Z)] = t(Z)[lower.tri(Z)]
 		if (!bip) diag(Z) = NA
 		Z
 	}
 
 	# convert z to y via family-specific link
 	Z_to_Y = function(Z, Xd) {
-		Y = switch(family,
+		Y = switch(
+			family,
 			"normal" = {
 				Y = Z
 				if (!bip) diag(Y) = NA
@@ -157,9 +160,8 @@ simulate_test_network = function(
 		Y
 	}
 
-	# for poisson, adjust z computation to use log link
+	# poisson linear predictor on the log scale
 	compute_Z_pois = function(Xd, a, b, U, V) {
-		# for poisson, ez is on the log scale
 		eta = beta_intercept + beta_dyad * Xd
 		eta[is.na(Xd)] = beta_intercept
 		eta = eta + outer(a, rep(1, nc)) + outer(rep(1, nr), b)
@@ -225,20 +227,19 @@ simulate_test_network = function(
 		Xrow_out = Xrow_list[[1]]
 		Xcol_out = Xcol_list[[1]]
 	} else {
-		# for longitudinal, lame() expects lists as input
-		# (it will internally convert to arrays via list_to_array)
+		# lame() takes lists and converts them to arrays with list_to_array()
 		Y_out = Y_list
 		names(Y_out) = paste0("t", seq_len(n_time))
 
-		# xdyad: list of t 3d arrays (nr x nc x 1)
+		# Xdyad: list of T 3-d arrays (nr x nc x 1)
 		Xdyad_out = Xdyad_list
 		names(Xdyad_out) = paste0("t", seq_len(n_time))
 
-		# xrow: list of t matrices (nr x 1)
+		# Xrow: list of T matrices (nr x 1)
 		Xrow_out = Xrow_list
 		names(Xrow_out) = paste0("t", seq_len(n_time))
 
-		# xcol: list of t matrices (nc x 1)
+		# Xcol: list of T matrices (nc x 1)
 		Xcol_out = Xcol_list
 		names(Xcol_out) = paste0("t", seq_len(n_time))
 	}

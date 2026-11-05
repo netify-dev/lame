@@ -1,0 +1,704 @@
+---
+title: "lame Overview"
+author: "Cassy Dorff, Shahryar Minhas, and Tosin Salau"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{lame Overview}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+# use Cairo on headless systems before knitr checks the devices
+if (capabilities("cairo")) options(bitmapType = "cairo")
+knitr::opts_chunk$set(
+	fig.retina = 1,
+	collapse = TRUE,
+	comment = "#>",
+	fig.width = 6,
+	fig.height = 4,
+	dpi = 72,
+	out.width = "100%",
+	fig.align = "center",
+	dev = "png"
+)
+```
+
+## Package Overview
+
+The `lame` package provides tools for fitting **L**ongitudinal **A**dditive and **M**ultiplicative **E**ffects models to network data observed over time. If you study relationships between actors (countries trading with each other, legislators co-sponsoring bills, students forming friendships across semesters) and you have repeated observations of those relationships, `lame` is designed for you.
+
+The modeling approach builds on the Additive and Multiplicative Effects (AME) framework developed by Peter Hoff, whose [`amen`](https://pdhoff.github.io/amen/) package provides the foundational cross-sectional implementation. `lame` extends that framework with:
+
+- **Longitudinal data**: panel networks observed across multiple time periods, potentially with actors entering and leaving the sample.
+- **Dynamic effects**: latent positions and baseline activity levels can evolve via AR(1) processes (`dynamic_uv` and `dynamic_ab`).
+- **C++ acceleration**: core sampling routines in Rcpp/RcppArmadillo.
+- **Bipartite networks**: two-mode networks (e.g., countries and treaties) with separate latent spaces for row and column nodes.
+- **ggplot2-based diagnostics**: `trace_plot`, `gof_plot`, `ab_plot`, and `uv_plot` return standard ggplot2 figures you can theme and extend.
+- **Standard S3 methods**: `coef()`, `confint()`, `fitted()`, `residuals()`, `predict()`, and `simulate()` work as you would expect from any R model object.
+
+The package works with [`netify`](https://netify-dev.github.io/netify/) for data preparation.
+
+### Migrating from `amen`
+
+Both `amen` and `lame` export an `ame()` function; if both packages are attached, a startup message reminds you that unqualified `ame(...)` calls dispatch to whichever was attached last, so write `lame::ame(...)` to be explicit. Old `amen` scripts largely run unchanged -- the most common porting fix is `family = "nrm"` becoming `family = "normal"` (the short forms are accepted as aliases, with a message), and `print =` is deprecated in favour of `verbose =`. The full mapping of argument and output differences lives in the *Migration from amen* sections of `?ame` and `?lame`.
+
+## Application: Dutch College Friendships
+
+To see how `lame` works in practice, we analyze the **Dutch college friendship network** (van de Bunt, van Duijn, and Snijders 1999), a panel of 32 students who arrived as strangers and rated each other's friendship at seven time points. (We drop the cold-start first wave, when the students barely knew each other and almost no ties exist; six waves remain.) The substantive question is whether students sort by gender, smoking status, and academic program, and whether residual clustering remains once those covariates are absorbed.
+
+The dataset includes:
+
+- **Y**: directed friendship ratings on a -1 to 4 scale (-1 a negative/troubled relationship, 0 no or uncertain tie, 1-4 increasing friendship). We binarize any positive rating to a tie (`(Y > 0) * 1`), so the rare -1 ratings fold in with 0 as "no tie".
+- **X**: three node-level attributes: `male`, `smoker`, `program`.
+- We construct three dyadic **homophily indicators** from the node attributes: `same_male`, `same_smoker`, `same_program`.
+
+```{r setup}
+library(lame)
+library(ggplot2)
+set.seed(6886)
+
+data("dutchcollege")
+
+n <- nrow(dutchcollege$Y)
+T_all <- dim(dutchcollege$Y)[3]
+actor_names <- sprintf("S%02d", seq_len(n))
+
+# binarize and drop the cold-start wave (t = 1 has almost no ties)
+Y <- lapply(2:T_all, function(t) {
+	Yt <- (dutchcollege$Y[, , t] > 0) * 1
+	diag(Yt) <- NA
+	rownames(Yt) <- colnames(Yt) <- actor_names
+	Yt
+})
+names(Y) <- paste0("t", 2:T_all)
+
+# nodal covariates passed identically as sender and receiver
+X_node <- dutchcollege$X
+rownames(X_node) <- actor_names
+Xrow <- lapply(seq_along(Y), function(t) X_node)
+Xcol <- Xrow
+
+# dyadic homophily indicators
+same_male <- outer(X_node[, "male"], X_node[, "male"], "==") * 1
+same_smoker <- outer(X_node[, "smoker"], X_node[, "smoker"], "==") * 1
+same_program <- outer(X_node[, "program"], X_node[, "program"], "==") * 1
+Xdyad_one <- array(
+	0,
+	dim = c(n, n, 3),
+	dimnames = list(
+		actor_names,
+		actor_names,
+		c("same_male", "same_smoker", "same_program")
+	)
+)
+Xdyad_one[, , 1] <- same_male
+Xdyad_one[, , 2] <- same_smoker
+Xdyad_one[, , 3] <- same_program
+Xdyad <- lapply(seq_along(Y), function(t) Xdyad_one)
+```
+
+The friendship network's average density rises across the panel as students settle in, though the trajectory is not monotone (density bounces between roughly 0.40 and 0.63 across the six waves):
+
+```{r}
+sapply(Y, function(y) round(mean(y, na.rm = TRUE), 2))
+```
+
+### Fitting the Model
+
+We fit a binary probit AME model with sender random effects (`rvar`), receiver random effects (`cvar`), dyadic correlation (`dcor`), and a one-dimensional latent space (`R = 1`). The random effects capture sender heterogeneity (some students simply nominate more friends) and receiver heterogeneity (some students are nominated more often), while the latent space picks up residual clustering: students who befriend similar people for reasons the observed covariates do not capture. (Why `R = 1` and not 2? See the Latent Space section below.)
+
+The chain has 2,000 burn-in and 60,000 production iterations, and every 60th production iteration is stored (1,000 draws). `seed = 1` fixes the chain: `lame()` seeds its own sampler, so `set.seed()` does not change it. `chains = 1` runs the single chain behind the stored fit (the package default is two chains, seeds `seed` and `seed + 1000`, gated against each other). The chain meets the convergence thresholds (see Checking Convergence below), and it takes about nine minutes on one core, so this vignette loads the fit stored with the package instead of refitting it. The call that produced it is below; `data-raw/lame-overview-fits.R` in the package's source repository runs it, with the other fits in this vignette, and rebuilds the stored file.
+
+```{r fit-call, eval = FALSE}
+fit <- lame(
+	Y = Y,
+	Xdyad = Xdyad,
+	Xrow = Xrow,
+	Xcol = Xcol,
+	family = "binary",
+	rvar = TRUE,
+	cvar = TRUE,
+	dcor = TRUE,
+	posterior_opts = posterior_options(save_ab = TRUE, save_UV = TRUE, thin_ab = 5),
+	R = 1,
+	symmetric = FALSE,
+	burn = 2000,
+	nscan = 60000,
+	odens = 60,
+	seed = 1,
+	chains = 1,
+	verbose = FALSE,
+	plot = FALSE
+)
+```
+
+```{r load-fit}
+stored <- readRDS("lame-overview-fits.rds")
+fit <- stored$fit
+```
+
+The stored copy keeps the additive-effect and latent-position draws of every fifth stored draw (200 draws; `thin_ab = 5`), which is what `simulate()`, `gof_temporal()`, `latent_positions()` and `prediction_draws_long()` use below. It leaves out what this vignette does not read (the forecast state, the refit data and the start values), so `predict(fit, h = 1)` is not available on it.
+
+```{r fit-numbers, include = FALSE}
+# numbers quoted in the text below, taken from the stored fit
+code <- function(x) paste0("`", x, "`")
+words <- function(k) c("none", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")[k + 1L]
+beta_est <- colMeans(fit$BETA)
+beta_ci <- apply(fit$BETA, 2, quantile, probs = c(0.025, 0.975))
+est_ci <- function(term) sprintf(
+	"%.2f (95%% interval %.2f to %.2f)",
+	beta_est[[term]],
+	beta_ci[1, term],
+	beta_ci[2, term]
+)
+excludes_zero <- function(term) beta_ci[1, term] > 0 | beta_ci[2, term] < 0
+hom <- c("same_program_dyad", "same_male_dyad", "same_smoker_dyad")
+nodal <- c("male_row", "smoker_row", "program_row", "male_col", "smoker_col", "program_col")
+nodal_out <- nodal[vapply(nodal, excludes_zero, logical(1))]
+nodal_in <- setdiff(nodal, nodal_out)
+rho_draws <- fit$VC[, "rho"]
+# stop the build if the stored fit disagrees with the text below
+stopifnot(
+	all(beta_ci[1, hom] > 0),
+	identical(names(sort(beta_est[hom], decreasing = TRUE)), hom),
+	all(c("smoker_col", "program_col") %in% nodal_in),
+	length(nodal_out) == 4L,
+	quantile(rho_draws, 0.025) > 0
+)
+```
+
+### Interpreting the Results
+
+```{r}
+summary(fit)
+```
+
+A lot lands at once, so let's walk through it.
+
+**Intercept.** The probit intercept is the latent linear predictor when *every covariate is zero*. The covariates here are uncentered (`program` is coded 2-4 and is never zero), so that corner sits well outside the observed data; the familiar `qnorm(density)` rule of thumb instead describes the predictor at the *average* covariate profile. The two reconcile once you add back the mean covariate contribution:
+
+```{r intercept-decomp}
+bhat <- colMeans(fit$BETA)
+slice_means <- apply(fit$X[[1]], 3, mean, na.rm = TRUE) # mean of each design column
+centroid_lp <- sum(bhat * slice_means[names(bhat)]) # predictor at the average profile
+c(
+	intercept = unname(bhat["intercept"]),
+	centroid_lp = centroid_lp,
+	qnorm_density = qnorm(mean(unlist(Y), na.rm = TRUE))
+)
+```
+
+The intercept itself is strongly negative, but the predictor at the average covariate profile (`centroid_lp`) sits close to `qnorm(density)` -- the uncentered covariates account for nearly the entire gap. The intercept absorbs the mean covariate contribution; it is not a baseline probability. Center the covariates if you want it to read as one, and read predicted probabilities off `predict(fit, type = "response")`.
+
+**Homophily.** The three dyadic coefficients (`same_male`, `same_smoker`, `same_program`) measure whether students of the same type are more likely to be friends, holding the sender, receiver, and latent positions fixed. Positive values mean homophily. All three are positive and their 95% credible intervals exclude zero: `same_program` `r est_ci("same_program_dyad")`, `same_male` `r est_ci("same_male_dyad")` and `same_smoker` `r est_ci("same_smoker_dyad")`. Program homophily is the largest of the three, consistent with students bonding around shared coursework.
+
+**Nodal covariates.** `male_row` / `male_col` measure whether male students are unusually active senders or popular receivers, and similarly for `smoker` and `program`. With only 32 students, the credible intervals on individual nodal effects are wide: `r words(length(nodal_out))` of the six exclude zero (`r paste(code(nodal_out), collapse = ", ")`), and those of `r paste(code(nodal_in), collapse = " and ")` include it.
+
+**Variance components.** `va` (sender variance) and `vb` (receiver variance) quantify how much students differ in sociability and popularity beyond what the covariates explain. The dyadic correlation `rho` captures reciprocity; in friendship networks `rho > 0` is the rule rather than the exception, and here its posterior mean is `r sprintf("%.2f", mean(rho_draws))` (95% interval `r sprintf("%.2f", quantile(rho_draws, 0.025))` to `r sprintf("%.2f", quantile(rho_draws, 0.975))`).
+
+### Checking Convergence
+
+The model is estimated via MCMC, so convergence checks come first. `trace_plot` shows the sampled values over iterations (top panels) and the corresponding posterior densities (bottom panels) for each parameter.
+
+```{r overview-trace, fig.width=8, fig.height=6.5, dpi=55, dev="png", fig.alt="MCMC trace plots (top) and marginal posterior density plots (bottom) for each regression coefficient of the Dutch college fit; well-mixed fuzzy-caterpillar traces around a stable mean and smooth unimodal densities are the signatures of a converged chain."}
+trace_plot(fit, params = "beta")
+```
+
+Trace plots should bounce around a stable mean without long-term trends or sticky regions, and density plots should be smooth and unimodal. Numerically, the checks are **split-$\hat R$ < 1.01** for every monitored parameter and **bulk / tail ESS $\ge$ 400 per chain**; the next section computes them. The traces above show no trend or sticky stretch, and the densities are smooth and unimodal.
+
+### Bayesian-ecosystem diagnostics: `posterior::as_draws()`
+
+`lame` registers `as_draws()` methods so any fit drops straight into the Stan-era diagnostic ecosystem (`posterior`, `bayesplot`, `tidybayes`): `posterior::summarise_draws()` gives per-parameter posterior summaries, **split-$\hat R$**, and **bulk / tail ESS** in one call.
+
+```{r as-draws-demo, eval = requireNamespace("posterior", quietly = TRUE)}
+library(posterior)
+draws <- posterior::as_draws(fit) # draws_array [iter, chain, var]
+posterior::summarise_draws(draws) # rhat, ess_bulk, ess_tail per param
+```
+
+```{r conv-numbers, include = FALSE}
+# convergence table saved when the fits were built (data-raw/lame-overview-fits.R)
+sd_all <- stored$diagnostics
+conv <- sd_all[sd_all$model == "fit" & sd_all$chain == "seed 1", ]
+across <- sd_all[sd_all$model == "fit" & sd_all$chain == "both", ]
+conv_ess <- pmin(conv$ess_bulk, conv$ess_tail)
+stopifnot(
+	max(conv$rhat) < 1.01,
+	min(conv_ess) >= 400,
+	max(across$rhat) < 1.01,
+	min(across$ess_bulk, across$ess_tail) >= 400
+)
+```
+
+All `r nrow(conv)` monitored parameters have split $\hat R$ of at most `r sprintf("%.3f", ceiling(1000 * max(conv$rhat)) / 1000)` and bulk and tail ESS of at least `r floor(min(conv_ess))`; the lowest is that of `r code(conv$variable[which.min(conv_ess)])`. `ve` is the latent residual variance, fixed at 1 by probit identification, so its draws are constant and `posterior` reports `NA` for its $\hat R$ and ESS.
+
+A single chain has `chain = 1`, so $\hat R$ is the within-chain split-$\hat R$. A second chain, fitted with the same call and `seed = 2`, is stored as `stored$chain2`; binding it to the first gives $\hat R$ and ESS across independently initialised chains:
+
+```{r two-chains, eval = requireNamespace("posterior", quietly = TRUE)}
+chain2 <- posterior::as_draws_array(posterior::as_draws_matrix(stored$chain2))
+both <- posterior::bind_draws(posterior::as_draws(fit), chain2, along = "chain")
+across_live <- posterior::summarise_draws(both, "rhat", "ess_bulk", "ess_tail")
+across_live <- across_live[!is.na(across_live$rhat), ]
+round(
+	c(
+		max_rhat = max(across_live$rhat),
+		min_ess_bulk = min(across_live$ess_bulk),
+		min_ess_tail = min(across_live$ess_tail)
+	),
+	3
+)
+```
+
+Across the two chains the largest $\hat R$ is `r sprintf("%.3f", max(across$rhat))`, and the lowest bulk and tail ESS (both chains together) are `r round(min(across$ess_bulk))` and `r round(min(across$ess_tail))`. The other three models fitted in this vignette were run the same way, two seeds each, and every chain of every model meets both thresholds:
+
+```{r other-chains}
+d <- stored$diagnostics
+label <- c(
+	fit = "R = 1, estimated reciprocity", fit_noUV = "R = 0, estimated reciprocity",
+	loo_R0 = "R = 0, independent residuals", loo_R1 = "R = 1, independent residuals"
+)
+chain_summary <- do.call(rbind, lapply(names(label), function(m) do.call(rbind, lapply(c("seed 1", "seed 2", "both"), function(ch) {
+	x <- d[d$model == m & d$chain == ch, ]
+	data.frame(
+		model = label[[m]],
+		chain = ch,
+		max_rhat = max(x$rhat),
+		min_ess_bulk = min(x$ess_bulk),
+		min_ess_tail = min(x$ess_tail)
+	)
+}))))
+knitr::kable(chain_summary, digits = c(0, 0, 3, 0, 0), row.names = FALSE)
+```
+
+The chains differ in length: the two models with estimated reciprocity run 60,000 production iterations, and the two independent-residual models behind the model comparison run 100,000, because the latent-space version of the latter mixes more slowly (the header of `data-raw/lame-overview-fits.R` explains the choice).
+
+### Goodness of Fit
+
+The `gof_plot` function compares observed network statistics to their posterior predictive distributions: can the model reproduce emergent structural features like degree heterogeneity, transitivity, and reciprocity, not just the dyad-level relationships?
+
+```{r overview-gof, fig.width=8, fig.height=6, dpi=72, dev="png", fig.alt="Longitudinal goodness-of-fit panels for the Dutch college fit: each facet plots one network statistic (sender degree heterogeneity, receiver degree heterogeneity, dyadic dependence, triadic dependence, transitivity) across the six time periods. The observed series is a solid black line with filled points; the posterior-predictive median is a dashed grey line; the 95 percent credible interval is a grey band. Observed series falling outside the band flag structural features the model is missing."}
+gof_plot(fit)
+```
+
+For a longitudinal model, `gof_plot` shows these statistics across time, with three elements per panel: the **observed series is a solid black line with filled points**, the **posterior-predictive median is a dashed grey line**, and the **95% credible interval is a grey band** (width set by `credible.level`). Observed values inside the band are features the model reproduces; values outside flag structure it is missing -- itself a substantive finding, not a failure to report.
+
+```{r overview-gof-counts, include = FALSE}
+# count the observed periods below, inside, and above the plotted bands
+band_counts <- vapply(fit$GOF, function(mat) {
+	bounds <- t(apply(mat[, -1, drop = FALSE], 1, quantile, c(.025, .975)))
+	c(
+		below = sum(mat[, 1] < bounds[, 1]),
+		inside = sum(mat[, 1] >= bounds[, 1] & mat[, 1] <= bounds[, 2]),
+		above = sum(mat[, 1] > bounds[, 2])
+	)
+}, c(below = 0, inside = 0, above = 0))
+```
+
+Reading the figure: triadic dependence is inside the band at `r band_counts["inside", "cycle.dep"]` of `r length(Y)` periods. Sender degree heterogeneity is above the band at `r band_counts["above", "sd.rowmean"]` periods, and transitivity is above it at `r band_counts["above", "trans.dep"]` periods. These are discrepancies to retain and investigate. Receiver heterogeneity is inside the band at `r band_counts["inside", "sd.colmean"]` periods; dyadic dependence is inside at `r band_counts["inside", "dyad.dep"]`, above at `r band_counts["above", "dyad.dep"]`, and below at `r band_counts["below", "dyad.dep"]`. The observed and simulated statistics use the same cells in each period.
+
+The discrepancies above are posterior-predictive features to investigate. The chain meets the convergence thresholds, so they describe the fitted model, not the sampler. AME assumes conditional independence between distinct dyads (the two directions within a dyad can remain correlated), so triangle closure must be represented by clustering of the latent positions; ERGMs model it directly via terms like `gwesp`. The two classes are complementary: ERGM for triangle-closure questions, AME for stable, non-degenerate estimates with explicit actor heterogeneity and a coherent posterior to forecast or simulate from.
+
+#### Posterior-predictive temporal-trend test: `gof_temporal()`
+
+The figure read above is qualitative. `gof_temporal()` gives a scalar check on the temporal *trend* in a chosen statistic: it fits an OLS slope to the observed per-period series, recomputes that slope in posterior-predictive replicate panels drawn via `simulate(fit)`, and returns a two-sided posterior-predictive p-value -- near 0 when the observed slope is unreachable under the model, well away from 0 when it is central in the predictive distribution.
+
+```{r overview-gof-temporal}
+# density rises across the panel, so it is the natural trend to test
+gt_density <- gof_temporal(fit, stat = "density", n_rep = 100, seed = 6886)
+gt_density # stat, observed slope, n_rep and p_pp
+```
+
+```{r gof-temporal-check, include = FALSE}
+stopifnot(max(gt_density$slope_rep) < gt_density$slope_obs) # checks the sentence below
+```
+
+The observed slope is `r round(gt_density$slope_obs, 4)` per period, with a two-sided posterior-predictive tail fraction of `r round(gt_density$p_pp, 3)`: the `r gt_density$n_rep` replicate slopes run from `r round(min(gt_density$slope_rep), 4)` to `r round(max(gt_density$slope_rep), 4)`, and none reaches the observed one. The check compares the same observed cells in each period and replicate. Small values indicate that the fitted model rarely reproduces the observed trend, as here; compare a model with `dynamic_beta` or time-varying covariates using the [Dynamic Effects](https://netify-dev.github.io/lame/articles/dynamic_effects.html) workflow.
+
+### Latent Space
+
+The multiplicative effects capture association patterns beyond what the
+covariates and additive effects explain. We fit `R = 1`, so each student's
+sender position ($u_i$) and receiver position ($v_i$) is a single number --
+and a one-dimensional space should be *plotted* as one dimension (a 2-D
+scatter of a 1-D space piles every point onto a line and looks degenerate
+even when the positions are informative). Why not just fit `R = 2`?
+Extra dimensions are not free: they can absorb signal the dyadic
+covariates would otherwise pick up, and a one-dimensional space is far
+easier to display and interpret. Parsimony wins here; to let the data
+adjudicate a rank choice, compare fits with `loo::loo_compare()` out
+of sample, as done for `R = 1` versus `R = 0` at the end of this
+vignette.
+
+The honest display for a 1-D space is a ranked dot plot: every student's
+sender and receiver position with a 95% interval, ordered by sender
+position. The intervals come from the 200 saved U/V draws
+(`thin_ab = 5` in the fit above).
+
+```{r overview-uv, fig.width=7, fig.height=6.5, dpi=100, dev="png", fig.alt="Ranked dot plot of the one-dimensional latent positions for all 32 students: for each student, a red point marks the posterior-mean sender position and a blue point the receiver position, each with a horizontal 95 percent interval; students are ordered by sender position, and a dashed vertical line marks zero."}
+lp1 <- subset(latent_positions(fit), dimension == 1)
+ordv <- with(subset(lp1, type == "U"), actor[order(value)])
+lp1$actor <- factor(lp1$actor, levels = ordv)
+
+ggplot(lp1, aes(x = value, y = actor, color = type)) +
+	geom_vline(xintercept = 0, linetype = 2, color = "grey60") +
+	geom_errorbar(
+		aes(
+			xmin = value - 2 * posterior_sd,
+			xmax = value + 2 * posterior_sd
+		),
+		width = 0,
+		alpha = 0.5,
+		orientation = "y"
+	) +
+	geom_point(size = 1.8) +
+	scale_color_manual(
+		values = c(U = "#E41A1C", V = "#377EB8"),
+		labels = c(U = "sender (u)", V = "receiver (v)")
+	) +
+	labs(x = "Latent position (dimension 1)", y = NULL, color = NULL) +
+	theme_bw() +
+	theme(
+		panel.border = element_blank(),
+		axis.line = element_blank(),
+		axis.ticks = element_blank(),
+		legend.position = "top",
+		plot.title = element_text(hjust = 0),
+		plot.subtitle = element_text(hjust = 0),
+		plot.caption = element_text(hjust = 0)
+	)
+```
+
+```{r lp-numbers, include = FALSE}
+u_pos <- subset(lp1, type == "U")
+v_pos <- subset(lp1, type == "V")
+lo <- u_pos$value - 2 * u_pos$posterior_sd
+hi <- u_pos$value + 2 * u_pos$posterior_sd
+n_pairs <- choose(nrow(u_pos), 2)
+n_apart <- sum(outer(lo, hi, ">")) # pairs whose intervals do not overlap
+out_u <- sum(abs(u_pos$value) > 2 * u_pos$posterior_sd)
+out_v <- sum(abs(v_pos$value) > 2 * v_pos$posterior_sd)
+u_draws <- matrix(fit$U_samples[, 1, ], nrow = dim(fit$U_samples)[1])
+draw_cor <- apply(u_draws, 2, function(x) cor(x, rowMeans(u_draws)))
+stopifnot(all(draw_cor > 0))
+```
+
+The sender posterior means range from `r round(min(u_pos$value), 2)` to `r round(max(u_pos$value), 2)`. The sender and receiver means have correlation `r round(cor(u_pos$value, v_pos$value[match(u_pos$actor, v_pos$actor)]), 2)` in this parameterization. The 95% intervals of `r out_u` of the 32 sender positions and `r out_v` of the 32 receiver positions exclude zero, and the sender intervals of `r n_apart` of the `r n_pairs` pairs of students do not overlap. The likelihood depends on the positions only through the products $u_i v_j$, so the sign of the pair $(u, v)$ is not identified; in all `r ncol(u_draws)` stored draws the sender positions correlate positively with their posterior means (lowest correlation `r round(min(draw_cor), 2)`), so the draws do not flip sign and the intervals are not widened by flips. Students whose sender and receiver positions differ are an interesting starting point for studying asymmetric cluster participation. These static positions are pooled across all six waves. If you suspect students moved through the space, use `dynamic_uv = TRUE` and compare invariant products and predictions across independently seeded chains (see the [dynamic effects vignette](https://netify-dev.github.io/lame/articles/dynamic_effects.html)).
+
+
+## Extracting Latent Positions
+
+If you need the estimated latent positions in a tidy format (for custom plots, merging with external data, or exporting to other tools), the `latent_positions()` function returns a data frame:
+
+```{r}
+lp <- latent_positions(fit)
+head(lp)
+```
+
+Each row gives one actor's position on one latent dimension at one time point, with a `type` column distinguishing the sender position (`"U"`) from the receiver position (`"V"`). The `posterior_sd` column is populated because the fit saved its U/V draws (`posterior_opts = posterior_options(save_ab = TRUE, save_UV = TRUE, thin_ab = 5)`); without that option it is `NA` with a one-time message telling you how to refit. A static fit returns a single slice (labelled `time = 1`) that applies to every period; dynamic fits (`dynamic_uv = TRUE`) return each time point separately, and `procrustes_align()` removes the arbitrary per-period rotations so that trajectories across time are interpretable (see the [dynamic effects vignette](https://netify-dev.github.io/lame/articles/dynamic_effects.html)).
+
+## Tidy-data round-trip via netify
+
+`lame` uses the `netify` package for tidy network data: build a netify
+object from an edgelist and pass it directly to `lame()` or `ame()`. On the
+way out, `tidy()`, `autoplot()`, and `prediction_draws_long()` give you
+broom-/ggplot-/marginaleffects-ready output.
+
+### Entry: tidy edgelist → `lame()`
+
+```{r tidyverse-entry, eval = requireNamespace("netify", quietly = TRUE), message = FALSE}
+library(netify)
+
+# the panel as a tidy edgelist with one row per ordered dyad and wave
+edges_long <- do.call(rbind, lapply(seq_along(Y), function(t) {
+	Yt <- Y[[t]]
+	idx <- which(!is.na(Yt), arr.ind = TRUE)
+	data.frame(
+		from = rownames(Yt)[idx[, 1]],
+		to = colnames(Yt)[idx[, 2]],
+		year = names(Y)[t],
+		tie = as.integer(Yt[idx]),
+		same_program = Xdyad[[t]][, , "same_program"][idx]
+	)
+}))
+head(edges_long)
+
+netlet <- netify::netify(
+	edges_long,
+	actor1 = "from",
+	actor2 = "to",
+	time = "year",
+	weight = "tie",
+	dyad_vars = "same_program",
+	symmetric = FALSE,
+	mode = "unipartite",
+	missing_to_zero = FALSE,
+	output_format = "longit_array"
+)
+
+# a netify object goes straight into lame() (a short demonstration fit)
+fit_netlet <- lame(
+	netlet,
+	family = "binary",
+	R = 1,
+	burn = 50,
+	nscan = 200,
+	odens = 5,
+	verbose = FALSE
+)
+
+# to_lame() returns the pieces lame() uses
+pieces <- netify::to_lame(netlet, lame = TRUE)
+names(pieces)
+```
+
+`fit_netlet` is a live fit taken straight off the netify object -- no
+reshaping, no hand-built lists -- and `names(pieces)` shows the inputs
+`lame()` actually consumes (`Y`, `Xdyad`, `Xrow`, `Xcol`, plus the
+`mode` / `family` metadata netify carries). The payoff is the alignment:
+`netify()` rebuilt, for every period, a tie matrix and a covariate slice
+keyed to the same actor order -- exactly the `rownames`-and-`array()`
+bookkeeping done by hand in the setup chunk at the top of this vignette.
+When your data arrives as an edgelist, as panel network data usually
+does, the edgelist is the only object you touch.
+
+### Exit: `tidy()`, `autoplot()`, `prediction_draws_long()`
+
+The rest of the round-trip runs against the `fit` object built from the
+Dutch-college data above:
+
+```{r tidy-fit}
+# one row per coefficient (per coefficient and period for dynamic_beta fits)
+tidy(fit)
+```
+
+### Coefficient tables: `glance()` + `tidy()` -> `modelsummary` / `gt` / `kableExtra`
+
+Because `tidy()` and `glance()` are registered against their `generics`
+counterparts, any broom-aware table package consumes a `lame` fit
+directly -- most compactly `modelsummary::modelsummary(fit)`:
+
+```{r modelsummary-fit, eval = requireNamespace("modelsummary", quietly = TRUE) && requireNamespace("broom", quietly = TRUE)}
+# one-row model summary; elpd_loo is NA unless a loo object is cached on the fit
+broom::glance(fit)
+
+# tidy() fills the coefficient panel and glance() the GOF panel
+modelsummary::modelsummary(
+	list("Dutch college" = fit),
+	statistic = "conf.int",
+	gof_map = c(
+		"nobs", "n_actors", "n_periods", "n_stored",
+		"family", "R", "dynamic_uv", "dynamic_ab"
+	)
+)
+```
+
+Multiple fits compose into a side-by-side table via a named list, one
+column per fit. Below we compare the full specification against a
+no-latent-space variant (`R = 0`), fitted the same way (2,000 burn-in and
+60,000 production iterations, `seed = 1`; the stored copy is loaded here):
+
+```{r fit-nouv-call, eval = FALSE}
+fit_noUV <- lame(
+	Y = Y,
+	Xdyad = Xdyad,
+	Xrow = Xrow,
+	Xcol = Xcol,
+	family = "binary",
+	rvar = TRUE,
+	cvar = TRUE,
+	dcor = TRUE,
+	posterior_opts = posterior_options(save_ab = FALSE, save_UV = FALSE),
+	R = 0, # no latent space
+	symmetric = FALSE,
+	burn = 2000,
+	nscan = 60000,
+	odens = 60,
+	seed = 1,
+	chains = 1,
+	gof = FALSE,
+	verbose = FALSE,
+	plot = FALSE
+)
+```
+
+```{r fit-nouv}
+fit_noUV <- stored$fit_noUV
+```
+
+```{r modelsummary-multi, eval = requireNamespace("modelsummary", quietly = TRUE) && requireNamespace("broom", quietly = TRUE), message = FALSE, warning = FALSE}
+modelsummary::modelsummary(
+	list("AME (R = 1)" = fit, "Additive only (R = 0)" = fit_noUV),
+	statistic = "conf.int",
+	gof_map = c(
+		"nobs", "n_actors", "n_periods", "n_stored",
+		"family", "R", "dynamic_uv", "dynamic_ab"
+	)
+)
+```
+
+```{r nouv-numbers, include = FALSE}
+shift <- colMeans(fit$BETA)[hom] - colMeans(fit_noUV$BETA)[hom]
+sd_hom <- apply(fit$BETA[, hom], 2, sd)
+stopifnot(all(abs(shift) < sd_hom))
+```
+
+Reading across the two columns shows what the latent space does to the
+homophily coefficients. Adding it moves `same_program` by `r sprintf("%+.2f", shift[["same_program_dyad"]])`,
+`same_male` by `r sprintf("%+.2f", shift[["same_male_dyad"]])` and `same_smoker` by `r sprintf("%+.2f", shift[["same_smoker_dyad"]])`: `r words(sum(shift < 0))` of the three move
+toward zero and `r words(sum(shift > 0))` away from it, and none moves by as much as one posterior standard
+deviation (`r paste(sprintf("%.2f", sd_hom[hom]), collapse = ", ")`). The credible
+intervals of each coefficient overlap across the two columns.
+
+```{r autoplot-fit, fig.width = 6, fig.height = 4, fig.alt="Horizontal coefficient plot returned by autoplot.lame: each row is a regression coefficient, with a point at the posterior mean and a horizontal segment marking the 95 percent credible interval; a dashed reference line at zero indicates where an effect is indistinguishable from null."}
+# coefficient plot; a dynamic_beta fit gets one ribbon per coefficient over time
+autoplot(fit) +
+	ggtitle("Dutch college friendship: posterior coefficients")
+```
+
+The coefplot is the visual form of the `tidy(fit)` table above: the
+three homophily terms sit clear of the dashed zero line --
+`same_program` largest (`r sprintf("%.2f", beta_est[["same_program_dyad"]])`), `same_male` next (`r sprintf("%.2f", beta_est[["same_male_dyad"]])`), `same_smoker`
+smallest (`r sprintf("%.2f", beta_est[["same_smoker_dyad"]])`) -- while the nodal terms are mixed, with
+`smoker_col` and `program_col` straddling the line. The
+same generic dispatches on `which = "uv"` (latent positions -- the
+ranked dot plot in the Latent Space section above) and `which = "ab"`
+(sender / receiver random effects):
+
+```{r autoplot-ab, fig.width = 6, fig.height = 4, fig.alt="Lollipop plot of sender random effects: one stem per student, length equal to the posterior-mean sender effect a_i; long positive stems mark students who nominate far more friends than their covariates predict."}
+# sender random effects a_i via ab_plot() (effect = "receiver" for the column side)
+autoplot(fit, which = "ab")
+```
+
+```{r pdl, message = FALSE}
+# long format with .chain, .iteration, .draw and .value columns for tidybayes
+pdl <- prediction_draws_long(fit, type = "response", n_draws = 50)
+# drop self-ties, which are undefined in a friendship network
+pdl <- pdl[pdl$i != pdl$j, ]
+head(pdl, 3)
+dim(pdl)
+```
+
+Because the `.chain` / `.iteration` / `.draw` / `.value` columns follow
+the `tidybayes` / `marginaleffects` convention, this frame composes
+directly with `ggdist`, `tidybayes`, and `marginaleffects` -- no
+reshaping step needed.
+
+## Model comparison: `loo::loo_compare()` as a one-liner
+
+This cellwise comparison uses two independent-residual specifications with
+`dcor = FALSE`. A fit that estimates reciprocity (`dcor = TRUE`, as in the fits
+above) has directed-cell marginal scores that are not likelihood factors, and
+`loo()` refuses them (class `lame_loo_factorization_unsupported`); for those
+models, use a held-out dyad or future-period evaluation that preserves dyad
+dependence.
+
+The independent models save observed likelihood factors with
+`save_log_lik = TRUE`; `fit$log_lik_contract$factorization` records the
+observation unit and whether LOO/WAIC is supported. Each model has 2,000
+burn-in and 100,000 production iterations, every 100th stored (1,000 draws), and
+`seed = 1`. A log-likelihood matrix of 1,000 draws by 5,952 cells is too large
+to ship, so the package stores the `loo` objects computed from it;
+`data-raw/lame-overview-fits.R` refits the models and rebuilds them.
+
+```{r loo-fit-call, eval = FALSE}
+loo_args <- list(
+	Y = Y,
+	Xdyad = Xdyad,
+	Xrow = Xrow,
+	Xcol = Xcol,
+	family = "binary",
+	rvar = TRUE,
+	cvar = TRUE,
+	dcor = FALSE,
+	symmetric = FALSE,
+	burn = 2000,
+	nscan = 100000,
+	odens = 100,
+	seed = 1,
+	chains = 1,
+	save_log_lik = TRUE,
+	verbose = FALSE,
+	plot = FALSE
+)
+fit_loo_R0 <- do.call(lame, c(loo_args, list(R = 0)))
+fit_loo_R1 <- do.call(lame, c(loo_args, list(R = 1)))
+loo_R0 <- loo::loo(fit_loo_R0)
+loo_R1 <- loo::loo(fit_loo_R1)
+```
+
+```{r loo-compare-demo, eval = requireNamespace("loo", quietly = TRUE), message = FALSE, warning = FALSE}
+loo_R0 <- stored$loo$no_latent
+loo_R1 <- stored$loo$latent_R1
+loo_R0
+loo_R1
+cmp <- loo::loo_compare(list(no_latent = loo_R0, latent_R1 = loo_R1))
+cmp
+```
+
+```{r loo-compare-read, echo = FALSE}
+# comparison numbers from the stored objects (as loo_compare() computes them)
+pw0 <- stored$loo$no_latent$pointwise[, "elpd_loo"]
+pw1 <- stored$loo$latent_R1$pointwise[, "elpd_loo"]
+n_cells <- length(pw1)
+best <- "latent_R1"
+dval <- round(abs(sum(pw1 - pw0)), 1)
+sval <- round(sqrt(n_cells) * sd(pw1 - pw0), 1)
+# the difference without cells whose Pareto k exceeds 0.67 in either model
+flag_R0 <- which(stored$loo$no_latent$diagnostics$pareto_k > 0.67)
+flag_R1 <- which(stored$loo$latent_R1$diagnostics$pareto_k > 0.67)
+keep <- setdiff(seq_len(n_cells), c(flag_R0, flag_R1))
+d_keep <- sum((pw1 - pw0)[keep])
+se_keep <- sqrt(length(keep)) * sd((pw1 - pw0)[keep])
+stopifnot(sum(pw1) > sum(pw0), dval / sval > 4, length(flag_R0) == 0L)
+```
+
+**How to read the output.** The top row has the largest estimated `elpd_loo`
+(`elpd_diff = 0`); subsequent rows give differences and their standard errors.
+Here `` `r best` `` has the larger estimate by `` `r dval` `` elpd units
+(SE `` `r sval` ``), which is `` `r round(dval / sval, 1)` `` standard errors. The
+Pareto-$k$ diagnostics are in the printed objects: `no_latent` has no observation
+with $k$ above 0.67, and `latent_R1` has `r length(flag_R1)` of `r n_cells`
+(`r round(100 * length(flag_R1) / n_cells, 1)` percent), the cells for which its
+PSIS estimate is least reliable. Leaving those cells out of both models, `latent_R1`
+is ahead by `r round(d_keep, 1)` elpd units (SE `r round(se_keep, 1)`). This comparison
+uses the independent-residual fits defined in this section.
+
+## Reproducibility: `sessionInfo()` and `renv.lock`
+
+An analysis a reviewer (or your future self) can reproduce records the
+seed and the package versions it was fit under. The pattern:
+
+```{r repro-seed, eval = FALSE}
+fit <- lame(..., seed = 6886) # the sampler seed lives in lame()
+saveRDS(
+	list(fit = fit, session = sessionInfo()),
+	file = "lame_fit_replication.rds"
+)
+```
+
+For long-term reproducibility, commit an `renv.lock` so reviewers can
+recreate the toolchain with `renv::restore()`. This vignette's own
+session record:
+
+```{r repro-sessioninfo}
+sessionInfo()
+```
+
+## What's Next?
+
+This vignette covered the core workflow: fitting, convergence, GOF, and visualization. For more specialized topics:
+
+- **Single networks (no time series)?** See [Your First AME Model](cross_sec_ame.html) for a detailed cross-sectional walkthrough
+- **Two types of nodes?** See [Bipartite Networks](https://netify-dev.github.io/lame/articles/bipartite.html)
+- **Evolving network structure?** See [Dynamic Effects](https://netify-dev.github.io/lame/articles/dynamic_effects.html)
+- **Just want the quick version?** See [Getting Started](lame.html)
+
+**References**:
+
+Hoff, PD (2021) Additive and Multiplicative Effects Network Models. Statistical Science 36, 34--50.
+
+van de Bunt, G. G., van Duijn, M. A. J., & Snijders, T. A. B. (1999). Friendship networks through time: An actor-oriented dynamic statistical network model. *Computational & Mathematical Organization Theory*, 5(2), 167--192.
+
+Minhas, S., Dorff, C., Gallop, M. B., Foster, M., Liu, H., Tellez, J., & Ward, M. D. (2022). Taking dyads seriously. Political Science Research and Methods, 10(4), 703--721. doi:10.1017/psrm.2021.56

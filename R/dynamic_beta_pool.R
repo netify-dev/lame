@@ -1,50 +1,91 @@
 # hierarchical pool across blocks for the dynamic_beta hyperparameters.
-# sigma case: sigma_b^2 ~ ig(alpha, beta_share) with beta_share drawn
-# from a gamma hyperprior shared across blocks. closed-form gamma
-# conditional on sum_b 1/sigma_b^2.
-# rho case: logit(rho_b) ~ n(mu_rho, tau_rho^2). normal density on
-# the logit scale; no jacobian correction.
+# sigma: sigma_b^2 ~ IG(alpha, beta_share), beta_share with a shared gamma
+# hyperprior and a closed-form gamma conditional.
+# rho: a Gaussian hierarchy on the persistence mapped from its interval to the
+# real line, with proposals on that scale.
 
 #' @noRd
-# update the shared beta_share hyperparameter for sigma_b^2.
-.pool_update_sigma_scale <- function(sigma_beta_by_group,
-                                       alpha = 2.0,
-                                       hyper_a = 2.0,
-                                       hyper_b = 0.5) {
+# draw the shared beta_share hyperparameter of sigma_b^2
+.pool_update_sigma_scale <- function(
+	sigma_beta_by_group,
+	alpha = 2.0,
+	hyper_a = 2.0,
+	hyper_b = 0.5
+) {
 	B <- length(sigma_beta_by_group)
 	if (B == 0L) return(hyper_b)
-	# inverse-variance contributions across blocks
-	inv_var <- 1 / pmax(sigma_beta_by_group^2, 1e-12)
-	stats::rgamma(1L,
+	if (any(!is.finite(sigma_beta_by_group)) || any(sigma_beta_by_group <= 0))
+		stop("Coefficient innovation standard deviations must be finite and positive.")
+	inv_var <- 1 / sigma_beta_by_group^2
+	if (any(!is.finite(inv_var))) stop("Coefficient innovation precision is outside numerical range.")
+	stats::rgamma(
+		1L,
 		shape = hyper_a + B * alpha,
-		rate  = hyper_b + sum(inv_var))
+		rate = hyper_b + sum(inv_var)
+	)
 }
 
-#' @noRd
-# update (mu_rho, tau_rho^2) governing per-block rho_b on the logit scale.
-.pool_update_rho_hyper <- function(rho_beta_by_group,
-                                     prior_mu_mean = 0,
-                                     prior_mu_sd   = 10,
-                                     prior_tau_a   = 2.0,
-                                     prior_tau_b   = 0.5) {
-	# transform: theta_b = logit((rho + 1) / 2) so theta_b in r
-	r <- pmin(pmax(rho_beta_by_group, -0.999), 0.999)
-	theta <- log((r + 1) / (1 - r) / 2 + 1 / (1 - r))  # logit((r+1)/2)
-	# simpler & equivalent: theta_b = 0.5 * log((1+r)/(1-r))
-	theta <- 0.5 * log((1 + r) / (1 - r))
+# Gibbs draws of (mu, tau) of the Gaussian hierarchy on
+# theta = logit((rho - lower) / (upper - lower)), mu given the current tau
+.pool_update_rho_hyper <- function(
+	rho_beta_by_group,
+	prior_mu_mean = 0,
+	prior_mu_sd = 10,
+	prior_tau_a = 2,
+	prior_tau_b = .5,
+	current_tau = 1,
+	rho_lower = 0,
+	rho_upper = .999
+) {
+	theta <- stats::qlogis((rho_beta_by_group - rho_lower) / (rho_upper - rho_lower))
+	if (any(!is.finite(theta))) stop("Pooled persistence must lie strictly within its support.")
 	B <- length(theta)
-	# mu | tau, theta : normal
-	prior_prec_mu <- 1 / prior_mu_sd^2
-	# tau | mu, theta : inverse-gamma (need an initial tau to use here; use sample variance)
-	tau_sq <- max(stats::var(theta), 1e-6)
-	post_prec_mu <- prior_prec_mu + B / tau_sq
-	post_mean_mu <- (prior_prec_mu * prior_mu_mean + sum(theta) / tau_sq) / post_prec_mu
-	mu_new <- stats::rnorm(1, post_mean_mu, 1 / sqrt(post_prec_mu))
-	# tau update: 1/tau^2 | mu, theta ~ gamma(prior_tau_a + b/2,
-	#                                          prior_tau_b + 0.5 * sum((theta - mu)^2))
-	inv_tau_sq <- stats::rgamma(1L,
-		shape = prior_tau_a + B / 2,
-		rate  = prior_tau_b + 0.5 * sum((theta - mu_new)^2))
-	tau_new <- 1 / sqrt(inv_tau_sq)
-	list(mu = mu_new, tau = tau_new)
+	precision <- 1 / prior_mu_sd^2 + B / current_tau^2
+	mean <- (prior_mu_mean / prior_mu_sd^2 + sum(theta) / current_tau^2) / precision
+	mu <- rnorm(1, mean, 1 / sqrt(precision))
+	tau <- sqrt(
+		1 / rgamma(
+			1,
+			prior_tau_a + B / 2,
+			prior_tau_b + sum((theta - mu)^2) / 2
+		)
+	)
+	list(mu = mu, tau = tau)
+}
+
+# random-walk Metropolis on theta per block, under the Gaussian hierarchy and
+# the gap-aware transition density
+.pool_sample_rho <- function(
+	beta_path,
+	group_id,
+	n_groups,
+	Lambda,
+	sigma_by_coef,
+	rho_current,
+	mu,
+	tau,
+	rho_lower,
+	rho_upper,
+	time_positions = seq_len(nrow(beta_path))
+) {
+	gaps <- diff(time_positions)
+	theta <- stats::qlogis((rho_current - rho_lower) / (rho_upper - rho_lower))
+	for (g in seq_len(n_groups)) {
+		idx <- which(group_id == g)
+		x <- beta_path[, idx, drop = FALSE]
+		log_target <- function(th) {
+			rho <- rho_lower + (rho_upper - rho_lower) * stats::plogis(th)
+			if (rho < 0 && any(abs(gaps - round(gaps)) > 1e-10)) return(-Inf)
+			z <- .lame_beta_gap_transition(rho, gaps)
+			err <- x[-1L, , drop = FALSE] - z$f * x[-nrow(x), , drop = FALSE]
+			ss <- colSums(err^2 / z$q) / (diag(Lambda)[idx] * sigma_by_coef[idx]^2)
+			dnorm(th, mu, tau, log = TRUE) - .5 * (sum(ss) + length(idx) * sum(log(z$q)))
+		}
+		for (step in seq_len(4L)) {
+			proposal <- theta[g] + rnorm(1, sd = .5)
+			lr <- log_target(proposal) - log_target(theta[g])
+			if (is.finite(lr) && log(runif(1)) < lr) theta[g] <- proposal
+		}
+	}
+	rho_lower + (rho_upper - rho_lower) * stats::plogis(theta)
 }

@@ -45,11 +45,13 @@ assumption.
 \examples{
 \donttest{
 data(YX_bin_list)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit_multi <- lame_multi(
-  Y_list = list(YX_bin_list$Y, YX_bin_list$Y),
+  Y_list = list(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)),
+                lapply(YX_bin_list$Y, function(y) 1 * (y > 0))),
   Xdyad_list = list(YX_bin_list$X, YX_bin_list$X),
   family = "binary", R = 0,
-  nscan = 100, burn = 25, odens = 5, verbose = FALSE)
+  nscan = 100, burn = 25, odens = 5, verbose = FALSE, chains = 1)
 dim(fit_multi$beta_shared)
 }
 

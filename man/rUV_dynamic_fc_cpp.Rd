@@ -12,7 +12,9 @@ rUV_dynamic_fc_cpp(
   sigma_uv,
   s2,
   shrink,
-  symmetric
+  symmetric,
+  rho = 0,
+  max_abs = -1
 )
 }
 \arguments{
@@ -31,10 +33,23 @@ rUV_dynamic_fc_cpp(
 \item{shrink}{Whether to apply shrinkage}
 
 \item{symmetric}{Whether network is symmetric}
+
+\item{rho}{Dyadic correlation of the (i, j) and (j, i) residual pair}
+
+\item{max_abs}{Optional positive coordinate bound; nonpositive or infinite
+values disable it. Each actor conditional respects the bound.}
 }
 \value{
 List with updated U and V arrays
 }
 \description{
-Update dynamic latent positions using AR(1) process
+The per-period observation model is the pair model the rest of the
+sampler uses: the two cells of a dyad, (e_ij, e_ji), have covariance
+s2 * matrix(c(1, rho, rho, 1), 2, 2). Conditioning one actor's
+coordinates on every other actor's leaves an exact Gaussian full
+conditional in which the dyadic correlation enters three ways: the
+likelihood precision is scaled by 1 / (1 - rho^2), the linear term
+carries -rho times the reciprocal residual, and the self-cell (i, i)
+contributes a rank-one correction. Passing \code{rho = 0} reproduces
+the independent-dyad kernel exactly.
 }

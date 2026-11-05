@@ -4,7 +4,7 @@
 \alias{evaluate_heldout}
 \title{Held-out predictive evaluation for an ame / lame fit}
 \usage{
-evaluate_heldout(y_obs, y_pred, mask, family = "binary")
+evaluate_heldout(y_obs, y_pred, mask, family = "binary", fit = NULL)
 }
 \arguments{
 \item{y_obs}{Observed outcomes. For longitudinal fits, a list of
@@ -19,6 +19,12 @@ cells to score (\code{TRUE} = include in evaluation).}
 
 \item{family}{Family string; used to pick the scoring rule. Defaults
 to \code{"binary"}.}
+
+\item{fit}{For \code{family = "normal"}: the fit that produced
+\code{y_pred} (an \code{ame}/\code{lame} MCMC fit or an
+\code{ame_als}/\code{lame_als} fit of the normal family). Its residual
+variance sets the predictive density of \code{mean_logdens}; without it
+\code{mean_logdens} is \code{NA}. Ignored for the other families.}
 }
 \value{
 A one-row data frame with columns appropriate to the family:
@@ -26,6 +32,12 @@ A one-row data frame with columns appropriate to the family:
 \code{logloss} (binary / cbin), or \code{rmse} + \code{mae} +
 \code{mean_logdens} (normal), or \code{mean_logdens} +
 \code{rmse} (poisson).
+
+For the normal family \code{mean_logdens} is the mean over the scored
+cells of \eqn{\log \phi(y; \hat y, v_e)}, the normal log density at the
+prediction with the fit's residual variance \eqn{v_e}: the posterior mean
+of \code{VC[, "ve"]} for an MCMC fit, the fitted \code{VC["ve"]} for a
+fast fit. It is \code{NA} when \code{fit} is not supplied.
 }
 \description{
 Computes family-appropriate held-out predictive scores given a fit
@@ -59,8 +71,9 @@ obs_idx <- which(!is.na(Y))
 set.seed(1)
 mask[sample(obs_idx, floor(0.2 * length(obs_idx)))] <- TRUE
 Y_train <- Y; Y_train[mask] <- NA
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(Y_train, R = 0, family = "binary",
-           burn = 15, nscan = 60, odens = 5, verbose = FALSE, plot = FALSE)
+           burn = 15, nscan = 60, odens = 5, verbose = FALSE, plot = FALSE, chains = 1)
 y_pred <- predict(fit, type = "response")
 evaluate_heldout(Y, y_pred, mask, family = "binary")
 }

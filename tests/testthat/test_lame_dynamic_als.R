@@ -14,8 +14,15 @@ test_that("lame method als fits Gaussian dynamic additive effects", {
 		Y[[t]] = Yt
 	}
 
-	fit = lame(Y, family = "normal", R = 0, method = "als",
-	            dynamic_ab = TRUE, verbose = FALSE)
+	fit = lame(
+		Y,
+		family = "normal",
+		bias_correct = "none",
+		R = 0,
+		method = "als",
+		dynamic_ab = TRUE,
+		verbose = FALSE
+	)
 
 	expect_s3_class(fit, "lame_dynamic_als")
 	expect_true(isTRUE(fit$dynamic_ab))
@@ -24,17 +31,29 @@ test_that("lame method als fits Gaussian dynamic additive effects", {
 	expect_lt(max(abs(colMeans(fit$a_dynamic))), 1e-8)
 	expect_lt(max(abs(colMeans(fit$b_dynamic))), 1e-8)
 	expect_equal(length(fitted(fit)), Tt)
+	# a requested future horizon does not silently return the training fit
+	pred = predict(fit, type = "link")
+	expect_equal(predict(fit, h = 0, type = "link"), pred)
+	expect_error(predict(fit, h = 1), "does not support h-step forecasting")
+	expect_error(predict(fit, h = NA_real_), "single non-negative integer")
+	expect_error(predict(fit, h = 1.5), "single non-negative integer")
+	expect_warning(predict(fit, by_draw = TRUE), "only apply to MCMC fits")
+	expect_warning(predict(fit, newexposure = 2), "only apply to MCMC fits")
 	conv_trace = fit$diagnostics$convergence_trace
 	expect_s3_class(conv_trace, "data.frame")
 	expect_named(
 		conv_trace,
-		c("iter", "objective", "relative_objective_delta",
-		  "max_fitted_delta", "max_parameter_delta")
+		c(
+			"iter", "objective", "relative_objective_delta",
+			"max_fitted_delta", "max_parameter_delta"
+		)
 	)
 	expect_equal(nrow(conv_trace), fit$iterations)
 	expect_equal(utils::tail(conv_trace$objective, 1L), fit$deviance)
-	expect_equal(fit$diagnostics$last_max_fitted_delta,
-	             utils::tail(conv_trace$max_fitted_delta, 1L))
+	expect_equal(
+		fit$diagnostics$last_max_fitted_delta,
+		utils::tail(conv_trace$max_fitted_delta, 1L)
+	)
 	expect_equal(fit$diagnostics$convergence_tolerance, 5e-5)
 })
 
@@ -51,9 +70,17 @@ test_that("dynamic ALS fits symmetric dynamic additive effects", {
 		Y[[t]] = Yt
 	}
 
-	fit = lame(Y, family = "normal", R = 0, method = "als",
-	            symmetric = TRUE, dynamic_ab = TRUE,
-	            als_max_iter = 30, verbose = FALSE)
+	fit = lame(
+		Y,
+		family = "normal",
+		bias_correct = "none",
+		R = 0,
+		method = "als",
+		symmetric = TRUE,
+		dynamic_ab = TRUE,
+		als_max_iter = 30,
+		verbose = FALSE
+	)
 
 	expect_s3_class(fit, "lame_dynamic_als")
 	expect_true(isTRUE(fit$symmetric))
@@ -74,15 +101,25 @@ test_that("lame method als fits selected dynamic dyadic beta", {
 	for (t in seq_len(Tt)) {
 		Xt = matrix(rnorm(n * n), n, n)
 		diag(Xt) = 0
-		X[[t]] = array(Xt, c(n, n, 1L),
-		                dimnames = list(NULL, NULL, "trade"))
+		X[[t]] = array(
+			Xt,
+			c(n, n, 1L),
+			dimnames = list(NULL, NULL, "trade")
+		)
 		Yt = 0.1 + beta_true[t] * Xt + matrix(rnorm(n * n, 0, 0.2), n, n)
 		diag(Yt) = NA
 		Y[[t]] = Yt
 	}
 
-	fit = lame(Y, Xdyad = X, family = "normal", R = 0, method = "als",
-	            dynamic_beta = "dyad", verbose = FALSE)
+	fit = lame(
+		Y,
+		Xdyad = X,
+		family = "normal",
+		R = 0,
+		method = "als",
+		dynamic_beta = "dyad",
+		verbose = FALSE
+	)
 	cf = coef(fit)
 
 	expect_s3_class(fit, "lame_dynamic_als")
@@ -111,13 +148,29 @@ test_that("dynamic ALS can warm-start dynamic UV MCMC", {
 	}
 	names(Y) = paste0("t", seq_len(Tt))
 
-	fit_als = lame(Y, family = "normal", R = R, dynamic_uv = TRUE,
-	               method = "als", verbose = FALSE)
+	fit_als = lame(
+		Y,
+		family = "normal",
+		R = R,
+		dynamic_uv = TRUE,
+		method = "als",
+		verbose = FALSE
+	)
 	start = als_start_vals(fit_als, jitter = 0.01, seed = 902)
-	fit_mcmc = lame(Y, family = "normal", R = R, dynamic_uv = TRUE,
-	                start_vals = start, nscan = 20, burn = 5, odens = 5,
-	                gof = FALSE, verbose = FALSE, seed = 903,
-	                prior = list(uv_max_abs = 10))
+	fit_mcmc = lame(
+		Y,
+		family = "normal",
+		R = R,
+		dynamic_uv = TRUE,
+		start_vals = start,
+		nscan = 20,
+		burn = 5,
+		odens = 5,
+		gof = FALSE,
+		verbose = FALSE,
+		seed = 903,
+		prior = list(uv_max_abs = 10)
+	)
 
 	expect_s3_class(fit_mcmc, "lame")
 	expect_equal(dim(start$U), c(n, R, Tt))
@@ -153,16 +206,27 @@ test_that("dynamic ALS reports residual reciprocity for directed normal panels",
 		Y[[t]] = Yt
 	}
 
-	fit = lame(Y, family = "normal", R = 0, method = "als",
-	           dynamic_ab = TRUE, als_max_iter = 200,
-	           als_tol = 1e-4, verbose = FALSE, seed = 23)
+	fit = lame(
+		Y,
+		family = "normal",
+		R = 0,
+		method = "als",
+		dynamic_ab = TRUE,
+		als_max_iter = 200,
+		als_tol = 1e-4,
+		verbose = FALSE,
+		seed = 23
+	)
 	start = als_start_vals(fit)
 
 	expect_true(isTRUE(fit$converged))
 	expect_true(is.finite(fit$VC["rho"]))
 	expect_gt(fit$VC["rho"], 0.25)
 	expect_equal(length(fit$rho_path), Tt)
-	expect_equal(unname(start$rho), unname(fit$rho_path))
+	expect_equal(unname(start$rho), unname(fit$VC["rho"]))
+	expect_false(fit$dynamic_rho)
+	expect_identical(fit$residual_rho_path, fit$rho_path)
+	expect_identical(fit$rho_path_role, "residual_diagnostic")
 })
 
 test_that("dynamic rho MCMC stores a per-period reciprocity path", {
@@ -189,9 +253,19 @@ test_that("dynamic rho MCMC stores a per-period reciprocity path", {
 	}
 	names(Y) = paste0("t", seq_len(Tt))
 
-	fit = lame(Y, R = 1, family = "normal", dynamic_uv = TRUE,
-	           dynamic_rho = TRUE, nscan = 40, burn = 20,
-	           odens = 5, gof = TRUE, verbose = FALSE, seed = 31)
+	# static positions: dynamic_rho is not available with dynamic_uv
+	fit = lame(
+		Y,
+		R = 1,
+		family = "normal",
+		dynamic_rho = TRUE,
+		nscan = 40,
+		burn = 20,
+		odens = 5,
+		gof = TRUE,
+		verbose = FALSE,
+		seed = 31
+	)
 
 	expect_true(isTRUE(fit$dynamic_rho))
 	expect_equal(dim(fit$RHO), c(8L, Tt))
@@ -211,8 +285,12 @@ test_that("dynamic ALS fits symmetric dynamic dyadic beta", {
 		Xraw = matrix(rnorm(n * n), n, n)
 		diag(Xraw) = 0
 		Xsym = (Xraw + t(Xraw)) / 2
-		X[[t]] = array(Xraw, c(n, n, 1L),
-		                dimnames = list(NULL, NULL, "trade"))
+		# a symmetric fit needs a symmetric covariate
+		X[[t]] = array(
+			Xsym,
+			c(n, n, 1L),
+			dimnames = list(NULL, NULL, "trade")
+		)
 		Yt = -0.1 + beta_true[t] * Xsym +
 			matrix(rnorm(n * n, 0, 0.08), n, n)
 		Yt = (Yt + t(Yt)) / 2
@@ -220,10 +298,17 @@ test_that("dynamic ALS fits symmetric dynamic dyadic beta", {
 		Y[[t]] = Yt
 	}
 
-	fit = suppressWarnings(lame(Y, Xdyad = X, family = "normal", R = 0,
-	                             method = "als", symmetric = TRUE,
-	                             dynamic_beta = "dyad",
-	                             als_max_iter = 30, verbose = FALSE))
+	fit = suppressWarnings(lame(
+		Y,
+		Xdyad = X,
+		family = "normal",
+		R = 0,
+		method = "als",
+		symmetric = TRUE,
+		dynamic_beta = "dyad",
+		als_max_iter = 30,
+		verbose = FALSE
+	))
 	cf = coef(fit)
 
 	expect_s3_class(fit, "lame_dynamic_als")
@@ -241,17 +326,36 @@ test_that("dynamic ALS supports node covariates by orthogonal decomposition", {
 	Tt = 3L
 	w_row = seq(-1, 1, length.out = n)
 	w_col = rev(w_row)
-	Xrow = replicate(Tt, matrix(w_row, n, 1,
-	                             dimnames = list(NULL, "sender")), simplify = FALSE)
-	Xcol = replicate(Tt, matrix(w_col, n, 1,
-	                             dimnames = list(NULL, "receiver")), simplify = FALSE)
+	Xrow = replicate(
+		Tt,
+		matrix(
+			w_row,
+			n,
+			1,
+			dimnames = list(NULL, "sender")
+		),
+		simplify = FALSE
+	)
+	Xcol = replicate(
+		Tt,
+		matrix(
+			w_col,
+			n,
+			1,
+			dimnames = list(NULL, "receiver")
+		),
+		simplify = FALSE
+	)
 	X = vector("list", Tt)
 	Y = vector("list", Tt)
 	for (t in seq_len(Tt)) {
 		Xt = matrix(rnorm(n * n), n, n)
 		diag(Xt) = 0
-		X[[t]] = array(Xt, c(n, n, 1L),
-		                dimnames = list(NULL, NULL, "trade"))
+		X[[t]] = array(
+			Xt,
+			c(n, n, 1L),
+			dimnames = list(NULL, NULL, "trade")
+		)
 		a = sin(seq_len(n) + t) / 4
 		b = cos(seq_len(n) - t) / 5
 		Yt = 0.1 + 0.6 * Xt + 1.1 * w_row - 0.7 * rep(w_col, each = n) +
@@ -260,9 +364,19 @@ test_that("dynamic ALS supports node covariates by orthogonal decomposition", {
 		Y[[t]] = Yt
 	}
 
-	fit = lame(Y, Xdyad = X, Xrow = Xrow, Xcol = Xcol,
-	            family = "normal", R = 0, method = "als",
-	            dynamic_ab = TRUE, als_max_iter = 20, verbose = FALSE)
+	fit = lame(
+		Y,
+		Xdyad = X,
+		Xrow = Xrow,
+		Xcol = Xcol,
+		family = "normal",
+		bias_correct = "none",
+		R = 0,
+		method = "als",
+		dynamic_ab = TRUE,
+		als_max_iter = 20,
+		verbose = FALSE
+	)
 	X4 = array(0, dim = c(n, n, 1L, Tt))
 	for (t in seq_len(Tt)) X4[, , 1L, t] = X[[t]][, , 1L]
 	pred = predict(fit, newdata = X4, type = "link")
@@ -278,8 +392,11 @@ test_that("dynamic ALS supports node covariates by orthogonal decomposition", {
 test_that("dynamic ALS aligns named unipartite panels with changing actor composition", {
 	set.seed(301)
 	actors = paste0("a", 1:5)
-	sets = list(t1 = actors[1:4], t2 = actors[2:5],
-	             t3 = actors[c(1, 3, 4, 5)])
+	sets = list(
+		t1 = actors[1:4],
+		t2 = actors[2:5],
+		t3 = actors[c(1, 3, 4, 5)]
+	)
 	Y = X = Xrow = vector("list", length(sets))
 	names(Y) = names(X) = names(Xrow) = names(sets)
 	for (tt in seq_along(sets)) {
@@ -294,17 +411,29 @@ test_that("dynamic ALS aligns named unipartite panels with changing actor compos
 		diag(eta) = NA_real_
 		dimnames(eta) = list(a, a)
 		Y[[tt]] = eta
-		X[[tt]] = array(x, c(n, n, 1L),
-		                 dimnames = list(a, a, "trade"))
+		X[[tt]] = array(
+			x,
+			c(n, n, 1L),
+			dimnames = list(a, a, "trade")
+		)
 		Xrow[[tt]] = matrix(w, n, 1L, dimnames = list(a, "sender"))
 	}
 
 	fit = suppressWarnings(lame(
-		Y, Xdyad = X, Xrow = Xrow, family = "normal", R = 0,
-		method = "als", dynamic_ab = TRUE,
+		Y,
+		Xdyad = X,
+		Xrow = Xrow,
+		family = "normal",
+		bias_correct = "none",
+		R = 0,
+		method = "als",
+		dynamic_ab = TRUE,
 		dynamic_beta = c("dyad", "row"),
 		prior = list(lambda_beta_als = 0),
-		als_max_iter = 20, verbose = FALSE, seed = 301))
+		als_max_iter = 20,
+		verbose = FALSE,
+		seed = 301
+	))
 
 	expect_s3_class(fit, "lame_dynamic_als")
 	expect_true(isTRUE(fit$changing_composition))
@@ -321,10 +450,16 @@ test_that("dynamic ALS aligns named unipartite panels with changing actor compos
 
 test_that("dynamic ALS aligns named bipartite panels with changing actor composition", {
 	set.seed(302)
-	row_sets = list(t1 = paste0("r", 1:4), t2 = paste0("r", 2:5),
-	                 t3 = paste0("r", c(1, 3, 5)))
-	col_sets = list(t1 = paste0("c", 1:3), t2 = paste0("c", 2:4),
-	                 t3 = paste0("c", c(1, 3, 4)))
+	row_sets = list(
+		t1 = paste0("r", 1:4),
+		t2 = paste0("r", 2:5),
+		t3 = paste0("r", c(1, 3, 5))
+	)
+	col_sets = list(
+		t1 = paste0("c", 1:3),
+		t2 = paste0("c", 2:4),
+		t3 = paste0("c", c(1, 3, 4))
+	)
 	Y = vector("list", 3L)
 	names(Y) = names(row_sets)
 	for (tt in seq_along(Y)) {
@@ -341,10 +476,19 @@ test_that("dynamic ALS aligns named bipartite panels with changing actor composi
 	}
 
 	fit = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite",
-		R = 1, R_row = 1, R_col = 1, method = "als",
-		dynamic_uv = TRUE, als_max_iter = 6,
-		verbose = FALSE, seed = 302))
+		Y,
+		family = "normal",
+		bias_correct = "none",
+		mode = "bipartite",
+		R = 1,
+		R_row = 1,
+		R_col = 1,
+		method = "als",
+		dynamic_uv = TRUE,
+		als_max_iter = 6,
+		verbose = FALSE,
+		seed = 302
+	))
 
 	expect_s3_class(fit, "lame_dynamic_als")
 	expect_true(isTRUE(fit$changing_composition))
@@ -359,35 +503,64 @@ test_that("dynamic ALS aligns named bipartite panels with changing actor composi
 	expect_true(all(is.na(fit$Y[, "c1", "t2"])))
 })
 
-test_that("dynamic ALS supports bipartite dynamic_G with changing actor composition", {
+test_that("dynamic ALS refuses bipartite dynamic_G", {
 	set.seed(303)
-	row_sets = list(t1 = paste0("r", 1:4), t2 = paste0("r", 2:5),
-	                 t3 = paste0("r", c(1, 3, 5)))
-	col_sets = list(t1 = paste0("c", 1:3), t2 = paste0("c", 2:4),
-	                 t3 = paste0("c", c(1, 3, 4)))
+	row_sets = list(
+		t1 = paste0("r", 1:4),
+		t2 = paste0("r", 2:5),
+		t3 = paste0("r", c(1, 3, 5))
+	)
+	col_sets = list(
+		t1 = paste0("c", 1:3),
+		t2 = paste0("c", 2:4),
+		t3 = paste0("c", c(1, 3, 4))
+	)
 	Y = vector("list", 3L)
 	names(Y) = names(row_sets)
 	for (tt in seq_along(Y)) {
 		rn = row_sets[[tt]]
 		cn = col_sets[[tt]]
-		Y[[tt]] = matrix(rnorm(length(rn) * length(cn)),
-		                  length(rn), length(cn),
-		                  dimnames = list(rn, cn))
+		Y[[tt]] = matrix(
+			rnorm(length(rn) * length(cn)),
+			length(rn),
+			length(cn),
+			dimnames = list(rn, cn)
+		)
 	}
 
-	fit = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite",
-		R = 1, R_row = 1, R_col = 1, method = "als",
-		dynamic_G = TRUE, als_max_iter = 4,
-		verbose = FALSE, seed = 303))
-
-	expect_s3_class(fit, "lame_dynamic_als")
-	expect_true(isTRUE(fit$changing_composition))
-	expect_equal(dim(fit$Y), c(5L, 4L, 3L))
-	expect_equal(dim(fit$G_cube), c(1L, 1L, 3L))
-	expect_false(fit$row_presence["r5", "t1"])
-	expect_false(fit$col_presence["c1", "t2"])
+	expect_error(
+		suppressWarnings(lame(
+			Y,
+			family = "normal",
+			mode = "bipartite",
+			R = 1,
+			R_row = 1,
+			R_col = 1,
+			method = "als",
+			dynamic_G = TRUE,
+			als_max_iter = 4,
+			verbose = FALSE,
+			seed = 303
+		)),
+		"not supported"
+	)
+	expect_error(
+		suppressWarnings(lame:::lame_dynamic_als(
+			Y,
+			family = "normal",
+			mode = "bipartite",
+			R = 1,
+			R_row = 1,
+			R_col = 1,
+			dynamic_G = TRUE,
+			max_iter = 4,
+			verbose = FALSE,
+			seed = 303
+		)),
+		"not supported"
+	)
 })
+
 
 test_that("dynamic ALS rejects unnamed changing-composition panels", {
 	Y = list(
@@ -395,9 +568,16 @@ test_that("dynamic ALS rejects unnamed changing-composition panels", {
 		matrix(rnorm(16), 4, 4)
 	)
 	expect_error(
-		lame(Y, family = "normal", R = 0, method = "als",
-		     dynamic_ab = TRUE, verbose = FALSE),
-		"requires row and column names")
+		lame(
+			Y,
+			family = "normal",
+			R = 0,
+			method = "als",
+			dynamic_ab = TRUE,
+			verbose = FALSE
+		),
+		"requires row and column names"
+	)
 })
 
 test_that("dynamic ALS estimates unipartite row and column node beta paths", {
@@ -408,10 +588,26 @@ test_that("dynamic ALS estimates unipartite row and column node beta paths", {
 	w_col = as.numeric(scale(rev(w_row), scale = FALSE))
 	beta_row = seq(-1.2, 1.2, length.out = Tt)
 	beta_col = seq(0.9, -0.9, length.out = Tt)
-	Xrow = replicate(Tt, matrix(w_row, n, 1,
-	                             dimnames = list(NULL, "sender")), simplify = FALSE)
-	Xcol = replicate(Tt, matrix(w_col, n, 1,
-	                             dimnames = list(NULL, "receiver")), simplify = FALSE)
+	Xrow = replicate(
+		Tt,
+		matrix(
+			w_row,
+			n,
+			1,
+			dimnames = list(NULL, "sender")
+		),
+		simplify = FALSE
+	)
+	Xcol = replicate(
+		Tt,
+		matrix(
+			w_col,
+			n,
+			1,
+			dimnames = list(NULL, "receiver")
+		),
+		simplify = FALSE
+	)
 	Y = lapply(seq_len(Tt), function(t) {
 		y = 0.1 + beta_row[t] * matrix(w_row, n, n) +
 			beta_col[t] * matrix(w_col, n, n, byrow = TRUE) +
@@ -421,10 +617,19 @@ test_that("dynamic ALS estimates unipartite row and column node beta paths", {
 	})
 
 	fit = suppressWarnings(lame(
-		Y, Xrow = Xrow, Xcol = Xcol, family = "normal", R = 0,
-		method = "als", dynamic_beta = c("row", "col"),
+		Y,
+		Xrow = Xrow,
+		Xcol = Xcol,
+		family = "normal",
+		bias_correct = "none",
+		R = 0,
+		method = "als",
+		dynamic_beta = c("row", "col"),
 		prior = list(lambda_beta_als = 0),
-		als_max_iter = 30, verbose = FALSE, seed = 117))
+		als_max_iter = 30,
+		verbose = FALSE,
+		seed = 117
+	))
 	cf = coef(fit)
 
 	expect_s3_class(fit, "lame_dynamic_als")
@@ -448,10 +653,26 @@ test_that("dynamic ALS estimates bipartite row and column node beta paths", {
 	w_col = as.numeric(scale(seq(-0.8, 0.8, length.out = nc), scale = FALSE))
 	beta_row = seq(-0.8, 0.8, length.out = Tt)
 	beta_col = seq(1.1, -0.5, length.out = Tt)
-	Xrow = replicate(Tt, matrix(w_row, nr, 1,
-	                             dimnames = list(NULL, "exporter")), simplify = FALSE)
-	Xcol = replicate(Tt, matrix(w_col, nc, 1,
-	                             dimnames = list(NULL, "importer")), simplify = FALSE)
+	Xrow = replicate(
+		Tt,
+		matrix(
+			w_row,
+			nr,
+			1,
+			dimnames = list(NULL, "exporter")
+		),
+		simplify = FALSE
+	)
+	Xcol = replicate(
+		Tt,
+		matrix(
+			w_col,
+			nc,
+			1,
+			dimnames = list(NULL, "importer")
+		),
+		simplify = FALSE
+	)
 	Y = lapply(seq_len(Tt), function(t) {
 		beta_row[t] * matrix(w_row, nr, nc) +
 			beta_col[t] * matrix(w_col, nr, nc, byrow = TRUE) +
@@ -459,10 +680,20 @@ test_that("dynamic ALS estimates bipartite row and column node beta paths", {
 	})
 
 	fit = suppressWarnings(lame(
-		Y, Xrow = Xrow, Xcol = Xcol, family = "normal", mode = "bipartite",
-		R = 0, method = "als", dynamic_beta = c("row", "col"),
+		Y,
+		Xrow = Xrow,
+		Xcol = Xcol,
+		family = "normal",
+		bias_correct = "none",
+		mode = "bipartite",
+		R = 0,
+		method = "als",
+		dynamic_beta = c("row", "col"),
 		prior = list(lambda_beta_als = 0),
-		als_max_iter = 30, verbose = FALSE, seed = 118))
+		als_max_iter = 30,
+		verbose = FALSE,
+		seed = 118
+	))
 	cf = coef(fit)
 
 	expect_s3_class(fit, "lame_dynamic_als")
@@ -489,12 +720,19 @@ test_that("dynamic ALS uses period-specific row node values selected by dynamic_
 	eta_true = array(NA_real_, c(n, n, Tt))
 	for (t in seq_len(Tt)) {
 		w = as.numeric(scale(rnorm(n), scale = FALSE))
-		Xrow[[t]] = matrix(w, n, 1,
-		                     dimnames = list(actors, "sender"))
+		Xrow[[t]] = matrix(
+			w,
+			n,
+			1,
+			dimnames = list(actors, "sender")
+		)
 		xd = matrix(rnorm(n * n), n, n)
 		diag(xd) = 0
-		X[[t]] = array(xd, c(n, n, 1L),
-		                dimnames = list(actors, actors, "noise"))
+		X[[t]] = array(
+			xd,
+			c(n, n, 1L),
+			dimnames = list(actors, actors, "noise")
+		)
 		eta = 0.2 + beta_row[t] * matrix(w, n, n)
 		diag(eta) = NA
 		eta_true[, , t] = eta
@@ -507,25 +745,48 @@ test_that("dynamic ALS uses period-specific row node values selected by dynamic_
 	fit = NULL
 	expect_no_warning({
 		fit = lame(
-			Y, Xdyad = X, Xrow = Xrow, family = "normal", R = 0,
-			method = "als", dynamic_beta = "row",
+			Y,
+			Xdyad = X,
+			Xrow = Xrow,
+			family = "normal",
+			bias_correct = "none",
+			R = 0,
+			method = "als",
+			dynamic_beta = "row",
 			prior = list(lambda_beta_als = 0),
-			als_max_iter = 40, verbose = FALSE, seed = 202)
+			als_max_iter = 40,
+			verbose = FALSE,
+			seed = 202
+		)
 	})
 	cf = coef(fit)
-	X4 = array(0, dim = c(n, n, 1L, Tt),
-	            dimnames = list(actors, actors, "noise", NULL))
+	X4 = array(
+		0,
+		dim = c(n, n, 1L, Tt),
+		dimnames = list(actors, actors, "noise", NULL)
+	)
 	for (t in seq_len(Tt)) X4[, , 1L, t] = X[[t]][, , 1L]
 
 	expect_true(fit$beta_dynamic_mask["sender_row"])
 	expect_equal(dim(fit$W_row_arr), c(n, 1L, Tt))
-	expect_equal(as.numeric(fit$W_row_arr[, 1L, 2L]),
-	             as.numeric(Xrow[[2L]][, 1L]))
+	expect_equal(
+		as.numeric(fit$W_row_arr[, 1L, 2L]),
+		as.numeric(Xrow[[2L]][, 1L])
+	)
 	expect_gt(stats::cor(cf["sender_row", ], beta_row), 0.99)
-	expect_gt(stats::cor(unlist(fit$EZ), as.vector(eta_true),
-	                     use = "complete.obs"), 0.99)
-	expect_equal(predict(fit, newdata = X4, type = "link"),
-	             fit$EZ, tolerance = 1e-8)
+	expect_gt(
+		stats::cor(
+			unlist(fit$EZ),
+			as.vector(eta_true),
+			use = "complete.obs"
+		),
+		0.99
+	)
+	expect_equal(
+		predict(fit, newdata = X4, type = "link"),
+		fit$EZ,
+		tolerance = 1e-8
+	)
 })
 
 test_that("dynamic ALS warns when varying node values are left static", {
@@ -540,8 +801,11 @@ test_that("dynamic ALS warns when varying node values are left static", {
 		Xrow[[t]] = matrix(w, n, 1, dimnames = list(NULL, "sender"))
 		xd = matrix(rnorm(n * n), n, n)
 		diag(xd) = 0
-		X[[t]] = array(xd, c(n, n, 1L),
-		                dimnames = list(NULL, NULL, "trade"))
+		X[[t]] = array(
+			xd,
+			c(n, n, 1L),
+			dimnames = list(NULL, NULL, "trade")
+		)
 		y = 0.1 + (t / 5) * xd + matrix(rnorm(n * n, 0, 0.05), n, n)
 		diag(y) = NA
 		Y[[t]] = y
@@ -550,9 +814,18 @@ test_that("dynamic ALS warns when varying node values are left static", {
 	fit = NULL
 	expect_warning({
 		fit = lame(
-			Y, Xdyad = X, Xrow = Xrow, family = "normal", R = 0,
-			method = "als", dynamic_beta = "dyad",
-			als_max_iter = 10, verbose = FALSE, seed = 203)
+			Y,
+			Xdyad = X,
+			Xrow = Xrow,
+			family = "normal",
+			bias_correct = "none",
+			R = 0,
+			method = "als",
+			dynamic_beta = "dyad",
+			als_max_iter = 10,
+			verbose = FALSE,
+			seed = 203
+		)
 	}, "per-actor means for static row coefficient")
 
 	expect_s3_class(fit, "lame_dynamic_als")
@@ -575,13 +848,24 @@ test_that("dynamic ALS uses period-specific bipartite node values", {
 	for (t in seq_len(Tt)) {
 		wr = as.numeric(scale(rnorm(nr), scale = FALSE))
 		wc = as.numeric(scale(rnorm(nc), scale = FALSE))
-		Xrow[[t]] = matrix(wr, nr, 1,
-		                     dimnames = list(NULL, "exporter"))
-		Xcol[[t]] = matrix(wc, nc, 1,
-		                     dimnames = list(NULL, "importer"))
+		Xrow[[t]] = matrix(
+			wr,
+			nr,
+			1,
+			dimnames = list(NULL, "exporter")
+		)
+		Xcol[[t]] = matrix(
+			wc,
+			nc,
+			1,
+			dimnames = list(NULL, "importer")
+		)
 		xd = matrix(rnorm(nr * nc), nr, nc)
-		X[[t]] = array(xd, c(nr, nc, 1L),
-		                dimnames = list(NULL, NULL, "noise"))
+		X[[t]] = array(
+			xd,
+			c(nr, nc, 1L),
+			dimnames = list(NULL, NULL, "noise")
+		)
 		eta = 0.05 + beta_row[t] * matrix(wr, nr, nc) +
 			beta_col[t] * matrix(wc, nr, nc, byrow = TRUE)
 		eta_true[, , t] = eta
@@ -591,11 +875,21 @@ test_that("dynamic ALS uses period-specific bipartite node values", {
 	fit = NULL
 	expect_no_warning({
 		fit = lame(
-			Y, Xdyad = X, Xrow = Xrow, Xcol = Xcol,
-			family = "normal", mode = "bipartite", R = 0,
-			method = "als", dynamic_beta = c("row", "col"),
+			Y,
+			Xdyad = X,
+			Xrow = Xrow,
+			Xcol = Xcol,
+			family = "normal",
+			bias_correct = "none",
+			mode = "bipartite",
+			R = 0,
+			method = "als",
+			dynamic_beta = c("row", "col"),
 			prior = list(lambda_beta_als = 0),
-			als_max_iter = 50, verbose = FALSE, seed = 204)
+			als_max_iter = 50,
+			verbose = FALSE,
+			seed = 204
+		)
 	})
 	cf = coef(fit)
 
@@ -603,10 +897,14 @@ test_that("dynamic ALS uses period-specific bipartite node values", {
 	expect_true(fit$beta_dynamic_mask["importer_col"])
 	expect_equal(dim(fit$W_row_arr), c(nr, 1L, Tt))
 	expect_equal(dim(fit$W_col_arr), c(nc, 1L, Tt))
-	expect_equal(as.numeric(fit$W_row_arr[, 1L, 3L]),
-	             as.numeric(Xrow[[3L]][, 1L]))
-	expect_equal(as.numeric(fit$W_col_arr[, 1L, 3L]),
-	             as.numeric(Xcol[[3L]][, 1L]))
+	expect_equal(
+		as.numeric(fit$W_row_arr[, 1L, 3L]),
+		as.numeric(Xrow[[3L]][, 1L])
+	)
+	expect_equal(
+		as.numeric(fit$W_col_arr[, 1L, 3L]),
+		as.numeric(Xcol[[3L]][, 1L])
+	)
 	expect_gt(stats::cor(cf["exporter_row", ], beta_row), 0.99)
 	expect_gt(stats::cor(cf["importer_col", ], beta_col), 0.99)
 	expect_gt(stats::cor(unlist(fit$EZ), as.vector(eta_true)), 0.99)
@@ -622,8 +920,16 @@ test_that("dynamic ALS keeps logical dynamic_beta masks compatible with node cov
 		array(x, c(n, n, 1L), dimnames = list(NULL, NULL, "trade"))
 	}, simplify = FALSE)
 	w = seq(-1, 1, length.out = n)
-	Xrow = replicate(Tt, matrix(w, n, 1,
-	                             dimnames = list(NULL, "sender")), simplify = FALSE)
+	Xrow = replicate(
+		Tt,
+		matrix(
+			w,
+			n,
+			1,
+			dimnames = list(NULL, "sender")
+		),
+		simplify = FALSE
+	)
 	Y = lapply(seq_len(Tt), function(t) {
 		y = 0.2 + t / 10 * X[[t]][, , 1L] + 0.5 * matrix(w, n, n) +
 			matrix(rnorm(n * n, 0, 0.08), n, n)
@@ -632,9 +938,17 @@ test_that("dynamic ALS keeps logical dynamic_beta masks compatible with node cov
 	})
 
 	fit = suppressWarnings(lame(
-		Y, Xdyad = X, Xrow = Xrow, family = "normal", R = 0,
-		method = "als", dynamic_beta = c(FALSE, TRUE),
-		als_max_iter = 20, verbose = FALSE, seed = 119))
+		Y,
+		Xdyad = X,
+		Xrow = Xrow,
+		family = "normal",
+		R = 0,
+		method = "als",
+		dynamic_beta = c(FALSE, TRUE),
+		als_max_iter = 20,
+		verbose = FALSE,
+		seed = 119
+	))
 
 	expect_s3_class(fit, "lame_dynamic_als")
 	expect_true(fit$beta_dynamic_mask["trade_dyad"])
@@ -656,8 +970,15 @@ test_that("dynamic ALS prediction handles dynamic beta newdata", {
 		diag(y) = NA
 		y
 	})
-	fit = lame(Y, Xdyad = X, family = "normal", R = 0, method = "als",
-	            dynamic_beta = "dyad", verbose = FALSE)
+	fit = lame(
+		Y,
+		Xdyad = X,
+		family = "normal",
+		R = 0,
+		method = "als",
+		dynamic_beta = "dyad",
+		verbose = FALSE
+	)
 	X4 = array(0, dim = c(n, n, 1L, Tt))
 	for (t in seq_len(Tt)) X4[, , 1L, t] = X[[t]][, , 1L]
 	p0 = predict(fit, type = "link")
@@ -687,10 +1008,16 @@ test_that("lame method als fits Gaussian AR1 dynamic latent factors", {
 		y
 	})
 
-	fit = suppressWarnings(lame(Y, family = "normal", R = R,
-	                             method = "als", dynamic_uv = TRUE,
-	                             dynamic_uv_kind = "ar1",
-	                             dynamic_ab = FALSE, verbose = FALSE))
+	fit = suppressWarnings(lame(
+		Y,
+		family = "normal",
+		R = R,
+		method = "als",
+		dynamic_uv = TRUE,
+		dynamic_uv_kind = "ar1",
+		dynamic_ab = FALSE,
+		verbose = FALSE
+	))
 
 	expect_s3_class(fit, "lame_dynamic_als")
 	expect_true(isTRUE(fit$dynamic_uv))
@@ -705,7 +1032,7 @@ test_that("lame method als fits Gaussian AR1 dynamic latent factors", {
 	expect_gt(max(abs(diff(fit$Oarr[1, 2, ]))), 1e-6)
 })
 
-test_that("dynamic ALS estimates bipartite dynamic G with static U and V", {
+test_that("a bipartite panel with a moving interaction is fitted through dynamic_uv", {
 	set.seed(154)
 	nr = 7L
 	nc = 6L
@@ -717,8 +1044,16 @@ test_that("dynamic ALS estimates bipartite dynamic G with static U and V", {
 	V = matrix(rnorm(nc * R, 0, 0.7), nc, R)
 	G = array(0, dim = c(R, R, Tt))
 	for (t in seq_len(Tt)) {
-		G[, , t] = matrix(c(1 + 0.25 * t, 0.15 * sin(t),
-		                     -0.1 * cos(t), 0.6 - 0.08 * t), R, R)
+		G[, , t] = matrix(
+			c(
+				1 + 0.25 * t,
+				0.15 * sin(t),
+				-0.1 * cos(t),
+				0.6 - 0.08 * t
+			),
+			R,
+			R
+		)
 	}
 	Y = lapply(seq_len(Tt), function(t) {
 		y = U %*% G[, , t] %*% t(V) +
@@ -727,79 +1062,54 @@ test_that("dynamic ALS estimates bipartite dynamic G with static U and V", {
 		y
 	})
 
+	expect_error(
+		suppressWarnings(lame(
+			Y,
+			family = "normal",
+			mode = "bipartite",
+			R = R,
+			method = "als",
+			dynamic_G = TRUE,
+			als_max_iter = 12,
+			verbose = FALSE,
+			seed = 154
+		)),
+		"not supported"
+	)
+
 	fit = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite", R = R,
-		method = "als", dynamic_G = TRUE,
-		als_max_iter = 12, verbose = FALSE, seed = 154))
+		Y,
+		family = "normal",
+		bias_correct = "none",
+		mode = "bipartite",
+		R = R,
+		method = "als",
+		dynamic_uv = TRUE,
+		als_max_iter = 12,
+		verbose = FALSE,
+		seed = 154
+	))
 
 	expect_s3_class(fit, "lame_dynamic_als")
-	expect_true(isTRUE(fit$dynamic_G))
-	expect_true(isTRUE(fit$dynamic$G))
-	expect_false(isTRUE(fit$dynamic_uv))
-	expect_equal(dim(fit$U), c(nr, R))
-	expect_equal(dim(fit$V), c(nc, R))
-	expect_equal(dim(fit$G), c(R, R))
-	expect_equal(dim(fit$G_cube), c(R, R, Tt))
-	expect_equal(dim(fit$G_cube_post_mean), c(R, R, Tt))
-	expect_equal(fit$G_cube_post_mean, fit$G_cube)
-	expect_equal(fit$G_cube_post_sd,
-	             array(0, dim = c(R, R, Tt), dimnames = dimnames(fit$G_cube)))
+	expect_true(isTRUE(fit$dynamic_uv))
+	expect_equal(dim(fit$U), c(nr, R, Tt))
+	expect_equal(dim(fit$V), c(nc, R, Tt))
+	expect_equal(dim(fit[["G"]]), c(R, R))
 	expect_equal(dim(fit$Oarr), c(nr, nc, Tt))
 	expect_equal(dim(fit$UVPM), c(nr, nc, Tt))
 	expect_equal(dimnames(fit$Oarr)[[3L]], paste0("t", seq_len(Tt)))
 	expect_true(all(is.finite(fit$Oarr)))
-	expect_true(is.finite(fit$rho_G))
-	expect_true(is.finite(fit$RHO_G))
-	expect_true(is.finite(fit$SIGMA_G2))
-	expect_true(is.finite(fit$lambda_G_als))
 
-	recon = array(0, dim = c(nr, nc, Tt), dimnames = dimnames(fit$Oarr))
-	for (t in seq_len(Tt)) {
-		recon[, , t] = fit$U %*% fit$G_cube[, , t] %*% t(fit$V)
-	}
-	expect_equal(fit$Oarr, recon, tolerance = 1e-8)
-})
-
-test_that("dynamic ALS estimates bipartite dynamic G with dynamic U and V", {
-	set.seed(155)
-	nr = 6L
-	nc = 5L
-	Tt = 3L
-	R = 1L
-	U = array(rnorm(nr * R * Tt, 0, 0.6), c(nr, R, Tt))
-	V = array(rnorm(nc * R * Tt, 0, 0.6), c(nc, R, Tt))
-	G = array(seq(0.6, 1.2, length.out = Tt), c(R, R, Tt))
-	Y = lapply(seq_len(Tt), function(t) {
-		Ut = matrix(U[, , t], nrow = nr, ncol = R)
-		Vt = matrix(V[, , t], nrow = nc, ncol = R)
-		Gt = matrix(G[, , t], nrow = R, ncol = R)
-		Ut %*% Gt %*% t(Vt) +
-			matrix(rnorm(nr * nc, 0, 0.12), nr, nc)
-	})
-
-	fit = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite", R = R,
-		method = "als", dynamic_uv = TRUE, dynamic_G = TRUE,
-		als_max_iter = 6, verbose = FALSE, seed = 155))
-
-	expect_s3_class(fit, "lame_dynamic_als")
-	expect_true(isTRUE(fit$dynamic_uv))
-	expect_true(isTRUE(fit$dynamic_G))
-	expect_equal(dim(fit$U), c(nr, R, Tt))
-	expect_equal(dim(fit$V), c(nc, R, Tt))
-	expect_equal(dim(fit$G_cube), c(R, R, Tt))
-	expect_equal(dim(fit$Oarr), c(nr, nc, Tt))
-	expect_true(all(is.finite(fit$Oarr)))
-
+	# the reported per-period product reproduces from the per-period coordinates and the one interaction matrix
 	recon = array(0, dim = c(nr, nc, Tt), dimnames = dimnames(fit$Oarr))
 	for (t in seq_len(Tt)) {
 		Ut = matrix(fit$U[, , t], nrow = nr, ncol = R)
 		Vt = matrix(fit$V[, , t], nrow = nc, ncol = R)
-		Gt = matrix(fit$G_cube[, , t], nrow = R, ncol = R)
-		recon[, , t] = Ut %*% Gt %*% t(Vt)
+		recon[, , t] = Ut %*% fit[["G"]] %*% t(Vt)
 	}
 	expect_equal(fit$Oarr, recon, tolerance = 1e-8)
 })
+
 
 test_that("dynamic ALS honors unequal bipartite R_row and R_col", {
 	set.seed(156)
@@ -819,46 +1129,35 @@ test_that("dynamic ALS honors unequal bipartite R_row and R_col", {
 			matrix(rnorm(nr * nc, 0, 0.1), nr, nc)
 	})
 
-	fg = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite",
-		R_row = RA, R_col = RB, method = "als",
-		dynamic_G = TRUE, als_max_iter = 5,
-		verbose = FALSE, seed = 156))
-	expect_s3_class(fg, "lame_dynamic_als")
-	expect_equal(fg$R_row, RA)
-	expect_equal(fg$R_col, RB)
-	expect_equal(dim(fg$U), c(nr, RA))
-	expect_equal(dim(fg$V), c(nc, RB))
-	expect_equal(dim(fg$G), c(RA, RB))
-	expect_equal(dim(fg$G_cube), c(RA, RB, Tt))
-	recon_g = array(0, dim = c(nr, nc, Tt), dimnames = dimnames(fg$Oarr))
-	for (t in seq_len(Tt)) {
-		recon_g[, , t] = fg$U %*% fg$G_cube[, , t] %*% t(fg$V)
-	}
-	expect_equal(fg$Oarr, recon_g, tolerance = 1e-8)
-
-	fuvg = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite",
-		R_row = RA, R_col = RB, method = "als",
-		dynamic_uv = TRUE, dynamic_G = TRUE,
-		als_max_iter = 4, verbose = FALSE, seed = 157))
-	expect_equal(dim(fuvg$U), c(nr, RA, Tt))
-	expect_equal(dim(fuvg$V), c(nc, RB, Tt))
-	expect_equal(dim(fuvg$G_cube), c(RA, RB, Tt))
-	recon_uvg = array(0, dim = c(nr, nc, Tt), dimnames = dimnames(fuvg$Oarr))
-	for (t in seq_len(Tt)) {
-		Ut = matrix(fuvg$U[, , t], nrow = nr, ncol = RA)
-		Vt = matrix(fuvg$V[, , t], nrow = nc, ncol = RB)
-		Gt = matrix(fuvg$G_cube[, , t], nrow = RA, ncol = RB)
-		recon_uvg[, , t] = Ut %*% Gt %*% t(Vt)
-	}
-	expect_equal(fuvg$Oarr, recon_uvg, tolerance = 1e-8)
+	expect_error(
+		suppressWarnings(lame(
+			Y,
+			family = "normal",
+			mode = "bipartite",
+			R_row = RA,
+			R_col = RB,
+			method = "als",
+			dynamic_G = TRUE,
+			als_max_iter = 5,
+			verbose = FALSE,
+			seed = 156
+		)),
+		"not supported"
+	)
 
 	fuv = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite",
-		R_row = RA, R_col = RB, method = "als",
-		dynamic_uv = TRUE, als_max_iter = 4,
-		verbose = FALSE, seed = 158))
+		Y,
+		family = "normal",
+		bias_correct = "none",
+		mode = "bipartite",
+		R_row = RA,
+		R_col = RB,
+		method = "als",
+		dynamic_uv = TRUE,
+		als_max_iter = 4,
+		verbose = FALSE,
+		seed = 158
+	))
 	expect_equal(dim(fuv$U), c(nr, RA, Tt))
 	expect_equal(dim(fuv$V), c(nc, RB, Tt))
 	expect_equal(dim(fuv$G), c(RA, RB))
@@ -871,60 +1170,73 @@ test_that("dynamic ALS honors unequal bipartite R_row and R_col", {
 	expect_equal(fuv$Oarr, recon_uv, tolerance = 1e-8)
 })
 
-test_that("dynamic ALS supports bipartite t dynamic UV", {
+test_that("dynamic ALS refuses bipartite t dynamic UV", {
+	# the t kind adds nothing over ar1 on bipartite panels, so it is refused there with or without other dynamic blocks
 	set.seed(161)
-	nr = 6L
-	nc = 4L
-	Tt = 3L
-	RA = 2L
-	RB = 1L
-	Y = lapply(seq_len(Tt), function(t) {
-		matrix(rnorm(nr * nc, mean = 0.15 * t), nr, nc)
-	})
-
-	fit = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite",
-		R_row = RA, R_col = RB, method = "als",
-		dynamic_uv = TRUE, dynamic_uv_kind = "t",
-		als_max_iter = 4, verbose = FALSE, seed = 161))
-	expect_s3_class(fit, "lame_dynamic_als")
-	expect_equal(fit$dynamic_uv_kind, "t")
-	expect_equal(fit$dynamic$uv_kind, "t")
-	expect_true(isTRUE(fit$dynamic$t_model_estimated))
-	expect_equal(fit$R_row, RA)
-	expect_equal(fit$R_col, RB)
-	expect_equal(dim(fit$U), c(nr, RA, Tt))
-	expect_equal(dim(fit$V), c(nc, RB, Tt))
-	expect_equal(dim(fit$G), c(RA, RB))
-	expect_equal(dim(fit$lambda_u), c(nr, Tt))
-	expect_equal(dim(fit$lambda_v), c(nc, Tt))
-	expect_equal(unname(fit$lambda_u[, 1L]), rep(1, nr))
-	expect_equal(unname(fit$lambda_v[, 1L]), rep(1, nc))
-	expect_equal(rownames(fit$lambda_u), rownames(fit$U))
-	expect_equal(rownames(fit$lambda_v), rownames(fit$V))
-	expect_true(all(is.finite(fit$lambda_u)))
-	expect_true(all(is.finite(fit$lambda_v)))
-	expect_true(all(fit$lambda_u > 0))
-	expect_true(all(fit$lambda_v > 0))
-	recon = array(0, dim = c(nr, nc, Tt), dimnames = dimnames(fit$Oarr))
-	for (t in seq_len(Tt)) {
-		Ut = matrix(fit$U[, , t], nrow = nr, ncol = RA)
-		Vt = matrix(fit$V[, , t], nrow = nc, ncol = RB)
-		recon[, , t] = Ut %*% fit$G %*% t(Vt)
-	}
-	expect_equal(fit$Oarr, recon, tolerance = 1e-8)
-
-	fit_g = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite",
-		R_row = RA, R_col = RB, method = "als",
-		dynamic_uv = TRUE, dynamic_uv_kind = "t", dynamic_G = TRUE,
-		als_max_iter = 3, verbose = FALSE, seed = 162))
-	expect_equal(fit_g$dynamic_uv_kind, "t")
-	expect_true(isTRUE(fit_g$dynamic$t_model_estimated))
-	expect_true(isTRUE(fit_g$dynamic_G))
-	expect_equal(dim(fit_g$G_cube), c(RA, RB, Tt))
-	expect_equal(dim(fit_g$lambda_u), c(nr, Tt))
-	expect_equal(dim(fit_g$lambda_v), c(nc, Tt))
+	Y = lapply(1:3, function(t) matrix(rnorm(24, mean = 0.15 * t), 6, 4))
+	expect_error(
+		suppressWarnings(lame(
+			Y,
+			family = "normal",
+			mode = "bipartite",
+			R_row = 2,
+			R_col = 1,
+			method = "als",
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = "t",
+			als_max_iter = 4,
+			verbose = FALSE,
+			seed = 161
+		)),
+		"not available for bipartite networks"
+	)
+	# poisson responses must be counts; non-integer values are refused first
+	expect_error(
+		suppressWarnings(lame(
+			lapply(Y, function(y) round(exp(y))),
+			family = "poisson",
+			mode = "bipartite",
+			R_row = 2,
+			R_col = 1,
+			method = "als",
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = "t",
+			dynamic_ab = TRUE,
+			als_max_iter = 3,
+			verbose = FALSE,
+			seed = 162
+		)),
+		"not available for bipartite networks"
+	)
+	expect_error(
+		suppressWarnings(lame:::lame_dynamic_als(
+			Y,
+			family = "normal",
+			mode = "bipartite",
+			R_row = 2,
+			R_col = 1,
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = "t",
+			verbose = FALSE
+		)),
+		"on bipartite networks"
+	)
+	msg = tryCatch(
+		lame(
+			Y,
+			family = "normal",
+			mode = "bipartite",
+			R_row = 2,
+			R_col = 1,
+			method = "als",
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = "t",
+			verbose = FALSE
+		),
+		error = function(e) gsub("\\s+", " ", conditionMessage(e))
+	)
+	expect_match(msg, "dynamic_uv_kind = \"ar1\"", fixed = TRUE)
+	expect_match(msg, "method = \"mcmc\"", fixed = TRUE)
 })
 
 test_that("dynamic ALS expands static bipartite low-rank terms across time", {
@@ -939,10 +1251,18 @@ test_that("dynamic ALS expands static bipartite low-rank terms across time", {
 	})
 
 	fit = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite",
-		R_row = RA, R_col = RB, method = "als",
-		dynamic_ab = TRUE, als_max_iter = 4,
-		verbose = FALSE, seed = 159))
+		Y,
+		family = "normal",
+		bias_correct = "none",
+		mode = "bipartite",
+		R_row = RA,
+		R_col = RB,
+		method = "als",
+		dynamic_ab = TRUE,
+		als_max_iter = 4,
+		verbose = FALSE,
+		seed = 159
+	))
 	expect_equal(dim(fit$U), c(nr, RA))
 	expect_equal(dim(fit$V), c(nc, RB))
 	expect_equal(dim(fit$G), c(RA, RB))
@@ -953,10 +1273,18 @@ test_that("dynamic ALS expands static bipartite low-rank terms across time", {
 	}
 
 	fit_zero = suppressWarnings(lame(
-		Y, family = "normal", mode = "bipartite",
-		R_row = RA, R_col = 0, method = "als",
-		dynamic_ab = TRUE, als_max_iter = 3,
-		verbose = FALSE, seed = 160))
+		Y,
+		family = "normal",
+		bias_correct = "none",
+		mode = "bipartite",
+		R_row = RA,
+		R_col = 0,
+		method = "als",
+		dynamic_ab = TRUE,
+		als_max_iter = 3,
+		verbose = FALSE,
+		seed = 160
+	))
 	expect_equal(dim(fit_zero$Oarr), c(nr, nc, Tt))
 	expect_null(fit_zero$G)
 	expect_true(all(is.finite(fit_zero$Oarr)))
@@ -979,12 +1307,22 @@ test_that("dynamic ALS fits binary and poisson IWLS dynamic additive effects", {
 		y
 	})
 
-	fb = suppressWarnings(lame(Y_bin, family = "binary", R = 0,
-	                            method = "als", dynamic_ab = TRUE,
-	                            verbose = FALSE))
-	fp = suppressWarnings(lame(Y_pois, family = "poisson", R = 0,
-	                            method = "als", dynamic_ab = TRUE,
-	                            verbose = FALSE))
+	fb = suppressWarnings(lame(
+		Y_bin,
+		family = "binary",
+		R = 0,
+		method = "als",
+		dynamic_ab = TRUE,
+		verbose = FALSE
+	))
+	fp = suppressWarnings(lame(
+		Y_pois,
+		family = "poisson",
+		R = 0,
+		method = "als",
+		dynamic_ab = TRUE,
+		verbose = FALSE
+	))
 
 	expect_s3_class(fb, "lame_dynamic_als")
 	expect_s3_class(fp, "lame_dynamic_als")
@@ -1012,10 +1350,18 @@ test_that("lame method als exposes t dynamic UV and stability controls", {
 	})
 
 	fit = suppressWarnings(lame(
-		Y, family = "normal", R = R, method = "als",
-		dynamic_uv = TRUE, dynamic_uv_kind = "t",
-		als_stability = "quick", als_max_iter = 4,
-		verbose = FALSE, seed = 151))
+		Y,
+		family = "normal",
+		bias_correct = "none",
+		R = R,
+		method = "als",
+		dynamic_uv = TRUE,
+		dynamic_uv_kind = "t",
+		als_stability = "quick",
+		als_max_iter = 4,
+		verbose = FALSE,
+		seed = 151
+	))
 
 	expect_s3_class(fit, "lame_dynamic_als")
 	expect_true(isTRUE(fit$dynamic_uv))
@@ -1037,20 +1383,40 @@ test_that("dynamic ALS keeps remaining unsupported stacks explicit", {
 		m
 	}, simplify = FALSE)
 	expect_error(
-		lame(Y, family = "normal", R = 1, method = "als",
-		     dynamic_uv = TRUE, dynamic_uv_kind = "snap",
-		     dynamic_ab = TRUE, verbose = FALSE),
-		"smooth .*ar1.*t"
+		lame(
+			Y,
+			family = "normal",
+			R = 1,
+			method = "als",
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = "snap",
+			dynamic_ab = TRUE,
+			verbose = FALSE
+		),
+		"is not available"
 	)
 	expect_error(
-		lame(Y, family = "ordinal", R = 0, method = "als",
-		     dynamic_ab = TRUE, intercept = TRUE, verbose = FALSE),
+		lame(
+			Y,
+			family = "ordinal",
+			R = 0,
+			method = "als",
+			dynamic_ab = TRUE,
+			intercept = TRUE,
+			verbose = FALSE
+		),
 		"normal.*binary.*poisson"
 	)
 	expect_error(
-		lame(Y, family = "normal", R = 1, method = "als",
-		     dynamic_G = TRUE, verbose = FALSE),
-		"bipartite"
+		lame(
+			Y,
+			family = "normal",
+			R = 1,
+			method = "als",
+			dynamic_G = TRUE,
+			verbose = FALSE
+		),
+		"not supported"
 	)
 })
 
@@ -1064,39 +1430,60 @@ test_that("dynamic ALS exposes stability and dynamic bootstrap refits", {
 		y
 	})
 
-	fit = suppressWarnings(lame(Y, family = "normal", R = 0,
-	                             method = "als", dynamic_ab = TRUE,
-	                             als_stability = "quick",
-	                             bootstrap = 1,
-	                             als_max_iter = 5,
-	                             verbose = FALSE, seed = 16))
+	fit = suppressWarnings(lame(
+		Y,
+		family = "normal",
+		bias_correct = "none",
+		R = 0,
+		method = "als",
+		dynamic_ab = TRUE,
+		als_stability = "quick",
+		bootstrap = 30,
+		verbose = FALSE,
+		seed = 16
+	))
 
 	expect_s3_class(fit, "lame_dynamic_als")
 	expect_equal(fit$stability$preset, "quick")
 	expect_equal(fit$stability$n_start, 2L)
 	expect_true("max_surface_delta" %in% names(fit$stability))
-	expect_equal(fit$bootstrap_dynamic$R, 1L)
+	expect_equal(fit$bootstrap_dynamic$R, 30L)
+	expect_equal(fit$bootstrap_dynamic$n_success, 30L)
 	expect_true("coef_paths" %in% names(fit$bootstrap_dynamic))
 	expect_true(isTRUE(fit$meta$uncertainty_available))
 })
 
 test_that("dynamic bootstrap preserves changing-composition missingness", {
 	set.seed(17)
-	sets = list(t1 = paste0("a", 1:4), t2 = paste0("a", 2:5),
-	             t3 = paste0("a", c(1, 3, 5)))
+	sets = list(
+		t1 = paste0("a", 1:4),
+		t2 = paste0("a", 2:5),
+		t3 = paste0("a", c(1, 3, 5))
+	)
 	Y = lapply(seq_along(sets), function(tt) {
 		a = sets[[tt]]
-		y = matrix(rnorm(length(a)^2), length(a), length(a),
-		            dimnames = list(a, a))
+		y = matrix(
+			rnorm(length(a)^2),
+			length(a),
+			length(a),
+			dimnames = list(a, a)
+		)
 		diag(y) = NA_real_
 		y
 	})
 	names(Y) = names(sets)
 
 	fit = suppressWarnings(lame(
-		Y, family = "normal", R = 0, method = "als",
-		dynamic_ab = TRUE, bootstrap = 1, als_max_iter = 4,
-		verbose = FALSE, seed = 17))
+		Y,
+		family = "normal",
+		bias_correct = "none",
+		R = 0,
+		method = "als",
+		dynamic_ab = TRUE,
+		bootstrap = 30,
+		verbose = FALSE,
+		seed = 17
+	))
 	refit = fit$bootstrap_dynamic$refits[[1L]]
 
 	expect_true(isTRUE(fit$changing_composition))
@@ -1107,10 +1494,8 @@ test_that("dynamic bootstrap preserves changing-composition missingness", {
 })
 
 test_that("dynamic UV level prior bounds a null binary panel (defect 5)", {
-	# with no real latent structure the difference penalty alone leaves the
-	# common level of the factor path unpenalized, so a binary IRLS fit can
-	# drive var(UV') to hundreds. the fixed marginal level prior must keep
-	# the factor magnitudes bounded and let the fit converge.
+	# with no latent structure the difference penalty leaves the common level of the factor path free, so the
+	# marginal level prior keeps the factor magnitudes bounded and lets a binary IRLS fit converge
 	set.seed(42)
 	n = 20L
 	Tt = 6L
@@ -1122,18 +1507,22 @@ test_that("dynamic UV level prior bounds a null binary panel (defect 5)", {
 		dimnames(y) = list(actors, actors)
 		y
 	})
-	fit = suppressWarnings(suppressMessages(lame_dynamic_als(
-		Y, R = 2, family = "binary", dynamic_uv = TRUE,
-		verbose = FALSE, seed = 6886)))
+	fit = suppressWarnings(suppressMessages(lame:::lame_dynamic_als(
+		Y,
+		R = 2,
+		family = "binary",
+		dynamic_uv = TRUE,
+		verbose = FALSE,
+		seed = 6886,
+		bias_correct = "none"
+	)))
 	expect_true(isTRUE(fit$converged))
-	# pre-fix this panel produced var(UV') in the hundreds/thousands
 	expect_lt(max(abs(fit$Oarr[is.finite(fit$Oarr)])), 25)
 	expect_lt(stats::var(fit$Oarr[is.finite(fit$Oarr)]), 50)
 })
 
 test_that("dynamic UV level prior does not degrade real drift recovery (defect 5)", {
-	# a genuinely drifting rank-1 structure must still be recovered: the
-	# level prior only bounds the magnitude, it must not flatten real signal.
+	# a drifting rank-1 structure is recovered: the level prior bounds the magnitude without flattening signal
 	set.seed(7)
 	n = 24L
 	Tt = 6L
@@ -1154,22 +1543,27 @@ test_that("dynamic UV level prior does not degrade real drift recovery (defect 5
 		dimnames(y) = list(actors, actors)
 		Y[[t]] = y
 	}
-	fit = suppressWarnings(suppressMessages(lame_dynamic_als(
-		Y, R = 1, family = "binary", dynamic_uv = TRUE,
-		verbose = FALSE, seed = 6886)))
+	fit = suppressWarnings(suppressMessages(lame:::lame_dynamic_als(
+		Y,
+		R = 1,
+		family = "binary",
+		dynamic_uv = TRUE,
+		verbose = FALSE,
+		seed = 6886,
+		bias_correct = "none"
+	)))
 	per_t_cor = vapply(seq_len(Tt), function(t) {
 		off = row(O_true[, , t]) != col(O_true[, , t])
 		stats::cor(O_true[, , t][off], fit$Oarr[, , t][off])
 	}, numeric(1))
-	# recovery stays strong at every period (pre-fix mean was ~0.28)
+	# recovery stays strong at every period
 	expect_gt(mean(per_t_cor), 0.7)
 	expect_gt(min(per_t_cor), 0.6)
 })
 
 test_that("dynamic ALS stays bounded on a sparse binary bipartite panel (regression)", {
-	# on a panel this sparse the binary likelihood separates; the outer irls
-	# gate must keep the linear predictor bounded, converge, and leave the
-	# planted structure recoverable
+	# a panel this sparse separates under the binary likelihood; the outer IRLS gate keeps the linear predictor
+	# bounded, converges and leaves the planted structure recoverable
 	skip_on_cran()
 	set.seed(5)
 	nA = 30; nB = 60; TT = 6; rt = 0.6; sig = 0.7
@@ -1187,8 +1581,17 @@ test_that("dynamic ALS stays bounded on a sparse binary bipartite panel (regress
 		m = (-2.6 + outer(a, b, "+") + tuv[[t]] + matrix(rnorm(nA * nB), nA) > 0) * 1
 		rownames(m) = sprintf("e%02d", 1:nA); colnames(m) = sprintf("i%02d", 1:nB); m
 	})
-	fit = expect_no_warning(lame(Y, mode = "bipartite", family = "binary", R = 2,
-		method = "als", dynamic_uv = TRUE, dynamic_ab = TRUE, verbose = FALSE))
+	fit = expect_no_warning(lame(
+		Y,
+		mode = "bipartite",
+		family = "binary",
+		R = 2,
+		method = "als",
+		dynamic_uv = TRUE,
+		dynamic_ab = TRUE,
+		verbose = FALSE,
+		bias_correct = "none"
+	))
 	expect_true(isTRUE(fit$converged))
 	# the accepted outer path never keeps a step that raised the deviance
 	expect_true(all(diff(fit$irls_trace[-length(fit$irls_trace)]) <= 1e-8))
@@ -1201,9 +1604,8 @@ test_that("dynamic ALS stays bounded on a sparse binary bipartite panel (regress
 })
 
 test_that("dynamic ALS reports innovation scales and prior-mean persistences for warm starts", {
-	# a dynamic als fit hands als_start_vals() the four ar(1) hyperparameters;
-	# the persistences are the penalty's settings (the mcmc prior means unless
-	# a prior sets them) and the innovation scales are implied by the paths
+	# a dynamic ALS fit passes als_start_vals() the four AR(1) hyperparameters: persistences from the penalty settings
+	# (MCMC prior means unless a prior sets them), innovation scales implied by the paths
 	skip_on_cran()
 	set.seed(1)
 	N = 20; TT = 6
@@ -1214,8 +1616,16 @@ test_that("dynamic ALS reports innovation scales and prior-mean persistences for
 		M = matrix(rbinom(N * N, 1, P), N, N); diag(M) = NA
 		dimnames(M) = list(1:N, 1:N); M
 	})
-	fit = suppressWarnings(lame(Y, family = "binary", R = 2, dynamic_ab = TRUE,
-		dynamic_uv = TRUE, method = "als", seed = 1))
+	fit = suppressWarnings(lame(
+		Y,
+		family = "binary",
+		R = 2,
+		dynamic_ab = TRUE,
+		dynamic_uv = TRUE,
+		method = "als",
+		seed = 1,
+		bias_correct = "none"
+	))
 	expect_equal(fit$rho_uv, 0.9)
 	expect_equal(fit$rho_ab, 0.8)
 	expect_true(is.finite(fit$sigma_uv) && fit$sigma_uv > 0)
@@ -1227,15 +1637,34 @@ test_that("dynamic ALS reports innovation scales and prior-mean persistences for
 	expect_true(all(c("rho_uv", "sigma_uv", "rho_ab", "sigma_ab") %in% names(sv)))
 	expect_equal(sv$sigma_uv, fit$sigma_uv)
 	expect_equal(sv$sigma_ab, fit$sigma_ab)
-	# the mcmc accepts the warm start
-	m = suppressWarnings(lame(Y, family = "binary", R = 2, dynamic_ab = TRUE,
-		dynamic_uv = TRUE, start_vals = sv, burn = 10, nscan = 30, odens = 5,
-		seed = 1, verbose = FALSE, plot = FALSE))
+	# the MCMC accepts the warm start
+	m = suppressWarnings(lame(
+		Y,
+		family = "binary",
+		R = 2,
+		dynamic_ab = TRUE,
+		dynamic_uv = TRUE,
+		start_vals = sv,
+		burn = 10,
+		nscan = 30,
+		odens = 5,
+		seed = 1,
+		verbose = FALSE,
+		plot = FALSE
+	))
 	expect_s3_class(m, "lame")
-	# a prior mean is honoured by the penalty and reported as such
-	fit2 = suppressWarnings(lame(Y, family = "binary", R = 2, dynamic_ab = TRUE,
-		dynamic_uv = TRUE, method = "als", seed = 1,
-		prior = list(rho_uv_mean = 0.5, rho_ab_mean = 0.6)))
+	# a prior mean is honoured by the penalty and reported
+	fit2 = suppressWarnings(lame(
+		Y,
+		family = "binary",
+		R = 2,
+		dynamic_ab = TRUE,
+		dynamic_uv = TRUE,
+		method = "als",
+		seed = 1,
+		bias_correct = "none",
+		prior = list(rho_uv_mean = 0.5, rho_ab_mean = 0.6)
+	))
 	expect_equal(fit2$rho_uv, 0.5)
 	expect_equal(fit2$rho_ab, 0.6)
 })
@@ -1251,12 +1680,297 @@ test_that(".lda_innov_sd differences across periods only", {
 	# a cube pools every series along its last dimension
 	cube = array(path, c(N, 1, TT))
 	expect_equal(lame:::.lda_innov_sd(cube, rho, TT), s)
-	# pooling two paths pools their innovations; with two copies the value
-	# differs from the single-path scale only through the n - 1 denominator
+	# pooling two copies of a path differs from the single-path scale only through the n - 1 denominator
 	pooled = lame:::.lda_innov_sd(list(path, path), rho, TT)
 	expect_lt(abs(pooled / s - 1), 0.02)
 	# a static n x r matrix is not a path and contributes nothing
 	expect_null(lame:::.lda_innov_sd(matrix(rnorm(N * 2), N, 2), rho, TT))
 	expect_null(lame:::.lda_innov_sd(NULL, rho, TT))
 	expect_null(lame:::.lda_innov_sd(path[, 1, drop = FALSE], rho, 1L))
+})
+
+test_that("a warm restart never reports a worse objective than its start", {
+	# working objectives are not comparable across a reweight, so the fit reports the penalized deviance, which a warm
+	# restart from a converged fit cannot raise
+	skip_on_cran()
+	set.seed(311)
+	n = 24L; Tt = 5L
+	U = array(0, c(n, 2L, Tt)); V = array(0, c(n, 2L, Tt))
+	U[, , 1] = matrix(rnorm(n * 2, 0, 0.7), n)
+	V[, , 1] = matrix(rnorm(n * 2, 0, 0.7), n)
+	for (t in 2:Tt) {
+		U[, , t] = 0.9 * U[, , t - 1] + matrix(rnorm(n * 2, 0, 0.3), n)
+		V[, , t] = 0.9 * V[, , t - 1] + matrix(rnorm(n * 2, 0, 0.3), n)
+	}
+	X = lapply(seq_len(Tt), function(t) {
+		array(rnorm(n * n), c(n, n, 1), dimnames = list(NULL, NULL, "x1"))
+	})
+	Y = lapply(seq_len(Tt), function(t) {
+		eta = -0.4 + 0.6 * X[[t]][, , 1] + U[, , t] %*% t(V[, , t])
+		m = 1 * ((eta + matrix(rnorm(n * n), n, n)) > 0)
+		diag(m) = NA
+		dimnames(m) = list(sprintf("a%02d", seq_len(n)), sprintf("a%02d", seq_len(n)))
+		m
+	})
+	fit = suppressWarnings(lame(
+		Y,
+		Xdyad = X,
+		family = "binary",
+		R = 2,
+		dynamic_uv = TRUE,
+		method = "als",
+		verbose = FALSE,
+		seed = 11L,
+		bias_correct = "none"
+	))
+	expect_identical(fit$objective_label, "penalized deviance")
+	expect_identical(
+		fit$diagnostics$objective_label,
+		"penalized IRLS working objective"
+	)
+	expect_identical(
+		fit$diagnostics$objective_scope,
+		"within one IRLS working problem"
+	)
+	expect_false(is.null(fit$diagnostics$reweight_steps))
+	tol = 1e-6 * (abs(fit$objective) + 1)
+	up = suppressWarnings(update(fit))
+	rf = suppressWarnings(ame_als_refit(fit))
+	expect_lte(up$objective, fit$objective + tol)
+	expect_lte(rf$objective, fit$objective + tol)
+	# the stored descent history is the penalized deviance and is monotone, unlike the working trace in objective_history
+	dh = fit$dev_history
+	expect_gt(length(dh), 1L)
+	expect_true(all(diff(dh) <= 1e-10 * (abs(utils::head(dh, -1)) + 1)))
+	expect_equal(
+		length(fit$objective_history),
+		length(fit$diagnostics$objective)
+	)
+	# probit identification fixes the latent-scale error variance
+	expect_equal(unname(fit$VC["ve"]), 1)
+	expect_true(is.finite(fit$ve_working) && fit$ve_working > 0)
+})
+
+test_that("dynamic_uv_kind = 't' descends monotonically", {
+	# the heavy-tailed kind is an MM scheme on the marginal t(nu) transition penalty: weights held at the incoming
+	# iterate and the scale tied to lambda_uv, so the block sweeps descend one fixed objective
+	skip_on_cran()
+	for (sd in 1:3) {
+		set.seed(sd)
+		n = 25L
+		Yl = replicate(4, {
+			m = matrix(rnorm(n * n), n, n); diag(m) = NA; m
+		}, simplify = FALSE)
+		for (kind in c("t", "ar1")) {
+			fit = suppressWarnings(lame(
+				Yl,
+				family = "normal",
+				bias_correct = "none",
+				method = "als",
+				dynamic_uv = TRUE,
+				dynamic_uv_kind = kind,
+				R = 1,
+				verbose = FALSE
+			))
+			expect_equal(fit$diagnostics$objective_increases, 0L)
+		}
+	}
+	set.seed(1)
+	n = 25L
+	Ys = replicate(4, {
+		m = matrix(rnorm(n * n), n, n); m = (m + t(m)) / 2; diag(m) = NA; m
+	}, simplify = FALSE)
+	fs = suppressWarnings(lame(
+		Ys,
+		family = "normal",
+		bias_correct = "none",
+		symmetric = TRUE,
+		method = "als",
+		dynamic_uv = TRUE,
+		dynamic_uv_kind = "t",
+		R = 1,
+		verbose = FALSE
+	))
+	expect_equal(fs$diagnostics$objective_increases, 0L)
+})
+
+test_that("the dynamic additive block keeps its per-period gauge and descends", {
+	# the block is the exact minimiser under a per-period sum-to-zero identification, so it descends and keeps the
+	# fitted values
+	skip_on_cran()
+	set.seed(412)
+	n = 28L; Tt = 6L
+	a = matrix(0, n, Tt); b = matrix(0, n, Tt)
+	a[, 1] = rnorm(n, 0, 0.5); b[, 1] = rnorm(n, 0, 0.5)
+	for (t in 2:Tt) {
+		a[, t] = 0.8 * a[, t - 1] + rnorm(n, 0, 0.3)
+		b[, t] = 0.8 * b[, t - 1] + rnorm(n, 0, 0.3)
+	}
+	X = lapply(seq_len(Tt), function(t) {
+		array(rnorm(n * n), c(n, n, 1), dimnames = list(NULL, NULL, "x1"))
+	})
+	Y = lapply(seq_len(Tt), function(t) {
+		eta = -0.3 + 0.5 * X[[t]][, , 1] + outer(a[, t], b[, t], "+")
+		m = 1 * ((eta + matrix(rnorm(n * n), n, n)) > 0)
+		diag(m) = NA
+		dimnames(m) = list(sprintf("a%02d", seq_len(n)), sprintf("a%02d", seq_len(n)))
+		m
+	})
+	fit = suppressWarnings(lame(
+		Y,
+		Xdyad = X,
+		family = "binary",
+		R = 1,
+		dynamic_ab = TRUE,
+		dynamic_uv = TRUE,
+		method = "als",
+		verbose = FALSE,
+		seed = 11L,
+		bias_correct = "none"
+	))
+	expect_equal(fit$diagnostics$objective_increases, 0L)
+	expect_lt(max(abs(colMeans(fit$a_dynamic))), 1e-8)
+	expect_lt(max(abs(colMeans(fit$b_dynamic))), 1e-8)
+})
+
+test_that("lame(method = 'als') passes ALS solver options to the route that has them", {
+	skip_on_cran()
+	set.seed(511)
+	n = 20L; Tt = 4L
+	X = lapply(seq_len(Tt), function(t) {
+		array(rnorm(n * n), c(n, n, 1), dimnames = list(NULL, NULL, "x1"))
+	})
+	Y = lapply(seq_len(Tt), function(t) {
+		m = 0.2 + 0.6 * X[[t]][, , 1] + matrix(rnorm(n * n), n, n)
+		diag(m) = NA
+		dimnames(m) = list(sprintf("a%02d", seq_len(n)), sprintf("a%02d", seq_len(n)))
+		m
+	})
+	# static route: forwarded, and equal to the direct lame_als() call
+	f_opt = suppressWarnings(lame(
+		Y,
+		Xdyad = X,
+		family = "normal",
+		R = 2,
+		method = "als",
+		als_lowrank_method = "als",
+		als_linear_solver = "qr",
+		verbose = FALSE
+	))
+	d_opt = suppressWarnings(lame_als(
+		Y,
+		Xdyad = X,
+		family = "normal",
+		R = 2,
+		lowrank_method = "als",
+		linear_solver = "qr",
+		verbose = FALSE,
+		max_iter = 1000L
+	))
+	expect_identical(f_opt$lowrank_method, "als")
+	expect_identical(f_opt$linear_solver, "qr")
+	expect_equal(f_opt$beta, d_opt$beta)
+	expect_error(
+		lame(
+			Y,
+			Xdyad = X,
+			family = "normal",
+			R = 2,
+			method = "als",
+			als_lowrank_method = "nonsense",
+			verbose = FALSE
+		),
+		"als_lowrank_method"
+	)
+	# dynamic route: the factor solver is honoured and static-only controls are refused
+	f_dyn = suppressWarnings(lame(
+		Y,
+		Xdyad = X,
+		family = "normal",
+		R = 2,
+		method = "als",
+		dynamic_uv = TRUE,
+		als_lowrank_method = "mm",
+		verbose = FALSE
+	))
+	expect_s3_class(f_dyn, "lame_dynamic_als")
+	expect_error(
+		lame(
+			Y,
+			Xdyad = X,
+			family = "normal",
+			R = 2,
+			method = "als",
+			dynamic_uv = TRUE,
+			als_linear_solver = "qr",
+			verbose = FALSE
+		),
+		"not available for dynamic ALS"
+	)
+	expect_error(
+		lame(
+			Y,
+			Xdyad = X,
+			family = "normal",
+			R = 2,
+			method = "als",
+			dynamic_uv = TRUE,
+			als_multistart = "cheap",
+			verbose = FALSE
+		),
+		"not available for dynamic ALS"
+	)
+	expect_error(
+		lame:::lame_dynamic_als(
+			Y,
+			Xdyad = X,
+			family = "normal",
+			R = 2,
+			dynamic_uv = TRUE,
+			linear_solver = "qr",
+			verbose = FALSE
+		),
+		"does not accept"
+	)
+	expect_error(
+		lame:::lame_dynamic_als(
+			Y,
+			Xdyad = X,
+			family = "normal",
+			R = 2,
+			dynamic_uv = TRUE,
+			multistart = "cheap",
+			verbose = FALSE
+		),
+		"does not accept"
+	)
+	# the snap kind has no ALS route and is refused before any control is read
+	expect_error(
+		lame(
+			Y,
+			Xdyad = X,
+			family = "normal",
+			R = 2,
+			method = "als",
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = "snap",
+			als_lowrank_method = "mm",
+			verbose = FALSE
+		),
+		"is not available"
+	)
+	expect_error(
+		lame(
+			Y,
+			Xdyad = X,
+			family = "normal",
+			R = 2,
+			method = "als",
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = "snap",
+			als_linear_solver = "qr",
+			verbose = FALSE
+		),
+		"is not available"
+	)
 })

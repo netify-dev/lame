@@ -19,23 +19,34 @@
 #' @param YL matrix whose \code{r}-th column gives, per row, the column index
 #'   of the individual holding rank \code{r} (ascending preference).
 #' @param odmax scalar or per-row maximum number of nominations allowed.
-#' @param odobs per-row observed out-degree.
+#' @param odobs per-actor count of nominations the actor has made: the
+#'   observed nominations plus the hidden cells whose current latent value
+#'   is positive (the cells of an actor absent from the slice never count;
+#'   see \code{.lame_nom_room}). A row whose count falls short of \code{odmax} has unused
+#'   nomination slots, so its non-nominated cells are held below zero.
 #' @return the updated square latent matrix \code{Z}.
 #' @keywords internal
 #' @author lame authors
 #' @export rZ_frn_fc
 rZ_frn_fc <- function(Z, EZ, rho, Y, YL, odmax, odobs) {
+	Z <- .lame_nom_feasible(Z, Y, YL, odmax, odobs, FALSE)
+	# panels with hidden cells use the sweep in R/rZ_nomination_hidden.R
+	hid <- .lame_nom_hidden_cells(Y, FALSE)
+	if (any(hid)) {
+		Ya <- .lame_cbin_implied_labels(Z, Y, odmax, hid)
+		Z <- .rZ_frn_hidden_sweep(Z, EZ, rho, Y, Ya, odmax, hid, FALSE)
+		return(.lame_cbin_hidden_moves(Z, EZ, rho, Y, odmax, hid, FALSE))
+	}
 
 	n <- nrow(Z)
 	cond_sd <- sqrt(1 - rho^2)
-	row_of <- row(Z)                 # entry [i, j] carries the value i
+	row_of <- row(Z) # entry [i, j] carries the value i
 	upper <- upper.tri(Z)
 	lower <- lower.tri(Z)
 	max_rank <- ncol(YL)
 	rows <- seq_len(n)
 
-	# recode the diagonal / missing cells to the sentinel rank -1 so they can
-	# be swept through unconstrained alongside the genuine rank strata
+	# diagonal and missing cells get the sentinel rank -1 and are drawn unconstrained
 	Yr <- Y
 	Yr[is.na(Yr)] <- -1
 
@@ -79,8 +90,11 @@ rZ_frn_fc <- function(Z, EZ, rho, Y, YL, odmax, odobs) {
 		}
 		r <- row_of[cells]
 		mu <- EZ[cells] + rho * (t(Z)[cells] - t(EZ)[cells])
-		vals <- cond_sd * rtnorm_interval_logp(mu / cond_sd,
-			lo[r] / cond_sd, hi[r] / cond_sd)
+		vals <- cond_sd * rtnorm_interval_logp(
+			mu / cond_sd,
+			lo[r] / cond_sd,
+			hi[r] / cond_sd
+		)
 		spoiled <- !is.finite(vals)
 		if (any(spoiled)) {
 			vals[spoiled] <- Z[cells][spoiled]
@@ -89,13 +103,16 @@ rZ_frn_fc <- function(Z, EZ, rho, Y, YL, odmax, odobs) {
 		invisible(NULL)
 	}
 
-	# visit strata and triangles in random order so the Gibbs sweep does not
-	# privilege any fixed traversal
+	# visit strata and triangles in random order
 	for (y in sample((-1):max_rank)) {
 		lim <- limits_for(y)
 		for (side in sample(c("U", "L"))) {
-			sweep_triangle(if (side == "U") upper else lower,
-				y, lim$lo, lim$hi)
+			sweep_triangle(
+				if (side == "U") upper else lower,
+				y,
+				lim$lo,
+				lim$hi
+			)
 		}
 	}
 

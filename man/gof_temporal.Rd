@@ -14,16 +14,17 @@ gof_temporal(
 \arguments{
 \item{fit}{A fitted \code{lame} object.}
 
-\item{stat}{One of \code{"auto"} (default; picks
-\code{"reciprocity"} for unipartite directed fits with \eqn{T \ge 3}
-and family \code{normal} / \code{poisson}, where
-\code{"density"} is constant and uninformative; otherwise
-\code{"density"}), \code{"density"}, \code{"mean"} (mean of
-off-diagonal Y; the right "density" analogue for continuous
-outcomes), \code{"reciprocity"}, \code{"transitivity"}.}
+\item{stat}{One of \code{"auto"} (default: density for binary, cbin and
+ordinal fits, otherwise mean), \code{"density"}, \code{"mean"},
+\code{"reciprocity"}, or \code{"transitivity"}. Density is the fraction
+of nonzero observed cells. Mean is the mean observed value. Unipartite
+checks exclude self ties; square bipartite checks retain diagonal cells.
+Reciprocity requires directed unipartite data; transitivity requires
+unipartite data. Gaussian density and nonzero transitivity are refused;
+use mean or weighted reciprocity for continuous outcomes.}
 
 \item{n_rep}{Number of posterior-predictive replicates to draw (each
-replicate is a full \eqn{T}-period network from \code{simulate(fit)}).}
+replicate is a full \eqn{T}-period network). Must be an integer at least 2.}
 
 \item{seed}{Optional RNG seed.}
 }
@@ -34,7 +35,12 @@ A list with
 \item \code{slope_obs} (observed slope of stat on period index),
 \item \code{slope_rep} (length-\code{n_rep} vector of replicate slopes),
 \item \code{p_pp} (two-sided posterior-predictive p-value),
-\item \code{stat_obs_by_t}, \code{stat_rep_by_t} (per-period statistics)
+\item \code{stat_obs_by_t}, \code{stat_rep_by_t} (per-period statistics),
+\item \code{n_rep} (number of replicate networks drawn),
+\item \code{degenerate} (\code{TRUE} when the replicate slopes have no
+spread or a statistic is undefined, in which case \code{p_pp} is \code{NA}),
+\item \code{reason} and \code{n_undefined} describe an unestimated check,
+\item \code{replication_method} and \code{draw_index} identify joint draws
 }
 }
 \description{
@@ -42,18 +48,26 @@ For a fitted \code{lame} object, computes a network statistic
 (\code{density}, \code{reciprocity}, or \code{transitivity}) at each
 observed period, fits a least-squares linear trend on period index,
 and compares the observed slope to slopes from posterior-predictive
-replicates. The two-sided value is \code{p_pp = 2 * min(p_up, 1 - p_up)},
-which runs from 0 (observed slope in the extreme tail) to 1 (observed
-slope dead-centre). A static fit on truly trending data yields
-\code{p_pp} near 0; a dynamic fit that captures the trend yields
-\code{p_pp} near 1.
+replicates. The two-sided value is \code{min(1, 2 * min(p_up, p_down))},
+where both empirical tails include ties. The value runs from 0 (observed slope in the extreme tail) to 1 (observed
+slope central in the predictive distribution).
+}
+\details{
+Observed and replicated statistics use the same actor labels and observed
+cells in every period. Transitivity counts only fully observed triples.
+Joint posterior draws are required; missing storage is refused. Fit with
+\code{posterior_options(save_ab = TRUE, save_UV = TRUE, thin_ab = 1,
+thin_UV = 1)}, omitting latent storage at rank zero. A constant observed
+series is still tested when the predictive slopes vary.
 }
 \examples{
 \donttest{
 data(YX_bin_list)
-fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X, family = "binary", R = 0,
             dynamic_beta = "dyad",
-            nscan = 60, burn = 15, odens = 5, verbose = FALSE)
+            posterior_opts = posterior_options(save_ab = TRUE, thin_ab = 1),
+            nscan = 60, burn = 15, odens = 5, verbose = FALSE, chains = 1)
 gof_temporal(fit, stat = "density", n_rep = 50)
 }
 

@@ -6,7 +6,7 @@
 \usage{
 trace_plot(
   fit,
-  params = c("all", "beta", "variance"),
+  params = c("all", "beta", "variance", "dynamic"),
   include = NULL,
   exclude = NULL,
   ncol = 3,
@@ -21,11 +21,12 @@ trace_plot(
 
 \item{params}{Character vector specifying which parameters to plot:
 "beta" for regression coefficients, "variance" for variance components,
-or "all" (default) for both}
+"dynamic" for the dynamic hyperparameters, or "all" (default) for all three}
 
 \item{include}{Character vector of specific parameter names to include.
-Raw variance-component names ("va", "ve", "rho", ...) and their
-display labels ("Error Variance", ...) are both accepted.
+Raw names ("va", "ve", "rho", "rho_uv", "sigma_ab", ...) and their
+display labels ("Error variance", "Position persistence (rho_uv)", ...)
+are both accepted; display labels match regardless of case.
 For dynamic_beta fits, per-period traces are named like
 \code{"x_dyad[t1]"}; supplying the base name (e.g. \code{"x_dyad"})
 selects all of its periods}
@@ -37,10 +38,10 @@ Base names match all per-period traces, as with \code{include}}
 
 \item{nrow}{Number of rows for plot layout (default NULL, determined automatically)}
 
-\item{burn.in}{Number of initial iterations to exclude as burn-in when
-calculating statistics (default 0, assumes burn-in already removed)}
+\item{burn.in}{Number of initial iterations of each chain to exclude as
+burn-in (default 0, assumes burn-in already removed)}
 
-\item{thin}{Thinning interval for display (default 1, no thinning)}
+\item{thin}{Thinning interval for display, within each chain (default 1, no thinning)}
 
 \item{title}{Optional title for the plot}
 }
@@ -73,14 +74,33 @@ Parameters displayed include:
 \itemize{
 \item Regression coefficients (beta)
 \item Variance components (va, vb, cab, rho, ve)
+\item Dynamic hyperparameters, when the fit has them: the persistence and
+innovation of the actor effects (\code{rho_ab}, \code{sigma_ab}) and of
+the latent positions (\code{rho_uv}, \code{sigma_uv}), the reset rate of
+snap positions (\code{pi_snap}), the per-group persistence and innovation
+of dynamic coefficients (\code{rho_beta}, \code{sigma_beta}) and the
+per-period dyadic correlation of \code{dynamic_rho} fits
 }
+
+A quantity the model fixes draws no panel: the error variance of the
+binary, ordinal, cbin and frn families (fixed at 1), the dyadic correlation
+and sender-receiver covariance of bipartite fits, the dyadic correlation of
+a fit with \code{dcor = FALSE} and the receiver terms of a symmetric fit.
+Such a quantity is left out only when its draws are constant, so a stuck
+chain on an estimated quantity always shows. A quantity that
+\code{summary()} reports as not estimated (for example the effect
+variances of a sparse panel) is left out as well, with a message naming it.
+
+For a fit with several chains, \code{burn.in} and \code{thin} apply within
+each chain.
 }
 \examples{
 \donttest{
 # Fit an AME model
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X,
-           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+           nscan = 50, burn = 10, odens = 1, verbose = FALSE, chains = 1)
 
 # Basic trace plots for all parameters
 trace_plot(fit)
@@ -90,6 +110,12 @@ trace_plot(fit, params = "beta")
 
 # Only variance components
 trace_plot(fit, params = "variance")
+
+# The persistence and innovation of dynamic actor effects
+Y <- lapply(1:3, function(t) YX_nrm$Y[1:20, 1:20])
+fit_dyn <- lame(Y, R = 0, dynamic_ab = TRUE, nscan = 100, burn = 20, odens = 2,
+                verbose = FALSE, chains = 1)
+trace_plot(fit_dyn, params = "dynamic")
 }
 }
 \author{

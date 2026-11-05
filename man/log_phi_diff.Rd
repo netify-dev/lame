@@ -4,12 +4,15 @@
 \alias{log_phi_diff}
 \title{Numerically stable log(Phi(hi) - Phi(lo))}
 \usage{
-log_phi_diff(hi, lo)
+log_phi_diff(hi, lo, width = NULL)
 }
 \arguments{
 \item{hi}{numeric, upper bound}
 
 \item{lo}{numeric, lower bound (must be <= hi elementwise)}
+
+\item{width}{optional original interval widths, before centering the bounds.
+Retains legitimate short intervals whose centered endpoints round together.}
 }
 \value{
 numeric, log(Phi(hi) - Phi(lo))

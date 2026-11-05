@@ -51,20 +51,19 @@ for(t in 1:T) {
 }
 
 # four-cycle counts
-if(exists("count_four_cycles_bip_cpp")) {
+if(exists("count_four_cycles_bip_cpp", envir = asNamespace("lame"), inherits = FALSE)) {
 	cycles = lame:::count_four_cycles_bip_cpp(Y_array)
 	cat("\nFour-cycle counts by time period:\n")
 	print(as.numeric(cycles))
 }
 
 # degree distributions
-if(exists("compute_degrees_bip_cpp")) {
-	degrees = lame:::compute_degrees_bip_cpp(Y_array)
-	cat("\nMean row degrees (users) by time:\n")
-	print(round(colMeans(degrees$row_degrees), 2))
-	cat("\nMean column degrees (items) by time:\n")
-	print(round(colMeans(degrees$col_degrees), 2))
-}
+row_degrees = apply(Y_array != 0, c(1, 3), sum, na.rm = TRUE)
+col_degrees = apply(Y_array != 0, c(2, 3), sum, na.rm = TRUE)
+cat("\nMean row degrees (users) by time:\n")
+print(round(colMeans(row_degrees), 2))
+cat("\nMean column degrees (items) by time:\n")
+print(round(colMeans(col_degrees), 2))
 
 cat("\nBipartite network example complete.\n")
 ####

@@ -47,8 +47,9 @@ a regression table.
 \examples{
 \donttest{
 data(YX_bin_list)
-fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
-            nscan = 100, burn = 20, odens = 5, verbose = FALSE)
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X, family = "binary", R = 0,
+            nscan = 100, burn = 20, odens = 5, verbose = FALSE, chains = 1)
 glance(fit)
 }
 }

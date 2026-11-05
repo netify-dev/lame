@@ -24,3 +24,5 @@ docs/llms.txt
 cran-comments.md
 lame.Rcheck/
 docs/
+analysis/
+backups/

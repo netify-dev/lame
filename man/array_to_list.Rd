@@ -19,6 +19,14 @@ array in list format
 \description{
 Convert array to list.
 }
+\examples{
+n <- 12
+arr <- array(rnorm(n * n * 3), dim = c(n, n, 3))
+rownames(arr) <- colnames(arr) <- paste0("a", 1:n)
+actors <- rep(list(paste0("a", 1:n)), 3)
+Y_list <- array_to_list(arr, actors, sliceLabel = paste0("t", 1:3))
+length(Y_list)
+}
 \author{
 Shahryar Minhas
 }

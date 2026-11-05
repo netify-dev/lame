@@ -4,7 +4,7 @@
 \alias{rUV_rep_fc}
 \title{Gibbs sampling of U and V from replicated relational data}
 \usage{
-rUV_rep_fc(E.T,U,V,rho,s2=1,shrink=TRUE)
+rUV_rep_fc(E.T,U,V,rho,s2=1,shrink=TRUE,prior_df=NULL,prior_psi=NULL)
 }
 \arguments{
 \item{E.T}{Array of square residual relational matrices (additive
@@ -14,11 +14,19 @@ effects and covariates removed). The third margin indexes replicates.}
 
 \item{V}{current value of V}
 
-\item{rho}{dyadic correlation}
+\item{rho}{Dyadic correlation: a scalar or one value per replicate.}
 
 \item{s2}{dyadic variance}
 
 \item{shrink}{adaptively shrink the factors with a hierarchical prior}
+
+\item{prior_df}{degrees of freedom of the inverse-Wishart prior of the
+covariance of the stacked (U, V) rows (default \code{2R + 2}; the
+samplers pass the data-scaled default of \code{ame()}, see
+\code{prior$kappa0} there)}
+
+\item{prior_psi}{the inverse-Wishart scale matrix \code{prior_psi * I}
+(default \code{prior_df}, the unit scale \code{Suv0 = I})}
 }
 \value{
 \item{U}{a new value of U} \item{V}{a new value of V}
@@ -29,6 +37,13 @@ conditional distributions, pooling information across the replicate
 slices of a residual array. Each factor column is updated in turn from
 its Gaussian full conditional, optionally under a hierarchical
 shrinkage prior on the stacked (U, V) rows.
+}
+\details{
+Given its partner column, a factor column has a Gaussian conditional
+whose precision has one eigenvalue along the partner and a repeated
+eigenvalue perpendicular to it; the draw uses this closed form, with the
+symmetric and antisymmetric parts of the residual weighted by the
+reciprocal variances \code{s2 (1 + rho)} and \code{s2 (1 - rho)}.
 }
 \author{
 lame authors

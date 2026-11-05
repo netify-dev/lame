@@ -9,22 +9,22 @@
 #' @param E.T numeric array of dimension n x n x N holding the residual
 #'   matrices along the third margin (one square slice per replicate).
 #' @param rho current value of the within-dyad correlation.
+#' @param s20 fixed positive prior scale for the residual variance (default 1).
 #' @return a single numeric draw of \code{s2}.
 #' @keywords internal
 #' @author lame authors
 #' @export rs2_rep_fc
 rs2_rep_fc <-
-	function(E.T, rho) {
+	function(E.T, rho, s20 = 1) {
+		s20 <- .lame_validate_s20(s20)
 		n_rep <- dim(E.T)[3]
 
-		# whitening map: symmetric inverse square root of the dyad correlation
-		# matrix, so a whitened (e_ij, e_ji) pair is unit-scaled and
-		# uncorrelated under the model
+		# whiten each dyad pair by the inverse square root of its correlation matrix
 		corr <- matrix(c(1, rho, rho, 1), 2, 2)
 		whiten <- mhalf(solve(corr))
 
-		ssq <- 0				# pooled whitened sum of squares
-		count <- 0L				# pooled count of whitened scalars
+		ssq <- 0 # pooled whitened sum of squares
+		count <- 0L # pooled count of whitened scalars
 
 		for (r in seq_len(n_rep)) {
 			slice <- E.T[, , r]
@@ -36,12 +36,8 @@ rs2_rep_fc <-
 			count <- count + length(whitened)
 		}
 
-		# a single pseudo-observation placed at the empirical mean square keeps
-		# the draw invariant to the overall scale of the residuals
-		mean_sq <- if (count > 0) ssq / count else 1
-		if (!is.finite(mean_sq) || mean_sq <= 0) mean_sq <- 1
-
+		# inverse-gamma draw with one prior pseudo-observation at scale s20
 		shape <- (count + 1) / 2
-		rate <- (ssq + mean_sq) / 2
+		rate <- (ssq + s20) / 2
 		1 / rgamma(1, shape, rate)
 	}

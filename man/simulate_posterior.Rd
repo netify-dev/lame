@@ -35,14 +35,16 @@ This function can simulate posterior distributions even when they weren't
 saved during MCMC, by using the posterior means and variance components.
 
 For more accurate posteriors, use posterior_options() during model fitting
-to save the actual MCMC samples.
+to save the actual MCMC samples. Longitudinal additive trajectories require
+saved draws; their joint posterior is not reconstructed from summaries.
 }
 \examples{
 \donttest{
 # Fit a model with multiplicative effects
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
-           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE, chains = 1)
 
 # Get posterior samples of regression coefficients
 beta_post <- simulate_posterior(fit, "beta", n_samples = 50)

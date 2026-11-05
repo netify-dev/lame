@@ -21,15 +21,43 @@ for multiple MCMC chains.}
 A list that can be passed to \code{start_vals}. For a dynamic ALS
 fit it also carries \code{rho_uv}, \code{sigma_uv}, \code{rho_ab}, and
 \code{sigma_ab}, so the MCMC run starts its AR(1) hyperparameters from
-the ALS solution. Read these as starting values rather than estimates:
+the ALS solution. The dyadic \code{rho} start is the single pooled
+correlation in \code{fit$VC["rho"]}, matching ALS simulation. Period-specific
+\code{rho_path} / \code{residual_rho_path} values are residual diagnostics,
+including in legacy objects labelled \code{dynamic_rho = TRUE}, and are
+not used as covariance-path starting values. A MCMC model requesting
+\code{dynamic_rho = TRUE} expands this scalar initial value; explicit
+MCMC path starts remain available through its \code{start_vals} argument.
+For a penalised dynamic fit (\code{bias_correct = "none"} or
+\code{"jackknife"}) read these as starting values
+rather than estimates:
 the persistences are the values the ALS smoothness penalty used (the
 prior means unless \code{prior} set them), and the innovation scales are
 implied by the fitted paths, which the penalty shrinks, so they run
-below the posterior scale.
+below the posterior scale. For a dynamic empirical-Bayes fit (the default
+for normal, binary and Poisson panels) they are estimates under the
+\code{lame()} hyperpriors. For a binary fit the intercept is shifted so
+that the implied tie rate, \code{mean(pnorm(EZ))}, equals the observed
+one, with everything else held at the ALS values; the shift is stored in
+\code{attr(, "level_shift")}. The ALS intercept is a working-response
+level: under the default IRLS it sits within a few hundredths of the
+level the sampler has to reach, and under \code{non_normal_method =
+  "transform"} it can sit a probit unit or more above it, the sampler's
+slowest direction.
 }
 \description{
 Builds a \code{start_vals} list for \code{\link{ame}} or \code{\link{lame}}
 from an ALS point estimate. This is useful when the ALS fit has already found
 a good latent-space solution and the MCMC chain should start near that
 solution rather than from diffuse random values.
+}
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+fit_als <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
+sv <- als_start_vals(fit_als)
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit_mcmc <- ame(Y, R = 1, start_vals = sv,
+                nscan = 20, burn = 5, odens = 1, verbose = FALSE, chains = 1)
 }

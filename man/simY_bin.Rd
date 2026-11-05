@@ -4,12 +4,15 @@
 \alias{simY_bin}
 \title{Simulate a binary relational matrix from latent means}
 \usage{
-simY_bin(EZ, rho)
+simY_bin(EZ, rho, bipartite = FALSE)
 }
 \arguments{
 \item{EZ}{matrix giving the expected value of the latent \code{Z} matrix}
 
 \item{rho}{dyadic correlation}
+
+\item{bipartite}{whether row and column actors form disjoint sets; keeps
+diagonal cells even when the matrix is square.}
 }
 \value{
 a binary matrix matching the dimensions of \code{EZ}
@@ -17,8 +20,8 @@ a binary matrix matching the dimensions of \code{EZ}
 \description{
 Draws a latent Gaussian array with the given dyadic correlation and
 thresholds it at zero to produce a binary (0/1) sociomatrix. Self-ties on
-the diagonal of a square (unipartite) matrix are set to \code{NA};
-rectangular (bipartite) matrices are returned with every entry populated.
+the diagonal of a unipartite matrix are set to \code{NA};
+rectangular matrices and explicit \code{bipartite = TRUE} inputs keep all cells.
 }
 \author{
 lame authors

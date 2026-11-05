@@ -30,63 +30,48 @@
 
 // [[Rcpp::depends(RcppArmadillo)]]
 #include <RcppArmadillo.h>
+#include "ar_truncated_normal.h"
 using namespace arma;
 using namespace Rcpp;
 
 // --- shared utilities --------------------------------------------------------
 
-// Symmetric positive-definite inverse with progressive jitter. Returns true
-// on success and writes the inverse into `out`; returns false on total
-// failure (so the caller can bump a failure counter and use a fallback).
-// The jitter ladder lets us tolerate the same near-singular Omega situations
-// that the existing rbeta_ab_rep_fc_cpp handles via its "ridge" line.
-static bool safe_sympd_inverse(const arma::mat& M, arma::mat& out,
-                               int* n_jitter_used = NULL) {
-	arma::mat A = 0.5 * (M + M.t());
-	double dmean = std::max(1e-12, std::abs(arma::trace(A)) /
-	                                  std::max<arma::uword>(1, A.n_rows));
-	double jitters[5] = {0.0, 1e-10, 1e-7, 1e-4, 1e-2};
-	for (int k = 0; k < 5; ++k) {
-		arma::mat A2 = A;
-		if (jitters[k] > 0.0) A2.diag() += jitters[k] * dmean;
-		bool ok = arma::inv_sympd(out, A2);
-		if (ok && out.is_finite()) {
-			if (n_jitter_used != NULL && k > 0) *n_jitter_used = k;
-			return true;
-		}
-	}
-	// final fallback: general inv
-	bool ok = arma::inv(out, A + arma::eye<arma::mat>(A.n_rows, A.n_cols) *
-	                         (1e-2 * dmean));
-	if (n_jitter_used != NULL) *n_jitter_used = 5;
-	return ok && out.is_finite();
+// a precision whose diagonally scaled inverse reaches 0.01 / eps leaves under
+// two digits to resolve it, and whether its inversion succeeds depends on rounding
+static bool resolved_sympd_inverse(const arma::mat& A, const arma::mat& inverse) {
+  return inverse.is_finite() &&
+    arma::max(inverse.diag() % A.diag()) * 100.0 * arma::datum::eps < 1.0;
 }
 
-// Draw N(mu, Sigma) using a Cholesky of Sigma. On Cholesky failure, fall
-// back to symmetric eigen and clamp negative eigenvalues -- matches the
-// degraded behaviour of the existing rmvnorm_cpp without ever returning
-// NaNs from a singular Sigma. Increments *n_chol_fail when the cholesky
-// fallback fires (we expose this through tryErrorChecks).
+// Preserve the supplied Gaussian precision. A diagonally scaled solve can
+// improve its conditioning; adding a ridge would instead change the target.
+static bool safe_sympd_inverse(const arma::mat& M, arma::mat& out) {
+  arma::mat A = 0.5 * (M + M.t());
+  if (!A.is_finite()) return false;
+  if (arma::inv_sympd(out, A) && out.is_finite()) return resolved_sympd_inverse(A, out);
+  arma::vec diagonal = A.diag();
+  if (arma::any(diagonal <= 0.0)) return false;
+  arma::vec scale = 1.0 / arma::sqrt(diagonal);
+  arma::mat normalized = A;
+  normalized.each_col() %= scale;
+  normalized.each_row() %= scale.t();
+  arma::mat inverse;
+  if (!arma::inv_sympd(inverse, normalized) || !inverse.is_finite()) return false;
+  inverse.each_col() %= scale;
+  inverse.each_row() %= scale.t();
+  out = inverse;
+  return resolved_sympd_inverse(A, out);
+}
+
+// A Gaussian draw must retain the supplied covariance. Numerical failure
+// is explicit rather than replacing negative eigenvalues or returning a mean.
 static arma::vec rmvnorm_chol(const arma::vec& mu, const arma::mat& Sigma,
                               int* n_chol_fail = NULL) {
-	int p = mu.n_elem;
-	arma::vec eps(p, fill::randn);
+	arma::vec eps(mu.n_elem, fill::randn);
 	arma::mat S = 0.5 * (Sigma + Sigma.t());
 	arma::mat L;
-	bool ok = arma::chol(L, S, "lower");
-	if (!ok) {
-		arma::vec d; arma::mat U2;
-		bool eok = arma::eig_sym(d, U2, S);
-		if (!eok) {
-			if (n_chol_fail != NULL) (*n_chol_fail)++;
-			return mu; // give up; return the mean
-		}
-		for (int k = 0; k < (int)d.n_elem; ++k) {
-			if (d(k) < 0.0 || !std::isfinite(d(k))) d(k) = 0.0;
-		}
-		L = U2 * arma::diagmat(arma::sqrt(d));
-		if (n_chol_fail != NULL) (*n_chol_fail)++;
-	}
+	if (!mu.is_finite() || !S.is_finite() || !arma::chol(L, S, "lower"))
+		Rcpp::stop("Unable to resolve coefficient Gaussian covariance.");
 	return mu + L * eps;
 }
 
@@ -116,7 +101,6 @@ static void accumulate_Omega_h(const arma::mat& Xdyn_t,
                                bool bipartite, bool symmetric,
                                bool use_dyad_rho,
                                arma::mat& Omega_out, arma::vec& h_out) {
-	const int n_obs = Xdyn_t.n_rows;
 	const int p_dyn = Xdyn_t.n_cols;
 	// y_D,t = Z_t - offset_t - X_S,t beta_S, as a long vector aligned with
 	// the rows of Xdyn_t (which is also a long vector reshape).
@@ -126,6 +110,17 @@ static void accumulate_Omega_h(const arma::mat& Xdyn_t,
 	}
 	// drop NA observations (treated as missing)
 	arma::uvec keep = arma::find_finite(y);
+	// self-ties are outside the unipartite likelihood, and z_ii is a
+	// finite nuisance draw, so the diagonal is not an observation here
+	if (!bipartite && (int) Z_t.n_cols == (int) Z_t.n_rows) {
+		const arma::uword n = Z_t.n_rows;
+		arma::uvec offd(keep.n_elem);
+		arma::uword m0 = 0;
+		for (arma::uword q = 0; q < keep.n_elem; ++q) {
+			if ((keep[q] % n) != (keep[q] / n)) offd[m0++] = keep[q];
+		}
+		keep = offd.head(m0);
+	}
 	// symmetric networks have one latent per UNORDERED dyad: z_ij = z_ji.
 	// y is vectorise(Z_t) in column-major order, so entry (i,j) sits at
 	// index (j-1)*n + i. Keeping both (i,j) and (j,i) would count each
@@ -159,17 +154,14 @@ static void accumulate_Omega_h(const arma::mat& Xdyn_t,
 		// inverse-covariance Q on each ORDERED pair (i,j) with i < j once.
 		const int n = Z_t.n_rows;
 		if ((int)Z_t.n_cols != n) {
-			// fallback to isotropic if we somehow get a non-square unipartite
-			double w = 1.0 / s2;
-			Omega_out = w * X_obs.t() * X_obs;
-			h_out     = w * X_obs.t() * y_obs;
-			return;
+			Rcpp::stop("Reciprocal coefficient updates require square outcomes.");
 		}
 		double det_w = s2 * s2 * (1.0 - dyad_rho * dyad_rho);
-		// guard near-singular det
-		if (!std::isfinite(det_w) || det_w < 1e-12) det_w = 1e-12;
-		double c_diag = s2 / det_w;           // = 1 / (s2 (1-rho^2))
-		double c_off  = -dyad_rho * s2 / det_w; // = -rho/(s2(1-rho^2))
+		if (!std::isfinite(s2) || s2 <= 0.0 || !std::isfinite(dyad_rho) || std::abs(dyad_rho) >= 1.0)
+			Rcpp::stop("Invalid reciprocal coefficient variance.");
+		// Preserve the existing arithmetic when its determinant is representable.
+		double c_diag = (std::isfinite(det_w) && det_w > 0.0) ? s2 / det_w : 1.0 / s2 / (1.0 - dyad_rho * dyad_rho);
+		double c_off = (std::isfinite(det_w) && det_w > 0.0) ? -dyad_rho * s2 / det_w : -dyad_rho * c_diag;
 		// build vectorised offset
 		arma::mat E_t = Z_t - offset_t;
 		if (Xstat_t.n_cols > 0 && beta_static.n_elem == Xstat_t.n_cols) {
@@ -217,6 +209,55 @@ static void accumulate_Omega_h(const arma::mat& Xdyn_t,
 	}
 }
 
+// --- 0) per-period sufficient statistics of the dynamic block ---------------
+
+//' Per-period sufficient statistics of the dynamic coefficient block
+//'
+//' The statistics the forward filter of \code{sample_beta_dynamic_cpp} reads,
+//' for the interweaving step of the path hyperparameters: given the latent
+//' array, the offsets and the static block, the log density of the dynamic
+//' path is, up to a constant, the sum over periods of
+//' h_t' beta_t - beta_t' Omega_t beta_t / 2.
+//'
+//' @inheritParams sample_beta_dynamic_cpp
+//' @return List with: Omega -- a (p_dyn x p_dyn x T) array; h -- a (T x p_dyn)
+//'   matrix.
+//' @noRd
+// [[Rcpp::export]]
+List beta_dynamic_stats_cpp(List Xdyn_list, List Xstat_list,
+                            List Z_list, List offset_list,
+                            arma::vec beta_static,
+                            double s2, double dyad_rho,
+                            bool bipartite, bool symmetric,
+                            bool use_dyad_rho) {
+	const int T = Xdyn_list.size();
+	if (T == 0) {
+		return List::create(Named("Omega") = arma::cube(0, 0, 0),
+		                    Named("h") = arma::mat(0, 0));
+	}
+	const int p_dyn = as<arma::mat>(Xdyn_list[0]).n_cols;
+	arma::cube Omega(p_dyn, p_dyn, T, fill::zeros);
+	arma::mat h(T, p_dyn, fill::zeros);
+	for (int t = 0; t < T; ++t) {
+		arma::mat Xdyn_t = as<arma::mat>(Xdyn_list[t]);
+		arma::mat Xstat_t;
+		if (Xstat_list.size() > t) {
+			SEXP sx = Xstat_list[t];
+			if (!Rf_isNull(sx)) Xstat_t = as<arma::mat>(sx);
+		}
+		arma::mat Z_t = as<arma::mat>(Z_list[t]);
+		arma::mat offset_t = as<arma::mat>(offset_list[t]);
+		arma::mat Omega_t(p_dyn, p_dyn, fill::zeros);
+		arma::vec h_t(p_dyn, fill::zeros);
+		accumulate_Omega_h(Xdyn_t, Xstat_t, Z_t, offset_t, beta_static,
+		                   s2, dyad_rho, bipartite, symmetric, use_dyad_rho,
+		                   Omega_t, h_t);
+		Omega.slice(t) = Omega_t;
+		h.row(t) = h_t.t();
+	}
+	return List::create(Named("Omega") = Omega, Named("h") = h);
+}
+
 // --- 1) FFBS draw of the dynamic-block beta path -----------------------------
 
 //' Sample the dynamic-block beta path via FFBS
@@ -251,6 +292,10 @@ static void accumulate_Omega_h(const arma::mat& Xdyn_t,
 //' @param symmetric Whether the network is symmetric.
 //' @param use_dyad_rho Whether to use the dyad-corr branch (TRUE only for
 //'   unipartite, asymmetric, with a non-zero rho).
+//' @param Omega_in,h_in Optional per-period sufficient statistics, as
+//'   returned by \code{beta_dynamic_stats_cpp} for the same arguments (a
+//'   p_dyn x p_dyn x T array and a T x p_dyn matrix); the filter then reads
+//'   them instead of accumulating them again. The default (NULL) accumulates.
 //' @return List with: path -- a (T x p_dyn) matrix of beta draws (one row
 //'   per period); chol_fail -- integer count of Cholesky failures.
 // [[Rcpp::export]]
@@ -264,7 +309,9 @@ List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list,
                              arma::mat beta0_cov,
                              double s2, double dyad_rho,
                              bool bipartite, bool symmetric,
-                             bool use_dyad_rho) {
+                             bool use_dyad_rho,
+                             Rcpp::Nullable<arma::cube> Omega_in = R_NilValue,
+                             Rcpp::Nullable<arma::mat> h_in = R_NilValue) {
 	const int T = Xdyn_list.size();
 	if (T == 0) {
 		return List::create(Named("path") = arma::mat(0, 0),
@@ -291,6 +338,20 @@ List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list,
 
 	int chol_fail = 0;
 
+	// the per-period statistics, when the caller computed them already
+	const bool have_stats = Omega_in.isNotNull() && h_in.isNotNull();
+	arma::cube Omega_given;
+	arma::mat h_given;
+	if (have_stats) {
+		Omega_given = Rcpp::as<arma::cube>(Omega_in);
+		h_given = Rcpp::as<arma::mat>(h_in);
+		if ((int) Omega_given.n_slices != T || (int) Omega_given.n_rows != p_dyn ||
+		    (int) Omega_given.n_cols != p_dyn || (int) h_given.n_rows != T ||
+		    (int) h_given.n_cols != p_dyn) {
+			Rcpp::stop("Sufficient statistics do not match the coefficient design.");
+		}
+	}
+
 	// initial-condition coherence: the prior is placed DIRECTLY on beta_1
 	// (m_pred[0] = beta0_mean, C_pred[0] = beta0_cov, no F/Q predict step),
 	// and beta0_cov must be a fixed, (rho, sigma)-independent matrix -- the
@@ -316,31 +377,34 @@ List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list,
 		C_p = 0.5 * (C_p + C_p.t());
 		m_pred[t] = m_p;
 		C_pred[t] = C_p;
-		// accumulate Omega_t and h_t
+		// accumulate Omega_t and h_t (or read the statistics the caller passed)
 		arma::mat Omega_t(p_dyn, p_dyn, fill::zeros);
 		arma::vec h_t(p_dyn, fill::zeros);
-		arma::mat Xdyn_t = as<arma::mat>(Xdyn_list[t]);
-		arma::mat Xstat_t;
-		if (Xstat_list.size() > t) {
-			SEXP sx = Xstat_list[t];
-			if (!Rf_isNull(sx)) Xstat_t = as<arma::mat>(sx);
+		if (have_stats) {
+			Omega_t = Omega_given.slice(t);
+			h_t = h_given.row(t).t();
+		} else {
+			arma::mat Xdyn_t = as<arma::mat>(Xdyn_list[t]);
+			arma::mat Xstat_t;
+			if (Xstat_list.size() > t) {
+				SEXP sx = Xstat_list[t];
+				if (!Rf_isNull(sx)) Xstat_t = as<arma::mat>(sx);
+			}
+			arma::mat Z_t = as<arma::mat>(Z_list[t]);
+			arma::mat offset_t = as<arma::mat>(offset_list[t]);
+			accumulate_Omega_h(Xdyn_t, Xstat_t, Z_t, offset_t, beta_static,
+			                   s2, dyad_rho, bipartite, symmetric, use_dyad_rho,
+			                   Omega_t, h_t);
 		}
-		arma::mat Z_t = as<arma::mat>(Z_list[t]);
-		arma::mat offset_t = as<arma::mat>(offset_list[t]);
-		accumulate_Omega_h(Xdyn_t, Xstat_t, Z_t, offset_t, beta_static,
-		                   s2, dyad_rho, bipartite, symmetric, use_dyad_rho,
-		                   Omega_t, h_t);
 		// posterior precision K = inv(C_pred) + Omega, then C_filt = inv(K)
 		arma::mat C_p_inv;
 		if (!safe_sympd_inverse(C_p, C_p_inv)) {
-			chol_fail++;
-			C_p_inv = arma::diagmat(arma::ones<arma::vec>(p_dyn) * 1e-6);
+			Rcpp::stop("Unable to resolve coefficient predictive covariance.");
 		}
 		arma::mat K = C_p_inv + Omega_t;
 		arma::mat C_f;
 		if (!safe_sympd_inverse(K, C_f)) {
-			chol_fail++;
-			C_f = C_p; // fallback to predictive
+			Rcpp::stop("Unable to resolve coefficient posterior precision.");
 		}
 		arma::vec m_f = C_f * (C_p_inv * m_p + h_t);
 		C_filt[t] = C_f;
@@ -355,12 +419,17 @@ List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list,
 		// smoothing: J_t = C_filt[t] F' inv(C_pred[t+1])
 		arma::mat C_p_next_inv;
 		if (!safe_sympd_inverse(C_pred[t+1], C_p_next_inv)) {
-			chol_fail++;
-			C_p_next_inv = arma::eye<arma::mat>(p_dyn, p_dyn) * 1e-6;
+			Rcpp::stop("Unable to resolve coefficient smoothing covariance.");
 		}
 		arma::mat J_t = C_filt[t] * F.t() * C_p_next_inv;
 		arma::vec m_smooth = m_filt[t] + J_t * (beta_t - m_pred[t+1]);
 		arma::mat C_smooth = C_filt[t] - J_t * F * C_filt[t];
+		// If subtraction loses a small innovation variance, use the equivalent
+		// sum-of-squares covariance; it does not subtract nearly equal matrices.
+		if (arma::any(C_smooth.diag() < 1e-6 * C_filt[t].diag())) {
+			arma::mat residual = arma::eye<arma::mat>(p_dyn, p_dyn) - J_t * F;
+			C_smooth = residual * C_filt[t] * residual.t() + J_t * Q * J_t.t();
+		}
 		C_smooth = 0.5 * (C_smooth + C_smooth.t());
 		beta_t = rmvnorm_chol(m_smooth, C_smooth, &chol_fail);
 		path.row(t) = beta_t.t();
@@ -439,8 +508,7 @@ List sample_beta_static_cpp(List Xdyn_list, List Xstat_list,
 	}
 	arma::mat Vpost;
 	if (!safe_sympd_inverse(Omega_post, Vpost)) {
-		chol_fail++;
-		Vpost = arma::eye<arma::mat>(p_static, p_static);
+		Rcpp::stop("Unable to resolve static coefficient posterior precision.");
 	}
 	arma::vec mpost = Vpost * h_post;
 	arma::vec beta_new = rmvnorm_chol(mpost, Vpost, &chol_fail);
@@ -502,14 +570,11 @@ arma::vec sample_rho_beta_cpp(arma::mat beta_path,
 		double inv_prior_v = 1.0 / prior_v;
 		double post_v = 1.0 / (A_g / s2_g + inv_prior_v);
 		double post_m = post_v * (B_g / s2_g + rho_prior_mean(g - 1) * inv_prior_v);
-		// rejection-sample truncated normal. when 100 rejections happen
-		// in a row (data-implied rho outside [rho_lower, rho_upper]) the
-		// fallback (i) clamps post_m to the bounds (posterior mode within
-		// the truncation, not the prior mean) and (ii) draws a final
-		// candidate via inverse-CDF truncated-normal so the result is
-		// still a draw from the truncated posterior rather than a point.
+		// Retain ordinary rejection draws and their RNG sequence. If the
+		// truncation makes rejection inefficient, use an exact log-tail
+		// inverse CDF; neither probabilities nor draws are clamped.
 		double prop = post_m;
-		double sd_post = std::sqrt(std::max(post_v, 1e-12));
+		double sd_post = std::sqrt(post_v);
 		bool got = false;
 		for (int k = 0; k < 100; ++k) {
 			double cand = R::rnorm(post_m, sd_post);
@@ -520,20 +585,7 @@ arma::vec sample_rho_beta_cpp(arma::mat beta_path,
 			}
 		}
 		if (!got) {
-			// inverse-CDF truncated normal: Phi^{-1}(u * (F(hi) - F(lo)) + F(lo))
-			// with mean post_m, sd sd_post, on the [rho_lower, rho_upper] window.
-			double z_lo = (rho_lower - post_m) / sd_post;
-			double z_hi = (rho_upper - post_m) / sd_post;
-			double F_lo = R::pnorm(z_lo, 0.0, 1.0, 1, 0);
-			double F_hi = R::pnorm(z_hi, 0.0, 1.0, 1, 0);
-			double u = R::runif(0.0, 1.0) * (F_hi - F_lo) + F_lo;
-			// guard against numerical Phi^-1(0) or Phi^-1(1)
-			u = std::max(1e-12, std::min(1.0 - 1e-12, u));
-			double z = R::qnorm(u, 0.0, 1.0, 1, 0);
-			prop = post_m + sd_post * z;
-			// final safety clamp -- inverse-CDF should land in (lo, hi) by
-			// construction but be defensive against numerical edge cases
-			prop = std::max(rho_lower + 1e-12, std::min(rho_upper - 1e-12, prop));
+			prop = lame_ar_truncnorm_draw(post_m, sd_post, rho_lower, rho_upper);
 		}
 		rho_new(g - 1) = prop;
 	}
@@ -583,91 +635,12 @@ arma::vec sample_sigma_beta_cpp(arma::mat beta_path,
 		double b_post = prior_scale(g - 1) + 0.5 * S_g;
 		// IG draw: variance = b / Gamma(a, 1)
 		double gv = R::rgamma(a_post, 1.0);
-		double var_new = (gv > 0) ? (b_post / gv) : (b_post);
-		sigma_new(g - 1) = std::sqrt(std::max(var_new, 1e-12));
+		if (!(gv > 0.0) || !std::isfinite(gv))
+			Rcpp::stop("Invalid dynamic coefficient innovation precision draw.");
+		double var_new = b_post / gv;
+		if (!(var_new > 0.0) || !std::isfinite(var_new))
+			Rcpp::stop("Dynamic coefficient innovation variance is outside numerical range.");
+		sigma_new(g - 1) = std::sqrt(var_new);
 	}
 	return sigma_new;
-}
-
-// --- 5) EZ rebuild with per-period beta --------------------------------------
-
-//' Compute EZ when beta is time-varying
-//'
-//' Rebuild the (n x n x T) or (nA x nB x T) EZ cube using a per-period beta
-//' vector. Mirrors get_EZ_cpp / get_EZ_bip_cpp but accepts a (T x p) beta
-//' matrix where each row is the beta for that period.
-//'
-//' @param Xlist T-length list of design arrays (each n x n x p or nA x nB x p).
-//' @param beta_full_path (T x p) matrix of per-period beta. For coefficients
-//'   that are not in the dynamic block, the rows are identical (the static
-//'   beta replicated across all periods).
-//' @param a_mat (n_a x T) row effects (or repmat-ed static effects).
-//' @param b_mat (n_b x T) column effects.
-//' @param U_cube (n_u x R x T) row latent positions (or replicated-static).
-//' @param V_cube (n_v x R x T) column latent positions.
-//' @param G (R x R or RA x RB) interaction matrix (bipartite); identity for
-//'   unipartite.
-//' @param bipartite TRUE/FALSE.
-//' @param symmetric TRUE/FALSE.
-//' @return n_a x n_b x T cube of EZ values.
-// [[Rcpp::export]]
-arma::cube get_EZ_dynamic_beta_cpp(List Xlist,
-                                   arma::mat beta_full_path,
-                                   arma::mat a_mat,
-                                   arma::mat b_mat,
-                                   arma::cube U_cube,
-                                   arma::cube V_cube,
-                                   arma::mat G,
-                                   bool bipartite,
-                                   bool symmetric) {
-	const int T = Xlist.size();
-	if (T == 0) return arma::cube(0, 0, 0);
-	arma::cube X0 = as<arma::cube>(Xlist[0]);
-	const int n_a = X0.n_rows;
-	const int n_b = X0.n_cols;
-	const int p   = X0.n_slices;
-	arma::cube EZ(n_a, n_b, T, fill::zeros);
-	for (int t = 0; t < T; ++t) {
-		arma::cube Xt = as<arma::cube>(Xlist[t]);
-		arma::mat Et(n_a, n_b, fill::zeros);
-		// X*beta_t
-		if (p > 0 && beta_full_path.n_cols >= (arma::uword)p) {
-			arma::rowvec b_row = beta_full_path.row(t);
-			for (int k = 0; k < p; ++k) {
-				double bk = b_row(k);
-				if (bk != 0.0) Et += bk * Xt.slice(k);
-			}
-		}
-		// additive effects
-		if ((int)a_mat.n_rows == n_a && (int)a_mat.n_cols >= t + 1) {
-			Et.each_col() += a_mat.col(t);
-		}
-		if ((int)b_mat.n_rows == n_b && (int)b_mat.n_cols >= t + 1) {
-			Et.each_row() += b_mat.col(t).t();
-		}
-		// latent factors
-		if (U_cube.n_rows == (arma::uword)n_a && U_cube.n_slices >= (arma::uword)(t+1)
-		    && V_cube.n_rows == (arma::uword)n_b && V_cube.n_slices >= (arma::uword)(t+1)) {
-			arma::mat Ut = U_cube.slice(t);
-			arma::mat Vt = V_cube.slice(t);
-			if (bipartite) {
-				if (G.n_rows == Ut.n_cols && G.n_cols == Vt.n_cols
-				    && Ut.n_cols > 0 && Vt.n_cols > 0) {
-					Et += Ut * G * Vt.t();
-				}
-			} else {
-				if (Ut.n_cols > 0 && Ut.n_cols == Vt.n_cols) {
-					if (symmetric) {
-						// L is folded into U for the symmetric path; the caller
-						// supplies it that way (V = U for symmetric).
-						Et += Ut * Vt.t();
-					} else {
-						Et += Ut * Vt.t();
-					}
-				}
-			}
-		}
-		EZ.slice(t) = Et;
-	}
-	return EZ;
 }

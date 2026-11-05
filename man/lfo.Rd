@@ -14,8 +14,9 @@ Default is the last 3 periods (\code{tail(seq_len(T), 3L)}). Each
 period \eqn{t} must satisfy \eqn{t \ge 2}.}
 
 \item{refit}{Logical; if \code{TRUE} (default), refits on the
-training window. If \code{FALSE}, uses the original posterior
-means (a much rougher approximation).}
+training window. If \code{FALSE}, scores each period under the
+original fit, which was estimated on every period including the one
+being scored, so the elpd is optimistic.}
 
 \item{...}{Passed to the refit \code{lame()} call (typically
 \code{nscan}, \code{burn}, \code{odens}, \code{verbose}).}
@@ -25,7 +26,8 @@ A list with \code{elpd_lfo} (total summed elpd), \code{pointwise}
 (per-dyad log-density at each leave-out period; a list of numeric
 vectors, one per period -- \code{unlist(pointwise)} gives a flat vector
 suitable for \code{loo::loo_compare()}-style stacking),
-\code{p_lfo} (effective number of parameters), \code{per_period}
+\code{p_lfo} (\code{NA}; an effective parameter count is not
+estimated by this rolling-origin calculation), \code{per_period}
 (data frame with \code{period}, \code{elpd}, \code{n_obs}), and
 \code{periods} (the periods evaluated).
 }
@@ -36,12 +38,31 @@ model on the first \eqn{t - 1} periods (for each \eqn{t} in
 (elpd) of period \eqn{t} under the refit. Returns the summed elpd
 across all leave-out periods, along with per-period contributions.
 }
+\details{
+The one-step forecast is taken with the leave-out period's own dyadic
+covariates supplied as \code{newdata}. This matters because
+\code{predict(fit, h = 1)} called without \code{newdata} reuses the last
+fitted period's covariate array, which scores the held-out period against
+the wrong covariates whenever they vary over time.
+
+Each dyad is scored by its posterior predictive log density,
+\eqn{\log \frac{1}{S} \sum_s p(y \mid \eta_s)}, averaging the family
+density over the posterior draws of the forecast linear predictor rather
+than evaluating it once at the posterior-mean predictor. For
+normal and Poisson models, each predictor uses its matching residual
+variance draw. Poisson scoring integrates the lognormal observation
+effect and uses held-out exposure. Supported families are normal, binary
+and Poisson; symmetric networks score each unordered dyad once.
+Refits retain the original covariate roles, selected dynamic coefficients
+and user priors, recomputing empirical defaults on training data only.
+}
 \examples{
 \donttest{
 data(YX_bin_list)
-fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X, family = "binary", R = 0,
             dynamic_beta = "dyad",
-            nscan = 60, burn = 15, odens = 5, verbose = FALSE)
+            nscan = 60, burn = 15, odens = 5, verbose = FALSE, chains = 1)
 lfo_res <- lfo(fit, periods = 4L, refit = TRUE,
                nscan = 50, burn = 10, odens = 5, verbose = FALSE)
 print(lfo_res)

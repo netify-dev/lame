@@ -1,6 +1,5 @@
-# multi-panel lame() wrapper. fits each panel independently, then pools
-# the per-panel beta posteriors by inverse-precision averaging. with
-# k = 1 the wrapper falls through to lame() directly.
+# multi-panel lame(): fits each panel independently and pools the per-panel
+# beta posteriors by precision weighting; K = 1 falls through to lame()
 
 #' Multi-panel lame() with shared coefficients
 #'
@@ -44,11 +43,13 @@
 #' @examples
 #' \donttest{
 #' data(YX_bin_list)
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
 #' fit_multi <- lame_multi(
-#'   Y_list = list(YX_bin_list$Y, YX_bin_list$Y),
+#'   Y_list = list(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)),
+#'                 lapply(YX_bin_list$Y, function(y) 1 * (y > 0))),
 #'   Xdyad_list = list(YX_bin_list$X, YX_bin_list$X),
 #'   family = "binary", R = 0,
-#'   nscan = 100, burn = 25, odens = 5, verbose = FALSE)
+#'   nscan = 100, burn = 25, odens = 5, verbose = FALSE, chains = 1)
 #' dim(fit_multi$beta_shared)
 #' }
 #'
@@ -62,37 +63,36 @@ lame_multi <- function(Y_list, Xdyad_list, ...) {
 		cli::cli_abort("{.arg Xdyad_list} must have length K = {.val {K}}.")
 	}
 
-	# fast path for k == 1 -- fit a single panel and return the same slot
-	# schema as the k >= 2 path so downstream code iterating over k = 1, 2, ...
-	# does not break on the k = 1 case.
+	# a single panel is fit directly, returning the same slots as the pooled path
 	if (K == 1L) {
 		cli::cli_inform(c(
-			"i" = "{.fn lame_multi} with K = 1 falls through to {.fn lame}."))
+			"i" = "{.fn lame_multi} with K = 1 falls through to {.fn lame}."
+		))
 		fit <- lame(Y_list[[1L]], Xdyad = Xdyad_list[[1L]], ...)
 		B <- fit$BETA
 		is_3d <- length(dim(B)) == 3L
 		if (is_3d) {
-			beta_shared     <- apply(B, c(2, 3), mean)
+			beta_shared <- apply(B, c(2, 3), mean)
 			beta_shared_var <- apply(B, c(2, 3), stats::var)
 		} else {
-			beta_shared     <- colMeans(B)
+			beta_shared <- colMeans(B)
 			beta_shared_var <- apply(B, 2L, stats::var)
 		}
 		beta_shared_se <- sqrt(pmax(beta_shared_var, 0))
-		n_joint_draws  <- dim(B)[1L]
-		BETA_joint     <- B
-		# k=1 -> no pooling, deviations are zero by construction
+		n_joint_draws <- dim(B)[1L]
+		BETA_joint <- B
+		# one panel: no pooling, so the deviations are zero
 		zero_dev <- if (is_3d) array(0, dim(beta_shared)) else
 			rep(0, length(beta_shared))
 		res <- list(
-			fits             = list(fit),
-			beta_shared      = beta_shared,
-			beta_shared_var  = beta_shared_var,
-			beta_shared_se   = beta_shared_se,
-			BETA_joint       = BETA_joint,
-			beta_deviations  = list(zero_dev),
-			var_shrinkage    = 1,
-			K                = 1L
+			fits = list(fit),
+			beta_shared = beta_shared,
+			beta_shared_var = beta_shared_var,
+			beta_shared_se = beta_shared_se,
+			BETA_joint = BETA_joint,
+			beta_deviations = list(zero_dev),
+			var_shrinkage = 1,
+			K = 1L
 		)
 		class(res) <- c("lame_multi", "list")
 		return(res)
@@ -101,55 +101,71 @@ lame_multi <- function(Y_list, Xdyad_list, ...) {
 	# fit each panel independently
 	fits <- vector("list", K)
 	for (k in seq_len(K)) {
-		fits[[k]] <- suppressWarnings(suppressMessages(
-			lame(Y_list[[k]], Xdyad = Xdyad_list[[k]], ...)))
+		fits[[k]] <- tryCatch(
+			suppressWarnings(suppressMessages(
+				lame(Y_list[[k]], Xdyad = Xdyad_list[[k]], ...)
+			)),
+			lame_chain_unsettled = function(e) {
+				# the panel's own error, labelled by panel; the fit continues with lame_resume()
+				e$message <- paste0("Panel ", k, " of ", K, ": ", conditionMessage(e))
+				e$panel <- k
+				stop(e)
+			}
+		)
 	}
 
-	# information-form pooling. when panels are conditionally
-	# independent given a shared beta, the joint posterior precision is
-	# sum_k (1 / var_k) and the mean is the precision-weighted average.
+	# information-form pooling: with panels conditionally independent given a
+	# shared beta, the posterior precision is sum_k 1 / var_k and the mean is the
+	# precision-weighted average
 	beta_dims <- vapply(fits, function(f) length(dim(f$BETA)), integer(1L))
 	if (!all(beta_dims == beta_dims[1L])) {
 		cli::cli_abort("All panel BETA arrays must have the same dimensionality.")
 	}
 	pool_out <- if (beta_dims[1L] == 3L) {
-		# [iter x p x t] per panel
+		# [iter x p x T] per panel
 		p <- dim(fits[[1L]]$BETA)[2L]
 		T_per <- dim(fits[[1L]]$BETA)[3L]
 		mean_out <- matrix(0, p, T_per)
-		w_sum    <- matrix(0, p, T_per)
+		w_sum <- matrix(0, p, T_per)
 		for (k in seq_len(K)) {
 			means_k <- apply(fits[[k]]$BETA, c(2, 3), mean)
-			vars_k  <- apply(fits[[k]]$BETA, c(2, 3), stats::var)
-			prec_k  <- 1 / pmax(vars_k, 1e-8)
+			vars_k <- apply(fits[[k]]$BETA, c(2, 3), stats::var)
+			prec_k <- 1 / pmax(vars_k, 1e-8)
 			mean_out <- mean_out + prec_k * means_k
-			w_sum    <- w_sum + prec_k
+			w_sum <- w_sum + prec_k
 		}
-		list(mean = mean_out / pmax(w_sum, 1e-8),
-		     var  = 1 / pmax(w_sum, 1e-8))
+		list(
+			mean = mean_out / pmax(w_sum, 1e-8),
+			var = 1 / pmax(w_sum, 1e-8)
+		)
 	} else {
 		p <- ncol(fits[[1L]]$BETA)
 		mean_out <- numeric(p); w_sum <- numeric(p)
 		for (k in seq_len(K)) {
 			means_k <- colMeans(fits[[k]]$BETA)
-			vars_k  <- apply(fits[[k]]$BETA, 2L, stats::var)
-			prec_k  <- 1 / pmax(vars_k, 1e-8)
+			vars_k <- apply(fits[[k]]$BETA, 2L, stats::var)
+			prec_k <- 1 / pmax(vars_k, 1e-8)
 			mean_out <- mean_out + prec_k * means_k
-			w_sum    <- w_sum + prec_k
+			w_sum <- w_sum + prec_k
 		}
-		list(mean = mean_out / pmax(w_sum, 1e-8),
-		     var  = 1 / pmax(w_sum, 1e-8))
+		list(
+			mean = mean_out / pmax(w_sum, 1e-8),
+			var = 1 / pmax(w_sum, 1e-8)
+		)
 	}
-	beta_shared    <- pool_out$mean
+	beta_shared <- pool_out$mean
 	beta_shared_var <- pool_out$var
 	beta_shared_se <- sqrt(beta_shared_var)
-	# draws sampled from the pooled normal so downstream summarisation works
+	# draws from the pooled normal, so the usual summaries apply
 	n_joint_draws <- max(vapply(fits, function(f) dim(f$BETA)[1L], integer(1L)))
 	if (beta_dims[1L] == 3L) {
 		BETA_joint <- array(NA_real_, c(n_joint_draws, dim(beta_shared)[1L], dim(beta_shared)[2L]))
 		for (d in seq_len(n_joint_draws)) {
-			noise <- matrix(stats::rnorm(length(beta_shared)),
-			                nrow(beta_shared), ncol(beta_shared)) *
+			noise <- matrix(
+				stats::rnorm(length(beta_shared)),
+				nrow(beta_shared),
+				ncol(beta_shared)
+			) *
 				sqrt(beta_shared_var)
 			BETA_joint[d, , ] <- beta_shared + noise
 		}
@@ -168,31 +184,36 @@ lame_multi <- function(Y_list, Xdyad_list, ...) {
 		beta_deviations[[k]] <- means_k - beta_shared
 	}
 
-	# variance shrinkage ratio: under the conditional-independence
-	# assumption it is approximately 1/k when panels share beta.
+	# variance shrinkage ratio, about 1/K when panels share beta
 	var_shrinkage <- if (K >= 2L) {
 		# average panel posterior variance
 		avg_panel_var <- if (beta_dims[1L] == 3L) {
-			mean(vapply(seq_len(K), function(k)
-				mean(apply(fits[[k]]$BETA, c(2, 3), stats::var), na.rm = TRUE),
-				numeric(1L)))
+			mean(vapply(
+				seq_len(K),
+				function(k)
+					mean(apply(fits[[k]]$BETA, c(2, 3), stats::var), na.rm = TRUE),
+				numeric(1L)
+			))
 		} else {
-			mean(vapply(seq_len(K), function(k)
-				mean(apply(fits[[k]]$BETA, 2L, stats::var), na.rm = TRUE),
-				numeric(1L)))
+			mean(vapply(
+				seq_len(K),
+				function(k)
+					mean(apply(fits[[k]]$BETA, 2L, stats::var), na.rm = TRUE),
+				numeric(1L)
+			))
 		}
 		mean(beta_shared_var, na.rm = TRUE) / max(avg_panel_var, 1e-12)
 	} else 1
 
 	res <- list(
-		fits             = fits,
-		beta_shared      = beta_shared,
-		beta_shared_var  = beta_shared_var,
-		beta_shared_se   = beta_shared_se,
-		BETA_joint       = BETA_joint,
-		beta_deviations  = beta_deviations,
-		var_shrinkage    = var_shrinkage,
-		K                = K
+		fits = fits,
+		beta_shared = beta_shared,
+		beta_shared_var = beta_shared_var,
+		beta_shared_se = beta_shared_se,
+		BETA_joint = BETA_joint,
+		beta_deviations = beta_deviations,
+		var_shrinkage = var_shrinkage,
+		K = K
 	)
 	class(res) <- c("lame_multi", "list")
 	res
@@ -207,19 +228,25 @@ lame_multi <- function(Y_list, Xdyad_list, ...) {
 #' @export
 #' @method print lame_multi
 print.lame_multi <- function(x, digits = 3, ...) {
-	cli::cli_h2("Multi-panel lame fit (K = {.val {x$K}})")
-	cli::cli_text(cli::col_grey(paste0(
-		"Information-form pooled posterior. Joint variance shrinks by ",
-		"~ 1/K when panels share beta; observed ratio var_shared / avg_panel = ",
-		round(x$var_shrinkage, 3), " (expected ~ ", round(1/x$K, 3), ").")))
-	if (length(dim(x$beta_shared)) == 2L) {
-		cli::cli_text("Shared beta posterior mean (p x T):")
-	} else {
-		cli::cli_text("Shared beta posterior mean (p):")
-	}
-	print(round(x$beta_shared, digits))
-	cli::cli_text("")
-	cli::cli_text("Shared beta posterior SE:")
-	print(round(x$beta_shared_se, digits))
+	.lame_cli_stdout({
+		cli::cli_h2("Multi-panel lame fit (K = {.val {x$K}})")
+		cli::cli_text(cli::col_grey(paste0(
+			"Information-form pooled posterior. Joint variance shrinks by ",
+			"~ 1/K when panels share beta; observed ratio var_shared / avg_panel = ",
+			round(x$var_shrinkage, 3),
+			" (expected ~ ",
+			round(1 / x$K, 3),
+			")."
+		)))
+		if (length(dim(x$beta_shared)) == 2L) {
+			cli::cli_text("Shared beta posterior mean (p x T):")
+		} else {
+			cli::cli_text("Shared beta posterior mean (p):")
+		}
+		cli::cli_verbatim(utils::capture.output(print(round(x$beta_shared, digits))))
+		cli::cli_text("")
+		cli::cli_text("Shared beta posterior SE:")
+		cli::cli_verbatim(utils::capture.output(print(round(x$beta_shared_se, digits))))
+	})
 	invisible(x)
 }

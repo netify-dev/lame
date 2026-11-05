@@ -4,7 +4,7 @@
 \alias{simY_frn}
 \title{Simulate a relational matrix under a fixed rank nomination scheme}
 \usage{
-simY_frn(EZ, rho, odmax, YO)
+simY_frn(EZ, rho, odmax, YO = NULL, bipartite = FALSE)
 }
 \arguments{
 \item{EZ}{a square matrix giving the expected value of the latent Z matrix}
@@ -16,6 +16,9 @@ each node}
 
 \item{YO}{a square matrix identifying where missing values should be
 maintained}
+
+\item{bipartite}{whether row and column actors are disjoint; square
+diagonal cells remain eligible for nomination.}
 }
 \value{
 a square matrix, where higher values represent stronger

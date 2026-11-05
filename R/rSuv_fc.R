@@ -10,7 +10,7 @@
 #' @param Suv0 prior scale matrix (2R x 2R). Defaults to the identity,
 #'   a weakly informative choice.
 #' @param kappa0 prior degrees of freedom. Defaults to 2 + 2R, the
-#'   smallest value giving a proper prior for a 2R x 2R covariance.
+#'   smallest integer giving a finite prior mean for a 2R x 2R covariance.
 #' @return The sampled 2R x 2R covariance matrix for \eqn{[U, V]}: the
 #'   leading R x R block is the covariance of U, the trailing R x R block
 #'   is the covariance of V, and the off-diagonal blocks are the U-V
@@ -25,7 +25,7 @@
 #' @author lame authors
 #' @keywords internal
 #' @export rSuv_fc
-rSuv_fc <- function(U, V, Suv0=NULL, kappa0=NULL)  {
+rSuv_fc <- function(U, V, Suv0 = NULL, kappa0 = NULL) {
 	n <- nrow(U)
 	R <- ncol(U)
 	dim_uv <- 2 * R
@@ -41,6 +41,6 @@ rSuv_fc <- function(U, V, Suv0=NULL, kappa0=NULL)  {
 
 	wishart_draw <- rwish(solve(post_scale), post_df)
 	Suv <- solve(wishart_draw)
-
-	Suv
+	# symmetrise away the rounding asymmetry left by solve()
+	(Suv + t(Suv)) / 2
 }

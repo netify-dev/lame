@@ -28,6 +28,14 @@ conversion are applied per element. The additive-effect summaries
 \code{APM}/\code{BPM} are named numeric vectors and are never converted.
 Names and dimnames are preserved.
 }
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, verbose = FALSE, chains = 1)
+fit_small <- compact_ame(fit)
+}
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

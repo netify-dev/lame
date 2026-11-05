@@ -4,7 +4,7 @@
 \alias{gof_stats}
 \title{Goodness of fit statistics}
 \usage{
-gof_stats(Y, mode = NULL, custom_gof = NULL)
+gof_stats(Y, mode = NULL, custom_gof = NULL, family = NULL)
 }
 \arguments{
 \item{Y}{a relational data matrix. For unipartite networks, a square n x n
@@ -20,6 +20,10 @@ square = unipartite). Note: square bipartite networks must specify mode="biparti
 \item{custom_gof}{optional function or list of functions to compute custom GOF statistics.
 Each function should take Y as input and return a named numeric value or vector.
 Custom statistics will be added to the standard statistics.}
+
+\item{family}{optional outcome family, passed to bipartite diagnostics.
+Gaussian outcomes use \code{four.cycle.dep}, the mean standardized
+product around fully observed rectangles; see \code{\link{gof_stats_bipartite}}.}
 }
 \value{
 A named numeric vector containing goodness-of-fit statistics.
@@ -79,15 +83,15 @@ are excluded from matrix products in triadic calculations.
 }
 \examples{
 
-data(YX_nrm) 
+data(YX_nrm)
 
 # Auto-detect unipartite
-gof_stats(YX_nrm$Y) 
+gof_stats(YX_nrm$Y)
 
 # Bipartite (rectangular) networks are auto-detected; mode can also
 # be given explicitly (required when a bipartite network is square)
 Y_bip <- matrix(rnorm(120), 10, 12)
-gof_stats(Y_bip, mode = "bipartite")
+gof_stats(Y_bip, mode = "bipartite", family = "normal")
 
 # Custom GOF function
 my_stat <- function(Y) { c(my_measure = sum(Y > 0, na.rm = TRUE)) }

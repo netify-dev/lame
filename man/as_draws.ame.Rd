@@ -17,7 +17,8 @@
 
 \item{include}{character; which parameter blocks to include. Default
 \code{c("beta", "vc")}; can also include \code{"rho_uv"}, \code{"rho_ab"}
-for dynamic LAME fits.}
+for dynamic LAME fits, and \code{"rho_path"} (the per-period residual
+correlation draws) for \code{dynamic_rho = TRUE} fits.}
 
 \item{...}{ignored.}
 }
@@ -30,12 +31,12 @@ Reshapes the BETA + VC posterior draws stored on an \code{ame} or
 \code{lame} fit into a \code{posterior::draws_array} (or
 \code{draws_df}-equivalent) suitable for downstream packages that
 consume that representation. Multi-chain fits
-(\code{ame(..., n_chains = N)}) are reshaped with chain as a separate
+(\code{ame(..., chains = N)}, two chains by default) are reshaped with chain as a separate
 dimension; single-chain fits are returned as a single-chain
 \code{draws_array}.
 }
 \details{
-The reshape uses \code{fit$chain_indicator} (set when \code{n_chains > 1})
+The reshape uses \code{fit$chain_indicator} (set when \code{chains > 1})
 to keep chain identity separate so within-chain Rhat / ESS estimates and
 chain-coloured traceplots resolve correctly.
 }

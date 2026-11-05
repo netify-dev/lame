@@ -1,4 +1,4 @@
-# coerce a 2d dyadic covariate into a 3d array with 1 slice
+# coerce a 2d dyadic covariate into a 3d array with one slice
 .as_3d_array <- function(M, name = "X1") {
 	if (is.null(M)) return(NULL)
 	if (length(dim(M)) == 3L) return(M)
@@ -15,7 +15,7 @@
 	cli::cli_abort("Xdyad element must be matrix or 3D array")
 }
 
-# coerce every time-slice to a 3d array, naming 3rd dim if missing
+# coerce every time slice to a 3d array, naming the third dimension if missing
 .coerce_Xdyad_3d <- function(Xdyad) {
 	if (is.null(Xdyad)) return(NULL)
 	lapply(seq_along(Xdyad), function(t) {
@@ -42,23 +42,29 @@
 #' @param Xrow sender covariates in list format
 #' @param Xcol receiver covariates in list format
 #' @return transforms Y, Xdyad, Xrow, and Xcol to arrays
+#' @examples
+#' n <- 12
+#' actors <- paste0("a", 1:n)
+#' Y <- lapply(1:3, function(t) {
+#'   m <- matrix(rnorm(n * n), n, n)
+#'   dimnames(m) <- list(actors, actors)
+#'   m
+#' })
+#' names(Y) <- paste0("t", 1:3)
+#' out <- list_to_array(actors, Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL)
+#' dim(out$Y)
 #' @author Shahryar Minhas
 #'
 #' @export list_to_array
 
-list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
+list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol) {
 
-	####
-	# dims
 	N <- length(Y)
 	n <- length(actors)
-	pdLabs <- names(Y)
-	####
+	pd_labs <- names(Y)
 
-	####
-	# nodal covariates supplied as data.frames (ame() accepts these) are
-	# coerced to numeric matrices; default sequential rownames are treated
-	# as positional, not as actor names
+	# nodal covariates given as data.frames become numeric matrices; default
+	# sequential rownames are positional, not actor names
 	.coerce_df_slices <- function(lst, what) {
 		if (is.null(lst)) return(NULL)
 		lapply(lst, function(x) {
@@ -67,7 +73,8 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 			if (!is.numeric(m)) {
 				cli::cli_abort(c(
 					"{.arg {what}} contains non-numeric columns.",
-					"i" = "Convert factors/characters to numeric indicators before fitting."))
+					"i" = "Convert factors/characters to numeric indicators before fitting."
+				))
 			}
 			if (identical(rownames(m), as.character(seq_len(nrow(m))))) {
 				rownames(m) <- NULL
@@ -77,79 +84,88 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol){
 	}
 	Xrow <- .coerce_df_slices(Xrow, "Xrow")
 	Xcol <- .coerce_df_slices(Xcol, "Xcol")
-	####
 
-	####
-	# convert y into array format. a slice without row/column names cannot be
-	# placed by name -- rather than silently producing an all-na array, fall
-	# back to positional placement (assuming the slice is already in `actors`
-	# order) or error if the dimensions do not even match.
-	tmp <- array(NA, dim=c(n,n,N),
-							 dimnames=list( actors, actors, names(Y) ) )
-	for(t in 1:N){
+	# place each Y slice by name; a slice without dimnames is placed by position
+	# when its dimensions match `actors`, and is an error otherwise
+	tmp <- array(
+		NA,
+		dim = c(n, n, N),
+		dimnames = list(actors, actors, names(Y))
+	)
+	for (t in 1:N) {
 		rn <- rownames(Y[[t]])
-		if(is.null(rn)){
-			if(!all(dim(Y[[t]]) == n)){
-				cli::cli_abort(paste0("list_to_array(): Y slice ", t, " has no actor names and is ",
-				     "not ", n, "x", n, "; add dimnames so actors can be matched."))
+		if (is.null(rn)) {
+			if (!all(dim(Y[[t]]) == n)) {
+				cli::cli_abort(paste0(
+					"list_to_array(): Y slice ",
+					t,
+					" has no actor names and is ",
+					"not ",
+					n,
+					"x",
+					n,
+					"; add dimnames so actors can be matched."
+				))
 			}
-			tmp[,,t] <- Y[[t]]
+			tmp[, , t] <- Y[[t]]
 		} else {
-			tmp[rn,rn,t] <- Y[[t]]
+			tmp[rn, rn, t] <- Y[[t]]
 		}
 	}
 	Y <- tmp
-	####
 
-	####
-	# coerce and convert xdyad
+	# convert Xdyad
 	Xdyad <- .coerce_Xdyad_3d(Xdyad)
 
-	if(!is.null(Xdyad)){
+	if (!is.null(Xdyad)) {
 		get_third_names <- function(x) {
 			dn <- dimnames(x)
 			if (length(dn) >= 3L && !is.null(dn[[3]])) dn[[3]] else paste0("X", seq_len(dim(x)[3]))
 		}
 
 		var_names <- get_third_names(Xdyad[[1]])
-		tmp <- array(NA, dim=c(n,n,dim(Xdyad[[1]])[3],N),
-								 dimnames=list( actors, actors, var_names, pdLabs ) )
-		for(t in 1:N){
+		tmp <- array(
+			NA,
+			dim = c(n, n, dim(Xdyad[[1]])[3], N),
+			dimnames = list(actors, actors, var_names, pd_labs)
+		)
+		for (t in 1:N) {
 			rn <- rownames(Xdyad[[t]])
-			if(is.null(rn)){ tmp[,,,t] <- Xdyad[[t]] }
-			else { tmp[rn,rn,,t] <- Xdyad[[t]] }
+			if (is.null(rn)) { tmp[, , , t] <- Xdyad[[t]] }
+			else { tmp[rn, rn, , t] <- Xdyad[[t]] }
 		}
 		Xdyad <- tmp
 	}
-	####
 
-	####
-	# convert xrow
-	if(!is.null(Xrow)){
-		tmp <- array(NA, dim=c(n, dim(Xrow[[1]])[2], N),
-			dimnames=list( actors, colnames(Xrow[[1]]), pdLabs) )
-		for(t in 1:N){
+	# convert Xrow
+	if (!is.null(Xrow)) {
+		tmp <- array(
+			NA,
+			dim = c(n, dim(Xrow[[1]])[2], N),
+			dimnames = list(actors, colnames(Xrow[[1]]), pd_labs)
+		)
+		for (t in 1:N) {
 			rn <- rownames(Xrow[[t]])
-			if(is.null(rn)){ tmp[,,t] <- Xrow[[t]] }
-			else { tmp[rn,,t] <- Xrow[[t]] }
+			if (is.null(rn)) { tmp[, , t] <- Xrow[[t]] }
+			else { tmp[rn, , t] <- Xrow[[t]] }
 		}
 		Xrow <- tmp
 	}
-	####
 
-	####
-	# convert xcol
-	if(!is.null(Xcol)){
-		tmp <- array(NA, dim=c(n, dim(Xcol[[1]])[2], N),
-			dimnames=list( actors, colnames(Xcol[[1]]), pdLabs) )
-		for(t in 1:N){
+	# convert Xcol
+	if (!is.null(Xcol)) {
+		tmp <- array(
+			NA,
+			dim = c(n, dim(Xcol[[1]])[2], N),
+			dimnames = list(actors, colnames(Xcol[[1]]), pd_labs)
+		)
+		for (t in 1:N) {
 			rn <- rownames(Xcol[[t]])
-			if(is.null(rn)){ tmp[,,t] <- Xcol[[t]] }
-			else { tmp[rn,,t] <- Xcol[[t]] }
+			if (is.null(rn)) { tmp[, , t] <- Xcol[[t]] }
+			else { tmp[rn, , t] <- Xcol[[t]] }
 		}
 		Xcol <- tmp
 	}
-	####
 
-	return( list(Y=Y, Xdyad=Xdyad, Xrow=Xrow, Xcol=Xcol) )
+	return(list(Y = Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol))
 }

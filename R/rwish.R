@@ -25,12 +25,9 @@
 #'
 #' @export rwish
 rwish <- function(S0, nu = dim(S0)[1] + 2) {
-	# Bartlett decomposition: draw a lower-triangular factor A whose
-	# squared diagonal entries are chi-square with decreasing degrees
-	# of freedom and whose strictly-lower entries are standard normal,
-	# then rotate by the Cholesky factor of the scale matrix.
+	# Bartlett decomposition: chi-square diagonal, normal lower triangle, rotated by the Cholesky factor of S0
 	p <- nrow(S0)
-	lower_factor <- t(chol(S0))            # S0 = lower_factor %*% t(lower_factor)
+	lower_factor <- t(chol(S0)) # S0 = lower_factor %*% t(lower_factor)
 
 	bartlett <- matrix(0, p, p)
 	for (i in seq_len(p)) {
@@ -41,6 +38,6 @@ rwish <- function(S0, nu = dim(S0)[1] + 2) {
 		bartlett[below] <- rnorm(sum(below))
 	}
 
-	root <- lower_factor %*% bartlett      # W = root %*% t(root) ~ Wishart(S0, nu)
+	root <- lower_factor %*% bartlett # W = root %*% t(root) ~ Wishart(S0, nu)
 	tcrossprod(root)
 }

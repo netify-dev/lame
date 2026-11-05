@@ -2,13 +2,13 @@
 % Please edit documentation in R/rhat_dynamic.R
 \name{rhat_dynamic_beta}
 \alias{rhat_dynamic_beta}
-\title{Multivariate split-R-hat for dynamic_beta coefficient paths}
+\title{Multivariate R-hat for dynamic_beta coefficient paths}
 \usage{
 rhat_dynamic_beta(fit_list, coefs = NULL)
 }
 \arguments{
 \item{fit_list}{A list of fitted \code{lame} objects from
-\code{lame_parallel(..., chains = K)}, or any \code{ame_chain_list}
+\code{lame_parallel(..., n_chains = K, combine_method = "list")}, or any \code{ame_chain_list}
 produced by re-running \code{lame()} with different seeds.}
 
 \item{coefs}{Optional character vector of coefficient names to
@@ -19,7 +19,9 @@ Data frame with one row per coefficient: \code{coef},
 \code{rhat_mvt}, \code{rhat_max_univariate}, \code{n_chains},
 \code{n_iter_per_chain}, \code{n_periods}. \code{rhat_mvt} is the
 Brooks-Gelman multivariate statistic; \code{rhat_max_univariate}
-is the max over per-(k,t) split-R-hat values for comparison.
+is the max over periods of the split rank-normalised R-hat of each
+\eqn{(k, t)} series, the statistic of \code{fit$rhat} and of the
+between-chain gate of \code{\link{lame}}.
 }
 \description{
 Given one or more multi-chain \code{lame} fits whose \code{$BETA}
@@ -44,10 +46,11 @@ For nearly degenerate covariances we add a tiny ridge to \eqn{W_k}.
 data(YX_bin_list)
 # note: pass seed = to lame() -- an external set.seed() does not vary
 # the sampler, so it would produce identical chains
+# each fit is one chain (chains = 1); rhat_dynamic_beta() compares them
 fit_list <- lapply(c(1L, 2L), function(s) {
-  lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
+  lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X, family = "binary", R = 0,
        dynamic_beta = "dyad", seed = s,
-       nscan = 60, burn = 15, odens = 5, verbose = FALSE)
+       nscan = 60, burn = 15, odens = 5, verbose = FALSE, chains = 1)
 })
 rhat_dynamic_beta(fit_list)
 }

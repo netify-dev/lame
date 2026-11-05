@@ -20,7 +20,7 @@
 #' @author lame authors
 rZ_ord_fc <- function(Z, EZ, rho, Y) {
 	n <- nrow(Z)
-	# ordered distinct categories, and a 1..K category index per cell (NA kept)
+	# ordered categories and the 1..K category index of each cell (NA kept)
 	ranks <- sort(unique(c(Y)))
 	n_cat <- length(ranks)
 	cat_of <- matrix(match(Y, ranks), n, n)
@@ -28,8 +28,7 @@ rZ_ord_fc <- function(Z, EZ, rho, Y) {
 	cond_sd <- sqrt(1 - rho^2)
 	halves <- list(upper.tri(Z), lower.tri(Z))
 
-	# visit the missing group (0) and each category in a random order so the
-	# rank windows are read from a freshly stirred configuration each sweep
+	# visit the missing group (0) and each category in random order
 	for (g in sample(c(0L, seq_len(n_cat)))) {
 		if (g == 0L) {
 			pick <- is.na(cat_of)
@@ -42,19 +41,13 @@ rZ_ord_fc <- function(Z, EZ, rho, Y) {
 			floor_z <- if (any(under)) max(Z[under]) else -Inf
 			ceil_z <- if (any(over)) min(Z[over]) else Inf
 		}
-		# refresh the two triangles separately: updating one triangle changes
-		# the transpose-based conditional mean seen by the other
+		# update each triangle in turn, since one sets the conditional mean of the other
 		for (mask in halves) {
 			cells <- pick & mask
 			if (!any(cells)) next
 			cmean <- EZ[cells] + rho * (t(Z)[cells] - t(EZ)[cells])
-			# work on the unit-variance scale, then rescale by cond_sd
-			draw <- cond_sd * rtnorm_interval_logp(cmean / cond_sd,
-				floor_z / cond_sd, ceil_z / cond_sd)
-			# defend against a non-finite draw from an extreme window by
-			# holding the current value in place
-			stuck <- !is.finite(draw)
-			if (any(stuck)) draw[stuck] <- Z[cells][stuck]
+			# truncated draw between the neighbouring categories
+			draw <- .lame_checked_truncated_gaussian(cmean, cond_sd, floor_z, ceil_z)
 			Z[cells] <- draw
 		}
 	}

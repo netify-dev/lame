@@ -32,3 +32,10 @@ uncertainty information, if any, is available. Methods exist for
 \code{ame_als} fits (the fast block coordinate descent estimator) and
 \code{boot_ame} bootstrap objects.
 }
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+fit <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
+sampler_describe(fit)
+}

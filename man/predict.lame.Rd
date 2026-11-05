@@ -10,7 +10,7 @@
   type = c("response", "link"),
   h = 0L,
   by_draw = FALSE,
-  interval = c("none", "credible"),
+  interval = c("none", "credible", "prediction"),
   probs = c(0.025, 0.975),
   newexposure = NULL,
   n_draws = NULL,
@@ -21,10 +21,12 @@
 \arguments{
 \item{object}{Fitted LAME model object.}
 
-\item{newdata}{Optional list of \code{T} dyadic covariate arrays
-(\code{[n_row, n_col, p]} each, with the same actors as the fit) to
-compute counterfactual predictions. When \code{NULL}, the training-data
-predictions are returned.}
+\item{newdata}{Optional dyadic covariate arrays. With \code{h = 0}, a list of
+\code{T} arrays (\code{[n_row, n_col, p]} each, same actors as the fit) for
+counterfactual in-sample predictions; \code{NULL} returns the training-data
+predictions. With \code{h > 0}, a list of \code{h} arrays for the future
+periods; \code{NULL} reuses the last fitted period's covariates, which
+scores the forecast against stale covariates whenever they vary over time.}
 
 \item{type}{Character; \code{"response"} (default) or \code{"link"}.}
 
@@ -33,22 +35,44 @@ returns in-sample predictions as before. When \code{h > 0}, propagates
 the AR(1) (or RW1) state-space model forward by \code{h} periods and
 returns a list of \code{h} matrices (one per future period). Requires
 at least one dynamic component on the fit. Warns when posterior
-\eqn{\rho_\beta} is near 1.}
+\eqn{\rho_\beta} is near 1.
+Coefficient innovations retain the fitted design-based scale. Dynamic
+coefficient forecasts require equally spaced AR(1) or RW1 periods;
+irregular-period, RW2, Matern and actor-specific coefficient laws are
+refused until their future transition is implemented.}
 
 \item{by_draw}{When \code{TRUE} and \code{h > 0}, returns an
 \code{n x n x h x n_draws} array of per-draw forecasts instead of
 per-period means.}
 
-\item{interval}{One of \code{"none"} (default) or \code{"credible"}.
-When \code{h > 0} and \code{"credible"}, the per-period output is
-a list of length-3 lists with \code{$lower}, \code{$median},
-\code{$upper} matrices computed at the \code{probs} quantiles
-across posterior draws. Ignored for in-sample (\code{h = 0})
-predictions.}
+\item{interval}{One of \code{"none"} (default), \code{"credible"} or
+\code{"prediction"}. When \code{h > 0}, the per-period output is a list
+of length-3 lists with \code{$lower}, \code{$median}, \code{$upper}
+matrices computed at the \code{probs} quantiles across posterior draws.
+\code{"credible"} is the interval of the conditional mean
+\eqn{E[Y_{T+h} \mid \theta_{T+h}]} given each propagated parameter state:
+it carries the posterior uncertainty in that state
+and adds no observation noise, so it is narrower than the spread of
+realised outcomes and under-covers them (on simulated 30-actor normal
+panels its nominal 95 percent interval covered 51 to 61 percent of
+held-out cells). \code{"prediction"} adds the outcome noise on top of
+that mean: a draw from \eqn{N(\eta, ve)} per posterior draw and cell for
+\code{"normal"}, a count from \eqn{Poisson(e^{z})} with
+\eqn{z \sim N(\eta, ve)} for \code{"poisson"}. For explicit ordinal models,
+credible intervals summarize numeric category expectations using matched
+saved cutpoints; prediction intervals summarize category draws including
+unit Gaussian observation noise. For \code{"binary"}, \code{"cbin"},
+\code{"frn"} and data-induced ordinal models, this option retains the
+existing credible interval convention and reports that choice. Ignored for in-sample
+(\code{h = 0}) predictions.
+Outcome forecasts preserve symmetric and within-dyad observation dependence.
+Their unipartite diagonals are missing; bipartite diagonal cells are retained.
+They are refused for \code{dynamic_rho = TRUE}, which supplies no law
+for future reciprocity; conditional-mean forecasts remain available.}
 
 \item{probs}{Length-2 vector of lower / upper quantiles for the
-credible interval when \code{interval = "credible"}. Default
-\code{c(0.025, 0.975)}.}
+interval when \code{interval} is \code{"credible"} or
+\code{"prediction"}. Default \code{c(0.025, 0.975)}.}
 
 \item{newexposure}{Optional length-\code{h} non-negative numeric
 vector of future-period exposures (Poisson only). When omitted
@@ -65,9 +89,40 @@ making forecasts reproducible. Ignored when \code{h = 0}.}
 \item{...}{Additional arguments (not used).}
 }
 \value{
-List of prediction matrices (one per time point).
+With \code{interval = "none"} and \code{by_draw = FALSE}, a list of
+prediction matrices (one per period, or per horizon when \code{h > 0}).
+With \code{by_draw = TRUE}, an \code{[n_row, n_col, h, n_draws]} array.
+With \code{interval = "credible"} or \code{"prediction"}, a list of
+\code{h} lists holding \code{$lower}, \code{$median} and \code{$upper}
+matrices.
 }
 \description{
 Generate predictions from a fitted longitudinal AME model. Returns a list of
 matrices (one per time point) on the requested scale.
+}
+\details{
+For \code{h > 0} only \eqn{U_t V_t'} is identified, so each
+posterior draw of the coordinates carries its own rotation and sign and
+the product of the posterior-mean coordinates falls well short of the
+posterior mean of the product (\code{UVPM}, or \code{ULUPM} on symmetric
+fits). Under the element-wise AR(1),
+\eqn{E[u_{T+h} v_{T+h}'] = \rho_{uv}^{2h} E[u_T v_T']} off the diagonal,
+so the forecast carries \code{UVPM} at period \eqn{T} forward by
+\eqn{\rho_{uv}^{2h}} and each draw's propagated coordinates enter only as
+the deviation around that mean. Static positions are carried forward
+unchanged. Dynamic additive effects are propagated as
+their actor level plus an AR(1) deviation.
+
+For MCMC Poisson models the response is the mean count of a cell in a
+period, \eqn{e_t \exp(\eta + \sigma^2 / 2)}, with \eqn{e_t} the exposure
+of the period (\code{period_exposure}; one without), \eqn{\eta} the
+posterior mean of the linear predictor and \eqn{\sigma^2} the posterior
+mean of the residual variance. The stored \code{YPM} holds it in sample,
+\code{newdata} predictions use the same form at the new linear predictor,
+and a forecast point (\code{h > 0}) uses the means of the forecast linear
+predictor and of the variance over the forecast draws, and the exposure
+\code{newexposure}. With \code{by_draw = TRUE} the draws' own conditional
+means, \eqn{e \exp(\eta_s + \sigma_s^2 / 2)}, are returned and
+\code{interval = "credible"} summarizes them; with
+\code{interval = "prediction"} the summaries are of simulated counts.
 }

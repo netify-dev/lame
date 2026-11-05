@@ -1,23 +1,7 @@
-# bipartite (rectangular) versions of the family z-sampling helpers.
-#
-# the unipartite-asymmetric samplers in rz_<family>_fc.r hardcode the
-# square n x n assumption: they split z into upper/lower triangles,
-# couple each (i,j) with its reciprocal (j,i) through `rho` and a
-# transposed term `t(z)`, and sample the diagonal separately. none of
-# that applies bipartite: y is na x nb rectangular, there is no
-# "reciprocal cell" (no t(z) term), there is no diagonal, and rho is
-# always 0 (the bipartite path drops dyadic correlation).
-#
-# each rectangular sampler below mirrors its unipartite sibling's
-# constraint structure but drops the triangle / diagonal / rho machinery.
-# conditional draws are independent truncated normals once the row-level
-# rank-cone constraints (for cbin/frn) have been resolved.
-#
-# the cutpoint convention for `ordinal` matches the existing unipartite
-# helper: cutpoints are *data-induced* (the boundaries are the order
-# statistics of z within adjacent rank classes), not separately
-# parameterised. this keeps the bipartite path consistent with the
-# square ordinal sampler the rest of the codebase assumes.
+# bipartite (rectangular) versions of the family Z samplers. with no
+# reciprocal cells, no diagonal and no rho, each draw is an independent
+# truncated normal once the row-level rank constraints (cbin, frn) are
+# resolved; ordinal cutpoints are data-induced, as in the square sampler
 
 #' Exact truncated-normal draw on (lb, ub) via the log.p-scale inverse CDF
 #'
@@ -40,29 +24,38 @@ rtnorm_interval_logp <- function(ez, lb, ub) {
 	lb <- rep_len(lb, m)
 	ub <- rep_len(ub, m)
 	z <- numeric(m)
-	# guard the open unit interval (r's runif never returns 0 or 1, but
-	# the clamp costs nothing and removes the theoretical log(0) case)
+	# keep u inside the open unit interval so log(0) cannot occur
 	u <- pmin(pmax(stats::runif(m), .Machine$double.xmin), 1 - 1e-16)
-	# non-finite ez falls through to the upper-tail branch and yields
-	# nan instead of erroring in the branch test
+	# non-finite EZ falls to the upper-tail branch and yields NaN rather than an error
 	lo <- !is.na(ub - ez) & ((ub - ez) <= 0)
 	if (any(lo)) {
 		# interval in the lower tail: work with lower-tail log masses
 		la <- stats::pnorm(lb[lo] - ez[lo], log.p = TRUE)
 		lc <- stats::pnorm(ub[lo] - ez[lo], log.p = TRUE)
 		r <- exp(la - lc)
-		z[lo] <- ez[lo] + stats::qnorm(lc + log(u[lo] + (1 - u[lo]) * r),
-			log.p = TRUE)
+		z[lo] <- ez[lo] + stats::qnorm(
+			lc + log(u[lo] + (1 - u[lo]) * r),
+			log.p = TRUE
+		)
 	}
 	if (any(!lo)) {
 		# interval reaching into the upper tail: mirrored survival form
-		lqa <- stats::pnorm(lb[!lo] - ez[!lo], lower.tail = FALSE,
-			log.p = TRUE)
-		lqb <- stats::pnorm(ub[!lo] - ez[!lo], lower.tail = FALSE,
-			log.p = TRUE)
+		lqa <- stats::pnorm(
+			lb[!lo] - ez[!lo],
+			lower.tail = FALSE,
+			log.p = TRUE
+		)
+		lqb <- stats::pnorm(
+			ub[!lo] - ez[!lo],
+			lower.tail = FALSE,
+			log.p = TRUE
+		)
 		r <- exp(lqb - lqa)
-		z[!lo] <- ez[!lo] + stats::qnorm(lqa + log((1 - u[!lo]) + u[!lo] * r),
-			lower.tail = FALSE, log.p = TRUE)
+		z[!lo] <- ez[!lo] + stats::qnorm(
+			lqa + log((1 - u[!lo]) + u[!lo] * r),
+			lower.tail = FALSE,
+			log.p = TRUE
+		)
 	}
 	z
 }
@@ -88,28 +81,25 @@ rtnorm_interval_logp <- function(ez, lb, ub) {
 #' @keywords internal
 rZ_pois_bip_fc <- function(Z, EZ, s2, Y, log_exposure = 0) {
 	nA <- nrow(Z); nB <- ncol(Z)
-	# propose
+	# random-walk proposal
 	Zp <- Z + matrix(stats::rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-	# log-prior under n(ez, s2)
-	lp_curr <- -0.5 / s2 * (Z  - EZ)^2
+	# log prior under N(EZ, s2)
+	lp_curr <- -0.5 / s2 * (Z - EZ)^2
 	lp_prop <- -0.5 / s2 * (Zp - EZ)^2
-	# log-likelihood: poisson(exp(z + log_exposure)); guarded against
-	# overflow at exp(z) when z is large
+	# Poisson(exp(Z + log_exposure)) log likelihood, guarded against overflow
 	obs <- !is.na(Y)
-	mu_curr <- exp(pmin(Z  + log_exposure, 30))
-	mu_prop <- exp(pmin(Zp + log_exposure, 30))
+	eta_curr <- Z + log_exposure
+	eta_prop <- Zp + log_exposure
 	ll_curr <- matrix(0, nA, nB)
 	ll_prop <- matrix(0, nA, nB)
-	ll_curr[obs] <- stats::dpois(Y[obs], mu_curr[obs], log = TRUE)
-	ll_prop[obs] <- stats::dpois(Y[obs], mu_prop[obs], log = TRUE)
-	# accept ratio
+	ll_curr[obs] <- .poisson_log_mass(Y[obs], eta_curr[obs])
+	ll_prop[obs] <- .poisson_log_mass(Y[obs], eta_prop[obs])
+	# Metropolis acceptance
 	lr <- (lp_prop + ll_prop) - (lp_curr + ll_curr)
 	lh <- log(matrix(stats::runif(nA * nB), nA, nB))
-	accept <- lr > lh
+	accept <- !is.na(lr) & lr > lh
 	Z[accept] <- Zp[accept]
-	# resample na cells from the prior (parity with rz_pois_fc_cpp behaviour
-	# for missing cells; uninformative draws keep ez-conditional bookkeeping
-	# valid downstream)
+	# missing cells are drawn from the prior, as in rZ_pois_fc_cpp
 	if (any(!obs)) {
 		Z[!obs] <- stats::rnorm(sum(!obs), EZ[!obs], sqrt(s2))
 	}
@@ -144,8 +134,8 @@ rZ_ord_bip_fc <- function(Z, EZ, Y) {
 		up <- W == w
 		if (!any(up)) next
 		ez <- EZ[up]
-		# tail-stable truncated draw: the plain pnorm/qnorm form emits
-		# +/-inf once a bound saturates the normal cdf
+		# tail-stable truncated draw; the plain pnorm/qnorm form gives +/-Inf once a
+		# bound saturates the normal cdf
 		Z[up] <- rtnorm_interval_logp(ez, lb, ub)
 	}
 	Z
@@ -164,30 +154,43 @@ rZ_ord_bip_fc <- function(Z, EZ, Y) {
 #' @param Y observed 0/1 matrix (nA x nB); \code{NA} entries resampled
 #'   from the unconstrained prior.
 #' @param odmax row-wise maximum nominations (length nA or scalar).
-#' @param odobs row-wise observed outdegree (length nA).
+#' @param odobs per-actor count of nominations the actor has made: the
+#'   observed nominations plus the hidden cells whose current latent value
+#'   is positive (the cells of an actor absent from the slice never count;
+#'   see \code{.lame_nom_room}). A row whose count falls short of \code{odmax} has unused
+#'   nomination slots, so its non-nominated cells are held below zero.
 #' @return updated nA x nB latent matrix.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @keywords internal
 rZ_cbin_bip_fc <- function(Z, EZ, Y, odmax, odobs) {
+	Z <- .lame_nom_feasible(Z, Y, NULL, odmax, odobs, TRUE)
+	# rows with hidden cells: as in rZ_cbin_fc (see R/rZ_nomination_hidden.R)
+	hid <- .lame_nom_hidden_cells(Y, TRUE)
+	if (any(hid)) {
+		Ya <- .lame_cbin_implied_labels(Z, Y, odmax, hid)
+		Z <- .rZ_cbin_bip_sweep(Z, EZ, Ya, odmax, rowSums(!is.na(Ya) & Ya > 0))
+		return(.lame_cbin_hidden_moves(Z, EZ, 0, Y, odmax, hid, TRUE))
+	}
+	.rZ_cbin_bip_sweep(Z, EZ, Y, odmax, odobs)
+}
+# the complete-data draw of rZ_cbin_bip_fc
+.rZ_cbin_bip_sweep <- function(Z, EZ, Y, odmax, odobs) {
 	nA <- nrow(Z); nB <- ncol(Z)
 	for (y in sample(0:1)) {
 		if (y == 1L) {
 			ub_mat <- matrix(Inf, nA, nB)
-			# the lower bound for a y=1 cell is the max z among y=0 cells in the
-			# same row (so nominees dominate non-nominees), with floor 0. rows
-			# with no y=0 cells yield max(numeric(0)) = -inf, then the pmax(., 0)
-			# floor makes lb = 0 anyway, which is what we want
-			z_zeros <- Z - (Y != 0) * (Inf ^ (Y != 0))
+			# a y = 1 cell's lower bound is the largest Z among the row's y = 0 cells,
+			# floored at 0 (a row without y = 0 cells gives -Inf, lifted to 0)
+			z_zeros <- Z - (Y != 0) * (Inf^(Y != 0))
 			lbm_row <- suppressWarnings(apply(z_zeros, 1, max, na.rm = TRUE))
 			lb_mat <- matrix(pmax(lbm_row, 0), nA, nB)
 		} else {
 			lb_mat <- matrix(-Inf, nA, nB)
-			z_ones <- Z + (Y != 1) * (Inf ^ (Y != 1))
+			z_ones <- Z + (Y != 1) * (Inf^(Y != 1))
 			ubm_row <- suppressWarnings(apply(z_ones, 1, min, na.rm = TRUE))
 			ub_mat <- matrix(ubm_row, nA, nB)
-			# saturated rows: non-nominees cap below the min nominee z;
-			# unsaturated rows: non-nominees are < 0. defensively guard
-			# against na from rows where odmax or odobs is missing.
+			# saturated rows cap non-nominees below the smallest nominee Z, unsaturated
+			# rows keep them below 0; a row with missing odmax or odobs counts as saturated
 			unsat <- odobs < odmax
 			unsat[is.na(unsat)] <- FALSE
 			if (any(unsat)) {
@@ -199,17 +202,16 @@ rZ_cbin_bip_fc <- function(Z, EZ, Y, odmax, odobs) {
 		up[is.na(up)] <- FALSE
 		ez <- EZ[up]
 		lb <- lb_mat[up]; ub <- ub_mat[up]
-		# guard against degenerate (lb >= ub) caused by inf/-inf edge cases
+		# skip degenerate intervals (lb >= ub) from infinite bounds
 		ok <- is.finite(ez) & (ub > lb)
 		if (any(ok)) {
 			z_curr <- Z[up]
-			# exact truncated-normal draw on (lb, ub) via the log.p-scale
-			# inverse cdf: tail-stable for bounds arbitrarily far from ez.
+			# exact truncated-normal draw, tail-stable for bounds far from EZ
 			z_curr[ok] <- rtnorm_interval_logp(ez[ok], lb[ok], ub[ok])
 			Z[up] <- z_curr
 		}
 	}
-	# na cells: unconstrained draw from the prior
+	# missing cells: unconstrained draw from the prior
 	if (any(is.na(Y))) {
 		miss <- is.na(Y)
 		Z[miss] <- stats::rnorm(sum(miss), EZ[miss], 1)
@@ -239,11 +241,23 @@ rZ_cbin_bip_fc <- function(Z, EZ, Y, odmax, odobs) {
 #'   1..ncol(YL) = rank order.
 #' @param YL per-row ranked-receiver list (nA x max_rank).
 #' @param odmax row-wise max nominations.
-#' @param odobs row-wise observed outdegree.
+#' @param odobs per-actor count of nominations the actor has made: the
+#'   observed nominations plus the hidden cells whose current latent value
+#'   is positive (the cells of an actor absent from the slice never count;
+#'   see \code{.lame_nom_room}). A row whose count falls short of \code{odmax} has unused
+#'   nomination slots, so its non-nominated cells are held below zero.
 #' @return updated nA x nB latent matrix.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @keywords internal
 rZ_frn_bip_fc <- function(Z, EZ, Y, YL, odmax, odobs) {
+	Z <- .lame_nom_feasible(Z, Y, YL, odmax, odobs, TRUE)
+	# rows with hidden cells: as in rZ_frn_fc (see R/rZ_nomination_hidden.R)
+	hid <- .lame_nom_hidden_cells(Y, TRUE)
+	if (any(hid)) {
+		Ya <- .lame_cbin_implied_labels(Z, Y, odmax, hid)
+		Z <- .rZ_frn_hidden_sweep(Z, EZ, 0, Y, Ya, odmax, hid, TRUE)
+		return(.lame_cbin_hidden_moves(Z, EZ, 0, Y, odmax, hid, TRUE))
+	}
 	nA <- nrow(Z); nB <- ncol(Z)
 	Y2 <- Y; Y2[is.na(Y2)] <- -1L
 	max_rank <- ncol(YL)
@@ -253,11 +267,17 @@ rZ_frn_bip_fc <- function(Z, EZ, Y, YL, odmax, odobs) {
 			if (y <= 0L) {
 				lbm <- rep(-Inf, nA)
 			} else {
-				# y == 1: lower bound for the top-ranked cell is the max z among
-				# non-nominees in the row, floored at 0. rows with no non-nominees
-				# yield max(numeric(0)) = -inf which the pmax(., 0) lifts to 0.
-				lbm <- pmax(0, suppressWarnings(apply(Z - (Y2 != 0) * (Inf ^ (Y2 != 0)), 1, max,
-				                                       na.rm = TRUE)))
+				# y == 1: the top-ranked cell's lower bound is the largest Z among the row's
+				# non-nominees, floored at 0
+				lbm <- pmax(
+					0,
+					suppressWarnings(apply(
+						Z - (Y2 != 0) * (Inf^(Y2 != 0)),
+						1,
+						max,
+						na.rm = TRUE
+					))
+				)
 			}
 		} else {
 			lbm <- Z[cbind(seq_len(nA), YL[, y - 1L])]
@@ -279,15 +299,14 @@ rZ_frn_bip_fc <- function(Z, EZ, Y, YL, odmax, odobs) {
 
 		up <- Y2 == y
 		if (!any(up)) next
-		# row index of each true cell, then map to its row-level bounds
+		# map each true cell to its row's bounds
 		row_idx <- row(Z)[up]
 		lb <- lbm[row_idx]; ub <- ubm[row_idx]
 		ez <- EZ[up]
 		ok <- is.finite(ez) & (ub > lb)
 		if (any(ok)) {
 			z_curr <- Z[up]
-			# exact truncated-normal draw on (lb, ub) via the log.p-scale
-			# inverse cdf: tail-stable for bounds arbitrarily far from ez.
+			# exact truncated-normal draw, tail-stable for bounds far from EZ
 			z_curr[ok] <- rtnorm_interval_logp(ez[ok], lb[ok], ub[ok])
 			Z[up] <- z_curr
 		}

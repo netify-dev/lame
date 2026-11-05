@@ -14,17 +14,14 @@ init_bipartite_startvals(
   RB,
   Tn,
   Xlist = NULL,
-  odmax = NULL
+  odmax = NULL,
+  unit_var = 1
 )
 }
 \value{
 List of starting values for bipartite MCMC
 }
 \description{
-Bipartite network helper functions
+Initialize bipartite starting values
 }
-\keyword{Initialize}
-\keyword{bipartite}
 \keyword{internal}
-\keyword{starting}
-\keyword{values}

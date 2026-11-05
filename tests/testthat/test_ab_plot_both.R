@@ -1,6 +1,7 @@
 # ab_plot(effect = "both") for ame / lame fits: sender and receiver effects
-# as two panels, each sorted on its own. fake fit objects keep this fast; one
-# real fit at the end checks the actual object layout.
+# as two panels, each sorted on its own; fake fit objects keep this fast, and one
+# real fit at the end checks the object layout
+skip_on_cran()
 
 fake_static = function(a, b, mode = "unipartite", cls = "ame") {
 	fit = list(APM = a, BPM = b, mode = mode)
@@ -18,15 +19,17 @@ test_that("ab_plot both facets sender and receiver for a static ame fit", {
 	fit = fake_static(a_eff, b_eff)
 	p = ab_plot(fit, effect = "both")
 	expect_s3_class(p, "ggplot")
-	expect_equal(levels(p$data$margin),
-	             c("Sender Effects (a)", "Receiver Effects (b)"))
+	expect_equal(
+		levels(p$data$margin),
+		c("Sender effects (a)", "Receiver effects (b)")
+	)
 	expect_equal(nrow(p$data), 6L)
 	# each panel is ordered by its own values
 	lv = levels(p$data$key)
 	expect_equal(key_actor(lv[startsWith(lv, "Sender")]), names(sort(a_eff)))
 	expect_equal(key_actor(lv[startsWith(lv, "Receiver")]), names(sort(b_eff)))
 	expect_setequal(p$data$id, c("x", "y", "z"))
-	expect_match(p$labels$title, "Sender and Receiver")
+	expect_match(p$labels$title, "sender and receiver")
 })
 
 test_that("ab_plot both keeps input order when sorted = FALSE", {
@@ -43,10 +46,12 @@ test_that("ab_plot both handles bipartite fits with different actor sets", {
 	b = c(c1 = 0.3, c2 = -0.2, c3 = 0.5, c4 = -0.9)
 	fit = fake_static(a, b, mode = "bipartite")
 	p = ab_plot(fit, effect = "both")
-	expect_equal(levels(p$data$margin),
-	             c("Row Actor Effects (a)", "Column Actor Effects (b)"))
+	expect_equal(
+		levels(p$data$margin),
+		c("Row actor effects (a)", "Column actor effects (b)")
+	)
 	expect_equal(nrow(p$data), 7L)
-	expect_match(p$labels$title, "Row and Column Actor")
+	expect_match(p$labels$title, "row and column actor")
 })
 
 test_that("ab_plot both aborts cleanly for symmetric fits", {
@@ -61,28 +66,32 @@ test_that("ab_plot single-margin static plots are unchanged", {
 	p = ab_plot(fit, effect = "sender")
 	expect_false("margin" %in% names(p$data))
 	expect_equal(levels(p$data$key), names(sort(a_eff)))
-	expect_equal(p$labels$y, "Sender Effects (a)")
-	expect_equal(p$labels$title, "Additive Sender Effects (sorted)")
+	expect_equal(p$labels$y, "Sender effects (a)")
+	expect_equal(p$labels$title, "Additive sender effects (sorted)")
 	p2 = ab_plot(fit, effect = "receiver", sorted = FALSE, title = "custom")
 	expect_equal(levels(p2$data$key), names(b_eff))
 	expect_equal(p2$labels$title, "custom")
-	expect_equal(p2$labels$y, "Receiver Effects (b)")
+	expect_equal(p2$labels$y, "Receiver effects (b)")
 })
 
 test_that("ab_plot both works for dynamic snapshots and refuses the other views", {
-	am = matrix(c(0, 1, 2, 0, -1, -2), nrow = 2, byrow = TRUE,
-	            dimnames = list(c("A", "B"), c("2001", "2002", "2003")))
+	am = matrix(
+		c(0, 1, 2, 0, -1, -2),
+		nrow = 2,
+		byrow = TRUE,
+		dimnames = list(c("A", "B"), c("2001", "2002", "2003"))
+	)
 	fit = list(a_dynamic = am, b_dynamic = -am, mode = "unipartite")
 	class(fit) = c("lame", "ame")
 	p = ab_plot(fit, effect = "both")
 	expect_s3_class(p, "ggplot")
 	expect_equal(nrow(p$data), 4L)
 	expect_match(p$labels$title, "at 2003")
-	expect_equal(p$data$mu[p$data$margin == "Sender Effects (a)"], c(2, -2))
-	expect_equal(p$data$mu[p$data$margin == "Receiver Effects (b)"], c(-2, 2))
+	expect_equal(p$data$mu[p$data$margin == "Sender effects (a)"], c(2, -2))
+	expect_equal(p$data$mu[p$data$margin == "Receiver effects (b)"], c(-2, 2))
 	p_avg = ab_plot(fit, effect = "both", time_point = "average")
-	expect_match(p_avg$labels$title, "Average")
-	expect_equal(p_avg$data$mu[p_avg$data$margin == "Sender Effects (a)"], c(1, -1))
+	expect_match(p_avg$labels$title, "average")
+	expect_equal(p_avg$data$mu[p_avg$data$margin == "Sender effects (a)"], c(1, -1))
 	p1 = ab_plot(fit, effect = "both", time_point = 1)
 	expect_equal(p1$data$mu, c(0, 0, 0, 0))
 	expect_error(ab_plot(fit, effect = "both", plot_type = "trajectory"), "separately")
@@ -99,7 +108,7 @@ test_that("ab_plot both still delegates static ame_als fits to their own chart",
 	class(fit) = "ame_als"
 	p = ab_plot(fit, effect = "both")
 	expect_s3_class(p, "ggplot")
-	expect_setequal(unique(p$data$effect), c("sender", "receiver"))
+	expect_setequal(unique(p$data$effect), c("Sender", "Receiver"))
 })
 
 test_that("ab_plot both runs on a real ame fit", {

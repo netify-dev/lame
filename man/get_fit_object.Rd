@@ -42,7 +42,9 @@ get_fit_object(
   SIGMA_BETA = NULL,
   dynamic_rho = FALSE,
   RHO = NULL,
-  rho_path = NULL
+  rho_path = NULL,
+  L_dyn = NULL,
+  period_exposure = NULL
 )
 }
 \arguments{
@@ -52,7 +54,9 @@ get_fit_object(
 
 \item{UVPS}{summed multiplicative random effects}
 
-\item{YPS}{summed Y posterior predictive values}
+\item{YPS}{summed Y posterior predictive values. For a Poisson fit the
+fitted values \code{YPM} are not formed from it: they are the mean counts
+at the posterior means of the linear predictor and of the residual variance}
 
 \item{BETA}{Matrix of draws for regression coefficient estimates}
 
@@ -129,6 +133,12 @@ varies by period.}
 \item{RHO}{matrix of per-iteration, per-period dyadic reciprocity draws.}
 
 \item{rho_path}{numeric vector of period-specific dyadic reciprocity values.}
+
+\item{L_dyn}{for symmetric fits with dynamic positions, the posterior mean
+of the diagonal of the product \eqn{U_t L U_t'}}
+
+\item{period_exposure}{optional vector of period exposures (Poisson); the
+fitted mean count of a period is multiplied by its exposure.}
 }
 \value{
 Fitted AME object
@@ -139,3 +149,4 @@ Get fitted object from MCMC results
 \author{
 Shahryar Minhas
 }
+\keyword{internal}

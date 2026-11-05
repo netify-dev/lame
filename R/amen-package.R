@@ -1,5 +1,5 @@
 #' Longitudinal Additive and Multiplicative Effects Models for Networks
-#' 
+#'
 #' An extension of the 'amen' package specifically designed for longitudinal
 #' network analysis. This package provides tools for fitting Additive and
 #' Multiplicative Effects (AME) models to longitudinal/replicated relational
@@ -31,7 +31,7 @@
 #' @name lame-package
 #' @aliases lame-package
 #' @author Shahryar Minhas, Tosin Salau, Cassy Dorff
-#' 
+#'
 #' Maintainer: Shahryar Minhas <minhassh@@msu.edu>
 #' @keywords internal
 #' @import Rcpp
@@ -46,8 +46,9 @@
 #' @examples
 #' \donttest{
 #' data(YX_nrm)
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
 #' fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, burn = 10, nscan = 100, odens = 1,
-#'            family = "normal", verbose = FALSE)
+#'            family = "normal", verbose = FALSE, chains = 1)
 #' summary(fit)
 #' }
 #'
@@ -55,19 +56,18 @@
 #'
 NULL
 
-# package-local mutable state (show-once message flags and similar);
-# kept in an environment so we never write to the user's options()
+# package-local mutable state (show-once message flags), kept out of options()
 .lame_state <- new.env(parent = emptyenv())
 
 
 
 
 #' binary relational data and covariates
-#' 
+#'
 #' a synthetic dataset that includes binary relational data as well as
 #' information on eight covariates
-#' 
-#' 
+#'
+#'
 #' @name YX_bin
 #' @docType data
 #' @usage data(YX_bin)
@@ -77,10 +77,10 @@ NULL
 #' "intercept" "rgpa" "rsmoke" "cgpa" ...
 #' @keywords datasets
 #' @examples
-#' 
+#'
 #' data(YX_bin)
-#' gof_stats(YX_bin$Y) 
-#' 
+#' gof_stats(YX_bin$Y)
+#'
 NULL
 
 
@@ -88,12 +88,12 @@ NULL
 
 
 #' Censored binary nomination data and covariates
-#' 
+#'
 #' a synthetic dataset that includes relational data where the number of
 #' nominations per row is censored at 10, along with information on eight
 #' covariates
-#' 
-#' 
+#'
+#'
 #' @name YX_cbin
 #' @docType data
 #' @usage data(YX_cbin)
@@ -103,10 +103,10 @@ NULL
 #' "intercept" "rgpa" "rsmoke" "cgpa" ...
 #' @keywords datasets
 #' @examples
-#' 
+#'
 #' data(YX_cbin)
-#' gof_stats(YX_cbin$Y) 
-#' 
+#' gof_stats(YX_cbin$Y)
+#'
 NULL
 
 
@@ -114,11 +114,11 @@ NULL
 
 
 #' Fixed rank nomination data and covariates
-#' 
+#'
 #' a synthetic dataset that includes fixed rank nomination data as well as
 #' information on eight covariates
-#' 
-#' 
+#'
+#'
 #' @name YX_frn
 #' @docType data
 #' @usage data(YX_frn)
@@ -128,10 +128,10 @@ NULL
 #' "intercept" "rgpa" "rsmoke" "cgpa" ...
 #' @keywords datasets
 #' @examples
-#' 
+#'
 #' data(YX_frn)
-#' gof_stats(YX_frn$Y) 
-#' 
+#' gof_stats(YX_frn$Y)
+#'
 NULL
 
 
@@ -139,11 +139,11 @@ NULL
 
 
 #' normal relational data and covariates
-#' 
+#'
 #' a synthetic dataset that includes continuous (normal) relational data as
 #' well as information on eight covariates
-#' 
-#' 
+#'
+#'
 #' @name YX_nrm
 #' @docType data
 #' @usage data(YX_nrm)
@@ -153,11 +153,11 @@ NULL
 #' "intercept" "rgpa" "rsmoke" "cgpa" ...
 #' @keywords datasets
 #' @examples
-#' 
+#'
 #' data(YX_nrm)
 #' gof_stats(YX_nrm$Y)
-#' 
-#' 
+#'
+#'
 NULL
 
 
@@ -165,11 +165,11 @@ NULL
 
 
 #' ordinal relational data and covariates
-#' 
+#'
 #' a synthetic dataset that includes ordinal relational data as well as
 #' information on seven covariates
-#' 
-#' 
+#'
+#'
 #' @name YX_ord
 #' @docType data
 #' @usage data(YX_ord)
@@ -179,10 +179,10 @@ NULL
 #' "rsmoke" "cgpa" "csmoke" ...
 #' @keywords datasets
 #' @examples
-#' 
+#'
 #' data(YX_ord)
 #' gof_stats(YX_ord$Y)
-#' 
+#'
 NULL
 
 
@@ -219,20 +219,20 @@ NULL
 
 #' @title Sampson's monastery data
 #'
-#' @description 
-#' Several dyadic variables measured on 18 members of a monastery. 
+#' @description
+#' Several dyadic variables measured on 18 members of a monastery.
 #'
-#' @format 
-#' A socioarray whose dimensions represent nominators, nominatees and relations. 
-#' Each monk was asked to rank up to three other monks on a variety of positive 
-#' and negative relations. A rank of three indicates the "highest" ranking for 
+#' @format
+#' A socioarray whose dimensions represent nominators, nominees and relations.
+#' Each monk was asked to rank up to three other monks on a variety of positive
+#' and negative relations. A rank of three indicates the "highest" ranking for
 #' a particular relational variable. The relations \code{like_m1} and \code{like_m2}
 #' are evaluations of liking at one and two timepoints previous to when the
 #' other relations (including \code{like}) were measured. In the copy of this
 #' array that circulated with \pkg{amen}, the three liking layers had their
 #' monks in a different order from the array's row and column names; they
 #' are re-aligned here so every layer follows the same actor labels.
-#' 
+#'
 #' @source
 #' Originally available at \code{http://moreno.ss.uci.edu/data.html#sampson}
 #' (site no longer accessible).
@@ -243,21 +243,21 @@ NULL
 
 #' @title Cold War data
 #'
-#' @description 
+#' @description
 #' Positive and negative relations between countries during the cold war
 #'
-#' @format 
+#' @format
 #' A list including the following dyadic and nodal variables:
 #' \itemize{
-#' \item \code{cc}: a socioarray of ordinal levels of military 
-#' cooperation (positive) and conflict (negative), every 5 years; 
-#' \item \code{distance}: between-country distance (in thousands of kilometers); 
-#' \item \code{gdp}: country gdp in dollars every 5 years; 
-#' \item \code{polity}: country polity every 5 years.  
+#' \item \code{cc}: a socioarray of ordinal levels of military
+#' cooperation (positive) and conflict (negative), every 5 years;
+#' \item \code{distance}: between-country distance (in thousands of kilometers);
+#' \item \code{gdp}: country gdp in dollars every 5 years;
+#' \item \code{polity}: country polity every 5 years.
 #' }
 #' @source
-#' Xun Cao : \url{https://polisci.la.psu.edu/people/xuc11/}
-#' 
+#' Xun Cao, Department of Political Science, Pennsylvania State University.
+#'
 #' @name coldwar
 NULL
 
@@ -265,47 +265,54 @@ NULL
 #' @title Comtrade data
 #'
 #' @description
-#' Eleven years of import and export data between 229 countries. 
-#' The data use the SITC Rev. 1 commodity classification, aggregated at the 
-#' first level (AG1). 
-#'  
-#' @format A list consisting of a socioarray \code{Trade} and a vector 
-#' \code{dollars2010} of inflation rates. The socioarray gives 
-#' yearly trade volume (exports and imports) 
-#' in dollars for 10 different commodity classes 
-#' for eleven years between 229 countries. This gives a five-way 
-#' array. The first index is the reporting country, so 
-#' \code{Trade[i,j,t,k,1]} is what \code{i} reports for exports to 
-#' \code{j}, but in general this is not the same as 
-#' \code{Trade[j,i,t,k,2]}, what \code{j} reports as importing from \code{i}. 
-#' 
-#' @source \url{https://comtrade.un.org/}, \url{https://www.measuringworth.com/}
-#' 
+#' Ten years (1996 to 2005) of bilateral trade among 30 countries in six
+#' SITC Rev. 1 commodity classes aggregated at the first level (AG1).
+#'
+#' @format A four-way array of dimension 30 x 30 x 6 x 10 (exporter,
+#' importer, commodity class, year) with dimnames giving the country names,
+#' the classes (chemicals; crude materials, inedible, except fuels; food and
+#' live animals; machinery and transport equipment; manufactured goods
+#' classified chiefly by material; miscellaneous manufactured articles) and
+#' the years. Each value is the change from the previous year in the natural
+#' logarithm of exports measured in 2000 US dollars. For example, the 1996
+#' slice records changes from 1995 to 1996. Values are growth measures, not
+#' log levels or raw trade volumes; negative values indicate decreases.
+#' The 1,800 missing cells are the within-country diagonals.
+#' The first index is the reporting (exporting) country.
+#'
+#' @source Hoff, P. D. (2011), Section 4 of \emph{Separable covariance arrays
+#' via the Tucker product, with applications to multivariate relational data},
+#' \doi{10.1214/11-BA606}.
+#' Original processed array:
+#' \url{https://www2.stat.duke.edu/~pdh10/Code/hoff_2011_ba/}.
+#' Underlying trade and inflation data:
+#' \url{https://comtrade.un.org/}, \url{https://www.measuringworth.com/}
+#'
 #' @name comtrade
 NULL
 
 
 #' @title Lazega's law firm data
 #'
-#' @description 
-#' Several nodal and dyadic variables measured on 71 attorneys in a law firm. 
+#' @description
+#' Several nodal and dyadic variables measured on 71 attorneys in a law firm.
 #'
-#' @format 
-#' A list consisting of a socioarray \code{Y} and a nodal attribute matrix \code{X}. 
-#' 
+#' @format
+#' A list consisting of a socioarray \code{Y} and a nodal attribute matrix \code{X}.
+#'
 #' The dyadic variables in \code{Y} include three binary networks: advice, friendship
-#' and co-worker status. 
-#' 
-#' The categorical nodal attributes in \code{X} are coded as follows: 
+#' and co-worker status.
+#'
+#' The categorical nodal attributes in \code{X} are coded as follows:
 #' \itemize{
 #' \item status (1=partner, 2=associate)
-#' \item office (1=Boston, 2=Hartford, 3=Providence) 
-#' \item practice (1=litigation, 2=corporate) 
-#' \item law school (1=Harvard or Yale, 2=UConn, 3=other)  
+#' \item office (1=Boston, 2=Hartford, 3=Providence)
+#' \item practice (1=litigation, 2=corporate)
+#' \item law school (1=Harvard or Yale, 2=UConn, 3=other)
 #'  }
-#' \code{seniority} and \code{age} are given in years, and \code{female} is 
-#' a binary indicator. 
-#' 
+#' \code{seniority} and \code{age} are given in years, and \code{female} is
+#' a binary indicator.
+#'
 #' @source
 #' Originally available at \code{http://moreno.ss.uci.edu/data.html#lazega}
 #' (site no longer accessible).
@@ -316,12 +323,12 @@ NULL
 
 #' AddHealth community 3 data
 #'
-#' A valued sociomatrix (Y) and matrix of nodal attributes (X) for 
-#' students in community 3 of the AddHealth study. 
+#' A valued sociomatrix (Y) and matrix of nodal attributes (X) for
+#' students in community 3 of the AddHealth study.
 #' \itemize{
-#' \item Y: A sociomatrix in which the value of the edge corresponds to an ad-hoc measure of intensity of the relation. Note that students were only allowed to nominate up to 5 male friends and 5 female friends. 
-#' \item X: Matrix of students attributes, including sex, race (1=white, 2=black, 3=hispanic, 4=asian, 5=mixed/other) and grade. 
-#' } 
+#' \item Y: A sociomatrix in which the value of the edge corresponds to an ad-hoc measure of intensity of the relation. Note that students were only allowed to nominate up to 5 male friends and 5 female friends.
+#' \item X: Matrix of students attributes, including sex, race (1=white, 2=black, 3=hispanic, 4=asian, 5=mixed/other) and grade.
+#' }
 #' Originally available at \code{http://moreno.ss.uci.edu/data.html#adhealth}
 #' (site no longer accessible).
 #' @docType data
@@ -333,12 +340,12 @@ NULL
 
 #' AddHealth community 9 data
 #'
-#' A valued sociomatrix (Y) and matrix of nodal attributes (X) for 
-#' students in community 9 of the AddHealth study. 
+#' A valued 254 x 254 sociomatrix (Y) and a matrix of nodal attributes (X) for
+#' students in community 9 of the AddHealth study.
 #' \itemize{
-#' \item Y: A sociomatrix in which the value of the edge corresponds to an ad-hoc measure of intensity of the relation. Note that students were only allowed to nominate up to 5 male friends and 5 female friends. 
-#' \item X: Matrix of students attributes, including sex, race (1=white, 2=black, 3=hispanic, 4=asian, 5=mixed/other) and grade. 
-#' } 
+#' \item Y: A sociomatrix in which the value of the edge corresponds to an ad-hoc measure of intensity of the relation. Note that students were only allowed to nominate up to 5 male friends and 5 female friends.
+#' \item X: A 254 x 3 matrix of student attributes, one row per actor of Y in the same order, including sex, race (1=white, 2=black, 3=hispanic, 4=asian, 5=mixed/other) and grade.
+#' }
 #' Originally available at \code{http://moreno.ss.uci.edu/data.html#adhealth}
 #' (site no longer accessible).
 #' @docType data
@@ -352,33 +359,33 @@ NULL
 
 #' @title International relations in the 90s
 #'
-#' @description 
-#' A relational dataset recording 
+#' @description
+#' A relational dataset recording
 #' a variety of nodal and dyadic variables on countries in the 1990s,
-#' including information on conflicts, trade and other variables. 
+#' including information on conflicts, trade and other variables.
 #' Except for the conflict variable, the variables are averages
-#' across the decade. 
+#' across the decade.
 #'
-#' @format 
-#' A list consisting of a socioarray \code{dyadvars} of 
-#' dyadic variables and matrix  \code{nodevars} of nodal variables. 
+#' @format
+#' A list consisting of a socioarray \code{dyadvars} of
+#' dyadic variables and matrix  \code{nodevars} of nodal variables.
 #' The dyadic variables include
 #' \itemize{
 #' \item total number of conflicts;
 #' \item exports (in billions of dollars);
 #' \item distance (in thousands of kilometers);
 #' \item number of shared IGOs (averages across the years);
-#' \item polity interaction. 
-#' } 
+#' \item polity interaction.
+#' }
 #' The nodal variables include
 #' \itemize{
-#' \item population (in millions); 
-#' \item gdp (in billions of dollars); 
-#' \item polity 
+#' \item population (in millions);
+#' \item gdp (in billions of dollars);
+#' \item polity
 #' }
-#' 
+#'
 #' @source Michael Ward.
-#' 
+#'
 #' @name IR90s
 NULL
 
@@ -387,15 +394,15 @@ NULL
 #' @title Dutch college data
 #'
 #' @description
-#' Longitudinal relational measurements and nodal characteristics 
-#' of Dutch college students, described in 
-#' van de Bunt, van Duijn, and Snijders (1999). 
-#' The time interval between the first four measurements was 
-#' three weeks, whereas the interval between the last three 
-#' was six weeks. 
-#' 
-#' @format A list consisting of a socioarray \code{Y} and a matrix 
-#' \code{X}  of static nodal attributes. The relational 
+#' Longitudinal relational measurements and nodal characteristics
+#' of Dutch college students, described in
+#' van de Bunt, van Duijn, and Snijders (1999).
+#' The time interval between the first four measurements was
+#' three weeks, whereas the interval between the last three
+#' was six weeks.
+#'
+#' @format A list consisting of a socioarray \code{Y} and a matrix
+#' \code{X}  of static nodal attributes. The relational
 #' measurements range from -1 to 4, indicating the following:
 #' \itemize{
 #' \item -1 a troubled or negative relationship
@@ -405,7 +412,7 @@ NULL
 #' \item  3 friendship
 #' \item  4 best friends
 #' }
-#' 
+#'
 #' @source
 #' Originally available at \code{http://moreno.ss.uci.edu/data.html#vdb}
 #' (site no longer accessible).
@@ -418,19 +425,19 @@ NULL
 
 #' @title Sheep dominance data
 #'
-#' @description 
-#' Number of dominance encounters between 28 female bighorn sheep. 
-#' Cell (i,j) records the number of times sheep i dominated sheep j. 
-#' From Hass (1991). 
-#'  
-#' @format 
+#' @description
+#' Number of dominance encounters between 28 female bighorn sheep.
+#' Cell (i,j) records the number of times sheep i dominated sheep j.
+#' From Hass (1991).
+#'
+#' @format
 #' A list consisting of the following:
 #' \itemize{
-#' \item \code{dom}: a directed socioarray recording the number of 
-#' dominance encounters. 
-#' \item \code{age}: the age of each sheep in years. 
+#' \item \code{dom}: a directed socioarray recording the number of
+#' dominance encounters.
+#' \item \code{age}: the age of each sheep in years.
 #' }
-#' 
+#'
 #' @source
 #' Originally available at \code{http://moreno.ss.uci.edu/data.html#sheep}
 #' (site no longer accessible).

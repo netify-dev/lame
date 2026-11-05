@@ -37,11 +37,11 @@ articles:
     contents:
     - lame
     - cross_sec_ame
-    - lame-overview
+    - articles/lame-overview
   - title: "Topics"
     contents:
-    - bipartite
-    - dynamic_effects
+    - articles/bipartite
+    - articles/dynamic_effects
     - fast_estimation
     - forecasting
 
@@ -57,6 +57,13 @@ reference:
     - lame_multi
     - lame_resume
     - ame_options
+
+  - title: "Robust Continuous Networks"
+    desc: "Persistent directed-pair variance and joint temporal prediction"
+    contents:
+    - lame_robust
+    - predict.lame_robust
+    - summary.lame_robust
 
   - title: "Forecasting and Temporal Diagnostics"
     desc: "Forecasts, counterfactuals, and diagnostics for dynamic fits"
@@ -101,7 +108,7 @@ reference:
     - autoplot.ame_als
 
   - title: "Fast Estimator (MCMC-free)"
-    desc: "Iterative block coordinate descent point estimator with bootstrap uncertainty"
+    desc: "Empirical-Bayes (binary, Poisson) and block coordinate descent (normal) point estimators with Laplace or bootstrap uncertainty"
     contents:
     - ame_als
     - lame_als
@@ -181,7 +188,6 @@ reference:
     - gof_stats
     - gof_stats_unipartite
     - gof_stats_bipartite
-    - compute_gof_bipartite
 
   - title: "Latent Space"
     desc: "Extract and align latent positions"
@@ -261,26 +267,16 @@ reference:
     - rrho_mh
     - rs2_fc
     - rs2_rep_fc
-    - sample_ab_bipartite
     - sample_dynamic_ab_cpp
-    - sample_rho_ab_cpp
-    - sample_rho_uv
-    - sample_sigma_ab_cpp
-    - sample_sigma_uv
     - init_dynamic_ab_cpp
-    - init_dynamic_positions
-    - update_variances_bipartite
     - rUV_dynamic_bip_fc_cpp
     - rZ_nrm_batch_cpp
     - rZ_bin_bip_batch_cpp
-    - compute_XtX_Xty_bip_cpp
-    - Xbeta_bip_cpp
     - rbeta_ab_bip_gibbs_cpp
     - sample_beta_dynamic_cpp
     - sample_beta_static_cpp
     - sample_rho_beta_cpp
     - sample_sigma_beta_cpp
-    - get_EZ_dynamic_beta_cpp
 
   - title: "Internal Helpers"
     desc: "Design matrix construction and low-level utilities"

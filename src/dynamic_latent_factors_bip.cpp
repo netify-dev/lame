@@ -9,14 +9,10 @@ static inline bool vec_is_finite(const arma::vec& x) {
   return x.is_finite();
 }
 
-static inline void replace_nonfinite(arma::cube& x) {
-  arma::uvec bad = arma::find_nonfinite(x);
-  if(bad.n_elem > 0) x.elem(bad).zeros();
-}
-
 // Fast 2x2 symmetric positive definite inverse (direct formula)
 // For R=2, this avoids LAPACK overhead entirely
 static inline arma::mat inv_sympd_small(const arma::mat& A) {
+  if (!A.is_finite() || arma::any(A.diag() <= 0.0)) Rcpp::stop("Invalid bipartite Gaussian matrix.");
   if(A.n_rows == 1) {
     arma::mat result(1, 1);
     result(0, 0) = 1.0 / A(0, 0);
@@ -25,7 +21,7 @@ static inline arma::mat inv_sympd_small(const arma::mat& A) {
   if(A.n_rows == 2) {
     double a = A(0,0), b = A(0,1), d = A(1,1);
     double det = a * d - b * b;
-    if(std::abs(det) < 1e-15) {
+    if(!std::isfinite(det) || det <= 0.0 || std::abs(det) < 1e-15) {
       return arma::inv_sympd(A);  // fallback
     }
     arma::mat result(2, 2);
@@ -42,6 +38,7 @@ static inline arma::mat inv_sympd_small(const arma::mat& A) {
 
 // Fast lower Cholesky for small matrices
 static inline arma::mat chol_lower_small(const arma::mat& A) {
+  if (!A.is_finite() || arma::any(A.diag() <= 0.0)) Rcpp::stop("Invalid bipartite Gaussian matrix.");
   if(A.n_rows == 1) {
     arma::mat L(1, 1);
     L(0, 0) = sqrt(A(0, 0));
@@ -50,17 +47,18 @@ static inline arma::mat chol_lower_small(const arma::mat& A) {
   if(A.n_rows == 2) {
     arma::mat L(2, 2, fill::zeros);
     L(0,0) = sqrt(A(0,0));
-    if(L(0,0) > 1e-15) {
+    if(std::isfinite(L(0,0)) && L(0,0) > 0.0) {
       L(1,0) = A(1,0) / L(0,0);
       double tmp = A(1,1) - L(1,0) * L(1,0);
-      L(1,1) = sqrt(std::max(tmp, 1e-15));
+      if (!std::isfinite(tmp) || tmp <= 0.0) Rcpp::stop("Unable to resolve bipartite Gaussian covariance.");
+      L(1,1) = sqrt(tmp);
     } else {
-      L(1,1) = sqrt(A(1,1));
+      Rcpp::stop("Invalid bipartite Gaussian covariance.");
     }
     return L;
   }
   arma::mat L;
-  arma::chol(L, A, "lower");
+  if (!arma::chol(L, A, "lower")) Rcpp::stop("Unable to resolve bipartite Gaussian covariance.");
   return L;
 }
 
@@ -69,30 +67,37 @@ static inline arma::mat chol_lower_small(const arma::mat& A) {
 //' Replaces the nested R loops for bipartite dynamic_uv in lame.R.
 //' Uses direct 2x2 inverse formula for common R=2 case.
 //'
-//' @param U_cube 3D array (nA x RA x T)
-//' @param V_cube 3D array (nB x RB x T)
+//' @param U_state 3D array (nA x RA x T)
+//' @param V_state 3D array (nB x RB x T)
 //' @param E 3D array of residuals (nA x nB x T)
 //' @param G Interaction matrix (RA x RB)
 //' @param rho_uv AR(1) persistence parameter
 //' @param sigma_uv Innovation standard deviation
 //' @param s2 Dyadic variance
+//' @param max_abs Optional positive coordinate bound; nonpositive or infinite
+//'   values disable it. Each actor conditional respects the bound.
 //' @return List with updated U_cube, V_cube
 // [[Rcpp::export]]
-List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
+List rUV_dynamic_bip_fc_cpp(const arma::cube& U_state, const arma::cube& V_state,
                              const arma::cube& E, const arma::mat& G,
-                             double rho_uv, double sigma_uv, double s2) {
+                             double rho_uv, double sigma_uv, double s2, double max_abs = -1.0) {
+  // rcpparmadillo wraps the caller's array instead of copying it, so the
+  // kernel draws into copies of its own: a sweep the caller refuses has to
+  // leave the positions it was given exactly as they were
+  arma::cube U_cube = U_state;
+  arma::cube V_cube = V_state;
   const int nA = U_cube.n_rows;
   const int RA = U_cube.n_cols;
   const int nB = V_cube.n_rows;
   const int RB = V_cube.n_cols;
   const int T = U_cube.n_slices;
+  const bool bounded = std::isfinite(max_abs) && max_abs > 0.0;
+  int bound_rejections = 0;
 
-  replace_nonfinite(U_cube);
-  replace_nonfinite(V_cube);
-  if(!G.is_finite() || !std::isfinite(rho_uv) ||
+  if(!U_cube.is_finite() || !V_cube.is_finite() || !G.is_finite() || !std::isfinite(rho_uv) || std::abs(rho_uv) >= 1.0 ||
      !std::isfinite(sigma_uv) || sigma_uv <= 0 ||
      !std::isfinite(s2) || s2 <= 0) {
-    return List::create(Named("U") = U_cube, Named("V") = V_cube);
+    Rcpp::stop("Invalid bipartite Gaussian state or scale.");
   }
 
   // ar(1) prior terms need s2 scaling to match the s2-parameterized
@@ -120,7 +125,6 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
     arma::mat E_all_U = E_t * W_t;
 
     for(int i = 0; i < nA; i++) {
-      arma::rowvec old_row = U_cube.slice(t).row(i);
       arma::vec ei = E_all_U.row(i).t();
       arma::mat prec = WtW;
 
@@ -135,8 +139,7 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
         prec.diag() += s2_rho2_s2;
         ei += s2_rho_s2 * U_cube.slice(t+1).row(i).t();
       }
-      // tiny conditioning jitter only (the AR terms supply the prior precision)
-      prec.diag() += 1e-8 * (prec.diag().max() + 1.0);
+      // The AR prior supplies the precision; an extra ridge changes its law.
 
       try {
         arma::mat iprec = inv_sympd_small(prec);
@@ -145,12 +148,16 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
         arma::vec z(RA, fill::randn);
         arma::vec draw = mu_i + ch * z;
         if(vec_is_finite(draw)) {
-          U_cube.slice(t).row(i) = draw.t();
+          if (!bounded || arma::abs(draw).max() <= max_abs) {
+            U_cube.slice(t).row(i) = draw.t();
+          } else {
+            ++bound_rejections;
+          }
         } else {
-          U_cube.slice(t).row(i) = old_row;
+          Rcpp::stop("Non-finite bipartite U Gaussian draw.");
         }
       } catch(...) {
-        U_cube.slice(t).row(i) = old_row;
+        Rcpp::stop("Unable to resolve bipartite U Gaussian conditional.");
       }
     }
 
@@ -163,7 +170,6 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
     arma::mat E_all_V = E_t.t() * Q_t;
 
     for(int j = 0; j < nB; j++) {
-      arma::rowvec old_row = V_cube.slice(t).row(j);
       arma::vec ej = E_all_V.row(j).t();
       arma::mat prec = QtQ;
 
@@ -177,8 +183,7 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
         prec.diag() += s2_rho2_s2;
         ej += s2_rho_s2 * V_cube.slice(t+1).row(j).t();
       }
-      // tiny conditioning jitter only (the AR terms supply the prior precision)
-      prec.diag() += 1e-8 * (prec.diag().max() + 1.0);
+      // The AR prior supplies the precision; an extra ridge changes its law.
 
       try {
         arma::mat iprec = inv_sympd_small(prec);
@@ -187,21 +192,25 @@ List rUV_dynamic_bip_fc_cpp(arma::cube U_cube, arma::cube V_cube,
         arma::vec z(RB, fill::randn);
         arma::vec draw = mu_j + ch * z;
         if(vec_is_finite(draw)) {
-          V_cube.slice(t).row(j) = draw.t();
+          if (!bounded || arma::abs(draw).max() <= max_abs) {
+            V_cube.slice(t).row(j) = draw.t();
+          } else {
+            ++bound_rejections;
+          }
         } else {
-          V_cube.slice(t).row(j) = old_row;
+          Rcpp::stop("Non-finite bipartite V Gaussian draw.");
         }
       } catch(...) {
-        V_cube.slice(t).row(j) = old_row;
+        Rcpp::stop("Unable to resolve bipartite V Gaussian conditional.");
       }
     }
   }
 
-  replace_nonfinite(U_cube);
-  replace_nonfinite(V_cube);
   // no in-kernel U/V column scale balancing: a state-dependent scale map
   // does not preserve the AR(1) prior's law, so any rebalancing belongs
   // on stored draws only.
 
+  if (bounded) return List::create(Named("U") = U_cube, Named("V") = V_cube,
+    Named("bound_rejections") = bound_rejections);
   return List::create(Named("U") = U_cube, Named("V") = V_cube);
 }

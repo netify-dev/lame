@@ -1,5 +1,5 @@
-# loo / waic interop for ame / lame fits via the per-iteration log_lik matrix
-# stored when the user passed save_log_lik = true.
+# loo and waic methods for ame and lame fits, built on the per-iteration
+# log_lik matrix stored with save_log_lik = TRUE
 
 #' Read the per-iteration log-lik matrix back from on-disk chunks
 #'
@@ -12,6 +12,15 @@
 #' @param x A fitted \code{ame}/\code{lame} object with
 #'   \code{$log_lik_chunks} (i.e. fit with \code{save_log_lik = "chunked"}).
 #' @return The full \code{[n_stored, n_obs]} double matrix.
+#' @examples
+#' set.seed(1)
+#' n <- 12
+#' Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
+#' fit <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1,
+#'            save_log_lik = TRUE, verbose = FALSE, chains = 1)
+#' ll <- read_log_lik(fit)
+#' dim(ll)
 #' @export
 read_log_lik <- function(x) {
 	ll_mat <- x[["log_lik"]]
@@ -20,7 +29,8 @@ read_log_lik <- function(x) {
 	if (is.null(meta)) {
 		cli::cli_abort(c(
 			"No log-likelihood stored on the fit object.",
-			"i" = "Refit with {.code save_log_lik = TRUE} or {.code save_log_lik = \"chunked\"}."))
+			"i" = "Refit with {.code save_log_lik = TRUE} or {.code save_log_lik = \"chunked\"}."
+		))
 	}
 	out <- matrix(NA_real_, nrow = meta$n_stored, ncol = meta$n_obs_total)
 	for (cc in seq_len(meta$n_chunks)) {
@@ -30,10 +40,14 @@ read_log_lik <- function(x) {
 		}
 		w <- meta$chunk_ends[cc] - meta$chunk_starts[cc] + 1L
 		vals <- readBin(f, what = numeric(), n = meta$n_stored * w, size = 8L)
-		# values were written one iteration-row's chunk-slice at a time, so
-		# the on-disk layout is naturally [n_stored, w] row-major.
+		# chunks were written one iteration row at a time, so the on-disk
+		# layout is row-major [n_stored, w]
 		out[, meta$chunk_starts[cc]:meta$chunk_ends[cc]] <- matrix(
-			vals, nrow = meta$n_stored, ncol = w, byrow = TRUE)
+			vals,
+			nrow = meta$n_stored,
+			ncol = w,
+			byrow = TRUE
+		)
 	}
 	out
 }
@@ -45,18 +59,14 @@ read_log_lik <- function(x) {
 #' the model was fit with \code{save_log_lik = TRUE}. Returns the standard
 #' \code{loo} object with Pareto-k diagnostics.
 #'
-#' \strong{What `log_lik` measures.} For \code{family} in
-#' \{normal, binary, cbin, poisson, ordinal\} the stored
-#' pointwise log-likelihood is the exact family-specific Y density on
-#' the response scale, so \code{elpd_loo} is directly comparable to a
-#' \code{loo()} output from Stan / brms fit to the same family. For
-#' the rank likelihood \code{frn} the exact marginal
-#' needs GHK Monte Carlo (Halton sequence); on the longitudinal
-#' \code{lame()} path you can opt in with \code{log_lik_method =
-#' "observed_ghk"}, on the cross-sectional \code{ame()} path the
-#' fallback is the augmented-Z normal approximation (with a one-time
-#' warning). Inspect \code{fit$log_lik_method} on any fit to see which
-#' branch was used.
+#' \strong{Observed likelihood factors.} LOO and WAIC require a current
+#' \code{fit$log_lik_contract} verifying observed-data conditional likelihood
+#' factors. Latent augmented scores, approximate rank/cap diagnostics and
+#' legacy fits without this contract are rejected. Directed cell marginals
+#' do not factorize under nonzero or estimated residual dyad correlation;
+#' joint dyad factors would be needed. Symmetric fits store each unordered
+#' dyad once. Correct marginal predictive scores remain useful and readable
+#' through \code{read_log_lik()} even when LOO or WAIC is unavailable.
 #'
 #' \strong{Chunked log-lik portability.} When fit with
 #' \code{save_log_lik = "chunked"}, the on-disk chunk files default to
@@ -74,9 +84,10 @@ read_log_lik <- function(x) {
 #' @examples
 #' \donttest{
 #' data(YX_nrm)
-#' fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 0,
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
+#' fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 0, dcor = FALSE,
 #'            nscan = 60, burn = 15, odens = 5,
-#'            save_log_lik = TRUE, verbose = FALSE)
+#'            save_log_lik = TRUE, verbose = FALSE, chains = 1)
 #' if (requireNamespace("loo", quietly = TRUE)) {
 #'   loo_res <- loo::loo(fit)
 #'   print(loo_res)
@@ -86,16 +97,18 @@ read_log_lik <- function(x) {
 #' @method loo ame
 #' @export
 loo.ame <- function(x, ...) {
-	# use [[ to avoid partial-name matching (e.g. $log_lik -> $log_lik_method
-	# when both fields are present)
+	.lame_require_draws(x, "loo")
+	# [[ avoids partial matching of $log_lik to $log_lik_method
 	ll_mat <- x[["log_lik"]]
 	ll_chunks <- x[["log_lik_chunks"]]
 	if (is.null(ll_mat) && is.null(ll_chunks)) {
 		cli::cli_abort(c(
 			"No log-likelihood stored on the fit object.",
 			"i" = "Refit with {.code save_log_lik = TRUE} to enable {.fn loo::loo}.",
-			"i" = "Example: {.code lame(..., save_log_lik = TRUE)}."))
+			"i" = "Example: {.code lame(..., save_log_lik = TRUE)}."
+		))
 	}
+	.lame_require_loo_contract(x)
 	if (!requireNamespace("loo", quietly = TRUE)) {
 		cli::cli_abort("Package {.pkg loo} is required. Install with {.code install.packages(\"loo\")}.")
 	}
@@ -107,6 +120,7 @@ loo.ame <- function(x, ...) {
 #' @method loo lame
 #' @export
 loo.lame <- function(x, ...) {
+	.lame_require_draws(x, "loo")
 	loo.ame(x, ...)
 }
 
@@ -122,13 +136,16 @@ loo.lame <- function(x, ...) {
 #' @method waic ame
 #' @export
 waic.ame <- function(x, ...) {
+	.lame_require_draws(x, "waic")
 	ll_mat <- x[["log_lik"]]
 	ll_chunks <- x[["log_lik_chunks"]]
 	if (is.null(ll_mat) && is.null(ll_chunks)) {
 		cli::cli_abort(c(
 			"No log-likelihood stored on the fit object.",
-			"i" = "Refit with {.code save_log_lik = TRUE} to enable {.fn loo::waic}."))
+			"i" = "Refit with {.code save_log_lik = TRUE} to enable {.fn loo::waic}."
+		))
 	}
+	.lame_require_loo_contract(x)
 	if (!requireNamespace("loo", quietly = TRUE)) {
 		cli::cli_abort("Package {.pkg loo} is required.")
 	}
@@ -140,12 +157,12 @@ waic.ame <- function(x, ...) {
 #' @method waic lame
 #' @export
 waic.lame <- function(x, ...) {
+	.lame_require_draws(x, "waic")
 	waic.ame(x, ...)
 }
 
-# loo / waic for ame_als abort with an explicit message: als is a point
-# estimator with no per-iteration log-likelihood, so loo::loo() / waic()
-# do not apply.
+# ame_als fits are point estimates with no per-iteration log-likelihood, so
+# loo and waic abort
 
 #' @rdname loo.ame
 #' @method loo ame_als
@@ -154,7 +171,8 @@ loo.ame_als <- function(x, ...) {
 	cli::cli_abort(c(
 		"{.fn loo::loo} is not available for {.cls ame_als} fits.",
 		"i" = "ALS is a point estimator and has no per-iteration log-likelihood.",
-		"i" = "For LOO / WAIC, refit with {.code method = \"mcmc\"} and {.code save_log_lik = TRUE}."))
+		"i" = "For LOO / WAIC, refit with {.code method = \"mcmc\"} and {.code save_log_lik = TRUE}."
+	))
 }
 
 #' @rdname waic.ame
@@ -164,7 +182,8 @@ waic.ame_als <- function(x, ...) {
 	cli::cli_abort(c(
 		"{.fn loo::waic} is not available for {.cls ame_als} fits.",
 		"i" = "ALS is a point estimator and has no per-iteration log-likelihood.",
-		"i" = "For LOO / WAIC, refit with {.code method = \"mcmc\"} and {.code save_log_lik = TRUE}."))
+		"i" = "For LOO / WAIC, refit with {.code method = \"mcmc\"} and {.code save_log_lik = TRUE}."
+	))
 }
 
 #' Generic dispatcher for loo / waic on ame / lame fits
@@ -177,6 +196,20 @@ waic.ame_als <- function(x, ...) {
 #' @param x a fitted \code{ame} or \code{lame} object with \code{$log_lik}.
 #' @param ... passed to the relevant method.
 #' @return A \code{loo} / \code{waic} object.
+#' @examples
+#' \donttest{
+#' set.seed(1)
+#' n <- 12
+#' Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
+#' fit <- ame(Y, R = 1, dcor = FALSE, nscan = 100, burn = 5, odens = 1,
+#'            save_log_lik = TRUE, verbose = FALSE, chains = 1)
+#' if (requireNamespace("loo", quietly = TRUE)) {
+#'   # a fit this small can trip loo's own low-sample Pareto-k diagnostic;
+#'   # that diagnostic warning is expected here and not specific to lame
+#'   print(suppressWarnings(loo(fit)))
+#' }
+#' }
 #' @export
 loo <- function(x, ...) UseMethod("loo")
 
@@ -184,16 +217,15 @@ loo <- function(x, ...) UseMethod("loo")
 #' @export
 waic <- function(x, ...) UseMethod("waic")
 
-# .onload helper: register the methods against loo's generic when loo is
-# available, so qualified loo::loo(fit) works. parallel pattern to
-# .register_posterior_methods() in zzz.r.
+# register the methods on loo's generics at load time so loo::loo(fit) works
+# (same pattern as .register_posterior_methods() in zzz.R)
 .register_loo_methods <- function() {
 	if (requireNamespace("loo", quietly = TRUE)) {
-		registerS3method("loo",  "ame",     loo.ame,     envir = asNamespace("loo"))
-		registerS3method("loo",  "lame",    loo.lame,    envir = asNamespace("loo"))
-		registerS3method("loo",  "ame_als", loo.ame_als, envir = asNamespace("loo"))
-		registerS3method("waic", "ame",     waic.ame,    envir = asNamespace("loo"))
-		registerS3method("waic", "lame",    waic.lame,   envir = asNamespace("loo"))
+		registerS3method("loo", "ame", loo.ame, envir = asNamespace("loo"))
+		registerS3method("loo", "lame", loo.lame, envir = asNamespace("loo"))
+		registerS3method("loo", "ame_als", loo.ame_als, envir = asNamespace("loo"))
+		registerS3method("waic", "ame", waic.ame, envir = asNamespace("loo"))
+		registerS3method("waic", "lame", waic.lame, envir = asNamespace("loo"))
 		registerS3method("waic", "ame_als", waic.ame_als, envir = asNamespace("loo"))
 	}
 }

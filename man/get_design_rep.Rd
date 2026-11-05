@@ -4,7 +4,8 @@
 \alias{get_design_rep}
 \title{Create design array for replicate data}
 \usage{
-get_design_rep(Y, Xdyad, Xrow, Xcol, actorSet, intercept, n, N, pr, pc, pd)
+get_design_rep(Y, Xdyad, Xrow, Xcol, actorSet, intercept, n, N, pr, pc, pd,
+symmetric = FALSE)
 }
 \arguments{
 \item{Y}{dependent variable in array format}
@@ -28,9 +29,19 @@ get_design_rep(Y, Xdyad, Xrow, Xcol, actorSet, intercept, n, N, pr, pc, pd)
 \item{pc}{number of sender covariates}
 
 \item{pd}{number of dyadic covariates}
+
+\item{symmetric}{logical; in a symmetric network a dyad has one covariate
+value, so a dyad is unobserved in a period when the dyadic covariate of
+either of its two cells is missing (\code{\link{lame}} fills a hole in one
+triangle from the other before the design is built, so only a dyad missing
+in both reaches this rule)}
 }
 \value{
-returns list of design array values necessary for ame_repL
+returns list of design array values necessary for ame_repL, plus
+\code{intercept}: the intercept flag actually used (FALSE when the
+covariates span a constant across the observed panel). A cell whose
+covariate is missing is set to \code{NA} in the returned \code{Y} and its
+design value to 0.
 }
 \description{
 Create design array for replicate data
@@ -38,3 +49,4 @@ Create design array for replicate data
 \author{
 Shahryar Minhas
 }
+\keyword{internal}

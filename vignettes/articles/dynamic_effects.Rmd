@@ -1,0 +1,553 @@
+---
+title: "Dynamic Effects in Longitudinal AME Models"
+author: "Cassy Dorff, Tosin Salau, Shahryar Minhas"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Dynamic Effects in Longitudinal AME Models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+	fig.retina = 1,
+	dpi = 72,
+	collapse = TRUE,
+	comment = "#>",
+	fig.width = 7,
+	fig.height = 5
+)
+```
+
+## Introduction
+
+Networks change. Allies drift apart, tastes evolve. The standard AME model pools across time, assuming each actor has a fixed latent position and fixed additive effects in every period. The `lame` package provides three mechanisms for relaxing that assumption: `dynamic_uv` for time-varying latent positions, `dynamic_ab` for time-varying additive effects, and `dynamic_beta` for time-varying regression coefficients. This vignette explains what each option does, when to use it, and how to interpret the results.
+
+## What Are Dynamic Effects?
+
+### The Static Baseline
+
+In the standard AME model for longitudinal data, the tie between actors $i$ and $j$ at time $t$ is:
+
+$$y_{ij,t} = \beta'x_{ij,t} + a_i + b_j + u_i'v_j + \epsilon_{ij,t}$$
+
+The covariates ($x_{ij,t}$) can vary over time, but the sender effect $a_i$, the receiver effect $b_j$, and the latent positions $u_i$ and $v_j$ are constant: the model assumes a country's position in the latent "sanctioning space" is the same in 1993 as in 2000.
+
+### Dynamic Latent Positions (`dynamic_uv = TRUE`)
+
+When you set `dynamic_uv = TRUE`, each actor's latent position evolves over time according to an AR(1) process:
+
+$$U_{i,k,t} = \rho_{uv} \, U_{i,k,t-1} + \epsilon_{i,k,t}, \quad \epsilon_{i,k,t} \sim N(0, \sigma_{uv}^2)$$
+$$V_{j,k,t} = \rho_{uv} \, V_{j,k,t-1} + \eta_{j,k,t}, \quad \eta_{j,k,t} \sim N(0, \sigma_{uv}^2)$$
+
+Note the **innovation parameterisation**: $\sigma_{uv}^2$ is the variance of the period-to-period innovation, not the marginal/stationary variance of $U_{i,k,t}$ (which is $\sigma_{uv}^2 / (1 - \rho_{uv}^2)$), and `fit$sigma_uv` holds posterior draws of the innovation **standard deviation**. For symmetric fits it is not estimated: the unit-variance gauge fixes $\sigma_{uv} = \sqrt{1 - \rho_{uv}^2}$, and `fit$sigma_uv` is that function of the $\rho_{uv}$ draws. The autoregressive parameter $\rho_{uv}$, estimated from the data, controls persistence: near 1 means positions change slowly, near 0 means they are essentially re-drawn each period. Use this when the underlying community structure is evolving -- alliances shift, trading blocs realign.
+
+### Dynamic Additive Effects (`dynamic_ab = TRUE`)
+
+When you set `dynamic_ab = TRUE`, each sender and receiver effect is a per-actor level plus a zero-mean AR(1) deviation:
+
+$$a_{i,t} = \mu^{a}_{i} + d_{i,t}, \quad d_{i,t} = \rho_{ab} \, d_{i,t-1} + \epsilon_{i,t}, \quad \epsilon_{i,t} \sim N(0, \sigma_{ab}^2)$$
+$$b_{j,t} = \mu^{b}_{j} + e_{j,t}, \quad e_{j,t} = \rho_{ab} \, e_{j,t-1} + \eta_{j,t}, \quad \eta_{j,t} \sim N(0, \sigma_{ab}^2)$$
+
+The level $\mu^{a}_{i}$ is pooled over every period, and its variance across actors is the `va` that `summary()` reports (`vb` for the receiver levels). The deviation carries the dynamics: `fit$rho_ab` is its persistence and `fit$sigma_ab` holds draws of its innovation standard deviation, with the stationary variance $\sigma_{ab}^2 / (1 - \rho_{ab}^2)$ as the prior on the first-period deviation. The marginal variance of a per-period effect is therefore $\sigma^2_a + \sigma_{ab}^2 / (1 - \rho_{ab}^2)$, and because $\rho_{ab}$ describes movement around a level, on short panels it reads lower than the persistence of the raw effect path. Unless you set `prior$sigma_ab_scale`, its scale is fixed before sampling from the prior mean of the active level variances and `prior$rho_ab_mean`, so per-period deviations shrink toward the actor's level unless the data insist; on sparse binary panels this is what keeps the effects from chasing single cells. The stored paths `fit$a_dynamic` and `fit$b_dynamic` are the full effects $a_{i,t}$ and $b_{j,t}$. Substantively, `dynamic_ab` captures changes in how much an actor participates, not in who they connect with (that is `dynamic_uv`'s territory). The two can be used alone or together; `dynamic_ab` is often the place to start, since changes in overall activity are common and relatively easy to estimate.
+
+### Dynamic Regression Coefficients (`dynamic_beta`)
+
+The third option lets the regression coefficients themselves evolve. With `dynamic_beta = TRUE` (or a subset like `dynamic_beta = "dyad"`), each selected coefficient follows an AR(1):
+
+$$\beta_{k,t} = \rho_{\beta,b(k)} \, \beta_{k,t-1} + \epsilon_{k,t}, \quad \epsilon_{k,t} \sim N(0, \sigma_{\beta,b(k)}^2 \Lambda_{kk})$$
+
+where $b(k)$ is the block of coefficient $k$ (intercept / dyad / row / col), so coefficients in a block share $\rho$ and $\sigma$, while the design-based scale $\Lambda_{kk}$ (a $g$-prior analogue) keeps each innovation variance commensurate with the data. The whole time path of $\beta$ is drawn jointly via forward-filter / backward-sample (FFBS; Carter & Kohn 1994). One storage difference from `dynamic_uv` / `dynamic_ab`: `fit$sigma_beta` and `fit$rho_beta` hold last-iteration scalars, while the full posterior draws live in `fit$SIGMA_BETA` and `fit$RHO_BETA` -- summarise those (e.g. `colMeans(fit$SIGMA_BETA)`).
+
+`dynamic_beta` accepts `FALSE` (default), `TRUE` (all coefficients), block shortcuts (`"intercept"`, `"dyad"`, `"row"`, `"col"`) or coefficient names, integer column indices, or a length-`p` logical mask; see `?lame`. When the intercept (or a nodal coefficient) is dynamic, an automatic sum-to-zero constraint on `a` (and `b`) keeps everything jointly identified. `dynamic_beta` works for every family, unipartite and bipartite, directed and symmetric, and combines with `dynamic_ab` / `dynamic_uv`.
+
+#### A worked `dynamic_beta` example
+
+Simulate a small longitudinal network where a single dyadic covariate's effect grows linearly over time, and fit with `dynamic_beta = "dyad"`.
+
+```{r dynamic-beta-example, message=FALSE}
+library(lame)
+set.seed(2026)
+
+n_db <- 15
+T_db <- 5
+beta_t_true <- seq(-0.5, 1.0, length.out = T_db) # truth: rising effect
+
+X_db <- replicate(T_db, matrix(rnorm(n_db * n_db), n_db, n_db), simplify = FALSE)
+Y_db <- vector("list", T_db)
+for (t in seq_len(T_db)) {
+	Yt <- beta_t_true[t] * X_db[[t]] + matrix(rnorm(n_db * n_db, 0, 0.4), n_db, n_db)
+	diag(Yt) <- NA
+	rownames(Yt) <- colnames(Yt) <- paste0("a", seq_len(n_db))
+	Y_db[[t]] <- Yt
+}
+names(Y_db) <- paste0("t", seq_len(T_db))
+X_db_arr <- lapply(X_db, function(x) array(x, c(n_db, n_db, 1)))
+
+fit_db <- lame(
+	Y_db,
+	Xdyad = X_db_arr,
+	family = "normal",
+	R = 0,
+	nscan = 200,
+	burn = 50,
+	odens = 5,
+	dynamic_beta = "dyad",
+	verbose = FALSE
+)
+
+# fit$BETA is an [n_stored x p x T] array
+dim(fit_db$BETA)
+
+# coef() gives a p x T matrix of posterior means
+coef(fit_db)
+
+# 95% credible intervals, one row per coefficient and period
+head(confint(fit_db), 8)
+```
+
+**Migration warning for `amen` / static-`lame` users.** With `dynamic_beta` active, `fit$BETA` becomes a 3-D `[n_stored, p, T]` array rather than the 2-D `[n_stored, p]` matrix. The amen-era idiom `apply(fit$BETA, 2, mean)` still returns a length-`p` vector -- but it now silently averages across both iterations **and** time, hiding the time variation you fit the model to recover. Use `coef(fit)` instead: it returns a `[p, T]` matrix for dynamic fits and a length-`p` vector for static ones.
+
+The per-period posterior mean for `X1_dyad` should track the linear ramp `beta_t_true = c(-0.5, -0.125, 0.25, 0.625, 1.0)`, with the AR(1) prior providing mild shrinkage relative to fitting a separate `ame()` per period.
+
+#### Choosing a prior family: `dynamic_beta_kind`
+
+`lame()` exposes `dynamic_beta_kind` for selecting the prior family on the time-varying coefficients:
+
+> **Mean-reverting** coefficient? Use the default `dynamic_beta_kind = "ar1"`.
+> **Permanent / unit-root drift** (no mean reversion)? Use `"rw1"`.
+> **Smooth with curvature** (second-order smoothness)? Use `"rw2"`.
+> **Smooth with a known length-scale** of variation? Use `"matern32"` (set the scale via `prior = list(matern32_length_scale = ...)`; defaults to `max(2, T/4)`).
+> If the stationarity warning fires after fitting AR(1) -- the posterior on $\rho_\beta$ concentrated at or above 0.97 -- refit with `"rw1"` (or `"rw2"` if acceleration matters).
+
+`"random_walk"` is an alias for `"rw1"`; the `"rw2"` and `"matern32"` samplers use a slower R-level joint Gaussian update rather than the C++ FFBS. Refitting `fit_db` under each kind and comparing the recovered `X1_dyad` path against the truth:
+
+```{r dynamic-beta-kinds}
+kinds <- c("rw1", "rw2", "matern32")
+paths <- sapply(kinds, function(k) {
+	fit_k <- lame(
+		Y_db,
+		Xdyad = X_db_arr,
+		family = "normal",
+		R = 0,
+		nscan = 200,
+		burn = 50,
+		odens = 5,
+		dynamic_beta = "dyad",
+		dynamic_beta_kind = k,
+		prior = if (k == "matern32")
+			list(matern32_length_scale = 2) else NULL,
+		verbose = FALSE
+	)
+	coef(fit_k)["X1_dyad", ]
+})
+round(
+	rbind(
+		ar1 = coef(fit_db)["X1_dyad", ],
+		t(paths),
+		truth = beta_t_true
+	),
+	3
+)
+```
+
+All four kinds recover essentially the same ramp -- the point to take away, not a tie-breaker: on a smooth, gap-free trend the priors are nearly indistinguishable in-sample, and they diverge only when the data match their assumption. Choose with the decision tree above and the post-fit stationarity warning, not by eyeballing this table.
+
+When `time_index` is supplied with unequal gaps, the AR(1) / RW1 conditional variance is scaled by the gap (suppressing $\Lambda_{kk}$ for readability):
+$$q_t = \sigma_\beta^2 \cdot \frac{1 - \rho_\beta^{2\Delta_t}}{1 - \rho_\beta^2}$$
+so quarterly-then-annual data gets the correct prior; `"rw2"` and `"matern32"` support unequal gaps through their joint precision-matrix construction.
+
+```{r dynamic-beta-time-index}
+# observation times 1, 2, 4, 8, 16 (doubling gaps)
+fit_gaps <- lame(
+	Y_db,
+	Xdyad = X_db_arr,
+	family = "normal",
+	R = 0,
+	nscan = 200,
+	burn = 50,
+	odens = 5,
+	dynamic_beta = "dyad",
+	time_index = c(1, 2, 4, 8, 16)[seq_len(T_db)],
+	verbose = FALSE
+)
+fit_gaps$time_index
+round(coef(fit_gaps), 3)
+```
+
+#### Hierarchical pooling: `dynamic_beta_pool`
+
+When two or more coefficient blocks are dynamic, each block has its own AR(1) hyperparameters by default, and short panels ($T \le 5$) can leave them badly under-identified. `dynamic_beta_pool` shrinks block-level hyperparameters toward a shared mean: `"rho"` for common persistence, `"sigma"` for a common innovation scale, `"both"` for full pooling -- e.g. `lame(..., dynamic_beta = c("intercept", "dyad"), dynamic_beta_pool = "both")`. With a single dynamic block the hierarchical layer is skipped entirely and the fit is identical to the default `"none"`. See `?lame` for the diagnostic comparison of pooled vs independent hyperparameter posteriors.
+
+#### Per-actor time-varying slopes: `dynamic_beta_per_actor`
+
+For questions about whether one actor responds to a covariate differently than another -- and whether that gap evolves -- set `dynamic_beta_per_actor = "row"` (or `"col"`) and pick the covariate via `per_actor_covariate_idx`, e.g. `lame(..., dynamic_beta_per_actor = "row", per_actor_covariate_idx = 1L)`. Deviations are sum-to-zero centred at every period, so the population coefficient stays in `coef(fit)` while the per-actor deviations land in `fit$THETA_ACTOR` (and their posterior means in `fit$theta_actor_mean`, labelled by actor and period). See `?per_actor_slopes`.
+
+#### Diagnosing your dynamic fit
+
+`summary(fit)` prints the *Dynamic coefficients per period* block and the per-block posterior-mean `rho_beta`, and warns when a block's posterior on $\rho_\beta$ is concentrated at or above 0.97 -- the signal to refit with `dynamic_beta_kind = "rw1"`.
+
+`detect_change_point(fit)` is a path diagnostic. It scales each coefficient's
+largest one-period change by its fitted innovation standard deviation,
+including the covariate-design scale, and compares it with reference paths that
+have the same number of periods, start from the first state of the same
+posterior draw and follow its persistence and innovation scale. The `bf` column
+is a tail ratio between zero and twenty, not a Bayes factor. At the default
+`threshold_bf` it flagged at most 5% of simulated panels whose coefficient
+followed a smooth path or the fitted law, and a step of 1.2 in most panels of
+eight or more periods but in about a fifth of those with four or five
+(`?detect_change_point` gives the rates by panel length).
+
+```{r change-point-demo}
+detect_change_point(fit_db)
+```
+
+Use large tail ratios to select paths for closer inspection; `t_hat` is the
+most frequent largest-jump period, not a formal break-time estimate. This
+reference supports equally spaced AR(1) and RW1 coefficient paths. Other
+transition laws and irregular periods are refused. For prior elicitation
+*before* fitting, `dynamic_beta_prior_summary(n_periods = 10, kind = "ar1")`
+simulates generic coefficient paths; it does not incorporate a particular fitted
+covariate design's innovation scaling.
+
+`fit$sampler_health` separates numerical failures from valid rejections at a prior bound. A numerical failure aborts the fit with an error of class `lame_sampler_failure`, so a returned fit has none; the compatibility counters `fit$tryErrorChecks` and `fit$mh_counters` contain both kinds. A proposal outside the prior's box (`prior$uv_max_abs`, `prior$G_max`) is a Metropolis rejection of the model, and that conditional keeps its state; `summary()` states the share of sweeps when it is one percent or more. Supported binary configurations also use Hamiltonian joint updates, whose acceptance and rejection records are described in `?lame`; a trajectory that fails numerically aborts the fit in the same way. Between-chain agreement and effective sample sizes come from the multi-chain workflow below.
+
+#### Temporal-trend posterior-predictive check: `gof_temporal()`
+
+Where `detect_change_point()` targets *coefficients*, `gof_temporal(fit, stat = "density", n_rep = 200)` targets the *network statistic itself*: it fits a linear time trend to a chosen statistic (density / mean / reciprocity / transitivity), computes the same slope on `simulate(fit)` replicates, and returns a two-sided posterior-predictive p-value; small `p_pp` (below 0.05) means the observed trend is incompatible with the fitted model. Reach for it when the substantive statistic drifts across the panel; the informative worked example lives in the [overview vignette](lame-overview.html); see `?gof_temporal`.
+
+#### Inspecting the priors actually in effect: `prior_summary()`
+
+`prior_summary(fit)` prints the hyperparameters actually used, defaults filled in -- for a dynamic fit that includes the per-block AR(1) priors alongside the variance components and the g-prior on `beta`. Run it once per fit to catch typos in a `prior = list(...)` override; see `?prior_summary` and the [cross-sectional vignette](cross_sec_ame.html) for the general tour.
+
+#### Multi-chain $\hat R$ via `lame_parallel()` and `rhat_dynamic_beta()`
+
+A single chain only ever buys you within-chain split-$\hat R$. For a between-chain diagnostic on the per-period coefficient path, fit several chains with `lame_parallel(..., n_chains = 4, combine_method = "list")` and call `rhat_dynamic_beta()` on the resulting list. Require both `rhat_mvt < 1.01` (the multivariate statistic catches chains that agree per period but disagree on the trajectory) and `rhat_max_univariate < 1.01` before quoting a path; short vignette-length chains typically fail this bar, so use production lengths. `combine_ame_chains()` pools chains and routes through `posterior::summarise_draws()` for per-(coefficient, period) ESS. `ame_parallel()` is the cross-sectional twin; see `?rhat_dynamic_beta`, `?lame_parallel`, and the [cross-sectional vignette](cross_sec_ame.html).
+
+### Forecasting
+
+For supported transition models, `predict(fit, h = K)` propagates the joint posterior state forward $K$ periods, retaining uncertainty in the paths and their hyperparameters. Coefficient forecasts support AR(1) and RW1; RW2, Matern 3/2 and actor-specific coefficient paths currently raise an explicit unsupported-model error. The [forecasting vignette](forecasting.html) covers forecast scales, per-draw arrays, credible intervals, counterfactual covariates, exposure offsets and the near-unit-root warning.
+
+### Visualising the coefficient path: `autoplot.lame`
+
+For a fit with `dynamic_beta` active, `autoplot(fit)` returns a `ggplot` ribbon plot per coefficient (posterior median line, 95% interval, faceted by coefficient). Under `dynamic_beta = "dyad"` the intercept remains static, so pass `coefs =` to restrict the plot to the genuinely time-varying coefficients:
+
+```{r autoplot-example, fig.width = 6, fig.height = 4, fig.alt="Ribbon plot of the posterior path of the dyadic coefficient X1_dyad across five time periods, with the median as a line and the 95 percent credible interval as a shaded band, rising steadily from about minus 0.5 to 1."}
+library(ggplot2)
+autoplot(fit_db, coefs = "X1_dyad", probs = c(0.025, 0.5, 0.975)) +
+	labs(
+		title = "Posterior coefficient path",
+		subtitle = "Median line, 95% credible interval ribbon",
+		x = "Time period", y = "Coefficient value"
+	)
+```
+
+### LOO / WAIC via `save_log_lik = TRUE`
+
+Pass `save_log_lik = TRUE` and `lame` attaches a `[n_stored, n_obs]` pointwise log-likelihood matrix to `fit$log_lik`, which registered S3 methods use for `loo::loo(fit)` and `loo::waic(fit)` when the observed likelihood-factor contract passes. The example explicitly uses independent residuals:
+
+```{r save-log-lik-eval, eval = FALSE}
+fit_ll <- lame(
+	Y_db,
+	Xdyad = X_db_arr,
+	family = "normal",
+	R = 0,
+	dcor = FALSE,
+	nscan = 2000,
+	burn = 500,
+	odens = 25,
+	dynamic_beta = "dyad",
+	save_log_lik = TRUE,
+	verbose = FALSE
+)
+
+dim(fit_ll$log_lik) # [n_stored, n_observations]
+loo_db <- loo::loo(fit_ll)
+print(loo_db)
+```
+
+The code is left unevaluated because a useful PSIS-LOO calculation needs more draws than a vignette should generate. Run it with a converged fit before using `elpd_loo`. If the matrix would not fit in RAM, `save_log_lik = "chunked"` streams it to disk (see the [forecasting vignette](forecasting.html)).
+
+Observed marginal scores are supported for `normal`, `binary`, `poisson`,
+and ordinal models with `ordinal_cutpoints = "explicit"`. Normal and probit
+scores use their observed Gaussian probabilities; Poisson scores use adaptive
+integration with numerical error and tail checks. These scores are conditional
+on the matched saved model state. Inspect `fit$log_lik_contract` for the scale,
+observation unit, numerical method and factorization.
+
+LOO/WAIC additionally require conditional likelihood factors. Directed-cell
+marginals do not factorize when residual dyad correlation is estimated or
+nonzero. The example sets `dcor = FALSE`; symmetric models count each unordered
+dyad once. Capped binary, fixed-rank nomination and data-induced ordinal models
+refuse the `observed_exact` request. Their explicitly selected legacy
+`observed_ghk` diagnostics remain approximate, and `augmented` scores remain
+latent-Z diagnostics; both are refused by LOO/WAIC. Saved diagnostics remain
+readable with `read_log_lik()`.
+
+### Prior Specifications
+
+The AR(1) coefficients and innovation variances have sensible default priors:
+
+- For Gaussian bipartite AR(1) fits, $\rho_{uv} \sim \text{TruncNormal}(0.5, 0.2, -0.99, 0.99)$; other dynamic UV routes use mean 0.9 and SD 0.1. Explicit `rho_uv_mean` and `rho_uv_sd` settings override these defaults.
+- $\rho_{ab} \sim \text{TruncNormal}(0.8, 0.15, -0.99, 0.99)$, slightly less persistent
+- $\rho_{\beta} \sim \text{TruncNormal}(0.8, 0.15, 0, 0.999)$
+- $\sigma_{uv}^2, \sigma_{\beta}^2 \sim \text{InverseGamma}(2, 1)$; for the binary, Poisson, ordinal, cbin and frn families the $\sigma_{uv}^2$ draw is also truncated so that the stationary variance of a coordinate path stays at or below `prior$uv_var_cap` (default 4)
+- $\sigma_{ab}^2 \sim \text{InverseGamma}(2, s)$ with a scale $s$ fixed before sampling. By default it uses the prior mean of the active level variances, $\operatorname{mean}\{\eta_{ab} S_{ab,0}[k,k]/(\eta_{ab}-3)\}$, times $(1-\texttt{rho\_ab\_mean}^2)$, subject to the documented initialization convention. It does not depend on the current covariance or persistence draw. Set `prior$sigma_ab_scale` to supply the scale explicitly, and inspect `fit$sigma_ab_prior_scale` or `prior_summary(fit)` for the value used.
+
+All can be customized via the `prior` argument (e.g. `prior = list(rho_beta_mean = ..., sigma_beta_scale = ...)`) if you have strong beliefs about the rate of change.
+
+## Genuine Dynamics: What They Look Like
+
+We start with an example where dynamics are truly present: 25 actors over 5 periods whose latent positions evolve via an AR(1) with $\rho = 0.85$ and innovation SD $\sigma_{uv} = 0.3$. Initial positions are drawn at SD 1.5 -- above the implied stationary SD of about 0.57 -- seeding strong latent structure that drifts toward stationarity, with a negative intercept giving realistic density (roughly 30%).
+
+```{r, message=FALSE}
+library(lame)
+set.seed(6886)
+
+n_dyn <- 25
+n_per <- 5
+R_dyn <- 2
+
+# evolving latent positions with AR(1) dynamics
+U <- matrix(rnorm(n_dyn * R_dyn, 0, 1.5), n_dyn, R_dyn)
+V <- matrix(rnorm(n_dyn * R_dyn, 0, 1.5), n_dyn, R_dyn)
+
+Y_dyn <- list()
+for (t in 1:n_per) {
+	if (t > 1) {
+		U <- 0.85 * U + matrix(rnorm(n_dyn * R_dyn, 0, 0.3), n_dyn, R_dyn)
+		V <- 0.85 * V + matrix(rnorm(n_dyn * R_dyn, 0, 0.3), n_dyn, R_dyn)
+	}
+	eta <- -1 + U %*% t(V)
+	Y_t <- matrix(rbinom(n_dyn * n_dyn, 1, pnorm(eta)), n_dyn, n_dyn)
+	diag(Y_t) <- NA
+	rownames(Y_t) <- colnames(Y_t) <- paste0("A", 1:n_dyn)
+	Y_dyn[[t]] <- Y_t
+}
+
+# short run for the vignette; use burn >= 1000 and nscan >= 5000 in practice
+fit_dyn_real <- lame(
+	Y_dyn,
+	R = 2,
+	dynamic_uv = TRUE,
+	dynamic_ab = TRUE,
+	family = "binary",
+	burn = 100,
+	nscan = 1000,
+	odens = 10,
+	verbose = FALSE,
+	plot = FALSE
+)
+
+summary(fit_dyn_real)
+```
+
+The trajectory plot shows how actors move through the latent space. With more than eight actors the legend becomes an unreadable rainbow, so pass `highlight =` a few actor names to grey out the rest (ColorBrewer Dark2 colours for the highlighted set). With genuine temporal structure, the highlighted paths trace short, coherent arcs rather than random jumps:
+
+```{r uv-traj-real, fig.width=7, fig.height=5, fig.alt="Trajectory plot of actors' paths through the 2D latent space across five periods under genuine AR(1) dynamics; four named actors (A1, A5, A10, A15) are coloured with the ColorBrewer Dark2 palette while the rest are light grey, and the highlighted paths show coherent, gradual movement."}
+uv_plot(
+	fit_dyn_real,
+	plot_type = "trajectory",
+	highlight = c("A1", "A5", "A10", "A15")
+)
+```
+
+Always check convergence: dynamic models have more parameters than static ones, so adequate mixing requires longer chains. Under the binary (probit) family the error variance `ve` is fixed at 1 for identification, so exclude it by its display label:
+
+```{r trace-dyn-real, fig.width=7, fig.height=5, fig.alt="MCMC trace and density plots for the sampled parameters of the dynamic-effects fit on truly correlated data, excluding the identification-fixed error variance; well-mixed traces indicate the sampler ran long enough."}
+trace_plot(fit_dyn_real, exclude = "Error variance")
+```
+
+## What Happens Without Temporal Structure?
+
+To see how the dynamic model behaves when there is no signal, we fit the same model to independent networks -- a null baseline showing what the prior alone produces when the data are uninformative.
+
+```{r}
+set.seed(6886)
+n <- 30
+n_periods <- 5
+
+# independent binary networks with no temporal structure
+Y_list <- list()
+for (t in 1:n_periods) {
+	Y_t <- matrix(rbinom(n * n, 1, 0.2), n, n)
+	diag(Y_t) <- NA
+	rownames(Y_t) <- colnames(Y_t) <- paste0("Actor", 1:n)
+	Y_list[[t]] <- Y_t
+}
+
+# a tight prior on rho_uv to show prior sensitivity
+prior_custom <- list(
+	rho_uv_mean = 0.95, # expect very slow change in latent positions
+	rho_uv_sd = 0.05 # tight prior
+)
+
+fit_null <- lame(
+	Y = Y_list,
+	R = 2,
+	dynamic_uv = TRUE,
+	dynamic_ab = TRUE,
+	family = "binary",
+	prior = prior_custom,
+	burn = 100,
+	nscan = 1000,
+	odens = 10,
+	# keep per-draw latent trajectories for procrustes_align(per_draw = TRUE)
+	posterior_opts = list(save_UV = TRUE),
+	verbose = FALSE,
+	plot = FALSE
+)
+
+summary(fit_null)
+```
+
+We can compare the estimated persistence parameters across the two settings:
+
+```{r}
+cat("Independent data rho_uv:", round(mean(fit_null$rho_uv), 3), "\n")
+cat("Correlated data rho_uv:", round(mean(fit_dyn_real$rho_uv), 3), "\n")
+```
+
+Even with a deliberately tight prior centred at 0.95, the two posteriors diverge: the correlated fit lands in the upper AR(1) range (expect small-sample upward bias at $T = 5$, so the posterior can sit above the true 0.85), while the null fit collapses well below the prior centre because the data carry no period-to-period correlation to anchor against. The AR(1) parameter does real work even on a modest panel, but the point estimate of `rho_uv` is no substitute for the trajectory plots (compare the coherent paths above with the erratic paths below).
+
+### Visualizing the Null Case
+
+The trajectory plot for independent data looks different. Using the same highlight device as above, the highlighted paths jump from period to period without persistent direction, and the whole cloud clumps near the origin:
+
+```{r uv-traj-null, fig.width=7, fig.height=5, fig.alt="Trajectory plot of latent positions for the null model with four actors highlighted in colour against the remaining 26 in light grey; the highlighted paths jump directionlessly and the whole cloud clumps near the origin, unlike the smooth dispersed paths of the genuine-dynamics fit."}
+uv_plot(
+	fit_null,
+	plot_type = "trajectory",
+	highlight = c("Actor1", "Actor5", "Actor10", "Actor15")
+)
+```
+
+The additive effects behave the same way: trajectories reflecting noise rather than real shifts in actor activity.
+
+```{r ab-traj-null, fig.width=7, fig.height=5, fig.alt="Trajectory plot of sender additive effects for the null model fit on independent networks; per-actor lines fluctuate without persistent trend, reflecting noise rather than temporal signal."}
+ab_plot(fit_null, effect = "sender", plot_type = "trajectory")
+```
+
+## Comparing Model Specifications
+
+A natural workflow is to fit several specifications and compare their goodness-of-fit. We use the independent data from above, where dynamic effects should add nothing.
+
+```{r}
+# four short fits; use nscan >= 2000 and several chains for a real comparison
+fit_static <- lame(
+	Y_list,
+	R = 2,
+	family = "binary",
+	burn = 30,
+	nscan = 150,
+	odens = 5,
+	verbose = FALSE,
+	plot = FALSE
+)
+
+fit_uv <- lame(
+	Y_list,
+	R = 2,
+	dynamic_uv = TRUE,
+	family = "binary",
+	burn = 30,
+	nscan = 150,
+	odens = 5,
+	verbose = FALSE,
+	plot = FALSE
+)
+
+fit_ab <- lame(
+	Y_list,
+	R = 2,
+	dynamic_ab = TRUE,
+	family = "binary",
+	burn = 30,
+	nscan = 150,
+	odens = 5,
+	verbose = FALSE,
+	plot = FALSE
+)
+
+fit_full <- lame(
+	Y_list,
+	R = 2,
+	dynamic_uv = TRUE,
+	dynamic_ab = TRUE,
+	family = "binary",
+	burn = 30,
+	nscan = 150,
+	odens = 5,
+	verbose = FALSE,
+	plot = FALSE
+)
+```
+
+For each specification we compute posterior predictive p-values (how often simulated statistics exceed observed): values near 0.5 indicate good fit; values pinned near 0 or 1 flag a statistic the model systematically under- or over-generates.
+
+```{r}
+# posterior predictive p-values for each GOF statistic
+compute_pvals <- function(fit) {
+	gof <- fit$GOF
+	sapply(names(gof), function(stat) {
+		mat <- gof[[stat]]
+		obs <- mat[, 1] # first column = observed
+		sims <- mat[, -1] # remaining = posterior predictive
+		mean(colMeans(sims) >= mean(obs))
+	})
+}
+
+gof_comparison <- rbind(
+	Static = compute_pvals(fit_static),
+	Dynamic_UV = compute_pvals(fit_uv),
+	Dynamic_AB = compute_pvals(fit_ab),
+	Full = compute_pvals(fit_full)
+)
+round(gof_comparison, 3)
+```
+
+`sd.rowmean` and `sd.colmean` sit near 1 for *every* specification -- an artifact of fitting a heterogeneity model to homogeneous iid data, not evidence about dynamics -- so compare specifications on the `dyad.dep`, `cycle.dep`, and `trans.dep` columns instead. There, no specification is clearly better, as expected for data generated without temporal structure; with short chains these tail fractions are noisy. The table compares the specifications on noisy tail fractions and ranks none of them.
+
+## When to Use Dynamic Effects
+
+**Use `dynamic_ab`** when actors' overall activity levels change over time: countries cycle through isolationist and interventionist periods, users churn in and out of platforms.
+
+**Use `dynamic_uv`** when the underlying community structure is shifting -- a stronger claim: not just that actors are more or less active, but that *who connects with whom* is changing (political realignment, generational turnover).
+
+**Use `dynamic_beta`** when a covariate's *effect* on tie formation changes over time while actors and community structure are stable: the question is *how strongly X translates into Y*, not who is connecting (`dynamic_uv`) or who is active (`dynamic_ab`).
+
+**Use multiple together** when several types of change happen at once -- the most flexible but most data-hungry specification; with short panels or sparse networks the data inform the dynamic parameters weakly.
+
+**Stick with static** when you have few time periods, when the network is genuinely stable, or when you primarily care about *average* covariate effects.
+
+## Dealing with Rotational Indeterminacy
+
+One subtlety of dynamic latent space models: the latent space is only identified up to an orthogonal rotation **at each time point** *and* **at each posterior draw**, so averaging raw draws would shrink the positions toward zero. `lame()` therefore reports positions that factor each period's posterior mean product $U_t V_t'$, the identified quantity, and matches each period to the one before by rotations that leave the product unchanged. `procrustes_align()` applies the orthogonal-Procrustes rotation (Gower 1975) to align each period's positions to the previous one; on these positions it changes nothing:
+
+```{r}
+# align latent positions across time
+aligned <- procrustes_align(fit_null)
+str(aligned$U) # 3D array: actors x dimensions x time
+```
+
+Rotation indeterminacy is also a per-draw property: `procrustes_align(fit, per_draw = TRUE)` aligns every saved draw's trajectory across time (Hoff 2005; Sewell & Chen 2015), using the per-draw cube a dynamic fit stores by default; see `?procrustes_align`.
+
+`latent_positions(fit, align = TRUE)` returns the aligned positions as a tidy data frame ready for `ggplot2` (custom trajectory plots, overlaying external events). Because this fit saved its per-draw trajectories, the `posterior_sd` column is computed from the draws, each matched onto the reported positions, rather than returned as `NA`:
+
+```{r}
+lp <- latent_positions(fit_null, align = TRUE)
+head(lp)
+```
+
+## References
+
+1. **Hoff, PD (2021)**. Additive and Multiplicative Effects Network Models. *Statistical Science* 36, 34--50.
+
+2. **Hoff, PD (2005)**. Bilinear mixed-effects models for dyadic data. *Journal of the American Statistical Association* 100(469), 286--295.
+
+3. **Sewell, D. K., & Chen, Y. (2015)**. Latent space models for dynamic networks. *Journal of the American Statistical Association*, 110(512), 1646-1657.
+
+4. **Carter, C. K., & Kohn, R. (1994)**. On Gibbs sampling for state space models. *Biometrika* 81(3), 541--553. The FFBS algorithm behind `dynamic_beta_kind = "ar1"` / `"rw1"`.
+
+5. **Gower, J. C. (1975)**. Generalized Procrustes analysis. *Psychometrika* 40(1), 33--51. The orthogonal-Procrustes rotation underlying `procrustes_align()`.

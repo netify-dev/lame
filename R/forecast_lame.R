@@ -1,19 +1,16 @@
-# h-step-ahead forecasting. propagates (beta_t, a_t, b_t, u_t, v_t)
-# forward via the ar(1) / rw1 recursion, sampling hyperparameters
-# (rho_beta, sigma_beta, ...) from their posterior per draw. emits a
-# warning when the posterior 95% interval for rho_beta touches 0.99.
+# h-step-ahead forecasting: propagates (beta_t, a_t, b_t, u_t, v_t) forward by the
+# AR(1) / random-walk recursion, with hyperparameters taken from each posterior draw
 
 #' @noRd
-.propagate_ar1_vec <- function(state_T, rho, sigma, h) {
-	# state_t: length-p vector of current beta at period t (one draw)
-	# rho, sigma: scalar ar(1) parameters
-	# h: number of periods to forecast
-	# returns: h x p matrix of future states
+.propagate_ar1_vec <- function(state_T, rho, sigma, h, center = FALSE) {
+	# h x p matrix of future states from the current state, with scalar AR(1) rho and sigma
 	p <- length(state_T)
 	out <- matrix(NA_real_, nrow = h, ncol = p)
 	cur <- as.numeric(state_T)
 	for (k in seq_len(h)) {
-		cur <- rho * cur + stats::rnorm(p, mean = 0, sd = sigma)
+		eps <- stats::rnorm(p, mean = 0, sd = sigma)
+		if (isTRUE(center)) eps <- eps - mean(eps)
+		cur <- rho * cur + eps
 		out[k, ] <- cur
 	}
 	out
@@ -21,10 +18,7 @@
 
 #' @noRd
 .propagate_per_coef <- function(state_T, rho_by_coef, sigma_by_coef, h) {
-	# state_t:        length-p vector
-	# rho_by_coef:    length-p vector of ar(1) rho values
-	# sigma_by_coef:  length-p vector of ar(1) sigma values
-	# returns: h x p matrix
+	# h x p matrix of future states with per-coefficient AR(1) rho and sigma
 	p <- length(state_T)
 	out <- matrix(NA_real_, nrow = h, ncol = p)
 	cur <- as.numeric(state_T)
@@ -49,6 +43,13 @@
 #' close to 1. A warning fires if the posterior 95\% interval for
 #' \eqn{\rho_\beta} contains 0.99.
 #'
+#' Each forecast uses a matched posterior draw of the coefficients,
+#' effects, actor levels, positions and bipartite coupling. New fits retain
+#' this terminal state automatically; full trajectories need not be saved.
+#' Older fits can use aligned saved effect and position draws. A fit lacking
+#' either source must be refitted before forecasting. AR(1), snap and
+#' heavy-tailed position forecasts use their fitted transition laws.
+#'
 #' @param object A fitted \code{lame} object with at least one dynamic
 #'   component active.
 #' @param h Number of periods to forecast (must be a positive integer).
@@ -62,56 +63,85 @@
 #'   draws.
 #' @param by_draw If \code{TRUE}, return a 4-D array \code{[n, n, h, n_draws]}
 #'   instead of summarising to per-period means.
+#' @param predictive If \code{TRUE}, draw the outcome itself rather than its
+#'   conditional mean: each posterior draw's linear predictor gains that draw's
+#'   observation noise (\code{normal}: \eqn{N(0, ve)} per cell; \code{poisson}:
+#'   a count from \eqn{Poisson(e^{z})} with \eqn{z \sim N(\eta, ve)}). The
+#'   explicit ordinal models draw categories using unit Gaussian observation
+#'   noise and the cutpoints of the matched posterior draw. Other families
+#'   retain the conditional-mean forecast convention.
 #' @param seed Optional RNG seed.
 #'
 #' @return List of \code{h} matrices (when \code{by_draw = FALSE}), or a
 #'   4-D array (when \code{by_draw = TRUE}).
 #'
 #' @noRd
-.forecast_lame <- function(object,
-                           h           = 1L,
-                           newdata     = NULL,
-                           newexposure = NULL,
-                           type        = c("link", "response"),
-                           n_draws     = NULL,
-                           by_draw     = FALSE,
-                           seed        = NULL) {
+.forecast_lame <- function(
+	object,
+	h = 1L,
+	newdata = NULL,
+	newexposure = NULL,
+	type = c("link", "response"),
+	n_draws = NULL,
+	by_draw = FALSE,
+	predictive = FALSE,
+	seed = NULL,
+	newdesign = NULL
+) {
+	# a withheld product (.ae_withhold_product) is restored to its variational means
+	object <- .ae_product_restore(object)
 	type <- match.arg(type)
 	h <- as.integer(h)
 	if (!is.null(seed)) set.seed(seed)
 	if (h < 1L) cli::cli_abort("`h` must be at least 1.")
 
-	# at least one dynamic flag must be active for forecasting to make sense
+	if (!is.null(object$dynamic_beta_per_actor) ||
+			(isTRUE(object$dynamic_beta) && object$dynamic_beta_kind %in% c("rw2", "matern32"))) {
+		cli::cli_abort(
+			"Forecasting is not implemented for this coefficient transition model.",
+			class = "lame_forecast_model"
+		)
+	}
+	# forecasting needs at least one dynamic component
 	has_dyn <- isTRUE(object$dynamic_beta) || isTRUE(object$dynamic_ab) ||
-	           isTRUE(object$dynamic_uv)
+		isTRUE(object$dynamic_uv)
 	if (!has_dyn) {
 		cli::cli_warn(c(
 			"Forecasting from a fit with no dynamic components produces a constant path.",
-			"i" = "Refit with one of {.code dynamic_beta}, {.code dynamic_ab}, {.code dynamic_uv} for time-varying forecasts."))
+			"i" = "Refit with one of {.code dynamic_beta}, {.code dynamic_ab}, {.code dynamic_uv} for time-varying forecasts."
+		))
 	}
 
-	# dimensions: use the actor-union sizes (APM/BPM), not period-1 YPM --
-	# with changing composition the first period can hold fewer actors than
-	# the design slices and effect paths, which are union-sized
+	# actor-union sizes (APM/BPM), since with changing composition period 1 can hold fewer actors
 	n_a <- if (!is.null(object$nA)) object$nA
-		else if (!is.null(object$APM)) length(object$APM)
-		else nrow(object$YPM[[1]] %||% object$YPM)
+	else if (!is.null(object$APM)) length(object$APM)
+	else nrow(object$YPM[[1]] %||% object$YPM)
+	# a symmetric fit stores one effect per actor and no BPM, so columns mirror rows
 	n_b <- if (!is.null(object$nB)) object$nB
-		else if (!is.null(object$BPM)) length(object$BPM)
-		else ncol(object$YPM[[1]] %||% object$YPM)
+	else if (!is.null(object$BPM)) length(object$BPM)
+	else if (isTRUE(object$symmetric) && !is.null(object$APM)) length(object$APM)
+	else ncol(object$YPM[[1]] %||% object$YPM)
 	bip <- !is.null(object$mode) && identical(object$mode, "bipartite")
 	row_actors <- names(object$APM) %||% rownames(object$YPM[[1]] %||% object$YPM)
-	col_actors <- names(object$BPM) %||% colnames(object$YPM[[1]] %||% object$YPM)
+	col_actors <- names(object$BPM) %||%
+		(if (isTRUE(object$symmetric)) names(object$APM) else NULL) %||%
+		colnames(object$YPM[[1]] %||% object$YPM)
 	if (length(row_actors) != n_a) row_actors <- NULL
 	if (length(col_actors) != n_b) col_actors <- NULL
 
-	# pick draws
-	n_iter <- dim(object$BETA)[1L]
-	if (is.null(n_draws)) n_draws <- n_iter
-	n_draws <- min(n_draws, n_iter)
-	idx <- sample.int(n_iter, n_draws, replace = (n_draws > n_iter))
+	# every parameter block uses the same retained posterior row
+	joint <- .lame_forecast_state(object)
+	available <- joint$draw_index
+	if (is.null(n_draws)) n_draws <- length(available)
+	if (!is.numeric(n_draws) || length(n_draws) != 1L || !is.finite(n_draws) ||
+			n_draws < 1 || n_draws != floor(n_draws)) {
+		cli::cli_abort("{.arg n_draws} must be a positive integer.")
+	}
+	n_draws <- min(n_draws, length(available))
+	state_idx <- sample.int(length(available), n_draws)
+	idx <- available[state_idx]
 
-	# warn once per fit when rho_beta posterior is near the unit root
+	# warn once per fit when rho_beta is near the unit root
 	if (!is.null(object$RHO_BETA)) {
 		q <- stats::quantile(object$RHO_BETA, probs = c(0.025, 0.975), na.rm = TRUE)
 		if (q[2L] >= 0.99) {
@@ -119,22 +149,30 @@
 			fit_key <- if (requireNamespace("digest", quietly = TRUE)) {
 				digest::digest(object$RHO_BETA)
 			} else {
-				paste(length(object$RHO_BETA),
-				      signif(sum(object$RHO_BETA, na.rm = TRUE), 12), sep = "_")
+				paste(
+					length(object$RHO_BETA),
+					signif(sum(object$RHO_BETA, na.rm = TRUE), 12),
+					sep = "_"
+				)
 			}
 			if (!fit_key %in% warned) {
 				kind <- object$dynamic_beta_kind %||% "ar1"
-				var_msg <- switch(kind,
-					rw1 = "Under RW1 the {.arg h}-step forecast variance grows linearly in {.arg h}; treat horizons beyond {.val 3} cautiously.",
-					rw2 = "Under RW2 the {.arg h}-step forecast propagation uses the AR(1) recursion at {.code rho = 1} so the variance grows linearly in {.arg h}; treat horizons beyond {.val 3} cautiously.",
-					matern32 = "Under Matern 3/2 the {.arg h}-step forecast propagation falls back to the AR(1) recursion at {.code rho = 1} so the variance grows linearly in {.arg h}; treat horizons beyond {.val 3} cautiously.",
+				var_msg <- switch(
+					kind,
+					rw1 = "Under RW1 the {.arg h}-step forecast variance grows linearly in {.arg h}, so intervals widen at every step.",
+					rw2 = "Under RW2 the {.arg h}-step forecast propagation uses the AR(1) recursion at {.code rho = 1} so the variance grows linearly in {.arg h} and intervals widen at every step.",
+					matern32 = "Under Matern 3/2 the {.arg h}-step forecast propagation falls back to the AR(1) recursion at {.code rho = 1} so the variance grows linearly in {.arg h} and intervals widen at every step.",
 					"Under AR(1) the {.arg h}-step forecast variance saturates at the stationary level {.code sigma_beta^2 / (1 - rho_beta^2)}, which itself explodes as {.code rho_beta -> 1}; horizons beyond {.val 3} become uninformative in this regime."
 				)
-				msgs <- c("!" = "Posterior 95% interval for {.code rho_beta} reaches {.val {round(q[2], 3)}}.",
-				          "i" = var_msg)
+				msgs <- c(
+					"!" = "Posterior 95% interval for {.code rho_beta} reaches {.val {round(q[2], 3)}}.",
+					"i" = var_msg
+				)
 				if (identical(kind, "ar1")) {
-					msgs <- c(msgs,
-					          "i" = "Consider refitting with {.code dynamic_beta_kind = \"rw1\"} if the underlying process is genuinely unit-root.")
+					msgs <- c(
+						msgs,
+						"i" = "Consider refitting with {.code dynamic_beta_kind = \"rw1\"} if the underlying process is genuinely unit-root."
+					)
 				}
 				cli::cli_warn(msgs)
 				.lame_state$forecast_unit_root_warned <- c(warned, fit_key)
@@ -142,181 +180,227 @@
 		}
 	}
 
-	# get last-period state for each draw
+	# last-period state for each draw
 	beta_is_dyn <- length(dim(object$BETA)) == 3L
-	# returns: an n x n x h x n_draws array, actor-named on the first two dims
-	out <- array(NA_real_, c(n_a, n_b, h, n_draws),
-	             dimnames = list(row_actors, col_actors, NULL, NULL))
+	beta_transition <- if (beta_is_dyn) .lame_beta_transition_scale(object) else NULL
+	# n x n x h x n_draws array, actor-named on the first two dimensions
+	out <- array(
+		NA_real_,
+		c(n_a, n_b, h, n_draws),
+		dimnames = list(row_actors, col_actors, NULL, NULL)
+	)
 
-	# pre-cache the last-period covariates as the default extrapolation
-	last_X <- if (!is.null(object$Xlist) && length(object$Xlist) > 0L)
-		object$Xlist[[length(object$Xlist)]] else NULL
-	# user-supplied future covariates take precedence
-	X_future <- if (!is.null(newdata)) newdata else replicate(h, last_X, simplify = FALSE)
-	if (length(X_future) < h) {
-		# cycle
-		X_future <- X_future[((seq_len(h) - 1L) %% length(X_future)) + 1L]
-	}
-	# align user-supplied newdata to the model's internal design
-	# dyadic slices come from newdata; intercept and nodal slices use the
-	# last observed fitted design
-	if (!is.null(newdata)) {
-		beta_names <- if (length(dim(object$BETA)) == 3L)
-			dimnames(object$BETA)[[2L]] else colnames(object$BETA)
-		# the held-fixed source for intercept + nodal slices is the last
-		# observed period's design
-		fitted_design_last <- last_X
-		X_future <- lapply(X_future, function(Xk) {
-			if (is.null(Xk)) return(Xk)
-			.build_full_design(Xk, beta_names, fitted_design_last, n_a, n_b)
-		})
-	}
-
-	# rho_beta / sigma_beta per draw (with the right shape). use posterior
-	# mean if iteration-level matrices aren't available.
-	get_rho_sigma_beta <- function(i) {
-		if (!is.null(object$RHO_BETA) && !is.null(object$SIGMA_BETA)) {
-			rho_b <- object$RHO_BETA[i, , drop = TRUE]
-			sig_b <- object$SIGMA_BETA[i, , drop = TRUE]
-		} else if (!is.null(object$rho_beta) && !is.null(object$sigma_beta)) {
-			rho_b <- object$rho_beta
-			sig_b <- object$sigma_beta
-		} else {
-			rho_b <- 0.8
-			sig_b <- 0.25
+	# canonical full designs keep nodal roles, symmetric merging and actor order
+	last_X <- if (length(object$Xlist)) utils::tail(object$Xlist, 1L)[[1L]] else NULL
+	beta_names <- dimnames(object$BETA)[[2L]]
+	X_future <- if (!is.null(newdesign)) newdesign else if (!is.null(newdata)) newdata else
+		replicate(h, last_X, simplify = FALSE)
+	if (length(X_future) < h) X_future <- X_future[((seq_len(h) - 1L) %% length(X_future)) + 1L]
+	X_future <- lapply(X_future, function(Xk) {
+		if (is.null(Xk)) return(Xk)
+		if (!is.null(newdata) && is.null(newdesign)) {
+			Xk <- .lame_forecast_design(Xk, NULL, row_actors, col_actors, n_a, n_b)
+			Xk <- .build_full_design(Xk, beta_names, last_X, n_a, n_b)
 		}
-		list(rho = rho_b, sigma = sig_b)
+		Xk <- .lame_forecast_design(Xk, beta_names, row_actors, col_actors, n_a, n_b)
+		.lame_tempered_prediction_design(object, Xk)
+	})
+
+	# aligned transition rows at the same retained state index
+	get_rho_sigma_beta <- function(i) {
+		list(
+			rho = object$RHO_BETA[i, , drop = TRUE],
+			sigma = object$SIGMA_BETA[i, , drop = TRUE]
+		)
 	}
 
-	# rho_ab / sigma_ab
 	get_rho_sigma_ab <- function(i) {
 		rho_a <- if (!is.null(object$rho_ab)) {
 			if (is.numeric(object$rho_ab) && length(object$rho_ab) >= i) object$rho_ab[i] else mean(object$rho_ab)
 		} else 0
-		sig_a <- if (!is.null(object$sigma_ab)) object$sigma_ab else 0.1
+		sig_a <- if (!is.null(object$sigma_ab)) {
+			if (is.numeric(object$sigma_ab) && length(object$sigma_ab) >= i) object$sigma_ab[i] else mean(object$sigma_ab)
+		} else 0.1
 		list(rho = rho_a, sigma = sig_a)
 	}
 
-	# rho_uv / sigma_uv
 	get_rho_sigma_uv <- function(i) {
 		rho_u <- if (!is.null(object$rho_uv)) {
 			if (is.numeric(object$rho_uv) && length(object$rho_uv) >= i) object$rho_uv[i] else mean(object$rho_uv)
 		} else 0
-		sig_u <- if (!is.null(object$sigma_uv)) object$sigma_uv else 0.1
+		sig_u <- if (!is.null(object$sigma_uv)) {
+			if (is.numeric(object$sigma_uv) && length(object$sigma_uv) >= i) object$sigma_uv[i] else mean(object$sigma_uv)
+		} else 0.1
 		list(rho = rho_u, sigma = sig_u)
 	}
 
-	# iterate over draws
+	# multiplicative term, skipped when there are no latent factors (R = 0)
+	R_fit <- max(c(
+		object[["R", exact = TRUE]] %||% 0L,
+		object$R_row %||% 0L,
+		object$R_col %||% 0L
+	))
+	U_fit <- object$U
+	V_fit <- object[["V"]]
+	# symmetric fits store only U (the term is u l u'), so V mirrors U
+	if (is.null(V_fit) && isTRUE(object$symmetric)) V_fit <- U_fit
+	has_uv <- !is.null(U_fit) && !is.null(V_fit) &&
+		(length(dim(U_fit)) >= 2L) &&
+		(NCOL(U_fit) > 0L) && (NCOL(V_fit) > 0L) &&
+		(R_fit > 0L)
+	uv_is_dynamic <- has_uv && isTRUE(object$dynamic_uv) &&
+		length(dim(U_fit)) == 3L
+	# V mirrors U for symmetric fits and for dynamic fits whose V is not a cube
+	sym_uv <- has_uv && (isTRUE(object$symmetric) ||
+			(uv_is_dynamic && length(dim(V_fit)) != 3L))
+	# keep the n x R matrix shape when R = 1
+	last_uv_slice <- function(A) {
+		if (length(dim(A)) == 3L)
+			matrix(A[, , dim(A)[3L]], nrow = dim(A)[1L], ncol = dim(A)[2L])
+		else A
+	}
+	U_T <- if (has_uv) last_uv_slice(U_fit) else NULL
+	V_T <- if (!has_uv) NULL else if (sym_uv) U_T else last_uv_slice(V_fit)
+	# bipartite fits carry the interaction matrix
+	G_fc <- if (has_uv && bip) object[["G"]] else NULL
+	# a symmetric fit's signed diagonal L plays the role of the interaction matrix
+	if (has_uv && !bip && sym_uv && !is.null(object$L) &&
+			length(object$L) == ncol(U_T)) {
+		G_fc <- diag(as.numeric(object$L), nrow = ncol(U_T))
+	}
+	uv_product <- function(Um, Vm) {
+		if (!is.null(G_fc)) Um %*% G_fc %*% t(Vm) else Um %*% t(Vm)
+	}
+
 	for (s_idx in seq_along(idx)) {
 		i <- idx[s_idx]
+		state_i <- state_idx[s_idx]
+		if (has_uv) {
+			U_T <- matrix(joint$U[, , state_i], n_a)
+			V_T <- matrix(joint$V[, , state_i], n_b)
+			G_fc <- if (bip) matrix(joint$G[, , state_i], ncol(U_T)) else NULL
+			if (sym_uv) {
+				den <- colSums(U_T^2)
+				L_i <- ifelse(den > 0, colSums(U_T * V_T) / den, 0)
+				G_fc <- diag(L_i, ncol(U_T))
+				V_T <- U_T
+			}
+		}
 
 		# beta path forward
 		if (beta_is_dyn) {
-			# beta_t: last-period beta for this draw (length p)
 			beta_T <- object$BETA[i, , dim(object$BETA)[3L]]
 			rs <- get_rho_sigma_beta(i)
-			# expand block-level (rho, sigma) to per-coef
+			# expand block-level (rho, sigma) to per-coefficient values
 			groups <- object$beta_dynamic_groups
 			if (is.null(groups)) groups <- rep("dyad", length(beta_T))
-			# fast-path: scalar rho/sigma
 			if (is.null(names(rs$rho))) {
 				rho_by_coef <- rep(rs$rho, length(beta_T))
 				sig_by_coef <- rep(rs$sigma, length(beta_T))
 			} else {
-				# named per-block; broadcast to per-coef via group label
-				rho_by_coef <- ifelse(groups %in% names(rs$rho),
-				                      rs$rho[groups],
-				                      0)  # static coefs: rho effectively 0; we'll handle below
-				sig_by_coef <- ifelse(groups %in% names(rs$sigma),
-				                      rs$sigma[groups],
-				                      0)
+				# every dynamic coefficient needs its block's transition draws
+				dyn_coef <- if (!is.null(object$beta_dynamic_mask)) {
+					object$beta_dynamic_mask
+				} else {
+					rep(TRUE, length(beta_T))
+				}
+				has_draws <- groups %in% names(rs$rho) & groups %in% names(rs$sigma)
+				missing_groups <- unique(groups[dyn_coef & !has_draws])
+				if (length(missing_groups)) {
+					cli::cli_abort(
+						c(
+							"Dynamic coefficient block{?s} {.val {missing_groups}} {?has/have} no transition draws in {.code fit$RHO_BETA} and {.code fit$SIGMA_BETA}.",
+							"i" = "The forecast needs the rho and sigma draws of every dynamic coefficient block."
+						),
+						class = "lame_forecast_block_missing"
+					)
+				}
+				# per-block values broadcast to coefficients by group label
+				rho_by_coef <- ifelse(
+					groups %in% names(rs$rho),
+					rs$rho[groups],
+					0
+				)
+				sig_by_coef <- ifelse(
+					groups %in% names(rs$sigma),
+					rs$sigma[groups],
+					0
+				)
 			}
-			# mask static coefs: they don't evolve. set rho = 1, sigma = 0.
+			# static coefficients do not evolve: rho = 1, sigma = 0
 			static_mask <- if (!is.null(object$beta_dynamic_mask))
 				!object$beta_dynamic_mask else rep(FALSE, length(beta_T))
 			rho_by_coef[static_mask] <- 1
 			sig_by_coef[static_mask] <- 0
+			sig_by_coef <- sig_by_coef * beta_transition$sd
 
 			beta_path <- .propagate_per_coef(beta_T, rho_by_coef, sig_by_coef, h)
 		} else {
-			# static beta: replicate the single beta vector across h periods
+			# static beta repeated across the h periods
 			beta_T <- object$BETA[i, ]
 			beta_path <- matrix(rep(beta_T, h), nrow = h, byrow = TRUE)
 		}
 
-		# a, b forward
-		if (isTRUE(object$dynamic_ab) && !is.null(object$a_dynamic) && !is.null(object$b_dynamic)) {
-			a_T <- object$a_dynamic[, dim(object$a_dynamic)[2L]]
-			b_T <- object$b_dynamic[, dim(object$b_dynamic)[2L]]
+		# keep the posterior dependence between terminal states and parameters
+		a_T <- joint$a[, state_i]
+		b_T <- joint$b[, state_i]
+		if (isTRUE(object$dynamic_ab)) {
+			a_lev <- joint$a_level[, state_i]
+			b_lev <- joint$b_level[, state_i]
 			rs_ab <- get_rho_sigma_ab(i)
-			a_path <- .propagate_ar1_vec(a_T, rs_ab$rho, rs_ab$sigma, h)
-			b_path <- .propagate_ar1_vec(b_T, rs_ab$rho, rs_ab$sigma, h)
+			center_ab <- object$intercept %||%
+				object$start_vals$checkpoint_state$layout$intercept %||%
+				("intercept" %in% dimnames(object$BETA)[[2L]])
+			a_path <- if (isFALSE(object$rvar)) matrix(0, h, length(a_T)) else
+				.propagate_ar1_vec(a_T - a_lev, rs_ab$rho, rs_ab$sigma, h, center_ab) +
+				matrix(a_lev, h, length(a_lev), byrow = TRUE)
+			b_path <- if (isTRUE(object$symmetric)) a_path else if (isFALSE(object$cvar)) {
+				matrix(0, h, length(b_T))
+			} else .propagate_ar1_vec(b_T - b_lev, rs_ab$rho, rs_ab$sigma, h, center_ab) +
+				matrix(b_lev, h, length(b_lev), byrow = TRUE)
 		} else {
-			a_T <- object$APM
-			b_T <- object$BPM
-			# symmetric networks store a single additive effect (bpm is null)
-			if (is.null(b_T)) b_T <- a_T
-			if (is.null(a_T)) a_T <- b_T
-			a_path <- matrix(rep(a_T, h), nrow = h, byrow = TRUE)
-			b_path <- matrix(rep(b_T, h), nrow = h, byrow = TRUE)
+			a_path <- matrix(a_T, h, length(a_T), byrow = TRUE)
+			b_path <- matrix(b_T, h, length(b_T), byrow = TRUE)
 		}
 
-		# u, v forward. skip uv propagation entirely when r = 0 (no latent
-		# factors): the matrices have zero columns or the bipartite fit stores
-		# placeholder cubes with second dim 0 / 1 that the predict path cannot
-		# usefully propagate.
-		R_fit <- max(c(object$R %||% 0L,
-		               object$R_row %||% 0L, object$R_col %||% 0L))
-		has_uv <- !is.null(object$U) && !is.null(object$V) &&
-		          (length(dim(object$U)) >= 2L) &&
-		          (NCOL(object$U) > 0L) && (NCOL(object$V) > 0L) &&
-		          (R_fit > 0L)
-		if (has_uv && isTRUE(object$dynamic_uv) && length(dim(object$U)) == 3L) {
-			# symmetric fits mirror v on u and may not store v as a 3d cube
-			sym_uv <- isTRUE(object$symmetric) || length(dim(object$V)) != 3L
-			# keep the n x R matrix shape: with R = 1 (the default rank) the
-			# singleton column dimension would drop to a bare vector, so
-			# nrow()/ncol() below return NULL and matrix() errors.
-			U_T <- matrix(object$U[, , dim(object$U)[3L]],
-			              nrow = dim(object$U)[1L], ncol = dim(object$U)[2L])
-			V_T <- if (sym_uv) U_T else
-				matrix(object$V[, , dim(object$V)[3L]],
-				       nrow = dim(object$V)[1L], ncol = dim(object$V)[2L])
+		if (uv_is_dynamic) {
 			rs_uv <- get_rho_sigma_uv(i)
-			# propagate every element independently (the ar(1) is element-wise)
-			U_path <- array(NA_real_, c(nrow(U_T), ncol(U_T), h))
-			V_path <- array(NA_real_, c(nrow(V_T), ncol(V_T), h))
+			kind <- object$dynamic_uv_kind %||% "ar1"
+			pi_i <- if (!is.null(object$pi_snap)) object$pi_snap[i] else NULL
+			U_path <- array(NA_real_, c(dim(U_T), h))
+			V_path <- array(NA_real_, c(dim(V_T), h))
 			cur_U <- U_T; cur_V <- V_T
 			for (k in seq_len(h)) {
-				cur_U <- rs_uv$rho * cur_U + matrix(stats::rnorm(prod(dim(U_T)), 0, rs_uv$sigma),
-				                                    nrow(U_T), ncol(U_T))
-				cur_V <- if (sym_uv) cur_U else rs_uv$rho * cur_V +
-				         matrix(stats::rnorm(prod(dim(V_T)), 0, rs_uv$sigma), nrow(V_T), ncol(V_T))
-				U_path[, , k] <- cur_U
-				V_path[, , k] <- cur_V
+				cur_U <- .lame_forecast_uv_step(
+					cur_U,
+					rs_uv$rho,
+					rs_uv$sigma,
+					kind,
+					pi_i,
+					object$prior$snap_kappa,
+					object$prior$t_nu %||% 4
+				)
+				cur_V <- if (sym_uv) cur_U else .lame_forecast_uv_step(
+					cur_V,
+					rs_uv$rho,
+					rs_uv$sigma,
+					kind,
+					pi_i,
+					object$prior$snap_kappa,
+					object$prior$t_nu %||% 4
+				)
+				U_path[, , k] <- cur_U; V_path[, , k] <- cur_V
 			}
 		} else if (has_uv) {
-			# same singleton-column hazard as the dynamic branch above: a
-			# rank-1 side would drop to a bare vector without the matrix()
-			U_T <- if (length(dim(object$U)) == 3L)
-				matrix(object$U[, , dim(object$U)[3L]],
-				       nrow = dim(object$U)[1L], ncol = dim(object$U)[2L])
-			else object$U
-			V_T <- if (length(dim(object$V)) == 3L)
-				matrix(object$V[, , dim(object$V)[3L]],
-				       nrow = dim(object$V)[1L], ncol = dim(object$V)[2L])
-			else object$V
-			U_path <- replicate(h, U_T)
-			V_path <- replicate(h, V_T)
+			U_path <- array(rep(U_T, h), c(dim(U_T), h))
+			V_path <- array(rep(V_T, h), c(dim(V_T), h))
 		} else {
-			U_path <- NULL
-			V_path <- NULL
+			U_path <- V_path <- NULL
 		}
 
-		# compute eta at each future period
+		# linear predictor at each future period
 		for (k in seq_len(h)) {
 			eta <- matrix(0, n_a, n_b)
-			# x beta
 			Xk <- X_future[[k]]
 			if (!is.null(Xk)) {
 				p_k <- if (length(dim(Xk)) == 3L) dim(Xk)[3L] else 1L
@@ -328,9 +412,7 @@
 					}
 				}
 			}
-			# a + b
 			eta <- eta + outer(a_path[k, ], b_path[k, ], "+")
-			# uv
 			if (!is.null(U_path) && !is.null(V_path)) {
 				Uk <- if (length(dim(U_path)) == 3L)
 					matrix(U_path[, , k], dim(U_path)[1L], dim(U_path)[2L])
@@ -338,59 +420,88 @@
 				Vk <- if (length(dim(V_path)) == 3L)
 					matrix(V_path[, , k], dim(V_path)[1L], dim(V_path)[2L])
 				else V_path
-				if (bip && !is.null(object$G)) {
-					eta <- eta + Uk %*% object$G %*% t(Vk)
-				} else {
-					eta <- eta + Uk %*% t(Vk)
-				}
+				prod_k <- uv_product(Uk, Vk)
+				eta <- eta + prod_k
 			}
+			if (isTRUE(object$symmetric) && !bip) eta <- (eta + t(eta)) / 2
 			out[, , k, s_idx] <- eta
 		}
 	}
 
-	# response-scale transform per family. for poisson, multiply by the
-	# future-period exposure when supplied; default to the last observed
-	# exposure when the fit has period_exposure but the user passed no
-	# newexposure, and to 1 when neither is present.
+	# response scale by family; Poisson multiplies by the future exposure, defaulting
+	# to the last observed exposure, else 1
 	family <- object$family %||% "normal"
+	# only families with observation noise on the response scale draw an outcome
+	explicit_ordinal <- identical(family, "ordinal") && identical(object$ordinal_cutpoints, "explicit")
+	predictive <- isTRUE(predictive) && (family %in% c("normal", "nrm", "poisson") || explicit_ordinal)
+	if (predictive && isTRUE(object$dynamic_rho)) {
+		cli::cli_abort(
+			c(
+				"Outcome forecasts are not implemented for period-specific reciprocity without a future reciprocity model.",
+				"i" = "Use conditional-mean forecasts, or simulate fitted periods with type = 'posterior'."
+			),
+			class = "lame_forecast_model"
+		)
+	}
 	if (identical(family, "poisson") && type == "response") {
-		# determine future-period exposure
-		if (is.null(newexposure)) {
-			if (!is.null(object$period_exposure)) {
-				newexposure <- rep(utils::tail(object$period_exposure, 1L), h)
-			} else {
-				newexposure <- rep(1, h)
-			}
-		}
-		if (length(newexposure) != h) {
+		newexposure <- newexposure %||% rep(utils::tail(object$period_exposure %||% 1, 1L), h)
+		if (length(newexposure) != h)
 			cli::cli_abort("{.arg newexposure} must have length {.val {h}}.")
-		}
-		if (any(!is.finite(newexposure)) || any(newexposure < 0)) {
+		if (any(!is.finite(newexposure) | newexposure < 0))
 			cli::cli_abort("{.arg newexposure} must be non-negative and finite.")
+	}
+	if (predictive) {
+		# observation variance and reciprocity at the selected posterior iteration;
+		# symmetric outcomes share noise, bipartite cells do not
+		observation_fit <- object
+		if (family == "nrm") observation_fit$family <- "normal"
+		if (family == "poisson") observation_fit$period_exposure <- newexposure
+		for (d in seq_len(n_draws)) for (k in seq_len(h)) {
+			eta <- matrix(out[, , k, d], n_a, n_b, dimnames = list(row_actors, col_actors))
+			out[, , k, d] <- .predictive_observation(eta, observation_fit, idx[d], k)$Y
 		}
-		# apply per-period exposure: out[, , k, draw] *= exposure[k] on the
-		# response scale (after exp(eta))
-		eta_capped <- pmin(out, log(.Machine$double.xmax))
-		out <- exp(eta_capped)
-		for (k in seq_len(h)) out[, , k, ] <- out[, , k, ] * newexposure[k]
-	} else {
-		transform_eta <- function(eta) {
-			switch(family,
-			       normal = eta,
-			       nrm = eta,
-			       binary = stats::pnorm(eta),
-			       bin = stats::pnorm(eta),
-			       cbin = stats::pnorm(eta),
-			       poisson = exp(pmin(eta, log(.Machine$double.xmax))),
-			       eta)
+	} else if (explicit_ordinal && type == "response") {
+		for (d in seq_len(n_draws)) for (k in seq_len(h))
+			out[, , k, d] <- .ordinal_response_mean(
+				out[, , k, d],
+				.ordinal_saved_cutpoints(object, idx[d]),
+				object$ordinal_levels
+			)
+	} else if (identical(family, "poisson") && type == "response") {
+		if (!is.matrix(object$VC) || !"ve" %in% colnames(object$VC))
+			cli::cli_abort("Poisson forecasts require saved observation variance draws.")
+		s2_draw <- object$VC[idx, "ve"]
+		if (any(!is.finite(s2_draw) | s2_draw < 0))
+			cli::cli_abort("Poisson forecasts require finite nonnegative observation variance draws.")
+		# point forecast is the mean count at the mean linear predictor and variance
+		# (as .poisson_fitted_mean); by_draw keeps each draw's own mean
+		if (!isTRUE(by_draw)) {
+			s2_bar <- mean(s2_draw)
+			return(lapply(seq_len(h), function(k) {
+				eta_bar <- apply(out[, , k, , drop = FALSE], c(1, 2), mean)
+				mu <- if (newexposure[k] == 0) eta_bar * 0 else
+					exp(eta_bar + s2_bar / 2 + log(newexposure[k]))
+				if (any(!is.finite(mu[!is.na(eta_bar)])))
+					cli::cli_abort("The Poisson forecast mean overflowed; no clipped mean was substituted.")
+				mu
+			}))
 		}
-		if (type == "response") {
-			out <- array(transform_eta(as.numeric(out)),
-			             dim = dim(out), dimnames = dimnames(out))
+		for (d in seq_len(n_draws)) for (k in seq_len(h)) {
+			eta <- matrix(out[, , k, d], n_a, n_b)
+			mu <- if (newexposure[k] == 0) matrix(0, n_a, n_b) else
+				exp(eta + s2_draw[d] / 2 + log(newexposure[k]))
+			if (any(!is.finite(mu[!is.na(eta)])))
+				cli::cli_abort("The Poisson forecast mean overflowed; no clipped mean was substituted.")
+			mu[is.na(eta)] <- NA_real_
+			out[, , k, d] <- mu
 		}
+	} else if (type == "response" && family %in% c("binary", "bin", "cbin")) {
+		out <- array(stats::pnorm(out), dim = dim(out), dimnames = dimnames(out))
 	}
 
-	if (isTRUE(by_draw)) return(out)
-	# per-period mean across draws
+	if (isTRUE(by_draw)) {
+		attr(out, "draw_index") <- idx
+		return(out)
+	}
 	lapply(seq_len(h), function(k) apply(out[, , k, , drop = FALSE], c(1, 2), mean))
 }

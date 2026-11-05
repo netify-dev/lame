@@ -4,7 +4,7 @@
 \alias{rZ_ord_explicit_fc}
 \title{Sample Z given explicit cutpoints alpha (asymmetric ordinal)}
 \usage{
-rZ_ord_explicit_fc(Z, EZ, Y_int, alpha)
+rZ_ord_explicit_fc(Z, EZ, Y_int, alpha, rho = 0)
 }
 \arguments{
 \item{Z}{current latent matrix}
@@ -14,6 +14,8 @@ rZ_ord_explicit_fc(Z, EZ, Y_int, alpha)
 \item{Y_int}{integer-recoded ordinal Y (1..K)}
 
 \item{alpha}{length-(K-1) cutpoints with \code{alpha[1] = 0}}
+
+\item{rho}{directed within-dyad correlation; zero for independent cells.}
 }
 \value{
 updated Z

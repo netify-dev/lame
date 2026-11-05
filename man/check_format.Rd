@@ -47,6 +47,12 @@ users identify and correct data formatting issues.
 This is an internal function primarily used by \code{lame()} but exported
 for advanced users who want to validate their data before model fitting.
 }
+\examples{
+n <- 12
+Y <- lapply(1:3, function(t) matrix(rnorm(n * n), n, n))
+check_format(Y)
+
+}
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

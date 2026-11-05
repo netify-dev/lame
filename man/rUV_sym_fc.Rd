@@ -4,7 +4,7 @@
 \alias{rUV_sym_fc}
 \title{Gibbs sampling of U and V}
 \usage{
-rUV_sym_fc(E, U, V, s2 = 1, shrink=TRUE)
+rUV_sym_fc(E, U, V, s2 = 1, shrink=TRUE, l_var = 1)
 }
 \arguments{
 \item{E}{square residual relational matrix}
@@ -16,6 +16,9 @@ rUV_sym_fc(E, U, V, s2 = 1, shrink=TRUE)
 \item{s2}{dyadic variance}
 
 \item{shrink}{adaptively shrink the factors with a hierarchical prior}
+
+\item{l_var}{prior variance of an eigen-weight: 1 for a unit response (the
+default), the variance of the response for a normal response of free scale}
 }
 \value{
 \item{U}{a new value of U} \item{V}{a new value of V}
@@ -28,9 +31,9 @@ diagonal matrix of eigenvalues of \code{U\%*\%t(V)}.
 }
 \examples{
 
-U0<-matrix(rnorm(30,2),30,2) ; V0<-U0\%*\%diag(c(3,-2)) 
-E<- U0\%*\%t(V0) + matrix(rnorm(30^2),30,30) 
-rUV_sym_fc 
+U0<-matrix(rnorm(30,2),30,2) ; V0<-U0\%*\%diag(c(3,-2))
+E<- U0\%*\%t(V0) + matrix(rnorm(30^2),30,30)
+rUV_sym_fc(E, U0, V0)
 
 }
 \author{

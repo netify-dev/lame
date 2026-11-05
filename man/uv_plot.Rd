@@ -51,13 +51,13 @@ or a network matrix Y if U and V are provided separately}
 
 \item{edge.alpha}{Transparency for edges (default 0.3)}
 
-\item{node.size}{Size of nodes, or "degree" to scale by degree (default 3)}
+\item{node.size}{Node size: a numeric value, \code{"degree"} to scale by degree (needs \code{Y}), or \code{"magnitude"} (the default) to scale by the length of each latent vector}
 
 \item{label.nodes}{Logical; if TRUE, show node labels (default TRUE)}
 
 \item{label.size}{Size of node labels (default 3)}
 
-\item{show.usernames}{Integer: number of top-degree nodes to label, or NULL for default behavior}
+\item{show.usernames}{Which nodes to label: an integer (that many nodes, ranked by latent magnitude when available, else by degree), \code{TRUE} for all, a character vector of actor names, or \code{NULL} for the default}
 
 \item{sender.color}{Color for sender/row nodes (default "darkred")}
 
@@ -77,7 +77,7 @@ Can be numeric index or "average" for time-averaged positions}
 
 \item{highlight}{Optional character vector of actor names to highlight on a
 \code{plot_type = "trajectory"} plot. Highlighted actors are coloured
-with the colour-blind-safe Okabe-Ito palette; all other actors are
+with the ColorBrewer Dark2 palette; all other actors are
 rendered in grey at lower alpha. Ignored for static or snapshot plots.}
 }
 \value{
@@ -120,8 +120,9 @@ patterns; clustering of vectors indicates community structure.
 \donttest{
 # Fit an AME model with multiplicative effects
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
-           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE, chains = 1)
 
 # Basic visualization
 uv_plot(fit)

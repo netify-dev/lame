@@ -22,8 +22,28 @@ residuals. Entries where the original data was \code{NA} remain \code{NA}.
 Computes residuals as the difference between observed values and fitted
 values. For \code{type = "response"}, returns \code{Y - fitted(object)}.
 For \code{type = "pearson"}, returns response residuals scaled by the
-standard deviation implied by the family (e.g., \code{sqrt(p*(1-p))} for
-binary).
+standard deviation the family assigns to a response with that fitted value
+\eqn{\mu} (\code{fitted(object)}, which for a Poisson fit already carries
+the exposure):
+\tabular{ll}{
+\strong{family} \tab \strong{variance} \cr
+normal \tab \eqn{\sigma^2_e}, the posterior mean residual variance \cr
+binary, cbin \tab \eqn{\mu (1 - \mu)} (a cbin cell is a nomination with
+that marginal probability) \cr
+poisson \tab \eqn{\mu + \mu^2 (e^{\sigma^2_e} - 1)}, the variance of a
+count when \eqn{y \sim \mathrm{Poisson}(e^z)} and
+\eqn{z \sim N(\eta, \sigma^2_e)} \cr
+ordinal \tab the variance of the category distribution at the
+posterior-mean linear predictor; with explicit cutpoints the
+posterior-mean cutpoints, with data-induced cutpoints those that
+reproduce the observed category shares (the rule the posterior
+predictive draws use) \cr
+frn \tab not defined: a rank within its row has a variance that depends on
+the other cells of the row, and the call is an error of class
+\code{lame_pearson_residuals}
+}
+A cell whose variance is zero has no standardised residual and is
+\code{NA}.
 }
 \seealso{
 \code{\link{fitted.ame}}, \code{\link{predict.ame}}

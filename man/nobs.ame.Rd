@@ -18,7 +18,9 @@
 Integer: number of observed dyads in \code{Y}.
 }
 \description{
-Number of finite (non-missing) cells in \code{Y}, summed over time slices
+Tempered symmetric binary fits count each observed unordered dyad-period
+once, matching their stored likelihood. Other fits count finite
+(non-missing) cells in \code{Y}, summed over time slices
 for longitudinal fits. Useful as a denominator for sample-size reporting
 and as the basis for AIC/BIC \emph{if} you also have a log-likelihood
 (which \code{ame()} / \code{lame()} do not directly expose; see

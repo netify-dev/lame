@@ -21,7 +21,10 @@
 covariates the model was fit with (same order; do not include the
 intercept or nodal-covariate slices). Nodal covariates cannot be
 changed at prediction time -- their fitted contribution is reused.
-When omitted, the fitted design is used.}
+When omitted, the fitted design is used. Explicit ordinal response predictions
+average numeric category expectations over matched predictor and cutpoint
+draws. Newdata predictions require saved draws for enabled additive and
+latent effects; disabled effects and zero latent rank require no such draws.}
 
 \item{type}{Character; type of prediction:
 \itemize{
@@ -32,7 +35,10 @@ When omitted, the fitted design is used.}
 
 \item{n_samples}{For type="distribution", number of posterior samples}
 
-\item{include_uncertainty}{Logical; include parameter uncertainty (default TRUE)}
+\item{include_uncertainty}{Logical; include joint parameter uncertainty (default TRUE).
+Requires aligned additive and latent draws saved through
+\code{posterior_options(save_ab = TRUE, save_UV = TRUE)}. With FALSE,
+only observation noise is simulated around the fitted mean predictor.}
 
 \item{...}{Additional arguments (not used)}
 }
@@ -47,12 +53,23 @@ Depending on type:
 Generate predictions from fitted AME models, including point estimates
 and predictive distributions.
 }
+\details{
+For MCMC Poisson models the response is the mean count of a cell,
+\eqn{\exp(\eta + \sigma^2 / 2)}, at the posterior mean \eqn{\eta} of its
+linear predictor and the posterior mean \eqn{\sigma^2} of the residual
+variance (the model is \eqn{Y \sim \mathrm{Poisson}(\exp(z))},
+\eqn{z \sim N(\eta, \sigma^2)}). The stored \code{YPM} holds it, and
+\code{newdata} predictions use the same form at the new linear predictor.
+\code{type = "distribution"} draws counts from the posterior predictive
+distribution instead.
+}
 \examples{
 \donttest{
 # Fit model
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2,
-           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE, chains = 1)
 
 # Point predictions
 Y_pred <- predict(fit)

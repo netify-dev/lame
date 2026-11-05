@@ -1,8 +1,7 @@
-# essential cran checks
-# this file runs without skip_on_cran()
-# run the larger suite locally with devtools::test()
+# essential CRAN checks, run without skip_on_cran()
+# the larger suite runs locally with devtools::test()
 
-# minimal mcmc settings for speed
+# minimal MCMC settings for speed
 burn = 5
 nscan = 25
 odens = 5
@@ -16,9 +15,15 @@ test_that("ame fits a unipartite binary model", {
 	diag(Y) = NA
 	rownames(Y) = colnames(Y) = paste0("n", 1:n)
 
-	fit = ame(Y, R = 2, family = "binary",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE)
+	fit = ame(
+		Y,
+		R = 2,
+		family = "binary",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE
+	)
 
 	expect_s3_class(fit, "ame")
 	expect_equal(nrow(fit$BETA), nscan / odens)
@@ -37,14 +42,21 @@ test_that("ame fits a normal model with covariates", {
 
 	Xd = array(rnorm(n * n), dim = c(n, n, 1))
 	dimnames(Xd)[[3]] = "covariate"
-	diag(Xd[,,1]) = NA
+	diag(Xd[, , 1]) = NA
 
-	fit = ame(Y, Xdyad = Xd, R = 0, family = "normal",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE)
+	fit = ame(
+		Y,
+		Xdyad = Xd,
+		R = 0,
+		family = "normal",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE
+	)
 
 	expect_s3_class(fit, "ame")
-	expect_equal(ncol(fit$BETA), 2)  # intercept + covariate
+	expect_equal(ncol(fit$BETA), 2) # intercept + covariate
 	expect_true(all(is.finite(coef(fit))))
 })
 
@@ -57,9 +69,16 @@ test_that("ame fits a bipartite binary model", {
 	rownames(Y) = paste0("R", 1:nA)
 	colnames(Y) = paste0("C", 1:nB)
 
-	fit = ame(Y, mode = "bipartite", R = 2, family = "binary",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE)
+	fit = ame(
+		Y,
+		mode = "bipartite",
+		R = 2,
+		family = "binary",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE
+	)
 
 	expect_s3_class(fit, "ame")
 	expect_equal(fit$mode, "bipartite")
@@ -81,9 +100,16 @@ test_that("lame fits a longitudinal binary model", {
 		Y
 	})
 
-	fit = lame(Y_list, R = 2, family = "binary",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE, plot = FALSE)
+	fit = lame(
+		Y_list,
+		R = 2,
+		family = "binary",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE,
+		plot = FALSE
+	)
 
 	expect_s3_class(fit, "lame")
 	expect_equal(nrow(fit$BETA), nscan / odens)
@@ -103,15 +129,23 @@ test_that("lame fits with dynamic_uv and dynamic_ab", {
 		Y
 	})
 
-	fit = lame(Y_list, R = 2, family = "binary",
-		dynamic_uv = TRUE, dynamic_ab = TRUE,
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE, plot = FALSE)
+	fit = lame(
+		Y_list,
+		R = 2,
+		family = "binary",
+		dynamic_uv = TRUE,
+		dynamic_ab = TRUE,
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE,
+		plot = FALSE
+	)
 
 	expect_s3_class(fit, "lame")
 	expect_true(isTRUE(fit$dynamic_uv))
 	expect_true(isTRUE(fit$dynamic_ab))
-	# u is a cube for dynamic models
+	# U is a cube for dynamic models
 	expect_equal(length(dim(fit$U)), 3)
 })
 
@@ -125,17 +159,31 @@ test_that("front-door ALS dynamic routes run quickly", {
 		Y
 	})
 
-	fit_dyn = suppressWarnings(lame(
-		Y_list, R = 0, family = "normal", method = "als",
-		dynamic_ab = TRUE, als_max_iter = 2, verbose = FALSE))
+	fit_dyn = lame(
+		Y_list,
+		R = 0,
+		family = "normal",
+		method = "als",
+		dynamic_ab = TRUE,
+		verbose = FALSE
+	)
 	expect_s3_class(fit_dyn, "lame_dynamic_als")
+	expect_true(fit_dyn$converged)
 
-	fit_snap = suppressWarnings(lame(
-		Y_list, R = 1, family = "normal", method = "als",
-		dynamic_uv = TRUE, dynamic_uv_kind = "snap",
-		als_max_iter = 2, verbose = FALSE))
-	expect_s3_class(fit_snap, "lame_snap_als")
-	expect_true(all(is.na(fit_snap$snap_prob[, 1L])))
+	# the snap kind has no ALS route
+	expect_error(
+		suppressWarnings(lame(
+			Y_list,
+			R = 1,
+			family = "normal",
+			method = "als",
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = "snap",
+			als_max_iter = 2,
+			verbose = FALSE
+		)),
+		"is not available"
+	)
 })
 
 # lame bipartite longitudinal
@@ -150,16 +198,23 @@ test_that("lame fits a bipartite longitudinal model", {
 		Y
 	})
 
-	fit = lame(Y_list, mode = "bipartite", R = 2,
+	fit = lame(
+		Y_list,
+		mode = "bipartite",
+		R = 2,
 		family = "binary",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE, plot = FALSE)
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE,
+		plot = FALSE
+	)
 
 	expect_s3_class(fit, "lame")
 	expect_equal(fit$mode, "bipartite")
 })
 
-# s3 methods
+# S3 methods
 
 test_that("s3 methods work on ame objects", {
 	set.seed(6886)
@@ -168,9 +223,15 @@ test_that("s3 methods work on ame objects", {
 	diag(Y) = NA
 	rownames(Y) = colnames(Y) = paste0("n", 1:n)
 
-	fit = ame(Y, R = 2, family = "normal",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE)
+	fit = ame(
+		Y,
+		R = 2,
+		family = "normal",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE
+	)
 
 	b = coef(fit)
 	expect_true(is.numeric(b))
@@ -207,9 +268,16 @@ test_that("s3 methods work on lame objects", {
 		Y
 	})
 
-	fit = lame(Y_list, R = 0, family = "normal",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE, plot = FALSE)
+	fit = lame(
+		Y_list,
+		R = 0,
+		family = "normal",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE,
+		plot = FALSE
+	)
 
 	b = coef(fit)
 	expect_true(is.numeric(b))
@@ -234,9 +302,15 @@ test_that("simulate works for ame and lame", {
 	diag(Y) = NA
 	rownames(Y) = colnames(Y) = paste0("n", 1:n)
 
-	fit = ame(Y, R = 2, family = "binary",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE)
+	fit = ame(
+		Y,
+		R = 2,
+		family = "binary",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE
+	)
 
 	sims = simulate(fit, nsim = 3)
 	expect_true(is.list(sims$Y))
@@ -247,15 +321,22 @@ test_that("simulate works for ame and lame", {
 # plotting functions
 
 test_that("plotting functions produce ggplot objects", {
+	skip_on_cran()
 	set.seed(6886)
 	n = 10
 	Y = matrix(rnorm(n * n), n, n)
 	diag(Y) = NA
 	rownames(Y) = colnames(Y) = paste0("n", 1:n)
 
-	fit = ame(Y, R = 2, family = "normal",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE)
+	fit = ame(
+		Y,
+		R = 2,
+		family = "normal",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE
+	)
 
 	p1 = trace_plot(fit)
 	expect_true(inherits(p1, "gg") || inherits(p1, "patchwork"))
@@ -279,9 +360,15 @@ test_that("latent_positions returns tidy data frame", {
 	diag(Y) = NA
 	rownames(Y) = colnames(Y) = paste0("n", 1:n)
 
-	fit = ame(Y, R = 2, family = "normal",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE)
+	fit = ame(
+		Y,
+		R = 2,
+		family = "normal",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE
+	)
 
 	lp = latent_positions(fit)
 	expect_true(is.data.frame(lp))
@@ -304,7 +391,7 @@ test_that("check_format validates lame inputs", {
 	expect_error(check_format(Y = Y_list, Xdyad = list(matrix(1, 5, 5))))
 })
 
-# gof helpers
+# GOF helpers
 
 test_that("gof_stats returns named vector", {
 	set.seed(6886)
@@ -342,9 +429,16 @@ test_that("bipartite ame GOF first row is observed", {
 	rownames(Y) = paste0("R", 1:nA)
 	colnames(Y) = paste0("C", 1:nB)
 
-	fit = ame(Y, mode = "bipartite", R = 2, family = "binary",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE)
+	fit = ame(
+		Y,
+		mode = "bipartite",
+		R = 2,
+		family = "binary",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE
+	)
 
 	obs = gof_stats(Y, mode = "bipartite")
 	expect_equal(unname(fit$GOF[1, ]), unname(obs))
@@ -357,18 +451,24 @@ test_that("bipartite ame list custom_gof uses simulated networks", {
 	rownames(Y) = paste0("R", 1:nA)
 	colnames(Y) = paste0("C", 1:nB)
 
-	fit = ame(Y, mode = "bipartite", R = 0, family = "normal",
-		burn = burn, nscan = nscan, odens = odens, gof = TRUE,
+	fit = ame(
+		Y,
+		mode = "bipartite",
+		R = 0,
+		family = "normal",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		gof = TRUE,
 		custom_gof = list(total = function(Y) sum(Y, na.rm = TRUE)),
-		verbose = FALSE)
+		verbose = FALSE
+	)
 
 	expect_true("total" %in% colnames(fit$GOF))
 	expect_true(any(abs(fit$GOF[-1, "total"] - fit$GOF[1, "total"]) > 1e-8))
 })
 
-# -------------------------------------------------------
 # utility functions
-# -------------------------------------------------------
 
 test_that("list_to_array converts Y list to 3D array", {
 	set.seed(6886)
@@ -380,8 +480,13 @@ test_that("list_to_array converts Y list to 3D array", {
 	)
 	diag(Y_list[[1]]) = diag(Y_list[[2]]) = NA
 
-	arr = list_to_array(actors = nms, Y = Y_list,
-		Xdyad = NULL, Xrow = NULL, Xcol = NULL)
+	arr = list_to_array(
+		actors = nms,
+		Y = Y_list,
+		Xdyad = NULL,
+		Xrow = NULL,
+		Xcol = NULL
+	)
 	expect_equal(length(dim(arr$Y)), 3)
 	expect_equal(dim(arr$Y)[3], 2)
 })
@@ -400,9 +505,7 @@ test_that("el2sm and sm2el round-trip", {
 	expect_equal(dim(Y2), dim(Y))
 })
 
-# -------------------------------------------------------
-# gof with custom_gof
-# -------------------------------------------------------
+# GOF with custom_gof
 
 test_that("gof with custom_gof works for ame", {
 	set.seed(6886)
@@ -411,9 +514,18 @@ test_that("gof with custom_gof works for ame", {
 	diag(Y) = NA
 	rownames(Y) = colnames(Y) = paste0("n", 1:n)
 
-	fit = ame(Y, R = 2, family = "binary",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE)
+	fit = ame(
+		Y,
+		R = 2,
+		family = "binary",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE,
+		posterior_opts = posterior_options(
+			save_ab = TRUE, save_UV = TRUE, thin_ab = 1, thin_UV = 1
+		)
+	)
 
 	custom_fn = function(Y) {
 		c(density = mean(Y, na.rm = TRUE))
@@ -435,9 +547,17 @@ test_that("gof with custom_gof works for lame", {
 		Y
 	})
 
-	fit = lame(Y_list, R = 0, family = "binary",
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE, plot = FALSE)
+	fit = lame(
+		Y_list,
+		R = 0,
+		family = "binary",
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE,
+		plot = FALSE,
+		posterior_opts = posterior_options(save_ab = TRUE, thin_ab = 1)
+	)
 
 	custom_fn = function(Y) {
 		c(density = mean(Y, na.rm = TRUE))
@@ -448,9 +568,7 @@ test_that("gof with custom_gof works for lame", {
 	expect_true("density" %in% colnames(result))
 })
 
-# -------------------------------------------------------
-# procrustes_align with bipartite dynamic model
-# -------------------------------------------------------
+# procrustes_align with a bipartite dynamic model
 
 test_that("procrustes_align works for bipartite dynamic model", {
 	set.seed(6886)
@@ -462,10 +580,18 @@ test_that("procrustes_align works for bipartite dynamic model", {
 		Y
 	})
 
-	fit = lame(Y_list, mode = "bipartite", R = 2,
-		family = "binary", dynamic_uv = TRUE,
-		burn = burn, nscan = nscan, odens = odens,
-		verbose = FALSE, plot = FALSE)
+	fit = lame(
+		Y_list,
+		mode = "bipartite",
+		R = 2,
+		family = "binary",
+		dynamic_uv = TRUE,
+		burn = burn,
+		nscan = nscan,
+		odens = odens,
+		verbose = FALSE,
+		plot = FALSE
+	)
 
 	aligned = procrustes_align(fit)
 	expect_true(!is.null(aligned$U))

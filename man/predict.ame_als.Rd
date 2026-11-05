@@ -4,7 +4,13 @@
 \alias{predict.ame_als}
 \title{Predictions from a fast AME fit}
 \usage{
-\method{predict}{ame_als}(object, newdata = NULL, type = c("response", "link"), ...)
+\method{predict}{ame_als}(
+  object,
+  newdata = NULL,
+  type = c("response", "link"),
+  plug_in = NULL,
+  ...
+)
 }
 \arguments{
 \item{object}{an \code{ame_als} object.}
@@ -13,6 +19,12 @@
 (\code{[n_row, n_col, p, T]}); a matrix or 3D array is coerced.}
 
 \item{type}{\code{"response"} (default) or \code{"link"}.}
+
+\item{plug_in}{logical; for an empirical-Bayes fit, return the plug-in
+values (\code{TRUE}: the link at the fitted predictor, the posterior mean)
+or the predictive ones that integrate the link over the uncertainty of the
+predictor (\code{FALSE}). The default is \code{TRUE} for a Poisson fit and
+\code{FALSE} for a binary fit.}
 
 \item{...}{ignored.}
 }
@@ -32,4 +44,24 @@ actors and dimensions as the fitted design -- substitutes the dyadic
 covariate contribution while holding the intercept, additive effects and
 multiplicative term fixed; it predicts counterfactual dyadic covariates for
 the same network, not out-of-sample actors.
+
+For a binary empirical-Bayes fit (the default) the response-scale
+predictions are predictive probabilities: the response integrated over the
+posterior of the linear predictor, \eqn{\Phi(m / \sqrt{1 + v})} for a probit
+link, rather than applied at its mean (see \strong{Predictions} in
+\code{\link{ame_als}}). For a Poisson fit they are the plug-in mean counts
+\eqn{e^{m + v_e / 2}}{exp(m + ve / 2)}, as the samplers report them: the
+posterior predictive mean of a count is not finite in this model (the
+inverse-gamma tail of \eqn{v_e}{ve}, the inverse-Wishart tail of the scale of
+the factors for a cell the data do not inform), and the plug-in mean is
+finite everywhere. \code{plug_in = FALSE} returns, for a count, the mean that
+integrates the predictor, \eqn{e^{m + (v + v_e) / 2}}{exp(m + (v + ve) / 2)},
+and \code{plug_in = TRUE}, for a binary fit, the link applied to the fitted
+predictor, which is what \code{fit$fitted} and \code{simulate()} hold.
+\code{type = "link"} returns the posterior mean \eqn{m} of the predictor.
+A normal fit's response is its predictor plus Gaussian noise: its
+predictions are the posterior mean of the predictor, with or without
+\code{plug_in}.
+Predictions for a design given in \code{newdata} add the coefficients'
+contribution to the same posterior.
 }

@@ -1,9 +1,11 @@
+skip_on_cran()
+
 test_that("netify cross-sectional inputs work with ame and ame_als", {
 	skip_if_not_installed("netify", minimum_version = "1.5.3")
 	set.seed(11)
 	df = expand.grid(
-		i = paste0("a", seq_len(5)),
-		j = paste0("a", seq_len(5)),
+		i = paste0("a", seq_len(12)),
+		j = paste0("a", seq_len(12)),
 		stringsAsFactors = FALSE
 	)
 	df = df[df$i != df$j, , drop = FALSE]
@@ -11,23 +13,28 @@ test_that("netify cross-sectional inputs work with ame and ame_als", {
 
 	net = netify::netify(
 		df,
-		actor1 = "i", actor2 = "j",
+		actor1 = "i",
+		actor2 = "j",
 		weight = "y",
 		symmetric = FALSE,
 		mode = "unipartite",
 		missing_to_zero = FALSE
 	)
 
-	fit_als = suppressWarnings(ame_als(net, R = 0, max_iter = 20, verbose = FALSE))
+	fit_als = suppressWarnings(ame_als(net, R = 0, max_iter = 20, bias_correct = "none", verbose = FALSE))
 	expect_s3_class(fit_als, "ame_als")
 	expect_equal(fit_als$family, "binary")
 	expect_equal(fit_als$mode, "unipartite")
-	expect_equal(dim(fit_als$Y), c(5L, 5L, 1L))
+	expect_equal(dim(fit_als$Y), c(12L, 12L, 1L))
 
 	fit_mcmc = ame(
-		net, R = 0,
-		nscan = 12, burn = 6, odens = 3,
-		gof = FALSE, verbose = FALSE
+		net,
+		R = 0,
+		nscan = 12,
+		burn = 6,
+		odens = 3,
+		gof = FALSE,
+		verbose = FALSE
 	)
 	expect_s3_class(fit_mcmc, "ame")
 	expect_equal(fit_mcmc$family, "binary")
@@ -44,8 +51,11 @@ test_that("netify bridge rejects mismatched entry points and duplicate covariate
 	)
 	net_long = netify::netify(
 		df,
-		actor1 = "i", actor2 = "j", time = "year",
-		weight = "y", symmetric = FALSE,
+		actor1 = "i",
+		actor2 = "j",
+		time = "year",
+		weight = "y",
+		symmetric = FALSE,
 		output_format = "longit_list",
 		missing_to_zero = FALSE
 	)
@@ -53,8 +63,10 @@ test_that("netify bridge rejects mismatched entry points and duplicate covariate
 
 	net_xs = netify::netify(
 		df[df$year == 2001, ],
-		actor1 = "i", actor2 = "j",
-		weight = "y", symmetric = FALSE,
+		actor1 = "i",
+		actor2 = "j",
+		weight = "y",
+		symmetric = FALSE,
 		missing_to_zero = FALSE
 	)
 	expect_error(
@@ -78,9 +90,13 @@ test_that("netify bridge rejects mismatched entry points and duplicate covariate
 	)
 	net = netify::netify(
 		df,
-		actor1 = "row", actor2 = "col", time = "year",
-		weight = "y", dyad_vars = "z",
-		mode = "bipartite", symmetric = FALSE,
+		actor1 = "row",
+		actor2 = "col",
+		time = "year",
+		weight = "y",
+		dyad_vars = "z",
+		mode = "bipartite",
+		symmetric = FALSE,
 		output_format = "longit_list",
 		actor_time_uniform = FALSE,
 		actor_pds = roster,
@@ -104,9 +120,13 @@ test_that("netify to_lame ragged bipartite output matches lame padding", {
 
 	row_actors = sort(unique(unlist(lapply(nl$Y, rownames), use.names = FALSE)))
 	col_actors = sort(unique(unlist(lapply(nl$Y, colnames), use.names = FALSE)))
-	padded = list_to_array_bipartite(
-		row_actors, col_actors,
-		nl$Y, nl$Xdyad, nl$Xrow, nl$Xcol
+	padded = lame:::list_to_array_bipartite(
+		row_actors,
+		col_actors,
+		nl$Y,
+		nl$Xdyad,
+		nl$Xrow,
+		nl$Xcol
 	)
 
 	expect_equal(dim(padded$Y), c(3L, 3L, 3L))
@@ -128,32 +148,44 @@ test_that("ragged bipartite netify panels fit through lame entry points", {
 	net = .netify_bipartite_panel(add_nodes = FALSE)
 
 	fit_als = suppressWarnings(lame_als(
-		net, R = 0, family = "normal",
-		max_iter = 20, verbose = FALSE
+		net,
+		R = 0,
+		family = "normal",
+		max_iter = 20,
+		verbose = FALSE
 	))
 	expect_s3_class(fit_als, "ame_als")
 	expect_equal(fit_als$mode, "bipartite")
 	expect_equal(dim(fit_als$Y), c(3L, 3L, 3L))
 
 	fit_dispatch = suppressWarnings(lame(
-		net, R = 0, family = "normal", method = "als",
-		als_max_iter = 20, verbose = FALSE
+		net,
+		R = 0,
+		family = "normal",
+		method = "als",
+		als_max_iter = 20,
+		verbose = FALSE
 	))
 	expect_s3_class(fit_dispatch, "ame_als")
 	expect_equal(fit_dispatch$mode, "bipartite")
 	expect_equal(dim(fit_dispatch$Y), c(3L, 3L, 3L))
 
 	fit_mcmc = suppressWarnings(lame(
-		net, R = 0, family = "normal",
-		nscan = 12, burn = 6, odens = 3,
-		gof = FALSE, verbose = FALSE
+		net,
+		R = 0,
+		family = "normal",
+		nscan = 12,
+		burn = 6,
+		odens = 3,
+		gof = FALSE,
+		verbose = FALSE
 	))
 	expect_s3_class(fit_mcmc, "lame")
 	expect_equal(fit_mcmc$mode, "bipartite")
 	expect_equal(dim(fit_mcmc$Y), c(3L, 3L, 3L))
 })
 
-test_that("snap ALS accepts normal ragged bipartite netify panels", {
+test_that("lame refuses snap ALS on ragged bipartite netify panels", {
 	skip_if_not_installed("netify", minimum_version = "1.5.3")
 	set.seed(12)
 	df = expand.grid(
@@ -163,7 +195,7 @@ test_that("snap ALS accepts normal ragged bipartite netify panels", {
 		stringsAsFactors = FALSE
 	)
 	df = df[!(df$row == "r4" & df$year == 2001) &
-		!(df$col == "c4" & df$year < 2003), , drop = FALSE]
+			!(df$col == "c4" & df$year < 2003), , drop = FALSE]
 	df$y = rnorm(nrow(df))
 	roster = data.frame(
 		actor = c(paste0("r", seq_len(4)), paste0("c", seq_len(4))),
@@ -172,20 +204,32 @@ test_that("snap ALS accepts normal ragged bipartite netify panels", {
 	)
 	net = netify::netify(
 		df,
-		actor1 = "row", actor2 = "col", time = "year",
-		weight = "y", mode = "bipartite", symmetric = FALSE,
+		actor1 = "row",
+		actor2 = "col",
+		time = "year",
+		weight = "y",
+		mode = "bipartite",
+		symmetric = FALSE,
 		output_format = "longit_list",
 		actor_time_uniform = FALSE,
 		actor_pds = roster,
 		missing_to_zero = FALSE
 	)
 
-	fit = suppressWarnings(lame_snap_als(
-		net, R = 1, family = "normal",
-		max_iter = 3, stability = "none",
-		verbose = FALSE
-	))
-	expect_s3_class(fit, "lame_snap_als")
-	expect_equal(fit$mode, "bipartite")
-	expect_equal(dim(fit$Y), c(4L, 4L, 3L))
+	# the netify mode is read before the refusal, so a bipartite netify panel
+	# gets the bipartite message
+	msg = tryCatch(
+		suppressWarnings(lame(
+			net,
+			R = 1,
+			family = "normal",
+			method = "als",
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = "snap",
+			verbose = FALSE
+		)),
+		error = function(e) gsub("\\s+", " ", conditionMessage(e))
+	)
+	expect_match(msg, "is not available", fixed = TRUE)
+	expect_match(msg, "bipartite snap panels", fixed = TRUE)
 })

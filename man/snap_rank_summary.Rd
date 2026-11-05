@@ -7,10 +7,8 @@
 snap_rank_summary(fit, actors = NULL, years = NULL, side = c("u", "v"))
 }
 \arguments{
-\item{fit}{a \code{\link{lame}} fit with snap-shift MCMC output, or a
-\code{\link{lame_snap_als}} fit. MCMC fits should be run with retained
-snap draws for posterior uncertainty; ALS fits contribute their
-\code{snap_prob} scores as one score row.}
+\item{fit}{a \code{\link{lame}} fit with snap-shift MCMC output, run with
+retained snap draws for posterior uncertainty.}
 
 \item{actors}{optional actor names or indices. Default uses every actor on
 the selected side.}
@@ -27,4 +25,16 @@ A data frame with year-level index means and rank probabilities.
 \description{
 Ranks year-level snap indices within each retained draw, with rank 1 assigned
 to the highest snap index.
+}
+\examples{
+set.seed(1)
+n <- 12; Tt <- 3
+Y <- lapply(seq_len(Tt), function(t) {
+  m <- matrix(rnorm(n * n), n, n); diag(m) <- NA; m
+})
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(Y, R = 1, dynamic_uv = TRUE, dynamic_uv_kind = "snap",
+            keep_snap_draws = "draws",
+            nscan = 20, burn = 5, odens = 1, verbose = FALSE, plot = FALSE, chains = 1)
+snap_rank_summary(fit, side = "u")
 }

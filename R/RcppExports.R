@@ -5,12 +5,120 @@ Xbeta_cpp <- function(X, beta) {
     .Call(`_lame_Xbeta_cpp`, X, beta)
 }
 
-outer_cpp <- function(a, b) {
-    .Call(`_lame_outer_cpp`, a, b)
-}
-
 gof_stats_cpp <- function(Y) {
     .Call(`_lame_gof_stats_cpp`, Y)
+}
+
+ae_bcd_stats_cpp <- function(warr, zf, xarr, nr, nc, tt, p, threads = 1L) {
+    .Call(`_lame_ae_bcd_stats_cpp`, warr, zf, xarr, nr, nc, tt, p, threads)
+}
+
+ae_weighted_sums_cpp <- function(warr, xarr, nr, nc, tt, p, threads = 1L) {
+    .Call(`_lame_ae_weighted_sums_cpp`, warr, xarr, nr, nc, tt, p, threads)
+}
+
+ae_bcd_gtc_cpp <- function(a, b, omat, gm) {
+    .Call(`_lame_ae_bcd_gtc_cpp`, a, b, omat, gm)
+}
+
+ae_bcd_rs_cpp <- function(theta, gm, sz, wsum, omat) {
+    .Call(`_lame_ae_bcd_rs_cpp`, theta, gm, sz, wsum, omat)
+}
+
+ae_bcd_rbar_cpp <- function(a, b, phi, dmu, sz, wsum) {
+    .Call(`_lame_ae_bcd_rbar_cpp`, a, b, phi, dmu, sz, wsum)
+}
+
+ae_bcd_sse_cpp <- function(a, b, omat, phi, dmu, sz, wsum) {
+    .Call(`_lame_ae_bcd_sse_cpp`, a, b, omat, phi, dmu, sz, wsum)
+}
+
+ae_additive_cpp <- function(wsum, base_rs, base_cs, a0, b0, cnt_row, cnt_col, symmetric, direct) {
+    .Call(`_lame_ae_additive_cpp`, wsum, base_rs, base_cs, a0, b0, cnt_row, cnt_col, symmetric, direct)
+}
+
+ae_additive_resid_cpp <- function(wsum, base_rs, base_cs, a, b, cnt_row, cnt_col) {
+    .Call(`_lame_ae_additive_resid_cpp`, wsum, base_rs, base_cs, a, b, cnt_row, cnt_col)
+}
+
+ae_bcd_sse_exact_cpp <- function(warr, zf, xarr, nr, nc, tt, p, mu, beta, cmat) {
+    .Call(`_lame_ae_bcd_sse_exact_cpp`, warr, zf, xarr, nr, nc, tt, p, mu, beta, cmat)
+}
+
+ae_log_pnorm_cpp <- function(x) {
+    .Call(`_lame_ae_log_pnorm_cpp`, x)
+}
+
+ae_gh_rule_cpp <- function(K) {
+    .Call(`_lame_ae_gh_rule_cpp`, K)
+}
+
+ae_probit_terms_cpp <- function(eta, threads = 1L) {
+    .Call(`_lame_ae_probit_terms_cpp`, eta, threads)
+}
+
+ae_probit_hprime_cpp <- function(eta, ld, lp1, lp0, threads = 1L) {
+    .Call(`_lame_ae_probit_hprime_cpp`, eta, ld, lp1, lp0, threads)
+}
+
+ae_cells_cpp <- function(y, m, v, probit, K, threads = 1L) {
+    .Call(`_lame_ae_cells_cpp`, y, m, v, probit, K, threads)
+}
+
+ae_info_w_cpp <- function(y, m, v, probit, K, threads = 1L) {
+    .Call(`_lame_ae_info_w_cpp`, y, m, v, probit, K, threads)
+}
+
+ae_pbivnorm_cpp <- function(a, b, r, threads = 1L) {
+    .Call(`_lame_ae_pbivnorm_cpp`, a, b, r, threads)
+}
+
+ae_pair_logphi2_cpp <- function(a, b, r, threads = 1L) {
+    .Call(`_lame_ae_pair_logphi2_cpp`, a, b, r, threads)
+}
+
+ae_pair_logp_cpp <- function(a, b, r, threads = 1L) {
+    .Call(`_lame_ae_pair_logp_cpp`, a, b, r, threads)
+}
+
+ae_pair_quad_cpp <- function(m1, m2, v1, v2, cv, s1, s2, rho, K, mode = 0L, deriv = FALSE, rho_deriv = FALSE, threads = 1L) {
+    .Call(`_lame_ae_pair_quad_cpp`, m1, m2, v1, v2, cv, s1, s2, rho, K, mode, deriv, rho_deriv, threads)
+}
+
+ae_pair_cross_cpp <- function(cw, X, n, Tt, p) {
+    .Call(`_lame_ae_pair_cross_cpp`, cw, X, n, Tt, p)
+}
+
+ae_row_solve_cpp <- function(Gflat, L, rhs, threads = 1L) {
+    .Call(`_lame_ae_row_solve_cpp`, Gflat, L, rhs, threads)
+}
+
+ae_pln_node_cpp <- function(y, eta, ve, lgy, zk, lwk, threads = 1L) {
+    .Call(`_lame_ae_pln_node_cpp`, y, eta, ve, lgy, zk, lwk, threads)
+}
+
+ae_pln_cells_cpp <- function(y, lgy, m, v, ve, zo, wo, vcut, zk, lwk, threads = 1L) {
+    .Call(`_lame_ae_pln_cells_cpp`, y, lgy, m, v, ve, zo, wo, vcut, zk, lwk, threads)
+}
+
+ae_pln_info_w_cpp <- function(y, lgy, m, v, ve, zk, lwk, threads = 1L) {
+    .Call(`_lame_ae_pln_info_w_cpp`, y, lgy, m, v, ve, zk, lwk, threads)
+}
+
+ae_pln2_node_cpp <- function(y1, y2, lg1, lg2, m1, m2, s11, s22, s12, zk, lwk, threads = 1L) {
+    .Call(`_lame_ae_pln2_node_cpp`, y1, y2, lg1, lg2, m1, m2, s11, s22, s12, zk, lwk, threads)
+}
+
+als_factor_update_cpp <- function(response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit = 15L, tol = 1e-6) {
+    .Call(`_lame_als_factor_update_cpp`, response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit, tol)
+}
+
+als_factor_balanced_cpp <- function(response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit = 15L, tol = 1e-6) {
+    .Call(`_lame_als_factor_balanced_cpp`, response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit, tol)
+}
+
+bso_loglik_cpp <- function(es, mm, sg, k, inv_sd) {
+    .Call(`_lame_bso_loglik_cpp`, es, mm, sg, k, inv_sd)
 }
 
 #' Sample dynamic additive effects with AR(1) evolution
@@ -18,11 +126,25 @@ gof_stats_cpp <- function(Y) {
 #' Gibbs update of the per-period additive effects under the AR(1) state
 #' model with stationary initial condition. For each actor and period the
 #' full conditional combines the AR(1) bridge prior (stationary init at
-#' t = 1) with the dyadic residual likelihood: resid_ij = a_i + b_j + e_ij,
-#' e_ij ~ N(0, s2). The reciprocal effect (b_j for the a-step, the freshly
-#' updated a_i for the b-step) is subtracted from each residual, missing
-#' residuals are skipped, and for symmetric networks each dyad contributes
-#' exactly once (resid(i,j) = a_i + a_j + e_ij).
+#' t = 1) with the dyadic residual likelihood: resid_ij = a_i + b_j + e_ij.
+#'
+#' With \code{rho_dyad = 0} the dyads are independent, e_ij ~ N(0, s2), and
+#' the conditional for a_i uses only row i of the residual. With
+#' \code{rho_dyad != 0} the two directed residuals of a dyad are jointly
+#' normal, (e_ij, e_ji) ~ N(0, s2 * ((1, rho), (rho, 1))), whose inverse
+#' covariance is ((q, p), (p, q)) with q = 1 / (s2 (1 - rho^2)) and
+#' p = -rho / (s2 (1 - rho^2)). The effect being drawn enters e_ij directly
+#' and enters the pair's cross term through e_ji, so each fully observed
+#' dyad contributes q to the precision and q (r_ij - b_j) + p (r_ji - a_j -
+#' b_i) to the numerator of the a-step (symmetrically for the b-step). A
+#' dyad with only one direction observed falls back to the marginal
+#' isotropic weight 1 / s2.
+#'
+#' The reciprocal effect (b_j for the a-step, the freshly updated a_i for
+#' the b-step) is subtracted from each residual, missing residuals are
+#' skipped, the diagonal is skipped, and for symmetric networks each dyad
+#' contributes exactly once (resid(i,j) = a_i + a_j + e_ij) so the pair term
+#' does not apply and \code{rho_dyad} is ignored.
 #'
 #' @param a_current Current 2D array of row effects (n x T)
 #' @param b_current Current 2D array of column effects (n x T)
@@ -32,38 +154,20 @@ gof_stats_cpp <- function(Y) {
 #' @param sigma_ab Innovation standard deviation
 #' @param s2 Dyadic residual variance
 #' @param symmetric Whether the network is symmetric
+#' @param rho_dyad Within-dyad correlation of the residual pair
+#'   (e_ij, e_ji); 0 (the default) treats the dyads as independent. Ignored
+#'   for symmetric networks and for non-square slices. Must lie strictly
+#'   between -1 and 1 for a directed square panel.
+#' @param center Whether each period's effects are drawn conditional on
+#'   summing to zero across the actors of their margin, the identification
+#'   used when the model has a static intercept. The draw is then the
+#'   conditional of the block's joint normal given the constraint, not a
+#'   projection of an unconstrained draw.
+#' @param rvar Whether the sender margin is active.
+#' @param cvar Whether the receiver margin is active.
 #' @return List with updated a and b arrays
-sample_dynamic_ab_cpp <- function(a_current, b_current, Z_array, EZ_array, rho_ab, sigma_ab, s2, symmetric) {
-    .Call(`_lame_sample_dynamic_ab_cpp`, a_current, b_current, Z_array, EZ_array, rho_ab, sigma_ab, s2, symmetric)
-}
-
-#' Sample AR(1) parameter for dynamic additive effects
-#'
-#' @param a_mat Matrix of row effects (n x T)
-#' @param b_mat Matrix of column effects (n x T)
-#' @param sigma_ab Innovation standard deviation
-#' @param rho_current Current value of rho
-#' @param symmetric Whether the network is symmetric
-#' @param prior_mean Prior mean for rho. Used only when \code{prior_sd > 0}.
-#' @param prior_sd Prior SD for rho. \code{prior_sd < 0} (the default)
-#'   selects a Jeffreys-like flat prior; a positive value switches to a
-#'   truncated Normal(prior_mean, prior_sd^2) prior.
-#' @return Updated rho value
-sample_rho_ab_cpp <- function(a_mat, b_mat, sigma_ab, rho_current, symmetric, prior_mean = 0.0, prior_sd = -1.0) {
-    .Call(`_lame_sample_rho_ab_cpp`, a_mat, b_mat, sigma_ab, rho_current, symmetric, prior_mean, prior_sd)
-}
-
-#' Sample innovation variance for dynamic additive effects
-#'
-#' @param a_mat Matrix of row effects (n x T)
-#' @param b_mat Matrix of column effects (n x T)
-#' @param rho_ab AR(1) parameter
-#' @param symmetric Whether the network is symmetric
-#' @param prior_shape Shape parameter for inverse gamma prior
-#' @param prior_scale Scale parameter for inverse gamma prior
-#' @return Updated sigma_ab value
-sample_sigma_ab_cpp <- function(a_mat, b_mat, rho_ab, symmetric, prior_shape = 2.0, prior_scale = 1.0) {
-    .Call(`_lame_sample_sigma_ab_cpp`, a_mat, b_mat, rho_ab, symmetric, prior_shape, prior_scale)
+sample_dynamic_ab_cpp <- function(a_current, b_current, Z_array, EZ_array, rho_ab, sigma_ab, s2, symmetric, rho_dyad = 0.0, center = FALSE, rvar = TRUE, cvar = TRUE) {
+    .Call(`_lame_sample_dynamic_ab_cpp`, a_current, b_current, Z_array, EZ_array, rho_ab, sigma_ab, s2, symmetric, rho_dyad, center, rvar, cvar)
 }
 
 #' Initialize dynamic additive effects with AR(1) structure
@@ -77,6 +181,26 @@ sample_sigma_ab_cpp <- function(a_mat, b_mat, rho_ab, symmetric, prior_shape = 2
 #' @return List with initialized a and b matrices
 init_dynamic_ab_cpp <- function(n, Tn, rho_ab, sigma_ab, mean_a = 0.0, mean_b = 0.0) {
     .Call(`_lame_init_dynamic_ab_cpp`, n, Tn, rho_ab, sigma_ab, mean_a, mean_b)
+}
+
+sample_dynamic_ab_rho_cpp <- function(a_current, b_current, Z_array, EZ_array, rho_ab, sigma_ab, s2, symmetric, rho_dyad, center = FALSE, rvar = TRUE, cvar = TRUE) {
+    .Call(`_lame_sample_dynamic_ab_rho_cpp`, a_current, b_current, Z_array, EZ_array, rho_ab, sigma_ab, s2, symmetric, rho_dyad, center, rvar, cvar)
+}
+
+#' Per-period sufficient statistics of the dynamic coefficient block
+#'
+#' The statistics the forward filter of \code{sample_beta_dynamic_cpp} reads,
+#' for the interweaving step of the path hyperparameters: given the latent
+#' array, the offsets and the static block, the log density of the dynamic
+#' path is, up to a constant, the sum over periods of
+#' h_t' beta_t - beta_t' Omega_t beta_t / 2.
+#'
+#' @inheritParams sample_beta_dynamic_cpp
+#' @return List with: Omega -- a (p_dyn x p_dyn x T) array; h -- a (T x p_dyn)
+#'   matrix.
+#' @noRd
+beta_dynamic_stats_cpp <- function(Xdyn_list, Xstat_list, Z_list, offset_list, beta_static, s2, dyad_rho, bipartite, symmetric, use_dyad_rho) {
+    .Call(`_lame_beta_dynamic_stats_cpp`, Xdyn_list, Xstat_list, Z_list, offset_list, beta_static, s2, dyad_rho, bipartite, symmetric, use_dyad_rho)
 }
 
 #' Sample the dynamic-block beta path via FFBS
@@ -111,10 +235,14 @@ init_dynamic_ab_cpp <- function(n, Tn, rho_ab, sigma_ab, mean_a = 0.0, mean_b = 
 #' @param symmetric Whether the network is symmetric.
 #' @param use_dyad_rho Whether to use the dyad-corr branch (TRUE only for
 #'   unipartite, asymmetric, with a non-zero rho).
+#' @param Omega_in,h_in Optional per-period sufficient statistics, as
+#'   returned by \code{beta_dynamic_stats_cpp} for the same arguments (a
+#'   p_dyn x p_dyn x T array and a T x p_dyn matrix); the filter then reads
+#'   them instead of accumulating them again. The default (NULL) accumulates.
 #' @return List with: path -- a (T x p_dyn) matrix of beta draws (one row
 #'   per period); chol_fail -- integer count of Cholesky failures.
-sample_beta_dynamic_cpp <- function(Xdyn_list, Xstat_list, Z_list, offset_list, beta_static, rho_by_coef, sigma_by_coef, Lambda, beta0_mean, beta0_cov, s2, dyad_rho, bipartite, symmetric, use_dyad_rho) {
-    .Call(`_lame_sample_beta_dynamic_cpp`, Xdyn_list, Xstat_list, Z_list, offset_list, beta_static, rho_by_coef, sigma_by_coef, Lambda, beta0_mean, beta0_cov, s2, dyad_rho, bipartite, symmetric, use_dyad_rho)
+sample_beta_dynamic_cpp <- function(Xdyn_list, Xstat_list, Z_list, offset_list, beta_static, rho_by_coef, sigma_by_coef, Lambda, beta0_mean, beta0_cov, s2, dyad_rho, bipartite, symmetric, use_dyad_rho, Omega_in = NULL, h_in = NULL) {
+    .Call(`_lame_sample_beta_dynamic_cpp`, Xdyn_list, Xstat_list, Z_list, offset_list, beta_static, rho_by_coef, sigma_by_coef, Lambda, beta0_mean, beta0_cov, s2, dyad_rho, bipartite, symmetric, use_dyad_rho, Omega_in, h_in)
 }
 
 #' Sample the static-block beta conditional on the dynamic path
@@ -175,30 +303,49 @@ sample_sigma_beta_cpp <- function(beta_path, group_id, n_groups, Lambda_inv, rho
     .Call(`_lame_sample_sigma_beta_cpp`, beta_path, group_id, n_groups, Lambda_inv, rho_by_group, prior_shape, prior_scale)
 }
 
-#' Compute EZ when beta is time-varying
-#'
-#' Rebuild the (n x n x T) or (nA x nB x T) EZ cube using a per-period beta
-#' vector. Mirrors get_EZ_cpp / get_EZ_bip_cpp but accepts a (T x p) beta
-#' matrix where each row is the beta for that period.
-#'
-#' @param Xlist T-length list of design arrays (each n x n x p or nA x nB x p).
-#' @param beta_full_path (T x p) matrix of per-period beta. For coefficients
-#'   that are not in the dynamic block, the rows are identical (the static
-#'   beta replicated across all periods).
-#' @param a_mat (n_a x T) row effects (or repmat-ed static effects).
-#' @param b_mat (n_b x T) column effects.
-#' @param U_cube (n_u x R x T) row latent positions (or replicated-static).
-#' @param V_cube (n_v x R x T) column latent positions.
-#' @param G (R x R or RA x RB) interaction matrix (bipartite); identity for
-#'   unipartite.
-#' @param bipartite TRUE/FALSE.
-#' @param symmetric TRUE/FALSE.
-#' @return n_a x n_b x T cube of EZ values.
-get_EZ_dynamic_beta_cpp <- function(Xlist, beta_full_path, a_mat, b_mat, U_cube, V_cube, G, bipartite, symmetric) {
-    .Call(`_lame_get_EZ_dynamic_beta_cpp`, Xlist, beta_full_path, a_mat, b_mat, U_cube, V_cube, G, bipartite, symmetric)
+lde_gh_cells_cpp <- function(y, eta, vnoise, znodes, wnodes, wfloor, delta_cap, what, per_sd, logit) {
+    .Call(`_lame_lde_gh_cells_cpp`, y, eta, vnoise, znodes, wnodes, wfloor, delta_cap, what, per_sd, logit)
+}
+
+lde_pair_table_cpp <- function(rho, cc, du, klo, khi, vmask = 15L, threads = 1L) {
+    .Call(`_lame_lde_pair_table_cpp`, rho, cc, du, klo, khi, vmask, threads)
+}
+
+lde_pair_table_blend_cpp <- function(tabs, w, threads = 1L) {
+    .Call(`_lame_lde_pair_table_blend_cpp`, tabs, w, threads)
+}
+
+lde_pair_apply_cpp <- function(table, m1, m2, sd1, sd2, variant, cutoff = 7.5, deriv = TRUE, rho_deriv = FALSE, threads = 1L) {
+    .Call(`_lame_lde_pair_apply_cpp`, table, m1, m2, sd1, sd2, variant, cutoff, deriv, rho_deriv, threads)
+}
+
+lde_pair_direct_cpp <- function(m1, m2, sd1, sd2, variant, type1, type2, K1, K2, rho, cc, du, cutoff = 7.5, deriv = TRUE, rho_deriv = FALSE, threads = 1L) {
+    .Call(`_lame_lde_pair_direct_cpp`, m1, m2, sd1, sd2, variant, type1, type2, K1, K2, rho, cc, du, cutoff, deriv, rho_deriv, threads)
+}
+
+lde_pln_cells_cpp <- function(y, eta, ve, lgy, zk, lwk, threads = 1L) {
+    .Call(`_lame_lde_pln_cells_cpp`, y, eta, ve, lgy, zk, lwk, threads)
+}
+
+lde_pln_expect_cpp <- function(y, lgy, m, v, ve, zo, wo, vcut, zk, lwk, zk2, lwk2, threads = 1L) {
+    .Call(`_lame_lde_pln_expect_cpp`, y, lgy, m, v, ve, zo, wo, vcut, zk, lwk, zk2, lwk2, threads)
+}
+
+lde_pos_sweep_cpp <- function(w, z, eta_add, obs, umean, usig, vmean, vsig, na, nb, R, Tt, s2, rho, lam_u, lam_v) {
+    .Call(`_lame_lde_pos_sweep_cpp`, w, z, eta_add, obs, umean, usig, vmean, vsig, na, nb, R, Tt, s2, rho, lam_u, lam_v)
 }
 
 #' Update dynamic latent positions using AR(1) process
+#'
+#' The per-period observation model is the pair model the rest of the
+#' sampler uses: the two cells of a dyad, (e_ij, e_ji), have covariance
+#' s2 * matrix(c(1, rho, rho, 1), 2, 2). Conditioning one actor's
+#' coordinates on every other actor's leaves an exact Gaussian full
+#' conditional in which the dyadic correlation enters three ways: the
+#' likelihood precision is scaled by 1 / (1 - rho^2), the linear term
+#' carries -rho times the reciprocal residual, and the self-cell (i, i)
+#' contributes a rank-one correction. Passing \code{rho = 0} reproduces
+#' the independent-dyad kernel exactly.
 #'
 #' @param U_current Current 3D array of U positions (n x R x T)
 #' @param V_current Current 3D array of V positions (n x R x T)
@@ -206,59 +353,14 @@ get_EZ_dynamic_beta_cpp <- function(Xlist, beta_full_path, a_mat, b_mat, U_cube,
 #' @param rho_uv AR(1) autoregressive parameter for latent positions
 #' @param sigma_uv Innovation standard deviation for latent positions
 #' @param s2 Dyadic variance
+#' @param max_abs Optional positive coordinate bound; nonpositive or infinite
+#'   values disable it. Each actor conditional respects the bound.
 #' @param shrink Whether to apply shrinkage
 #' @param symmetric Whether network is symmetric
+#' @param rho Dyadic correlation of the (i, j) and (j, i) residual pair
 #' @return List with updated U and V arrays
-rUV_dynamic_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, shrink, symmetric) {
-    .Call(`_lame_rUV_dynamic_fc_cpp`, U_current, V_current, ET, rho_uv, sigma_uv, s2, shrink, symmetric)
-}
-
-#' Initialize dynamic latent positions with AR(1) structure
-#'
-#' @param n Number of actors
-#' @param R Latent dimension
-#' @param Tn Number of time points
-#' @param rho_uv AR(1) parameter
-#' @param sigma_uv Innovation standard deviation
-#' @return 3D array of latent positions (n x R x Tn)
-init_dynamic_positions <- function(n, R, Tn, rho_uv, sigma_uv) {
-    .Call(`_lame_init_dynamic_positions`, n, R, Tn, rho_uv, sigma_uv)
-}
-
-#' Sample AR(1) parameter for dynamic latent factors
-#'
-#' Independence Metropolis-Hastings update coherent with the stationary
-#' AR(1) initial condition used by the dynamic UV kernels. The proposal is
-#' the conjugate Normal implied by the transitions and the
-#' Normal(prior_mean, prior_sd^2) prior, drawn truncated to (-0.99, 0.99)
-#' via the inverse CDF; the acceptance ratio supplies the t = 1 stationary
-#' factor proportional to \code{(1 - rho^2)^(nR / 2) * exp(-(1 - rho^2) *
-#' S1 / (2 * sigma^2))}
-#' that the Gaussian proposal omits. Defaults (prior_mean = 0,
-#' prior_sd = 1) preserve the historical behaviour; lame::lame() passes
-#' the user-set prior$rho_uv_mean / prior$rho_uv_sd explicitly.
-#'
-#' @param U_cube 3D array of U positions (n x R x T)
-#' @param V_cube 3D array of V positions (n x R x T)
-#' @param sigma_uv Innovation standard deviation
-#' @param rho_current Current value of rho
-#' @param symmetric Whether network is symmetric
-#' @param prior_mean Prior mean for rho (default 0)
-#' @param prior_sd Prior SD for rho (default 1)
-#' @return Updated rho value
-sample_rho_uv <- function(U_cube, V_cube, sigma_uv, rho_current, symmetric, prior_mean = 0.0, prior_sd = 1.0) {
-    .Call(`_lame_sample_rho_uv`, U_cube, V_cube, sigma_uv, rho_current, symmetric, prior_mean, prior_sd)
-}
-
-#' Sample innovation variance for dynamic latent factors
-#'
-#' @param U_cube 3D array of U positions (n x R x T)
-#' @param V_cube 3D array of V positions (n x R x T)
-#' @param rho_uv AR(1) parameter
-#' @param symmetric Whether network is symmetric
-#' @return Updated sigma_uv value
-sample_sigma_uv <- function(U_cube, V_cube, rho_uv, symmetric) {
-    .Call(`_lame_sample_sigma_uv`, U_cube, V_cube, rho_uv, symmetric)
+rUV_dynamic_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, shrink, symmetric, rho = 0.0, max_abs = -1.0) {
+    .Call(`_lame_rUV_dynamic_fc_cpp`, U_current, V_current, ET, rho_uv, sigma_uv, s2, shrink, symmetric, rho, max_abs)
 }
 
 #' Update dynamic latent positions with snap-shift model selection
@@ -278,11 +380,14 @@ sample_sigma_uv <- function(U_cube, V_cube, rho_uv, symmetric) {
 #' @param pi_snap Prior snap probability
 #' @param delta_u_current Current sender-side snap indicators from the previous sweep
 #' @param delta_v_current Current receiver-side snap indicators from the previous sweep
+#' @param max_abs Optional positive coordinate bound; nonpositive or infinite
+#'   values disable it. Each actor conditional respects the bound.
 #' @param shrink Whether to apply shrinkage
 #' @param symmetric Whether network is symmetric
+#' @param rho Dyadic correlation of the (i, j) and (j, i) residual pair
 #' @return List with updated U, V arrays and delta_u, delta_v snap indicators
-rUV_dynamic_snap_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_u_current, delta_v_current, shrink, symmetric) {
-    .Call(`_lame_rUV_dynamic_snap_fc_cpp`, U_current, V_current, ET, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_u_current, delta_v_current, shrink, symmetric)
+rUV_dynamic_snap_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_u_current, delta_v_current, shrink, symmetric, rho = 0.0, max_abs = -1.0) {
+    .Call(`_lame_rUV_dynamic_snap_fc_cpp`, U_current, V_current, ET, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_u_current, delta_v_current, shrink, symmetric, rho, max_abs)
 }
 
 #' Update dynamic latent positions with heavy-tailed (Student-t) AR(1) innovations
@@ -302,11 +407,14 @@ rUV_dynamic_snap_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, 
 #' @param nu Student-t degrees of freedom
 #' @param lambda_u Current local scales for U (n x T)
 #' @param lambda_v Current local scales for V (n x T)
+#' @param max_abs Optional positive coordinate bound; nonpositive or infinite
+#'   values disable it. Each actor conditional respects the bound.
 #' @param shrink Whether to apply shrinkage
 #' @param symmetric Whether network is symmetric
+#' @param rho Dyadic correlation of the (i, j) and (j, i) residual pair
 #' @return List with updated U, V arrays and lambda_u, lambda_v local scales
-rUV_dynamic_t_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, nu, lambda_u, lambda_v, shrink, symmetric) {
-    .Call(`_lame_rUV_dynamic_t_fc_cpp`, U_current, V_current, ET, rho_uv, sigma_uv, s2, nu, lambda_u, lambda_v, shrink, symmetric)
+rUV_dynamic_t_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2, nu, lambda_u, lambda_v, shrink, symmetric, rho = 0.0, max_abs = -1.0) {
+    .Call(`_lame_rUV_dynamic_t_fc_cpp`, U_current, V_current, ET, rho_uv, sigma_uv, s2, nu, lambda_u, lambda_v, shrink, symmetric, rho, max_abs)
 }
 
 #' Bipartite dynamic UV Gibbs update
@@ -314,40 +422,90 @@ rUV_dynamic_t_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, s2,
 #' Replaces the nested R loops for bipartite dynamic_uv in lame.R.
 #' Uses direct 2x2 inverse formula for common R=2 case.
 #'
-#' @param U_cube 3D array (nA x RA x T)
-#' @param V_cube 3D array (nB x RB x T)
+#' @param U_state 3D array (nA x RA x T)
+#' @param V_state 3D array (nB x RB x T)
 #' @param E 3D array of residuals (nA x nB x T)
 #' @param G Interaction matrix (RA x RB)
 #' @param rho_uv AR(1) persistence parameter
 #' @param sigma_uv Innovation standard deviation
 #' @param s2 Dyadic variance
+#' @param max_abs Optional positive coordinate bound; nonpositive or infinite
+#'   values disable it. Each actor conditional respects the bound.
 #' @return List with updated U_cube, V_cube
-rUV_dynamic_bip_fc_cpp <- function(U_cube, V_cube, E, G, rho_uv, sigma_uv, s2) {
-    .Call(`_lame_rUV_dynamic_bip_fc_cpp`, U_cube, V_cube, E, G, rho_uv, sigma_uv, s2)
+rUV_dynamic_bip_fc_cpp <- function(U_state, V_state, E, G, rho_uv, sigma_uv, s2, max_abs = -1.0) {
+    .Call(`_lame_rUV_dynamic_bip_fc_cpp`, U_state, V_state, E, G, rho_uv, sigma_uv, s2, max_abs)
 }
 
 count_four_cycles_bip_cpp <- function(Y) {
     .Call(`_lame_count_four_cycles_bip_cpp`, Y)
 }
 
-compute_degrees_bip_cpp <- function(Y) {
-    .Call(`_lame_compute_degrees_bip_cpp`, Y)
-}
-
-clustering_coef_bip_cpp <- function(Y) {
-    .Call(`_lame_clustering_coef_bip_cpp`, Y)
-}
-
 get_EZ_bip_cpp <- function(base, a, b, U, V, G) {
     .Call(`_lame_get_EZ_bip_cpp`, base, a, b, U, V, G)
 }
 
-outer_ab_bip_cpp <- function(a, b) {
-    .Call(`_lame_outer_ab_bip_cpp`, a, b)
-}
-
 get_EZ_cpp <- function(Xlist, beta, ab, U, V) {
     .Call(`_lame_get_EZ_cpp`, Xlist, beta, ab, U, V)
+}
+
+joint_levels_context_cpp <- function(D, H, prior, from, to, partner) {
+    .Call(`_lame_joint_levels_context_cpp`, D, H, prior, from, to, partner)
+}
+
+joint_levels_parameters_cpp <- function(cx, z, Sab, rho) {
+    .Call(`_lame_joint_levels_parameters_cpp`, cx, z, Sab, rho)
+}
+
+ess_pois_scalar_cpp <- function(ys, s, mu, sd) {
+    .Call(`_lame_ess_pois_scalar_cpp`, ys, s, mu, sd)
+}
+
+ess_pois_uv_cpp <- function(cur, mu, root, opp, w, ys, s, skip) {
+    .Call(`_lame_ess_pois_uv_cpp`, cur, mu, root, opp, w, ys, s, skip)
+}
+
+ltm_level_phase_cpp <- function(S, ys, E, dimE, x, o, iS, v, mode, row, perm) {
+    .Call(`_lame_ltm_level_phase_cpp`, S, ys, E, dimE, x, o, iS, v, mode, row, perm)
+}
+
+ltm_uv_phase_cpp <- function(mov, oth, opp, reg, root, w, sj, ysj, mode, row, perm) {
+    .Call(`_lame_ltm_uv_phase_cpp`, mov, oth, opp, reg, root, w, sj, ysj, mode, row, perm)
+}
+
+ess_pois_cells_cpp <- function(ez, x, ysx, mu, sd) {
+    .Call(`_lame_ess_pois_cells_cpp`, ez, x, ysx, mu, sd)
+}
+
+nom_col_shift_cpp <- function(Z, cls, flag, map, kind, mr, ord, u, b, m, s2, center, beta, iV0row) {
+    .Call(`_lame_nom_col_shift_cpp`, Z, cls, flag, map, kind, mr, ord, u, b, m, s2, center, beta, iV0row)
+}
+
+nom_bad_rows_cpp <- function(Z, Y, YL, room, bip) {
+    .Call(`_lame_nom_bad_rows_cpp`, Z, Y, YL, room, bip)
+}
+
+cbin_implied_labels_cpp <- function(Z, Y, cap, hid) {
+    .Call(`_lame_cbin_implied_labels_cpp`, Z, Y, cap, hid)
+}
+
+cbin_hidden_moves_cpp <- function(Z, EZ, rho, sq, cap, Y, hid, hl) {
+    .Call(`_lame_cbin_hidden_moves_cpp`, Z, EZ, rho, sq, cap, Y, hid, hl)
+}
+
+spm_nom_phase_cpp <- function(Z, cls, kind, room, YL, maxrank, nr, nc, X, W, reg, root, order, rows) {
+    .Call(`_lame_spm_nom_phase_cpp`, Z, cls, kind, room, YL, maxrank, nr, nc, X, W, reg, root, order, rows)
+}
+
+npm_nom_phase_cpp <- function(Z, cls, kind, room, YL, maxrank, nr, nc, Ucube, Vcube, RA, RB, G, root, order, rows, max_abs) {
+    .Call(`_lame_npm_nom_phase_cpp`, Z, cls, kind, room, YL, maxrank, nr, nc, Ucube, Vcube, RA, RB, G, root, order, rows, max_abs)
+}
+
+osm_gram_cpp <- function(Z, E, M, dims, mode) {
+    .Call(`_lame_osm_gram_cpp`, Z, E, M, dims, mode)
+}
+
+pab_sym_period_cpp <- function(Zt, Et, y, off, eff, m, v, centred, perm) {
+    .Call(`_lame_pab_sym_period_cpp`, Zt, Et, y, off, eff, m, v, centred, perm)
 }
 
 ldZgbme_cpp <- function(Z, Y, EZ, rho, s2) {
@@ -358,10 +516,6 @@ rZ_pois_fc_cpp <- function(Z, EZ, rho, s2, Y) {
     .Call(`_lame_rZ_pois_fc_cpp`, Z, EZ, rho, s2, Y)
 }
 
-ldZgbme_nrm_cpp <- function(Z, Y, EZ, rho, s2) {
-    .Call(`_lame_ldZgbme_nrm_cpp`, Z, Y, EZ, rho, s2)
-}
-
 ldZgbme_pois_exposure_cpp <- function(Z, Y, EZ, rho, s2, log_exposure) {
     .Call(`_lame_ldZgbme_pois_exposure_cpp`, Z, Y, EZ, rho, s2, log_exposure)
 }
@@ -370,24 +524,44 @@ rZ_pois_fc_exposure_cpp <- function(Z, EZ, rho, s2, Y, log_exposure) {
     .Call(`_lame_rZ_pois_fc_exposure_cpp`, Z, EZ, rho, s2, Y, log_exposure)
 }
 
-simY_pois_exposure <- function(EZ, exposure) {
-    .Call(`_lame_simY_pois_exposure`, EZ, exposure)
+simY_pois_exposure <- function(EZ, exposure, bipartite = FALSE) {
+    .Call(`_lame_simY_pois_exposure`, EZ, exposure, bipartite)
 }
 
-simY_pois <- function(EZ) {
-    .Call(`_lame_simY_pois`, EZ)
+simY_pois <- function(EZ, bipartite = FALSE) {
+    .Call(`_lame_simY_pois`, EZ, bipartite)
+}
+
+ppm_shift_sum_cpp <- function(ez, x, d) {
+    .Call(`_lame_ppm_shift_sum_cpp`, ez, x, d)
+}
+
+ppm_dyad_state_cpp <- function(eu, el, wu, wl, yu, yl, s2, rho) {
+    .Call(`_lame_ppm_dyad_state_cpp`, eu, el, wu, wl, yu, yl, s2, rho)
+}
+
+ppm_dyad_carry_cpp <- function(eu, el, wu, wl, bu, bl, yu, yl, s2c, rhoc, s2n, rhon) {
+    .Call(`_lame_ppm_dyad_carry_cpp`, eu, el, wu, wl, bu, bl, yu, yl, s2c, rhoc, s2n, rhon)
+}
+
+ppm_cell_state_cpp <- function(e, w, y, s2) {
+    .Call(`_lame_ppm_cell_state_cpp`, e, w, y, s2)
+}
+
+ppm_cell_carry_cpp <- function(e, w, b, y, s2c, s2n) {
+    .Call(`_lame_ppm_cell_carry_cpp`, e, w, b, y, s2c, s2n)
 }
 
 rwish_cpp <- function(S0, nu) {
     .Call(`_lame_rwish_cpp`, S0, nu)
 }
 
-rUV_rep_fc_cpp <- function(ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs) {
-    .Call(`_lame_rUV_rep_fc_cpp`, ET, U, V, rho, s2, iSe2, maxmargin, shrink, rLoopIDs)
+rUV_rep_fc_cpp <- function(ET, U_state, V_state, rho, s2, iSe2, maxmargin, shrink, rLoopIDs, prior_df, prior_psi) {
+    .Call(`_lame_rUV_rep_fc_cpp`, ET, U_state, V_state, rho, s2, iSe2, maxmargin, shrink, rLoopIDs, prior_df, prior_psi)
 }
 
-rUV_sym_fc_cpp <- function(E, U, V, s2, shrink, uLoopIDs) {
-    .Call(`_lame_rUV_sym_fc_cpp`, E, U, V, s2, shrink, uLoopIDs)
+rUV_sym_fc_cpp <- function(E, U_state, V, s2, shrink, uLoopIDs, l_var = 1.0) {
+    .Call(`_lame_rUV_sym_fc_cpp`, E, U_state, V, s2, shrink, uLoopIDs, l_var)
 }
 
 #' Batch normal Z sampling across all time periods
@@ -417,32 +591,8 @@ rZ_bin_bip_batch_cpp <- function(Z, EZ, Y) {
     .Call(`_lame_rZ_bin_bip_batch_cpp`, Z, EZ, Y)
 }
 
-rZ_bin_fused_cpp <- function(Z, EZ, rho, Y) {
-    .Call(`_lame_rZ_bin_fused_cpp`, Z, EZ, rho, Y)
-}
-
-#' Compute X'X and X'y for bipartite covariate regression
-#'
-#' Replaces the O(T x p^2 x n^2) nested R loop for bipartite XtX and Xty
-#' computation with a single C++ call.
-#'
-#' @param Xlist List of T arrays, each nA x nB x p
-#' @param resid 3D array of residuals nA x nB x T
-#' @param p Number of covariates
-#' @return List with XtX (p x p) and Xty (p vector)
-compute_XtX_Xty_bip_cpp <- function(Xlist, resid, p) {
-    .Call(`_lame_compute_XtX_Xty_bip_cpp`, Xlist, resid, p)
-}
-
-#' Compute Xbeta product for bipartite networks
-#'
-#' Computes sum_k beta_k * X_k for a single time slice
-#'
-#' @param X 3D array (nA x nB x p) of covariates for one time period
-#' @param beta Coefficient vector of length p
-#' @return nA x nB matrix
-Xbeta_bip_cpp <- function(X, beta) {
-    .Call(`_lame_Xbeta_bip_cpp`, X, beta)
+rZ_bin_fused_cpp <- function(Z_state, EZ, rho, Y) {
+    .Call(`_lame_rZ_bin_fused_cpp`, Z_state, EZ, rho, Y)
 }
 
 #' Full bipartite Gibbs update for beta, a, b
@@ -460,40 +610,100 @@ Xbeta_bip_cpp <- function(X, beta) {
 #' @param vb Column effect variance (diagonal element of Sab)
 #' @param rvar Whether to update row effects
 #' @param cvar Whether to update column effects
+#' @param center Condition each actor margin to sum to zero.
 #' @return List with beta, a, b
-rbeta_ab_bip_gibbs_cpp <- function(Z, Xlist, UV_eff, a_current, b_current, s2, g_prior, va, vb, rvar, cvar) {
-    .Call(`_lame_rbeta_ab_bip_gibbs_cpp`, Z, Xlist, UV_eff, a_current, b_current, s2, g_prior, va, vb, rvar, cvar)
+rbeta_ab_bip_gibbs_cpp <- function(Z, Xlist, UV_eff, a_current, b_current, s2, g_prior, va, vb, rvar, cvar, center = FALSE) {
+    .Call(`_lame_rbeta_ab_bip_gibbs_cpp`, Z, Xlist, UV_eff, a_current, b_current, s2, g_prior, va, vb, rvar, cvar, center)
 }
 
-rbeta_ab_rep_fc_cpp <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g = 100.0) {
-    .Call(`_lame_rbeta_ab_rep_fc_cpp`, ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g)
+replicated_gaussian_design_cpp <- function(mX, n) {
+    .Call(`_lame_replicated_gaussian_design_cpp`, mX, n)
 }
 
-test_rbeta_inputs <- function(ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g = 100.0) {
-    invisible(.Call(`_lame_test_rbeta_inputs`, ZT, Xr, Xc, mX, mXt, XX, XXt, iSe2, Sabs, k, G, g))
+replicated_gaussian_draw_cpp <- function(design, ZT, Sab, rho, s2, P0, m0, center = FALSE) {
+    .Call(`_lame_replicated_gaussian_draw_cpp`, design, ZT, Sab, rho, s2, P0, m0, center)
 }
 
-rrho_mh_rep_cpp <- function(ET, rho, s2) {
-    .Call(`_lame_rrho_mh_rep_cpp`, ET, rho, s2)
+replicated_gaussian_moments_cpp <- function(design, ZT, Sab, rho, s2, P0, m0, center = FALSE) {
+    .Call(`_lame_replicated_gaussian_moments_cpp`, design, ZT, Sab, rho, s2, P0, m0, center)
 }
 
-rs2_rep_fc_cpp <- function(ET, rhoMat) {
-    .Call(`_lame_rs2_rep_fc_cpp`, ET, rhoMat)
+robust_weighted_beta <- function(residual, weights, design, variance, prior_precision) {
+    .Call(`_lame_robust_weighted_beta`, residual, weights, design, variance, prior_precision)
 }
 
-sample_U_bip_cpp <- function(R, V, G, lambdaU, s2) {
-    .Call(`_lame_sample_U_bip_cpp`, R, V, G, lambdaU, s2)
+robust_weighted_mu <- function(residual, weights, variance, rho, innovation_variance) {
+    .Call(`_lame_robust_weighted_mu`, residual, weights, variance, rho, innovation_variance)
 }
 
-sample_V_bip_cpp <- function(R, U, G, lambdaV, s2) {
-    .Call(`_lame_sample_V_bip_cpp`, R, U, G, lambdaV, s2)
+robust_weighted_actor <- function(residual, weights, variance, rho, innovation_variance, level_cov, other_level, row_side, innovation_precision = NULL) {
+    .Call(`_lame_robust_weighted_actor`, residual, weights, variance, rho, innovation_variance, level_cov, other_level, row_side, innovation_precision)
+}
+
+robust_weighted_uv <- function(residual, weights, U_current, V_current, variance, rho, innovation_variance) {
+    .Call(`_lame_robust_weighted_uv`, residual, weights, U_current, V_current, variance, rho, innovation_variance)
+}
+
+#'
+#' @usage rrho_mh_rep_cpp(ET, rho, s2, p_wide = 0.1, prior_power = 1)
+#' @param ET Array of square residual relational matrix series. The third
+#' dimension of the array is for different replicates. Each slice of the array
+#' according to the third dimension is a square residual relational matrix.
+#' @param rho current value of rho
+#' @param s2 current value of s2
+#' @param p_wide probability of proposing from the wide independent
+#' component instead of the local random walk. the two components form a
+#' mixture of Metropolis kernels for the same target: the random walk moves
+#' at the conditional scale, which is a unit-root walk when the likelihood
+#' carries little information about rho, while the independent draw from
+#' Uniform(-0.99, 0.99) ignores the current value and can cross the whole
+#' range in one step. \code{p_wide = 0} gives the random walk alone.
+#' @param prior_power exponent of \eqn{1 - \rho^2} in the prior density of
+#' rho: 1 is the prior of ame() and lame(), \eqn{2\,\mathrm{Beta}(2, 2) - 1}.
+#' The callers read it from \code{.lame_rho_prior_power()}.
+#' @return a new value of rho
+#' @author Shahryar Minhas
+#' @keywords internal
+#' @noRd
+NULL
+
+rrho_mh_rep_cpp <- function(ET, rho, s2, p_wide = 0.1, prior_power = 1.0) {
+    .Call(`_lame_rrho_mh_rep_cpp`, ET, rho, s2, p_wide, prior_power)
+}
+
+rs2_rep_fc_cpp <- function(ET, rhoMat, s20 = 1.0, beta_df = 0.0, beta_ss = 0.0) {
+    .Call(`_lame_rs2_rep_fc_cpp`, ET, rhoMat, s20, beta_df, beta_ss)
+}
+
+spm_ord_ok_cpp <- function(ZM, WM, omax, omin, af) {
+    .Call(`_lame_spm_ord_ok_cpp`, ZM, WM, omax, omin, af)
+}
+
+spm_ord_line_cpp <- function(ZM, WM, K, i, row, nr) {
+    .Call(`_lame_spm_ord_line_cpp`, ZM, WM, K, i, row, nr)
+}
+
+tempered_binary_evaluate <- function(q, context, temperature = 1) {
+    .Call(`_lame_tempered_binary_evaluate`, q, context, temperature)
+}
+
+tempered_binary_transition <- function(q, context, temperature, stepsize) {
+    .Call(`_lame_tempered_binary_transition`, q, context, temperature, stepsize)
+}
+
+tempered_binary_reflection <- function(q, context, temperature, column) {
+    .Call(`_lame_tempered_binary_reflection`, q, context, temperature, column)
+}
+
+tempered_binary_block <- function(q, context, temperatures, stepsizes, start, count, burn, thin) {
+    .Call(`_lame_tempered_binary_block`, q, context, temperatures, stepsizes, start, count, burn, thin)
+}
+
+uv_temper_transition_cpp <- function(z, U, L, r, Y, ok, off, root, lvar, bs, cycles, max_abs) {
+    .Call(`_lame_uv_temper_transition_cpp`, z, U, L, r, Y, ok, off, root, lvar, bs, cycles, max_abs)
 }
 
 sample_G_bip_cpp <- function(R, U, V, lambdaG, s2) {
     .Call(`_lame_sample_G_bip_cpp`, R, U, V, lambdaG, s2)
-}
-
-canon_orient_bip_cpp <- function(U, V, G) {
-    .Call(`_lame_canon_orient_bip_cpp`, U, V, G)
 }
 

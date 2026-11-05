@@ -4,7 +4,8 @@
 \alias{rUV_dynamic_fc}
 \title{Gibbs sampling of dynamic U and V with AR(1) evolution}
 \usage{
-rUV_dynamic_fc(U, V, ET, rho_uv, sigma_uv, s2, shrink=TRUE, symmetric=FALSE)
+rUV_dynamic_fc(U, V, ET, rho_uv, sigma_uv, s2, shrink=TRUE, symmetric=FALSE,
+  rho=0)
 }
 \arguments{
 \item{U}{3D array of current U positions (n x R x T)}
@@ -21,7 +22,15 @@ rUV_dynamic_fc(U, V, ET, rho_uv, sigma_uv, s2, shrink=TRUE, symmetric=FALSE)
 
 \item{shrink}{whether to apply shrinkage (default TRUE)}
 
-\item{symmetric}{whether the network is symmetric (default FALSE)}
+\item{symmetric}{whether the network is symmetric (default FALSE). A
+symmetric call takes \code{V = U L}, the mirrored coordinates of the
+product \code{U L t(U)} (\code{L} the signed diagonal), draws the rows of
+\code{U} one at a time given the current coordinates of the other actors
+(the self cell left out), and returns \code{V = U}; \code{rho} is not used.}
+
+\item{rho}{dyadic correlation between the (i, j) and (j, i) residuals
+(default 0). Each actor's coordinates are then drawn from the exact
+pair-whitened full conditional.}
 }
 \value{
 list with updated U and V arrays
@@ -33,3 +42,4 @@ an AR(1) process: u_\{i,t\} = rho * u_\{i,t-1\} + epsilon_\{i,t\}
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }
+\keyword{internal}

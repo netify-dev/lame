@@ -55,12 +55,14 @@ fit_lame = lame(Y_subset, X_subset,
 	family = "binary",
 	print = FALSE, plot = FALSE)
 
-# simulate 10 trajectories
+# simulate 10 trajectories. eight periods run past the five fitted ones, which
+# is the conditional approximation, so it is asked for with type = "approximate"
 cat("Simulating 10 longitudinal network trajectories...\n")
 sims_lame = simulate(fit_lame,
 	nsim = 10,
 	n_time = 8,
-	seed = 456)
+	seed = 456,
+	type = "approximate")
 print(sims_lame)
 
 # temporal density

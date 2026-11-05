@@ -24,34 +24,38 @@ columns. Default \code{TRUE}.}
 Data frame with columns \code{term}, \code{estimate},
 \code{std.error}, \code{statistic}, \code{p.value},
 \code{conf.low}, \code{conf.high}, plus a \code{se_source} column
-recording \code{"bootstrap"} or \code{"sandwich"}.
+recording \code{"bootstrap"}, \code{"laplace"} (an empirical-Bayes
+normal, binary or Poisson fit, whose covariance covers every coefficient,
+node-covariate coefficients included) or \code{"sandwich"}.
 }
 \description{
 Returns a data frame with one row per regression coefficient,
 compatible with the \pkg{broom} idiom, so that ALS fits compose with
 \pkg{modelsummary} / \pkg{kableExtra} pipelines next to MCMC fits.
-Standard errors come from the sandwich covariance
-(\code{\link{vcov.ame_als}}) by default, or from the bootstrap object
-attached to \code{x$bootstrap} when present (preferred, fully
-propagated). \code{statistic} is \code{estimate / std.error};
+Standard errors come from the bootstrap object attached to
+\code{x$bootstrap} when present (preferred, fully propagated), and
+otherwise from \code{\link{vcov.ame_als}}: the Laplace covariance of an
+empirical-Bayes fit (the default for normal, binary and Poisson fits) or
+the conditional sandwich covariance of a fixed-effects fit.
+\code{statistic} is \code{estimate / std.error};
 \code{p.value} is the Normal-approximation two-sided tail
 \eqn{2(1 - \Phi(|z|))} from the bootstrap or sandwich standard error. It is
 a Wald-style summary for the point estimator, not a posterior probability.
 }
 \details{
-Only the intercept and dyadic-covariate coefficients are returned,
-matching \code{coef(fit)} on the sandwich-covered subset. Additive
-(\code{a}, \code{b}), multiplicative (\code{U}, \code{V}), and
-node-covariate parameters are not included; use
-\code{\link{ame_als_bootstrap}} and inspect the bootstrap object
-directly if you need them.
+One row is returned for every regression coefficient of \code{coef(fit)}:
+the intercept, the dyadic covariates and the node covariates. The
+node-covariate coefficients of a fixed-effects fit have no sandwich
+covariance, so they keep their estimate with \code{NA} uncertainty. Additive
+(\code{a}, \code{b}) and multiplicative (\code{U}, \code{V}) parameters are
+not included; use \code{\link{ame_als_bootstrap}} and inspect the bootstrap
+object directly if you need them.
 }
 \examples{
 \donttest{
-data(YX_bin_list)
-Y1 <- 1 * (YX_bin_list$Y[[1]] > 0); diag(Y1) <- NA
-fit <- ame_als(Y = Y1, Xdyad = YX_bin_list$X[[1]],
-               family = "binary", R = 1, verbose = FALSE)
+data(YX_nrm)
+fit <- ame_als(Y = YX_nrm$Y, Xdyad = YX_nrm$X[, , 2:3],
+               family = "normal", R = 1, verbose = FALSE)
 tidy(fit)
 }
 }

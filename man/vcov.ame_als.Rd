@@ -18,9 +18,10 @@ fit carries a bootstrap, since the bootstrap covariance is returned.}
 \value{
 A covariance matrix with matching row/column names. When the fit
 carries a \code{$bootstrap}, this is the bootstrap covariance over all
-estimated coefficients, matching \code{coef()}. Otherwise it is the
-conditional sandwich, covering \code{c(intercept, dyadic coefficients)}
-only.
+estimated coefficients, matching \code{coef()}. For an empirical-Bayes
+fit it is the Laplace covariance of all the coefficients. Otherwise it is
+the conditional sandwich, covering \code{c(intercept, dyadic
+  coefficients)} only.
 }
 \description{
 Returns a heteroskedasticity-robust (optionally dyad-clustered) sandwich
@@ -46,6 +47,30 @@ multiplicative term are held fixed, so it omits their estimation uncertainty
 and is anti-conservative. Node-covariate, additive and multiplicative
 standard errors are not returned -- use \code{\link{ame_als_bootstrap}}
 for those and for fully-propagated inference.
+
+\strong{Empirical-Bayes fits.} A binary, Poisson or normal fit by the empirical-Bayes
+estimator (\code{fit$bias_correct$method == "eb"}, the default for these
+families; see \code{\link{ame_als}}) returns the Laplace covariance instead of
+the sandwich: the inverse of the penalised Fisher information of all the
+parameters (the coefficients, the actor effects, the node-covariate
+coefficients and the latent factors) at the final weights (for a normal fit the
+exact information of the Gaussian cell, whose Laplace approximation is exact for the coefficients and
+the effects), with the actor
+effects' covariance \code{fit$eb$sab} and the factor scales held at their
+estimates. It covers every coefficient, node-covariate coefficients
+included, and propagates the uncertainty of the actor effects and the
+factors. The covariance conditional on the factors is
+\code{fit$eb$vcov_cond}. A bootstrap attached to the fit takes precedence,
+as for every other fit.
+
+On a fit carrying the split-sample jackknife (\code{bias_correct}, from
+\code{bias_correct = "jackknife"}; see \code{\link{ame_als}}) the sandwich is the one
+of the uncorrected estimator's regression block: its bread and weights
+are those of the full-data IRLS fit, and its meat uses the residuals of
+the reported fit. It does not include the variance the correction itself
+adds (the corrected estimator combines three fits);
+\code{\link{ame_als_bootstrap}} refits every replicate with the correction
+and does.
 }
 \seealso{
 \code{\link{ame_als_bootstrap}} for bootstrap uncertainty

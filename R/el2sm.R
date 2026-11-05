@@ -20,9 +20,7 @@
 el2sm <- function(el, directed = TRUE, nadiag = all(el[, 1] != el[, 2])) {
 	el <- as.matrix(el)
 
-	# edge weights come from a third column when present; otherwise every
-	# edge counts once. coerce explicitly so a character edgelist does not
-	# quietly yield a character-valued sociomatrix.
+	# edge weights from a third column if present, else 1; must be numeric
 	weights <- if (ncol(el) >= 3L) {
 		w <- suppressWarnings(as.numeric(el[, 3L]))
 		if (anyNA(w)) {
@@ -33,19 +31,17 @@ el2sm <- function(el, directed = TRUE, nadiag = all(el[, 1] != el[, 2])) {
 		rep.int(1, nrow(el))
 	}
 
-	# node universe from the endpoint columns only. integer-labelled nodes
-	# span 1..max so isolates keep their slot; otherwise use the sorted set
-	# of distinct labels.
+	# node set from the endpoints; integer labels span 1..max so isolates keep their slot
 	from <- el[, 1L]
-	to   <- el[, 2L]
+	to <- el[, 2L]
 	endpoints <- c(from, to)
 	integer_labels <- is.numeric(endpoints) && all(endpoints == round(endpoints))
 	nodes <- if (integer_labels) seq_len(max(endpoints)) else sort(unique(endpoints))
 	n <- length(nodes)
 
-	# map each endpoint to its row/column position and deposit the weights
+	# deposit weights at each endpoint's row and column position
 	ri <- match(from, nodes)
-	ci <- match(to,   nodes)
+	ci <- match(to, nodes)
 	sm <- matrix(0, n, n, dimnames = list(nodes, nodes))
 	sm[cbind(ri, ci)] <- weights
 

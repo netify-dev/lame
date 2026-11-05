@@ -20,8 +20,7 @@ precomputeX <- function(X) {
 	p <- dims[3]
 	slice_names <- dimnames(X)[[3]]
 
-	# per-slice margins: sum a dyadic matrix over its columns (row margin)
-	# and over its rows (column margin)
+	# per-slice row and column margins
 	row_margin <- apply(X, 3, rowSums)
 	col_margin <- apply(X, 3, colSums)
 
@@ -29,8 +28,7 @@ precomputeX <- function(X) {
 	design <- matrix(X, nrow = n * n, ncol = p)
 	colnames(design) <- slice_names
 
-	# the dyad transpose reorders the vectorised entries by the
-	# commutation permutation vec(t(M)) = vec(M)[perm]
+	# dyad transpose via the commutation permutation vec(t(M)) = vec(M)[perm]
 	perm <- as.vector(t(matrix(seq_len(n * n), n, n)))
 	design_t <- design[perm, , drop = FALSE]
 

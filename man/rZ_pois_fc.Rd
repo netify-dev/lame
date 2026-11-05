@@ -28,3 +28,4 @@ where z_\{i,j\} is the latent variable representing the log mean.
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }
+\keyword{internal}

@@ -16,7 +16,9 @@ rUV_dynamic_snap_fc_cpp(
   delta_u_current,
   delta_v_current,
   shrink,
-  symmetric
+  symmetric,
+  rho = 0,
+  max_abs = -1
 )
 }
 \arguments{
@@ -43,6 +45,11 @@ rUV_dynamic_snap_fc_cpp(
 \item{shrink}{Whether to apply shrinkage}
 
 \item{symmetric}{Whether network is symmetric}
+
+\item{rho}{Dyadic correlation of the (i, j) and (j, i) residual pair}
+
+\item{max_abs}{Optional positive coordinate bound; nonpositive or infinite
+values disable it. Each actor conditional respects the bound.}
 }
 \value{
 List with updated U, V arrays and delta_u, delta_v snap indicators

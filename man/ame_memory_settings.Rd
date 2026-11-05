@@ -30,6 +30,10 @@ posterior draws
 the stored latent-factor and additive-effect draws
 }
 }
+\examples{
+ame_memory_settings(n_nodes = 12, R = 1)
+
+}
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

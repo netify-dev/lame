@@ -28,18 +28,14 @@ the model was fit with \code{save_log_lik = TRUE}. Returns the standard
 \code{loo} object with Pareto-k diagnostics.
 }
 \details{
-\strong{What \code{log_lik} measures.} For \code{family} in
-\{normal, binary, cbin, poisson, ordinal\} the stored
-pointwise log-likelihood is the exact family-specific Y density on
-the response scale, so \code{elpd_loo} is directly comparable to a
-\code{loo()} output from Stan / brms fit to the same family. For
-the rank likelihood \code{frn} the exact marginal
-needs GHK Monte Carlo (Halton sequence); on the longitudinal
-\code{lame()} path you can opt in with \code{log_lik_method =
-"observed_ghk"}, on the cross-sectional \code{ame()} path the
-fallback is the augmented-Z normal approximation (with a one-time
-warning). Inspect \code{fit$log_lik_method} on any fit to see which
-branch was used.
+\strong{Observed likelihood factors.} LOO and WAIC require a current
+\code{fit$log_lik_contract} verifying observed-data conditional likelihood
+factors. Latent augmented scores, approximate rank/cap diagnostics and
+legacy fits without this contract are rejected. Directed cell marginals
+do not factorize under nonzero or estimated residual dyad correlation;
+joint dyad factors would be needed. Symmetric fits store each unordered
+dyad once. Correct marginal predictive scores remain useful and readable
+through \code{read_log_lik()} even when LOO or WAIC is unavailable.
 
 \strong{Chunked log-lik portability.} When fit with
 \code{save_log_lik = "chunked"}, the on-disk chunk files default to
@@ -51,9 +47,10 @@ session, supply an explicit persistent \code{log_lik_path} (e.g.
 \examples{
 \donttest{
 data(YX_nrm)
-fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 0,
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 0, dcor = FALSE,
            nscan = 60, burn = 15, odens = 5,
-           save_log_lik = TRUE, verbose = FALSE)
+           save_log_lik = TRUE, verbose = FALSE, chains = 1)
 if (requireNamespace("loo", quietly = TRUE)) {
   loo_res <- loo::loo(fit)
   print(loo_res)

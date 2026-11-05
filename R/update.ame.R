@@ -1,11 +1,11 @@
-# internal helper: extract the original lame() call and overwrite the named
-# arguments passed via `...`. not exported.
+# original fit call with the arguments in `...` overwritten
 #' @noRd
 .update_ame_call <- function(object, ...) {
 	if (is.null(object$call)) {
 		cli::cli_abort(c(
 			"No {.code call} stored on the fit object.",
-			"i" = "{.fn update} needs the original call. Refit explicitly with the new arguments."))
+			"i" = "{.fn update} needs the original call. Refit explicitly with the new arguments."
+		))
 	}
 	cl <- object$call
 	dots <- list(...)
@@ -19,25 +19,22 @@
 	cl
 }
 
-# build the call + an environment whose enclosing frame holds the
-# data snapshot (if `freeze_call = true` was set at fit time). returns a list
-# (cl, envir) ready for eval(). when no snapshot is present, `envir` is the
-# caller's frame (parent.frame() of the s3 method dispatcher).
+# call plus the environment to evaluate it in: one holding the data snapshot
+# when the fit used `freeze_call = TRUE`, otherwise the caller's frame
 .update_ame_eval_setup <- function(object, dots, caller_env) {
 	cl <- do.call(.update_ame_call, c(list(object = object), dots))
 	if (isTRUE(object$freeze_call) && !is.null(object$data_snapshot)) {
-		# substitute frozen data references in the call. the snapshot
-		# overrides any y/xdyad/xrow/xcol the user passes through `...`
-		# unless they explicitly thaw with `freeze_call = false`.
+		# point the call at the frozen data, overriding any Y, Xdyad, Xrow or
+		# Xcol passed through `...`
 		snap_env <- new.env(parent = caller_env)
-		snap_env$.lame_frozen_Y     <- object$data_snapshot$Y
+		snap_env$.lame_frozen_Y <- object$data_snapshot$Y
 		snap_env$.lame_frozen_Xdyad <- object$data_snapshot$Xdyad
-		snap_env$.lame_frozen_Xrow  <- object$data_snapshot$Xrow
-		snap_env$.lame_frozen_Xcol  <- object$data_snapshot$Xcol
-		cl$Y     <- quote(.lame_frozen_Y)
+		snap_env$.lame_frozen_Xrow <- object$data_snapshot$Xrow
+		snap_env$.lame_frozen_Xcol <- object$data_snapshot$Xcol
+		cl$Y <- quote(.lame_frozen_Y)
 		if (!is.null(object$data_snapshot$Xdyad)) cl$Xdyad <- quote(.lame_frozen_Xdyad)
-		if (!is.null(object$data_snapshot$Xrow))  cl$Xrow  <- quote(.lame_frozen_Xrow)
-		if (!is.null(object$data_snapshot$Xcol))  cl$Xcol  <- quote(.lame_frozen_Xcol)
+		if (!is.null(object$data_snapshot$Xrow)) cl$Xrow <- quote(.lame_frozen_Xrow)
+		if (!is.null(object$data_snapshot$Xcol)) cl$Xcol <- quote(.lame_frozen_Xcol)
 		list(cl = cl, envir = snap_env)
 	} else {
 		list(cl = cl, envir = caller_env)
@@ -65,8 +62,9 @@
 #' @examples
 #' \donttest{
 #' data(YX_bin_list)
-#' fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary",
-#'             burn = 5, nscan = 20, odens = 1, verbose = FALSE)
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
+#' fit <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X, family = "binary",
+#'             burn = 5, nscan = 20, odens = 1, verbose = FALSE, chains = 1)
 #' # toggle dynamic_beta on without rewriting the whole call
 #' fit_dyn <- update(fit, dynamic_beta = "dyad")
 #' dim(fit_dyn$BETA)  # 3-D now
@@ -77,8 +75,6 @@
 update.ame <- function(object, ..., evaluate = TRUE) {
 	setup <- .update_ame_eval_setup(object, list(...), parent.frame())
 	if (!isTRUE(evaluate)) return(setup$cl)
-	# evaluate in the snapshot env if freeze_call was set; otherwise in the
-	# caller's frame so user-supplied data objects (e.g. `dat$y`) are visible.
 	eval(setup$cl, envir = setup$envir)
 }
 
@@ -86,9 +82,8 @@ update.ame <- function(object, ..., evaluate = TRUE) {
 #' @method update lame
 #' @export
 update.lame <- function(object, ..., evaluate = TRUE) {
-	# inline (not a method call) so parent.frame() inside the eval()
-	# resolves to the user's calling frame and references like `dat$y`
-	# stay in scope.
+	# called inline so parent.frame() is the user's frame and names such as
+	# `dat$Y` resolve
 	setup <- .update_ame_eval_setup(object, list(...), parent.frame())
 	if (!isTRUE(evaluate)) return(setup$cl)
 	eval(setup$cl, envir = setup$envir)

@@ -1,19 +1,7 @@
-# symmetric ordinal z sampler. z_ij = z_ji throughout; the upper triangle
-# is sampled from a truncated normal (variance 1), then mirrored to the
-# lower triangle.
-#
-# the symmetric ordinal model carries one latent value per
-# unordered dyad {i, j}: z_ij = z_ji ~ N(mu_ij, 1) truncated to the
-# cutpoint interval (alpha_{k-1}, alpha_k], with mu_ij the symmetric
-# linear predictor. under the symmetric fit eta_ij = eta_ji, so the
-# conditional mean is mu_eff = (eta_ij + eta_ji) / 2 and the variance
-# is 1, the model's conditional. this matches the variance-1 convention
-# used by the asymmetric sampler, by rbeta_ab_fc's rho->1 GLS (which
-# assumes s2 = 1), and by every other family.
-#
-# the cutpoint convention matches the rest of the package's ordinal path:
-# cutpoints are induced by the order statistics of z within neighbouring
-# rank classes, not separately parameterised.
+# symmetric ordinal Z sampler: one latent value per unordered dyad, drawn on
+# the upper triangle from a unit-variance truncated normal around the averaged
+# linear predictor and mirrored to the lower triangle; cutpoints are implied by
+# the neighbouring rank classes
 
 #' Sample Z under symmetric ordinal data (square symmetric matrix)
 #'
@@ -30,12 +18,15 @@
 #'   directed contributions.
 #' @param Y observed symmetric ordinal matrix (n x n, Y = t(Y));
 #'   diagonal is ignored.
+#' @param rho dyadic correlation carried by the fit; it only sets the
+#'   variance of the diagonal draw, \code{1 + rho}, the convention of the
+#'   coefficient kernel.
 #' @return updated symmetric n x n latent matrix; the diagonal is refreshed
 #'   with unconstrained normal draws around \code{diag(EZ)} so downstream
 #'   samplers never see missing values.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @keywords internal
-rZ_ord_sym_fc <- function(Z, EZ, Y) {
+rZ_ord_sym_fc <- function(Z, EZ, Y, rho = 0) {
 	n <- nrow(Y)
 	uY <- sort(unique(c(Y)))
 	W <- matrix(match(Y, uY), n, n)
@@ -49,23 +40,16 @@ rZ_ord_sym_fc <- function(Z, EZ, Y) {
 		ub <- suppressWarnings(min(Z[!is.na(W) & W == w + 1L], na.rm = TRUE))
 		up <- ut & W == w
 		if (!any(up)) next
-		# symmetric conditional mean: average of (i,j) and (j,i) linear
-		# predictors. variance 1 -> sd 1 (the model's conditional).
+		# conditional mean averages the (i,j) and (j,i) linear predictors
 		ez_avg <- (EZ[up] + t(EZ)[up]) / 2
-		z_new <- ez_avg + sd_sym * stats::qnorm(stats::runif(sum(up),
-		                                                       stats::pnorm((lb - ez_avg) / sd_sym),
-		                                                       stats::pnorm((ub - ez_avg) / sd_sym)))
+		# log-tail truncated draw that errors on an empty interval
+		z_new <- .lame_checked_truncated_gaussian(ez_avg, sd_sym, lb, ub)
 		Z[up] <- z_new
-		# mirror to (j,i) lower-triangle cells. up has the (i,j) indices in
-		# column-major order; the mirror is at (j,i), so swap arr.ind columns
+		# mirror to the (j,i) cells
 		mirror_idx <- which(up, arr.ind = TRUE)[, c(2L, 1L), drop = FALSE]
 		Z[mirror_idx] <- z_new
 	}
-	# diagonal: sample from the unconstrained prior (matches the convention
-	# in rz_ord_fc / rz_bin_fc). setting `na` here propagates into the
-	# symmetrised residual `e <- 0.5*(e + t(e))` consumed by ruv_sym_fc_cpp,
-	# which then errors at r >= 1 with "mat::min(): object has no elements"
-	# because every column of the residual has at least one na.
-	diag(Z) <- stats::rnorm(nrow(Z), diag(EZ), 1)
+	# unconstrained diagonal draw; an NA diagonal would break the symmetric UV update
+	diag(Z) <- stats::rnorm(nrow(Z), diag(EZ), sqrt(1 + rho))
 	Z
 }

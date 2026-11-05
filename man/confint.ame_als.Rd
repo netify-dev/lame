@@ -22,10 +22,16 @@ A matrix with one row per coefficient and lower/upper bound columns.
 \description{
 Wald confidence intervals for the intercept and dyadic-covariate
 coefficients of an \code{\link{ame_als}} fit, built from the conditional
-sandwich covariance (\code{\link{vcov.ame_als}}).
+sandwich covariance (\code{\link{vcov.ame_als}}); for an empirical-Bayes
+fit (the default for normal, binary and Poisson responses), for every coefficient from the Laplace covariance.
 }
 \details{
-These intervals are a fast convenience. They are \strong{conditional} (the
+An empirical-Bayes fit (the default for normal, binary and Poisson fits) has Wald intervals
+from its Laplace covariance, which propagates the uncertainty of the actor
+effects and the latent factors and covers the node-covariate coefficients
+too.
+
+The sandwich intervals of the other fits are a fast convenience. They are \strong{conditional} (the
 additive and multiplicative effects are held fixed) and therefore
 anti-conservative, and they cover only the regression coefficients the
 sandwich covariance is defined for -- not the node-covariate, additive or

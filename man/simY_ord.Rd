@@ -4,7 +4,7 @@
 \alias{simY_ord}
 \title{Simulate an ordinal relational matrix}
 \usage{
-simY_ord(EZ, rho, Y)
+simY_ord(EZ, rho, Y, bipartite = FALSE)
 }
 \arguments{
 \item{EZ}{square matrix giving the expected value of the latent Z matrix}
@@ -12,6 +12,9 @@ simY_ord(EZ, rho, Y)
 \item{rho}{scalar giving the within-dyad correlation}
 
 \item{Y}{ordinal relational data matrix}
+
+\item{bipartite}{whether row and column actors are disjoint; keeps square
+diagonal cells and draws independent latent errors.}
 }
 \value{
 a square matrix

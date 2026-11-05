@@ -1,9 +1,44 @@
 # canonical regression design for newdata and counterfactual prediction
 #
-# the coefficient vector has a structured layout:
-# [intercept?, <name>_row..., <name>_col..., <name>_dyad...].
-# newdata supplies dyadic covariate slices; intercept and nodal slices are
-# held at fitted values from the stored design.
+# coefficient layout: [intercept?, <name>_row..., <name>_col..., <name>_dyad...].
+# newdata supplies the dyadic slices; intercept and nodal slices are held at
+# their fitted values from the stored design
+
+#' Map a coefficient vector onto a design array's slice layout
+#'
+#' symmetric fits store one merged nodal coefficient per covariate (the
+#' sampler averages the row and column coefficients at storage time), so
+#' \code{colnames(fit$BETA)} is shorter than \code{dim(fit$X)[3]} and a
+#' positional contraction of beta against the design pairs coefficients with
+#' the wrong slices. this returns a coefficient per design slice, matched by
+#' name, with the nodal coefficient \code{<v>_node} used for both
+#' \code{<v>_row} and \code{<v>_col}. a vector that already matches the
+#' design slice for slice is returned unchanged.
+#'
+#' @param beta named numeric coefficient vector.
+#' @param design_names \code{dimnames(X)[[3]]} of the design array.
+#' @return a numeric vector of length \code{length(design_names)}.
+#' @keywords internal
+.beta_on_design <- function(beta, design_names) {
+	if (is.null(design_names) || is.null(names(beta))) return(beta)
+	if (length(beta) == length(design_names)) return(beta)
+	out <- stats::setNames(numeric(length(design_names)), design_names)
+	# a slice takes the coefficient of its own name, or the merged <v>_node
+	# coefficient when row and column coefficients are pooled
+	hit <- match(design_names, names(beta))
+	key <- sub("_(row|col)$", "_node", design_names)
+	miss <- is.na(hit)
+	hit[miss] <- match(key[miss], names(beta))
+	ok <- !is.na(hit)
+	if (!any(ok)) {
+		cli::cli_abort(c(
+			"None of the design slices match the coefficient names.",
+			"i" = "Design slices: {.val {design_names}}; coefficients: {.val {names(beta)}}."
+		))
+	}
+	out[ok] <- beta[hit[ok]]
+	out
+}
 
 #' Build the full canonical design for a newdata prediction
 #'
@@ -26,7 +61,8 @@
 	if (is.null(model_names)) {
 		cli::cli_abort(c(
 			"Cannot reconcile {.arg newdata} against an unnamed coefficient vector.",
-			"i" = "The fit must carry {.code colnames(BETA)} so dyadic vs nodal covariates can be told apart."))
+			"i" = "The fit must carry {.code colnames(BETA)} so dyadic vs nodal covariates can be told apart."
+		))
 	}
 	if (length(dim(newdata)) == 2L) newdata <- array(newdata, c(dim(newdata), 1L))
 	p <- length(model_names)
@@ -37,27 +73,41 @@
 	if (dim(newdata)[3] != n_dyad) {
 		cli::cli_abort(c(
 			"{.arg newdata} has {dim(newdata)[3]} dyadic slice{?s} but the model has {n_dyad} dyadic coefficient{?s}{if (n_dyad > 0) paste0(' (', paste(model_names[dyad_pos], collapse = ', '), ')') else ''}.",
-			"i" = "Supply one slice per dyadic covariate; the intercept and any row/col effects are held at their fitted values."))
+			"i" = "Supply one slice per dyadic covariate; the intercept and any row/col effects are held at their fitted values."
+		))
 	}
 
 	out <- array(0, dim = c(n, m, p), dimnames = list(NULL, NULL, model_names))
 
-	# intercept + nodal slices: held at fitted values
+	# intercept and nodal slices are held at fitted values
 	nondyad_pos <- which(!is_dyad)
+	# match slices to coefficients by name (own name first, then the merged
+	# <v>_node key), since a symmetric fit pools <v>_row and <v>_col
+	design_names <- if (!is.null(fitted_design)) dimnames(fitted_design)[[3]] else NULL
 	has_design <- !is.null(fitted_design) && length(dim(fitted_design)) == 3L &&
-		dim(fitted_design)[3] == p
+		!is.null(design_names)
 	nodal_pos <- nondyad_pos[model_names[nondyad_pos] != "intercept"]
 	if (length(nodal_pos) > 0L && !has_design) {
 		cli::cli_abort(c(
 			"Cannot apply {.arg newdata} to a fit with nodal (row/col) covariates without the stored design.",
-			"i" = "The intercept + nodal contributions must be held at their fitted values, which requires {.code fit$X}.",
-			"i" = "Refit without dropping the design (avoid compaction / {.code use_sparse_matrices}), or predict without {.arg newdata}."))
+			"i" = "The intercept + nodal contributions must be held at their fitted values, which requires the named design array stored on the fit.",
+			"i" = "Refit without dropping the design (avoid compaction / {.code use_sparse_matrices}), or predict without {.arg newdata}."
+		))
 	}
+	design_key <- if (has_design) sub("_(row|col)$", "_node", design_names) else character(0)
 	for (k in nondyad_pos) {
 		if (identical(model_names[k], "intercept")) {
 			out[, , k] <- 1
 		} else {
-			out[, , k] <- fitted_design[, , k]
+			src <- which(design_names == model_names[k])
+			if (length(src) == 0L) src <- which(design_key == model_names[k])
+			if (length(src) == 0L) {
+				cli::cli_abort(c(
+					"No design slice matches the coefficient {.val {model_names[k]}}.",
+					"i" = "The stored design's slice names are {.val {design_names}}."
+				))
+			}
+			out[, , k] <- Reduce(`+`, lapply(src, function(j) fitted_design[, , j]))
 		}
 	}
 
@@ -111,7 +161,8 @@
 #'   \code{NULL} when the order cannot be recovered).
 #' @keywords internal
 .fit_actor_order <- function(object) {
-	fdx <- object$X
+	# lame fits store the per-period designs as Xlist, ame fits as X
+	fdx <- object[["Xlist", exact = TRUE]] %||% object[["X", exact = TRUE]]
 	fd1 <- if (is.list(fdx)) fdx[[1L]] else fdx
 	rows <- NULL; cols <- NULL
 	if (!is.null(fd1) && length(dim(fd1)) >= 2L) {
@@ -122,9 +173,10 @@
 			rownames(object$a_dynamic)
 	}
 	if (is.null(cols)) {
-		cols <- names(object$BPM) %||% rownames(object$V) %||%
+		cols <- names(object$BPM) %||% rownames(object[["V"]]) %||%
 			rownames(object$b_dynamic)
 	}
+	if (isTRUE(object$symmetric) && !identical(object$mode, "bipartite")) cols <- cols %||% rows
 	list(rows = rows, cols = cols)
 }
 
@@ -150,14 +202,14 @@
 	cn <- if (length(dn) >= 2L) dn[[2L]] else NULL
 	ri <- seq_len(dim(X)[1L]); ci <- seq_len(dim(X)[2L])
 	if (!is.null(row_order) && !is.null(rn) &&
-	    length(rn) == length(row_order) && setequal(rn, row_order)) {
+			length(rn) == length(row_order) && setequal(rn, row_order)) {
 		ri <- match(row_order, rn)
 	}
 	if (!is.null(col_order) && !is.null(cn) &&
-	    length(cn) == length(col_order) && setequal(cn, col_order)) {
+			length(cn) == length(col_order) && setequal(cn, col_order)) {
 		ci <- match(col_order, cn)
 	}
 	if (identical(ri, seq_len(dim(X)[1L])) &&
-	    identical(ci, seq_len(dim(X)[2L]))) return(X)
+			identical(ci, seq_len(dim(X)[2L]))) return(X)
 	X[ri, ci, , drop = FALSE]
 }

@@ -17,10 +17,14 @@ fitted values on the response scale. Diagonal entries are \code{NA} for
 unipartite networks.
 }
 \description{
-Returns the posterior mean of the network on the response scale (YPM).
+Returns the stored response-scale summary (YPM).
 For binary models, these are predicted probabilities between 0 and 1.
 For normal models, these are predicted continuous values.
-For Poisson models, these are predicted counts.
+For MCMC Poisson models, these are mean counts,
+\eqn{\exp(\eta + \sigma^2 / 2)}, at the posterior mean \eqn{\eta} of the
+linear predictor and the posterior mean \eqn{\sigma^2} of the residual
+variance, the form the fast estimators report. Predictive quantiles and
+event probabilities come from \code{predict(type = "distribution")}.
 }
 \seealso{
 \code{\link{predict.ame}} for predictions with type control,

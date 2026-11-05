@@ -14,6 +14,7 @@
   thin = 1,
   return_latent = FALSE,
   start_from = "posterior",
+  type = c("posterior", "approximate", "auto"),
   ...
 )
 }
@@ -22,7 +23,9 @@
 
 \item{nsim}{number of network trajectories to simulate (default: 100)}
 
-\item{seed}{random seed for reproducibility}
+\item{seed}{Optional random seed. An explicit seed is local to this call:
+the caller's RNG state is restored on return or error. With NULL, the
+caller's current RNG stream advances normally.}
 
 \item{newdata}{optional list containing new covariate data:
 \describe{
@@ -42,10 +45,15 @@ If NULL, uses covariates from original model fit}
 
 \item{start_from}{character: how to initialize the simulation
 \describe{
-\item{"posterior"}{start from posterior mean (default)}
+\item{"posterior"}{use saved trajectories for joint replication; posterior summaries for the approximation (default)}
 \item{"random"}{random initialization}
 \item{"data"}{use first time point from original data}
 }}
+
+\item{type}{simulation route: \code{"posterior"} (default) replicates the
+network from aligned saved posterior trajectories; \code{"approximate"} is
+the conditional approximation. \code{"auto"} is accepted as an alias of
+\code{"posterior"}. See Details.}
 
 \item{...}{additional arguments (not currently used)}
 }
@@ -54,6 +62,8 @@ A list with components:
 \describe{
 \item{Y}{list of nsim simulated longitudinal network trajectories,
 each element is a list of T networks}
+\item{method}{joint posterior or conditional approximation}
+\item{draw_index}{sampled coefficient-row indices for joint replication}
 \item{Z}{if return_latent=TRUE, list of nsim latent Z trajectories}
 \item{family}{the family of the model (binary, normal, etc.)}
 \item{mode}{network mode (unipartite or bipartite)}
@@ -61,130 +71,40 @@ each element is a list of T networks}
 }
 }
 \description{
-Generates multiple longitudinal network realizations from a fitted LAME
-(Longitudinal AME) model. This function performs conditional posterior
-predictive simulation for dynamic networks: it draws from stored MCMC samples
-when available and uses posterior means for latent components that were not
-retained.
+Generates network replicates at fitted periods from aligned posterior
+trajectories. A fit that did not save them, and the legacy trajectory
+scenarios (\code{start_from}, extended \code{n_time}), use the conditional
+approximation by asking for it with \code{type = "approximate"}; see Details.
 }
 \details{
-\strong{Mathematical Framework for Longitudinal Networks:}
+With \code{type = "posterior"}, every replicate uses the same saved MCMC
+iteration for coefficients, actor effects, positions, coupling and observation
+variance and period-specific reciprocity. Saved blocks may be thinned differently when their iteration indices
+are available; only shared iterations are sampled. Missing joint storage is an
+error (class \code{lame_simulate_draws}) that names \code{type = "approximate"}.
+Store effects and positions with \code{posterior_options(save_ab = TRUE,
+save_UV = TRUE, thin_ab = 1, thin_UV = 1)} when fitting.
 
-The LAME model extends AME to multiple time periods T with potential
-temporal dependencies. For each time t = 1, ..., T:
-\deqn{Y_{ij,t} \sim F(Z_{ij,t})}
-where the latent network evolves as:
-\deqn{Z_{ij,t} = \beta^T x_{ij,t} + a_{i,t} + b_{j,t} + u_{i,t}^T v_{j,t} + \epsilon_{ij,t}}
+\code{type = "approximate"} is the conditional approximation: it substitutes
+posterior summaries for the latent trajectories and does not propagate their
+joint posterior uncertainty. It runs only when requested. The former default
+\code{type = "auto"} chose between the two routes; it is now an alias of
+\code{"posterior"}. The returned \code{method} identifies the route.
 
-\strong{Temporal Dynamics:}
-
-LAME can incorporate three types of temporal dependencies:
-\enumerate{
-\item \strong{Static Effects:} Parameters constant over time
-\itemize{
-\item \eqn{a_{i,t} = a_i}, \eqn{b_{j,t} = b_j} for all t
-\item \eqn{u_{i,t} = u_i}, \eqn{v_{j,t} = v_j} for all t
-}
-\item \strong{Dynamic Additive Effects:} AR(1) process for random effects
-\deqn{a_{i,t} = \rho_{ab} a_{i,t-1} + \eta_{i,t}, \quad \eta_{i,t} \sim N(0, \sigma_a^2(1-\rho_{ab}^2))}
-\deqn{b_{j,t} = \rho_{ab} b_{j,t-1} + \xi_{j,t}, \quad \xi_{j,t} \sim N(0, \sigma_b^2(1-\rho_{ab}^2))}
-where \eqn{\rho_{ab}} is the temporal correlation parameter
-\item \strong{Dynamic Multiplicative Effects:} AR(1) for latent factors
-\deqn{u_{i,t} = \rho_{uv} u_{i,t-1} + \omega_{i,t}}
-\deqn{v_{j,t} = \rho_{uv} v_{j,t-1} + \psi_{j,t}}
-}
-
-\strong{Uncertainty Quantification Process for Trajectories:}
-
-For each simulated trajectory k = 1, ..., nsim:
-
-\strong{Step 1: Parameter Sampling}
-\itemize{
-\item Draw MCMC iteration s uniformly from stored posterior samples
-\item Extract static parameters: \eqn{\beta^{(s)}}, variance components
-\item Extract temporal parameters if applicable: \eqn{\rho_{ab}^{(s)}}, \eqn{\rho_{uv}^{(s)}}
-}
-
-\strong{Step 2: Initialize at t = 1}
-
-Depending on start_from parameter:
-\itemize{
-\item "posterior": Use posterior means as starting values
-\item "random": Draw from stationary distribution
-\item For additive effects: \eqn{a_{i,1}^{(k)} \sim N(0, \sigma_a^2)}
-\item For multiplicative effects: Initialize from prior
-}
-
-\strong{Step 3: Evolve Through Time}
-
-For each t = 2, ..., T:
-
-a) \strong{Update Dynamic Effects} (if applicable):
-\deqn{a_{i,t}^{(k)} = \rho_{ab}^{(s)} a_{i,t-1}^{(k)} + \eta_{i,t}^{(k)}}
-where \eqn{\eta_{i,t}^{(k)} \sim N(0, \sigma_a^2(1-[\rho_{ab}^{(s)}]^2))}
-
-The innovation variance \eqn{\sigma_a^2(1-\rho_{ab}^2)} ensures stationarity
-
-b) \strong{Construct Latent Network}:
-\deqn{E[Z_{ij,t}^{(k)}] = \beta^{(s)T} x_{ij,t} + a_{i,t}^{(k)} + b_{j,t}^{(k)} + u_{i,t}^T v_{j,t}}
-
-c) \strong{Add Dyadic Noise}:
-\deqn{Z_{ij,t}^{(k)} = E[Z_{ij,t}^{(k)}] + \epsilon_{ij,t}^{(k)}}
-with correlation structure preserved from AME model
-
-d) \strong{Generate Observations}:
-Apply appropriate link function based on family
-
-\strong{Sources of Uncertainty in Longitudinal Context:}
-\enumerate{
-\item \strong{Cross-sectional uncertainty} (as in AME):
-\itemize{
-\item Parameter uncertainty from MCMC
-\item Random effect variability
-\item Dyadic noise
-}
-\item \strong{Temporal uncertainty}:
-\itemize{
-\item Uncertainty in temporal correlation parameters \eqn{\rho_{ab}, \rho_{uv}}
-\item Innovation noise in AR(1) processes
-\item Propagation of uncertainty through time (compounds over periods)
-}
-\item \strong{Initial condition uncertainty}:
-\itemize{
-\item Different starting values lead to different trajectories
-\item Captured through start_from options
-}
-}
-
-\strong{Interpretation of Multiple Trajectories:}
-
-Each simulated trajectory represents one possible evolution of the network
-conditional on the stored fit. Variation across trajectories captures:
-\itemize{
-\item Model parameter uncertainty
-\item Stochastic variation in temporal evolution
-\item Accumulated uncertainty over time periods
-}
-
-The ensemble of trajectories provides prediction intervals that widen over
-time, reflecting increasing uncertainty in longer-term forecasts.
-
-\strong{Special Considerations:}
-\enumerate{
-\item \strong{Temporal Correlation:} Higher \eqn{\rho} values create smoother
-trajectories with more persistence
-\item \strong{Stationarity:} The AR(1) innovation variance is scaled to maintain
-stationary marginal distributions
-\item \strong{Missing Time Points:} If simulating beyond observed data (n_time > T_observed),
-covariates are recycled or set to zero with appropriate warnings
-}
-
-\strong{Limitations:}
-
-As with simulate.ame, multiplicative effects use posterior means unless the
-fit retained compatible latent-factor draws. Storing complete MCMC chains for
-\eqn{u_{i,t}, v_{j,t}} at all time points is memory-intensive for large
-networks and long time series.
+Joint longitudinal replication uses saved trajectories at fitted periods;
+it does not evolve the final state through the historical covariates. Use
+\code{predict(fit, h = ...)} for future periods. The legacy \code{start_from}
+and extended \code{n_time} options apply to the conditional approximation
+only; with \code{type = "posterior"} they are an error (class
+\code{lame_simulate_periods}). The approximation extends \code{n_time} past
+the fitted periods only for static coefficients; a \code{dynamic_beta} fit
+has coefficients for its fitted periods alone, so a longer \code{n_time} is
+the same error. In the approximation, \code{newdata$Xdyad}
+must be a list with one array per period; any other shape is an error (class
+\code{lame_simulate_xlist}).
+Ordinal fits with explicit cutpoints use the corresponding saved cutpoint
+draw. Data-induced ordinal fits match the observed category frequencies, so
+these replications assess dependence conditional on those frequencies.
 }
 \examples{
 \donttest{
@@ -197,8 +117,10 @@ Y_list <- list(
   matrix(rnorm(n * n), n, n, dimnames = list(nms, nms))
 )
 diag(Y_list[[1]]) <- diag(Y_list[[2]]) <- NA
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- lame(Y_list, family = "normal",
-            nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE)
+            nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE,
+            posterior_opts = posterior_options(save_ab = TRUE, save_UV = TRUE), chains = 1)
 
 # Simulate 10 network trajectories from posterior
 sims <- simulate(fit, nsim = 10)

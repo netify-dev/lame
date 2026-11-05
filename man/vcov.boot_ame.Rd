@@ -12,7 +12,9 @@
 \item{...}{ignored.}
 }
 \value{
-A covariance matrix over the intercept and regression coefficients.
+A covariance matrix over the intercept and regression coefficients;
+the rows and columns of a parameter the bootstrap returns no standard
+error for (\code{withheld}) are \code{NA}.
 }
 \description{
 Returns the sample covariance matrix of the bootstrap replicate

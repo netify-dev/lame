@@ -16,10 +16,11 @@ ame_parallel(
 \arguments{
 \item{Y}{Network data matrix}
 
-\item{n_chains}{Number of parallel chains to run (default = 4)}
+\item{n_chains}{Number of chains to run (default = 4)}
 
-\item{cores}{Number of CPU cores to use for parallel processing.
-Default is n_chains. Use 1 for sequential processing.}
+\item{cores}{Number of CPU cores to use: the chains run forked on Unix (one
+core per chain at most) and one after the other on Windows. Default is
+n_chains. Use 1 for sequential processing.}
 
 \item{combine_method}{Method for combining chains: "pool" (default) or "list"}
 
@@ -32,10 +33,16 @@ else \code{\link{ame}}), \code{"ame"} (force cross-sectional), or
 }
 \value{
 If combine_method = "pool": A single ame object with pooled chains
-If combine_method = "list": A list of ame objects, one per chain
+If combine_method = "list": A list of ame objects, one per chain.
+A call whose chains are not settled after the extensions stops with
+an error of class \code{lame_chain_unsettled} (see \code{\link{ame}}).
 }
 \description{
-Run AME model with multiple parallel chains
+\code{ame_parallel(Y, n_chains = k, ...)} is \code{ame(Y, chains = k, ...)}:
+the same chains (seeds \code{seed + 1000 * (k - 1)}), the same drift check,
+between-chain gate and extensions, and the same pooled fit. It is kept for the
+older argument names; \code{combine_method = "list"} returns the fits of the
+chains instead of the pooled fit.
 }
 \examples{
 \donttest{

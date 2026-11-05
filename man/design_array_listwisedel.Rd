@@ -26,3 +26,4 @@ Computes the design socioarray of covariate values for an AME fit
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }
+\keyword{internal}

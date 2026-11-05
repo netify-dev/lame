@@ -20,3 +20,13 @@ of \code{fit$log_lik}. This helper reconstitutes the
 \code{[n_stored, n_obs]} matrix in memory by issuing one \code{readBin}
 per chunk. \code{loo.lame()} / \code{waic.lame()} call this transparently.
 }
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1,
+           save_log_lik = TRUE, verbose = FALSE, chains = 1)
+ll <- read_log_lik(fit)
+dim(ll)
+}

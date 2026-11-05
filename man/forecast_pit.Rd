@@ -4,28 +4,53 @@
 \alias{forecast_pit}
 \title{Probability-integral-transform calibration check for h-step forecasts}
 \usage{
-forecast_pit(fit, y_future, h = NULL, n_draws = NULL)
+forecast_pit(
+  fit,
+  y_future,
+  h = NULL,
+  n_draws = NULL,
+  newdata = NULL,
+  newdesign = NULL,
+  newexposure = NULL
+)
 }
 \arguments{
-\item{fit}{A fitted \code{lame} object trained on the first
+\item{fit}{A fitted \code{lame} or \code{lame_robust} object trained on the first
 \code{T - h} periods (the function does not refit; the user is
 responsible for the train/forecast split).}
 
 \item{y_future}{A list of length \code{h} of held-out observed
 matrices, one per forecast period. The same shape as
-\code{fit$YPM[[t]]} elements.}
+the fitted actor grid. Named periods are aligned to shared actors; unshared
+actors and missing outcomes are excluded. Unipartite self cells are excluded
+and symmetric networks score each unordered dyad once. Bipartite grids retain
+cells whose row and column positions coincide.}
 
 \item{h}{The forecast horizon (length of \code{y_future}). Inferred
 from \code{length(y_future)} when not supplied.}
 
 \item{n_draws}{Number of posterior draws to use for the forecast.
 Default uses all stored draws.}
+
+\item{newdata}{Future dyadic covariate arrays passed to the forecaster. Required
+for robust fits that contain dyadic covariates, as in \code{predict.lame_robust()}.}
+
+\item{newdesign}{Full prepared future designs, including nodal roles. Supported
+only by ordinary lame fits.}
+
+\item{newexposure}{Future Poisson exposures, one per horizon. Defaults to the
+last fitted exposure. Zero exposure defines a degenerate zero-count law.}
 }
 \value{
 A list of class \code{forecast_pit} with components
 \code{pit} (numeric vector), \code{ks_stat} (KS statistic against
-Uniform), \code{ks_p} (KS p-value), \code{cover_95} (fraction of
-PIT values in \code{[0.025, 0.975]}).
+Uniform), \code{ks_p} (\code{NA}; a dependent-network null reference is
+unavailable), \code{cover_95} (fraction of
+PIT values in \code{[0.025, 0.975]}), matched \code{draw_index}, predictive
+\code{cdf_lower}/\code{cdf_upper}, and scored actor/period \code{cells}.
+Network cells need not be independent. The KS statistic, histogram and coverage
+are descriptive. No global model-adequacy p-value is reported without a
+calibrated joint network reference. \code{ks_inference} records this restriction.
 }
 \description{
 For a fit with at least one dynamic component, evaluates how well the
@@ -42,11 +67,18 @@ statistic against Uniform(0, 1) and a fraction-of-observed-dyads
 coverage diagnostic.
 
 \strong{Families.} For \code{family = "normal"}, the
-PIT is computed analytically from the per-draw forecast variance. For
+PIT averages the Gaussian CDF over matched predictor and residual-variance
+draws. For
 discrete families (\code{"binary"}, \code{"poisson"}, \code{"ordinal"})
-the randomised PIT of Czado, Gneiting & Held (2009) is used. For rank
+the randomised PIT of Czado, Gneiting & Held (2009) is used. Poisson forecasts
+integrate the Gaussian observation effect and future exposure. Ordinal scoring
+requires saved explicit posterior cutpoints; data-induced joint rank simulation
+does not define a fixed future threshold law. For rank
 families (\code{"cbin"}, \code{"frn"}) PIT is not
 implemented; the function returns NULL with an informational note.
+Robust fits from \code{lame_robust()} use their genuine future latent states,
+matched persistent pair precisions and Gaussian or transient Student residual CDF.
+Fitted temporary observation precisions are never reused for future outcomes.
 
 \strong{Plotting.} The companion \code{plot()} method on the returned
 object renders a histogram with a uniform reference line. Use
@@ -55,15 +87,16 @@ object renders a histogram with a uniform reference line. Use
 \examples{
 \donttest{
 data(YX_bin_list)
-Y_train <- YX_bin_list$Y[1:3]
-Y_test <- YX_bin_list$Y[4]
+Y_train <- lapply(YX_bin_list$Y, function(y) 1 * (y > 0))[1:3]
+Y_test <- lapply(YX_bin_list$Y, function(y) 1 * (y > 0))[4]
 X_train <- YX_bin_list$X[1:3]
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- lame(Y_train, Xdyad = X_train,
             family = "binary", R = 0,
             dynamic_beta = "dyad",
-            nscan = 60, burn = 15, odens = 5, verbose = FALSE)
+            nscan = 60, burn = 15, odens = 5, verbose = FALSE, chains = 1)
 pit <- forecast_pit(fit, y_future = Y_test)
-pit$ks_p
+pit$ks_stat
 plot(pit)
 }
 }

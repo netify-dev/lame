@@ -75,8 +75,9 @@ Y_list <- list(
   matrix(rnorm(n * n), n, n, dimnames = list(nms, nms))
 )
 diag(Y_list[[1]]) <- diag(Y_list[[2]]) <- NA
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- lame(Y_list, family = "normal",
-            nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE)
+            nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE, chains = 1)
 
 # default combined plot
 plot(fit)

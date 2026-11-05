@@ -16,7 +16,22 @@ AME model using the \code{ame} function}
 A list of class "summary.ame" containing:
 \item{call}{The original function call}
 \item{beta}{Matrix of regression coefficient estimates and statistics}
-\item{variance}{Matrix of variance component estimates}
+\item{variance}{Matrix of variance component estimates; every row is
+reported (a single period carries no event-rate rule), with a note on
+the intercept where a saturated cap withholds it}
+\item{ab_var_unidentified}{\code{TRUE} when variance rows are \code{NA}}
+\item{ab_coef_reason}{\code{"saturated"} when a cbin or frn fit whose
+rows are all at the cap, or half of them with cells hidden, withholds
+the intercept and row-covariate coefficients (\code{NA} otherwise); a
+row at its cap leaves the level of the rows unbounded above, and in
+simulated one-period designs the intercept interval covered 0.64 of the
+panels with every row at the cap and 0.84 of those with cells hidden
+and a share from 0.5, against 0.98 or more elsewhere}
+\item{prior_supplied}{\code{TRUE} when the fit's \code{prior} carried
+\code{Sab0}, \code{eta0} or \code{etaab}; the print method names the
+prior}
+\item{odmax_saturated_share}{share of observed rows at their nomination
+cap, which sets the sampler's prior pooling and the intercept rule (\code{NULL} off cbin / frn)}
 }
 \description{
 Summarizes a fitted AME (Additive and Multiplicative Effects) model,
@@ -27,13 +42,12 @@ model diagnostics.
 The summary includes:
 \describe{
 \item{Regression coefficients}{Posterior means, posterior standard deviations,
-z-values, approximate p-values, and 95\% credible intervals for dyadic,
-sender, and receiver covariates. Note: the z-values are computed as
-posterior mean / posterior SD, and the p-values are derived from a
-normal approximation. These are convenient screening statistics but
-are not formal frequentist test statistics. For rigorous inference,
-use the credible intervals or examine the full posterior via the
-BETA matrix directly.}
+z-values, normal-tail p-values, and 95\% credible intervals for dyadic,
+sender, and receiver covariates. The z-value is the posterior mean
+divided by the posterior SD, and the p-value is the two-sided
+normal tail probability of that z-value: a posterior summary, not a
+frequentist test. The credible intervals are posterior quantiles of
+the draws, and the full posterior is in the BETA matrix.}
 \item{Variance components}{Estimates and standard errors for:
 \describe{
 \item{va}{Variance of additive sender/row effects (asymmetric networks)}
@@ -43,6 +57,13 @@ BETA matrix directly.}
 \item{ve}{Residual variance}
 }
 For symmetric networks, only va and ve are estimated.}
+\item{Rhat and ESS}{A fit of two or more chains adds the columns
+\code{Rhat} and \code{ESS} to both tables. \code{Rhat} is the split
+rank-normalised R-hat of Vehtari et al. (2021) that the between-chain
+gate compares with 1.05, on the draws the fit holds (the last block of
+every chain); for a monitored quantity it is the value in
+\code{fit$rhat}. \code{ESS} is the effective sample size of the pooled
+draws. A one-chain fit has neither column: R-hat compares chains.}
 }
 }
 \seealso{

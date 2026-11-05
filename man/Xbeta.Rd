@@ -18,6 +18,14 @@ An n by n matrix
 Computes a matrix of expected values based on an array X of predictors and a
 vector beta of regression coefficients.
 }
+\examples{
+set.seed(1)
+n <- 12
+X <- array(rnorm(n * n * 2), dim = c(n, n, 2))
+beta <- c(0.5, -0.3)
+EZ <- Xbeta(X, beta)
+dim(EZ)
+}
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }

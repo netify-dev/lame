@@ -30,14 +30,16 @@ slice of the combined dyadic design array (\code{fit$Xlist}). For
 \code{kind = "row"}, each row-actor \eqn{i} gets a length-\eqn{T} slope
 path \eqn{\beta_{i,t}} on the across-column mean of design slice
 \code{covariate_idx}, fit by ridge-penalised least squares on the
-residual after the main MCMC linear predictor; \code{kind = "col"} uses
-the across-row mean for each column-actor.
+response-scale residual \code{Y - YPM} (the observed value minus the
+posterior predictive mean) after the main MCMC components;
+\code{kind = "col"} uses the across-row mean for each column-actor.
 }
 \examples{
 \donttest{
 data(YX_bin_list)
-fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary", R = 0,
-            nscan = 100, burn = 25, odens = 5, verbose = FALSE)
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X, family = "binary", R = 0,
+            nscan = 100, burn = 25, odens = 5, verbose = FALSE, chains = 1)
 # post-MCMC per-row-actor slopes on the first dyadic covariate
 pas <- per_actor_slopes(fit, kind = "row", lambda = 1)
 dim(pas$slopes)

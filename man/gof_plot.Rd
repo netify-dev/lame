@@ -25,7 +25,8 @@ If "auto", determined by model class.}
 \item{statistics}{Character vector of statistics to plot, or \code{NULL}
 (default) for the standard panels plus any custom GOF columns.
 Unipartite names: "sd.row", "sd.col", "dyad.dep", "triad.dep",
-"trans.dep"; bipartite names: "sd.row", "sd.col", "four.cycles".
+"trans.dep"; bipartite names: "sd.row", "sd.col", and
+"four.cycle.dep" for Gaussian outcomes or "four.cycles" otherwise.
 The internal GOF column names reported by \code{names(fit$GOF)}
 ("sd.rowmean", "sd.colmean", "cycle.dep") are accepted as
 equivalents; custom GOF columns may also be named. Unknown names
@@ -44,7 +45,9 @@ longitudinal plots (default 0.95)}
 
 \item{...}{Additional arguments forwarded to the ALS-specific
 \code{\link{gof_plot.ame_als}} when \code{fit} inherits from
-\code{ame_als} (\code{nsim}, \code{seed}).}
+\code{ame_als} (\code{nsim}, \code{seed}). Its simulations condition on the
+fitted parameter estimates and resample outcome noise; they do not include
+parameter uncertainty. See \code{\link{ame_als_bootstrap}} for refit draws.}
 }
 \value{
 A ggplot2 object that can be further customized
@@ -107,7 +110,12 @@ in how popular Type B nodes are with Type A nodes.
 \item{\code{four.cycles} (Bipartite clustering)}{
 Count of 4-cycles (rectangular paths A1-B1-A2-B2-A1). High values indicate
 that pairs of Type A nodes tend to connect to the same Type B nodes.
-Captured through bipartite multiplicative effects with appropriate R_row, R_col.
+Used for families with structural zeros, including binary outcomes.
+}
+\item{\code{four.cycle.dep} (Weighted bipartite dependence)}{
+For Gaussian outcomes, averages products of centered, standardized cell
+values around fully observed rectangles. This measures weighted dependence;
+a nonzero-edge count would be fixed by the observed-cell pattern.
 }
 }
 
@@ -115,11 +123,11 @@ Captured through bipartite multiplicative effects with appropriate R_row, R_col.
 
 \emph{Histogram plots (static models):}
 \itemize{
-\item Dashed orange vertical line (Okabe-Ito \code{#D55E00}): observed statistic
+\item Dashed black vertical line: observed statistic
 value (dual-encoded on colour and linetype)
 \item Grey histogram: distribution from posterior predictive simulations
-\item Good fit: orange line falls within the bulk of the histogram
-\item Poor fit: orange line in the tail or outside the distribution
+\item Good fit: dashed line falls within the bulk of the histogram
+\item Poor fit: dashed line in the tail or outside the distribution
 }
 
 \emph{Common model inadequacies and solutions:}
@@ -180,8 +188,9 @@ Good model fit is indicated when:
 \donttest{
 # Fit an AME model
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit_ame <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, gof = TRUE,
-               nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+               nscan = 100, burn = 10, odens = 1, verbose = FALSE, chains = 1)
 
 # Basic GOF plot
 gof_plot(fit_ame)

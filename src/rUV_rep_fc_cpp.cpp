@@ -1,5 +1,6 @@
 //Includes/namespaces
 #include <RcppArmadillo.h>
+#include "factor_gaussian_stable.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace arma;
 using namespace Rcpp;
@@ -18,57 +19,19 @@ static inline arma::uvec indices_excluding(int total, int exclude) {
 
 // [[Rcpp::export]]
 arma::mat rwish_cpp(const arma::mat& S0, int nu) {
-  int n = S0.n_rows;
-
-  arma::mat S0_clean = S0;
-  if (!S0.is_finite()) {
-    for(int i = 0; i < n; i++) {
-      for(int j = 0; j < n; j++) {
-        if(!std::isfinite(S0_clean(i,j))) {
-          S0_clean(i,j) = (i == j) ? 1.0 : 0.0;
-        }
-      }
-    }
+  const int n = S0.n_rows;
+  if (n == 0 || S0.n_cols != S0.n_rows || !S0.is_finite()) {
+    Rcpp::stop("Wishart scale must be a finite nonempty square matrix.");
   }
-
-  arma::mat S0_sym = 0.5 * (S0_clean + S0_clean.t());
-
-  arma::vec eigval;
-  arma::mat eigvec;
-  bool eig_success = arma::eig_sym(eigval, eigvec, S0_sym);
-
-  if (!eig_success) {
-    S0_sym = arma::eye(n, n);
-    arma::eig_sym(eigval, eigvec, S0_sym);
+  if (nu <= 0) {
+    Rcpp::stop("Wishart degrees of freedom must be positive.");
   }
-
-  double min_eig = eigval.min();
-  double max_eig = eigval.max();
-
-  if (max_eig > 0 && min_eig/max_eig < 1e-10) {
-    double regularization = max_eig * 1e-8;
-    for(int i = 0; i < (int)eigval.n_elem; i++) {
-      if(eigval(i) < regularization) {
-        eigval(i) = regularization;
-      }
-    }
-    S0_sym = eigvec * arma::diagmat(eigval) * eigvec.t();
-  } else if (min_eig <= 0) {
-    double ridge = std::max(1e-6, 1e-6 - min_eig);
-    eigval += ridge;
-    S0_sym = eigvec * arma::diagmat(eigval) * eigvec.t();
-  }
-
+  // retain every positive scale direction; a ridge changes the prior.
+  arma::mat S0_sym = 0.5 * (S0 + S0.t());
   S0_sym = 0.5 * (S0_sym + S0_sym.t());
-
   arma::mat sS0;
-  bool chol_success = arma::chol(sS0, S0_sym, "lower");
-
-  if (!chol_success) {
-    arma::eig_sym(eigval, eigvec, S0_sym);
-    eigval = arma::max(eigval, arma::ones(n) * 1e-10);
-    arma::mat sqrt_eigval = arma::diagmat(arma::sqrt(eigval));
-    sS0 = eigvec * sqrt_eigval;
+  if (!arma::chol(sS0, S0_sym, "lower")) {
+    Rcpp::stop("Wishart scale must be positive definite.");
   }
 
   arma::mat Z = arma::randn(nu, n) * sS0.t();
@@ -76,133 +39,85 @@ arma::mat rwish_cpp(const arma::mat& S0, int nu) {
   return Z.t() * Z;
 }
 
-// Fast UV update with efficient memory usage
+// Column-wise Gibbs update of the multiplicative factors. Each factor column
+// has an exact Gaussian conditional given its partner column (see
+// factor_gaussian_stable.h); iSe2 and maxmargin are unused and retained
+// for the call signature.
 // [[Rcpp::export]]
 List rUV_rep_fc_cpp(
-    const arma::cube& ET, arma::mat U, arma::mat V,
+    const arma::cube& ET, const arma::mat& U_state, const arma::mat& V_state,
     double rho, double s2, const arma::mat& iSe2,
-    double maxmargin, bool shrink, const NumericVector& rLoopIDs) {
-
-  int Time = ET.n_slices;
-  int R = U.n_cols;
-  int n = U.n_rows;
-
-  // Guard: this function assumes square (unipartite) networks
-  if(ET.n_rows != ET.n_cols) {
-    Rcpp::stop("rUV_rep_fc_cpp requires square residual matrices (unipartite). "
-               "Got %d x %d. Use the R fallback for bipartite networks.",
-               ET.n_rows, ET.n_cols);
-  }
-
-  arma::mat UV = join_rows(U, V);
+    double maxmargin, bool shrink, const NumericVector& rLoopIDs,
+    double prior_df, double prior_psi) {
+  (void)iSe2; (void)maxmargin;
+  // the inverse-Wishart prior of the factor covariance: prior_df degrees of freedom and the scale matrix
+  // prior_psi * I (R/uv_prior.R)
+  if (!std::isfinite(prior_df) || prior_df < 1 || !std::isfinite(prior_psi) || prior_psi <= 0)
+    Rcpp::stop("The factor covariance prior needs positive degrees of freedom and scale.");
+  const int df0 = static_cast<int>(std::lround(prior_df));
+  if (!ET.n_rows || ET.n_rows != ET.n_cols || !ET.n_slices ||
+      ET.n_rows != U_state.n_rows || V_state.n_rows != U_state.n_rows ||
+      V_state.n_cols != U_state.n_cols || !ET.is_finite() || !U_state.is_finite() || !V_state.is_finite() ||
+      !std::isfinite(rho) || std::abs(rho) >= 1 || !std::isfinite(s2) || s2 <= 0)
+    Rcpp::stop("Factor conditionals require finite complete residuals, matching coordinates, valid rho and variance.");
+  arma::mat U_work = U_state, V_work = V_state;
+  const int R = U_work.n_cols, n = U_work.n_rows;
+  for (R_xlen_t i = 0; i < rLoopIDs.size(); ++i)
+    if (!std::isfinite(rLoopIDs[i]) || rLoopIDs[i] != std::floor(rLoopIDs[i]) || rLoopIDs[i] < 0 || rLoopIDs[i] >= R)
+      Rcpp::stop("Factor column schedule must contain valid zero-based indices.");
+  if (R == 0) return List::create(Named("U") = U_work, Named("V") = V_work);
+  arma::mat UV = join_rows(U_work, V_work);
   arma::mat Suv;
+  arma::mat Puv;
+  // switch algebra before large factors lose the identity in I + W'W.
+  // both routes have the same inverse-Wishart conditional law.
+  const bool use_precision = shrink &&
+    (R >= 3 || arma::norm(UV, "fro") > 1e4);
 
-  if(shrink) {
+  if (use_precision) {
+    // psi I + W'W = A'A, evaluated by QR so a large factor direction
+    // cannot erase the prior contribution through cancellation.
+    arma::mat Q, upper;
+    arma::mat augmented = join_cols(std::sqrt(prior_psi) * eye<mat>(2 * R, 2 * R), UV);
+    if (!arma::qr_econ(Q, upper, augmented) || !upper.is_finite())
+      Rcpp::stop("Factor covariance augmentation QR failed.");
+    arma::mat normals = arma::randn(2 * R, n + df0);
+    arma::mat root;
+    if (!arma::solve(root, arma::trimatu(upper), normals) || !root.is_finite())
+      Rcpp::stop("Factor covariance augmentation root solve failed.");
+    Puv = root * root.t();
+  } else if (shrink) {
+    // inverse-Wishart draw of the factor covariance.
     arma::mat UV_prod = UV.t() * UV;
-    arma::mat inv_mat = inv_sympd(eye<mat>(R*2, R*2) + UV_prod);
-    Suv = inv_sympd(rwish_cpp(inv_mat, n + R + 2));
+    arma::mat inv_mat = inv_sympd(prior_psi * eye<mat>(R*2, R*2) + UV_prod);
+    Suv = inv_sympd(rwish_cpp(inv_mat, n + df0));
   } else {
-    Suv = eye<mat>(R*2, R*2);
+    // the diffuse covariance of the first half of burn-in, n times the scale of the prior (prior_psi / prior_df: 1 for a
+    // unit response, the unit of the factor rows for the normal family)
+    Suv = n * (prior_psi / prior_df) * eye<mat>(R*2, R*2);
   }
 
-  double g = iSe2(0,0);
-  double d = iSe2(0,1);
-  double g2d2 = g*g + d*d;
 
-  arma::mat Est(n * n, Time);
-  arma::mat Usmall(n, R-1);
-  arma::mat Vsmall(n, R-1);
-
-  // pre-compute index vectors for submat extraction
-  int dim2R = 2 * R;
-
-  for(int i = 0; i < rLoopIDs.size(); i++) {
-    int r = rLoopIDs[i];
-
-    if(r == 0) {
-      Usmall = U.cols(1, R-1);
-      Vsmall = V.cols(1, R-1);
-    } else if(r == R-1) {
-      Usmall = U.cols(0, R-2);
-      Vsmall = V.cols(0, R-2);
-    } else {
-      Usmall = join_rows(U.cols(0, r-1), U.cols(r+1, R-1));
-      Vsmall = join_rows(V.cols(0, r-1), V.cols(r+1, R-1));
-    }
-
-    arma::mat UVmr = Usmall * Vsmall.t();
-
-    for(int t = 0; t < Time; t++) {
-      arma::mat ert = ET.slice(t) - UVmr;
-      Est.col(t) = vectorise(g2d2 * ert + 2 * g * d * ert.t());
-    }
-
-    arma::vec vr = V.col(r);
-
-    // use submat with index vectors instead of shed_col/shed_row
-    arma::uvec idx_excl_r = indices_excluding(dim2R, r);
-    arma::uvec idx_r_only(1); idx_r_only(0) = r;
-
-    arma::rowvec Suvsmall = Suv(idx_r_only, idx_excl_r);
-    arma::mat Suvsmall2 = Suv(idx_excl_r, idx_excl_r);
-
-    arma::vec b0 = (Suvsmall * inv_sympd(Suvsmall2)).t();
-    arma::vec Suv_col_r = Suv(idx_excl_r, idx_r_only);
-    double v0 = Suv(r,r) - dot(b0, Suv_col_r);
-
-    arma::vec m0 = join_rows(Usmall, V) * b0;
-
-    double sumvr2 = dot(vr, vr);
-    double ssv = (sumvr2 >= maxmargin) ? sumvr2 : maxmargin;
-
-    double a = Time * g2d2 * ssv + 1/v0;
-    double c = -2 * Time * g * d / (a*a + a * 2 * Time * g * d * ssv);
-
-    arma::vec Esv_vec = sum(Est, 1);
-    arma::mat Esv_mat = arma::reshape(Esv_vec, n, n);
-    arma::vec Esv = Esv_mat * vr;
-    arma::vec m1 = Esv/a + c * vr * dot(Esv + m0/v0, vr) + m0/(a*v0);
-
-    double ah = sqrt(1/a);
-    double bh = (sqrt(1/a + ssv*c) - sqrt(1/a)) / ssv;
-
-    arma::vec e = randn(n);
-    U.col(r) = m1 + ah * e + bh * vr * dot(vr, e);
-
-    arma::vec ur = U.col(r);
-    int rv = R + r;
-
-    // use submat for the V update
-    arma::uvec idx_excl_rv = indices_excluding(dim2R, rv);
-    arma::uvec idx_rv_only(1); idx_rv_only(0) = rv;
-
-    arma::rowvec Suvsmall_v = Suv(idx_rv_only, idx_excl_rv);
-    arma::mat Suvsmall2_v = Suv(idx_excl_rv, idx_excl_rv);
-
-    arma::vec b0_v = (Suvsmall_v * inv_sympd(Suvsmall2_v)).t();
-    arma::vec Suv_col_rv = Suv(idx_excl_rv, idx_rv_only);
-    double v0_v = Suv(rv,rv) - dot(b0_v, Suv_col_rv);
-
-    arma::vec m0_v = join_rows(U, Vsmall) * b0_v;
-
-    double sumur2 = dot(ur, ur);
-    double ssu = (sumur2 >= maxmargin) ? sumur2 : maxmargin;
-
-    double a_v = Time * g2d2 * ssu + 1/v0_v;
-    double c_v = -2 * Time * g * d / (a_v*a_v + a_v * 2 * Time * g * d * ssu);
-
-    arma::vec tEsu = Esv_mat.t() * ur;
-    arma::vec m1_v = tEsu/a_v + c_v * ur * dot(tEsu + m0_v/v0_v, ur) + m0_v/(a_v*v0_v);
-
-    double ah_v = sqrt(1/a_v);
-    double bh_v = (sqrt(1/a_v + ssu*c_v) - sqrt(1/a_v)) / ssu;
-
-    arma::vec e_v = randn(n);
-    V.col(r) = m1_v + ah_v * e_v + bh_v * ur * dot(ur, e_v);
+  if (!use_precision) Puv = lame_factor::covariance_precision(Suv);
+  if (!Puv.is_finite() || arma::any(Puv.diag() <= 0))
+    Rcpp::stop("Factor conditional prior precision must be finite and positive.");
+  const arma::mat E_mean = arma::mean(ET, 2);
+  for (R_xlen_t i = 0; i < rLoopIDs.size(); ++i) {
+    const int r = rLoopIDs[i], rv = R + r;
+    arma::uvec other = indices_excluding(R, r);
+    arma::mat Usmall = U_work.cols(other), Vsmall = V_work.cols(other);
+    arma::mat other_product = Usmall * Vsmall.t();
+    lame_factor::Signal signal = lame_factor::pooled_signal(E_mean, other_product, ET.n_slices, rho, s2);
+    arma::uvec free = indices_excluding(2 * R, r), one(1); one(0) = r;
+    const double prior_precision = Puv(r, r);
+    arma::vec reg = -Puv(free, one) / prior_precision;
+    arma::vec prior_mean = join_rows(Usmall, V_work) * reg;
+    U_work.col(r) = lame_factor::draw(V_work.col(r), signal, prior_mean, prior_precision, false);
+    free = indices_excluding(2 * R, rv); one(0) = rv;
+    const double precision_v = Puv(rv, rv);
+    reg = -Puv(free, one) / precision_v;
+    prior_mean = join_rows(U_work, Vsmall) * reg;
+    V_work.col(r) = lame_factor::draw(U_work.col(r), signal, prior_mean, precision_v, true);
   }
-
-  return List::create(
-    Named("U") = U,
-    Named("V") = V
-  );
+  return List::create(Named("U") = U_work, Named("V") = V_work);
 }

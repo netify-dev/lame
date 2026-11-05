@@ -1,22 +1,16 @@
 skip_on_cran()
 
-# one cheap parameter-recovery check per supported family on the
-# cross-sectional ame() path. family-specific edge cases live in the
-# per-family test_static_*.r files.
+# one cheap parameter-recovery check per supported family on the cross-sectional ame() path
+# family-specific edge cases live in the per-family test_static_*.R files
 
 library(lame)
 library(testthat)
 
-# generate a synthetic ame network with the requested family. eta is mu +
-# beta * x plus standard normal noise; family map applies the appropriate
-# link or thresholding without collapsing the matrix shape.
+# a synthetic network of the requested family: eta = mu + beta * x plus standard normal noise, mapped by the family's
+# link or threshold with the matrix shape kept
 make_net = function(family, n = 20, mu = 0.5, beta = 0.6, seed = 6886) {
 	set.seed(seed)
-	# iid symmetric dyadic covariate. a rank-1 tcrossprod(u) covariate is
-	# partially confounded with the additive row/col effects (u_i u_j
-	# correlates with a_i + b_j), which attenuates beta by ~13% on any
-	# single realization and makes the coverage assertion below a test of
-	# the confound, not of coefficient recovery.
+	# iid symmetric dyadic covariate; a rank-1 tcrossprod(u) covariate would be partly confounded with the additive effects
 	X = matrix(rnorm(n * n), n, n)
 	X = (X + t(X)) / 2
 	diag(X) = NA
@@ -24,12 +18,14 @@ make_net = function(family, n = 20, mu = 0.5, beta = 0.6, seed = 6886) {
 	noise = matrix(rnorm(n * n, 0, 1), n, n)
 	rn = paste0("a", sprintf("%02d", seq_len(n)))
 
-	Y = switch(family,
-		normal  = eta + noise,
-		binary  = (eta + noise > 0) * 1,
-		poisson = matrix(rpois(n * n, pmin(exp(eta), 1e6)), n, n),
+	Y = switch(
+		family,
+		normal = eta + noise,
+		binary = (eta + noise > 0) * 1,
+		# the NA diagonal of eta gets rate zero so rpois() does not warn
+		poisson = matrix(rpois(n * n, ifelse(is.na(eta), 0, pmin(exp(eta), 1e6))), n, n),
 		ordinal = matrix(pmin(pmax(round(eta + noise), 0), 3), n, n),
-		cbin    = (eta + noise > 0) * 1,
+		cbin = (eta + noise > 0) * 1,
 		stop("family not handled: ", family)
 	)
 	diag(Y) = NA
@@ -37,37 +33,45 @@ make_net = function(family, n = 20, mu = 0.5, beta = 0.6, seed = 6886) {
 	list(Y = Y, X = X, mu = mu, beta = beta)
 }
 
-# 95% ci on the dyadic coefficient should cover the truth
+# the 95% interval of the dyadic coefficient covers the truth
 recovery_test = function(
-	family, n = 20, mu = 0.5, beta = 0.6,
-	burn = 200, nscan = 600, R = 0
+	family,
+	n = 20,
+	mu = 0.5,
+	beta = 0.6,
+	burn = 200,
+	nscan = 600,
+	R = 0
 ) {
 	d = make_net(family, n = n, mu = mu, beta = beta)
 	fit = ame(
-		Y = d$Y, Xdyad = d$X, R = R, family = family,
-		burn = burn, nscan = nscan, verbose = FALSE, plot = FALSE
+		Y = d$Y,
+		Xdyad = d$X,
+		R = R,
+		family = family,
+		burn = burn,
+		nscan = nscan,
+		verbose = FALSE,
+		plot = FALSE
 	)
-	# locate the dyadic coefficient column by name
-	beta_name = grep("\\.dyad$", colnames(fit$BETA), value = TRUE)[1]
-	if (is.na(beta_name)) {
-		beta_post = fit$BETA[, ncol(fit$BETA)]
-	} else {
-		beta_post = fit$BETA[, beta_name]
-	}
+	# the dyadic coefficient column, named <covariate>_dyad
+	beta_name = grep("_dyad$", colnames(fit$BETA), value = TRUE)
+	expect_length(beta_name, 1L)
+	beta_post = fit$BETA[, beta_name]
 	ci = quantile(beta_post, c(0.025, 0.975), na.rm = TRUE)
 	med = stats::median(beta_post, na.rm = TRUE)
-	# recovery is confirmed when the 95% interval covers the truth OR the
-	# point estimate lands close to it. the single-seed coverage check alone
-	# is fragile here: the iid dyadic covariate is partly confounded with the
-	# additive effects and attenuates beta by ~13% on any one realization, so
-	# a narrow interval can just miss even when the estimate is on target.
-	# a real recovery failure moves the median well past the tolerance.
+	# recovered when the 95% interval covers the truth or the median lands close to it, since the iid covariate is
+	# partly confounded with the additive effects and a narrow interval can just miss on one realization
 	recovered = (ci[1] <= d$beta && d$beta <= ci[2]) || abs(med - d$beta) < 0.2
 	expect_true(
 		recovered,
 		info = sprintf(
 			"%s: beta=%.2f, median=%.2f, ci=[%.2f, %.2f]",
-			family, d$beta, med, ci[1], ci[2]
+			family,
+			d$beta,
+			med,
+			ci[1],
+			ci[2]
 		)
 	)
 }
@@ -88,38 +92,44 @@ test_that("ordinal AME recovers the dyadic coefficient", {
 	recovery_test("ordinal")
 })
 
-# rank family (frn): the recovery_test() helper cannot generate ranked
-# nomination data, so the rank representative is a standalone frn fit where a
-# dyadic covariate drives the ranks and the recovered coefficient is finite.
+# frn: recovery_test() cannot generate ranked nominations, so a standalone fit checks that a dyadic covariate
+# driving the ranks gets a finite coefficient
 test_that("Fixed rank nomination (frn) with covariates works", {
 	set.seed(6886)
 	n = 20
 
-	# generate covariate
-	X = matrix(rnorm(n*n, 0, 0.5), n, n)
+	# covariate
+	X = matrix(rnorm(n * n, 0, 0.5), n, n)
 	diag(X) = NA
 
-	# create ranked nominations influenced by x
+	# ranked nominations driven by x
 	odmax = 4
 	Y = matrix(NA, n, n)
 
-	for(i in 1:n) {
-		# higher x values get better (lower) ranks
-		scores = X[i,]
+	for (i in 1:n) {
+		# higher x gets a better (lower) rank
+		scores = X[i, ]
 		scores[i] = NA
-		top_indices = order(scores, decreasing=TRUE, na.last=TRUE)[1:odmax]
+		top_indices = order(scores, decreasing = TRUE, na.last = TRUE)[1:odmax]
 		Y[i, top_indices] = 1:odmax
 	}
 	diag(Y) = NA
 
-	# fit model
-	fit = ame(Y, Xdyad=X, R=0, family="frn", odmax=odmax,
-						burn=300, nscan=800, verbose = FALSE)
+	fit = ame(
+		Y,
+		Xdyad = X,
+		R = 0,
+		family = "frn",
+		odmax = odmax,
+		burn = 300,
+		nscan = 800,
+		verbose = FALSE
+	)
 
 	expect_true(!is.null(fit$BETA))
-	# for frn, positive x should lead to better (lower) ranks
-	if(ncol(fit$BETA) >= 2) {
-		beta_est = median(fit$BETA[,2])
+	# positive x gives better (lower) ranks
+	if (ncol(fit$BETA) >= 2) {
+		beta_est = median(fit$BETA[, 2])
 		expect_true(is.finite(beta_est))
 	}
 })
@@ -133,9 +143,17 @@ test_that("normal bipartite AME runs and produces a fit object", {
 	colnames(Y) = paste0("c", seq_len(nc))
 	X = array(rnorm(nr * nc), c(nr, nc, 1))
 	dimnames(X)[[3]] = "x"
-	fit = ame(Y, Xdyad = X, mode = "bipartite", R = 0,
-	          family = "normal", burn = 50, nscan = 200,
-	          verbose = FALSE, plot = FALSE)
+	fit = ame(
+		Y,
+		Xdyad = X,
+		mode = "bipartite",
+		R = 0,
+		family = "normal",
+		burn = 50,
+		nscan = 200,
+		verbose = FALSE,
+		plot = FALSE
+	)
 	expect_s3_class(fit, "ame")
 	cf = coef(fit)
 	dyad_name = grep("dyad$", names(cf), value = TRUE)[1]
@@ -148,21 +166,26 @@ test_that("binary bipartite AME runs", {
 	Y = matrix(rbinom(nr * nc, 1, 0.3), nr, nc)
 	rownames(Y) = paste0("r", seq_len(nr))
 	colnames(Y) = paste0("c", seq_len(nc))
-	fit = ame(Y, mode = "bipartite", R = 0, family = "binary",
-	          burn = 50, nscan = 200, verbose = FALSE, plot = FALSE)
+	fit = ame(
+		Y,
+		mode = "bipartite",
+		R = 0,
+		family = "binary",
+		burn = 50,
+		nscan = 200,
+		verbose = FALSE,
+		plot = FALSE
+	)
 	expect_s3_class(fit, "ame")
 })
 
-# sparse counts: on a mostly-zero matrix the variance of log1p(y) row and
-# column means is ~0, so an effect prior scaled that way pins a, b and uv'
-# at zero and pushes all heterogeneity into s2. the prior scale must come
-# from a log-rate moment instead, keeping the additive effects alive and
-# the predictive totals near the observed count.
+# sparse counts: the row and column means of log1p(y) barely vary on a mostly-zero matrix, so the effect prior
+# scale comes from a log-rate moment, which keeps the additive effects and the predictive total alive
 
 test_that("poisson prior scale and start values are sane on sparse counts", {
 	set.seed(7); n = 30
 	Y = matrix(rpois(n * n, 0.05), n, n); diag(Y) = NA
-	# log-rate moments are o(1) even when almost every cell is zero
+	# log-rate moments are O(1) even when almost every cell is zero
 	vs = .ame_pois_effect_scale(Y)
 	expect_true(is.finite(vs) && vs > 0.1 && vs < 10)
 	# dense, homogeneous counts give a small scale
@@ -193,9 +216,19 @@ test_that("poisson AME recovers actor heterogeneity on a sparse network", {
 	eta = -3.6 + 0.5 * x + outer(a, b, "+")
 	Y = matrix(rpois(n * n, exp(eta)), n, n); diag(Y) = NA
 	X = array(x, c(n, n, 1), dimnames = list(NULL, NULL, "x1"))
-	fit = ame(Y, Xdyad = X, family = "poisson", R = 0, burn = 500, nscan = 1000,
-	          odens = 5, seed = 1, gof = FALSE, verbose = FALSE)
-	# the effect prior is no longer pinned near zero
+	fit = ame(
+		Y,
+		Xdyad = X,
+		family = "poisson",
+		R = 0,
+		burn = 500,
+		nscan = 1000,
+		odens = 5,
+		seed = 1,
+		gof = FALSE,
+		verbose = FALSE
+	)
+	# the effect prior is not pinned near zero
 	expect_gt(fit$prior$Sab0[1, 1], 0.05)
 	expect_gt(mean(fit$VC[, "va"]), 0.1)
 	expect_gt(cor(fit$APM, a), 0.4)
@@ -207,12 +240,6 @@ test_that("poisson AME recovers actor heterogeneity on a sparse network", {
 	tot = sum(Y, na.rm = TRUE)
 	expect_gt(sum(fit$YPM, na.rm = TRUE), 0.6 * tot)
 	expect_lt(sum(fit$YPM, na.rm = TRUE), 1.6 * tot)
-	# the joint (z, intercept) level move ran and accepted at a sane rate
-	acc = fit$mh_counters$pois_shift_accept
-	expect_true(is.numeric(acc) && acc > 0.05 && acc < 0.95)
-	# no intercept, no level move
-	fit0 = ame(Y, Xdyad = X, family = "poisson", R = 0, intercept = FALSE,
-	           burn = 20, nscan = 40, odens = 5, seed = 1, gof = FALSE,
-	           verbose = FALSE)
-	expect_null(fit0$mh_counters$pois_shift_accept)
+	# the translation of the intercept with the latent array (R/latent_translation_move.R) ran
+	expect_gt(fit$actor_move[["coef_calls"]], 0)
 })

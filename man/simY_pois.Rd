@@ -4,13 +4,16 @@
 \alias{simY_pois}
 \title{Simulate a Poisson relational matrix}
 \usage{
-simY_pois(EZ)
+simY_pois(EZ, bipartite = FALSE)
 }
 \arguments{
-\item{EZ}{square matrix giving the log expected values of the relational matrix}
+\item{EZ}{matrix giving the log expected values of the relational matrix}
+
+\item{bipartite}{whether row and column actors form disjoint sets; keeps
+diagonal cells even when the matrix is square.}
 }
 \value{
-a square matrix of counts
+a matrix with the dimensions of \code{EZ} of counts
 }
 \description{
 Simulates a relational matrix from a Poisson distribution given
@@ -19,3 +22,4 @@ the log mean values
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }
+\keyword{internal}

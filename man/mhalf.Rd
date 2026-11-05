@@ -7,13 +7,18 @@
 mhalf(M)
 }
 \arguments{
-\item{M}{a positive definite matrix}
+\item{M}{a positive semidefinite matrix}
 }
 \value{
 a matrix \code{H} such that \code{H^2} equals \code{M}
 }
 \description{
-Computes the symmetric square root of a positive definite matrix
+Computes the symmetric square root of a positive semidefinite matrix
+}
+\examples{
+M <- matrix(c(4, 1, 1, 4), 2, 2)
+H <- mhalf(M)
+H \%*\% H  # recovers M
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

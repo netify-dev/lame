@@ -1,7 +1,7 @@
 # **lame** <img src="man/figures/lame_hex.png" align="right" alt="hex" width="200px">
 
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/netify-dev/lame/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/netify-dev/lame/actions/workflows/R-CMD-check.yaml)
+[![build](https://github.com/netify-dev/lame/actions/workflows/build-release-binaries.yaml/badge.svg)](https://github.com/netify-dev/lame/actions/workflows/build-release-binaries.yaml)
 <!-- badges: end -->
 
 > **L**ongitudinal **A**dditive and **M**ultiplicative **E**ffects Models for Networks
@@ -49,19 +49,29 @@ summary(fit)               # coefficients, variance components, gof
 trace_plot(fit)            # check mixing; gof_plot(fit) for posterior-predictive fit
 ```
 
-**What is `R`?** The dimension of the latent space that captures who-ties-to-whom beyond the covariates and sender/receiver effects. `R = 0` is the additive part only; `R = 2` adds structure like homophily and transitivity. `lame` warns above `R > floor(n/3)`, where high-rank factors start stealing signal from the additive effects. Start at `R = 2`, then compare `gof_plot()` across `R = 0, 1, 2, 3`.
+**What is `R`?** The dimension of the latent space that captures who-ties-to-whom beyond the covariates and sender/receiver effects. `R = 0` is the additive part only; `R = 2` adds structure like homophily and transitivity. There is no cap on `R` below the network size, but ranks above `floor(n/3)` mix more slowly and lose accuracy gradually past the structure in the data. Start at `R = 2`, then compare `gof_plot()` across `R = 0, 1, 2, 3`.
 
-**Naming gotcha.** Actors are aligned across `Y`, `Xdyad`, `Xrow`, `Xcol` by **sorted** dimnames, so `paste0("N", 1:25)` misaligns everything (`"N1","N10","N11",...` sorts before `"N2"`). Zero-pad (`sprintf("N%02d", 1:25)`) or use real names, and set matching dimnames on every input.
+**Naming gotcha.** Actors are aligned across `Y`, `Xdyad`, `Xrow`, `Xcol` by **sorted** dimnames, so every input needs matching dimnames. With names like `paste0("N", 1:25)` the stored output comes back in sorted order (`"N1","N10","N11",...` before `"N2"`), not your input order; the fit is still correct as long as the inputs share the same names. Zero-pad (`sprintf("N%02d", 1:25)`) or use real names to keep the stored order readable.
 
 ### Longitudinal
 
 Pass a list of `Y` matrices (and lists of covariates) to `lame()`:
 
 ```r
-data("vignette_data")      # Y: list of 4 binary 35 x 35 matrices (sanctions, 35 countries x 4 yrs)
+data("dutchcollege")       # 32 students, 7 waves of friendship nominations
+actors <- sprintf("S%02d", seq_len(nrow(dutchcollege$Y)))
+Y <- lapply(2:7, function(t) {          # binarise; wave 1 has almost no ties
+  Yt <- (dutchcollege$Y[, , t] > 0) * 1
+  diag(Yt) <- NA
+  dimnames(Yt) <- list(actors, actors)
+  Yt
+})
+X_node <- dutchcollege$X
+rownames(X_node) <- actors
+Xrow <- Xcol <- lapply(Y, function(y) X_node)   # sender and receiver covariates
 
 fit_long <- lame(
-  Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
+  Y, Xrow = Xrow, Xcol = Xcol,
   family = "binary", R = 2,
   burn = 500, nscan = 4000, odens = 10, verbose = FALSE
 )
@@ -74,19 +84,16 @@ The headline extension is letting effects vary over time:
 
 ```r
 fit_dynamic <- lame(
-  Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
+  Y, Xrow = Xrow, Xcol = Xcol,
   family = "binary", R = 2,
-  dynamic_ab   = TRUE,       # time-varying sender/receiver effects
-  dynamic_uv   = TRUE,       # time-varying latent positions
-  dynamic_beta = "dyad",     # time-varying dyadic coefficients
-  dynamic_beta_kind = "ar1", # "ar1" / "rw1" / "rw2" / "matern32"
+  dynamic_ab = TRUE,         # time-varying sender/receiver effects
+  dynamic_uv = TRUE,         # time-varying latent positions
   burn = 500, nscan = 4000, odens = 10,
-  prior = list(rho_uv_mean = 0.9, rho_ab_mean = 0.8),
   verbose = FALSE
 )
 ```
 
-`predict(fit_dynamic, h = 3, type = "response")` forecasts three periods ahead; add `interval = "credible"` for per-period `$lower` / `$median` / `$upper`. See `vignette("forecasting")` and, for the `dynamic_beta_kind` decision tree, `vignette("dynamic_effects")`.
+`predict(fit_dynamic, h = 3, type = "response")` forecasts three periods ahead; add `interval = "credible"` for per-period `$lower` / `$median` / `$upper`. See `vignette("forecasting")` and, for the `dynamic_beta_kind` decision tree, the [dynamic effects article](https://netify-dev.github.io/lame/articles/dynamic_effects.html).
 
 ## Families
 
@@ -127,40 +134,39 @@ trace_plot(fit); gof_plot(fit)                   # mcmc mixing; goodness of fit
 ## Features
 
 - **Modes:** cross-sectional (`ame()`), longitudinal (`lame()`), unipartite and bipartite, six families.
-- **Dynamics:** time-varying latent positions (`dynamic_uv`), sender/receiver effects (`dynamic_ab`), and regression coefficients (`dynamic_beta`, per-block AR(1) / RW1 / RW2 / Matern 3/2), with forecasting via `predict(fit, h = K)`.
+- **Dynamics:** time-varying latent positions (`dynamic_uv`), sender/receiver effects (`dynamic_ab`), and regression coefficients (`dynamic_beta`, per-block AR(1) / RW1 / RW2 / Matern 3/2), with forecasting via `predict(fit, h = K)` for supported transition models (AR(1) and RW1 for coefficients).
 - **S3 methods** on both MCMC and ALS fits: `coef()`, `vcov()`, `confint()`, `predict()`, `fitted()`, `residuals()`, `summary()`, `update()`, `simulate()`, plus `autoplot()`.
-- **Ecosystem:** `broom::tidy()` / `glance()`, `modelsummary`, `as_draws()` for `posterior` / `tidybayes`, and `loo::loo()` when `save_log_lik = TRUE`.
+- **Ecosystem:** `broom::tidy()` / `glance()`, `modelsummary`, `as_draws()` for `posterior` / `tidybayes`, and `loo::loo()` when `save_log_lik = TRUE` (directed fits need `dcor = FALSE`, so that each cell has its own likelihood).
 - **Fit assessment:** `simulate()` and `gof()` posterior-predictive checks; `gof_temporal()` for panels.
-- **Scale and robustness:** `ame_parallel()` / `lame_parallel()` multi-chain runs with R-hat / ESS via `compute_mcmc_diagnostics()`; `lame_multi()` for several panels sharing coefficients; checkpoint/resume via `checkpoint_path=` and `lame_resume()`.
+- **Scale and robustness:** `ame()` and `lame()` run two chains by default (`chains = 2`) and compare them by R-hat before they return; `compute_mcmc_diagnostics()` reports R-hat / ESS; `lame_multi()` for several panels sharing coefficients; checkpoint/resume via `checkpoint_path=` and `lame_resume()`.
 
 ## Fast (MCMC-free) estimation
 
-`ame_als()` / `lame_als()` fit the same model by iterative block coordinate descent (alternating least squares / IRLS) -- a port of the Social Influence Regression estimator of Minhas & Hoff (2025), implemented in the [`sir`](https://github.com/netify-dev/sir) package. They return point estimates rather than a posterior, so they are much faster.
+`ame_als()` / `lame_als()` fit the same model by iterative block coordinate descent (alternating least squares / IRLS) -- a port of the Social Influence Regression estimator of Minhas & Hoff (2025), implemented in the [`sir`](https://github.com/netify-dev/sir) package. For normal, binary and Poisson data the default is an empirical-Bayes / variational estimator of the model the samplers fit (see the fast-estimation vignette). They return point estimates rather than a posterior, so they are much faster.
 
 - **Scope:** `normal`, `binary`, `poisson`; use the MCMC path for `ordinal`, `cbin`, `frn`.
-- **Dynamic ALS:** `lame(..., method = "als")` fits dynamic additive effects, selected dynamic coefficients, AR(1) and Student-t latent factors (directed, symmetric, bipartite), and bipartite dynamic `G`, as penalized point estimates. Tune with `als_max_iter`, `als_tol`, `als_stability`.
-- **Snap-shift:** `lame_snap_als()` (or `method = "als", dynamic_uv_kind = "snap"`) estimates dynamic positions for normal unipartite/bipartite panels. `snap_prob` is an ALS score, not a posterior probability -- read it through rankings and the stability diagnostics.
-- **Uncertainty:** `ame_als_bootstrap()`, or `ame_als(..., bootstrap = N)`, for block/parametric bootstrap intervals; `confint()` uses them when present, the sandwich `vcov()` otherwise.
+- **Dynamic ALS:** `lame(..., method = "als")` fits dynamic additive effects, selected dynamic coefficients, AR(1) latent factors (directed, symmetric, bipartite) and Student-t ones (directed, symmetric). Binary and Poisson panels are fitted by an empirical-Bayes estimator by default (`bias_correct = "none"` gives the penalized point estimate), the normal family by a penalized point estimate. Tune with `als_max_iter`, `als_tol`, `als_stability`.
+- **Snap-shift:** `dynamic_uv_kind = "snap"` is fitted by the MCMC on directed panels; the ALS route and `lame_snap_als()` refuse it and point there or to the `"ar1"` kind.
+- **Uncertainty:** `ame_als_bootstrap()`, or `ame_als(..., bootstrap = N)`, for block/parametric bootstrap intervals; `confint()` uses them when present. Normal, binary and Poisson fits (an empirical-Bayes estimator by default) report Laplace standard errors for every coefficient from `vcov()` / `confint()`, and dynamic ones have no bootstrap; fixed-effects fits (`bias_correct = "none"`) the sandwich `vcov()`.
 
 ## Documentation
 
-| Vignette | Topic |
+| Vignette or article | Topic |
 | --- | --- |
 | `vignette("lame")` | 5-minute getting-started on a small simulated panel |
-| `vignette("lame-overview")` | Full tour on the bundled Dutch college friendship data |
+| [lame overview](https://netify-dev.github.io/lame/articles/lame-overview.html) | Full tour on the bundled Dutch college friendship data |
 | `vignette("cross_sec_ame")` | Cross-sectional AME on the Add Health friendship network |
-| `vignette("bipartite")` | Two-mode networks, cross-sectional and longitudinal |
-| `vignette("dynamic_effects")` | `dynamic_uv` / `dynamic_ab` / `dynamic_beta` and the transition-kind decision tree |
+| [Bipartite article](https://netify-dev.github.io/lame/articles/bipartite.html) | Two-mode networks, cross-sectional and longitudinal |
+| [Dynamic effects article](https://netify-dev.github.io/lame/articles/dynamic_effects.html) | `dynamic_uv` / `dynamic_ab` / `dynamic_beta` and the transition-kind decision tree |
 | `vignette("forecasting")` | `predict(fit, h = K)` forecasts and counterfactuals |
 | `vignette("fast_estimation")` | the `ame_als()` / `lame_als()` point estimator |
 
 ## Reproducibility
 
-MCMC results depend on the RNG seed and package versions. Set a seed, and record the environment:
+MCMC results depend on the RNG seed and package versions. `ame()` and `lame()` seed the chain themselves through their `seed` argument (default 6886), so an external `set.seed()` does not change a fit; pass `seed =` to vary it, and record the environment:
 
 ```r
-set.seed(6886)
-fit <- lame(...)
+fit <- lame(..., seed = 6886)
 sessionInfo()          # or pin the toolchain with an renv.lock / a @<commit-sha> install
 ```
 
@@ -171,7 +177,7 @@ sessionInfo()          # or pin the toolchain with an renv.lock / a @<commit-sha
   title  = {lame: Longitudinal Additive and Multiplicative Effects Models for Networks},
   author = {Cassy Dorff and Shahryar Minhas and Tosin Salau},
   year   = {2026},
-  note   = {R package version 1.3.5},
+  note   = {R package version 1.4.0},
   url    = {https://github.com/netify-dev/lame},
 }
 ```
@@ -188,4 +194,4 @@ MIT. See the `LICENSE` file.
 
 ## Support
 
-[Issues](https://github.com/netify-dev/lame/issues) · [Discussions](https://github.com/netify-dev/lame/discussions) · [minhassh@msu.edu](mailto:minhassh@msu.edu)
+[Issues](https://github.com/netify-dev/lame/issues) · [minhassh@msu.edu](mailto:minhassh@msu.edu)

@@ -1,135 +1,80 @@
-# per-actor dynamic beta with exact gaussian conditioning for the
-# sum-to-zero centering constraint. the path:
-#
-#   (1) for each actor i, run a univariate carter-kohn ffbs on the
-#       length-t path theta_{i, 1:t} given period-wise (h_i(t), h_i(t))
-#       and ar(1) hyperparameters (rho_actor, sigma_actor^2).
-#       this is the unconstrained per-actor posterior conditional on
-#       hyperparameters and the other actors (in the lame model, actor
-#       slopes are conditionally independent given hypers).
-#
-#   (2) project the unconstrained sample theta* onto the sum-to-zero
-#       manifold at each period using the variance-weighted lagrangian:
-#         theta_i(t) <- theta*_i(t) - v_i(t) / sum_j v_j(t) * sum_j theta*_j(t)
-#       where v_i(t) is the *marginal* posterior variance of theta_i(t)
-#       under the ffbs posterior. this is the exact conditioning under
-#       the block-diagonal-across-actors covariance assumption, which
-#       holds in the lame per-actor model.
-#
-# derivation: if (theta*_1, ..., theta*_n) ~ n(mu, sigma) with
-# sigma block-diagonal across actors (sigma_i is the per-actor t x t
-# carter-kohn covariance), the conditional given sum_i theta_i = 0 is
-#   theta_i | constraint = theta*_i - sigma_i 1 (1' sigma 1)^{-1} 1' theta*
-# where the projection 1' theta* is the period-wise sum. per period t:
-#   theta_i(t) = theta*_i(t) - v_i(t) * (sum_j theta*_j(t)) / sum_j v_j(t)
-# this is exact (not heuristic) under block-diagonality.
+# actor-specific AR(1) paths keep their full temporal covariance, since the
+# sum-to-zero constraint in every period binds jointly across time
 
-#' Univariate Carter-Kohn FFBS for one actor's length-T slope path
-#'
-#' Given period-wise sufficient statistics (H[t] = sum_j X^2_ij / s2,
-#' h[t] = sum_j X_ij R_ij / s2) and AR(1) hyperparameters, returns one
-#' joint draw from the posterior N(m, P) where the prior is AR(1) and
-#' the observation is the Gaussian likelihood implied by (H, h).
-#'
-#' @param H length-T vector of period-wise observation precisions
-#' @param h length-T vector of period-wise observation cross-products
-#' @param rho_actor AR(1) coefficient
-#' @param sigma_actor2 AR(1) innovation variance
-#' @return list with \code{theta} (length-T draw) and \code{V} (length-T
-#'   marginal posterior variance per period -- needed for the exact
-#'   centering projection).
-#' @keywords internal
+# univariate FFBS draw of one actor's path with its full smoothed covariance
 .actor_ffbs_path <- function(H, h, rho_actor, sigma_actor2) {
 	T_per <- length(H)
-	if (T_per < 1L) return(list(theta = numeric(0), V = numeric(0)))
-	# clamp rho away from boundaries for numerical stability
-	rho <- max(min(rho_actor, 0.99999), -0.99999)
-	s2 <- max(sigma_actor2, 1e-12)
-	# stationary prior var at t = 1
-	v_stat <- s2 / max(1 - rho^2, 1e-6)
-	# forward filter
-	m_filt <- numeric(T_per)
-	P_filt <- numeric(T_per)
-	m_prior <- 0
-	P_prior <- v_stat
+	if (!T_per) return(list(theta = numeric(), V = numeric(), covariance = matrix(0, 0, 0)))
+	if (length(h) != T_per || any(!is.finite(c(H, h))) || any(H < 0))
+		stop("Invalid actor-specific Gaussian sufficient statistics.")
+	.ar1_path_precision(T_per, rho_actor, sigma_actor2)
+	rho <- rho_actor; innovation <- sigma_actor2
+	m_filt <- P_filt <- numeric(T_per)
+	m_prior <- 0; P_prior <- innovation / (1 - rho^2)
 	for (t in seq_len(T_per)) {
-		# information form: p_post^{-1} = p_prior^{-1} + h[t]
-		P_t <- 1 / (1 / P_prior + H[t])
-		m_t <- P_t * (m_prior / P_prior + h[t])
-		m_filt[t] <- m_t
-		P_filt[t] <- P_t
-		if (t < T_per) {
-			m_prior <- rho * m_t
-			P_prior <- (rho^2) * P_t + s2
-		}
+		denominator <- 1 + H[t] * P_prior
+		P_filt[t] <- P_prior / denominator
+		m_filt[t] <- (m_prior + P_prior * h[t]) / denominator
+		m_prior <- rho * m_filt[t]
+		P_prior <- rho^2 * P_filt[t] + innovation
 	}
-	# backward sample (carter-kohn)
-	theta <- numeric(T_per)
-	V_marg <- numeric(T_per)  # marginal posterior variance per period
-	# draw theta[t]
-	theta[T_per] <- m_filt[T_per] + sqrt(P_filt[T_per]) * stats::rnorm(1)
-	V_marg[T_per] <- P_filt[T_per]
-	if (T_per >= 2L) for (t in (T_per - 1L):1L) {
-		# smoother
-		P_pred_next <- (rho^2) * P_filt[t] + s2
-		J <- rho * P_filt[t] / P_pred_next
-		m_smooth <- m_filt[t] + J * (theta[t + 1L] - rho * m_filt[t])
-		P_smooth <- P_filt[t] - J * (rho * P_filt[t])
-		P_smooth <- max(P_smooth, 1e-12)
-		theta[t] <- m_smooth + sqrt(P_smooth) * stats::rnorm(1)
-		V_marg[t] <- P_smooth
+	theta <- numeric(T_per); covariance <- matrix(0, T_per, T_per)
+	theta[T_per] <- m_filt[T_per] + sqrt(P_filt[T_per]) * stats::rnorm(1L)
+	covariance[T_per, T_per] <- P_filt[T_per]
+	if (T_per > 1L) for (t in (T_per - 1L):1L) {
+		prediction <- rho^2 * P_filt[t] + innovation
+		gain <- rho * P_filt[t] / prediction
+		conditional_variance <- P_filt[t] * innovation / prediction
+		theta[t] <- m_filt[t] + gain * (theta[t + 1L] - rho * m_filt[t]) +
+			sqrt(conditional_variance) * stats::rnorm(1L)
+		future <- (t + 1L):T_per
+		covariance[t, future] <- gain * covariance[t + 1L, future]
+		covariance[future, t] <- covariance[t, future]
+		covariance[t, t] <- conditional_variance + gain^2 * covariance[t + 1L, t + 1L]
 	}
-	list(theta = theta, V = V_marg)
+	list(theta = theta, V = diag(covariance), covariance = covariance)
 }
 
-#' Exact variance-weighted sum-to-zero projection for the per-actor block
-#'
-#' Given an unconstrained sample \code{theta_star} (n_actors x T) and
-#' per-actor per-period posterior variances \code{V} (same shape),
-#' projects to the sum-to-zero manifold per period using the
-#' variance-weighted Lagrangian projection (exact under block-diagonal
-#' covariance across actors).
-#'
-#' @keywords internal
+# condition actor paths on a zero sum in every period; V is a matrix of
+# per-period variances or a list of each actor's temporal covariance
 .exact_center_per_actor <- function(theta_star, V) {
-	stopifnot(dim(theta_star) == dim(V))
-	T_per <- ncol(theta_star)
+	n <- nrow(theta_star); nt <- ncol(theta_star)
+	covariance <- if (is.matrix(V)) lapply(seq_len(n), function(i) diag(V[i, ], nt)) else V
+	if (length(covariance) != n) stop("Actor covariance layout does not match its paths.")
+	if (n < 2L) return(matrix(0, n, nt))
+	L <- chol(Reduce(`+`, covariance))
+	adjustment <- backsolve(L, forwardsolve(t(L), colSums(theta_star)))
 	out <- theta_star
-	for (t in seq_len(T_per)) {
-		s_t <- sum(theta_star[, t])
-		V_sum <- sum(V[, t])
-		if (V_sum < 1e-12) next  # degenerate (no variance signal); skip
-		shrink <- s_t / V_sum
-		out[, t] <- theta_star[, t] - V[, t] * shrink
-	}
+	for (i in seq_len(n)) out[i, ] <- theta_star[i, ] - drop(covariance[[i]] %*% adjustment)
 	out
 }
 
-#' Per-actor sweep: unconstrained per-actor FFBS + exact projection
-#'
-#' One full sweep over actors: each actor's path is sampled from its
-#' conditional AR(1) posterior via .actor_ffbs_path(), and the joint
-#' sample is then projected to satisfy sum_i theta_i(t) = 0 per period
-#' using the variance-weighted Lagrangian.
-#'
-#' @param H_mat n_actors x T precision sufficient statistics
-#' @param h_mat n_actors x T cross-product sufficient statistics
-#' @param rho_actor AR(1) coefficient
-#' @param sigma_actor2 AR(1) innovation variance
-#' @return n_actors x T matrix of centered draws.
-#' @keywords internal
-.sweep_per_actor_exact <- function(H_mat, h_mat, rho_actor, sigma_actor2) {
-	n_actors <- nrow(H_mat)
-	T_per <- ncol(H_mat)
-	if (n_actors == 0L || T_per == 0L) return(matrix(0, n_actors, T_per))
-	theta_star <- matrix(0, n_actors, T_per)
-	V <- matrix(0, n_actors, T_per)
-	for (i in seq_len(n_actors)) {
-		out_i <- .actor_ffbs_path(H_mat[i, ], h_mat[i, ],
-		                          rho_actor, sigma_actor2)
-		theta_star[i, ] <- out_i$theta
-		V[i, ] <- out_i$V
+.sweep_per_actor_exact <- function(
+	H_mat,
+	h_mat,
+	rho_actor,
+	sigma_actor2,
+	precision_list = NULL
+) {
+	n <- nrow(H_mat); nt <- ncol(H_mat)
+	if (n < 2L || nt == 0L) return(matrix(0, n, nt))
+	if (!is.null(precision_list)) {
+		# reciprocity couples actors, so draw jointly on the centered subspace
+		Q <- kronecker(diag(n), .ar1_path_precision(nt, rho_actor, sigma_actor2))
+		for (t in seq_len(nt)) {
+			idx <- t + (seq_len(n) - 1L) * nt
+			Q[idx, idx] <- Q[idx, idx] + precision_list[[t]]
+		}
+		basis <- kronecker(qr.Q(qr(stats::contr.helmert(n))), diag(nt))
+		L <- chol(crossprod(basis, Q %*% basis))
+		score <- drop(crossprod(basis, c(t(h_mat))))
+		mean <- backsolve(L, forwardsolve(t(L), score))
+		return(t(matrix(drop(basis %*% (mean + backsolve(L, stats::rnorm(length(mean))))), nt, n)))
 	}
-	# exact projection to sum-to-zero manifold
-	.exact_center_per_actor(theta_star, V)
+	theta <- matrix(0, n, nt); covariance <- vector("list", n)
+	for (i in seq_len(n)) {
+		z <- .actor_ffbs_path(H_mat[i, ], h_mat[i, ], rho_actor, sigma_actor2)
+		theta[i, ] <- z$theta; covariance[[i]] <- z$covariance
+	}
+	.exact_center_per_actor(theta, covariance)
 }

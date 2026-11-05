@@ -12,10 +12,26 @@ combine_ame_chains(chain_list, diagnostics = TRUE)
 \item{diagnostics}{Logical; whether to compute convergence diagnostics (default TRUE)}
 }
 \value{
-A single ame object with combined chains
+A single ame object with combined chains. Conditional sampler
+health counts are summed when every chain supplies them. The original
+conditional counts and joint-move diagnostics are retained in
+\code{sampler_diagnostics_by_chain}; move diagnostics from a single
+chain are not presented as pooled values. If a legacy chain lacks the
+numerical/bound decomposition, the combined \code{sampler_health}
+is \code{NULL}; its available per-chain records remain accessible.
 }
 \description{
 Combine multiple AME chains
+}
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+# each fit is one chain (chains = 1); combine_ame_chains() pools them
+fit1 <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, seed = 1, verbose = FALSE, chains = 1)
+fit2 <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, seed = 2, verbose = FALSE, chains = 1)
+pooled <- combine_ame_chains(list(fit1, fit2))
+
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

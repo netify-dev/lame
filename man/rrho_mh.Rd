@@ -16,8 +16,12 @@ rrho_mh(Z, rho, s2 = 1, offset = 0, asp = NULL)
 \item{offset}{matrix matching \code{Z}; \code{Z - offset} is treated as
 dyadic noise (so it should absorb any additive/multiplicative effects).}
 
-\item{asp}{logical; use an arc-sine prior (\code{TRUE}, the default when
-\code{NULL}) or a uniform prior (\code{FALSE}).}
+\item{asp}{\code{NULL} (the default), \code{TRUE} or \code{FALSE}: the prior
+of rho. \code{NULL} is the prior of \code{\link{ame}} and \code{\link{lame}},
+\eqn{2\,\mathrm{Beta}(2, 2) - 1}, with density proportional to
+\eqn{1 - \rho^2}; \code{TRUE} is the arc-sine prior, with density
+proportional to \eqn{(1 - \rho^2)^{-1/2}}; \code{FALSE} is the uniform
+prior.}
 }
 \value{
 a new (scalar) value of rho.
@@ -28,8 +32,15 @@ using a random-walk-style Metropolis-Hastings step. Each dyad's pair of
 directed residuals is modelled as bivariate normal with unit variances
 (after scaling by the dyadic variance) and correlation rho; the proposal is
 a normal truncated to (-1, 1) and the acceptance ratio combines the
-bivariate-normal log-likelihood, an optional arc-sine prior, and the
+bivariate-normal log-likelihood, the prior of rho, and the
 truncated-proposal normaliser.
+}
+\details{
+Exactly degenerate residual pairs (every pair exactly equal, or
+every pair exactly opposite) can make the correlation conditional improper
+on the full interval: with the default prior from four dyads, with the
+arc-sine prior from one and with the uniform prior from two. Such
+configurations raise an error before a proposal is drawn.
 }
 \author{
 lame authors

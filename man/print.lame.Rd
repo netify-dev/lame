@@ -23,10 +23,13 @@ the lame object invisibly
 \description{
 Provides a concise print output for fitted LAME models. When the fit has
 two or more dynamic effects active simultaneously
-(\code{dynamic_uv + dynamic_ab + dynamic_beta} in any combination), a
+(\code{dynamic_uv + dynamic_ab + dynamic_beta} in any
+combination), a
 compact joint table summarising the AR(1) hyperparameters of each
 dynamic block is printed instead of a separate paragraph per component.
 Disable the compact mode by passing \code{compact = FALSE}.
+A fit that stores no posterior draws (\code{max_seconds} elapsed before the
+first stored draw) prints its dimensions and says so.
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

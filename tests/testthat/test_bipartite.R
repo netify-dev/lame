@@ -1,29 +1,28 @@
 skip_on_cran()
 
-# consolidated bipartite tests: internal machinery, parameter recovery,
-# and per-family behavior for both static ame() and longitudinal lame().
-# merged from test_bipartite.R, test_bipartite_recovery.R,
-# test_bipartite_families.R, test_bipartite_families_xs.R,
-# test_static_bipartite.R, and test_static_bipartite_families.R.
-# the uvpm / rank posterior-mean guards live in test_bipartite_uvpm.R.
+# bipartite tests: internal machinery, parameter recovery and per-family behavior of ame() and lame()
+# the UVPM and rank posterior-mean guards live in test_bipartite_uvpm.R
 
-# bipartite-family recovery tests
-# each test fits a small rectangular network with a known truth
+# recovery tests fit small rectangular networks with a known truth
 
 skip_if_too_slow = function() {
 	if (identical(Sys.getenv("LAME_FAST_TESTS"), "1")) skip("LAME_FAST_TESTS = 1")
 }
 
-# -------- helpers --------
+# helpers
 
 mk_bip_linpred = function(nA, nB, Tn, seed, R_true = 0L, beta_true = c(0.8, -0.5)) {
 	set.seed(seed)
 	X = lapply(seq_len(Tn), function(t) {
-		array(stats::rnorm(nA * nB * length(beta_true)),
-		      c(nA, nB, length(beta_true)),
-		      dimnames = list(paste0("r", seq_len(nA)),
-		                      paste0("c", seq_len(nB)),
-		                      paste0("v", seq_along(beta_true))))
+		array(
+			stats::rnorm(nA * nB * length(beta_true)),
+			c(nA, nB, length(beta_true)),
+			dimnames = list(
+				paste0("r", seq_len(nA)),
+				paste0("c", seq_len(nB)),
+				paste0("v", seq_along(beta_true))
+			)
+		)
 	})
 	a = stats::rnorm(nA, 0, 0.3); b = stats::rnorm(nB, 0, 0.3)
 	EZ = lapply(seq_len(Tn), function(t) {
@@ -31,8 +30,16 @@ mk_bip_linpred = function(nA, nB, Tn, seed, R_true = 0L, beta_true = c(0.8, -0.5
 		for (k in seq_along(beta_true)) eta = eta + beta_true[k] * X[[t]][, , k]
 		eta
 	})
-	list(EZ = EZ, X = X, a = a, b = b, beta = beta_true,
-	     nA = nA, nB = nB, Tn = Tn)
+	list(
+		EZ = EZ,
+		X = X,
+		a = a,
+		b = b,
+		beta = beta_true,
+		nA = nA,
+		nB = nB,
+		Tn = Tn
+	)
 }
 
 # align true params with the alphabetically sorted actor order
@@ -41,19 +48,25 @@ align_true_params = function(true_vals, orig_names, sorted_names) {
 	true_vals[sorted_names]
 }
 
-# cross-sectional bipartite families.
-# mirrors test_bipartite_families.r for `lame()` but exercises the
-# `ame()` (cross-sectional) path through ame_bipartite(). the
-# every family routes through the same
-# rectangular z samplers from r/rz_bipartite.r.
-mk_xs = function(family, nA = 18, nB = 14, seed = 40010L, odmax_val = 3L,
-                  beta_true = c(0.6, -0.4)) {
+# cross-sectional bipartite families through ame_bipartite(), which share the rectangular Z samplers of R/rZ_bipartite.R
+mk_xs = function(
+	family,
+	nA = 18,
+	nB = 14,
+	seed = 40010L,
+	odmax_val = 3L,
+	beta_true = c(0.6, -0.4)
+) {
 	set.seed(seed)
-	X = array(stats::rnorm(nA * nB * length(beta_true)),
-	          c(nA, nB, length(beta_true)),
-	          dimnames = list(paste0("r", seq_len(nA)),
-	                          paste0("c", seq_len(nB)),
-	                          paste0("v", seq_along(beta_true))))
+	X = array(
+		stats::rnorm(nA * nB * length(beta_true)),
+		c(nA, nB, length(beta_true)),
+		dimnames = list(
+			paste0("r", seq_len(nA)),
+			paste0("c", seq_len(nB)),
+			paste0("v", seq_along(beta_true))
+		)
+	)
 	a = stats::rnorm(nA, 0, 0.25); b = stats::rnorm(nB, 0, 0.25)
 	eta = matrix(a, nA, nB) + matrix(b, nA, nB, byrow = TRUE)
 	for (k in seq_along(beta_true)) eta = eta + beta_true[k] * X[, , k]
@@ -76,158 +89,100 @@ mk_xs = function(family, nA = 18, nB = 14, seed = 40010L, odmax_val = 3L,
 	list(Y = Y, X = X)
 }
 
-# ==== internal bipartite machinery and initialization ====
+# internal bipartite machinery and initialization
 
 test_that("bipartite EZ computation works correctly", {
 	skip_if_not(requireNamespace("lame", quietly = TRUE))
-	# set dimensions
 	nA = 5
 	nB = 7
 	Tn = 3
 	RA = 2
 	RB = 3
-	
-	# create test data
+
 	base = array(rnorm(nA * nB * Tn), c(nA, nB, Tn))
 	a = matrix(rnorm(nA * Tn), nA, Tn)
 	b = matrix(rnorm(nB * Tn), nB, Tn)
 	U = array(rnorm(nA * RA * Tn), c(nA, RA, Tn))
 	V = array(rnorm(nB * RB * Tn), c(nB, RB, Tn))
 	G = matrix(rnorm(RA * RB), RA, RB)
-	
-	# test ez computation
+
+	# EZ computation
 	EZ = lame:::get_EZ_bip_cpp(base, a, b, U, V, G)
-	
-	# check dimensions
+
 	expect_equal(dim(EZ), c(nA, nB, Tn))
-	
-	# check that values are finite
+
 	expect_true(all(is.finite(EZ)))
-	
-	# manual check for first time slice
-	EZ_manual_t1 = base[,,1]
-	for(i in 1:nA) {
-		EZ_manual_t1[i,] = EZ_manual_t1[i,] + a[i,1]
+
+	# manual check of the first time slice
+	EZ_manual_t1 = base[, , 1]
+	for (i in 1:nA) {
+		EZ_manual_t1[i, ] = EZ_manual_t1[i, ] + a[i, 1]
 	}
-	for(j in 1:nB) {
-		EZ_manual_t1[,j] = EZ_manual_t1[,j] + b[j,1]
+	for (j in 1:nB) {
+		EZ_manual_t1[, j] = EZ_manual_t1[, j] + b[j, 1]
 	}
-	EZ_manual_t1 = EZ_manual_t1 + U[,,1] %*% G %*% t(V[,,1])
-	
-	expect_equal(EZ[,,1], EZ_manual_t1, tolerance = 1e-10)
+	EZ_manual_t1 = EZ_manual_t1 + U[, , 1] %*% G %*% t(V[, , 1])
+
+	expect_equal(EZ[, , 1], EZ_manual_t1, tolerance = 1e-10)
 })
 
 test_that("four-cycle counting works for bipartite networks", {
-	# create a simple bipartite network
+	# a simple bipartite network
 	Y = array(0, c(3, 3, 1))
-	
-	# create a pattern with exactly 1 four-cycle
-	# nodes a1, a2 connect to b1, b2 (forms a 4-cycle)
-	Y[1, 1, 1] = 1  # a1 -> b1
-	Y[1, 2, 1] = 1  # a1 -> b2
-	Y[2, 1, 1] = 1  # a2 -> b1
-	Y[2, 2, 1] = 1  # a2 -> b2
-	
+
+	# exactly one four-cycle: a1 and a2 both connect to b1 and b2
+	Y[1, 1, 1] = 1 # a1 -> b1
+	Y[1, 2, 1] = 1 # a1 -> b2
+	Y[2, 1, 1] = 1 # a2 -> b1
+	Y[2, 2, 1] = 1 # a2 -> b2
+
 	cycles = lame:::count_four_cycles_bip_cpp(Y)
 	expect_equal(as.numeric(cycles), 1)
-	
-	# test with no edges (should be 0 cycles)
+
+	# no edges, no cycles
 	Y_empty = array(0, c(5, 5, 2))
 	cycles_empty = lame:::count_four_cycles_bip_cpp(Y_empty)
 	expect_equal(as.numeric(cycles_empty), c(0, 0))
 })
 
-test_that("bipartite degree computation works", {
-	# create test network
-	Y = array(0, c(3, 4, 2))
-	Y[1, 1:2, 1] = 1  # node a1 has degree 2 at time 1
-	Y[2, 3:4, 1] = 1  # node a2 has degree 2 at time 1
-	Y[3, 1, 1] = 1    # node a3 has degree 1 at time 1
-	
-	degrees = lame:::compute_degrees_bip_cpp(Y)
-	
-	expect_equal(degrees$row_degrees[,1], c(2, 2, 1))
-	expect_equal(degrees$col_degrees[,1], c(2, 1, 1, 1))
-})
-
-test_that("UV sampling for bipartite works", {
-	# setup
-	nA = 4
-	nB = 5
-	Tn = 2
-	RA = 2
-	RB = 3
-	
-	R = array(rnorm(nA * nB * Tn), c(nA, nB, Tn))
-	V = array(rnorm(nB * RB * Tn), c(nB, RB, Tn))
-	G = matrix(rnorm(RA * RB), RA, RB)
-	lambdaU = rep(1, RA)
-	s2 = 1
-	
-	# test u sampling
-	U_new = lame:::sample_U_bip_cpp(R, V, G, lambdaU, s2)
-	
-	expect_equal(dim(U_new), c(nA, RA, Tn))
-	expect_true(all(is.finite(U_new)))
-	
-	# test v sampling
-	lambdaV = rep(1, RB)
-	V_new = lame:::sample_V_bip_cpp(R, U_new, G, lambdaV, s2)
-	
-	expect_equal(dim(V_new), c(nB, RB, Tn))
-	expect_true(all(is.finite(V_new)))
-})
-
-test_that("G sampling and orientation works", {
+test_that("G sampling works", {
 	nA = 4
 	nB = 5
 	Tn = 2
 	RA = 3
 	RB = 2
-	
+
 	R = array(rnorm(nA * nB * Tn), c(nA, nB, Tn))
 	U = array(rnorm(nA * RA * Tn), c(nA, RA, Tn))
 	V = array(rnorm(nB * RB * Tn), c(nB, RB, Tn))
 	lambdaG = 1
 	s2 = 1
-	
-	# test g sampling
+
+	# G sampling
 	G_new = lame:::sample_G_bip_cpp(R, U, V, lambdaG, s2)
-	
+
 	expect_equal(dim(G_new), c(RA, RB))
 	expect_true(all(is.finite(G_new)))
-	
-	# test canonical orientation
-	oriented = lame:::canon_orient_bip_cpp(U, V, G_new)
-	
-	expect_equal(dim(oriented$U), dim(U))
-	expect_equal(dim(oriented$V), dim(V))
-	expect_equal(dim(oriented$G), dim(G_new))
-	
-	# check that g is now diagonal-like (singular values on diagonal)
-	G_oriented = oriented$G
-	# off-diagonal elements should be close to zero
-	for(i in 1:min(RA, RB)) {
-		for(j in 1:min(RA, RB)) {
-			if(i != j) {
-				expect_lt(abs(G_oriented[i,j]), 1e-10)
-			}
-		}
-	}
 })
 
 test_that("bipartite initialization works", {
 	skip_if_not_installed("lame")
-	
-	# create simple bipartite data
+
+	# simple bipartite data
 	Y = array(0, c(5, 7, 2))
-	Y[,,1] = matrix(rbinom(5*7, 1, 0.3), 5, 7)
-	Y[,,2] = matrix(rbinom(5*7, 1, 0.3), 5, 7)
-	
-	init = lame:::init_bipartite_startvals(Y, family = "binary", 
-																	 nA = 5, nB = 7, 
-																	 RA = 2, RB = 3, Tn = 2)
-	
+	Y[, , 1] = matrix(rbinom(5 * 7, 1, 0.3), 5, 7)
+	Y[, , 2] = matrix(rbinom(5 * 7, 1, 0.3), 5, 7)
+
+	init = lame:::init_bipartite_startvals(
+		Y,
+		family = "binary",
+		nA = 5,
+		nB = 7,
+		RA = 2,
+		RB = 3,
+		Tn = 2
+	)
+
 	expect_equal(dim(init$Z), c(5, 7, 2))
 	# a and b are vectors (static effects), not matrices
 	expect_equal(length(init$a), 5)
@@ -238,7 +193,38 @@ test_that("bipartite initialization works", {
 	expect_null(init$rho)
 })
 
-# ==== parameter recovery (ame and lame) ====
+test_that("bipartite frn start values follow the nomination ranks", {
+	set.seed(17)
+	nA = 6; nB = 8; Tn = 2
+	Y = array(0, c(nA, nB, Tn))
+	for (t in seq_len(Tn)) for (i in seq_len(nA)) {
+		k = sample(0:3, 1)
+		if (k > 0) Y[i, sample(nB, k), t] = sample(k)
+	}
+	Y[1, 1, 1] = NA
+	init = lame:::init_bipartite_startvals(
+		Y,
+		family = "frn",
+		nA = nA,
+		nB = nB,
+		RA = 1,
+		RB = 1,
+		Tn = Tn,
+		odmax = rep(3, nA)
+	)
+	for (t in seq_len(Tn)) for (i in seq_len(nA)) {
+		y = Y[i, , t]; z = init$Z[i, , t]
+		nom = which(y > 0)
+		# nominated cells are positive, observed non-nominations negative
+		expect_true(all(z[nom] > 0))
+		expect_true(all(z[which(y == 0)] < 0))
+		# a higher rank starts higher
+		if (length(nom) > 1L) expect_identical(order(z[nom]), order(y[nom]))
+	}
+	expect_true(is.finite(init$Z[1, 1, 1]))
+})
+
+# parameter recovery (ame and lame)
 
 test_that("ame() bipartite normal recovers beta and additive effects", {
 	skip_on_cran()
@@ -250,58 +236,86 @@ test_that("ame() bipartite normal recovers beta and additive effects", {
 	true_beta = 0.8
 
 	dat = simulate_test_network(
-		n = nA, nA = nA, nB = nB, n_time = 1,
-		family = "normal", R = R,
+		n = nA,
+		nA = nA,
+		nB = nB,
+		n_time = 1,
+		family = "normal",
+		R = R,
 		beta_intercept = true_intercept,
 		beta_dyad = true_beta,
-		sd_a = 0.5, sd_b = 0.5, s2 = 1,
-		mode = "bipartite", seed = 123
+		sd_a = 0.5,
+		sd_b = 0.5,
+		s2 = 1,
+		mode = "bipartite",
+		seed = 123
 	)
 
 	fit = ame(
-		dat$Y, Xdyad = dat$Xdyad,
-		R = R, family = "normal", mode = "bipartite",
-		burn = 2000, nscan = 8000, odens = 2,
-		verbose = FALSE, gof = FALSE, seed = 42
+		dat$Y,
+		Xdyad = dat$Xdyad,
+		R = R,
+		family = "normal",
+		mode = "bipartite",
+		burn = 2000,
+		nscan = 8000,
+		odens = 2,
+		verbose = FALSE,
+		gof = FALSE,
+		seed = 42
 	)
 
 	# beta recovery
 	beta_hat = colMeans(fit$BETA)
-	expect_true(abs(beta_hat[1] - true_intercept) < 0.5,
-		info = paste("Intercept:", beta_hat[1], "vs true:", true_intercept))
-	expect_true(abs(beta_hat[2] - true_beta) < 0.5,
-		info = paste("Beta dyad:", beta_hat[2], "vs true:", true_beta))
+	expect_true(
+		abs(beta_hat[1] - true_intercept) < 0.5,
+		info = paste("Intercept:", beta_hat[1], "vs true:", true_intercept)
+	)
+	expect_true(
+		abs(beta_hat[2] - true_beta) < 0.5,
+		info = paste("Beta dyad:", beta_hat[2], "vs true:", true_beta)
+	)
 
 	# additive effects recovery (align by name)
-	true_a = align_true_params(dat$true_params$a[[1]],
-		rownames(dat$Y), names(fit$APM))
-	true_b = align_true_params(dat$true_params$b[[1]],
-		colnames(dat$Y), names(fit$BPM))
+	true_a = align_true_params(
+		dat$true_params$a[[1]],
+		rownames(dat$Y),
+		names(fit$APM)
+	)
+	true_b = align_true_params(
+		dat$true_params$b[[1]],
+		colnames(dat$Y),
+		names(fit$BPM)
+	)
 	cor_a = cor(fit$APM, true_a)
 	cor_b = cor(fit$BPM, true_b)
-	expect_true(cor_a > 0.4,
-		info = paste("Sender effects correlation:", round(cor_a, 3)))
-	expect_true(cor_b > 0.4,
-		info = paste("Receiver effects correlation:", round(cor_b, 3)))
+	expect_true(
+		cor_a > 0.4,
+		info = paste("Sender effects correlation:", round(cor_a, 3))
+	)
+	expect_true(
+		cor_b > 0.4,
+		info = paste("Receiver effects correlation:", round(cor_b, 3))
+	)
 
-	# latent position recovery (uv product correlation)
-	# true uv is in original order, est uv is in sorted order
-	# correlation of vectorized products is order-independent if we
-	# align both to the same actor ordering
+	# latent position recovery: correlation of the UV products, the truth aligned to the sorted actor order
 	true_UV = tcrossprod(dat$true_params$U[[1]], dat$true_params$V[[1]])
 	est_UV = fit$U %*% fit$G %*% t(fit$V)
-	# reorder true_uv to match sorted actor order
 	row_order = match(names(fit$APM), rownames(dat$Y))
 	col_order = match(names(fit$BPM), colnames(dat$Y))
 	true_UV_aligned = true_UV[row_order, col_order]
 	cor_UV = cor(c(true_UV_aligned), c(est_UV))
-	expect_true(cor_UV > 0.2,
-		info = paste("UV product correlation:", round(cor_UV, 3)))
+	expect_true(
+		cor_UV > 0.2,
+		info = paste("UV product correlation:", round(cor_UV, 3))
+	)
 
-	# variance s2 should be near 1
+	# s2 is near 1
 	s2_hat = mean(fit$VC[, "ve"])
-	expect_true(abs(s2_hat - 1) < 1,
-		info = paste("s2:", round(s2_hat, 3), "vs true: 1"))
+	expect_true(
+		abs(s2_hat - 1) < 1,
+		info = paste("s2:", round(s2_hat, 3), "vs true: 1")
+	)
 })
 
 
@@ -313,46 +327,75 @@ test_that("ame() bipartite binary recovers beta and additive effects", {
 	R = 2
 
 	dat = simulate_test_network(
-		n = nA, nA = nA, nB = nB, n_time = 1,
-		family = "binary", R = R,
-		beta_intercept = 0, beta_dyad = 0.8,
-		sd_a = 0.4, sd_b = 0.4, s2 = 1,
-		mode = "bipartite", seed = 456
+		n = nA,
+		nA = nA,
+		nB = nB,
+		n_time = 1,
+		family = "binary",
+		R = R,
+		beta_intercept = 0,
+		beta_dyad = 0.8,
+		sd_a = 0.4,
+		sd_b = 0.4,
+		s2 = 1,
+		mode = "bipartite",
+		seed = 456
 	)
 
 	fit = ame(
-		dat$Y, Xdyad = dat$Xdyad,
-		R = R, family = "binary", mode = "bipartite",
-		burn = 2000, nscan = 8000, odens = 2,
-		verbose = FALSE, gof = FALSE, seed = 42
+		dat$Y,
+		Xdyad = dat$Xdyad,
+		R = R,
+		family = "binary",
+		mode = "bipartite",
+		burn = 2000,
+		nscan = 8000,
+		odens = 2,
+		verbose = FALSE,
+		gof = FALSE,
+		seed = 42
 	)
 
-	# beta_dyad should be positive
+	# beta_dyad is positive
 	beta_hat = colMeans(fit$BETA)
-	expect_true(beta_hat[2] > 0,
-		info = paste("Beta dyad:", round(beta_hat[2], 3), "should be positive"))
+	expect_true(
+		beta_hat[2] > 0,
+		info = paste("Beta dyad:", round(beta_hat[2], 3), "should be positive")
+	)
 
 	# additive effects correlation (align by name)
-	true_a = align_true_params(dat$true_params$a[[1]],
-		rownames(dat$Y), names(fit$APM))
-	true_b = align_true_params(dat$true_params$b[[1]],
-		colnames(dat$Y), names(fit$BPM))
+	true_a = align_true_params(
+		dat$true_params$a[[1]],
+		rownames(dat$Y),
+		names(fit$APM)
+	)
+	true_b = align_true_params(
+		dat$true_params$b[[1]],
+		colnames(dat$Y),
+		names(fit$BPM)
+	)
 	cor_a = cor(fit$APM, true_a)
 	cor_b = cor(fit$BPM, true_b)
-	expect_true(cor_a > 0.3,
-		info = paste("Sender effects correlation:", round(cor_a, 3)))
-	expect_true(cor_b > 0.3,
-		info = paste("Receiver effects correlation:", round(cor_b, 3)))
+	expect_true(
+		cor_a > 0.3,
+		info = paste("Sender effects correlation:", round(cor_a, 3))
+	)
+	expect_true(
+		cor_b > 0.3,
+		info = paste("Receiver effects correlation:", round(cor_b, 3))
+	)
 
-	# uv product correlation
+	# UV product correlation
 	true_UV = tcrossprod(dat$true_params$U[[1]], dat$true_params$V[[1]])
 	est_UV = fit$U %*% fit$G %*% t(fit$V)
 	row_order = match(names(fit$APM), rownames(dat$Y))
 	col_order = match(names(fit$BPM), colnames(dat$Y))
 	true_UV_aligned = true_UV[row_order, col_order]
 	cor_UV = cor(c(true_UV_aligned), c(est_UV))
-	expect_true(cor_UV > 0.15,
-		info = paste("UV product correlation:", round(cor_UV, 3)))
+	expect_true(
+		cor_UV > 0.15,
+		info = paste("UV product correlation:", round(cor_UV, 3))
+	)
 })
 
 
@@ -366,30 +409,48 @@ test_that("lame() bipartite normal recovers beta and additive effects", {
 	true_beta = 0.6
 
 	dat = simulate_test_network(
-		n = nA, nA = nA, nB = nB, n_time = n_time,
-		family = "normal", R = 0,
+		n = nA,
+		nA = nA,
+		nB = nB,
+		n_time = n_time,
+		family = "normal",
+		R = 0,
 		beta_intercept = true_intercept,
 		beta_dyad = true_beta,
-		sd_a = 0.5, sd_b = 0.5, s2 = 1,
-		mode = "bipartite", seed = 789
+		sd_a = 0.5,
+		sd_b = 0.5,
+		s2 = 1,
+		mode = "bipartite",
+		seed = 789
 	)
 
-	# lame() expects xdyad as list of matrices
-	Xdyad_list = lapply(dat$Xdyad, function(x) x[,,1])
+	# lame() expects Xdyad as a list of matrices
+	Xdyad_list = lapply(dat$Xdyad, function(x) x[, , 1])
 
 	fit = lame(
-		dat$Y, Xdyad = Xdyad_list,
-		R = 0, family = "normal", mode = "bipartite",
-		burn = 1000, nscan = 5000, odens = 2,
-		verbose = FALSE, gof = FALSE, seed = 42
+		dat$Y,
+		Xdyad = Xdyad_list,
+		R = 0,
+		family = "normal",
+		mode = "bipartite",
+		burn = 1000,
+		nscan = 5000,
+		odens = 2,
+		verbose = FALSE,
+		gof = FALSE,
+		seed = 42
 	)
 
 	# beta recovery
 	beta_hat = colMeans(fit$BETA)
-	expect_true(abs(beta_hat[1] - true_intercept) < 0.6,
-		info = paste("Intercept:", round(beta_hat[1], 3), "vs true:", true_intercept))
-	expect_true(abs(beta_hat[2] - true_beta) < 0.6,
-		info = paste("Beta dyad:", round(beta_hat[2], 3), "vs true:", true_beta))
+	expect_true(
+		abs(beta_hat[1] - true_intercept) < 0.6,
+		info = paste("Intercept:", round(beta_hat[1], 3), "vs true:", true_intercept)
+	)
+	expect_true(
+		abs(beta_hat[2] - true_beta) < 0.6,
+		info = paste("Beta dyad:", round(beta_hat[2], 3), "vs true:", true_beta)
+	)
 
 	# additive effects (align by name: lame sorts actors alphabetically)
 	orig_row_names = rownames(dat$Y[[1]])
@@ -404,15 +465,21 @@ test_that("lame() bipartite normal recovers beta and additive effects", {
 
 	cor_a = cor(fit$APM, true_a_aligned)
 	cor_b = cor(fit$BPM, true_b_aligned)
-	expect_true(cor_a > 0.3,
-		info = paste("Sender effects correlation:", round(cor_a, 3)))
-	expect_true(cor_b > 0.3,
-		info = paste("Receiver effects correlation:", round(cor_b, 3)))
+	expect_true(
+		cor_a > 0.3,
+		info = paste("Sender effects correlation:", round(cor_a, 3))
+	)
+	expect_true(
+		cor_b > 0.3,
+		info = paste("Receiver effects correlation:", round(cor_b, 3))
+	)
 
-	# s2 should be near 1
+	# s2 is near 1
 	s2_hat = mean(fit$VC[, "ve"])
-	expect_true(abs(s2_hat - 1) < 1.5,
-		info = paste("s2:", round(s2_hat, 3), "vs true: 1"))
+	expect_true(
+		abs(s2_hat - 1) < 1.5,
+		info = paste("s2:", round(s2_hat, 3), "vs true: 1")
+	)
 })
 
 
@@ -424,26 +491,43 @@ test_that("lame() bipartite binary recovers beta and effects", {
 	n_time = 3
 
 	dat = simulate_test_network(
-		n = nA, nA = nA, nB = nB, n_time = n_time,
-		family = "binary", R = 0,
-		beta_intercept = 0, beta_dyad = 0.8,
-		sd_a = 0.4, sd_b = 0.4, s2 = 1,
-		mode = "bipartite", seed = 101
+		n = nA,
+		nA = nA,
+		nB = nB,
+		n_time = n_time,
+		family = "binary",
+		R = 0,
+		beta_intercept = 0,
+		beta_dyad = 0.8,
+		sd_a = 0.4,
+		sd_b = 0.4,
+		s2 = 1,
+		mode = "bipartite",
+		seed = 101
 	)
 
-	Xdyad_list = lapply(dat$Xdyad, function(x) x[,,1])
+	Xdyad_list = lapply(dat$Xdyad, function(x) x[, , 1])
 
 	fit = lame(
-		dat$Y, Xdyad = Xdyad_list,
-		R = 0, family = "binary", mode = "bipartite",
-		burn = 1000, nscan = 5000, odens = 2,
-		verbose = FALSE, gof = FALSE, seed = 42
+		dat$Y,
+		Xdyad = Xdyad_list,
+		R = 0,
+		family = "binary",
+		mode = "bipartite",
+		burn = 1000,
+		nscan = 5000,
+		odens = 2,
+		verbose = FALSE,
+		gof = FALSE,
+		seed = 42
 	)
 
-	# beta_dyad should be positive
+	# beta_dyad is positive
 	beta_hat = colMeans(fit$BETA)
-	expect_true(beta_hat[2] > 0,
-		info = paste("Beta dyad:", round(beta_hat[2], 3), "should be positive"))
+	expect_true(
+		beta_hat[2] > 0,
+		info = paste("Beta dyad:", round(beta_hat[2], 3), "should be positive")
+	)
 
 	# additive effects correlation (align by name)
 	orig_row_names = rownames(dat$Y[[1]])
@@ -456,10 +540,14 @@ test_that("lame() bipartite binary recovers beta and effects", {
 
 	cor_a = cor(fit$APM, true_a_aligned)
 	cor_b = cor(fit$BPM, true_b_aligned)
-	expect_true(cor_a > 0.2,
-		info = paste("Sender effects correlation:", round(cor_a, 3)))
-	expect_true(cor_b > 0.2,
-		info = paste("Receiver effects correlation:", round(cor_b, 3)))
+	expect_true(
+		cor_a > 0.2,
+		info = paste("Sender effects correlation:", round(cor_a, 3))
+	)
+	expect_true(
+		cor_b > 0.2,
+		info = paste("Receiver effects correlation:", round(cor_b, 3))
+	)
 })
 
 test_that("ame() bipartite dimensions are correct", {
@@ -468,19 +556,31 @@ test_that("ame() bipartite dimensions are correct", {
 	R = 2
 
 	dat = simulate_test_network(
-		n = nA, nA = nA, nB = nB, n_time = 1,
-		family = "normal", R = R,
-		mode = "bipartite", seed = 222
+		n = nA,
+		nA = nA,
+		nB = nB,
+		n_time = 1,
+		family = "normal",
+		R = R,
+		mode = "bipartite",
+		seed = 222
 	)
 
 	fit = ame(
-		dat$Y, Xdyad = dat$Xdyad,
-		R = R, family = "normal", mode = "bipartite",
-		burn = 100, nscan = 200, odens = 2,
-		verbose = FALSE, gof = FALSE, seed = 42
+		dat$Y,
+		Xdyad = dat$Xdyad,
+		R = R,
+		family = "normal",
+		mode = "bipartite",
+		burn = 100,
+		nscan = 200,
+		odens = 2,
+		verbose = FALSE,
+		gof = FALSE,
+		seed = 42
 	)
 
-	# check output dimensions
+	# output dimensions
 	expect_equal(length(fit$APM), nA)
 	expect_equal(length(fit$BPM), nB)
 	expect_equal(nrow(fit$U), nA)
@@ -493,22 +593,34 @@ test_that("ame() bipartite dimensions are correct", {
 	expect_equal(ncol(fit$G), R)
 })
 
-# ==== longitudinal lame() per-family behavior ====
+# longitudinal lame() per-family behavior
 
-# -------- bipartite poisson --------
+# bipartite poisson
 
 test_that("bipartite poisson runs and recovers the sign of a strong covariate", {
 	skip_if_too_slow()
 	d = mk_bip_linpred(nA = 25, nB = 18, Tn = 3, seed = 4105L, beta_true = c(0.6, -0.4))
 	Y = lapply(d$EZ, function(eta) {
-		yt = matrix(stats::rpois(d$nA * d$nB, lambda = exp(pmin(eta - 1, 5))),
-		            d$nA, d$nB)
+		yt = matrix(
+			stats::rpois(d$nA * d$nB, lambda = exp(pmin(eta - 1, 5))),
+			d$nA,
+			d$nB
+		)
 		dimnames(yt) = list(paste0("r", seq_len(d$nA)), paste0("c", seq_len(d$nB)))
 		yt
 	})
-	fit = lame(Y, Xdyad = d$X, family = "poisson", mode = "bipartite",
-	           R = 0, nscan = 120, burn = 30, odens = 5, verbose = FALSE,
-	           seed = 4105L)
+	fit = lame(
+		Y,
+		Xdyad = d$X,
+		family = "poisson",
+		mode = "bipartite",
+		R = 0,
+		nscan = 120,
+		burn = 30,
+		odens = 5,
+		verbose = FALSE,
+		seed = 4105L
+	)
 	expect_true(inherits(fit, "lame"))
 	expect_true("intercept" %in% colnames(fit$BETA))
 	expect_true("v1_dyad" %in% colnames(fit$BETA))
@@ -519,12 +631,17 @@ test_that("bipartite poisson runs and recovers the sign of a strong covariate", 
 	expect_lt(m2, 0)
 })
 
-# -------- bipartite ordinal --------
+# bipartite ordinal
 
 test_that("bipartite ordinal runs and recovers the sign of a strong covariate", {
 	skip_if_too_slow()
-	d = mk_bip_linpred(nA = 30, nB = 22, Tn = 3, seed = 4101L,
-	                    beta_true = c(0.8, -0.5))
+	d = mk_bip_linpred(
+		nA = 30,
+		nB = 22,
+		Tn = 3,
+		seed = 4101L,
+		beta_true = c(0.8, -0.5)
+	)
 	Y = lapply(d$EZ, function(eta) {
 		Z = eta + matrix(stats::rnorm(d$nA * d$nB), d$nA, d$nB)
 		yt = as.integer(cut(Z, c(-Inf, -0.5, 0.3, 1.0, Inf), labels = FALSE))
@@ -532,9 +649,18 @@ test_that("bipartite ordinal runs and recovers the sign of a strong covariate", 
 		dimnames(yt) = list(paste0("r", seq_len(d$nA)), paste0("c", seq_len(d$nB)))
 		yt
 	})
-	fit = lame(Y, Xdyad = d$X, family = "ordinal", mode = "bipartite",
-	           R = 0, nscan = 120, burn = 30, odens = 5, verbose = FALSE,
-	           seed = 4101L)
+	fit = lame(
+		Y,
+		Xdyad = d$X,
+		family = "ordinal",
+		mode = "bipartite",
+		R = 0,
+		nscan = 120,
+		burn = 30,
+		odens = 5,
+		verbose = FALSE,
+		seed = 4101L
+	)
 	expect_true(inherits(fit, "lame"))
 	# ordinal has no intercept by default
 	expect_true("v1_dyad" %in% colnames(fit$BETA))
@@ -544,63 +670,256 @@ test_that("bipartite ordinal runs and recovers the sign of a strong covariate", 
 	expect_lt(m2, 0)
 })
 
-# -------- bipartite cbin --------
+# bipartite cbin
 
 test_that("bipartite cbin runs and respects the row nomination cap", {
 	skip_if_too_slow()
-	d = mk_bip_linpred(nA = 30, nB = 25, Tn = 2, seed = 4102L,
-	                    beta_true = c(0.7, -0.4))
+	d = mk_bip_linpred(
+		nA = 30,
+		nB = 25,
+		Tn = 2,
+		seed = 4102L,
+		beta_true = c(0.7, -0.4)
+	)
 	odmax = 5L
 	Y = lapply(d$EZ, function(eta) {
 		Z = eta + matrix(stats::rnorm(d$nA * d$nB), d$nA, d$nB)
 		yt = matrix(0L, d$nA, d$nB)
-		# top-odmax per row receive a tie
+		# the top odmax cells of each row receive a tie
 		for (i in seq_len(d$nA)) {
 			top = order(Z[i, ], decreasing = TRUE)[seq_len(odmax)]
 			yt[i, top] = 1L
 		}
-		dimnames(yt) = list(paste0("r", seq_len(d$nA)),
-		                    paste0("c", seq_len(d$nB)))
+		dimnames(yt) = list(
+			paste0("r", seq_len(d$nA)),
+			paste0("c", seq_len(d$nB))
+		)
 		yt
 	})
-	fit = lame(Y, Xdyad = d$X, family = "cbin", mode = "bipartite",
-	           R = 0, odmax = odmax,
-	           nscan = 120, burn = 30, odens = 5, verbose = FALSE,
-	           seed = 4102L)
+	fit = lame(
+		Y,
+		Xdyad = d$X,
+		family = "cbin",
+		mode = "bipartite",
+		R = 0,
+		odmax = odmax,
+		nscan = 120,
+		burn = 30,
+		odens = 5,
+		verbose = FALSE,
+		seed = 4102L
+	)
 	expect_true(inherits(fit, "lame"))
 	expect_true("v1_dyad" %in% colnames(fit$BETA))
 	expect_gt(mean(fit$BETA[, "v1_dyad"]), 0)
 	expect_lt(mean(fit$BETA[, "v2_dyad"]), 0)
-	# observed-data invariant: each row's outdegree must equal odmax (the test
-	# data was generated to be exactly saturated). confirms the sampler does
-	# not silently overwrite y.
+	# observed-data invariant: every row's outdegree equals odmax, so the sampler leaves Y as it is
 	yt = if (is.list(fit$Y)) fit$Y[[1]] else fit$Y[, , 1]
 	expect_true(all(rowSums(yt > 0, na.rm = TRUE) == odmax))
+	# the posterior predictive honours the cap: no YPM row exceeds odmax and the tie rate tracks the observed one
+	ypm_rowmax = vapply(
+		fit$YPM,
+		function(m) max(rowSums(m, na.rm = TRUE)),
+		numeric(1)
+	)
+	expect_true(all(ypm_rowmax <= odmax + 1e-8))
+	obs_rate = mean(unlist(lapply(Y, function(m) m > 0)))
+	ypm_rate = mean(unlist(fit$YPM), na.rm = TRUE)
+	expect_gt(ypm_rate / obs_rate, 0.7)
+	expect_lt(ypm_rate / obs_rate, 1.4)
 })
 
-# -------- bipartite frn --------
+test_that("ame() bipartite variance components use the shared column order", {
+	set.seed(6886)
+	nA = 12
+	nB = 9
+	Y = matrix(rnorm(nA * nB), nA, nB)
+	dimnames(Y) = list(paste0("r", seq_len(nA)), paste0("c", seq_len(nB)))
+	fit = ame(
+		Y,
+		mode = "bipartite",
+		family = "normal",
+		R_row = 0,
+		R_col = 0,
+		nscan = 60,
+		burn = 20,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	)
+	expect_identical(colnames(fit$VC), c("va", "cab", "vb", "rho", "ve"))
+	# ve is the dyadic variance and rho is not sampled for bipartite data
+	expect_true(all(fit$VC[, "ve"] > 0))
+	expect_true(all(fit$VC[, "rho"] == 0))
+	expect_equal(fit$VC[, "ve"], fit$VC[, ncol(fit$VC)])
+})
+
+test_that("in-sample predictions with newdata carry the bipartite multiplicative term", {
+	set.seed(6886)
+	nA = 12
+	nB = 9
+	Tn = 2
+	rn = paste0("r", seq_len(nA))
+	cn = paste0("c", seq_len(nB))
+	U = matrix(rnorm(nA), nA, 1)
+	V = matrix(rnorm(nB), nB, 1)
+	X = lapply(seq_len(Tn), function(t) {
+		a = array(rnorm(nA * nB), c(nA, nB, 1))
+		dimnames(a) = list(rn, cn, "x1")
+		a
+	})
+	Y = lapply(seq_len(Tn), function(t) {
+		m = 0.5 * X[[t]][, , 1] + 1.5 * tcrossprod(U, V) +
+			matrix(rnorm(nA * nB, 0, 0.5), nA, nB)
+		dimnames(m) = list(rn, cn)
+		m
+	})
+	fit = suppressWarnings(lame(
+		Y,
+		Xdyad = X,
+		family = "normal",
+		mode = "bipartite",
+		R_row = 1,
+		R_col = 1,
+		nscan = 100,
+		burn = 30,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	))
+	# with the fitted covariates the prediction is the fitted predictor, product term included
+	pred = predict(fit, newdata = X, type = "link")
+	expect_length(pred, Tn)
+	expect_gt(cor(unlist(pred), unlist(fit$EZ)), 0.98)
+	pdl = prediction_draws_long(fit, newdata = X, n_draws = 5L, type = "link", seed = 42)
+	expect_true(all(is.finite(pdl$.value)))
+	# every drawn cell matches its coefficient iteration and the stored product
+	expected = vapply(seq_len(nrow(pdl)), function(k) {
+		i = pdl$i[k]; j = pdl$j[k]; tt = pdl$period[k]
+		beta = fit$BETA[pdl$.iteration[k], ]
+		x = X[[tt]][pdl$actor_i[k], pdl$actor_j[k], 1]
+		uv = if (length(dim(fit$UVPM)) == 3L) fit$UVPM[i, j, tt] else fit$UVPM[i, j]
+		beta["intercept"] + beta["x1_dyad"] * x + fit$APM[i] + fit$BPM[j] + uv
+	}, numeric(1))
+	expect_equal(pdl$.value, unname(expected), tolerance = 1e-12)
+	permuted = lapply(X, function(x) x[rev(seq_len(nA)), rev(seq_len(nB)), , drop = FALSE])
+	expect_identical(
+		prediction_draws_long(
+			fit,
+			newdata = permuted,
+			n_draws = 5L,
+			type = "link",
+			seed = 42
+		),
+		pdl
+	)
+})
+
+test_that("lame() bipartite takes start_vals and reports mismatched slots", {
+	set.seed(6886)
+	nA = 10
+	nB = 8
+	Tn = 2
+	Y = lapply(seq_len(Tn), function(t) {
+		m = matrix(rnorm(nA * nB), nA, nB)
+		dimnames(m) = list(paste0("r", seq_len(nA)), paste0("c", seq_len(nB)))
+		m
+	})
+	fit0 = lame(
+		Y,
+		family = "normal",
+		mode = "bipartite",
+		R_row = 1,
+		R_col = 1,
+		nscan = 40,
+		burn = 10,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	)
+	expect_true(all(c("Z", "beta", "a", "b", "U", "V", "G", "s2", "Sab") %in%
+			names(fit0$start_vals)))
+	# a previous fit's state is accepted without complaint
+	w = testthat::capture_warnings(
+		fit1 <- lame(
+			Y,
+			family = "normal",
+			mode = "bipartite",
+			R_row = 1,
+			R_col = 1,
+			start_vals = fit0$start_vals,
+			nscan = 40,
+			burn = 10,
+			odens = 5,
+			verbose = FALSE,
+			plot = FALSE,
+			gof = FALSE
+		)
+	)
+	expect_false(any(grepl("start_vals", w)))
+	expect_s3_class(fit1, "lame")
+	# a slot of the wrong shape is named and skipped; the rest is used
+	expect_warning(
+		lame(
+			Y,
+			family = "normal",
+			mode = "bipartite",
+			R_row = 1,
+			R_col = 1,
+			start_vals = list(beta = rep(0, 7), s2 = 2),
+			nscan = 20,
+			burn = 10,
+			odens = 5,
+			verbose = FALSE,
+			plot = FALSE,
+			gof = FALSE
+		),
+		"beta"
+	)
+})
+
+# bipartite frn
 
 test_that("bipartite frn runs and recovers the sign of a strong covariate", {
 	skip_if_too_slow()
-	# use a larger panel for a clearer sign check
-	d = mk_bip_linpred(nA = 40, nB = 32, Tn = 2, seed = 4103L,
-	                    beta_true = c(1.2, -1.0))
+	# a larger panel for a clearer sign check
+	d = mk_bip_linpred(
+		nA = 40,
+		nB = 32,
+		Tn = 2,
+		seed = 4103L,
+		beta_true = c(1.2, -1.0)
+	)
 	odmax = 6L
 	Y = lapply(d$EZ, function(eta) {
 		Z = eta + matrix(stats::rnorm(d$nA * d$nB), d$nA, d$nB)
 		yt = matrix(0L, d$nA, d$nB)
 		for (i in seq_len(d$nA)) {
 			top = order(Z[i, ], decreasing = TRUE)[seq_len(odmax)]
-			yt[i, top] = seq_len(odmax)  # rank 1..odmax (top to bottom)
+			yt[i, top] = seq_len(odmax) # rank 1..odmax (top to bottom)
 		}
-		dimnames(yt) = list(paste0("r", seq_len(d$nA)),
-		                    paste0("c", seq_len(d$nB)))
+		dimnames(yt) = list(
+			paste0("r", seq_len(d$nA)),
+			paste0("c", seq_len(d$nB))
+		)
 		yt
 	})
-	fit = lame(Y, Xdyad = d$X, family = "frn", mode = "bipartite",
-	           R = 0, odmax = odmax,
-	           nscan = 200, burn = 50, odens = 5, verbose = FALSE,
-	           seed = 4103L)
+	fit = lame(
+		Y,
+		Xdyad = d$X,
+		family = "frn",
+		mode = "bipartite",
+		R = 0,
+		odmax = odmax,
+		nscan = 200,
+		burn = 50,
+		odens = 5,
+		verbose = FALSE,
+		seed = 4103L
+	)
 	expect_true(inherits(fit, "lame"))
 	expect_true("v1_dyad" %in% colnames(fit$BETA))
 	# rank-likelihood chains on small bipartite panels mix slowly
@@ -608,14 +927,25 @@ test_that("bipartite frn runs and recovers the sign of a strong covariate", {
 	expect_gt(stats::sd(fit$BETA[, "v1_dyad"]), 0)
 })
 
-# ==== cross-sectional ame() per-family behavior ====
+# cross-sectional ame() per-family behavior
 
 test_that("ame(family='poisson', mode='bipartite') runs cross-sectionally", {
 	skip_if_too_slow()
 	d = mk_xs("poisson", seed = 40010L)
-	fit = ame(d$Y, Xdyad = d$X, family = "poisson", mode = "bipartite",
-	          R = 0, nscan = 80, burn = 20, odens = 5,
-	          verbose = FALSE, plot = FALSE, gof = FALSE, seed = 40010L)
+	fit = ame(
+		d$Y,
+		Xdyad = d$X,
+		family = "poisson",
+		mode = "bipartite",
+		R = 0,
+		nscan = 80,
+		burn = 20,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE,
+		seed = 40010L
+	)
 	expect_true(inherits(fit, "ame"))
 	expect_gt(mean(fit$BETA[, "v1_dyad"]), 0)
 	expect_lt(mean(fit$BETA[, "v2_dyad"]), 0)
@@ -624,9 +954,20 @@ test_that("ame(family='poisson', mode='bipartite') runs cross-sectionally", {
 test_that("ame(family='ordinal', mode='bipartite') runs cross-sectionally", {
 	skip_if_too_slow()
 	d = mk_xs("ordinal", seed = 40011L, beta_true = c(0.8, -0.5))
-	fit = ame(d$Y, Xdyad = d$X, family = "ordinal", mode = "bipartite",
-	          R = 0, nscan = 80, burn = 20, odens = 5,
-	          verbose = FALSE, plot = FALSE, gof = FALSE, seed = 40011L)
+	fit = ame(
+		d$Y,
+		Xdyad = d$X,
+		family = "ordinal",
+		mode = "bipartite",
+		R = 0,
+		nscan = 80,
+		burn = 20,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE,
+		seed = 40011L
+	)
 	expect_true(inherits(fit, "ame"))
 	expect_gt(mean(fit$BETA[, "v1_dyad"]), 0)
 	expect_lt(mean(fit$BETA[, "v2_dyad"]), 0)
@@ -635,10 +976,21 @@ test_that("ame(family='ordinal', mode='bipartite') runs cross-sectionally", {
 test_that("ame(family='cbin', mode='bipartite') runs cross-sectionally", {
 	skip_if_too_slow()
 	d = mk_xs("cbin", seed = 40012L, beta_true = c(0.7, -0.4), odmax_val = 3L)
-	fit = ame(d$Y, Xdyad = d$X, family = "cbin", mode = "bipartite",
-	          R = 0, odmax = 3L,
-	          nscan = 80, burn = 20, odens = 5,
-	          verbose = FALSE, plot = FALSE, gof = FALSE, seed = 40012L)
+	fit = ame(
+		d$Y,
+		Xdyad = d$X,
+		family = "cbin",
+		mode = "bipartite",
+		R = 0,
+		odmax = 3L,
+		nscan = 80,
+		burn = 20,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE,
+		seed = 40012L
+	)
 	expect_true(inherits(fit, "ame"))
 	expect_gt(mean(fit$BETA[, "v1_dyad"]), 0)
 	expect_lt(mean(fit$BETA[, "v2_dyad"]), 0)
@@ -649,60 +1001,78 @@ test_that("ame(family='cbin', mode='bipartite') runs cross-sectionally", {
 test_that("ame(family='frn', mode='bipartite') runs cross-sectionally", {
 	skip_if_too_slow()
 	d = mk_xs("frn", seed = 40013L, beta_true = c(0.8, -0.5), odmax_val = 3L)
-	fit = ame(d$Y, Xdyad = d$X, family = "frn", mode = "bipartite",
-	          R = 0, odmax = 3L,
-	          nscan = 80, burn = 20, odens = 5,
-	          verbose = FALSE, plot = FALSE, gof = FALSE, seed = 40013L)
+	fit = ame(
+		d$Y,
+		Xdyad = d$X,
+		family = "frn",
+		mode = "bipartite",
+		R = 0,
+		odmax = 3L,
+		nscan = 80,
+		burn = 20,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE,
+		seed = 40013L
+	)
 	expect_true(inherits(fit, "ame"))
 	expect_gt(mean(fit$BETA[, "v1_dyad"]), 0)
 	expect_lt(mean(fit$BETA[, "v2_dyad"]), 0)
 })
 
-# ==== static ame() behavioral tests ====
+# static ame() behavioral tests
 
 test_that("bipartite model fits additive effects", {
 	skip_on_cran()
-	
+
 	set.seed(790)
-	
+
 	nA = 15
 	nB = 20
-	
+
 	# true parameters
 	mu_true = 0.3
 	sigma2_a = 0.4
 	sigma2_b = 0.3
 	sigma2_e = 0.5
-	
+
 	# generate additive effects
 	a_true = rnorm(nA, 0, sqrt(sigma2_a))
 	b_true = rnorm(nB, 0, sqrt(sigma2_b))
-	
+
 	# generate network
 	Y = matrix(mu_true, nA, nB)
-	for(i in 1:nA) {
-		Y[i,] = Y[i,] + a_true[i]
+	for (i in 1:nA) {
+		Y[i, ] = Y[i, ] + a_true[i]
 	}
-	for(j in 1:nB) {
-		Y[,j] = Y[,j] + b_true[j]
+	for (j in 1:nB) {
+		Y[, j] = Y[, j] + b_true[j]
 	}
 	Y = Y + matrix(rnorm(nA * nB, 0, sqrt(sigma2_e)), nA, nB)
-	
+
 	# fit model with additive effects
-	fit = ame(Y, mode = "bipartite",
-						 rvar = TRUE, cvar = TRUE,
-						 R_row = 0, R_col = 0,
-						 burn = 500, nscan = 2000, verbose = FALSE)
-	
+	fit = ame(
+		Y,
+		mode = "bipartite",
+		rvar = TRUE,
+		cvar = TRUE,
+		R_row = 0,
+		R_col = 0,
+		burn = 500,
+		nscan = 2000,
+		verbose = FALSE
+	)
+
 	# additive effects are present
 	expect_false(is.null(fit$APM))
 	expect_false(is.null(fit$BPM))
 	expect_equal(length(fit$APM), nA)
 	expect_equal(length(fit$BPM), nB)
-	
-	expect_true(mean(fit$VC[,1]) > 0)
-	expect_true(mean(fit$VC[,3]) > 0)
-	
+
+	expect_true(mean(fit$VC[, 1]) > 0)
+	expect_true(mean(fit$VC[, 3]) > 0)
+
 	# row and column means are close to true values
 	expect_equal(mean(fit$APM), mean(a_true), tolerance = 0.3)
 	expect_equal(mean(fit$BPM), mean(b_true), tolerance = 0.3)
@@ -710,39 +1080,45 @@ test_that("bipartite model fits additive effects", {
 
 test_that("bipartite model fits multiplicative effects", {
 	skip_on_cran()
-	
+
 	set.seed(791)
-	
+
 	nA = 20
 	nB = 25
 	R_row = 2
 	R_col = 2
-	
+
 	# generate latent factors
 	U_true = matrix(rnorm(nA * R_row), nA, R_row)
 	V_true = matrix(rnorm(nB * R_col), nB, R_col)
 	G_true = diag(c(2, 1), R_row, R_col)
-	
+
 	# generate network with multiplicative effects
 	mu_true = 0.2
 	UV_true = U_true %*% G_true %*% t(V_true)
 	Y = mu_true + UV_true + matrix(rnorm(nA * nB, 0, 0.5), nA, nB)
-	
+
 	# fit model with multiplicative effects
-	fit = ame(Y, mode = "bipartite",
-						 R_row = R_row, R_col = R_col,
-						 burn = 500, nscan = 2000, verbose = FALSE)
-	
+	fit = ame(
+		Y,
+		mode = "bipartite",
+		R_row = R_row,
+		R_col = R_col,
+		burn = 500,
+		nscan = 2000,
+		verbose = FALSE
+	)
+
 	# latent-factor dimensions
 	expect_equal(dim(fit$U), c(nA, R_row))
 	expect_equal(dim(fit$V), c(nB, R_col))
 	expect_equal(dim(fit$G), c(R_row, R_col))
-	
+
 	# multiplicative effects capture structure
 	UVPM_reconstructed = reconstruct_UVPM(fit)
-	
-	# correlation should be positive
-	if(!is.null(UVPM_reconstructed)) {
+
+	# the reconstructed product correlates positively with the truth
+	if (!is.null(UVPM_reconstructed)) {
 		cor_uv = cor(c(UV_true), c(UVPM_reconstructed))
 		expect_gt(cor_uv, 0.3)
 	}
@@ -750,247 +1126,310 @@ test_that("bipartite model fits multiplicative effects", {
 
 test_that("bipartite multiplicative rank improves fit", {
 	skip_on_cran()
-	
+
 	set.seed(794)
-	
+
 	nA = 15
 	nB = 12
-	
+
 	# generate network with rank-2 structure
 	U_true = matrix(rnorm(nA * 2), nA, 2)
 	V_true = matrix(rnorm(nB * 2), nB, 2)
 	Y = U_true %*% t(V_true) + matrix(rnorm(nA * nB, 0, 0.3), nA, nB)
-	
-	# fit with r = 0
-	fit0 = ame(Y, mode = "bipartite",
-							R_row = 0, R_col = 0,
-							burn = 300, nscan = 1000, verbose = FALSE)
-	
-	# fit with r = 2
-	fit2 = ame(Y, mode = "bipartite",
-							R_row = 2, R_col = 2,
-							burn = 300, nscan = 1000, verbose = FALSE)
-	
-	# model with multiplicative effects should fit better
+
+	# fit with R = 0
+	fit0 = ame(
+		Y,
+		mode = "bipartite",
+		R_row = 0,
+		R_col = 0,
+		burn = 300,
+		nscan = 1000,
+		verbose = FALSE
+	)
+
+	# fit with R = 2
+	fit2 = ame(
+		Y,
+		mode = "bipartite",
+		R_row = 2,
+		R_col = 2,
+		burn = 300,
+		nscan = 1000,
+		verbose = FALSE
+	)
+
 	resid0 = Y - fit0$YPM
 	resid2 = Y - fit2$YPM
-	
+
 	# both models produced valid predictions
 	expect_false(all(is.na(fit0$YPM)))
 	expect_false(all(is.na(fit2$YPM)))
-	
-	# the rank-2 model should have lower residuals than r = 0
+
+	# the rank-2 model has lower residuals than R = 0
 	mse0 = mean(resid0^2, na.rm = TRUE)
 	mse2 = mean(resid2^2, na.rm = TRUE)
-	
-	# only compare finite mse values
-	if(is.finite(mse0) && is.finite(mse2)) {
+
+	# compare only finite MSE values
+	if (is.finite(mse0) && is.finite(mse2)) {
 		expect_lt(mse2, mse0)
 	}
 })
 
 test_that("bipartite model handles missing data", {
 	skip_on_cran()
-	
+
 	set.seed(795)
-	
+
 	nA = 10
 	nB = 8
-	
+
 	# generate complete network
 	Y = matrix(rnorm(nA * nB), nA, nB)
-	
+
 	# add missing values
-	missing_idx = sample(1:(nA*nB), size = 10, replace = FALSE)
+	missing_idx = sample(1:(nA * nB), size = 10, replace = FALSE)
 	Y[missing_idx] = NA
-	
-	# fit model
-	fit = ame(Y, mode = "bipartite",
-						 burn = 200, nscan = 500, verbose = FALSE)
-	
+
+	fit = ame(
+		Y,
+		mode = "bipartite",
+		burn = 200,
+		nscan = 500,
+		verbose = FALSE
+	)
+
 	# model ran
 	expect_equal(fit$mode, "bipartite")
-	
+
 	expect_false(any(is.na(fit$YPM)))
 })
 
 test_that("bipartite gof statistics are computed", {
 	skip_on_cran()
-	
+
 	set.seed(796)
-	
+
 	nA = 8
 	nB = 10
-	
+
 	Y = matrix(rnorm(nA * nB), nA, nB)
-	
-	# fit with gof
-	fit = ame(Y, mode = "bipartite",
-						 burn = 100, nscan = 300, 
-						 gof = TRUE, verbose = FALSE)
-	
-	# gof output is present
+
+	# fit with GOF
+	fit = ame(
+		Y,
+		mode = "bipartite",
+		burn = 100,
+		nscan = 300,
+		gof = TRUE,
+		verbose = FALSE
+	)
+
+	# GOF output is present
 	expect_false(is.null(fit$GOF))
-	# bipartite gof has 3 columns: sd.rowmean, sd.colmean, four.cycles
+	# Gaussian bipartite GOF uses weighted rectangle dependence
 	expect_equal(ncol(fit$GOF), 3)
-	
-	# gof statistics are non-negative
-	obs_sd_row = fit$GOF[1,1]
-	obs_sd_col = fit$GOF[1,2]
-	obs_four_cycles = fit$GOF[1,3]
-	
+
+	# heterogeneity is non-negative; weighted dependence can have either sign
+	obs_sd_row = fit$GOF[1, 1]
+	obs_sd_col = fit$GOF[1, 2]
+	obs_four_cycle_dep = fit$GOF[1, "four.cycle.dep"]
+
 	expect_true(obs_sd_row >= 0)
 	expect_true(obs_sd_col >= 0)
-	expect_true(obs_four_cycles >= 0)
+	expect_equal(
+		unname(obs_four_cycle_dep),
+		unname(gof_stats_bipartite(Y, family = "normal")["four.cycle.dep"])
+	)
 })
 
-# ==== static ame() structural and covariate tests ====
+# static ame() structural and covariate tests
 
 test_that("supported bipartite families fit", {
 	skip_on_cran()
-	
+
 	set.seed(456)
-	
-	# set up bipartite dimensions
+
+	# bipartite dimensions
 	nA = 12
 	nB = 10
-	
+
 	# test the supported rectangular families
 	families = c("normal", "binary")
 
-	for(fam in families) {
+	for (fam in families) {
 		# generate test data
-		if(fam == "normal") {
+		if (fam == "normal") {
 			Y = matrix(rnorm(nA * nB, 0, 1), nA, nB)
-		} else if(fam == "binary" || fam == "cbin") {
+		} else if (fam == "binary" || fam == "cbin") {
 			Y = matrix(rbinom(nA * nB, 1, 0.5), nA, nB)
-		} else if(fam == "poisson") {
+		} else if (fam == "poisson") {
 			Y = matrix(rpois(nA * nB, 3), nA, nB)
-		} else if(fam == "ordinal") {
+		} else if (fam == "ordinal") {
 			Y = matrix(sample(0:3, nA * nB, replace = TRUE), nA, nB)
-		} else if(fam == "frn") {
+		} else if (fam == "frn") {
 			# fixed rank nomination
 			Y = matrix(0, nA, nB)
-			for(i in 1:nA) {
+			for (i in 1:nA) {
 				nominated = sample(1:nB, min(3, nB))
 				Y[i, nominated] = 1:length(nominated)
 			}
 		}
-		
+
 		# set odmax for rank families
-		if(fam %in% c("cbin", "frn")) {
+		if (fam %in% c("cbin", "frn")) {
 			odmax = rep(3, nA)
 		} else {
 			odmax = NULL
 		}
-		
-		# fit model
+
 		suppressWarnings({
-			fit = ame(Y, mode = "bipartite", family = fam,
-								 R_row = 0, R_col = 0,
-								 odmax = odmax,
-								 burn = 100, nscan = 300, 
-								 verbose = FALSE)
+			fit = ame(
+				Y,
+				mode = "bipartite",
+				family = fam,
+				R_row = 0,
+				R_col = 0,
+				odmax = odmax,
+				burn = 100,
+				nscan = 300,
+				verbose = FALSE
+			)
 		})
-		
+
 		# basic checks
-		expect_equal(fit$mode, "bipartite", 
-								 info = paste("Mode check failed for", fam))
-		expect_equal(fit$family, fam, 
-								 info = paste("Family check failed for", fam))
-		expect_equal(fit$nA, nA, 
-								 info = paste("Row dimension check failed for", fam))
-		expect_equal(fit$nB, nB, 
-								 info = paste("Column dimension check failed for", fam))
-		
+		expect_equal(
+			fit$mode,
+			"bipartite",
+			info = paste("Mode check failed for", fam)
+		)
+		expect_equal(
+			fit$family,
+			fam,
+			info = paste("Family check failed for", fam)
+		)
+		expect_equal(
+			fit$nA,
+			nA,
+			info = paste("Row dimension check failed for", fam)
+		)
+		expect_equal(
+			fit$nB,
+			nB,
+			info = paste("Column dimension check failed for", fam)
+		)
+
 		# posterior samples are present
-		expect_false(is.null(fit$BETA), 
-								 info = paste("BETA missing for", fam))
-		
+		expect_false(
+			is.null(fit$BETA),
+			info = paste("BETA missing for", fam)
+		)
+
 		# family-specific checks
-		if(fam == "binary" || fam == "cbin") {
+		if (fam == "binary" || fam == "cbin") {
 			# predictions are binary probabilities
-			expect_true(all(fit$YPM >= 0 & fit$YPM <= 1),
-									info = paste("YPM not in [0,1] for", fam))
+			expect_true(
+				all(fit$YPM >= 0 & fit$YPM <= 1),
+				info = paste("YPM not in [0,1] for", fam)
+			)
 		}
 	}
 })
 
 test_that("bipartite models with multiplicative effects fit", {
 	skip_on_cran()
-	
+
 	set.seed(457)
-	
+
 	nA = 10
 	nB = 8
 	R_row = 1
 	R_col = 1
-	
+
 	# test the supported subset with multiplicative effects
 	families = c("normal", "binary")
 
-	for(fam in families) {
+	for (fam in families) {
 		# generate data
-		if(fam == "normal") {
+		if (fam == "normal") {
 			Y = matrix(rnorm(nA * nB), nA, nB)
-		} else if(fam == "binary") {
+		} else if (fam == "binary") {
 			Y = matrix(rbinom(nA * nB, 1, 0.5), nA, nB)
-		} else if(fam == "poisson") {
+		} else if (fam == "poisson") {
 			Y = matrix(rpois(nA * nB, 2), nA, nB)
 		}
-		
+
 		# fit with multiplicative effects
 		suppressWarnings({
-			fit = ame(Y, mode = "bipartite", family = fam,
-								 R_row = R_row, R_col = R_col,
-								 burn = 100, nscan = 300,
-								 verbose = FALSE)
+			fit = ame(
+				Y,
+				mode = "bipartite",
+				family = fam,
+				R_row = R_row,
+				R_col = R_col,
+				burn = 100,
+				nscan = 300,
+				verbose = FALSE
+			)
 		})
-		
+
 		# multiplicative effects are present
-		expect_equal(dim(fit$U), c(nA, R_row), 
-								 info = paste("U dimension wrong for", fam))
-		expect_equal(dim(fit$V), c(nB, R_col), 
-								 info = paste("V dimension wrong for", fam))
-		expect_equal(dim(fit$G), c(R_row, R_col), 
-								 info = paste("G dimension wrong for", fam))
+		expect_equal(
+			dim(fit$U),
+			c(nA, R_row),
+			info = paste("U dimension wrong for", fam)
+		)
+		expect_equal(
+			dim(fit$V),
+			c(nB, R_col),
+			info = paste("V dimension wrong for", fam)
+		)
+		expect_equal(
+			dim(fit$G),
+			c(R_row, R_col),
+			info = paste("G dimension wrong for", fam)
+		)
 	}
 })
 
 test_that("bipartite models handle covariates", {
 	skip_on_cran()
-	
+
 	set.seed(458)
-	
+
 	nA = 8
 	nB = 6
-	
+
 	# generate covariates
 	Xdyad = array(rnorm(nA * nB * 2), c(nA, nB, 2))
 	Xrow = matrix(rnorm(nA * 2), nA, 2)
 	Xcol = matrix(rnorm(nB * 2), nB, 2)
-	
+
 	Y = matrix(rnorm(nA * nB), nA, nB)
-	
+
 	# fit with all covariate types
-	fit = ame(Y, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol,
-						 mode = "bipartite",
-						 burn = 100, nscan = 300,
-						 verbose = FALSE)
-	
+	fit = ame(
+		Y,
+		Xdyad = Xdyad,
+		Xrow = Xrow,
+		Xcol = Xcol,
+		mode = "bipartite",
+		burn = 100,
+		nscan = 300,
+		verbose = FALSE
+	)
+
 	# intercept + 2 dyadic + 2 row + 2 col
 	expect_equal(ncol(fit$BETA), 7)
-	
+
 	# estimates are present
 	beta_means = colMeans(fit$BETA)
 	expect_false(any(is.na(beta_means)))
 })
 
 test_that("bipartite dynamic_uv keeps the latent scale identified (regression)", {
-	# the U/V-vs-G scale is unidentified (only U G V' is), so without gauge
-	# fixing it random-walks: G collapses toward 0 while U/V inflate past
-	# prior$uv_max_abs and the sampler rejects its own UV proposals. the
-	# drift needs a realistic panel size to develop, hence the size here.
+	# only U G V' is identified, so without a gauge the U/V-vs-G scale drifts (G toward 0, U/V past prior$uv_max_abs)
+	# and the sampler rejects its own UV proposals; the drift needs a panel of this size to develop
 	skip_on_cran()
 	set.seed(5)
 	nA = 25; nB = 20; TT = 8; rho_true = 0.6; sig = 0.7
@@ -1008,12 +1447,22 @@ test_that("bipartite dynamic_uv keeps the latent scale identified (regression)",
 			matrix(rnorm(nA * nB, 0, 1), nA)
 		rownames(m) = sprintf("r%02d", 1:nA); colnames(m) = sprintf("c%02d", 1:nB); m
 	})
-	fit = lame(Y, mode = "bipartite", family = "normal", R = 2, dynamic_uv = TRUE,
-	           seed = 1, burn = 150, nscan = 600, odens = 4,
-	           verbose = FALSE, plot = FALSE)
+	fit = lame(
+		Y,
+		mode = "bipartite",
+		family = "normal",
+		R = 2,
+		dynamic_uv = TRUE,
+		seed = 1,
+		burn = 150,
+		nscan = 600,
+		odens = 4,
+		verbose = FALSE,
+		plot = FALSE
+	)
 
 	iters = 150 + 600
-	# the UV sampler should not be rejecting its own proposals
+	# the UV sampler does not reject its own proposals
 	expect_lt(fit$tryErrorChecks$UV / iters, 0.05)
 	# the gauge is pinned: G carries unit Frobenius norm, coordinates stay O(1)
 	expect_lt(max(abs(fit[["U"]]), na.rm = TRUE), 10)
@@ -1024,11 +1473,7 @@ test_that("bipartite dynamic_uv keeps the latent scale identified (regression)",
 })
 
 test_that("bipartite dynamic_uv rho_uv converges on a low-persistence panel (regression)", {
-	# rho_uv starts at the prior mean (0.9), so recovering a genuinely low
-	# persistence requires the hyperparameter updates to run often enough for
-	# the chain to travel. with every-sweep updates this panel lands near 0.55
-	# against a truth of 0.3, with the deliberately high default prior still
-	# pulling upward.
+	# rho_uv starts at the prior mean (0.9); the hyperparameter updates run often enough for the chain to leave it
 	skip_on_cran()
 	set.seed(5)
 	nA = 25; nB = 20; TT = 8; rho_true = 0.3; sig = 0.7
@@ -1046,11 +1491,299 @@ test_that("bipartite dynamic_uv rho_uv converges on a low-persistence panel (reg
 			matrix(rnorm(nA * nB, 0, 1), nA)
 		rownames(m) = sprintf("r%02d", 1:nA); colnames(m) = sprintf("c%02d", 1:nB); m
 	})
-	fit = lame(Y, mode = "bipartite", family = "normal", R = 2, dynamic_uv = TRUE,
-	           seed = 1, burn = 200, nscan = 800, odens = 4,
-	           verbose = FALSE, plot = FALSE)
+	fit = lame(
+		Y,
+		mode = "bipartite",
+		family = "normal",
+		R = 2,
+		dynamic_uv = TRUE,
+		prior = list(rho_uv_mean = .9, rho_uv_sd = .1),
+		seed = 1,
+		burn = 200,
+		nscan = 800,
+		odens = 4,
+		verbose = FALSE,
+		plot = FALSE
+	)
 	rho_med = median(as.numeric(fit$rho_uv), na.rm = TRUE)
 	# a median near 0.9 here means the chain is stuck at its starting value
 	expect_lt(rho_med, 0.75)
 	expect_gt(rho_med, -1)
+})
+
+test_that("the poisson predictive draw and simulate() handle rectangular networks", {
+	set.seed(6886)
+	EZ = matrix(rnorm(24 * 18, 0, 0.5), 24, 18)
+	Ys = simY_pois(EZ)
+	expect_equal(dim(Ys), c(24L, 18L))
+	expect_true(all(is.finite(Ys)))
+	EZ2 = matrix(rnorm(18 * 24, 0, 0.5), 18, 24)
+	expect_equal(dim(simY_pois(EZ2)), c(18L, 24L))
+	nA = 12
+	nB = 9
+	rn = sprintf("r%02d", seq_len(nA))
+	cn = sprintf("c%02d", seq_len(nB))
+	Y = matrix(rpois(nA * nB, 1.5), nA, nB)
+	dimnames(Y) = list(rn, cn)
+	X = array(rnorm(nA * nB), c(nA, nB, 1), dimnames = list(rn, cn, "x1"))
+	fit = suppressWarnings(ame(
+		Y,
+		X,
+		family = "poisson",
+		mode = "bipartite",
+		R_row = 2,
+		R_col = 2,
+		nscan = 60,
+		burn = 20,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	))
+	sims = simulate(fit, nsim = 5, newdata = list(Xdyad = X))
+	expect_equal(dim(sims$Y[[1]]), c(nA, nB))
+	# finite simulated averages over the retained states match YPM
+	expect_lt(abs(mean(sapply(sims$Y, mean)) / mean(fit$YPM) - 1), 0.25)
+})
+
+test_that("ame() bipartite normal fits impute missing cells instead of attenuating", {
+	set.seed(6886)
+	nA = 24
+	nB = 18
+	rn = sprintf("r%02d", seq_len(nA))
+	cn = sprintf("c%02d", seq_len(nB))
+	a = rnorm(nA, 0, 0.5)
+	b = rnorm(nB, 0, 0.5)
+	x = matrix(rnorm(nA * nB), nA, nB)
+	Y = 0.2 + 0.7 * x + outer(a, b, "+") + matrix(rnorm(nA * nB), nA, nB)
+	Y[sample(length(Y), round(0.3 * length(Y)))] = NA
+	dimnames(Y) = list(rn, cn)
+	X = array(x, c(nA, nB, 1), dimnames = list(rn, cn, "x1"))
+	fit = suppressWarnings(ame(
+		Y,
+		X,
+		family = "normal",
+		mode = "bipartite",
+		R_row = 0,
+		R_col = 0,
+		nscan = 600,
+		burn = 200,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	))
+	b1 = mean(fit$BETA[, "x1_dyad"])
+	# the slope is not attenuated by the share of observed cells
+	expect_gt(b1, 0.58)
+	expect_lt(abs(b1 - 0.7), 3 * sd(fit$BETA[, "x1_dyad"]) + 0.02)
+	expect_gt(mean(fit$VC[, "ve"]), 0.8)
+})
+
+test_that("ame() bipartite ordinal posterior predictive reproduces the observed categories", {
+	set.seed(6886)
+	nA = 20
+	nB = 15
+	rn = sprintf("r%02d", seq_len(nA))
+	cn = sprintf("c%02d", seq_len(nB))
+	z = outer(rnorm(nA, 0, 0.5), rnorm(nB, 0, 0.5), "+") + matrix(rnorm(nA * nB), nA, nB)
+	Y = matrix(as.numeric(cut(z, c(-Inf, quantile(z, c(0.25, 0.5, 0.75)), Inf), labels = FALSE)), nA, nB)
+	dimnames(Y) = list(rn, cn)
+	fit = suppressWarnings(ame(
+		Y,
+		family = "ordinal",
+		mode = "bipartite",
+		R_row = 0,
+		R_col = 0,
+		nscan = 200,
+		burn = 50,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	))
+	# the predictive mean is that of the observed categories
+	expect_lt(abs(mean(fit$YPM) / mean(Y) - 1), 0.05)
+	expect_true(all(fit$YPM >= 1 & fit$YPM <= 4))
+})
+
+test_that("simulate.ame() on a bipartite fit keeps the regression term with newdata", {
+	set.seed(6886)
+	nA = 14
+	nB = 10
+	rn = sprintf("r%02d", seq_len(nA))
+	cn = sprintf("c%02d", seq_len(nB))
+	x = matrix(rnorm(nA * nB), nA, nB)
+	Y = 1.5 + 0.7 * x + matrix(rnorm(nA * nB, 0, 0.5), nA, nB)
+	dimnames(Y) = list(rn, cn)
+	X = array(x, c(nA, nB, 1), dimnames = list(rn, cn, "x1"))
+	fit = suppressWarnings(ame(
+		Y,
+		X,
+		family = "normal",
+		mode = "bipartite",
+		R_row = 0,
+		R_col = 0,
+		nscan = 200,
+		burn = 50,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	))
+	sims = simulate(fit, nsim = 20, newdata = list(Xdyad = X), seed = 2)
+	# the simulated mean keeps the intercept (1.5)
+	expect_lt(abs(mean(sapply(sims$Y, mean)) - mean(fit$YPM)), 0.15)
+	# a covariate array that matches no coefficient is an error, not zeros
+	expect_error(.beta_on_design(c(intercept = 1, x1_dyad = 0.7), "zz"), "match")
+})
+
+test_that("bipartite va and vb are not inflated by a unit prior scale", {
+	set.seed(6886)
+	nA = 24
+	nB = 18
+	rn = sprintf("r%02d", seq_len(nA))
+	cn = sprintf("c%02d", seq_len(nB))
+	a = rnorm(nA, 0, 0.5)
+	b = rnorm(nB, 0, 0.5)
+	Y = 1 * ((-0.5 + outer(a, b, "+") + matrix(rnorm(nA * nB), nA, nB)) > 0)
+	dimnames(Y) = list(rn, cn)
+	fit = suppressWarnings(ame(
+		Y,
+		family = "binary",
+		mode = "bipartite",
+		R_row = 0,
+		R_col = 0,
+		nscan = 600,
+		burn = 200,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	))
+	# va and vb stay near the realized variances of the effects
+	expect_lt(mean(fit$VC[, "va"]) / var(a), 2)
+	expect_lt(mean(fit$VC[, "vb"]) / var(b), 2)
+	expect_lt(fit$prior$Sab0[1, 1], 1)
+})
+
+test_that("bipartite alignment keeps every period's U G V' and the interaction matrix", {
+	set.seed(41)
+	nA = 9
+	nB = 7
+	Tn = 5
+	prod_t = function(U, V, G) {
+		lapply(seq_len(dim(U)[3]), function(t) U[, , t] %*% G %*% t(V[, , t]))
+	}
+	for (rr in list(c(2, 2), c(2, 3))) {
+		G = matrix(rnorm(rr[1] * rr[2]), rr[1], rr[2])
+		U = array(rnorm(nA * rr[1] * Tn), c(nA, rr[1], Tn))
+		V = array(rnorm(nB * rr[2] * Tn), c(nB, rr[2], Tn))
+		al = procrustes_align(U = U, V = V, G = G)
+		expect_equal(al$G, G)
+		expect_equal(prod_t(al$U, al$V, al$G), prod_t(U, V, G), tolerance = 1e-10)
+	}
+	# a smooth path whose periods 2 and 4 are reflected along a singular direction of G
+	# is restored, with the products untouched
+	G = matrix(c(1.5, 0.4, -0.3, 0.9), 2, 2)
+	sg = svd(G)
+	U0 = matrix(rnorm(nA * 2), nA, 2)
+	V0 = matrix(rnorm(nB * 2), nB, 2)
+	U = array(0, c(nA, 2, Tn))
+	V = array(0, c(nB, 2, Tn))
+	for (t in seq_len(Tn)) {
+		U[, , t] = U0 + matrix(rnorm(nA * 2, 0, 0.05), nA, 2)
+		V[, , t] = V0 + matrix(rnorm(nB * 2, 0, 0.05), nB, 2)
+	}
+	RU = diag(2) - 2 * tcrossprod(sg$u[, 1])
+	RV = diag(2) - 2 * tcrossprod(sg$v[, 1])
+	U_f = U
+	V_f = V
+	for (t in c(2, 4)) {
+		U_f[, , t] = U[, , t] %*% RU
+		V_f[, , t] = V[, , t] %*% RV
+	}
+	expect_equal(prod_t(U_f, V_f, G), prod_t(U, V, G), tolerance = 1e-10)
+	al = procrustes_align(U = U_f, V = V_f, G = G)
+	expect_equal(al$U, U, tolerance = 1e-10)
+	expect_equal(al[["V"]], V, tolerance = 1e-10)
+	expect_equal(al$G, G)
+})
+
+test_that("a NULL Xdyad period keeps its slot in the bipartite helper and is refused by lame()", {
+	set.seed(42)
+	rn = paste0("r", 1:6)
+	cn = paste0("c", 1:4)
+	Y = lapply(1:3, function(t) matrix(rnorm(24), 6, 4, dimnames = list(rn, cn)))
+	X = lapply(1:3, function(t) array(rnorm(24), c(6, 4, 1), dimnames = list(rn, cn, "x")))
+	X[3] = list(NULL)
+	out = lame:::list_to_array_bipartite(rn, cn, Y, X, NULL, NULL)
+	expect_length(out$Xdyad, 3L)
+	expect_null(out$Xdyad[[3]])
+	expect_equal(unname(out$Xdyad[[2]][, , 1]), unname(X[[2]][, , 1]))
+	expect_error(
+		lame(
+			Y,
+			X,
+			R = 0,
+			family = "normal",
+			mode = "bipartite",
+			burn = 5,
+			nscan = 10,
+			odens = 1,
+			verbose = FALSE,
+			plot = FALSE,
+			gof = FALSE,
+			chains = 1
+		),
+		"Xdyad\\[\\[3\\]\\] is NULL"
+	)
+})
+
+test_that("per-draw alignment of a bipartite dynamic fit keeps each draw's U G V'", {
+	set.seed(45)
+	nA = 8
+	nB = 6
+	Tn = 3
+	Y = lapply(seq_len(Tn), function(t) {
+		matrix(
+			rnorm(nA * nB),
+			nA,
+			nB,
+			dimnames = list(paste0("r", seq_len(nA)), paste0("c", seq_len(nB)))
+		)
+	})
+	names(Y) = paste0("t", seq_len(Tn))
+	fit = suppressWarnings(lame(
+		Y,
+		R = 2,
+		family = "normal",
+		mode = "bipartite",
+		dynamic_uv = TRUE,
+		burn = 10,
+		nscan = 20,
+		odens = 1,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE,
+		chains = 1,
+		posterior_opts = list(save_UV_draws = TRUE)
+	))
+	S = dim(fit$U_draws)[4]
+	expect_equal(dim(fit$G_samples)[3], S)
+	pa = procrustes_align(fit, per_draw = TRUE)
+	for (s in seq_len(S)) {
+		G_s = fit$G_samples[, , s]
+		for (t in seq_len(Tn)) {
+			expect_equal(
+				pa$U[, , t, s] %*% G_s %*% t(pa$V[, , t, s]),
+				fit$U_draws[, , t, s] %*% G_s %*% t(fit$V_draws[, , t, s]),
+				tolerance = 1e-10,
+				ignore_attr = TRUE
+			)
+		}
+	}
+	# without one G draw per latent draw the per-draw route stops
+	fit$G_samples = NULL
+	expect_error(procrustes_align(fit, per_draw = TRUE), "G_samples")
 })

@@ -16,19 +16,23 @@
 #'   If \code{object} is provided and \code{U} is NULL, extracted from
 #'   \code{object$U}.
 #' @param V Optional 3D array \code{[n, R, T]} of receiver latent positions.
-#'   For unipartite asymmetric models, aligned independently. For bipartite
-#'   models, aligned jointly with U via the G interaction matrix.
+#'   For unipartite asymmetric models, U and V share one rotation per period so U V' is unchanged. For bipartite
+#'   models, aligned jointly with U through the G interaction matrix.
 #' @param G Optional \code{[R_row, R_col]} interaction matrix for bipartite
-#'   models, transformed to preserve the invariant U G V'.
+#'   models; it is returned unchanged, and each period's U G V' is preserved.
 #' @param return_fit Logical. If TRUE and \code{object} is provided, returns
 #'   a modified copy of the fit object with aligned latent positions.
 #'   Default FALSE.
 #' @param per_draw Logical. When TRUE, run Procrustes alignment per
 #'   posterior draw rather than on the posterior-mean trajectory. This
-#'   uses \code{object$U_full} / \code{object$V_full} (the per-draw
-#'   posterior cubes -- populated when \code{posterior_opts} includes
-#'   storing U/V) when present; otherwise falls back to mean-trajectory
-#'   alignment and emits an informational note. Per-draw alignment is the
+#'   uses \code{object$U_draws} / \code{object$V_draws} on a dynamic fit,
+#'   or \code{object$U_samples} on a static one (populated by
+#'   \code{posterior_opts = list(save_UV_draws = TRUE)}) when present;
+#'   otherwise falls back to mean-trajectory
+#'   alignment and emits an informational note. On a bipartite fit each draw
+#'   is aligned with its own interaction-matrix draw from
+#'   \code{object$G_samples}, so every draw's U G V' is unchanged; without
+#'   those draws per-draw alignment is an error. Per-draw alignment is the
 #'   methodologically correct treatment -- rotation indeterminacy is a
 #'   per-draw property, not a per-mean one -- but is more memory-hungry.
 #'   Default FALSE.
@@ -36,19 +40,24 @@
 #'
 #' @return If \code{return_fit = FALSE} (default): a list with components
 #'   \code{U} (aligned sender positions), \code{V} (aligned receiver positions,
-#'   if applicable), and \code{G} (updated interaction matrix, for bipartite).
+#'   if applicable), and \code{G} (the interaction matrix, for bipartite).
 #'
 #'   If \code{return_fit = TRUE}: a copy of \code{object} with aligned latent
 #'   positions replacing the originals.
 #'
 #' @details
-#' For unipartite networks, U and V are aligned independently using separate
-#' Procrustes rotations. For symmetric networks, only U is present and aligned.
+#' For directed unipartite networks, U and V share one Procrustes rotation per
+#' period, found from the stacked positions, so the product U V' is unchanged.
+#' For symmetric networks the product is \eqn{U L U'} with a diagonal L, which
+#' only a sign change of a column of U leaves unchanged; each period takes the
+#' column signs that best match the period before it.
 #'
-#' For bipartite networks, U and V are aligned jointly: separate rotation
-#' matrices are computed for U and V, and the G interaction matrix is updated
-#' as \code{G_aligned = t(R_U) \%*\% G \%*\% R_V} to preserve the product
-#' \code{U \%*\% G \%*\% t(V)}.
+#' For bipartite networks, one G serves every period, so a period's product
+#' \code{U \%*\% G \%*\% t(V)} is unchanged only by transformations
+#' \code{R_U}, \code{R_V} with \code{t(R_U) \%*\% G \%*\% R_V = G}. In the
+#' singular-vector bases of G these are sign changes of a singular direction,
+#' applied to U and V together; each period takes the sign changes that best
+#' match the period before it, and G is returned unchanged.
 #'
 #' If U is a 2D matrix (static model with a single time point), it is returned
 #' unchanged with an informational message.
@@ -69,55 +78,90 @@
 #' data(YX_bin_list)
 #' # YX_bin_list$Y stores latent-scale values; threshold to 0/1 first
 #' Y_bin <- lapply(YX_bin_list$Y, function(y) 1 * (y > 0))
+#' # chains = 1 keeps the example short; the default runs two chains and compares them
 #' fit <- lame(Y_bin, Xdyad = YX_bin_list$X, R = 2,
 #'             family = "binary", dynamic_uv = TRUE,
 #'             burn = 5, nscan = 5, odens = 1,
-#'             verbose = FALSE)
+#'             verbose = FALSE, chains = 1)
 #' aligned <- procrustes_align(fit)
 #' str(aligned$U)  # aligned 3D array [n, R, T]
 #' }
 #'
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @export
-procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
-                              return_fit = FALSE, per_draw = FALSE, ...) {
+procrustes_align <- function(
+	object = NULL,
+	U = NULL,
+	V = NULL,
+	G = NULL,
+	return_fit = FALSE,
+	per_draw = FALSE,
+	...
+) {
 
-	# per-draw alignment: align each posterior draw's u/v trajectory independently
+	# per-draw alignment: align each posterior draw's U/V trajectory separately
 	if (isTRUE(per_draw)) {
 		U_full <- object$U_full %||% object$U_draws %||% object$U_samples
 		V_full <- object$V_full %||% object$V_draws
 		if (is.null(U_full) || length(dim(U_full)) != 4L) {
 			cli::cli_inform(c(
-				"i" = "Per-draw alignment requires a 4-D per-draw trajectory cube {.code object$U_full} ([n, R, T, S]), which the current samplers do not persist.",
-				"i" = "Falling back to posterior-mean (mean-trajectory) alignment."))
+				"i" = "Per-draw alignment needs the 4-D per-draw trajectory cube {.code object$U_draws} ([n, R, T, S]); refit with {.code posterior_opts = list(save_UV_draws = TRUE)} to store one.",
+				"i" = "Falling back to posterior-mean (mean-trajectory) alignment."
+			))
 			per_draw <- FALSE
 		} else {
 			S <- dim(U_full)[4L]
 			U_aligned <- U_full
 			V_aligned <- V_full
+			# a bipartite draw keeps its own U G V', so it is aligned with its own G draw
+			G_full <- object$G_samples
+			bip_draws <- identical(object$mode, "bipartite") && length(dim(V_full)) == 4L
+			if (bip_draws && (length(dim(G_full)) != 3L || dim(G_full)[3L] != S)) {
+				cli::cli_abort(c(
+					"Per-draw alignment of a bipartite fit needs one interaction-matrix draw per latent draw in {.code object$G_samples}.",
+					"i" = "Refit with {.code posterior_opts = list(save_UV_draws = TRUE)}, or use {.code per_draw = FALSE}."
+				))
+			}
 			for (s in seq_len(S)) {
-				if (length(dim(V_full)) == 4L) {
-					a <- procrustes_align(NULL,
-					                      U = U_full[, , , s],
-					                      V = V_full[, , , s],
-					                      G = G)
+				if (bip_draws) {
+					a <- align_over_time_bip(
+						array(U_full[, , , s], dim(U_full)[1:3]),
+						array(V_full[, , , s], dim(V_full)[1:3]),
+						matrix(G_full[, , s], dim(G_full)[1L])
+					)
 					U_aligned[, , , s] <- a$U
-					V_aligned[, , , s] <- a$V
+					V_aligned[, , , s] <- a[["V"]]
+				} else if (length(dim(V_full)) == 4L) {
+					a <- procrustes_align(
+						NULL,
+						U = U_full[, , , s],
+						V = V_full[, , , s],
+						G = G
+					)
+					U_aligned[, , , s] <- a$U
+					V_aligned[, , , s] <- a[["V"]]
+				} else if (isTRUE(object$symmetric)) {
+					U_aligned[, , , s] <- align_over_time_sym(array(U_full[, , , s], dim(U_full)[1:3]))
 				} else {
 					a <- procrustes_align(NULL, U = U_full[, , , s])
 					U_aligned[, , , s] <- a$U
 				}
 			}
-			result <- list(U = U_aligned, V = V_aligned, G = G,
-			               per_draw = TRUE, n_draws = S)
+			result <- list(
+				U = U_aligned,
+				V = V_aligned,
+				G = G,
+				per_draw = TRUE,
+				n_draws = S
+			)
 			if (return_fit && !is.null(object)) {
 				fit_copy <- object
 				fit_copy$U_full_aligned <- U_aligned
 				fit_copy$V_full_aligned <- V_aligned
-				# replace mean u/v with the posterior mean of the aligned cube
+				# fitted U and V become the posterior means of the aligned cube
 				fit_copy$U <- apply(U_aligned, c(1, 2, 3), mean)
 				if (length(dim(V_full)) == 4L) {
-					fit_copy$V <- apply(V_aligned, c(1, 2, 3), mean)
+					fit_copy[["V"]] <- apply(V_aligned, c(1, 2, 3), mean)
 				}
 				return(fit_copy)
 			}
@@ -125,9 +169,8 @@ procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
 		}
 	}
 
-	# extract from fit object if not provided directly. exact [[ ]] access
-	# matters: fits have no element literally named "G", and object$G would
-	# partial-match "GOF" and hand the goodness-of-fit table back as G
+	# take positions from the fit; exact [[ ]] access because object$G would
+	# partial-match GOF
 	if (!is.null(object)) {
 		if (is.null(U)) U <- object[["U"]]
 		if (is.null(V)) V <- object[["V"]]
@@ -146,7 +189,6 @@ procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
 		return(result)
 	}
 
-	# detect bipartite
 	is_bip <- FALSE
 	if (!is.null(object) && !is.null(object$mode)) {
 		is_bip <- identical(object$mode, "bipartite")
@@ -156,18 +198,24 @@ procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
 	}
 
 	if (is_bip && !is.null(V) && !is.null(G)) {
-		# align row positions, column positions, and g jointly
+		# align row positions, column positions and G jointly
 		aligned <- align_over_time_bip(U, V, G)
 		U_al <- aligned$U
-		V_al <- aligned$V
+		V_al <- aligned[["V"]]
 		G_al <- aligned$G
 	} else {
-		# align u and v independently
-		U_al <- align_over_time_unip(U)
-		V_al <- if (!is.null(V) && length(dim(V)) == 3L) {
-			align_over_time_unip(V)
+		# directed fits: one rotation per period for U and V together, so U V' and
+		# every fitted value are unchanged; symmetric fits have U only
+		if (!is.null(V) && length(dim(V)) == 3L) {
+			pair <- align_over_time_unip_pair(U, V)
+			U_al <- pair$U
+			V_al <- pair[["V"]]
+		} else if (!is.null(object) && isTRUE(object$symmetric)) {
+			U_al <- align_over_time_sym(U)
+			V_al <- V
 		} else {
-			V
+			U_al <- align_over_time_unip(U)
+			V_al <- V
 		}
 		G_al <- G
 	}
@@ -175,7 +223,7 @@ procrustes_align <- function(object = NULL, U = NULL, V = NULL, G = NULL,
 	if (return_fit && !is.null(object)) {
 		fit_copy <- object
 		fit_copy$U <- U_al
-		fit_copy$V <- V_al
+		fit_copy[["V"]] <- V_al
 		if (!is.null(G_al)) fit_copy$G <- G_al
 		return(fit_copy)
 	}

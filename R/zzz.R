@@ -3,9 +3,8 @@
 #' @importFrom utils head object.size
 NULL
 
-# register s3 methods (posterior / loo / ggplot2::autoplot / generics::tidy)
-# at package load so qualified package::generic(fit) dispatches to the
-# methods defined here. fires once per session.
+# register S3 methods (posterior, loo, ggplot2::autoplot, generics::tidy) at load so
+# package::generic(fit) dispatches to them
 .onLoad <- function(libname, pkgname) {
 	.register_posterior_methods()
 	.register_loo_methods()
@@ -13,8 +12,7 @@ NULL
 	.register_tidy_methods()
 }
 
-# warn at attach time when amen is also loaded. both packages export
-# ame() and unqualified calls dispatch to whichever was attached last.
+# warn at attach when amen is also loaded: both export ame()
 .onAttach <- function(libname, pkgname) {
 	if ("amen" %in% loadedNamespaces()) {
 		packageStartupMessage(

@@ -1,107 +1,56 @@
-# lame 1.3.5
+# lame 1.4.1
 
-* `lfo()` refits no longer carry two intercepts. The stored design
-  (`fit$Xlist`) already includes the intercept slice, and `lfo()` passed it
-  back through `Xdyad`, so each refit added a second, exactly collinear
-  intercept; the stored slice is now stripped before refitting.
-* `lame()` no longer errors when called through a wrapper that forwards
-  `...` (or with only positional arguments); the `model.name`
-  partial-match guard assumed the call had names.
-* `uv_plot()` now honors `layout = "circle"` for dynamic snapshot plots; it was
-  silently drawing a biplot. Also corrected the latent-space description in the
-  help to the inner-product (eigenmodel) interpretation.
-* `simulate_posterior()` now returns latent-factor and coefficient draws for
-  dynamic fits (`dynamic_uv`, `dynamic_beta`) instead of erroring, and its
-  bipartite draws include the interaction matrix `G` (they previously
-  reconstructed `U V'` rather than `U G V'`). Credible-interval forecasts keep
-  their actor names.
-* Fixed the bundled `sampsonmonks` data: the three liking layers (`like_m2`,
-  `like_m1`, `like`) had their actors in a different order from the array's
-  row/column names (a problem inherited from `amen`), so those layers were
-  mislabeled. All ten layers now share the same actor order.
-* `ab_plot(effect = "both")` now works for `ame` and `lame` fits, drawing the
-  sender and receiver effects as two panels (for dynamic fits, in the
-  snapshot views); it previously only worked for `ame_als` fits.
-* `ame()` and `lame()` gained a `multistart` argument that is forwarded to
-  the static ALS estimators when `method = "als"`; it used to be dropped
-  with an unused-argument error (`lame()`) or warning (`ame()`).
-* `symmetric = TRUE` with the rank-nomination families (`cbin`, `frn`) is now
-  rejected with an explanation; it used to route silently through the
-  directed samplers.
-* `latent_positions()` and `procrustes_align()` now say plainly that
-  alignment is across the periods of one fit, and how to align two fits by
-  hand.
-* Poisson fits with many zero cells no longer pin the actor effects and latent
-  factors at zero and inflate the fitted level (about 3x at 5% density, 1.2-1.4x
-  at 20%): their prior scale vanished as zeros dominated. `ame()` also gained a
-  level move so the predicted total settles quickly; see the notes in `?ame`.
-* Fixed a scale drift in bipartite `dynamic_uv` fits. Only the product
-  `U G V'` is identified, and the leftover scale used to wander: `G` shrank
-  toward zero while the latent coordinates grew, until they hit
-  `prior$uv_max_abs` and the sampler began rejecting 20-40% of its own `U`/`V`
-  proposals on realistic panel sizes. The latent coordinates are now kept at
-  or below unit scale, with `G` absorbing the scale, which leaves `U G V'`
-  untouched. For normal outcomes each margin is held at unit scale, which also
-  stops the slow drift of scale into the interaction matrix on long
-  `dynamic_G` chains, so the raw coordinates and the persistence parameters
-  stay readable. For binary and Poisson outcomes the coordinates are only
-  ever shrunk: a saturated likelihood wants the product to grow without
-  bound, and pulling the coordinates back up would push all of that growth
-  into `G`. Estimates of the identified quantities were not affected, but the
-  raw coordinate scale was arbitrary and sampling efficiency suffered. The
-  warning for this case now says what to do instead of suggesting a longer
-  chain, which made it worse.
-* Longitudinal fits estimate the latent-persistence parameters (`rho_uv`,
-  `sigma_uv`) more reliably: the unipartite sampler now updates them every
-  sweep instead of every tenth, matching the earlier bipartite fix, so they
-  no longer sit near their starting value on default-length chains.
-* Warm-starting a dynamic MCMC run from an ALS fit now carries the dynamic
-  hyperparameters along: `get_start_vals()` (and the bipartite path) pass
-  `rho_uv`, `sigma_uv`, `rho_ab`, and `sigma_ab` through instead of dropping
-  them.
-* Dynamic ALS fits (`lame(method = "als")` with `dynamic_uv`, `dynamic_ab`,
-  or `dynamic_beta`) now report the innovation scales `sigma_uv`, `sigma_ab`,
-  and `sigma_beta` implied by their fitted paths, so `als_start_vals()` can
-  hand them to a warm-started MCMC run; they used to be `NULL`, which left
-  the slowest-mixing parameters of a sparse dynamic panel at their cold
-  defaults. Read them as starting values, not estimates: the smoothness
-  penalty shrinks the fitted paths, so the implied scales run at roughly
-  half the posterior scale. The persistences `rho_uv`, `rho_ab`, and
-  `rho_beta` on a dynamic ALS fit are the values its penalty used, not
-  estimates; absent a `prior` they now sit at the same prior means the MCMC
-  uses (0.9, 0.8, and 0.8) rather than at 0.95.
-* ALS fits with `R > 0` expose the fitted multiplicative surface as `UVPM`
-  (and `ULUPM` for symmetric fits), matching the MCMC fit objects.
-* Dynamic ALS (`lame(method = "als")` with dynamic effects) no longer runs away
-  on sparse binary or Poisson panels. It now reweights only once the block
-  updates have settled or spent their step budget, keeps a reweighted step
-  only when the true penalized deviance falls, and falls back to the best
-  state on an overshoot, the same scheme the static route uses; the
-  non-normal families also carry a level prior on the dynamic sender and
-  receiver paths. A warning still fires if a block update fails to descend,
-  and now says so plainly.
-* `dynamic_beta` combined with `dynamic_ab` now gives the additive effects a
-  real AR(1): the per-period draws pool across neighbouring years and
-  `rho_ab` / `sigma_ab` are sampled rather than sitting at their starting
-  values.
-* Bipartite `dynamic_G = TRUE` fits can no longer be poisoned by a single
-  non-finite state draw. The time-varying interaction matrix is accepted only
-  when every element is finite, its variance draw keeps the current value when
-  the state path is not finite, and the chain falls back to the last finite
-  draw otherwise; before, one bad draw made every later update fail and the
-  fit returned non-finite values for the rest of the run.
-* Tidied up the documentation and test suite.
+* Latent positions of `lame()` fits with `dynamic_uv = TRUE` are fixed. They
+  were averages of draws that differ by a rotation, which shrank them toward
+  zero; they now factor each period's posterior mean product, and their
+  posterior SDs come from the saved draws. `latent_positions()`, `uv_plot()`
+  and `simulate(type = "approximate")` use them, also on fits saved with 1.4.0.
+* Fits stopped early by `max_seconds` trim every set of saved draws.
+* Smaller fixes to messages, `ame_memory_settings()` and frn starting values.
 
-## Known limitations
+# lame 1.4.0
 
-* In bipartite `dynamic_G = TRUE` fits with a binary or Poisson outcome, the
-  raw latent coordinates can drift toward zero over long chains while `G`
-  grows to compensate, and `rho_G` may then sit near its upper bound. The
-  fitted product `U G V'` (and so `EZ`, `YPM`, and the forecasts) is
-  unaffected; read the raw coordinates and `rho_G` qualitatively in that case.
+Many fixes change estimates, so refit models saved with 1.3.x.
+
+## Breaking changes
+
+* `ame()` and `lame()` run two chains by default and compare them before
+  returning; a fit whose chains have not settled is extended and then refused
+  with a classed error. `chains = 1` runs one chain.
+* `dynamic_ab = TRUE` models each actor's effect as a level plus an AR(1)
+  deviation, so `va`, `vb`, `rho_ab` and `sigma_ab` are not comparable with
+  1.3.x.
+* Fits with latent factors report the identified split between the latent
+  product and the additive terms; the linear predictor is unchanged.
+* New default priors, including a `1 - rho^2` prior on the dyadic correlation.
+* ALS fits are empirical-Bayes by default for normal, binary and Poisson
+  outcomes (`bias_correct`).
+* Unsupported inputs and combinations stop with classed errors, among them
+  `dynamic_G = TRUE`, snap ALS, collinear designs and non-integer Poisson
+  outcomes.
+* Installation needs a C++17 compiler.
+
+## New features
+
+* `lame_robust()` for continuous panels with heavy-tailed residuals.
+* `lame(sampler = "tempered")` for symmetric binary panels.
+* `predict(interval = "prediction")` for `lame` fits.
+* `lame_resume()` continues a fit or checkpoint from its saved sampler state.
+* `trace_plot()` shows the dynamic hyperparameters.
+
+## Improvements
+
+* Faster mixing across families and network modes, with the costly sampler
+  steps in compiled code; static ALS fits are much faster.
+* Print and summary output goes to standard output; plots are restyled.
+
+## Bug fixes
+
+* Many fixes to posterior calculations, prediction, simulation and reporting,
+  including bipartite dynamic latent positions, Poisson fitted values,
+  Pearson residuals and `simulate()` with `newdata`.
 
 # lame 1.3.4
-
 * The handful of Gibbs samplers and helpers once adapted from `amen` have been
   rewritten from the underlying published methods, so the package carries no
   derived code and stays under the MIT license.
@@ -130,40 +79,29 @@
   via `simulate_posterior(fit, "UV")`.
 * `summary()` on a `lame` fit exposes the coefficient table under
   `$coefficients`, matching `summary.ame` and the `broom`/`lm` idiom.
-
 ## Known limitations
-
 * Bipartite `fit$U` / `fit$V` are a single posterior draw (the rotation is
   unidentified); use `fit$YPM` or `reconstruct_UVPM()` for the stable
   multiplicative structure.
 * In the bipartite `dynamic_uv` path, latent persistence `rho_uv` is only
   weakly identified -- read it qualitatively. The unipartite path is unaffected.
-
 # lame 1.2.0
-
 * Cleaned up ALS support and documentation.
 * Raised the `lame(method = "als")` iteration cap and exposed dynamic ALS
   convergence component traces.
 * Stabilized dynamic-UV MCMC by normalizing the raw `U`/`V` coordinate scale,
   centering additive row/column effects, pooling very sparse additive effects
   toward the prior mean, and carrying ALS fits into MCMC with `als_start_vals()`.
-
 # lame 1.1.0
-
 ## New features
-
 * Fast, MCMC-free estimation via `ame_als()` and `lame_als()`: an alternating
   least squares / IRLS point estimator for the normal, binary, and Poisson
   families. Supports parametric-bootstrap and sandwich standard errors and the
   full S3 method set (`coef()`, `vcov()`, `confint()`, `predict()`, `tidy()`,
   `glance()`, and the diagnostic plots).
-
 # lame 1.0.0
-
 ## Initial CRAN Submission
-
 ### Features
-
 * Cross-sectional network analysis via `ame()` with support for 6 distributional
   families: normal, binary, ordinal, Poisson, censored binary, and fixed rank
   nomination.

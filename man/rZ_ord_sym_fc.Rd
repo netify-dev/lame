@@ -4,7 +4,7 @@
 \alias{rZ_ord_sym_fc}
 \title{Sample Z under symmetric ordinal data (square symmetric matrix)}
 \usage{
-rZ_ord_sym_fc(Z, EZ, Y)
+rZ_ord_sym_fc(Z, EZ, Y, rho = 0)
 }
 \arguments{
 \item{Z}{current symmetric latent matrix (n x n, Z = t(Z)).}
@@ -15,6 +15,10 @@ directed contributions.}
 
 \item{Y}{observed symmetric ordinal matrix (n x n, Y = t(Y));
 diagonal is ignored.}
+
+\item{rho}{dyadic correlation carried by the fit; it only sets the
+variance of the diagonal draw, \code{1 + rho}, the convention of the
+coefficient kernel.}
 }
 \value{
 updated symmetric n x n latent matrix; the diagonal is refreshed

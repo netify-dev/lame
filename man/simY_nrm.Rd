@@ -4,17 +4,20 @@
 \alias{simY_nrm}
 \title{Simulate a normal relational matrix}
 \usage{
-simY_nrm(EY, rho, s2)
+simY_nrm(EY, rho, s2, bipartite = FALSE)
 }
 \arguments{
-\item{EY}{square matrix giving the expected value of the relational matrix}
+\item{EY}{matrix giving the expected value of the relational matrix}
 
 \item{rho}{dyadic correlation}
 
 \item{s2}{dyadic variance}
+
+\item{bipartite}{whether row and column actors form disjoint sets; keeps
+diagonal cells even when the matrix is square.}
 }
 \value{
-a square matrix
+a matrix with the dimensions of \code{EY}
 }
 \description{
 Draws a Gaussian sociomatrix whose entries have expectation \code{EY},

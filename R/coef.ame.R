@@ -40,15 +40,14 @@
 #' @method coef ame
 #' @export
 coef.ame <- function(object, ...) {
-	if(is.null(object$BETA)) {
+	.lame_require_draws(object, "coef")
+	if (is.null(object$BETA)) {
 		return(numeric(0))
 	}
-	# dynamic_beta storage is 3-d [iter x p x t]; return p x t matrix of
-	# per-period posterior-mean coefficients with rownames = coef, colnames = period
+	# dynamic_beta draws are [iter x p x t]; return the p x t matrix of posterior means
 	if (length(dim(object$BETA)) == 3L) {
 		if (dim(object$BETA)[1] == 0L) return(numeric(0))
 		out <- apply(object$BETA, c(2, 3), mean)
-		# preserve dimnames from beta
 		dn <- dimnames(object$BETA)
 		if (!is.null(dn)) {
 			rownames(out) <- dn[[2]]
@@ -59,7 +58,7 @@ coef.ame <- function(object, ...) {
 	if (nrow(object$BETA) == 0L) return(numeric(0))
 	out <- colMeans(object$BETA)
 	nms <- colnames(object$BETA)
-	if(!is.null(nms)) names(out) <- nms
+	if (!is.null(nms)) names(out) <- nms
 	out
 }
 
@@ -67,6 +66,7 @@ coef.ame <- function(object, ...) {
 #' @method coef lame
 #' @export
 coef.lame <- function(object, ...) {
+	.lame_require_draws(object, "coef")
 	coef.ame(object, ...)
 }
 
@@ -82,11 +82,11 @@ coef.lame <- function(object, ...) {
 #' @method vcov ame
 #' @export
 vcov.ame <- function(object, ...) {
-	if(is.null(object$BETA)) {
+	.lame_require_draws(object, "vcov")
+	if (is.null(object$BETA)) {
 		return(matrix(NA, 0, 0))
 	}
-	# dynamic_beta storage: 3-d [iter x p x t] -- collapse to [iter x (p*t)]
-	# so cov() returns a (p*t) x (p*t) covariance with combined coef[t] names
+	# flatten dynamic_beta draws to [iter x (p*t)] for a (p*t) x (p*t) covariance
 	if (length(dim(object$BETA)) == 3L) {
 		B <- object$BETA
 		if (dim(B)[1] < 2L) {
@@ -108,7 +108,7 @@ vcov.ame <- function(object, ...) {
 	}
 	out <- cov(object$BETA)
 	nms <- colnames(object$BETA)
-	if(!is.null(nms)) {
+	if (!is.null(nms)) {
 		rownames(out) <- colnames(out) <- nms
 	}
 	out
@@ -118,6 +118,7 @@ vcov.ame <- function(object, ...) {
 #' @method vcov lame
 #' @export
 vcov.lame <- function(object, ...) {
+	.lame_require_draws(object, "vcov")
 	vcov.ame(object, ...)
 }
 
@@ -133,8 +134,18 @@ vcov.lame <- function(object, ...) {
 #' @param parm character vector of parameter names, or numeric indices. When
 #'   \code{parm} is character, both BETA names (e.g. \code{"intercept"},
 #'   \code{"x1_dyad"}) and variance-component names (\code{"va"}, \code{"vb"},
-#'   \code{"cab"}, \code{"rho"}, \code{"ve"}) are accepted. \code{NULL}
-#'   (default) returns intervals for all available parameters.
+#'   \code{"cab"}, \code{"rho"}, \code{"ve"}) are accepted; on a unipartite
+#'   binary, cbin or frn panel carrying fewer than one event per actor-period
+#'   the
+#'   \code{"va"}, \code{"vb"} and \code{"cab"} intervals are \code{NA},
+#'   because the panel carries too few events per actor-period to estimate
+#'   those variances (the draws stay in \code{object$VC}), unless the effects
+#'   prior was supplied, when they are the intervals under that prior; under
+#'   a saturated nomination cap the \code{"intercept"} and row-covariate
+#'   intervals are \code{NA} with or without a supplied prior. \code{NULL}
+#'   (default) returns intervals for the regression coefficients only, the
+#'   parameters \code{coef()} reports; name variance components in
+#'   \code{parm} to include them. Numeric indices select coefficient rows.
 #' @param level credible level (default 0.95).
 #' @param ... additional arguments (ignored).
 #'
@@ -149,23 +160,23 @@ vcov.lame <- function(object, ...) {
 #' @method confint ame
 #' @export
 confint.ame <- function(object, parm = NULL, level = 0.95, ...) {
+	.lame_require_draws(object, "confint")
 	if (length(level) != 1L || !is.finite(level) || level <= 0 || level >= 1) {
 		cli::cli_abort("{.arg level} must be a single number in (0, 1).")
 	}
-	if(is.null(object$BETA) || (length(dim(object$BETA)) >= 2L && dim(object$BETA)[1] == 0L)) {
-		return(matrix(nrow = 0, ncol = 2,
-									dimnames = list(NULL, c("lower", "upper"))))
+	if (is.null(object$BETA) || (length(dim(object$BETA)) >= 2L && any(dim(object$BETA)[1:2] == 0L))) {
+		return(matrix(
+			nrow = 0,
+			ncol = 2,
+			dimnames = list(NULL, c("lower", "upper"))
+		))
 	}
 
 	alpha <- (1 - level) / 2
 	probs <- c(alpha, 1 - alpha)
 	pct <- paste0(round(probs * 100, 1), "%")
 
-	# 3-d beta: each row of the ci table is one coef[t] combination.
-	# loop time-outer, coef-inner so the row order matches what
-	# vcov.ame() and as_draws.ame() produce (both built from
-	# outer(nms_p, nms_t) in column-major / time-outer order), keeping
-	# confint() rows aligned with vcov() diagonals.
+	# rows run time-outer, coef-inner, matching vcov.ame() and as_draws.ame()
 	if (length(dim(object$BETA)) == 3L) {
 		B <- object$BETA
 		dn <- dimnames(B)
@@ -184,25 +195,41 @@ confint.ame <- function(object, parm = NULL, level = 0.95, ...) {
 		beta_ci <- t(apply(object$BETA, 2, quantile, probs = probs, na.rm = TRUE))
 		colnames(beta_ci) <- pct
 	}
+	# a saturated nomination cap leaves row levels free: no interval for the
+	# intercept or a row-covariate coefficient
+	coef_base <- sub("\\[.*$", "", rownames(beta_ci))
+	coef_hide <- .lame_ab_coef_hidden_rows(
+		.lame_ab_coef_reason(object),
+		unique(coef_base)
+	)
+	if (length(coef_hide)) beta_ci[coef_base %in% coef_hide, ] <- NA_real_
 
-	if(!is.null(parm)) {
+	if (!is.null(parm)) {
 		vc_ci <- if (!is.null(object$VC) && ncol(object$VC) > 0) {
 			m <- t(apply(object$VC, 2, quantile, probs = probs, na.rm = TRUE))
 			colnames(m) <- pct
+			# too few events per actor, or a saturated nomination cap, leaves the effect
+			# variances to the prior: no interval unless that prior was supplied
+			ab_reason <- .lame_ab_var_unident_reason(object)
+			if (!is.na(ab_reason)) {
+				hide <- intersect(rownames(m), .lame_ab_var_hidden_rows(ab_reason))
+				if (length(hide)) m[hide, ] <- NA_real_
+			}
 			m
 		} else {
 			matrix(numeric(0), 0, 2, dimnames = list(NULL, pct))
 		}
 		all_ci <- rbind(beta_ci, vc_ci)
-		if(is.character(parm)) {
+		if (is.character(parm)) {
 			bad <- setdiff(parm, rownames(all_ci))
 			if (length(bad) > 0L) {
 				cli::cli_abort(c(
 					"Unknown parameter name{?s} in {.arg parm}: {.val {bad}}.",
-					"i" = "Available: {.val {rownames(all_ci)}}."))
+					"i" = "Available: {.val {rownames(all_ci)}}."
+				))
 			}
 			return(all_ci[parm, , drop = FALSE])
-		} else if(is.numeric(parm)) {
+		} else if (is.numeric(parm)) {
 			# positional indexing applies to beta rows only
 			return(beta_ci[parm, , drop = FALSE])
 		}
@@ -215,5 +242,6 @@ confint.ame <- function(object, parm = NULL, level = 0.95, ...) {
 #' @method confint lame
 #' @export
 confint.lame <- function(object, parm = NULL, level = 0.95, ...) {
+	.lame_require_draws(object, "confint")
 	confint.ame(object, parm = parm, level = level, ...)
 }

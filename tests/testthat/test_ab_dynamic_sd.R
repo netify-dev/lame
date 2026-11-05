@@ -20,8 +20,17 @@ test_that("dynamic_ab fit stores calibrated per-time additive SD", {
 	}
 	names(Y) = paste0("t", 1:N)
 
-	fit = lame(Y, family = "binary", dynamic_ab = TRUE, R = 0,
-	           burn = 100, nscan = 600, odens = 5, verbose = FALSE, gof = FALSE)
+	fit = lame(
+		Y,
+		family = "binary",
+		dynamic_ab = TRUE,
+		R = 0,
+		burn = 100,
+		nscan = 600,
+		odens = 5,
+		verbose = FALSE,
+		gof = FALSE
+	)
 
 	expect_false(is.null(fit$a_dynamic_sd))
 	expect_false(is.null(fit$b_dynamic_sd))
@@ -37,9 +46,10 @@ test_that("ab_plot ribbon draws a per-time-varying band from the stored SD", {
 	skip_on_cran()
 	nm = sprintf("v%02d", 1:6)
 	fit = list(
-		a_dynamic    = matrix(rnorm(6 * 4), 6, 4, dimnames = list(nm, paste0("t", 1:4))),
+		a_dynamic = matrix(rnorm(6 * 4), 6, 4, dimnames = list(nm, paste0("t", 1:4))),
 		a_dynamic_sd = matrix(runif(6 * 4, 0.1, 0.6), 6, 4, dimnames = list(nm, paste0("t", 1:4))),
-		symmetric = FALSE)
+		symmetric = FALSE
+	)
 	class(fit) = "lame"
 	p = ab_plot(fit, "sender", plot_type = "ribbon", show_actors = nm[1])
 	expect_s3_class(p, "ggplot")
@@ -50,6 +60,8 @@ test_that("ab_plot ribbon draws a per-time-varying band from the stored SD", {
 
 	# a fit without the SD slot aborts with clear guidance, not a wrong plot
 	fit$a_dynamic_sd = NULL
-	expect_error(ab_plot(fit, "sender", plot_type = "ribbon"),
-	             "per-time uncertainty")
+	expect_error(
+		ab_plot(fit, "sender", plot_type = "ribbon"),
+		"per-time uncertainty"
+	)
 })

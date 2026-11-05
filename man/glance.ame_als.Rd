@@ -27,10 +27,9 @@ iteration count.
 }
 \examples{
 \donttest{
-data(YX_bin_list)
-Y1 <- 1 * (YX_bin_list$Y[[1]] > 0); diag(Y1) <- NA
-fit <- ame_als(Y = Y1, Xdyad = YX_bin_list$X[[1]],
-               family = "binary", R = 1, verbose = FALSE)
+data(YX_nrm)
+fit <- ame_als(Y = YX_nrm$Y, Xdyad = YX_nrm$X[, , 2:3],
+               family = "normal", R = 1, verbose = FALSE)
 glance(fit)
 }
 }

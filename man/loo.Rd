@@ -23,3 +23,18 @@ through R's S3 system even when the \pkg{loo} package is not loaded.
 When \pkg{loo} \emph{is} loaded, its generic resolves first; this
 fallback only fires for bare-namespace use.
 }
+\examples{
+\donttest{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- ame(Y, R = 1, dcor = FALSE, nscan = 100, burn = 5, odens = 1,
+           save_log_lik = TRUE, verbose = FALSE, chains = 1)
+if (requireNamespace("loo", quietly = TRUE)) {
+  # a fit this small can trip loo's own low-sample Pareto-k diagnostic;
+  # that diagnostic warning is expected here and not specific to lame
+  print(suppressWarnings(loo(fit)))
+}
+}
+}

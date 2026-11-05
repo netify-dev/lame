@@ -35,13 +35,14 @@ Thin wrapper around \code{\link{ame_parallel}} that forces
 \code{fitter = "lame"}. Use this for longitudinal data; in particular,
 multi-chain \code{dynamic_beta} / \code{dynamic_uv} / \code{dynamic_ab}
 fits are reached through here. The combined fit's \code{$BETA} is a 3-D
-array when \code{dynamic_beta} is on, and \code{posterior::rhat(as_draws(fit))}
+array when \code{dynamic_beta} is on, and
+\code{posterior::summarise_draws(as_draws(fit), "rhat")}
 gives R-hat across chains for every per-period coefficient.
 }
 \examples{
 \donttest{
 data(YX_bin_list)
-fit_pll <- lame_parallel(YX_bin_list$Y, Xdyad = YX_bin_list$X,
+fit_pll <- lame_parallel(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), Xdyad = YX_bin_list$X,
                          family = "binary", n_chains = 2, cores = 1,
                          nscan = 50, burn = 10, odens = 5,
                          dynamic_beta = "dyad", verbose = FALSE)

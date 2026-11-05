@@ -43,12 +43,13 @@ rbeta_ab_fc(
 Draws jointly from the full conditional of the regression coefficients
 \code{beta} together with the additive sender/receiver effects
 \code{a}, \code{b} for a single social-relations regression matrix. The
-within-dyad reciprocity covariance is whitened so every directed cell
-becomes a unit-variance Gaussian observation, the additive-effect prior
+within-dyad reciprocity covariance is whitened through the symmetric and
+antisymmetric parts of the relation, the additive-effect prior
 \code{N(0,Sab)} is written through a square-root factor so a
-rank-deficient \code{Sab} is handled without inverting it, and the
-complete joint Gaussian precision over \code{(beta, factors)} is
-assembled from cell-level sufficient statistics and sampled in one draw.
+rank-deficient \code{Sab} is handled without inverting it, and the actor
+effects are eliminated block by block over an orthonormal Helmert basis.
+Regression coefficients are drawn from their marginal Gaussian
+conditional, followed by the conditionally independent actor coordinates.
 }
 \author{
 lame authors

@@ -28,7 +28,16 @@ prior_summary(object, ...)
 }
 \description{
 Bayesian-hygiene helper modelled on \code{rstanarm::prior_summary()}.
-Prints the priors that were actually in effect for a fit, with defaults
-filled in. For \code{ame_als} fits it just states that the estimator is a
+Prints recorded prior settings and the coefficient-prior specification
+saved by the fitting build. Older fits without that specification are
+identified explicitly; their prior is not inferred from the current build. For \code{ame_als} fits it just states that the estimator is a
 frequentist point estimator and there are no priors.
+}
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, verbose = FALSE, chains = 1)
+prior_summary(fit)
 }

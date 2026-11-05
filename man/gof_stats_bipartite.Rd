@@ -4,7 +4,7 @@
 \alias{gof_stats_bipartite}
 \title{Goodness of fit statistics for bipartite networks}
 \usage{
-gof_stats_bipartite(Y, warn_square = TRUE)
+gof_stats_bipartite(Y, warn_square = TRUE, family = NULL)
 }
 \arguments{
 \item{Y}{a bipartite relational data matrix (nA x nB rectangular matrix)
@@ -15,6 +15,10 @@ appropriately.}
 \item{warn_square}{logical; if \code{TRUE} (default) a warning is issued
 when \code{Y} is square (a possible unipartite matrix passed by mistake).
 Set \code{FALSE} for a genuinely square bipartite network.}
+
+\item{family}{optional outcome family. For \code{"normal"}, use weighted
+four-cycle dependence instead of a nonzero-edge count. Model fitting
+and post-hoc diagnostics supply this automatically.}
 }
 \value{
 A named numeric vector containing bipartite-specific goodness-of-fit
@@ -26,6 +30,8 @@ Higher values indicate more variation in how active A nodes are.}
 \item{sd.colmean}{Standard deviation of column means. Measures the
 heterogeneity in in-degree to set B nodes (receiver effects).
 Higher values indicate more variation in how popular B nodes are.}
+\item{four.cycle.dep}{For Gaussian outcomes, weighted dependence over
+complete observed rectangles, as defined below. Replaces the count.}
 \item{four.cycles}{Count of four-cycles (also called 4-paths or squares) in
 the bipartite network. A four-cycle occurs when two nodes from set A
 (e.g., i and k) both connect to the same two nodes in set B (e.g., j and l),
@@ -43,6 +49,15 @@ Calculates goodness of fit statistics specifically designed for bipartite
 networks, evaluating degree heterogeneity and higher-order dependencies.
 }
 \details{
+For Gaussian outcomes, \code{four.cycle.dep} is the mean product of
+four globally centered, sample-standardized values around each fully
+observed rectangle. It measures dependence among edge magnitudes.
+It returns \code{NA} when no complete rectangle is observed or the
+observed values have zero variance. Missing cells are not zeros.
+A nonzero-edge count is unsuitable for Gaussian predictive checks:
+continuous draws are nonzero almost surely, so fixing the observation
+mask fixes their four-cycle count regardless of model fit.
+
 For bipartite networks, reciprocity and triadic closure are not meaningful
 concepts since edges only exist between the two node sets. Instead, this
 function focuses on:
@@ -57,7 +72,7 @@ function focuses on:
 Y <- matrix(rnorm(10*12), 10, 12)
 
 # Calculate GOF statistics
-gof_stats_bipartite(Y)
+gof_stats_bipartite(Y, family = "normal")
 }
 }
 \author{

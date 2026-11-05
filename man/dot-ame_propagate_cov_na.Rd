@@ -4,12 +4,26 @@
 \alias{.ame_propagate_cov_na}
 \title{Propagate covariate missingness into the response}
 \usage{
-.ame_propagate_cov_na(Y, Xrow = NULL, Xcol = NULL, Xdyad = NULL)
+.ame_propagate_cov_na(
+  Y,
+  Xrow = NULL,
+  Xcol = NULL,
+  Xdyad = NULL,
+  symmetric = FALSE
+)
 }
 \arguments{
-\item{Y}{an n x n response matrix.}
+\item{Y}{an n_row x n_col response matrix.}
 
-\item{Xrow, Xcol, Xdyad}{row, column and dyadic covariates (or \code{NULL}).}
+\item{Xrow, Xcol, Xdyad}{row, column and dyadic covariates (or \code{NULL}).
+A 2-D \code{Xdyad} is one n_row x n_col covariate.}
+
+\item{symmetric}{logical; in a symmetric network a dyad has one covariate
+value, so a dyad is unobserved when the dyadic covariate of either of its
+two cells is missing (the node covariates already act on a row and its
+column together). \code{\link{ame}} and \code{\link{lame}} first fill a
+hole in one triangle from the other, so only a dyad missing in both
+triangles reaches this rule.}
 }
 \value{
 \code{Y} with covariate-missing cells set to \code{NA}.
@@ -18,9 +32,11 @@
 For an AME fit, a dyad whose covariate value is missing cannot contribute a
 covariate-coefficient observation. Rather than silently imputing the missing
 covariate as 0 (which biases the coefficient when the covariate is not
-mean-centred), the dyad is treated as an unobserved tie and handled by data
-augmentation. This helper sets the affected \code{Y} cells to \code{NA};
-\code{\link{lame}} already does this internally, and this brings
-\code{\link{ame}} into line.
+mean-centred), the cell is treated as an unobserved tie and handled by data
+augmentation. This helper sets the affected \code{Y} cells to \code{NA}: the
+row of a sender whose covariate is missing, the column of a receiver whose
+covariate is missing, and each cell with a missing dyadic covariate.
+\code{\link{ame}} uses it for unipartite and bipartite networks;
+\code{\link{lame}} does the same per period (see \code{\link{get_design_rep}}).
 }
 \keyword{internal}

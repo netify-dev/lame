@@ -35,6 +35,11 @@
 #' @note This is an internal function primarily used by \code{lame()} but exported
 #' for advanced users who want to validate their data before model fitting.
 #'
+#' @examples
+#' n <- 12
+#' Y <- lapply(1:3, function(t) matrix(rnorm(n * n), n, n))
+#' check_format(Y)
+#'
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #'
 #'
@@ -42,8 +47,7 @@
 
 check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 
-	####
-	# validate y
+	# validate Y
 	if (!is.list(Y)) {
 		cli::cli_abort(c(
 			"Y must be a list of matrices.",
@@ -63,12 +67,10 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 			))
 		}
 	}
-	####
 
 	N <- length(Y)
 
-	####
-	# validate xdyad
+	# validate Xdyad
 	if (!is.null(Xdyad)) {
 		if (!is.list(Xdyad)) {
 			cli::cli_abort(c(
@@ -83,18 +85,23 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 			))
 		}
 		for (t in seq_along(Xdyad)) {
-			if (!is.null(Xdyad[[t]]) && !is.matrix(Xdyad[[t]]) && !is.array(Xdyad[[t]])) {
+			# every period carries the same dyadic covariates
+			if (is.null(Xdyad[[t]])) {
 				cli::cli_abort(c(
-					"All non-NULL elements of Xdyad must be matrices or arrays.",
+					"Xdyad[[{t}]] is NULL; every period needs its dyadic covariate array.",
+					"i" = "Supply an array for that period; a cell with an NA covariate is treated as an unobserved tie."
+				))
+			}
+			if (!is.matrix(Xdyad[[t]]) && !is.array(Xdyad[[t]])) {
+				cli::cli_abort(c(
+					"All elements of Xdyad must be matrices or arrays.",
 					"i" = "Xdyad[[{t}]] is of class {class(Xdyad[[t]])[1]}."
 				))
 			}
 		}
 	}
-	####
 
-	####
-	# validate xrow
+	# validate Xrow
 	if (!is.null(Xrow)) {
 		if (!is.list(Xrow)) {
 			cli::cli_abort(c(
@@ -117,10 +124,8 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 			}
 		}
 	}
-	####
 
-	####
-	# validate xcol
+	# validate Xcol
 	if (!is.null(Xcol)) {
 		if (!is.list(Xcol)) {
 			cli::cli_abort(c(
@@ -143,10 +148,8 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 			}
 		}
 	}
-	####
 
-	####
-	# validate covariate dimensions match y
+	# covariate dimensions must match Y
 	for (t in seq_along(Y)) {
 		nr <- nrow(Y[[t]])
 		nc <- ncol(Y[[t]])
@@ -182,16 +185,67 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 			}
 		}
 	}
-	####
 
-	####
-	# check dimension consistency within y
+	# covariate counts must agree across periods: list_to_array() sizes the array
+	# from period 1 and fills every period positionally
+	.cov_count <- function(x, dyadic) {
+		d <- dim(x)
+		if (dyadic) {
+			if (length(d) == 3L) d[3L] else 1L
+		} else {
+			if (length(d) >= 2L) d[2L] else 1L
+		}
+	}
+	.cov_names <- function(x, dyadic) {
+		d <- dim(x) ; dn <- dimnames(x)
+		if (dyadic) {
+			if (length(d) == 3L && !is.null(dn)) dn[[3L]] else NULL
+		} else {
+			if (!is.null(dn)) dn[[2L]] else NULL
+		}
+	}
+	for (nm in c("Xdyad", "Xrow", "Xcol")) {
+		lst <- switch(nm, Xdyad = Xdyad, Xrow = Xrow, Xcol = Xcol)
+		if (is.null(lst)) next
+		idx <- which(!vapply(lst, is.null, logical(1)))
+		if (length(idx) < 2L) next
+		dyadic <- identical(nm, "Xdyad")
+		cnt <- vapply(lst[idx], .cov_count, numeric(1), dyadic = dyadic)
+		bad <- which(cnt != cnt[1L])
+		if (length(bad) > 0L) {
+			cli::cli_abort(c(
+				"{.arg {nm}} must carry the same number of covariates in every period.",
+				"i" = "Period {idx[1]} has {cnt[1]}, but period {idx[bad[1]]} has {cnt[bad[1]]}.",
+				"i" = "Covariates are matched positionally across periods; pad an unobserved covariate with {.val NA} rather than dropping it."
+			))
+		}
+		nms <- lapply(lst[idx], .cov_names, dyadic = dyadic)
+		ref <- nms[[1L]]
+		if (!is.null(ref)) {
+			bad <- which(
+				!vapply(
+					nms,
+					function(z) is.null(z) || identical(z, ref),
+					logical(1)
+				)
+			)
+			if (length(bad) > 0L) {
+				cli::cli_warn(c(
+					"{.arg {nm}} covariate names differ across periods.",
+					"i" = "Period {idx[1]}: {.val {ref}}; period {idx[bad[1]]}: {.val {nms[[bad[1]]]}}.",
+					"i" = "Covariates are matched positionally, so the fit uses the period-{idx[1]} names throughout."
+				))
+			}
+		}
+	}
+
+	# dimensions must agree across the periods of Y
 	if (N > 1) {
 		first_nrow <- nrow(Y[[1]])
 		first_ncol <- ncol(Y[[1]])
 		for (t in 2:N) {
 			if (nrow(Y[[t]]) != first_nrow || ncol(Y[[t]]) != first_ncol) {
-				cli::cli_warn(c(
+				cli::cli_inform(c(
 					"Network dimensions vary across time periods.",
 					"i" = "Y[[1]] has dimensions {first_nrow} x {first_ncol}.",
 					"i" = "Y[[{t}]] has dimensions {nrow(Y[[t]])} x {ncol(Y[[t]])}.",
@@ -201,7 +255,103 @@ check_format <- function(Y, Xdyad = NULL, Xrow = NULL, Xcol = NULL) {
 			}
 		}
 	}
-	####
 
 	invisible(TRUE)
+}
+
+# covariates far from unit scale only prompt a suggestion to rescale; returns the
+# slice standard deviations. `X` is an [n, m, p] or [n, m, p, T] array or a list of [n, m, p] arrays
+.lame_check_covariate_scale <- function(X, inform_sd = 1e2) {
+	if (is.null(X)) return(invisible(NULL))
+	slices <- if (is.list(X)) {
+		nm <- dimnames(X[[1]])[[3]]
+		lapply(seq_len(dim(X[[1]])[3]), function(k) unlist(lapply(X, function(a) a[, , k])))
+	} else if (length(dim(X)) == 4L) {
+		nm <- dimnames(X)[[3]]
+		lapply(seq_len(dim(X)[3]), function(k) as.numeric(X[, , k, ]))
+	} else if (length(dim(X)) == 3L) {
+		nm <- dimnames(X)[[3]]
+		lapply(seq_len(dim(X)[3]), function(k) as.numeric(X[, , k]))
+	} else return(invisible(NULL))
+	if (is.null(nm)) nm <- paste0("slice ", seq_along(slices))
+	sds <- vapply(slices, function(v) stats::sd(v, na.rm = TRUE), numeric(1))
+	sds[!is.finite(sds)] <- 0
+	large <- which(sds > inform_sd)
+	if (length(large) > 0L) {
+		large_txt <- paste0(nm[large], " (sd ", signif(sds[large], 2), ")", collapse = ", ")
+		cli::cli_inform(c(
+			"i" = "{cli::qty(length(large))}Covariate{?s} with a large standard deviation: {large_txt}; the fit does not depend on the units, but rescaling ({.fn scale} or {.fn log}) makes the coefficients easier to read."
+		))
+	}
+	invisible(sds)
+}
+
+# the ALS route refuses covariates with standard deviation above `abort_sd`, since
+# the solvers work on the covariates' own scale (binary IRLS stops converging near 1e5)
+.lame_als_check_covariate_scale <- function(Xdyad = NULL, Xrow = NULL, Xcol = NULL, abort_sd = 1e4) {
+	slice_sd <- function(x) {
+		if (is.null(x)) return(numeric(0))
+		if (is.list(x)) {
+			parts <- lapply(x, slice_sd)
+			k <- max(lengths(parts), 0L)
+			if (k == 0L) return(numeric(0))
+			return(vapply(
+				seq_len(k),
+				function(j) max(vapply(
+					parts,
+					function(p)
+						if (length(p) >= j) p[j] else 0,
+					numeric(1)
+				)),
+				numeric(1)
+			))
+		}
+		d <- dim(x)
+		if (is.null(d)) return(stats::sd(as.numeric(x), na.rm = TRUE))
+		k_dim <- if (length(d) >= 3L) 3L else 2L
+		vapply(seq_len(d[k_dim]), function(j) {
+			v <- if (length(d) >= 3L) as.numeric(x[slice.index(x, 3L) == j]) else as.numeric(x[, j])
+			stats::sd(v, na.rm = TRUE)
+		}, numeric(1))
+	}
+	sds <- c(
+		Xdyad = max(c(slice_sd(Xdyad), 0), na.rm = TRUE),
+		Xrow = max(c(slice_sd(Xrow), 0), na.rm = TRUE),
+		Xcol = max(c(slice_sd(Xcol), 0), na.rm = TRUE)
+	)
+	big <- names(sds)[is.finite(sds) & sds > abort_sd]
+	if (length(big)) {
+		cli::cli_abort(
+			c(
+				"{.arg {big}} contain{?s/} a covariate with a standard deviation above {abort_sd}.",
+				"i" = "The ALS route does not converge reliably at that scale; rescale the covariate (for example with {.fn scale} or {.fn log}), or use {.code method = \"mcmc\"}, which is exact at any scale."
+			),
+			class = "lame_als_covariate_scale"
+		)
+	}
+	invisible(sds)
+}
+
+# note for a directed fit whose observed dyads are all exactly symmetric
+# (symmetric = TRUE fits the undirected model)
+.lame_inform_symmetric_y <- function(dcor, panel = FALSE, family = "binary") {
+	property <- if (isTRUE(dcor)) {
+		# the nominations of a rank family only draw rho toward one
+		paste0(
+			"The residuals of reciprocal cells are equal, so the posterior of the dyadic correlation {.code rho} ",
+			if (identical(family, "frn")) "is drawn toward one." else "concentrates near one."
+		)
+	} else {
+		"The two equal cells of each dyad count as two observations."
+	}
+	what <- if (isTRUE(panel)) "Every period of {.arg Y} is exactly symmetric" else "{.arg Y} is exactly symmetric"
+	cli::cli_inform(
+		c(
+			"i" = paste0(what, " and {.arg symmetric} = FALSE."),
+			"i" = property,
+			"i" = "{.code symmetric = TRUE} fits the undirected model."
+		),
+		class = "lame_symmetric_y_note"
+	)
+	invisible(NULL)
 }

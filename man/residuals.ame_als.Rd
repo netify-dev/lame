@@ -4,12 +4,18 @@
 \alias{residuals.ame_als}
 \title{Residuals from a fast AME fit}
 \usage{
-\method{residuals}{ame_als}(object, type = c("response", "working"), ...)
+\method{residuals}{ame_als}(object, type = c("response", "working"), plug_in = NULL, ...)
 }
 \arguments{
 \item{object}{an \code{ame_als} object.}
 
 \item{type}{\code{"response"} (default) or \code{"working"}.}
+
+\item{plug_in}{logical; for an empirical-Bayes fit, take the response
+residuals from the plug-in fitted values (\code{TRUE}) or from the
+predictive means (\code{FALSE}); the default is the one of
+\code{\link{fitted.ame_als}}: \code{TRUE} for a Poisson fit, \code{FALSE}
+for a binary fit.}
 
 \item{...}{ignored.}
 }
@@ -23,7 +29,11 @@ Returns residuals from an \code{\link{ame_als}} or
 \details{
 \code{type = "response"} (default) returns observed \code{Y} minus the
 response-scale fitted values, so \code{residuals()} reconciles with
-\code{fitted()}. \code{type = "working"} returns the Gaussian working-scale
+\code{fitted()}: for a binary empirical-Bayes fit the predictive
+probabilities, or with \code{plug_in = TRUE} the plug-in ones, and for a
+Poisson fit the plug-in mean counts, or with \code{plug_in = FALSE} the
+predictive means that integrate the predictor.
+\code{type = "working"} returns the Gaussian working-scale
 residuals the estimator actually minimised (identical to \code{"response"}
 for the \code{normal} family).
 }

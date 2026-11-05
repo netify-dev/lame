@@ -36,8 +36,9 @@ MIT \cr }
 \examples{
 \donttest{
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, burn = 10, nscan = 100, odens = 1,
-           family = "normal", verbose = FALSE)
+           family = "normal", verbose = FALSE, chains = 1)
 summary(fit)
 }
 

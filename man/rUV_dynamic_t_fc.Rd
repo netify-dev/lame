@@ -15,7 +15,8 @@ rUV_dynamic_t_fc(
   lambda_u = NULL,
   lambda_v = NULL,
   shrink = TRUE,
-  symmetric = FALSE
+  symmetric = FALSE,
+  rho = 0
 )
 }
 \arguments{
@@ -40,6 +41,9 @@ rUV_dynamic_t_fc(
 \item{shrink}{whether to apply shrinkage (default TRUE)}
 
 \item{symmetric}{whether the network is symmetric (default FALSE)}
+
+\item{rho}{dyadic correlation between the (i, j) and (j, i) residuals
+(default 0)}
 }
 \value{
 list with updated U, V arrays and lambda_u, lambda_v local scales
@@ -51,3 +55,4 @@ scale-mixture of normals, a continuous heavy-tailed alternative to snap-shift.
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau
 }
+\keyword{internal}

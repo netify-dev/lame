@@ -7,10 +7,8 @@
 snap_index_draws(fit, actors = NULL, years = NULL, side = c("u", "v"))
 }
 \arguments{
-\item{fit}{a \code{\link{lame}} fit with snap-shift MCMC output, or a
-\code{\link{lame_snap_als}} fit. MCMC fits should be run with retained
-snap draws for posterior uncertainty; ALS fits contribute their
-\code{snap_prob} scores as one score row.}
+\item{fit}{a \code{\link{lame}} fit with snap-shift MCMC output, run with
+retained snap draws for posterior uncertainty.}
 
 \item{actors}{optional actor names or indices. Default uses every actor on
 the selected side.}
@@ -32,4 +30,17 @@ rupture indices. Fits should be run with \code{keep_snap_draws = "draws"} for
 posterior uncertainty. If only \code{snap_prob} is present, the function
 returns a single score row and warns that intervals cannot be read as
 posterior intervals.
+}
+\examples{
+set.seed(1)
+n <- 12; Tt <- 3
+Y <- lapply(seq_len(Tt), function(t) {
+  m <- matrix(rnorm(n * n), n, n); diag(m) <- NA; m
+})
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(Y, R = 1, dynamic_uv = TRUE, dynamic_uv_kind = "snap",
+            keep_snap_draws = "draws",
+            nscan = 20, burn = 5, odens = 1, verbose = FALSE, plot = FALSE, chains = 1)
+draws <- snap_index_draws(fit, side = "u")
+head(draws)
 }

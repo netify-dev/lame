@@ -21,3 +21,11 @@ Light-weight fallback generic so that calls of the form
 is loaded, its generic resolves first; this generic only fires for
 bare-namespace use.
 }
+\examples{
+set.seed(1)
+n <- 12
+Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, verbose = FALSE, chains = 1)
+tidy(fit)
+}

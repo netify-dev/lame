@@ -33,8 +33,9 @@ caller's environment.
 \examples{
 \donttest{
 data(YX_bin_list)
-fit <- lame(YX_bin_list$Y, YX_bin_list$X, family = "binary",
-            burn = 5, nscan = 20, odens = 1, verbose = FALSE)
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X, family = "binary",
+            burn = 5, nscan = 20, odens = 1, verbose = FALSE, chains = 1)
 # toggle dynamic_beta on without rewriting the whole call
 fit_dyn <- update(fit, dynamic_beta = "dyad")
 dim(fit_dyn$BETA)  # 3-D now

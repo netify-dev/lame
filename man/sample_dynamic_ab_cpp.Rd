@@ -12,7 +12,11 @@ sample_dynamic_ab_cpp(
   rho_ab,
   sigma_ab,
   s2,
-  symmetric
+  symmetric,
+  rho_dyad = 0,
+  center = FALSE,
+  rvar = TRUE,
+  cvar = TRUE
 )
 }
 \arguments{
@@ -31,6 +35,21 @@ sample_dynamic_ab_cpp(
 \item{s2}{Dyadic residual variance}
 
 \item{symmetric}{Whether the network is symmetric}
+
+\item{rho_dyad}{Within-dyad correlation of the residual pair
+(e_ij, e_ji); 0 (the default) treats the dyads as independent. Ignored
+for symmetric networks and for non-square slices. Must lie strictly
+between -1 and 1 for a directed square panel.}
+
+\item{center}{Whether each period's effects are drawn conditional on
+summing to zero across the actors of their margin, the identification
+used when the model has a static intercept. The draw is then the
+conditional of the block's joint normal given the constraint, not a
+projection of an unconstrained draw.}
+
+\item{rvar}{Whether the sender margin is active.}
+
+\item{cvar}{Whether the receiver margin is active.}
 }
 \value{
 List with updated a and b arrays
@@ -39,9 +58,24 @@ List with updated a and b arrays
 Gibbs update of the per-period additive effects under the AR(1) state
 model with stationary initial condition. For each actor and period the
 full conditional combines the AR(1) bridge prior (stationary init at
-t = 1) with the dyadic residual likelihood: resid_ij = a_i + b_j + e_ij,
-e_ij ~ N(0, s2). The reciprocal effect (b_j for the a-step, the freshly
-updated a_i for the b-step) is subtracted from each residual, missing
-residuals are skipped, and for symmetric networks each dyad contributes
-exactly once (resid(i,j) = a_i + a_j + e_ij).
+t = 1) with the dyadic residual likelihood: resid_ij = a_i + b_j + e_ij.
+}
+\details{
+With \code{rho_dyad = 0} the dyads are independent, e_ij ~ N(0, s2), and
+the conditional for a_i uses only row i of the residual. With
+\code{rho_dyad != 0} the two directed residuals of a dyad are jointly
+normal, (e_ij, e_ji) ~ N(0, s2 * ((1, rho), (rho, 1))), whose inverse
+covariance is ((q, p), (p, q)) with q = 1 / (s2 (1 - rho^2)) and
+p = -rho / (s2 (1 - rho^2)). The effect being drawn enters e_ij directly
+and enters the pair's cross term through e_ji, so each fully observed
+dyad contributes q to the precision and q (r_ij - b_j) + p (r_ji - a_j -
+b_i) to the numerator of the a-step (symmetrically for the b-step). A
+dyad with only one direction observed falls back to the marginal
+isotropic weight 1 / s2.
+
+The reciprocal effect (b_j for the a-step, the freshly updated a_i for
+the b-step) is subtracted from each residual, missing residuals are
+skipped, the diagonal is skipped, and for symmetric networks each dyad
+contributes exactly once (resid(i,j) = a_i + a_j + e_ij) so the pair term
+does not apply and \code{rho_dyad} is ignored.
 }

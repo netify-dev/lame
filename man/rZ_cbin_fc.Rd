@@ -18,7 +18,11 @@ rZ_cbin_fc(Z, EZ, rho, Y, odmax, odobs)
 
 \item{odmax}{nomination cap, a scalar or length-\code{nrow(Z)} vector.}
 
-\item{odobs}{observed out-degree per actor.}
+\item{odobs}{per-actor count of nominations the actor has made: the
+observed nominations plus the hidden cells whose current latent value
+is positive (the cells of an actor absent from the slice never count;
+see \code{.lame_nom_room}). A row whose count falls short of \code{odmax} has unused
+nomination slots, so its non-nominated cells are held below zero.}
 }
 \value{
 the updated latent matrix, same shape and dimnames as \code{Z}.

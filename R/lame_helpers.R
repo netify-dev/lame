@@ -1,4 +1,3 @@
-####
 #' Convert a graph object to a lame-ready adjacency matrix
 #'
 #' Convenience wrapper that takes an \pkg{igraph} or \pkg{network} object and
@@ -36,24 +35,27 @@ as_lame_y <- function(x, na_diag = TRUE) {
 		}
 		has_weight <- "weight" %in% igraph::edge_attr_names(x)
 		if (igraph::is_bipartite(x)) {
-			# the square block adjacency over both node sets would let a
-			# unipartite AME run silently on the wrong structure; return the
-			# nA x nB incidence matrix instead
+			# a bipartite graph returns its nA x nB incidence matrix, not the square block adjacency
 			bi_nm <- if ("as_biadjacency_matrix" %in% getNamespaceExports("igraph")) {
-				"as_biadjacency_matrix"  # igraph >= 1.6
+				"as_biadjacency_matrix" # igraph >= 1.6
 			} else {
 				"as_incidence_matrix"
 			}
 			m <- as.matrix(getExportedValue("igraph", bi_nm)(
 				x, sparse = FALSE, attr = if (has_weight) "weight" else NULL))
 			cli::cli_inform(c(
-				"i" = "Bipartite {.cls igraph} converted to its {nrow(m)} x {ncol(m)} incidence matrix; fit with {.code mode = \"bipartite\"}."))
+				"i" = "Bipartite {.cls igraph} converted to its {nrow(m)} x {ncol(m)} incidence matrix; fit with {.code mode = \"bipartite\"}."
+			))
 		} else {
 			m <- as.matrix(igraph::as_adjacency_matrix(
-				x, sparse = FALSE, attr = if (has_weight) "weight" else NULL))
+				x,
+				sparse = FALSE,
+				attr = if (has_weight) "weight" else NULL
+			))
 			if (has_weight) {
 				cli::cli_inform(c(
-					"i" = "Using the {.val weight} edge attribute as tie values."))
+					"i" = "Using the {.val weight} edge attribute as tie values."
+				))
 			}
 		}
 	} else if (inherits(x, "network")) {
@@ -65,13 +67,15 @@ as_lame_y <- function(x, na_diag = TRUE) {
 		if (length(edge_attrs) > 0L) {
 			cli::cli_warn(c(
 				"Returning the binary adjacency; edge attribute{?s} {.val {edge_attrs}} {?was/were} not used.",
-				"i" = "For weighted ties use {.code as.matrix(x, attrname = \"<attribute>\")} directly."))
+				"i" = "For weighted ties use {.code as.matrix(x, attrname = \"<attribute>\")} directly."
+			))
 		}
 	} else if (is.data.frame(x)) {
 		if (any(!vapply(x, is.numeric, logical(1)))) {
 			cli::cli_abort(c(
 				"{.arg x} has non-numeric columns; this looks like an edgelist, not an adjacency matrix.",
-				"i" = "Build the network from an edgelist with {.fn netify::netify} and pass that object to {.fn ame}/{.fn lame} directly."))
+				"i" = "Build the network from an edgelist with {.fn netify::netify} and pass that object to {.fn ame}/{.fn lame} directly."
+			))
 		}
 		m <- as.matrix(x)
 	} else if (is.matrix(x)) {
@@ -79,19 +83,20 @@ as_lame_y <- function(x, na_diag = TRUE) {
 		if (!is.numeric(m)) {
 			cli::cli_abort(c(
 				"{.arg x} is a non-numeric matrix; this looks like an edgelist, not an adjacency matrix.",
-				"i" = "Build the network from an edgelist with {.fn netify::netify} instead."))
+				"i" = "Build the network from an edgelist with {.fn netify::netify} instead."
+			))
 		}
 	} else {
 		cli::cli_abort(c(
 			"{.arg x} must be an {.cls igraph}, {.cls network}, {.cls matrix}, or {.cls data.frame}.",
-			"i" = "Got {.cls {class(x)[1]}}."))
+			"i" = "Got {.cls {class(x)[1]}}."
+		))
 	}
 	storage.mode(m) <- "double"
 	if (na_diag && nrow(m) == ncol(m)) diag(m) <- NA_real_
 	m
 }
 
-####
 #' ERGM-style covariate helpers for ame() / lame()
 #'
 #' \code{nodematch(x)} returns an \code{n x n} matrix with \code{1} where

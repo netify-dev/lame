@@ -16,7 +16,41 @@ longitudinal AME model using the \code{lame} function}
 A list of class "summary.lame" containing:
 \item{call}{The original function call}
 \item{beta}{Matrix of regression coefficient estimates and statistics}
-\item{variance}{Matrix of variance component estimates}
+\item{variance}{Matrix of variance component estimates. On a directed
+binary panel of two periods or more with fewer than 1.2 events per
+actor-period the \code{va} and \code{vb} rows are \code{NA}: in simulated
+panels their 95 percent intervals covered the generating variances in
+0.28 to 0.91 of the panels below that rate. The draws stay in
+\code{fit$VC}. Under a supplied effects prior the rows are reported
+under it.}
+\item{ab_var_unidentified}{\code{TRUE} when those rows are \code{NA}}
+\item{ab_var_unidentified_reason}{\code{"sparse"} when the event rate put
+them there (\code{NA} when they are reported)}
+\item{ab_data_reason}{the same reason read off the data alone: it differs
+from \code{ab_var_unidentified_reason} when the effects prior was
+supplied, in which case the rows are reported under that prior}
+\item{ab_coef_reason}{\code{"sparse"}, \code{"saturated"} or
+\code{"cap_shrunk"} when the
+intercept and row-covariate coefficients are \code{NA} (an event rate
+below 0.6, or 1.6 with a multiplicative term; a one-period cbin or frn
+design whose rows are at the cap; a cbin or frn design of two periods or
+more with a cap share of 0.5 or more and a posterior-mean \code{va} from
+0.5 to 1.5), \code{NA} otherwise}
+\item{prior_supplied}{\code{TRUE} when the fit's \code{prior} carried
+\code{Sab0}, \code{eta0} or \code{etaab}; the print method then names
+the prior the variances are reported under}
+\item{events_per_actor_period}{events per actor per period (\code{NULL}
+on families without an event rate), the rate the sparse-panel rules read}
+\item{events_per_actor}{events per actor over the panel (\code{NULL} on
+families without an event rate and on fits saved before it was recorded)}
+\item{odmax_saturated_share}{share of observed rows at their nomination
+cap, which sets the sampler's prior pooling and the one-period intercept rule (\code{NULL} off cbin / frn)}
+\item{persistence_prior_check}{for dynamic fits, a data frame with one row
+per reported persistence (\code{rho_uv}, \code{rho_ab}): the posterior
+standard deviation \code{post_sd}, the standard deviation of the
+truncated prior it started from \code{prior_sd}, their ratio
+\code{sd_ratio}, and \code{weak}, \code{TRUE} when the ratio is above
+0.6 (\code{NULL} when no persistence is reported)}
 \item{n.periods}{Number of time periods in the longitudinal data}
 }
 \description{
@@ -28,13 +62,12 @@ and model diagnostics.
 The summary includes:
 \describe{
 \item{Regression coefficients}{Posterior means, posterior standard deviations,
-z-values, approximate p-values, and 95\% credible intervals for dyadic,
-sender, and receiver covariates. Note: the z-values are computed as
-posterior mean / posterior SD, and the p-values are derived from a
-normal approximation. These are convenient screening statistics but
-are not formal frequentist test statistics. For rigorous inference,
-use the credible intervals or examine the full posterior via the
-BETA matrix directly.}
+z-values, normal-tail p-values, and 95\% credible intervals for dyadic,
+sender, and receiver covariates. The z-value is the posterior mean
+divided by the posterior SD, and the p-value is the two-sided
+normal tail probability of that z-value: a posterior summary, not a
+frequentist test. The credible intervals are posterior quantiles of
+the draws, and the full posterior is in the BETA matrix.}
 \item{Variance components}{Estimates and standard errors for:
 \describe{
 \item{va}{Variance of additive sender/row effects}
@@ -68,13 +101,19 @@ For dynamic fits the summary reports the posterior means of the
 persistence parameters \code{rho_uv} (latent positions) and
 \code{rho_ab} (additive effects). These are learned from period-to-period
 transitions, so on short panels, and on sparse bipartite panels where each
-period's positions are themselves uncertain, they lean on their priors
-(default means 0.9 and 0.8; see the \code{prior} argument of
-\code{\link{lame}}). Before reading a persistence value quantitatively,
-refit with a different prior mean (for example
-\code{prior = list(rho_uv_mean = 0.5)}) and check that the estimate
-moves little; if it tracks the prior, describe the persistence
-qualitatively rather than reporting the number.
+period's positions are themselves uncertain, the data inform them weakly.
+The summary measures how weakly. For each reported persistence it divides
+the posterior standard deviation by the standard deviation of the prior the
+fit used (the normal prior of \code{prior$rho_uv_mean} and
+\code{prior$rho_uv_sd}, or of \code{prior$rho_ab_mean} and
+\code{prior$rho_ab_sd}, truncated to the support of the sampler,
+\eqn{|\rho| < 0.99}; see \code{prior_summary()}) and returns the ratio in
+\code{persistence_prior_check}. A ratio near one says that the posterior is
+as wide as the prior, so the data add little to that persistence. When the
+ratio is above 0.6 the printed summary states it, for example
+\code{rho_uv: posterior sd 0.073 is 0.92 of the prior sd 0.079: the data
+barely inform it}. The cutoff, a posterior sd above 0.6 of the prior sd, is
+the one \code{rho_beta_prior_check} applies to the coefficient persistences.
 }
 \seealso{
 \code{\link{lame}}, \code{\link{print.summary.lame}}

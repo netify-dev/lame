@@ -19,7 +19,10 @@ prediction_draws_long(
 counterfactual evaluation. Default \code{NULL} uses in-sample
 covariates.}
 
-\item{type}{One of \code{"link"} (default) or \code{"response"}.}
+\item{type}{One of \code{"link"} (default) or \code{"response"}. For a
+Poisson fit the response of a draw is its mean count,
+\eqn{e_t \exp(\eta + \sigma^2 / 2)}, with the draw's own residual variance
+and the exposure of the period.}
 
 \item{n_draws}{Number of posterior draws to use. Default 100.}
 
@@ -30,7 +33,9 @@ A long-format data frame with columns \code{.chain},
 \code{.iteration}, \code{.draw}, \code{period}, \code{period_label},
 \code{i}, \code{j}, \code{actor_i}, \code{actor_j}, \code{.value}.
 Returned as a tibble when the \pkg{tibble} package is available;
-otherwise a plain data frame.
+otherwise a plain data frame. The \code{.iteration} column identifies
+the retained coefficient iteration; \code{.draw} numbers the requested
+draws, including repeated selections.
 }
 \description{
 Returns a long-format data frame with one row per
@@ -49,4 +54,16 @@ convention so that \code{tidybayes::spread_draws()} and
 returned data frame. Actor and period names from \code{fit$Y}'s
 dimnames are carried forward into the \code{actor_i},
 \code{actor_j}, \code{period_label} columns.
+}
+\examples{
+set.seed(1)
+n <- 12; Tt <- 3
+Y <- lapply(seq_len(Tt), function(t) {
+  m <- matrix(rnorm(n * n), n, n); diag(m) <- NA; m
+})
+# chains = 1 keeps the example short; the default runs two chains and compares them
+fit <- lame(Y, R = 1, nscan = 20, burn = 5, odens = 1, verbose = FALSE, chains = 1)
+draws <- prediction_draws_long(fit, n_draws = 10, seed = 1)
+head(draws)
+
 }

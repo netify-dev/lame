@@ -15,17 +15,23 @@ vignette: >
 ---
 
 ```{r setup, include = FALSE}
+# the models run when the tarball is built; R CMD check re-knits only the text
+run_vignette <- !nzchar(Sys.getenv("_R_CHECK_PACKAGE_NAME_"))
+if (!run_vignette) knitr::knit_hooks$set(evaluate.inline = function(code, envir) "")
 knitr::opts_chunk$set(
+	fig.retina = 1,
+	dpi = 72,
 	collapse = TRUE,
-	comment = "#>"
+	comment = "#>",
+	eval = run_vignette
 )
 library(lame)
 ```
 
 ## When to use the fast estimator
 
-`ame()` and `lame()` fit AME models by Bayesian MCMC, which gives calibrated
-posterior inference but can take minutes. For rapid model exploration, trying several ranks, screening covariates, or getting starting values, the
+`ame()` and `lame()` fit AME models by Bayesian MCMC, which provides posterior
+samples and can take minutes. For rapid model exploration, trying several ranks, screening covariates, or getting starting values, the
 package also ships a fast, MCMC-free point estimator:
 
 - `ame_als()`: cross-sectional networks
@@ -36,78 +42,67 @@ It fits the same model
 
   z_ij = mu + beta'x_ij + a_i + b_j + u_i'v_j + e_ij
 
-by **iterative block coordinate descent** rather than Gibbs sampling. It is
-typically tens to hundreds of times faster than `ame()`, and the point
-estimates are usually close. Use it when a point estimate is enough; use
+by **iterative block coordinate descent** rather than Gibbs sampling. For
+normal, binary and Poisson outcomes, static and dynamic, the default is an
+empirical-Bayes / variational estimator of the model that `ame()` and `lame()`
+sample (see below), which also returns Laplace standard errors. It is
+intended for fast exploration and initialization; runtime depends on the
+model, convergence tolerance and any bias-correction refits. Use it when a point estimate is enough; use
 `ame()` / `lame()` when the target is a posterior summary.
 
-### Wall-clock benchmark
+### Measuring runtime
 
-The numbers below are indicative for normal-family AME with `R = 2`;
-absolute timings depend heavily on CPU, BLAS, and whether you are on a
-high-clock workstation or a virtualised / WSL host. On the dev box
-(WSL2, single-threaded BLAS) the same benchmark ran roughly 2-4× slower
-than the workstation reference column, so treat these as order-of-
-magnitude. The point estimator scales O(n² · iter) per BCD pass and is
-dominated by the linear system at each block; the MCMC scales similarly
-per iteration but pays the constant of running thousands of iterations.
-The "ratio" column is what you actually feel: the ALS fit completes
-before MCMC finishes its burn-in for any reasonable n.
+ALS finishes when its optimization checks pass; MCMC runs for the requested
+sampling budget and needs separate convergence checks. A ratio of their times
+therefore compares those computations, not equal inferential precision.
+Family, rank, smoothing, initialization and network density all affect cost.
 
-| n   | `ame()` MCMC (4000 iter) | `ame_als()` | Speed ratio |
-|-----|--------------------------|-------------|-------------|
-| 50  | 5-25 s                   | 0.1-0.5 s   | 25-250×     |
-| 100 | 15-50 s                  | 0.3-1 s     | 30-200×     |
-| 200 | 60-120 s                 | 2-3 s       | 30-60×      |
-| 500 | 7-15 min                 | 15-30 s     | 25-40×      |
+The likelihood-score checks, objective-preserving refinement and bias
+correction can require additional work. A corrected fit includes two half-sample
+fits, and a bootstrap repeats the entire selected estimator for each replicate.
+Use the fitted convergence diagnostics when comparing runtimes.
 
-These ranges are wide on purpose: under a single-threaded BLAS on a
-virtualised host, the small-n speed ratios we have measured are several
-times larger than the "≈ 30×" figure in older docs, because the
-MCMC's per-iteration overhead is fixed and the ALS solve is nearly free
-at n ≤ 100. Treat the ratio as "ALS finishes before MCMC's burn-in"
-rather than a number to plan against.
-
-For binary/poisson the **point-estimate** speedup ratio is much smaller
-(often only 3-10× on small networks) because the IRLS path runs 3-5
-reweighting iterations per fit, and because the MCMC binary sampler is
-itself cheaper per iteration than the normal sampler. Bipartite and
-unipartite ALS run at broadly similar cost for comparable dimensions;
-which is faster depends on the exact shape and hardware, so do not read
-much into small differences.
-
-**The bootstrap can dominate.** A `bootstrap = 100` parametric bootstrap
-runs the full ALS fit 101 times. For a binary `ame_als(R = 1, bootstrap = 100)`
-at n = 50, we measured ≈ 135 s -- slower than the equivalent MCMC fit.
-If you only need the point estimate, skip the bootstrap (`bootstrap = 0`,
-the default) and use the sandwich `vcov()`/`confint()` on the fit. If
-you need interval estimates at scale, compare the bootstrap cost with a
-regular `ame()` MCMC run; for some binary networks the MCMC fit is cheaper --
-and for binary `R > 0` it is also the statistically preferred choice, since
-the bootstrap inherits the point estimator's finite-sample upward bias (see
-Non-normal families below).
-
-To benchmark on your own hardware:
+The following example times a normal point fit and a fixed MCMC budget of
+2,000 retained draws on your hardware.
 
 ```{r benchmark_self, eval = FALSE}
 set.seed(1)
 n <- 100
-Y <- matrix(rnorm(n*n), n, n); diag(Y) <- NA
+Y <- matrix(rnorm(n * n), n, n)
+diag(Y) <- NA
 rownames(Y) <- colnames(Y) <- paste0("a", sprintf("%03d", 1:n))
 
-t_als <- system.time(ame_als(Y, R = 2, family = "normal", verbose = FALSE))
-t_mcmc <- system.time(ame(Y, R = 2, family = "normal", burn = 500,
-						  nscan = 4000, odens = 25, verbose = FALSE, plot = FALSE))
-cat("ALS:  ", round(t_als["elapsed"], 2), "s\n",
-    "MCMC: ", round(t_mcmc["elapsed"], 2), "s\n",
-    "ratio:", round(t_mcmc["elapsed"] / t_als["elapsed"], 1), "x\n")
+t_als <- system.time(
+	fit_als <- ame_als(Y, R = 2, family = "normal", verbose = FALSE)
+)
+stopifnot(fit_als$converged)
+t_mcmc <- system.time(
+	fit_mcmc <- ame(
+		Y,
+		R = 2,
+		family = "normal",
+		burn = 500,
+		nscan = 2000,
+		odens = 1,
+		seed = 1,
+		verbose = FALSE,
+		plot = FALSE
+	)
+)
+packageVersion("lame")
+data.frame(
+	method = c("ALS", "MCMC: 2500 iterations"),
+	elapsed_seconds = c(t_als["elapsed"], t_mcmc["elapsed"])
+)
 ```
 
 ### What ALS can do vs. what only MCMC does
 
 ALS is a fast point estimator. It covers most static AME workflows and several
 dynamic workflows, while posterior-specific features still require the Bayesian
-MCMC fits. The current coverage is:
+MCMC fits. The MCMC side of the bipartite and dynamic rows is described in the
+[bipartite article](https://netify-dev.github.io/lame/articles/bipartite.html) and the
+[dynamic effects article](https://netify-dev.github.io/lame/articles/dynamic_effects.html). The current coverage is:
 
 | Capability                                | `ame()` / `lame()` (MCMC) | Fast point estimators |
 |-------------------------------------------|---------------------------|-----------------------|
@@ -120,21 +115,20 @@ MCMC fits. The current coverage is:
 | Xrow / Xcol / Xdyad covariates            | yes                        | yes                         |
 | Reproducibility via `seed=`               | yes                        | yes (deterministic ALS)     |
 | `coef`, `vcov`, `fitted`, `residuals`     | yes                        | yes                         |
-| `confint`                                 | posterior quantile         | sandwich Wald OR bootstrap  |
+| `confint`                                 | posterior quantile         | Wald from the Laplace covariance (sandwich for a fixed-effects fit) OR bootstrap |
 | `predict(newdata=)`                        | yes                        | yes                         |
-| `summary`, `print`, `latent_positions`    | yes                        | yes                         |
+| `summary`, `print`, `latent_positions`    | yes                        | yes (`NA` positions for a withheld product) |
 | `nobs`                                    | yes                        | yes                         |
 | `simulate`                                | yes                        | yes                         |
-| `gof_plot`                                | posterior predictive       | bootstrap-based GOF check   |
-| `ab_plot`, `uv_plot`                      | yes                        | yes                         |
+| `gof_plot`                                | posterior predictive       | conditional simulation check |
+| `ab_plot`, `uv_plot`                      | yes                        | yes (`uv_plot` refuses a withheld product) |
 | `prior_summary`                           | yes                        | yes (reports "no priors")   |
-| `dynamic_ab` / selected `dynamic_beta`    | yes                        | normal, binary, and Poisson panels via dynamic ALS; named changing-composition panels are aligned |
+| `dynamic_ab` / selected `dynamic_beta`    | yes                        | normal, binary, and Poisson panels via dynamic ALS (normal, binary and Poisson fits are empirical-Bayes fits by default); named changing-composition panels are aligned |
 | Dynamic node-covariate coefficient paths  | yes                        | period-specific node values when selected by `dynamic_beta`; static node effects use actor means |
-| `dynamic_uv` (smooth AR(1) / t)           | yes                        | AR(1) and t for directed, symmetric, and bipartite panels |
-| `dynamic_G`                               | yes                        | bipartite normal, binary, and Poisson panels via dynamic ALS; named changing-composition panels are aligned |
-| `dynamic_uv_kind = "snap"`                | yes                        | `lame_snap_als()` for normal unipartite and bipartite panels |
-| Custom priors (`prior = list(...)`, `g`)  | yes                        | no Bayesian priors; dynamic ALS reads selected `prior$rho_*_mean` and `prior$lambda_*_als` values as smoothing controls |
-| Multi-chain (`n_chains`, via `ame_parallel`) | yes                     | no (use `bootstrap = N`)    |
+| `dynamic_uv` (smooth AR(1) / t)           | AR(1) for all panels; t for directed panels | AR(1) for directed, symmetric, and bipartite panels; t for directed and symmetric panels |
+| `dynamic_uv_kind = "snap"`                | directed panels            | no; use the MCMC snap kind or `"ar1"` |
+| Custom priors (`prior = list(...)`, `g`)  | yes                        | static ALS (`ame_als()`, `lame_als()`): `prior$s20` only, the scale of the noise-variance prior of a normal or Poisson fit; dynamic empirical-Bayes fits (normal, binary, Poisson) read the `lame()` hyperprior entries of `prior` in their EM; penalised dynamic fits (`bias_correct = "none"`) read `prior$rho_*_mean` and `prior$lambda_*_als` as smoothing controls |
+| Multi-chain (`chains`, default 2)          | yes                        | no (one point fit; use `bootstrap = N`) |
 | `posterior_opts` (save U/V/a/b samples)   | yes                        | no (point estimator)        |
 | `trace_plot` (Rhat / ESS)                 | yes                        | no (deterministic)          |
 | `custom_gof`, `periodic_save`             | yes                        | no                           |
@@ -145,41 +139,44 @@ arguments each entry point actually accepts. Two notes on the edges:
 
 - `nscan` / `burn` / `odens` / `g` are accepted-then-ignored with a warning
   by both `ame(method = "als")` and `lame(method = "als")`.
-- The static ALS dispatcher warns and ignores MCMC tuning arguments such
-  as `nscan`, `burn`, `odens`, prior settings not used by the fast path,
-  and `g`. Dynamic ALS has no posterior priors, but it does use selected
-  entries in `prior` as deterministic smoothing controls
-  (`prior$rho_ab_mean`, `prior$rho_beta_mean`, `prior$rho_uv_mean`,
-  `prior$rho_G_mean`, and `prior$lambda_*_als`). Dynamic requests are stricter: supported `dynamic_ab`,
-  selected `dynamic_beta`, AR(1) or t `dynamic_uv`, and bipartite `dynamic_G`
-  requests route to dynamic ALS for
-  normal, binary, and Poisson panels. Named changing-composition panels are
-  aligned to the union actor set and actor-entry gaps break the smoothing
-  penalties. Student-t dynamic
-  UV fits attach final local transition-weight matrices as `fit$lambda_u`
-  and `fit$lambda_v`. `lame(method = "als", dynamic_uv = TRUE,
-  dynamic_uv_kind = "snap")` routes to
-  `lame_snap_als()` for supported normal unipartite and bipartite panels; unsupported
-  dynamic stacks raise a specific error rather than being silently
-  ignored. Use `als_max_iter`, `als_tol`, and `als_stability` for longer
-  dynamic ALS runs and start-sensitivity checks.
+- The static ALS dispatcher warns and ignores MCMC tuning arguments such as
+  `nscan`, `burn`, `odens`, prior settings not used by the fast path, and `g`.
+  Dynamic ALS has no posterior draws. The dynamic empirical-Bayes fit of a
+  normal, binary or Poisson panel reads the hyperprior entries of `lame()` in
+  `prior` (`prior$rho_ab_mean`, `prior$sigma_ab_scale`, `prior$Sab0`,
+  `prior$s20` for normal and count responses, and the like) in its EM and
+  refuses `prior$lambda_*_als`; the penalised dynamic fits
+  (`bias_correct = "none"` or `"jackknife"`) use selected entries as
+  deterministic smoothing controls (`prior$rho_ab_mean`,
+  `prior$rho_beta_mean`, `prior$rho_uv_mean`, and `prior$lambda_*_als`).
+  Dynamic requests are stricter: supported `dynamic_ab`, selected
+  `dynamic_beta`, AR(1) `dynamic_uv`, and t `dynamic_uv` on directed and
+  symmetric panels route to dynamic ALS for normal, binary, and Poisson
+  panels. Named changing-composition panels are aligned to the union actor set
+  and actor-entry gaps break the smoothing penalties. Student-t dynamic UV
+  fits attach final local transition-weight matrices as `fit$lambda_u` and
+  `fit$lambda_v`. The snap kind, the t kind on bipartite panels, and other
+  unsupported dynamic stacks raise a specific error, naming the route that
+  fits them, rather than being silently ignored. Use `als_max_iter`,
+  `als_tol`, and `als_stability` for longer dynamic ALS runs and start-
+  sensitivity checks.
 - Passing longitudinal-only arguments such as `dynamic_uv`,
   `dynamic_ab`, or `dynamic_beta` to `ame()` (cross-sectional) raises
   the usual "longitudinal-only argument" error before ALS runs, because
   they are not valid `ame()` arguments at all.
-- `n_chains` is an `ame()` / `ame_parallel()` argument; it is not a
-  `lame()` formal, so `lame(method = "als", n_chains = ...)` raises an
-  "unused argument" error rather than a warn-and-ignore. Use
-  `bootstrap = N` for ALS uncertainty regardless of entry point.
+- `chains` is an MCMC argument: `ame(method = "als")` and `lame(method = "als")`
+  fit one point estimate and ignore it. Use `bootstrap = N` for ALS
+  uncertainty regardless of entry point.
 
 ## A first fit
 
 ```{r}
 set.seed(1)
-n  <- 40
-a  <- rnorm(n, 0, 0.5); b <- rnorm(n, 0, 0.5)
+n <- 40
+a <- rnorm(n, 0, 0.5); b <- rnorm(n, 0, 0.5)
+u <- rnorm(n, 0, 0.8); v <- rnorm(n, 0, 0.8) # a rank-one latent term
 Xd <- matrix(rnorm(n * n), n, n)
-Y  <- 0.5 + 0.8 * Xd + outer(a, b, "+") + matrix(rnorm(n * n), n, n)
+Y <- 0.5 + 0.8 * Xd + outer(a, b, "+") + tcrossprod(u, v) + matrix(rnorm(n * n), n, n)
 diag(Y) <- NA
 
 fit <- ame_als(Y, Xdyad = Xd, R = 1, family = "normal", verbose = FALSE)
@@ -188,64 +185,467 @@ fit
 
 `coef()`, `fitted()`, `residuals()`, `predict()` and `plot()` all work as for
 any model object. The printed variance components (`va`, `vb`, `cab`, `rho`,
-`ve`) are descriptive summaries of the fitted effects, not random-effect
-variance components.
+`ve`) are point estimates. Their construction accounts for the fitted mean
+model and, where supported, finite-sample bias. They do not carry posterior
+uncertainty; raw actor-variance summaries are retained separately.
+
+### The default estimator of a normal response
+
+A normal fit is the empirical-Bayes estimator of the model that `ame()` and
+`lame()` sample, with the one cell in which every step is exact. The Gaussian cell
+has a constant information, so the Laplace approximation of the coefficients and
+the additive effects is exact: at `R = 0` the fit is the posterior mean of the
+linear Gaussian model at its fitted hyperparameters and `vcov()` is its
+generalised-least-squares covariance. The variance of the noise
+(`fit$VC["ve"]`), the covariance of the actor effects and, for a directed
+network, the dyadic correlation (`fit$VC["rho"]`; the two cells of a dyad are one
+bivariate normal observation) are estimated under the samplers' priors, and the
+multiplicative effects are the variational posterior of the other families.
+`vcov()` and `confint()` cover every coefficient, node covariates included:
+
+```{r normal-eb}
+round(cbind(estimate = coef(fit), se = fit$eb$se), 3)
+round(fit$VC, 3)
+```
+
+Against the posterior means of `ame()` and `lame()` (55 simulated networks of 30
+to 50 actors, ranks 0 to 3, all three modes) the coefficients are within 0.28
+posterior standard deviations and the standard errors are 0.91 to 1.05 times the
+posterior standard deviations; in repeated sampling (4,100 networks) the 95
+percent intervals cover 95.2 percent of the true coefficients. `bias_correct =
+"none"` returns the fixed-effects least-squares fit of the earlier releases with
+the conditional sandwich covariance of the intercept and the dyadic coefficients.
 
 ## Choosing the rank R
 
-There is no information criterion for `R`. Fit a few values and look for an
-elbow in the deviance / SSE:
+A fit by empirical Bayes (the default for normal, binary and Poisson data)
+reports `fit$eb$log_marginal`, the Laplace approximation, at the posterior mode,
+to the log marginal likelihood of the data with the effects and the factors
+integrated out. It does not fall with every added dimension as the deviance
+does, so the rank with the largest value is the one the data support and the
+difference between two ranks is an approximate log Bayes factor:
 
 ```{r}
-devs <- sapply(0:3, function(r)
-	ame_als(Y, Xdyad = Xd, R = r, family = "normal",
-	            verbose = FALSE)$deviance)
-data.frame(R = 0:3, deviance = round(devs, 1))
+ev <- sapply(
+	0:3,
+	function(r)
+		ame_als(
+			Y,
+			Xdyad = Xd,
+			R = r,
+			family = "normal",
+			verbose = FALSE
+		)$eb$log_marginal
+)
+data.frame(R = 0:3, log_marginal = round(ev - ev[1], 1))
 ```
 
-If the curve declines smoothly with no clear elbow, keep `R` small and confirm
-the chosen rank with an `ame()` fit.
+The fixed-effects fits (`bias_correct = "none"`) have no such value. Fit a few
+ranks and look for an elbow in the deviance / SSE; if the curve declines smoothly
+with no clear elbow, keep `R` small and confirm the chosen rank with an `ame()`
+fit.
+
+For binary data, in a simulation of 1,040 networks the rank with the largest
+value was the generating rank in every network with at least 10 events per
+factor loading and in 95 percent of those with 3 to 10; with fewer events the
+data do not determine the rank. Take the lowest rank whose value is within one
+unit of the largest: it named the generating rank in 96, 54 and 60 percent of
+the networks with 3 to 10, 1 to 3 and fewer than 1 events per loading, against
+95, 49 and 35 percent for the largest value. For normal data the measure of the
+information is the signal of the product in noise variances per loading
+(`fit$eb$variational$information`). In a simulation of 252 networks of 40
+actors the rank with the largest value was the generating rank in every network
+with at least 8 noise variances of signal per loading, in 95 percent of those
+with 4 to 8 and in 89 percent with 2 to 4. Below 2.1 the data do not determine
+the product at that rank: the sampler's posterior mean product is shrunk
+towards zero and the variational mean is not (1.01 to 6.9 times its norm on 50
+simulated networks, against 0.99 to 1.15 from 2.1). Such a fit withholds the
+product: `fit$U`, `fit$V`, `fit$UVPM` and the positions of `latent_positions()`
+are `NA`, `fit$eb$product_withheld` records the statistic and the log marginal
+likelihood of every rank up to the fitted one, and the print names the rank
+they choose. The coefficients, their standard errors, the variance components,
+`fitted()`, `predict()` and `residuals()` are reported as usual.
+
+Binary and count fits follow the same rule. Their statistic,
+`signal_per_loading`, weighs the squared product by the information of each
+cell. The number of events per loading does not measure it: a binary fit with
+5.6 ties per loading can still be all noise. On 118 simulated networks the
+products below 2.1 were up to 6.2 (binary) and 7.5 (counts) times the
+sampler's norm, and they are withheld. From 2.1 a count product is 0.94 to
+1.12 times the sampler's. A binary product is 0.83 to 1.00 times it, because
+the variational posterior shrinks a binary product somewhat more than the
+sampler does. The slopes and their standard errors are unaffected.
+
+The dynamic estimator of a normal panel (`lame(method = "als")` with dynamic
+effects, coefficients or positions) withholds in the same way. Static factors
+use the threshold of 2.1. Moving positions use 1.3 per loading of a period:
+below it their products were up to 11 times `lame()`'s on simulated panels.
 
 ## Non-normal families
 
 For `binary` and `poisson` data the default `non_normal_method = "irls"` runs
 an iteratively reweighted least squares loop, returning coefficients on the
-calibrated link scale (probit for binary, log for poisson). The alternative
+likelihood link scale (probit for binary, log for poisson). The alternative
 `non_normal_method = "transform"` is faster but its coefficients are on an
 uncalibrated rank scale, good for the sign and ranking of effects but not their
 magnitude.
 
-One caveat for binary fits with `R > 0`: the factor block is a penalized
-(MAP-style) point estimate, and a residual finite-sample
-(incidental-parameters) upward bias in the coefficients remains -- roughly
-+10-15% at n = 50, shrinking with n, and largest when `R` is set higher than
-the data support. The bootstrap reproduces rather than removes this bias, and
-`ame_als()` prints a reminder when `verbose = TRUE`. The binary examples in
-this vignette use `R = 0`, which does not trigger this caveat; for final
-binary coefficient inference at `R > 0`, use the MCMC `ame()`.
+A fixed-effects binary fit estimates every sender and receiver effect and
+every latent position from its own actor's cells, which stretches the latent
+scale outward in finite samples (the incidental-parameters problem) and leaves
+an actor without a tie with no finite effect. The default
+`bias_correct = NULL` therefore fits a binary model by empirical Bayes: the
+actor effects get the Gaussian prior that `ame()` and `lame()` place on them,
+its covariance is estimated from the data, and the coefficients solve the
+Laplace-marginal estimating equations. A penalised reweighted fit gives the
+posterior mode, and a variational stage then replaces the mode of the effects
+and of the latent factors by the mean of a Gaussian variational posterior,
+with the variance of the latent product carried through the likelihood: the
+mode of a factor that the data barely identify is too large, and that inflates
+the slope of a covariate that follows it. The scale of the prior of the factors,
+which the data inform weakly where there are few events per loading, is
+estimated from the cavity covariances of the rows, which approximate the
+covariances of their exact posterior, and not from the smaller mean-field ones
+that drive it to zero; the standard errors carry its uncertainty and
+`fit$eb$variational$scale` records it. There is no refitting. Every actor
+keeps a finite effect (an actor without a tie is shrunk, not dropped), `vcov()`
+and `confint()` return Laplace standard errors for every coefficient,
+node-covariate coefficients included, and `va`, `cab` and `vb` are the
+estimated covariance of the random effects. The effects `a` and `b` are not
+re-centred, and the intercept is the population intercept. `fit$eb$estimator`
+says which estimator produced the values. A latent rank that the data do not
+support is not refused: the fit retires the weakest latent column, repeats at the
+next rank down until its iteration settles, and says so (`fit$R` is the rank of
+the fit, `fit$R_requested` the rank asked for and `fit$eb$retirement` the record);
+an iteration that does not settle with no column left is refused. See `?ame_als`
+for the simulation results. The estimator covers directed, bipartite and
+undirected networks, with or without a latent rank. `fitted()` and `predict()`
+of a binary fit return predictive probabilities: the link integrated over the
+posterior of the linear predictor instead of applied to its mean, which keeps
+the probability of a rare held-out event away from zero; `plug_in = TRUE`
+returns the plug-in values. A count fit returns the plug-in mean count, as the
+samplers do (the posterior predictive mean of a count is not finite in this
+model); `plug_in = FALSE` returns the mean that integrates the predictor.
+
+A directed binary probit fit also models the dyadic correlation, as `ame()` and
+`lame()` do with `dcor = TRUE` (the default for directed networks): the two
+cells of a dyad are one bivariate probit observation, `fit$VC["rho"]` is the
+correlation of that model (its posterior standard deviation is in
+`fit$rho_estimation`), and the latent factors are not asked to absorb
+reciprocity. `dcor = FALSE` fits independent cells, as the earlier release did.
+The pair likelihood costs about one to two and a half times the independent-cell
+fit for one period and two to four and a half times for four periods.
+
+A Poisson fit by the default `bias_correct = NULL` is the same estimator for the
+model that `ame()` and `lame()` sample for counts: a count is
+`Poisson(exp(z))` with `z` the linear predictor plus a normal noise of variance
+`ve`, which the fit estimates, as it does the covariance of the effects, by maximising the
+marginal likelihood (`fit$VC["ve"]`).
+The cell integrates the noise out, so the likelihood, the score and the
+information of a count are those of the Poisson-lognormal distribution, and the
+fixed-effects Poisson fit's failure with an actor that has no count (its effect
+runs to minus infinity) does not arise: the effect is finite and shrunk, as in the
+sampler. The linear predictor `EZ` is on the latent log scale, the mean of a count
+is `exp(EZ + ve / 2)`, which `fitted()` and `predict()` return as the samplers do
+(`plug_in = FALSE` gives the mean that integrates the uncertainty of the
+predictor). A directed count fit also takes the two counts of a dyad as
+one observation at its fitted state (`dcor = TRUE`, the default): `fit$VC["rho"]`
+is the correlation of the pair model, and the information of the pairs enters `vcov()`,
+which matters for a covariate that is the same in both cells of a dyad.
+With a latent rank and fewer than about three nonzero counts per loading
+(`fit$eb$variational$information`, which `print()` reports) the data barely
+inform the product: the fit shrinks it more than the sampler does (its norm is
+0.95 to 0.98 of that of the `lame()` posterior mean product from 2.6 nonzero
+counts per loading and 0.80 to 0.90 up to 2.1), the slopes and their
+intervals are not affected, and `ve` is within 0.41 posterior standard
+deviations of the sampler's on 22 networks of 1.1 to 6.6 nonzero counts per
+loading. A binary or count fit whose iteration does not settle at the rank asked
+for retires its weakest latent column and fits the next rank down (`fit$R` is
+the rank fitted, `fit$R_requested` the rank asked for; `?ame_als` gives the
+numbers).
+`bias_correct = "none"` returns the fixed-effects fit of the earlier releases.
+The next example has an actor that sends no count and one that receives none:
+
+```{r poisson-eb}
+set.seed(4)
+nc <- 30
+xc <- matrix(rnorm(nc * nc), nc, nc)
+ac <- rnorm(nc, 0, 0.7); bc <- rnorm(nc, 0, 0.7)
+Yc <- matrix(
+	rpois(
+		nc * nc,
+		exp(
+			-0.3 + 0.5 * xc + outer(ac, bc, "+") +
+				rnorm(nc * nc, 0, 0.6)
+		)
+	),
+	nc,
+	nc
+)
+# one actor sends no counts and another receives none
+Yc[2, ] <- 0; Yc[, 5] <- 0
+diag(Yc) <- NA
+fc <- ame_als(Yc, Xdyad = xc, R = 0, family = "poisson", verbose = FALSE)
+round(c(coef(fc), ve = fc$VC[["ve"]]), 3)
+round(c(sender = fc$a[2], receiver = fc$b[5]), 2)
+fx <- tryCatch(
+	ame_als(
+		Yc,
+		Xdyad = xc,
+		R = 0,
+		family = "poisson",
+		bias_correct = "none",
+		verbose = FALSE
+	),
+	lame_als_convergence = function(e) e
+)
+class(fx)[1]
+fx$state$termination
+```
+
+The empirical-Bayes fit keeps the actors with no count finite: their effects are
+shrunk toward the rest of the network, as in the sampler. The fixed-effects fit
+has no finite solution for these data, because the effect of an actor without a
+count runs to minus infinity. The call stops with an error of class
+`lame_als_convergence` that gives the stop, the score against its threshold and
+the remedy (the default estimator, or a smaller `R`). A fixed-effects fit is
+returned only when it has converged, never at its last iterate.
+
+`bias_correct = "none"` returns the fixed-effects fit, and `"jackknife"` and
+`"bootstrap"` ask for the two corrections of that fit. The split-sample
+jackknife refits the model on two interleaved halves of the cells and reports
+each estimate as twice the full value minus the mean of the two halves; it
+needs two or more periods at `R = 0` and five or more at `R > 0`, or a single
+cross-section at `R = 0` with at least 25 rarer-outcome cells per actor. The
+parametric-bootstrap correction simulates the bias from the fitted model
+(about 60 refits) and reaches the networks the jackknife does not. Both keep
+the uncorrected values in `fit$raw`. The bias of the fixed-effects fit falls
+as one over the number of observed cells per actor times the share of the
+rarer outcome; `?ame_als` gives the size from which it is within 2 percent on
+the coefficients and 5 percent on `va` / `vb`.
 
 ```{r}
 set.seed(2)
-Yb <- 1 * (Y > median(Y, na.rm = TRUE)); diag(Yb) <- NA
-fb <- ame_als(Yb, Xdyad = Xd, R = 0, family = "binary", verbose = FALSE)
+nb <- 80
+ab <- rnorm(nb, 0, 0.5); bb <- rnorm(nb, 0, 0.5)
+Xb <- matrix(rnorm(nb * nb), nb, nb)
+Yb <- 1 * (0.8 * Xb + outer(ab, bb, "+") + matrix(rnorm(nb * nb), nb, nb) > 0)
+diag(Yb) <- NA
+fb <- ame_als(Yb, Xdyad = Xb, R = 0, family = "binary", verbose = FALSE)
 coef(fb)
+fb$bias_correct$method
+sqrt(diag(vcov(fb)))
+```
+
+### Dynamic binary fits
+
+A dynamic binary fit (`dynamic_ab`, `dynamic_beta`, or `dynamic_uv` of the
+`"ar1"` or `"t"` kind, with static or moving latent positions) is by default an
+empirical-Bayes fit. The actor levels and the AR(1) deviation paths are random
+effects, the persistences and innovation scales are estimated by EM under the
+hyperpriors of `lame()` (`fit$rho_ab`, `fit$sigma_ab`, `fit$rho_uv`,
+`fit$sigma_uv`) instead of being set by smoothness penalties, moving positions
+have a mean-field posterior (`fit$U`, `fit$U_sd`, `fit$UVPM`), and the
+coefficients come with Laplace standard errors (`vcov()`, `confint()`,
+`fit$eb$se`). A directed panel gets the dyadic correlation of `lame()`
+(`dcor = FALSE` to skip it). `bias_correct = "none"` gives the penalised point
+estimate of the earlier releases, with `rho_ab` held at the prior mean.
+`fitted()`, `predict(type = "response")` and `residuals()` return the predictive
+probability, the link integrated over the posterior of the linear predictor, as
+the samplers and the static estimator do; `plug_in = TRUE` returns the plug-in
+probability.
+
+```{r dynamic-eb}
+set.seed(6)
+nd <- 30; Td <- 6
+nmd <- paste0("a", sprintf("%02d", 1:nd))
+ad <- rnorm(nd, 0, 0.6); bd <- rnorm(nd, 0, 0.6)
+Yd <- lapply(seq_len(Td), function(t) {
+	eta <- -0.6 + outer(ad, bd, "+") + matrix(rnorm(nd * nd, 0, 0.3), nd)
+	m <- 1 * (eta + matrix(rnorm(nd * nd), nd) > 0)
+	diag(m) <- NA
+	dimnames(m) <- list(nmd, nmd)
+	m
+})
+fd <- lame(
+	Yd,
+	family = "binary",
+	method = "als",
+	dynamic_ab = TRUE,
+	verbose = FALSE
+)
+fd$bias_correct$method
+round(c(rho_ab = fd$rho_ab, sigma_ab = fd$sigma_ab), 2)
+fd0 <- lame(
+	Yd,
+	family = "binary",
+	method = "als",
+	dynamic_ab = TRUE,
+	bias_correct = "none",
+	verbose = FALSE
+)
+round(c(rho_ab = fd0$rho_ab, sigma_ab = fd0$sigma_ab), 2)
+```
+
+A moving-position fit without the dyadic correlation (`dcor = FALSE`) takes
+seconds to a minute or two on panels of 20 to 120 actors, and about 1.4 to 2.7
+times as long with it, which is `lame()`'s default for a directed network (the
+sampler: 7 to 30 minutes). A bootstrap (`bootstrap > 0`) is refused with an
+error of class `lame_dynamic_eb_unsupported`, and so are the smoothness
+penalties `prior$lambda_ab_als`, `prior$lambda_beta_als` and
+`prior$lambda_uv_als`, which the estimator replaces by estimates;
+`bias_correct = "none"` accepts them.
+
+### Dynamic Poisson fits
+
+A dynamic Poisson fit (`dynamic_ab`, `dynamic_beta` or `dynamic_uv`) is by
+default an empirical-Bayes fit of the Poisson-lognormal model that `lame()`
+samples: counts are Poisson given `exp(z)`, with `z` the linear predictor plus
+noise of variance `ve`. The variance of the noise, the covariance of the actor
+levels and the persistence and innovation scale of the paths are estimated from
+the data (`VC["ve"]`, `fit$eb$sab`, `fit$rho_ab`, `fit$sigma_ab`), the
+coefficients come with Laplace standard errors, and a directed panel gets the
+dyadic correlation of `lame()` (`fit$eb$pair`, `dcor = FALSE` to skip it).
+Actors without a count in a period, or at all, have finite effects. The linear
+predictor and the intercept are on the latent scale; `fitted()` and `predict()`
+return `exp(EZ + ve / 2)`.
+
+Use `bias_correct = "none"` for the penalised fit of the earlier releases (fixed
+smoothness penalties, a moment estimate of `ve`) and
+`bias_correct = "jackknife"` for its split-sample variance and reciprocity
+correction (directed panels with static coefficients, at least four actors, and
+rank zero or AR(1) positions: two complementary halves retain each reciprocal
+dyad's complete history; the estimates combine as twice the full estimate minus
+the observation-fraction-weighted half estimates, then obey the variance and
+correlation bounds; `fit$raw` retains the original summaries and
+`fit$bias_correct` the unrestricted moments, boundary decisions and every
+half-fit convergence attempt). Warm refits preserve the choice. A bootstrap is
+not offered for the empirical-Bayes estimator; use
+`lame(..., start_vals = als_start_vals(fit))` for posterior summaries.
+
+### Dynamic normal fits
+
+A dynamic normal fit (`dynamic_ab`, `dynamic_beta` or `dynamic_uv`) is by
+default an empirical-Bayes fit of the Gaussian model that `lame()` samples,
+`y = eta + e` with `e ~ N(0, ve)` (the two residuals of a dyad are correlated by
+`rho` on a directed panel; `dcor = FALSE` skips it). The cell is Gaussian, so the
+posterior of the coefficients, the levels and the paths at the hyperparameters is
+exact: the standard errors (`vcov()`, `confint()`, `fit$eb$se`) are the marginal
+ones given the hyperparameters, and no bootstrap is offered. The residual
+variance, the covariance of the actor levels and the persistence and innovation
+scale of the paths are estimated from the data (`VC["ve"]`, `fit$eb$sab`,
+`fit$rho_ab`, `fit$sigma_ab`). The reported intercept is the population
+intercept, whose standard error is much larger than that of the period-centred
+intercept of `lame()`: compare the coefficients of covariates.
+`bias_correct = "none"` gives the penalised fit of the earlier releases, with
+`rho_ab` held at the prior mean.
+
+```{r dynamic-eb-normal}
+set.seed(7)
+nn <- 30; Tn <- 6
+nmn <- paste0("a", sprintf("%02d", 1:nn))
+an <- rnorm(nn, 0, 0.6); bn <- rnorm(nn, 0, 0.6)
+xn <- lapply(
+	seq_len(Tn),
+	function(t)
+		array(rnorm(nn * nn), c(nn, nn, 1), dimnames = list(nmn, nmn, "x"))
+)
+Yn <- lapply(seq_len(Tn), function(t) {
+	m <- 0.3 + 0.7 * xn[[t]][, , 1] + outer(an, bn, "+") +
+		matrix(rnorm(nn * nn, 0, 0.8), nn)
+	diag(m) <- NA
+	dimnames(m) <- list(nmn, nmn)
+	m
+})
+fn <- lame(
+	Yn,
+	Xdyad = xn,
+	family = "normal",
+	method = "als",
+	dynamic_ab = TRUE,
+	verbose = FALSE
+)
+fn$bias_correct$method
+round(cbind(estimate = coef(fn), se = fn$eb$se), 3)
+round(c(fn$VC[c("ve", "rho")], rho_ab = fn$rho_ab, sigma_ab = fn$sigma_ab), 3)
+fn0 <- lame(
+	Yn,
+	Xdyad = xn,
+	family = "normal",
+	method = "als",
+	dynamic_ab = TRUE,
+	bias_correct = "none",
+	verbose = FALSE
+)
+round(c(rho_ab = fn0$rho_ab, sigma_ab = fn0$sigma_ab), 2)
+```
+
+A dynamic fit of any family that does not meet its convergence criterion is not
+returned. The call stops with an error of class `lame_als_convergence` whose
+field `fit` holds the last iterate
+(`tryCatch(lame(...), lame_als_convergence = function(e) e$fit)`), and moving
+positions whose scale the panel does not identify stop it with an error of class
+`lame_dynamic_uv_scale_edge` or `lame_dynamic_uv_scale_unsettled`. The penalised
+fit (`bias_correct = "none"`) follows the same rule: it descends at every sweep
+and is returned only if it met its first-order criterion.
+
+```{r dynamic-eb-refused}
+err <- tryCatch(
+	lame(
+		Yn,
+		Xdyad = xn,
+		family = "normal",
+		method = "als",
+		dynamic_ab = TRUE,
+		als_max_iter = 2,
+		verbose = FALSE
+	),
+	lame_als_convergence = function(e) e
+)
+class(err)[1]
+class(err$fit)[1]
 ```
 
 ## Uncertainty
 
-The point estimator carries no uncertainty. Use the bootstrap:
+A fit by the default empirical-Bayes estimator (normal, binary or Poisson)
+reports Laplace standard errors for its coefficients (`vcov()`, `confint()`,
+`summary()`): the inverse penalised information of all the parameters, factors
+included, at the cavity weights of the variational posterior (for a normal
+response, the information of the Gaussian cell), plus the part of the
+uncertainty that comes from the scale of the prior of the factors. A dynamic
+empirical-Bayes fit has Laplace standard errors too (for a normal response the
+exact Gaussian marginal ones given the hyperparameters) and refuses the
+bootstrap. For the
+variance components, the effects and the factors of a static fit, and for every
+other fit, use the bootstrap:
 
 ```{r}
-bt <- ame_als_bootstrap(fb, R = 100, type = "parametric",
-                            seed = 1, verbose = FALSE)
+bt <- ame_als_bootstrap(
+	fb,
+	R = 30,
+	type = "parametric",
+	seed = 1,
+	verbose = FALSE
+)
 summary(bt)
 ```
 
-The `Boot SE` column is the raw standard deviation across replicates, whereas
-the interval reported by `confint()` is percentile-based by default. A small
-number of unstable binary IRLS refits can inflate the raw standard deviation
-without moving the percentile limits much, so use the percentile interval
-rather than constructing a Wald interval from `Boot SE`.
+The `Boot SE` column is the standard deviation across replicates, whereas
+`confint()` reports percentile intervals by default. These summarize different
+features of the bootstrap distribution and can differ substantially when it is
+skewed. Every replicate behind these numbers has converged: a refit that has not
+converged within the iteration budget is retried at four times the budget and
+otherwise dropped, never kept in an interval, and a bootstrap that drops more
+than 5 percent of its replicates stops with an error of class
+`lame_als_bootstrap_convergence` and returns no interval from the rest
+(`bt$n_failed` and `bt$fail_reason` count the dropped ones). The original fit
+must have converged too. `ame_als_bootstrap()` needs at least 10 valid
+replicates, `bootstrap = N` in a fit needs `N >= 30`, and 200 or more give stable
+intervals. The penalised dynamic normal fit (`bias_correct = "none"`) has the
+same bootstrap and the same rules. A coefficient outside
+the central 95 percent of its own replicates is an error of class
+`lame_als_bootstrap_optimum`.
 
 One row of the variance-components table is constant by construction:
 for the binary family the latent residual variance `ve` is fixed at 1 by
@@ -254,88 +654,146 @@ is the point [1, 1] -- that row is expected, not a failed bootstrap. See
 `?ame_als` for the `ve` vs `ve_working` distinction.
 
 `type = "parametric"` (the default) simulates fresh outcomes from the fitted
-model and refits; `type = "block"` resamples time slices and is available for
-longitudinal fits with several time points. `confint()` and `vcov()` work on
-the bootstrap object.
+model and refits. `type = "block"` resamples time slices and holds the actors
+fixed; it is available for longitudinal fits with at least ten resampling
+blocks, and its intervals are read at expanded percentile levels that restore
+the coverage a plain percentile interval loses over few blocks
+(`?ame_als_bootstrap`). Because the actors are fixed, a block bootstrap returns
+no standard error or interval for the parameters that vary over actors: the
+node-covariate coefficients, `va`, `vb`, `cab` and `ve` (and, for an
+empirical-Bayes fit, the intercept and the shrunk additive effects). They are
+`NA`, `bt$withheld` and the printed summary say why, and `type = "parametric"`
+gives them. A binary fit by
+`bias_correct = "none"` has no bootstrap, because its dyadic coefficient is
+biased and every replicate reproduces the bias; bootstrap the default
+empirical-Bayes fit, or one corrected with `bias_correct = "jackknife"` or
+`"bootstrap"`, instead. A fixed-effects Poisson fit gets no interval for its
+intercept (`NA`), for the same reason. `confint()` and `vcov()` work on the
+bootstrap object.
 
-A fast analytic alternative for the **regression coefficients only** is the
-conditional sandwich covariance, `vcov()` / `confint()` applied directly to the
-fit. It is anti-conservative (it holds the additive and multiplicative effects
-fixed); the bootstrap is the recommended tool for full inference.
+An empirical-Bayes fit (the default for normal, binary and Poisson data) returns
+its Laplace covariance from `vcov()` / `confint()` for every coefficient, node
+covariates included. For a fixed-effects fit (`bias_correct = "none"`) the
+analytic alternative for the **regression coefficients only** is the conditional
+sandwich covariance, which holds the additive and multiplicative effects fixed;
+the bootstrap is the tool for inference from such a fit.
 
 ### ALS bootstrap vs MCMC posterior on the same data
 
-A useful sanity check on the fast estimator is to fit the same data
-with both engines and overlay the coefficient intervals. With a
-calibrated link (`non_normal_method = "irls"` for binary, the default)
-the ALS bootstrap should give a coefficient story qualitatively
-similar to the MCMC posterior on cases the model fits well; large
-differences mean the posterior fit is the better reference for that dataset.
+This section fits the same data with both engines and overlays the
+coefficient intervals. With the likelihood link (`non_normal_method = "irls"`
+for binary), the ALS bootstrap and the MCMC posterior are intervals for the
+same coefficients on the probit scale; where they differ, the MCMC posterior
+is the reference for that dataset.
 
 ```{r als-vs-mcmc, fig.width = 7, fig.height = 3.5, fig.alt="Side-by-side coefficient plot comparing the ALS bootstrap and MCMC posterior on the same binary network. Each coefficient (intercept and the single dyadic covariate) has two horizontal intervals: one for the ALS bootstrap, one for the MCMC posterior. A dashed vertical line at zero marks the no-effect reference; intervals on the same side of zero and with overlapping range indicate the two estimators agree."}
-# wrap Xd into a 3-D array with an explicit slice name so the ALS and MCMC
-# paths produce identical coefficient names (the auto-naming default differs
-# between the two engines)
-Xd_arr <- array(Xd, dim = c(nrow(Xd), ncol(Xd), 1),
-                dimnames = list(NULL, NULL, "Xd"))
+# a named covariate slice gives both engines the same coefficient names
+Xd_arr <- array(
+	Xb,
+	dim = c(nrow(Xb), ncol(Xb), 1),
+	dimnames = list(NULL, NULL, "Xd")
+)
 
-# refit the binary ALS fit with the bootstrap attached so tidy() returns
-# bootstrap-based intervals
-fb_b <- ame_als(Yb, Xdyad = Xd_arr, R = 0, family = "binary",
-                verbose = FALSE, bootstrap = 100, bootstrap_seed = 1)
+# binary ALS fit with 30 bootstrap replicates
+fb_b <- ame_als(
+	Yb,
+	Xdyad = Xd_arr,
+	R = 0,
+	family = "binary",
+	verbose = FALSE,
+	bootstrap = 30,
+	bootstrap_seed = 1
+)
 
-# fit the same data with MCMC using a short chain for a quick comparison
-fit_mcmc <- ame(Yb, Xdyad = Xd_arr, family = "binary", R = 0,
-				burn = 30, nscan = 100, odens = 5,
-                verbose = FALSE, plot = FALSE, gof = FALSE,
-                seed = 1)
+# MCMC fit on the same data with a short chain
+fit_mcmc <- ame(
+	Yb,
+	Xdyad = Xd_arr,
+	family = "binary",
+	R = 0,
+	burn = 30,
+	nscan = 100,
+	odens = 5,
+	verbose = FALSE,
+	plot = FALSE,
+	gof = FALSE,
+	seed = 1
+)
 
-# collect the common coefficient interval columns without relying on
-# vignette-time s3 dispatch through broom
+# coefficient estimates and intervals as a data frame
 coef_interval_table <- function(fit) {
-    est <- coef(fit)
-    ci <- confint(fit)
-    terms <- intersect(names(est), rownames(ci))
-    data.frame(
-        term = terms,
-        estimate = unname(est[terms]),
-        conf.low = unname(ci[terms, 1]),
-        conf.high = unname(ci[terms, 2]),
-        row.names = NULL
-    )
+	est <- coef(fit)
+	ci <- confint(fit)
+	terms <- intersect(names(est), rownames(ci))
+	data.frame(
+		term = terms,
+		estimate = unname(est[terms]),
+		conf.low = unname(ci[terms, 1]),
+		conf.high = unname(ci[terms, 2]),
+		row.names = NULL
+	)
 }
 
-als_tdy  <- coef_interval_table(fb_b)
+als_tdy <- coef_interval_table(fb_b)
 mcmc_tdy <- coef_interval_table(fit_mcmc)
 df <- rbind(
-    cbind(estimator = "ALS bootstrap",
-          als_tdy[, c("term", "estimate", "conf.low", "conf.high")]),
-    cbind(estimator = "MCMC posterior",
-          mcmc_tdy[, c("term", "estimate", "conf.low", "conf.high")])
+	cbind(
+		estimator = "ALS bootstrap",
+		als_tdy[, c("term", "estimate", "conf.low", "conf.high")]
+	),
+	cbind(
+		estimator = "MCMC posterior",
+		mcmc_tdy[, c("term", "estimate", "conf.low", "conf.high")]
+	)
 )
 
 library(ggplot2)
-ggplot(df, aes(x = estimate, y = term,
-                colour = estimator, shape = estimator)) +
+ggplot(
+	df,
+	aes(
+		x = estimate,
+		y = term,
+		colour = estimator,
+		shape = estimator
+	)
+) +
 	geom_vline(xintercept = 0, linetype = "dashed", colour = "grey60") +
-	geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
-	                position = position_dodge(width = 0.45),
-	                size = 0.5) +
-	scale_colour_manual(values = c("ALS bootstrap"  = "#0072B2",
-	                                "MCMC posterior" = "#D55E00")) +
-	scale_shape_manual(values  = c("ALS bootstrap"  = 16,
-	                                "MCMC posterior" = 17)) +
-	labs(x = "coefficient (probit scale)", y = NULL,
-	     colour = NULL, shape = NULL) +
+	geom_pointrange(
+		aes(xmin = conf.low, xmax = conf.high),
+		position = position_dodge(width = 0.45),
+		size = 0.5
+	) +
+	scale_colour_manual(
+		values = c(
+			"ALS bootstrap" = "#377EB8",
+			"MCMC posterior" = "#E41A1C"
+		)
+	) +
+	scale_shape_manual(
+		values = c(
+			"ALS bootstrap" = 16,
+			"MCMC posterior" = 17
+		)
+	) +
+	labs(
+		x = "Coefficient (probit scale)", y = NULL,
+		colour = NULL, shape = NULL
+	) +
 	theme_bw() +
-	theme(panel.border    = element_blank(),
-	      axis.ticks      = element_blank(),
-	      legend.position = "top")
+	theme(
+		panel.border = element_blank(),
+		axis.line = element_blank(),
+		axis.ticks = element_blank(),
+		legend.position = "top",
+		plot.title = element_text(hjust = 0),
+		plot.subtitle = element_text(hjust = 0),
+		plot.caption = element_text(hjust = 0)
+	)
 ```
 
-Two intervals on the same side of zero with substantial overlap
-means ALS is a fine point estimate for that coefficient; intervals
-that disagree on sign or location point to the MCMC fit for that dataset.
+Intervals that overlap and lie on the same side of zero show that the two
+engines agree on that coefficient; intervals that disagree on sign or
+location show where the MCMC posterior is the reference for that dataset.
 
 ## Longitudinal data
 
@@ -345,8 +803,7 @@ that disagree on sign or location point to the MCMC fit for that dataset.
 ```{r}
 set.seed(3)
 Yl <- replicate(5, {
-	# intercept 0.4 + sender/receiver structure + noise (no dyadic
-	# covariate is passed below, so only the intercept is recoverable)
+	# intercept 0.4 plus sender and receiver effects and noise
 	m <- 0.4 + outer(a, b, "+") + matrix(rnorm(n * n), n, n)
 	diag(m) <- NA
 	m
@@ -364,5 +821,6 @@ coef(lf)
 | Bootstrap standard errors / intervals | `ame_als_bootstrap()` |
 | Calibrated posterior inference | `ame()` / `lame()` |
 
-The fast estimator returns point estimates and bootstrap or sandwich
-uncertainty. The MCMC estimator returns posterior summaries.
+The fast estimator returns point estimates with Laplace (the default for normal,
+binary and Poisson data), bootstrap or sandwich uncertainty. The MCMC estimator returns
+posterior summaries.

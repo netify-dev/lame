@@ -13,19 +13,14 @@ arma::mat Xbeta_cpp(const arma::cube& X, const arma::vec& beta) {
   if (p != static_cast<int>(X.n_slices)) {
     Rcpp::stop("length(beta) must match dim(X)[3].");
   }
-  
+
   arma::mat XB(n, m, fill::zeros);
-  
+
   for(int k = 0; k < p; k++) {
     XB += beta(k) * X.slice(k);
   }
-  
-  return XB;
-}
 
-// [[Rcpp::export]]
-arma::mat outer_cpp(const arma::vec& a, const arma::vec& b) {
-  return a * b.t();
+  return XB;
 }
 
 // [[Rcpp::export]]
@@ -70,11 +65,11 @@ arma::mat gof_stats_cpp(const arma::mat& Y) {
   } else {
     stats(1) = 0.0;
   }
-  
+
   // Dyadic dependence (correlation between Y and Y')
   arma::vec y_vec = arma::vectorise(Y_clean);
   arma::vec yt_vec = arma::vectorise(Y_clean.t());
-  
+
   arma::uvec valid = arma::intersect(arma::find_finite(y_vec), arma::find_finite(yt_vec));
   if(valid.n_elem > 1) {
     arma::vec y_valid = y_vec(valid);
@@ -91,13 +86,13 @@ arma::mat gof_stats_cpp(const arma::mat& Y) {
   arma::uvec idx_f = arma::find_finite(y_vec);
   double y_mean = idx_f.n_elem ? arma::mean(y_vec(idx_f)) : 0.0;
   double y_sd = idx_f.n_elem > 1 ? arma::stddev(y_vec(idx_f)) : 1.0;
-  
+
   arma::mat E = Y_clean - y_mean;
   E.elem(arma::find_nonfinite(E)).zeros();
-  
+
   arma::mat D(Y_clean.n_rows, Y_clean.n_cols, fill::ones);
   D.elem(arma::find_nonfinite(Y_clean)).zeros();
-  
+
   // Cycle dependence
   arma::mat E3 = E * E * E;
   arma::mat D3 = D * D * D;

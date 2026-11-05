@@ -13,17 +13,25 @@ gof(fit, Y = NULL, custom_gof = NULL, nsim = 100, verbose = TRUE)
 bipartite). For lame objects, a list of matrices (one per time period).
 If NULL, extracted from the fit object.}
 
-\item{custom_gof}{Optional custom GOF function(s) - same format as for ame()}
+\item{custom_gof}{Optional custom GOF function(s), each accepting one
+period's matrix. A function can return a named numeric vector; a list
+contains scalar-valued functions. Observed and replicated statistics
+are both averaged across the same fitted periods.}
 
 \item{nsim}{Number of posterior predictive simulations to generate (default 100).
-If NULL, uses all available posterior samples.}
+Posterior rows are sampled with replacement, so this may exceed the
+number of stored rows. If NULL, uses the number of post-initial rows.}
 
 \item{verbose}{Logical; print progress information}
 }
 \value{
-A matrix of GOF statistics with the same format as if gof=TRUE was
-used during model estimation. First row contains observed statistics,
-subsequent rows contain posterior predictive statistics.
+A \code{(nsim + 1) x n_stat} matrix of GOF statistics: the first
+row holds the observed statistics, the remaining rows the posterior
+predictive ones. For an \code{ame} fit this is the format of
+\code{fit$GOF}; a \code{lame} fit stores its own goodness of fit as a
+per-statistic list of period-by-draw matrices instead, so the two are
+not interchangeable. Attributes \code{replication_method} and
+\code{draw_index} record joint replication and the sampled MCMC rows.
 }
 \description{
 Computes goodness-of-fit statistics after model estimation by generating
@@ -32,6 +40,23 @@ when the model was fitted with \code{gof = FALSE} to speed up MCMC sampling,
 or when you want to evaluate custom GOF statistics without re-running the model.
 }
 \details{
+Gaussian bipartite checks use weighted \code{four.cycle.dep}; a nonzero
+count would be fixed by the missing-cell pattern. Each replicate is
+evaluated on the same observed cells as its corresponding data slice,
+aligning actor labels before applying the mask. Named data periods are
+matched to the fit; unnamed periods must be in fitted order. All custom
+functions receive individual matrices for both observed and replicated
+data, and their values are averaged over periods with equal weight.
+
+For the ordinal family the posterior predictive draws are quantile-matched
+to the observed category frequencies (the cutpoints are induced from the
+data), so the simulated marginal distribution always equals the observed
+one: the GOF statistics and \code{YPM} cannot show a marginal misfit for
+ordinal outcomes and only assess the dependence structure (degree spread,
+dyadic and triadic dependence).
+
+This function requires joint posterior replication and refuses fits that
+lack aligned saved draws; it never substitutes conditional mean trajectories.
 This function requires that the model was estimated with posterior sampling
 of the parameters needed to generate posterior predictive datasets.
 Specifically, it needs:
@@ -43,7 +68,8 @@ Specifically, it needs:
 }
 
 To enable posterior sampling during model estimation, use:
-\code{posterior_opts = posterior_options(save_UV = TRUE, save_ab = TRUE)}
+\code{posterior_opts = posterior_options(save_UV = TRUE, save_ab = TRUE,
+thin_UV = 1, thin_ab = 1)}. At rank zero, omit \code{save_UV}.
 
 Computing GOF post-hoc has several advantages:
 \itemize{
@@ -56,8 +82,11 @@ Computing GOF post-hoc has several advantages:
 \donttest{
 # Run model without GOF during fitting
 data(YX_nrm)
+# chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 2, gof = FALSE,
-           nscan = 100, burn = 10, odens = 1, verbose = FALSE)
+           nscan = 100, burn = 10, odens = 1, verbose = FALSE,
+           posterior_opts = posterior_options(save_ab = TRUE, save_UV = TRUE,
+                                              thin_ab = 1, thin_UV = 1), chains = 1)
 
 # Compute GOF post-hoc
 gof_result <- gof(fit)

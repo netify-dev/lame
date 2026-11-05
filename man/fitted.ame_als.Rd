@@ -4,10 +4,15 @@
 \alias{fitted.ame_als}
 \title{Extract fitted values from a fast AME fit}
 \usage{
-\method{fitted}{ame_als}(object, ...)
+\method{fitted}{ame_als}(object, plug_in = NULL, ...)
 }
 \arguments{
 \item{object}{an \code{ame_als} object.}
+
+\item{plug_in}{logical; for an empirical-Bayes binary or count fit, return the plug-in
+fitted values (\code{TRUE}) or the predictive means that integrate the link
+over the uncertainty of the predictor (\code{FALSE}). The default is
+\code{TRUE} for a Poisson fit and \code{FALSE} for a binary fit.}
 
 \item{...}{ignored.}
 }
@@ -18,4 +23,41 @@ A matrix or list of matrices of fitted values.
 Returns response-scale fitted values: a single matrix for a cross-sectional
 (\code{ame_als}) fit, or a list of matrices for a longitudinal
 (\code{lame_als}) fit.
+}
+\details{
+For a binary empirical-Bayes fit (the default) the fitted values are
+predictive probabilities: the expectation of the response over the posterior
+of the linear predictor, \eqn{\Phi(m / \sqrt{1 + v})} for a probit link, with
+\eqn{m} the posterior mean and \eqn{v} the posterior variance of the predictor
+(see \code{\link{predict.ame_als}}). For a Poisson fit they are the plug-in
+mean counts, \eqn{e^{\eta + v_e / 2}}{exp(eta + ve / 2)} at the fitted
+predictor \eqn{\eta} (the posterior mean) and the variance \eqn{v_e}{ve} of
+the noise of the count, as the samplers report them and as the dynamic
+empirical-Bayes fit does: the posterior predictive mean of a count is not
+finite in this model (the inverse-gamma tail of \eqn{v_e}{ve}, and the
+inverse-Wishart tail of the scale of the factors for a cell the data do not
+inform), so its value would be a property of the numerical integration and of
+the prior; the plug-in mean is finite everywhere. \code{plug_in = FALSE}
+returns the predictive mean of a count that the integration over the
+predictor gives, \eqn{e^{m + (v + v_e) / 2}}{exp(m + (v + ve) / 2)}, and
+\code{plug_in = TRUE} the plug-in values of a binary fit (the response mean
+at the fitted predictor); the plug-in values are what \code{fit$fitted} and
+\code{fit$YPM} hold and \code{simulate()} uses. \code{residuals()} follows
+\code{fitted()}. The mean of a normal response is its
+predictor, so a normal fit's fitted values are the posterior means of the
+predictor, with or without \code{plug_in}.
+
+A dynamic fit (\code{lame(method = "als")} with \code{dynamic_ab},
+\code{dynamic_beta} or \code{dynamic_uv}) follows the same rules. The
+empirical-Bayes binary fit returns the predictive probability, with \eqn{v}
+the variance of the cell's predictor: the additive effects given the
+coefficients (the prior variance for an actor with no observed cell), the
+product of the positions, and the coefficients' part at the design asked
+for; \code{plug_in = TRUE} returns \eqn{\Phi(m)}, which \code{fit$fitted}
+keeps. A fit stored without the variance record is an error of class
+\code{"lame_predictive_missing"}. The empirical-Bayes count fit returns the
+plug-in mean \eqn{e^{\eta + v_e / 2}}{exp(eta + ve / 2)}, the normal fit the
+predictor, and a penalised fit (\code{bias_correct = "none"}) the response
+mean at its predictor (\eqn{\Phi(\eta)}, \eqn{e^{\eta}}). The dynamic route
+has no exposure and no forecasts (\code{predict(h > 0)} is an error).
 }

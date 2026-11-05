@@ -11,7 +11,8 @@ ame_als_refit(
   Z_new = NULL,
   max_iter = 30,
   tol = 1e-05,
-  verbose = FALSE
+  verbose = FALSE,
+  bias_correct = NULL
 )
 }
 \arguments{
@@ -35,11 +36,35 @@ Gaussian fit to a fixed transformed response. \code{Y_new} is still used
 for the observed-cell pattern.}
 
 \item{max_iter}{maximum block coordinate descent iterations (default 30;
-fewer are needed than for a cold start).}
+fewer are needed than for a cold start). On the dynamic route, left
+unset it keeps the original fit's iteration budget.}
 
-\item{tol}{convergence tolerance (default \code{1e-5}).}
+\item{tol}{convergence tolerance (default \code{1e-5}). On the dynamic
+route, left unset it keeps the original fit's tolerance.}
 
 \item{verbose}{logical; print progress (default \code{FALSE}).}
+
+\item{bias_correct}{\code{NULL} (default) applies the bias correction
+\code{object} was fit with (\code{object$bias_correct$method}), so a
+refit of a jackknife-corrected fit is corrected the same way, a refit
+of a fit corrected by the parametric bootstrap has the bias that fit
+estimated removed (\code{fit$bias_correct$stored} is \code{TRUE}) and a
+refit of an empirical-Bayes fit (\code{"eb"}) is an empirical-Bayes fit,
+which re-estimates the covariance of the actor effects starting from the
+fit's; \code{"jackknife"}, \code{"bootstrap"} (re-estimating the bias),
+\code{"none"} or \code{"eb"} override it. On a refit the
+jackknife is computed or refused: a panel the correction cannot carry
+(a single cross-section at \code{R > 0} or below 25 rarer-outcome cells
+per actor, fewer than five periods at \code{R > 0}, fewer than 25
+rarer-outcome cells per actor at \code{R = 0}, or an actor without both
+outcome values in the panel or, under every split, in a half sample;
+see \code{\link{ame_als}}) raises an error of class
+\code{"lame_jk_split"}. A refit of an uncorrected fit keeps its
+\code{bias_correct} record. Dynamic Poisson fits preserve their estimator
+(the empirical-Bayes estimator, or the penalised fit with the
+variance/covariance correction of directed panels) and override it in the
+same way (see \code{bias_correct} in \code{\link{lame}}); an override of
+the empirical-Bayes estimator by a penalised one starts cold.}
 }
 \value{
 An object of class \code{"ame_als"}; see \code{\link{ame_als}}.
@@ -57,6 +82,20 @@ The estimation algorithm is the iterative block coordinate descent estimator
 of the Social Influence Regression model of Hoff & Minhas
 (\code{sir::sir_alsfit()}), adapted to the AME model, with each bootstrap
 replicate warm-started from the original point estimate.
+
+A fit from one of the dynamic ALS routes (\code{lame(..., method = "als")}
+with \code{dynamic_uv}, \code{dynamic_ab} or \code{dynamic_beta}) stores
+trajectories rather than a single
+value per parameter. Such a fit is refit through the dynamic fitter that
+produced it, seeded from the stored trajectories, and the result is again a
+dynamic fit of the same class. \code{Z_new} is not available on that route,
+which runs its own working-response loop.
+
+A static fit carrying the split-sample jackknife (see \code{\link{ame_als}})
+is refit with it: the refit on the new data is followed by its own two
+half-sample refits, warm-started from it with the same \code{max_iter} and
+\code{tol}, and the corrected values are returned, with the refit's
+uncorrected values in \code{$raw}.
 }
 \examples{
 Y <- matrix(rnorm(400), 20, 20); diag(Y) <- NA

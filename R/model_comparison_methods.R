@@ -1,10 +1,11 @@
 #' @importFrom stats nobs logLik formula
 NULL
 
-####
 #' Number of observed dyads in an AME / LAME fit
 #'
-#' Number of finite (non-missing) cells in \code{Y}, summed over time slices
+#' Tempered symmetric binary fits count each observed unordered dyad-period
+#' once, matching their stored likelihood. Other fits count finite
+#' (non-missing) cells in \code{Y}, summed over time slices
 #' for longitudinal fits. Useful as a denominator for sample-size reporting
 #' and as the basis for AIC/BIC \emph{if} you also have a log-likelihood
 #' (which \code{ame()} / \code{lame()} do not directly expose; see
@@ -16,6 +17,7 @@ NULL
 #' @method nobs ame
 #' @export
 nobs.ame <- function(object, ...) {
+	if (identical(object$likelihood_unit, "unordered_dyad_period")) return(object$observed_dyads)
 	Y <- object$Y
 	if (is.null(Y)) Y <- object$Y_obs
 	if (is.null(Y)) {
@@ -33,7 +35,6 @@ nobs.ame <- function(object, ...) {
 #' @export
 nobs.lame <- nobs.ame
 
-####
 #' Log-likelihood is not directly exposed for ame() / lame() fits
 #'
 #' \code{ame()} and \code{lame()} produce a posterior sample, not a maximum-
@@ -56,7 +57,8 @@ logLik.ame <- function(object, ...) {
 	cli::cli_abort(c(
 		"A point log-likelihood is not stored on an {.fn ame} / {.fn lame} fit.",
 		"i" = "These are Bayesian MCMC fits, so {.fn AIC} / {.fn BIC} dispatch through {.fn logLik} would be misleading.",
-		"i" = "For model comparison use {.fn gof} / {.fn gof_plot} (posterior predictive checks), or compute WAIC / LOO from the posterior draws with the {.pkg loo} package."))
+		"i" = "For model comparison use {.fn gof} / {.fn gof_plot} (posterior predictive checks), or compute WAIC / LOO from the posterior draws with the {.pkg loo} package."
+	))
 }
 
 #' @rdname logLik.ame
@@ -64,7 +66,6 @@ logLik.ame <- function(object, ...) {
 #' @export
 logLik.lame <- logLik.ame
 
-####
 #' formula() is not defined for an ame() / lame() fit
 #'
 #' \code{ame()} and \code{lame()} use named arguments (\code{Xrow}, \code{Xcol},
@@ -81,7 +82,8 @@ formula.ame <- function(x, ...) {
 	cli::cli_abort(c(
 		"{.fn ame} / {.fn lame} do not use a formula interface.",
 		"i" = "Covariates are passed via {.arg Xrow}, {.arg Xcol}, and {.arg Xdyad}.",
-		"i" = "The {.field Call} line printed by {.fn summary} is a diagnostic, not a re-usable formula."))
+		"i" = "The {.field Call} line printed by {.fn summary} is a diagnostic, not a re-usable formula."
+	))
 }
 
 #' @rdname formula.ame

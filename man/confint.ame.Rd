@@ -15,8 +15,18 @@
 \item{parm}{character vector of parameter names, or numeric indices. When
 \code{parm} is character, both BETA names (e.g. \code{"intercept"},
 \code{"x1_dyad"}) and variance-component names (\code{"va"}, \code{"vb"},
-\code{"cab"}, \code{"rho"}, \code{"ve"}) are accepted. \code{NULL}
-(default) returns intervals for all available parameters.}
+\code{"cab"}, \code{"rho"}, \code{"ve"}) are accepted; on a unipartite
+binary, cbin or frn panel carrying fewer than one event per actor-period
+the
+\code{"va"}, \code{"vb"} and \code{"cab"} intervals are \code{NA},
+because the panel carries too few events per actor-period to estimate
+those variances (the draws stay in \code{object$VC}), unless the effects
+prior was supplied, when they are the intervals under that prior; under
+a saturated nomination cap the \code{"intercept"} and row-covariate
+intervals are \code{NA} with or without a supplied prior. \code{NULL}
+(default) returns intervals for the regression coefficients only, the
+parameters \code{coef()} reports; name variance components in
+\code{parm} to include them. Numeric indices select coefficient rows.}
 
 \item{level}{credible level (default 0.95).}
 

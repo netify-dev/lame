@@ -15,7 +15,8 @@ rbeta_ab_bip_gibbs_cpp(
   va,
   vb,
   rvar,
-  cvar
+  cvar,
+  center = FALSE
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ rbeta_ab_bip_gibbs_cpp(
 \item{rvar}{Whether to update row effects}
 
 \item{cvar}{Whether to update column effects}
+
+\item{center}{Condition each actor margin to sum to zero.}
 }
 \value{
 List with beta, a, b
