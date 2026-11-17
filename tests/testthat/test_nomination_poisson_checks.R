@@ -1,7 +1,7 @@
 skip_on_cran()
 
 # nomination (cbin / frn) and Poisson checks: absent actors' cells are not nominations, square bipartite slices stay
-# bipartite, odmax below an observed out-degree, non-integer counts, the prediction summary, bipartite rank bounds and the symmetric reciprocity ramp on resume
+# bipartite, odmax below an observed out-degree, non-integer counts, bipartite rank bounds and the symmetric reciprocity ramp on resume
 
 # a cap-2 slice with actor 5 absent: rows 2 to 4 are below the cap, so their
 # observed non-nominations sit below zero exactly
@@ -274,45 +274,12 @@ test_that("the poisson log mass is finite and exact at non-integer counts", {
 	# integer counts keep the dpois() value exactly
 	expect_identical(got[2], dpois(3, 3, log = TRUE) - 3 * (expm1(0.4 - log(3)) - (0.4 - log(3))))
 	expect_identical(lame:::.poisson_log_mass(-1, 0), -Inf)
-	# compiled kernel: with rho = 0, s2 = 1 the (1, 2) entry is the two cells'
-	# latent and count terms
-	Z = matrix(c(0, 0.7, 1.9, 0), 2, 2); Y = matrix(c(NA, 2.5, 7.25, NA), 2, 2)
-	ld = lame:::ldZgbme_cpp(Z, Y, matrix(0, 2, 2), 0, 1)
-	expect_equal(ld[1, 2], -0.5 * (0.7^2 + 1.9^2) + sum(ref[3:4]), tolerance = 1e-10)
 	# the latent draw moves on non-integer counts
 	set.seed(6); n = 6
 	Yp = matrix(rpois(n * n, 3) + 0.5, n, n); diag(Yp) = NA
 	Z0 = log(Yp + 1); Z0[is.na(Z0)] = 0; Z = Z0
 	for (s in 1:30) Z = lame:::rZ_pois_fc(Z, matrix(1, n, n), 0, 1, Yp)
 	expect_gt(mean((Z != Z0)[!is.na(Yp)]), 0.9)
-})
-
-test_that("poisson fitted() and predict() return the stored mean counts silently", {
-	S = 6L; n = 3L; rn = letters[seq_len(n)]
-	x = array(1, c(n, n, 1), dimnames = list(rn, rn, "intercept"))
-	y = matrix(2, n, n, dimnames = list(rn, rn)); diag(y) = NA_real_
-	f = list(
-		BETA = cbind(intercept = seq(-.2, .2, length.out = S)),
-		VC = cbind(va = rep(0, S), cab = 0, vb = 0, rho = 0, ve = .6),
-		family = "poisson",
-		mode = "unipartite",
-		R = 0L,
-		rvar = FALSE,
-		cvar = FALSE,
-		symmetric = FALSE,
-		intercept = TRUE,
-		nA = n,
-		nB = n,
-		APM = setNames(numeric(n), rn),
-		BPM = setNames(numeric(n), rn),
-		X = x,
-		YPM = y
-	)
-	class(f) = "ame"
-	# no message, warning or note, on the first call or any later one
-	expect_silent({ a = fitted(f) })
-	expect_silent({ b = predict(f) })
-	expect_identical(a, y); expect_identical(b, y)
 })
 
 test_that("bipartite ranks are bounded by their own mode", {

@@ -267,7 +267,7 @@
 #'   diag(y) <- NA
 #'   y
 #' })
-#' # Short execution example; use longer independent chains for inference.
+#' # a three-period panel, its one-step forecast and two simulated panels
 #' fit <- lame_robust(Y, R = 0, burn = 10, nscan = 20, odens = 2,
 #'                    seed = 1, verbose = FALSE)
 #' dim(predict(fit, h = 1))

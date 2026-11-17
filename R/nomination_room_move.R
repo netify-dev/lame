@@ -150,7 +150,8 @@
 .lame_nom_room_path_terms <- function(ic, u) {
 	N <- length(u)
 	du <- u[-1L] - ic$rho * u[-N]
-	path <- ic$path
+	# an ar1 path is read as its deviation from its long-run mean `centre`
+	path <- ic$path - (ic$centre %||% 0)
 	c(
 		Q = unname(u[1L]^2 / ic$v0 + sum(du^2) / ic$sd2),
 		lin = unname(u[1L] * (path[1L] - ic$m0) / ic$v0 + sum(du * (path[-1L] - ic$rho * path[-N])) / ic$sd2)

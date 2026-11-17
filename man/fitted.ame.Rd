@@ -17,10 +17,12 @@ fitted values on the response scale. Diagonal entries are \code{NA} for
 unipartite networks.
 }
 \description{
-Returns the stored response-scale summary (YPM).
-For binary models, these are predicted probabilities between 0 and 1.
-For normal models, these are predicted continuous values.
-For MCMC Poisson models, these are mean counts,
+Returns the stored response-scale summary (YPM): the average over the
+stored draws of the mean response given each draw. For binary models these
+are tie probabilities, for normal models the linear predictor, and for
+ordinal models with explicit cutpoints the expected category value. For
+cbin, frn and data-induced ordinal models they are the average of ten
+outcomes replicated at each stored draw. For MCMC Poisson models, these are mean counts,
 \eqn{\exp(\eta + \sigma^2 / 2)}, at the posterior mean \eqn{\eta} of the
 linear predictor and the posterior mean \eqn{\sigma^2} of the residual
 variance, the form the fast estimators report. Predictive quantiles and

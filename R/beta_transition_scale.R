@@ -1,6 +1,6 @@
 # the diagonal innovation geometry of the regular-grid coefficient sampler, recovered from
-# the saved designs (expanded symmetric layout)
-.lame_beta_transition_scale <- function(object) {
+# the saved designs (expanded symmetric layout); `kinds` the coefficient laws the caller handles
+.lame_beta_transition_scale <- function(object, kinds_ok = c("ar1", "rw1")) {
 	B <- object$BETA
 	names_beta <- dimnames(B)[[2L]]
 	mask <- object$beta_dynamic_mask
@@ -22,8 +22,9 @@
 			class = "lame_beta_transition"
 		)
 	}
-	kind <- object$dynamic_beta_kind %||% "ar1"
-	if (!kind %in% c("ar1", "rw1") || !is.null(object$dynamic_beta_per_actor)) {
+	kinds <- .lame_beta_block_kinds(object)
+	if (!all(c(object$dynamic_beta_kind %||% "ar1", kinds) %in% kinds_ok) ||
+			!is.null(object$dynamic_beta_per_actor)) {
 		cli::cli_abort(
 			"This diagnostic or forecast is not implemented for this coefficient transition model.",
 			class = "lame_beta_transition"

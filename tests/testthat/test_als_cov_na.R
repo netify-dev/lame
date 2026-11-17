@@ -208,36 +208,14 @@ test_that("an actor without a covariate in any period has no effect to estimate"
 		R = 0,
 		verbose = FALSE
 	))
-	expect_identical(r$val$bias_correct$method, "eb")
+	expect_null(r$val$bias_correct)
 	expect_true(all(is.na(r$val$Y[6, , ])) && all(is.na(r$val$Y[, 6, ])))
 	expect_identical(unname(r$val$a[6]), 0)
 	expect_identical(unname(r$val$b[6]), 0)
 	expect_null(r$val$not_estimated)
 	expect_false(any(grepl("disconnected", r$warns)))
 	expect_true(all(is.finite(r$val$a)) && all(is.finite(r$val$b)))
-	# a fixed-effects fit reports the effects as not estimated
-	r = watch(lame_als(
-		d$Y,
-		Xdyad = d$Xd,
-		Xrow = Xr,
-		Xcol = Xc,
-		family = "binary",
-		R = 0,
-		verbose = FALSE,
-		bias_correct = "none"
-	))
-	fe = r$val
-	expect_true(is.na(fe$a[["a06"]]) && is.na(fe$b[["a06"]]))
-	expect_true(all(is.finite(fe$a[-6])) && all(is.finite(fe$b[-6])))
-	expect_identical(sort(fe$not_estimated$side), c("receiver", "sender"))
-	expect_true(all(fe$not_estimated$actor == "a06"))
-	expect_true(all(fe$not_estimated$outcome == "no observed cell"))
-	expect_true(any(grepl("a06 \\(sender, no observed cell\\)", r$msgs)))
-	expect_false(any(grepl("disconnected", r$warns)))
-	expect_true(all(is.na(fe$fitted[[1]][6, ])) && all(is.na(fe$fitted[[1]][, 6])))
-	# the variance components describe the actors that are estimated
-	expect_true(all(is.finite(fe$VC[c("va", "vb")])))
-	# a normal fit does the same: the empirical-Bayes default holds the effects at the mean, the fixed-effects fit reports them as not estimated
+	# a normal fit does the same: the prior holds the effects at the mean
 	r = watch(lame_als(
 		d$Y,
 		Xdyad = d$Xd,
@@ -247,36 +225,10 @@ test_that("an actor without a covariate in any period has no effect to estimate"
 		R = 0,
 		verbose = FALSE
 	))
-	expect_identical(r$val$bias_correct$method, "eb")
+	expect_null(r$val$bias_correct)
 	expect_identical(unname(r$val$a[6]), 0)
 	expect_identical(unname(r$val$b[6]), 0)
 	expect_null(r$val$not_estimated)
-	r = watch(lame_als(
-		d$Y,
-		Xdyad = d$Xd,
-		Xrow = Xr,
-		Xcol = Xc,
-		family = "normal",
-		R = 0,
-		verbose = FALSE,
-		bias_correct = "none"
-	))
-	expect_true(is.na(r$val$a[["a06"]]) && is.na(r$val$b[["a06"]]))
-	# only the sender side missing: the receiver effect stays
-	Xr1 = d$Xr; for (t in 1:3) Xr1[[t]][6, 1] = NA
-	fe1 = suppressMessages(lame_als(
-		d$Y,
-		Xdyad = d$Xd,
-		Xrow = Xr1,
-		Xcol = d$Xc,
-		family = "binary",
-		R = 0,
-		verbose = FALSE,
-		bias_correct = "none"
-	))
-	expect_true(is.na(fe1$a[["a06"]]))
-	expect_true(is.finite(fe1$b[["a06"]]))
-	expect_identical(fe1$not_estimated$side, "sender")
 })
 
 test_that("a bootstrap of a fit with unobserved actors keeps them out", {
@@ -284,24 +236,6 @@ test_that("a bootstrap of a fit with unobserved actors keeps them out", {
 	d = cov_panel(n = 16, Tt = 2, seed = 6)
 	Xr = d$Xr; Xc = d$Xc
 	for (t in 1:2) { Xr[[t]][6, 1] = NA; Xc[[t]][6, 1] = NA }
-	fe = suppressMessages(lame_als(
-		d$Y,
-		Xdyad = d$Xd,
-		Xrow = Xr,
-		Xcol = Xc,
-		family = "binary",
-		R = 0,
-		verbose = FALSE,
-		bias_correct = "none"
-	))
-	# an uncorrected binary fixed-effects fit has no bootstrap
-	expect_error(
-		ame_als_bootstrap(fe, R = 10, type = "parametric", seed = 1, verbose = FALSE),
-		class = "lame_als_bootstrap_bias"
-	)
-	refit = ame_als_refit(fe)
-	expect_true(is.na(refit$a[["a06"]]))
-	expect_identical(refit$not_estimated$outcome, c("no observed cell", "no observed cell"))
 	eb = suppressMessages(lame_als(
 		d$Y,
 		Xdyad = d$Xd,
@@ -570,14 +504,13 @@ test_that("a dynamic fit with an actor that has no observed cell reaches its cer
 	expect_true(all(is.finite(r$val$diagnostics$stationarity$by_block)))
 	expect_equal(sum(grepl(cov_note, r$msgs)), 1L)
 	expect_false(any(grepl("not estimated", r$msgs)))
-	r = watch(lame(
+	r = watch(lame:::lame_dynamic_als(
 		d$Y,
 		Xdyad = d$Xd,
 		Xrow = Xr,
 		Xcol = Xc,
 		family = "binary",
 		R = 1,
-		method = "als",
 		dynamic_uv = TRUE,
 		bias_correct = "none",
 		verbose = FALSE
@@ -586,14 +519,13 @@ test_that("a dynamic fit with an actor that has no observed cell reaches its cer
 	# the fit with the actor blanked in Y is the same model
 	Yb = d$Y
 	for (t in 1:5) { Yb[[t]][6, ] = NA; Yb[[t]][, 6] = NA }
-	rb = watch(lame(
+	rb = watch(lame:::lame_dynamic_als(
 		Yb,
 		Xdyad = d$Xd,
 		Xrow = d$Xr,
 		Xcol = d$Xc,
 		family = "binary",
 		R = 1,
-		method = "als",
 		dynamic_uv = TRUE,
 		bias_correct = "none",
 		verbose = FALSE

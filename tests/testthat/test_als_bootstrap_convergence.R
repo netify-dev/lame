@@ -36,12 +36,12 @@ test_that("a bootstrap cannot turn unfinished refits into intervals", {
 	expect_equal(calls, 4L)
 })
 
-test_that("the bootstrap alias honors explicit refit controls", {
+test_that("the bootstrap honors explicit refit controls", {
 	f = .bootstrap_convergence_fixture();budgets = integer();tolerances = numeric()
 	local_mocked_bindings(ame_als_refit = function(object, max_iter, tol, ...) {
 		budgets <<- c(budgets, max_iter);tolerances <<- c(tolerances, tol);object
 	}, .package = 'lame')
-	b = boot_ame(f, R = 12, max_iter = 17L, tol = 1e-8, seed = 411, verbose = FALSE)
+	b = ame_als_bootstrap(f, R = 12, max_iter = 17L, tol = 1e-8, seed = 411, verbose = FALSE)
 	expect_equal(budgets, rep(17L, 12));expect_equal(tolerances, rep(1e-8, 12))
 	expect_equal(b$boot_refit_attempts, rep(1L, 12))
 })

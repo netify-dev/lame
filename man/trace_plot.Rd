@@ -78,7 +78,8 @@ Parameters displayed include:
 innovation of the actor effects (\code{rho_ab}, \code{sigma_ab}) and of
 the latent positions (\code{rho_uv}, \code{sigma_uv}), the reset rate of
 snap positions (\code{pi_snap}), the per-group persistence and innovation
-of dynamic coefficients (\code{rho_beta}, \code{sigma_beta}) and the
+of dynamic coefficients (\code{rho_beta}, \code{sigma_beta}), the
+long-run mean of each AR(1) coefficient path (\code{mu_beta}) and the
 per-period dyadic correlation of \code{dynamic_rho} fits
 }
 
@@ -93,6 +94,16 @@ variances of a sparse panel) is left out as well, with a message naming it.
 
 For a fit with several chains, \code{burn.in} and \code{thin} apply within
 each chain.
+
+A quantity with one value per period (a coefficient under
+\code{dynamic_beta}, including the intercept path of a \code{dynamic_ab}
+fit, and the per-period dyadic correlation of a \code{dynamic_rho} fit)
+draws one panel, named \code{"<name> by period"}, holding the traces and
+densities of every period, each labelled with its period at the right of
+the trace and above the peak of the density. A single period is selected
+with \code{include}, e.g. \code{include = "intercept[t3]"}. A coefficient
+that a \code{dynamic_beta} fit holds static draws one panel, as in a
+static fit.
 }
 \examples{
 \donttest{

@@ -1,6 +1,6 @@
 # a factor column the data do not support is retired, not refused: the fit is that of the next rank down, and says so
 # (R/ame_als_retire.R); a stalled five-node pair rule of a weakly informed fit is refined to seven nodes instead
-# (tested here and with the null network in test_als_multistart_selection.R)
+# (tested here)
 
 # a directed binary panel of 50 actors with a rank-R product: sender and receiver effects (sd 0.6, correlation 0.3),
 # one dyadic covariate (slope 0.7) and a product of variance 0.6 per factor
@@ -171,7 +171,8 @@ test_that("a sparse rank-2 network whose posterior mode does not settle retires 
 
 test_that("a five-node pair rule that stalls is refined to seven nodes and the fit converges without retiring a column", {
 	skip_on_cran()
-	d = ret_sim_binary(50, 2, -3, 201)
+	# network 201 stalled until a directed binary fit read its factor scale from the rows' full second moments
+	d = ret_sim_binary(50, 2, -3, 217)
 	# the unit factor prior IW(2R + 2, (2R + 2) I) makes the five-node rule stall on this network, so it is set here
 	testthat::local_mocked_bindings(
 		.lame_uv_prior_moments = function(Y, family, odmax = NULL) list(vscale = 1, vdfmlt = 1),
@@ -190,9 +191,10 @@ test_that("a five-node pair rule that stalls is refined to seven nodes and the f
 
 test_that("an example network at rank 6 returns its rank-5 fit, and a rank that settles is not retired", {
 	skip_on_cran()
-	# the second Lazega network
+	# the first Lazega network (the second settles at rank 6 with six live columns since a directed
+	# binary fit gives the effect covariance the weight of one actor)
 	data("lazegalaw", package = "lame", envir = environment())
-	Y = lazegalaw$Y[, , 2L]
+	Y = lazegalaw$Y[, , 1L]
 	diag(Y) = NA
 	fit = suppressMessages(suppressWarnings(ame_als(Y, R = 6, family = "binary", verbose = FALSE)))
 	expect_true(fit$converged)

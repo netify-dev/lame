@@ -404,41 +404,6 @@ test_that("lame() accepts a list of data.frame Xrow covariates", {
 	expect_s3_class(fit, "lame")
 })
 
-test_that("4-D amen-layout Xdyad is accepted as the per-period list it stands for", {
-	set.seed(6886)
-	n = 5
-	actors = paste0("a", seq_len(n))
-	Yl = lapply(1:3, function(t) {
-		y = matrix(rnorm(n * n), n, n, dimnames = list(actors, actors))
-		diag(y) = NA
-		y
-	})
-	Xd4 = array(rnorm(n * n * 2 * 3), c(n, n, 2, 3), dimnames = list(actors, actors, c("x1", "x2"), NULL))
-	Xl = lapply(1:3, function(t) Xd4[, , , t])
-	f4 = suppressMessages(lame(
-		Yl,
-		Xdyad = Xd4,
-		family = "normal",
-		nscan = 10,
-		burn = 5,
-		odens = 1,
-		verbose = FALSE,
-		gof = FALSE
-	))
-	fl = suppressMessages(lame(
-		Yl,
-		Xdyad = Xl,
-		family = "normal",
-		nscan = 10,
-		burn = 5,
-		odens = 1,
-		verbose = FALSE,
-		gof = FALSE
-	))
-	expect_s3_class(f4, "lame")
-	expect_equal(f4$BETA, fl$BETA)
-})
-
 # statistical and computational checks
 
 test_that("lame() coefficients are scale-equivariant (no ridge attenuation)", {
@@ -1580,8 +1545,11 @@ test_that("bipartite dynamic_ab recovers full-strength coefficients", {
 		plot = FALSE
 	)
 	# the dynamic_ab chain centres near the static estimate, not at half of it
-	expect_gt(mean(fd$BETA[, "x1_dyad"]) / mean(f0$BETA[, "x1_dyad"]), 0.8)
-	expect_gt(acf(fd$BETA[, "x1_dyad"], plot = FALSE)$acf[2], -0.3)
+	# the static slope repeats in every period of the draws x coefficients x periods array
+	xd = fd$BETA[, "x1_dyad", ]
+	expect_equal(max(apply(xd, 1, function(z) diff(range(z)))), 0)
+	expect_gt(mean(xd[, 1]) / mean(f0$BETA[, "x1_dyad"]), 0.8)
+	expect_gt(acf(xd[, 1], plot = FALSE)$acf[2], -0.3)
 })
 
 test_that("simulate() supports cbin fits", {

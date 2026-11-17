@@ -2,7 +2,7 @@ skip_on_cran()
 
 library(lame)
 
-# the penalised dynamic route (bias_correct = "none") converges on ordinary panels, or is refused with the state:
+# the penalised dynamic fit (the sampler's warm start) converges on ordinary panels, or is refused with the state:
 # a fit that stops short of its criterion is an error of class lame_als_convergence whose field `fit` is the last iterate
 
 dc_names = function(n) paste0("a", sprintf("%02d", seq_len(n)))
@@ -340,55 +340,4 @@ test_that("an MCMC chain starts from the last iterate of a penalised fit that wa
 	expect_s3_class(fit, "lame")
 	expect_true(isTRUE(fit$als_start))
 	expect_true(all(is.finite(fit$BETA)))
-})
-
-test_that("a jackknife half that is refused is retried from its last iterate", {
-	skip_on_cran()
-	set.seed(3112001)
-	n = 14L
-	Tt = 4L
-	al = rnorm(n, 0, .3)
-	be = rnorm(n, 0, .3)
-	Y = X = vector("list", Tt)
-	for (t in seq_len(Tt)) {
-		x = matrix(rnorm(n * n), n)
-		y = matrix(rpois(n * n, exp(.5 + .5 * x + outer(al, be, "+") + rnorm(n * n, 0, sqrt(.4)))), n)
-		diag(y) = NA_real_
-		dimnames(y) = list(dc_names(n), dc_names(n))
-		Y[[t]] = y
-		X[[t]] = array(x, c(n, n, 1L), dimnames = c(dimnames(y), list("x")))
-	}
-	# the halves get two iterations, which refuses them (the full fit has its own, ample limit); the retry at five times
-	# that limit starts from the iterate the refusal carries
-	orig = get(".lda_count_jackknife", envir = asNamespace("lame"))
-	fit = testthat::with_mocked_bindings(
-		suppressWarnings(lame(
-			Y,
-			Xdyad = X,
-			R = 0,
-			family = "poisson",
-			method = "als",
-			dynamic_ab = TRUE,
-			als_max_iter = 200,
-			als_tol = 1e-6,
-			bias_correct = "jackknife",
-			verbose = FALSE
-		)),
-		.lda_count_jackknife = function(object, call_args, max_iter, tol, ...) orig(
-			object,
-			call_args,
-			max_iter = 2L,
-			tol,
-			...
-		),
-		.package = "lame"
-	)
-	expect_identical(fit$bias_correct$method, "jackknife")
-	expect_true(all(fit$bias_correct$converged))
-	for (h in 1:2) {
-		att = fit$bias_correct$attempts[[h]]
-		expect_length(att, 2L)
-		expect_false(is.null(att[[1L]]$error))
-		expect_true(att[[2L]]$converged)
-	}
 })

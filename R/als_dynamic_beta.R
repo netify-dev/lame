@@ -52,7 +52,7 @@
 #'
 #' @seealso \code{\link{lame}} for the full Bayesian dynamic-\eqn{\beta}
 #'   fit (AR(1) / RW1 / RW2 / Matern 3/2);
-#'   \code{\link{lame_als}} for the longitudinal AME point estimator
+#'   \code{\link{lame_als}} for the fast empirical-Bayes longitudinal AME fit
 #'   (static \eqn{\beta}, full \eqn{a, b, U, V}).
 #'
 #' @examples
@@ -144,7 +144,17 @@ als_dynamic_beta <- function(Y, Xdyad, lambda = 0, intercept = TRUE) {
 
 	beta_stack <- tryCatch(
 		solve(H, g),
-		error = function(e) MASS::ginv(H) %*% g
+		error = function(e) {
+			cli::cli_warn(
+				c(
+					"The coefficient system is singular, so the minimum-norm path is returned.",
+					"x" = "{conditionMessage(e)}",
+					"i" = "A period whose design does not identify its coefficients takes the smallest coefficients that fit; set {.arg lambda} above zero to tie it to its neighbours."
+				),
+				class = "lame_als_singular"
+			)
+			MASS::ginv(H) %*% g
+		}
 	)
 	beta_mat <- matrix(
 		beta_stack,

@@ -266,7 +266,10 @@
 	)
 	sizes <- vapply(dims, prod, numeric(1))
 	ends <- cumsum(sizes)
-	indices <- lapply(seq_along(sizes), function(i) seq.int(ends[i] - sizes[i] + 1, ends[i]))
+	# a block of size zero (no static coefficient) has no index
+	indices <- lapply(seq_along(sizes), function(i) {
+		if (sizes[i] == 0) integer(0) else seq.int(ends[i] - sizes[i] + 1, ends[i])
+	})
 	names(indices) <- names(dims)
 	rate <- max(0.001, min(0.999, mean(Y[obs])))
 	list(
@@ -314,7 +317,7 @@
 		))
 	)
 	list(
-		beta_root = solve(chol(iV0)),
+		beta_root = if (nrow(iV0) == 0L) matrix(0, 0L, 0L) else solve(chol(iV0)),
 		level_root = chol(Sab),
 		ab_root = temporal(
 			rho_ab,
@@ -340,8 +343,6 @@
 	z
 }
 
-.lame_binary_dynamic_pair_hmc_pack <- function(z) unlist(z, use.names = FALSE)
-
 .lame_binary_dynamic_pair_hmc_decode <- function(q, cx, h) {
 	z <- .lame_binary_dynamic_pair_hmc_unpack(q, cx)
 	list(
@@ -366,8 +367,8 @@
 }
 
 .lame_binary_dynamic_pair_hmc_encode <- function(beta, level, adev, bdev, U, V, cx, h) {
-	.lame_binary_dynamic_pair_hmc_pack(list(
-		solve(h$beta_root, beta),
+	.lame_binary_hmc_pack(list(
+		if (length(beta) == 0L) numeric(0) else solve(h$beta_root, beta),
 		crossprod(cx$H, level) %*%
 			solve(h$level_root),
 		crossprod(cx$H, adev) %*% solve(h$ab_root),
@@ -391,7 +392,9 @@
 	gbeta <- numeric(cx$p)
 	ga <- gb <- matrix(0, cx$n, cx$nt)
 	gu <- gv <- array(0, dim(z$U))
-	for (t in seq_len(cx$nt)) eta[, , t] <- matrix(cx$X[[t]] %*% z$beta, cx$n, cx$n) + outer(
+	# cx$offset holds the coefficient paths of a dynamic_beta fit, fixed along the trajectory
+	for (t in seq_len(cx$nt)) eta[, , t] <- matrix(cx$X[[t]] %*% z$beta, cx$n, cx$n) +
+		(if (is.null(cx$offset)) 0 else cx$offset[, , t]) + outer(
 		z$level[,
 			1] + z$adev[, t],
 		z$level[, 2] + z$bdev[, t],
@@ -415,7 +418,7 @@
 		gu[, , t] <- e %*% matrix(z$V[, , t], cx$n, cx$rank)
 		gv[, , t] <- t(e) %*% matrix(z$U[, , t], cx$n, cx$rank)
 	}
-	gradient <- .lame_binary_dynamic_pair_hmc_pack(list(
+	gradient <- .lame_binary_hmc_pack(list(
 		drop(crossprod(h$beta_root, gbeta)),
 		crossprod(cx$H, cbind(rowSums(ga), rowSums(gb))) %*% t(h$level_root),
 		crossprod(
@@ -465,7 +468,7 @@
 		cx$n * cx$rank,
 		cx$nt
 	)
-	.lame_binary_dynamic_pair_hmc_pack(list(mb, ml, ma, ma, mu, mu))
+	.lame_binary_hmc_pack(list(mb, ml, ma, ma, mu, mu))
 }
 
 .lame_binary_dynamic_pair_likelihood_gradient <- function(eta, rho, cx) {
@@ -531,7 +534,8 @@
 	sigma_max = Inf,
 	max_abs = Inf,
 	step = 0.15,
-	tries = 4L
+	tries = 4L,
+	stationary = FALSE
 ) {
 	limit <- 0.99
 	evaluate <- function(x) {
@@ -555,6 +559,9 @@
 	accepted <- 0L
 	hp <- function(r, v) dnorm(r, prior_mean, prior_sd, log = TRUE) - shape * log(v) - scale / v +
 		log1p(-(r / limit)^2)
+	# with (shape, scale) the prior of the stationary variance w (R/uv_var_prior.R), which the move holds
+	# fixed, the variance prior is constant along it
+	if (stationary) hp <- function(r, v) dnorm(r, prior_mean, prior_sd, log = TRUE) + log1p(-(r / limit)^2)
 	old <- ev$value + hp(rho, sigma * sigma)
 	for (k in seq_len(tries)) {
 		prop <- limit * tanh(atanh(rho / limit) + rnorm(1, 0, step))
@@ -868,4 +875,11 @@
 	z[cx$diagonal] <- rnorm(length(cx$diagonal), eta[cx$diagonal], sqrt(1 + rho))
 	stopifnot(all(is.finite(z)))
 	z
+}
+
+# prior of the rw1 intercept path as the translation sees it: shifting the whole path keeps its increments,
+# so only the first state's N(0, v0) counts
+.lame_translation_path_prior <- function(path_k, v0) {
+	if (!is.finite(v0) || v0 <= 0) cli::cli_abort("Invalid prior variance of the first intercept state.")
+	list(beta = path_k[1L], iV0 = matrix(1 / v0, 1L, 1L))
 }

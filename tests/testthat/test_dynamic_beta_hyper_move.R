@@ -107,12 +107,11 @@ test_that('the path map keeps the standardised innovations and inverts itself', 
 				w1 = (moved[-1, ] - z1$f * moved[-nt, ]) / (0.5 * sqrt(outer(z1$q, lam)))
 				expect_equal(w1, w0, tolerance = 1e-10)
 			}
-			if (kind == 'matern32') expect_equal(moved, x * (0.5 / 0.3), tolerance = 1e-12)
-			if (kind == 'rw2') {
-				# the part the second differences leave flat (constants and linear functions of time) stays where it is
-				flat = lame:::.lame_beta_rw2_flat(x, c(0, cumsum(gaps)))
-				expect_equal(lame:::.lame_beta_rw2_flat(moved, c(0, cumsum(gaps))), flat, tolerance = 1e-10)
-				expect_equal(moved - flat, (x - flat) * (0.5 / 0.3), tolerance = 1e-10)
+			if (kind %in% c('rw2', 'matern32')) {
+				# the level (the first period) stays where it is and the change since then scales with sigma
+				expect_identical(moved[1, ], x[1, ])
+				lev = matrix(x[1, ], nt, 2, byrow = TRUE)
+				expect_equal(moved - lev, (x - lev) * (0.5 / 0.3), tolerance = 1e-10)
 			}
 		}
 	}
@@ -163,8 +162,10 @@ hm_geweke = function(kind, pool, gaps_on, ndraw, seed, step = lame:::.lame_beta_
 				path[1, j] = rnorm(1, m0, sqrt(v0))
 				for (t in 2:nt) path[t, j] = z$f[t - 1] * path[t - 1, j] + sig[g] * sqrt(lam[j] * z$q[t - 1]) * rnorm(1)
 			} else {
+				# the level under its own prior plus the change since the first period
 				K = ns$.dynamic_beta_kind_to_prec(kind, nt, NULL, pos)
-				path[, j] = backsolve(chol(K / (sig[g]^2 * lam[j])), rnorm(nt))
+				Sc = solve(K[-1, -1])
+				path[, j] = rnorm(1, m0, sqrt(v0)) + c(0, drop(t(chol(Sc)) %*% rnorm(nt - 1))) * sig[g] * sqrt(lam[j])
 			}
 		}
 		y = path
@@ -228,7 +229,7 @@ test_that('one interweaving step leaves the joint law of hyperparameters, path a
 		expect_lt(r$maxz, 4.5)
 		expect_gt(r$p, 1e-3)
 	}
-	# rw2: the part of the path its second differences leave flat stays fixed, its (ridge) prior enters the ratio
+	# rw2: the level stays fixed and the change since the first period scales with sigma
 	r = hm_geweke('rw2', 'none', FALSE, 4000, 15)
 	expect_gt(r$accept, 0.05)
 	expect_lt(r$maxz, 4.5)
@@ -325,5 +326,6 @@ test_that('every kind, pooling and gapped periods fit with the step', {
 		seed = 5
 	)))
 	expect_true(all(is.finite(fit$BETA)))
+	expect_identical(fit$time_index, c(1, 2, 4, 8))
 	expect_gt(fit$beta_hyper_move[['attempts']], 0)
 })

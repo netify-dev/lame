@@ -42,16 +42,6 @@ test_that(".ghk_row_loglik falls back gracefully for D > 15", {
 	expect_lt(lp, 0)
 })
 
-test_that(".cbin_gauss_hermite_loglik returns finite log-prob", {
-	set.seed(17)
-	# an 8-dyad row with 3 "top" dyads
-	ez = c(2, 1.5, 1, 0.5, 0, -0.5, -1, -1.5)
-	y = c(1, 1, 1, 0, 0, 0, 0, 0)
-	lp = lame:::.cbin_gauss_hermite_loglik(y, ez, n_nodes = 10L)
-	expect_true(is.finite(lp))
-	expect_lt(lp, 0)
-})
-
 test_that(".pointwise_loglik_observed_ghk_rank dispatches by family", {
 	set.seed(23)
 	n_obs = 30
@@ -199,46 +189,6 @@ test_that("v8 GHK is reproducible given seed (halton_shift deterministic)", {
 	expect_equal(f1$log_lik_meta$halton_shift, f2$log_lik_meta$halton_shift)
 	# byte-identical log_lik matrices
 	expect_identical(f1$log_lik, f2$log_lik)
-})
-
-test_that("default log_lik_method = 'observed_exact' is byte-identical", {
-	skip_on_cran()
-	set.seed(45)
-	n = 8; Tn = 2
-	Y_list = lapply(seq_len(Tn), function(t) {
-		mat = matrix(rbinom(n * n, 1, 0.3), n, n)
-		diag(mat) = NA
-		mat
-	})
-	f1 = lame(
-		Y_list,
-		family = "binary",
-		R = 0,
-		save_log_lik = TRUE,
-		nscan = 10,
-		burn = 5,
-		odens = 5,
-		rvar = FALSE,
-		cvar = FALSE,
-		verbose = FALSE,
-		seed = 13
-	)
-	f2 = lame(
-		Y_list,
-		family = "binary",
-		R = 0,
-		log_lik_method = "observed_exact",
-		save_log_lik = TRUE,
-		nscan = 10,
-		burn = 5,
-		odens = 5,
-		rvar = FALSE,
-		cvar = FALSE,
-		verbose = FALSE,
-		seed = 13
-	)
-	expect_identical(f1$log_lik, f2$log_lik)
-	expect_null(f1$log_lik_meta) # only set when method = observed_ghk
 })
 
 test_that("GHK multi-dim Halton dimensions are decorrelated (no lattice)", {

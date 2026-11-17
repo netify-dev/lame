@@ -442,6 +442,14 @@ ame_bipartite <- function(
 		if (length(beta_names) == p) dimnames(X) <- list(rownames(Y), colnames(Y), beta_names)
 		.lame_check_covariate_scale(X)
 		.lame_check_design_rank(X, Y)
+		# default prior N(0, g s20) per unit of each covariate: g = nA nB over the mean square of a slope's column
+		if (length(g) == 1L && is.na(g)) {
+			g <- rep(nA * nB, p)
+			for (k in setdiff(seq_len(p), if (intercept) 1L else integer(0))) {
+				ms_k <- mean(X[, , k]^2, na.rm = TRUE)
+				if (is.finite(ms_k) && ms_k > 0) g[k] <- g[k] / ms_k
+			}
+		}
 	} else {
 		X <- NULL
 	}
@@ -615,9 +623,13 @@ ame_bipartite <- function(
 	nom_lvl_move <- family %in% c("cbin", "frn") && ridge_move && isTRUE(rvar) && nA >= 3L
 	nom_lvl_stats <- c(visits = 0, calls = 0, free_rows = 0)
 	if (nom_lvl_move) nom_lvl_masks <- .lame_nom_shift_masks(array(Y, c(nA, nB, 1L)), TRUE)
+	# exact draw of the shift a + c, b - c of a fit without an intercept (R/ab_shift.R)
+	ab_shift_on <- !isTRUE(intercept) && isTRUE(rvar) && isTRUE(cvar) && !identical(prior[["ab_shift_move"]], FALSE)
+	ab_shift_stats <- c(visits = 0, moved = 0)
 
 	# count failed conditional proposals over all sweeps
 	tryErrorChecks <- list(U = 0L, V = 0L, G = 0L)
+	.lame_fallback_reset()
 
 	# collapsed per-actor update (R/binary_actor_collapsed_move_bip.R): an exact elliptical slice draw of each
 	# actor's level and position with the latent array integrated out, for actors with few events
@@ -1104,7 +1116,7 @@ ame_bipartite <- function(
 				"bip",
 				0,
 				s2,
-				A_pri = if (is.null(osm_ab)) 0 else (if (p > 0) sum(beta^2) / (g * s20_beta) else 0) + osm_ab[1L],
+				A_pri = if (is.null(osm_ab)) 0 else (if (p > 0) sum(beta^2 / (g * s20_beta)) else 0) + osm_ab[1L],
 				B_pri = 0,
 				d_th = if (is.null(osm_ab)) 0 else p + osm_ab[2L],
 				orbit = !is.null(osm_ab)
@@ -1130,7 +1142,7 @@ ame_bipartite <- function(
 					array(UV_cache, c(nA, nB, 1L)),
 					bso_cx,
 					0,
-					A_pri = (if (p > 0) sum(beta^2) / (g * s20_beta) else 0) + bso_ab[1L],
+					A_pri = (if (p > 0) sum(beta^2 / (g * s20_beta)) else 0) + bso_ab[1L],
 					B_pri = 0,
 					d_th = p + bso_ab[2L]
 				)
@@ -1147,28 +1159,61 @@ ame_bipartite <- function(
 			rm(bso_ab)
 		}
 
+		# shift the senders against the receivers; every a_i + b_j, so EZ_cache, is unchanged
+		if (ab_shift_on) {
+			ab_c <- .lame_ab_shift_draw(a, b, Sab, paired = FALSE)
+			if (ab_c != 0) {
+				a <- a + ab_c
+				b <- b - ab_c
+			}
+			ab_shift_stats <- ab_shift_stats + c(1, ab_c != 0)
+		}
+
 		if (iter > burn && (iter - burn) %% odens == 0) {
 			iter_save <- iter_save + 1
+			# store the draw in its identified form, as the one-mode sampler and lame() do: positions centred over
+			# the actors, with the row, column and grand means of the product added to a, b and the intercept; the
+			# sampler state is unchanged
+			beta_rep <- beta; a_rep <- a; b_rep <- b
+			U_rep <- U; V_rep <- V
+			if (isTRUE(rvar) && isTRUE(cvar) && !is.null(U) && !is.null(V) && !is.null(G) &&
+					NCOL(U) > 0L && NCOL(V) > 0L &&
+					all(is.finite(U)) && all(is.finite(V)) && all(is.finite(G))) {
+				cen_rep <- .lame_center_uv_period(U, V, G)
+				if (!is.null(cen_rep)) {
+					if (isTRUE(intercept) && length(beta_rep) > 0L && is.finite(beta_rep[1L])) {
+						beta_rep[1L] <- beta_rep[1L] + cen_rep$const
+						a_rep <- a_rep + cen_rep$a_row
+					} else {
+						# without an intercept the senders carry the grand mean
+						a_rep <- a_rep + cen_rep$a_add
+					}
+					b_rep <- b_rep + cen_rep$b_col
+					U_rep <- cen_rep$U; V_rep <- cen_rep[["V"]]
+				}
+			}
+
+			# summaries the chain policy compares across the run
 			.chain_acc <- .lame_chain_acc_update(
 				.chain_acc,
 				iter_save,
 				n_eff,
-				if (rvar) a else NULL,
-				if (cvar) b else NULL,
-				U,
-				V,
+				if (rvar) a_rep else NULL,
+				if (cvar) b_rep else NULL,
+				U_rep,
+				V_rep,
 				G,
 				actors = list(rownames(Y), colnames(Y))
 			)
 
 			if (iter_save <= n_eff) {
-				BETA[iter_save, ] <- beta
+				BETA[iter_save, ] <- beta_rep
 				VC[iter_save, ] <- c(Sab[1, 1], Sab[1, 2], Sab[2, 2], 0, s2) # no rho for bipartite
 
-				if (rvar) { APS <- APS + a; APS2 <- APS2 + a^2 }
-				if (cvar) { BPS <- BPS + b; BPS2 <- BPS2 + b^2 }
+				if (rvar) { APS <- APS + a_rep; APS2 <- APS2 + a_rep^2 }
+				if (cvar) { BPS <- BPS + b_rep; BPS2 <- BPS2 + b_rep^2 }
 				if (!is.null(U) && !is.null(V) && !is.null(G)) {
-					UVPS <- UVPS + U %*% G %*% t(V)
+					UVPS <- UVPS + U_rep %*% G %*% t(V_rep)
 				}
 
 				# save posterior samples if requested
@@ -1178,8 +1223,8 @@ ame_bipartite <- function(
 						if (iter_save %% posterior_opts$thin_UV == 0) {
 							UV_sample_idx <- UV_sample_idx + 1
 							if (UV_sample_idx <= dim(U_samples)[3]) {
-								U_samples[, , UV_sample_idx] <- U
-								V_samples[, , UV_sample_idx] <- V
+								U_samples[, , UV_sample_idx] <- U_rep
+								V_samples[, , UV_sample_idx] <- V_rep
 								if (!is.null(G)) G_samples[, , UV_sample_idx] <- G
 							}
 						}
@@ -1190,10 +1235,10 @@ ame_bipartite <- function(
 						if (iter_save %% posterior_opts$thin_ab == 0) {
 							ab_sample_idx <- ab_sample_idx + 1
 							if (rvar && !is.null(a_samples) && ab_sample_idx <= ncol(a_samples)) {
-								a_samples[, ab_sample_idx] <- a
+								a_samples[, ab_sample_idx] <- a_rep
 							}
 							if (cvar && !is.null(b_samples) && ab_sample_idx <= ncol(b_samples)) {
-								b_samples[, ab_sample_idx] <- b
+								b_samples[, ab_sample_idx] <- b_rep
 							}
 						}
 					}
@@ -1216,29 +1261,42 @@ ame_bipartite <- function(
 				EZ_curr <- EZ_curr + U %*% G %*% t(V)
 			}
 
-			if (family == "normal") {
-				Y_sim <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-			} else if (family == "binary") {
-				Y_sim <- 1 * (EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB) > 0)
-			} else if (family == "ordinal") {
-				# categories from the observed frequencies, as in the unipartite sampler
-				Y_sim <- simY_ord(EZ_curr, 0, Y, bipartite = TRUE)
-			} else if (family == "cbin") {
-				# nominations from a latent draw around the predictor; hidden cells may hold a nomination,
-				# cells of an absent actor stay out (.lame_nom_predictive_yo)
-				Y_sim <- 1 * (simY_frn(EZ_curr, 0, odmax_vec, YO = YO_pred, bipartite = TRUE) > 0)
-			} else if (family == "frn") {
-				Y_sim <- simY_frn(EZ_curr, 0, odmax_vec, YO = YO_pred, bipartite = TRUE)
-			} else if (family == "poisson") {
-				# include the latent overdispersion: y ~ Pois(exp(z)), z ~ N(EZ, s2)
-				z_sim <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-				Y_sim <- simY_pois(z_sim, bipartite = TRUE)
-			} else {
-				Y_sim <- EZ_curr
+			draw_y <- function() {
+				if (family == "normal") {
+					EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
+				} else if (family == "binary") {
+					1 * (EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB) > 0)
+				} else if (family == "ordinal") {
+					# categories from the observed frequencies, as in the unipartite sampler
+					simY_ord(EZ_curr, 0, Y, bipartite = TRUE)
+				} else if (family == "cbin") {
+					# nominations from a latent draw around the predictor; hidden cells may hold a nomination,
+					# cells of an absent actor stay out (.lame_nom_predictive_yo)
+					1 * (simY_frn(EZ_curr, 0, odmax_vec, YO = YO_pred, bipartite = TRUE) > 0)
+				} else if (family == "frn") {
+					simY_frn(EZ_curr, 0, odmax_vec, YO = YO_pred, bipartite = TRUE)
+				} else if (family == "poisson") {
+					# include the latent overdispersion: y ~ Pois(exp(z)), z ~ N(EZ, s2)
+					z_sim <- EZ_curr + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
+					simY_pois(z_sim, bipartite = TRUE)
+				} else {
+					EZ_curr
+				}
 			}
+			Y_sim <- draw_y()
 
 			if (iter_save <= n_eff) {
-				YPS <- YPS + Y_sim
+				# the replicate's mean given this draw where it has a closed form, otherwise the average of
+				# ten replicates; binary is drawn with sd sqrt(s2)
+				YPS <- YPS + .predictive_mean_term(
+					Y_sim,
+					EZ_curr,
+					family,
+					s2 = s2,
+					draw = draw_y,
+					seed = seed,
+					index = iter_save
+				)
 			}
 
 			if (gof && iter_save <= n_eff) {
@@ -1302,13 +1360,25 @@ ame_bipartite <- function(
 	rownames(UVPM) <- rownames(Y)
 	colnames(UVPM) <- colnames(Y)
 
+	# the returned draw of the positions is centred as the stored draws are; start_vals keeps the sampler's
+	U_fin <- U; V_fin <- V
+	if (isTRUE(rvar) && isTRUE(cvar) && !is.null(U) && !is.null(V) && !is.null(G) &&
+			NCOL(U) > 0L && NCOL(V) > 0L &&
+			all(is.finite(U)) && all(is.finite(V)) && all(is.finite(G))) {
+		cen_fin <- .lame_center_uv_period(U, V, G)
+		if (!is.null(cen_fin)) {
+			U_fin <- cen_fin$U; V_fin <- cen_fin[["V"]]
+			dimnames(U_fin) <- dimnames(U); dimnames(V_fin) <- dimnames(V)
+		}
+	}
+
 	fit <- list(
 		BETA = BETA,
 		VC = VC,
 		APM = APM,
 		BPM = BPM,
-		U = U,
-		V = V,
+		U = U_fin,
+		V = V_fin,
 		G = G,
 		UVPM = UVPM,
 		YPM = YPM,
@@ -1332,6 +1402,7 @@ ame_bipartite <- function(
 		mh_counters = tryErrorChecks,
 		sampler_health = .lame_sampler_health(tryErrorChecks),
 		sampler_health_iterations = nscan + burn,
+		exact_fallbacks = .lame_fallback_take(),
 		# resolved g and prior, for prior_summary()
 		g = g,
 		prior = prior,
@@ -1372,6 +1443,7 @@ ame_bipartite <- function(
 			ridge_calls = ridge_calls
 		)
 	if (uv_g_scale_stats[["visits"]] > 0) fit$uv_g_scale_move <- uv_g_scale_stats
+	if (ab_shift_on && ab_shift_stats[["visits"]] > 0) fit$ab_shift_move <- ab_shift_stats
 	if (!is.null(chain_summary)) fit$chain_summary <- chain_summary
 
 	if (!is.null(posterior_opts)) {
@@ -1403,6 +1475,7 @@ ame_bipartite <- function(
 		.maybe_warn_custom_gof(.cg_tracker, where = "GOF")
 
 	.lame_report_sampler_health(fit$sampler_health, fit$sampler_health_iterations)
+	.lame_report_fallbacks(fit$exact_fallbacks, fit$sampler_health_iterations)
 	if (!is.null(s2_prior_scale)) fit$s2_prior_scale <- s2_prior_scale
 	class(fit) <- "ame"
 	# Poisson fitted count at the posterior means of the predictor and s2 (see .poisson_fitted_mean)

@@ -62,25 +62,23 @@ test_that("dynamic_uv requires positive latent rank", {
 	)
 })
 
-test_that("MCMC bipartite snap/t dynamic UV requests error", {
+test_that("MCMC bipartite and symmetric snap fits are served and the t kind is refused there", {
 	Y = replicate(2, matrix(rnorm(24), 6, 4), simplify = FALSE)
-
-	expect_error(
-		lame(
-			Y,
-			family = "normal",
-			R = 1,
-			mode = "bipartite",
-			dynamic_uv = TRUE,
-			dynamic_uv_kind = "snap",
-			nscan = 10,
-			burn = 2,
-			odens = 1,
-			gof = FALSE,
-			verbose = FALSE
-		),
-		"bipartite MCMC path"
-	)
+	Ys = replicate(2, { m = matrix(rnorm(36), 6, 6); m = (m + t(m)) / 2; diag(m) = NA; m }, simplify = FALSE)
+	ctrl = list(nscan = 10, burn = 2, odens = 1, gof = FALSE, verbose = FALSE, chains = 1)
+	fit_b = suppressWarnings(do.call(
+		lame,
+		c(list(Y, family = "normal", R = 1, mode = "bipartite", dynamic_uv = TRUE, dynamic_uv_kind = "snap"), ctrl)
+	))
+	expect_s3_class(fit_b, "lame")
+	expect_equal(dim(fit_b$snap_prob), c(6L, 2L))
+	expect_equal(dim(fit_b$snap_prob_v), c(4L, 2L))
+	fit_s = suppressWarnings(do.call(
+		lame,
+		c(list(Ys, family = "normal", R = 1, symmetric = TRUE, dynamic_uv = TRUE, dynamic_uv_kind = "snap"), ctrl)
+	))
+	expect_s3_class(fit_s, "lame")
+	expect_length(fit_s$pi_snap, 10L)
 	expect_error(
 		lame(
 			Y,
@@ -97,25 +95,23 @@ test_that("MCMC bipartite snap/t dynamic UV requests error", {
 		),
 		"bipartite MCMC path"
 	)
-	# both messages point at the ar1 kind only, since the bipartite snap and t kinds have no ALS route either
-	msg_snap = tryCatch(
+	expect_error(
 		lame(
-			Y,
+			Ys,
 			family = "normal",
 			R = 1,
-			mode = "bipartite",
+			symmetric = TRUE,
 			dynamic_uv = TRUE,
-			dynamic_uv_kind = "snap",
+			dynamic_uv_kind = "t",
 			nscan = 10,
 			burn = 2,
 			odens = 1,
 			gof = FALSE,
 			verbose = FALSE
 		),
-		error = function(e) gsub("\\s+", " ", conditionMessage(e))
+		"symmetric fits on the MCMC path"
 	)
-	expect_match(msg_snap, "dynamic_uv_kind = \"ar1\"", fixed = TRUE)
-	expect_no_match(msg_snap, "point estimate", fixed = TRUE)
+	# the message names the kinds that do fit, and no point estimate
 	msg_t = tryCatch(
 		lame(
 			Y,
@@ -133,6 +129,7 @@ test_that("MCMC bipartite snap/t dynamic UV requests error", {
 		error = function(e) gsub("\\s+", " ", conditionMessage(e))
 	)
 	expect_match(msg_t, "dynamic_uv_kind = \"ar1\"", fixed = TRUE)
+	expect_match(msg_t, "snap", fixed = TRUE)
 	expect_no_match(msg_t, "point estimate", fixed = TRUE)
 })
 
@@ -248,20 +245,18 @@ test_that("front-door dynamic ALS handles aliases, ignored controls, and update 
 	expect_lte(length(fit$dev_history), 2L)
 	expect_null(fit$snap_draws)
 
+	# the static fast fit is updated by a cold refit
 	fit_static = lame(
 		Y,
 		family = "normal",
 		R = 0,
 		method = "als",
-		als_max_iter = 2,
-		bias_correct = "none",
 		verbose = FALSE
 	)
 	expect_s3_class(
 		suppressWarnings(update(
 			fit_static,
 			R = 1,
-			als_max_iter = 2,
 			verbose = FALSE
 		)),
 		"ame_als"
@@ -375,8 +370,7 @@ test_that("dynamic wrappers expose complete signatures and run", {
 			s2 = 1,
 			kappa = 2,
 			pi_snap = 0.1,
-			shrink = FALSE,
-			symmetric = FALSE
+			shrink = FALSE
 		)
 	)
 	expect_equal(dim(out$delta_u), c(4L, 2L))
@@ -392,8 +386,7 @@ test_that("dynamic wrappers expose complete signatures and run", {
 			sigma_uv = 1,
 			s2 = 1,
 			nu = 4,
-			shrink = FALSE,
-			symmetric = FALSE
+			shrink = FALSE
 		)
 	)
 	expect_equal(dim(out_t$lambda_u), c(4L, 2L))
@@ -422,8 +415,7 @@ test_that("dynamic wrappers expose complete signatures and run", {
 			s2 = 1,
 			kappa = 2,
 			pi_snap = 0.1,
-			shrink = FALSE,
-			symmetric = FALSE
+			shrink = FALSE
 		),
 		"nrow\\(U\\).*nrow\\(V\\).*n_time"
 	)
@@ -436,8 +428,7 @@ test_that("dynamic wrappers expose complete signatures and run", {
 			sigma_uv = 1,
 			s2 = 1,
 			nu = 4,
-			shrink = FALSE,
-			symmetric = FALSE
+			shrink = FALSE
 		),
 		"nrow\\(U\\).*nrow\\(V\\).*n_time"
 	)
@@ -481,7 +472,6 @@ test_that("lame_als advertises static dynamic metadata", {
 
 	expect_false(isTRUE(fit$dynamic$uv))
 	expect_false(isTRUE(fit$dynamic$ab))
-	expect_false(isTRUE(fit$dynamic$G))
 	expect_null(fit$snap_prob)
 	expect_null(fit$rho_uv)
 })
@@ -530,8 +520,7 @@ simulate_snap_panel = function(
 }
 
 test_that("the ALS route refuses the snap kind in every shape", {
-	# the snap ALS point estimate does not track the per-period product or the planted resets well enough to report,
-	# so the message names the routes that do fit
+	# the message names the routes that do fit the snap kind
 	flat = function(e) gsub("\\s+", " ", conditionMessage(e))
 	Yd = simulate_snap_panel(snap = FALSE)
 	msg_d = tryCatch(
@@ -566,7 +555,7 @@ test_that("the ALS route refuses the snap kind in every shape", {
 	)
 	expect_match(msg_s, "symmetric snap panels", fixed = TRUE)
 	expect_match(msg_s, "dynamic_uv_kind = \"ar1\"", fixed = TRUE)
-	expect_no_match(msg_s, "\"snap\"` with `method = \"mcmc\"", fixed = TRUE)
+	expect_match(msg_s, "\"snap\"` with `method = \"mcmc\"", fixed = TRUE)
 	Yb = replicate(3, matrix(rnorm(24), 6, 4), simplify = FALSE)
 	msg_b = tryCatch(
 		lame(
@@ -583,6 +572,7 @@ test_that("the ALS route refuses the snap kind in every shape", {
 		error = flat
 	)
 	expect_match(msg_b, "bipartite snap panels", fixed = TRUE)
+	expect_match(msg_b, "\"snap\"` with `method = \"mcmc\"", fixed = TRUE)
 	expect_error(
 		lame:::lame_dynamic_als(
 			Yd,
@@ -594,18 +584,6 @@ test_that("the ALS route refuses the snap kind in every shape", {
 		),
 		"no ALS route"
 	)
-	# lame_snap_als() stays exported, as a refusal naming the same routes
-	expect_true("lame_snap_als" %in% getNamespaceExports("lame"))
-	msg_x = tryCatch(lame_snap_als(Yd, R = 1, verbose = FALSE), error = flat)
-	expect_match(msg_x, "was removed in lame 1.4.0", fixed = TRUE)
-	expect_match(msg_x, "dynamic_uv_kind = \"snap\"` with `method = \"mcmc\"", fixed = TRUE)
-	msg_xb = tryCatch(
-		lame_snap_als(Yb, R_row = 1, R_col = 1, mode = "bipartite"),
-		error = flat
-	)
-	expect_match(msg_xb, "bipartite snap panels", fixed = TRUE)
-	msg_xs = tryCatch(lame_snap_als(Ys, R = 1, symmetric = TRUE), error = flat)
-	expect_match(msg_xs, "symmetric snap panels", fixed = TRUE)
 })
 
 test_that("snap summary helpers fall back to the posterior-mean row and handle one-year ranks", {
@@ -771,7 +749,8 @@ test_that("an exhausted dynamic ALS budget is an error that reports its unfinish
 				method = "als",
 				dynamic_ab = TRUE,
 				als_max_iter = 1,
-				bias_correct = "none",
+				# the penalised fit, as the sampler's warm start asks for it
+				prior = structure(list(), lame_als_estimator = "none"),
 				verbose = FALSE
 			),
 			class = "lame_als_convergence"

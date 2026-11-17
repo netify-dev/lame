@@ -53,7 +53,8 @@ function with the user-supplied overrides forwarded; pass
 \code{nscan = K} on the resume call to request \code{K}
 additional post-burn sweeps. Both call shapes evaluate saved data arguments
 in the caller's frame, so objects referenced by the original call must
-remain available there.
+remain available there. A missing one is named in the error; data passed
+to \code{lame_resume()} by argument name replace the saved arguments.
 
 Use \code{nscan_more = K} to override the \code{nscan} value to
 \code{K} for the continuation. A fit continued from the object runs with the
@@ -87,21 +88,19 @@ call did not supply them.
 \donttest{
 ck <- tempfile(fileext = ".rds")
 data(YX_bin_list)
-# short run with very-aggressive max_seconds to force early termination
+# a run that writes a checkpoint for each chain as it goes
 fit1 <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X,
-             family = "binary", R = 0, nscan = 5000, burn = 50, odens = 5,
-             checkpoint_path = ck, checkpoint_every = 50L,
-             max_seconds = 0.5, verbose = FALSE)
-if (isTRUE(fit1$terminated_early)) {
-  # each chain wrote its own checkpoint (ck with _chain1, _chain2 before
-  # the extension): continue one chain from its file, or every chain
-  # from the returned fit
-  fit2 <- lame_resume(sub(".rds", "_chain1.rds", ck, fixed = TRUE), nscan_more = 200)
-  dim(fit2$BETA)
-  # the time limit of the call applies again unless it is lifted
-  fit3 <- lame_resume(fit1, nscan_more = 200, max_seconds = Inf)
-  nrow(fit3$BETA)  # 2 chains * 200 / 5 = 80
-}
+             family = "binary", R = 0, nscan = 100, burn = 20, odens = 5,
+             checkpoint_path = ck, checkpoint_every = 50L, verbose = FALSE)
+# each chain has its own file (ck with _chain1, _chain2 before the
+# extension): continue one chain from its file
+fit2 <- lame_resume(sub(".rds", "_chain1.rds", ck, fixed = TRUE), nscan_more = 50)
+dim(fit2$BETA)
+# or every chain from the returned fit
+fit3 <- lame_resume(fit1, nscan_more = 50)
+nrow(fit3$BETA)  # 2 chains * 50 / 5 = 20
+# a run stopped by max_seconds (fit$terminated_early) continues the same way;
+# max_seconds = Inf lifts the time limit of the original call
 }
 
 }

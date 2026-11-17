@@ -73,6 +73,8 @@
 #' @method update ame
 #' @export
 update.ame <- function(object, ..., evaluate = TRUE) {
+	# called inline so parent.frame() is the user's frame and names such as
+	# `dat$Y` resolve
 	setup <- .update_ame_eval_setup(object, list(...), parent.frame())
 	if (!isTRUE(evaluate)) return(setup$cl)
 	eval(setup$cl, envir = setup$envir)
@@ -81,10 +83,4 @@ update.ame <- function(object, ..., evaluate = TRUE) {
 #' @rdname update.ame
 #' @method update lame
 #' @export
-update.lame <- function(object, ..., evaluate = TRUE) {
-	# called inline so parent.frame() is the user's frame and names such as
-	# `dat$Y` resolve
-	setup <- .update_ame_eval_setup(object, list(...), parent.frame())
-	if (!isTRUE(evaluate)) return(setup$cl)
-	eval(setup$cl, envir = setup$envir)
-}
+update.lame <- update.ame

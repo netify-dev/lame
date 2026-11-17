@@ -36,10 +36,14 @@ the AR(1) (or RW1) state-space model forward by \code{h} periods and
 returns a list of \code{h} matrices (one per future period). Requires
 at least one dynamic component on the fit. Warns when posterior
 \eqn{\rho_\beta} is near 1.
-Coefficient innovations retain the fitted design-based scale. Dynamic
-coefficient forecasts require equally spaced AR(1) or RW1 periods;
-irregular-period, RW2, Matern and actor-specific coefficient laws are
-refused until their future transition is implemented.}
+Coefficient innovations retain the fitted design-based scale. An AR(1)
+coefficient reverts to its long-run mean and an RW1 coefficient keeps its
+last level; an RW2 or Matern 3/2 coefficient is drawn from the Gaussian
+conditional of its prior over the fitted and future periods (an RW2 path
+extends its last slope, a Matern path returns toward zero over its length
+scale), each at the draw's innovation scale. Dynamic coefficient forecasts
+require equally spaced periods; actor-specific coefficient laws are
+refused.}
 
 \item{by_draw}{When \code{TRUE} and \code{h > 0}, returns an
 \code{n x n x h x n_draws} array of per-draw forecasts instead of

@@ -72,7 +72,7 @@
 		v <- 1 / d
 		x <- v * num_a + sqrt(v) * rnorm(n)
 		if (center) x <- .lame_ab_center_weighted(x, v)
-		x[!is.finite(x)] <- 0
+		if (any(!is.finite(x))) stop("Nonfinite additive level draw.")
 		return(list(a = x, b = x))
 	}
 	if (length(num_a) != length(num_b)) {
@@ -83,7 +83,7 @@
 			v <- 1 / d
 			x <- v * num + sqrt(v) * rnorm(length(num))
 			if (center) x <- .lame_ab_center_weighted(x, v)
-			x[!is.finite(x)] <- 0
+			if (any(!is.finite(x))) stop("Nonfinite additive level draw.")
 			x
 		}
 		return(list(
@@ -155,6 +155,7 @@
 			v <- 1 / (st$prec + 1 / variance)
 			x <- v * st$num + sqrt(v) * rnorm(length(v))
 			if (isTRUE(center)) x <- .lame_ab_center_weighted(x, v)
+			if (any(!is.finite(x))) stop("Nonfinite additive level draw.")
 			x
 		}
 		return(list(a = draw_one(sa, Sab[1, 1], rvar), b = draw_one(sb, Sab[2, 2], cvar)))
@@ -361,7 +362,8 @@
 	max(mult * frac * frac * unit, 1e-8 * unit)
 }
 # independence MH step for rho_uv under the stationary AR(1) initial condition of the dynamic UV kernels.
-# the proposal is the truncated conjugate normal; the ratio supplies the t = 1 stationary factor it omits
+# the proposal is the truncated conjugate normal; the ratio supplies the t = 1 stationary factor it omits.
+# `with_u = TRUE` returns list(rho, u) with the recycled uniform of the test (R/uv_rho_flip.R)
 .lame_rho_uv_mh_stationary <- function(
 	rho_current,
 	mean_post,
@@ -369,12 +371,13 @@
 	S1,
 	n1,
 	sigma_uv,
-	stat_var_cap = Inf
+	stat_var_cap = Inf,
+	with_u = FALSE
 ) {
 	lo <- -0.99
 	hi <- 0.99
 	if (!is.finite(mean_post) || !is.finite(var_post) || var_post <= 0) {
-		return(rho_current)
+		return(if (with_u) list(rho = rho_current, u = NA_real_) else rho_current)
 	}
 	sd_post <- sqrt(var_post)
 	prop <- .lame_ar_truncnorm_draw(mean_post, sd_post, lo, hi)
@@ -384,8 +387,16 @@
 		0.5 * n1 * log(1 - r * r) - 0.5 * (1 - r * r) * S1 * s2i
 	}
 	la <- log_f1(prop) - log_f1(rc)
-	candidate <- if (is.finite(la) && log(runif(1)) < la) prop else rho_current
-	.lame_ar_rho_support(candidate, rho_current, sigma_uv, stat_var_cap)
+	accepted <- FALSE
+	u <- NA_real_
+	if (is.finite(la)) {
+		u <- runif(1)
+		accepted <- log(u) < la
+		u <- .lame_recycle_u(u, la, accepted)
+	}
+	candidate <- if (accepted) prop else rho_current
+	rho <- .lame_ar_rho_support(candidate, rho_current, sigma_uv, stat_var_cap)
+	if (with_u) list(rho = rho, u = u) else rho
 }
 # scale of the position a snap reset lands on: prior$snap_kappa when set,
 # otherwise the stationary sd of the position paths, sigma_uv / sqrt(1 - rho_uv^2)
@@ -427,10 +438,13 @@
 	prior_mean = 0.9,
 	prior_sd = 0.1,
 	reset_stationary = FALSE,
-	stat_var_cap = Inf
+	stat_var_cap = Inf,
+	with_u = FALSE,
+	stationary_prior = NULL
 ) {
 	n_time <- dim(U_cube)[3]
-	if (is.null(n_time) || n_time < 2 || is.null(delta_u)) return(rho_current)
+	unchanged <- if (with_u) list(rho = rho_current, u = NA_real_) else rho_current
+	if (is.null(n_time) || n_time < 2 || is.null(delta_u)) return(unchanged)
 	sigma2_inv <- 1 / (sigma_uv * sigma_uv)
 	prior_prec <- 1 / (prior_sd * prior_sd)
 	sum_yt_yt1 <- 0
@@ -453,7 +467,7 @@
 			}
 		}
 	}
-	if (!is.finite(sum_yt1_yt1) || sum_yt1_yt1 <= 0) return(rho_current)
+	if (!is.finite(sum_yt1_yt1) || sum_yt1_yt1 <= 0) return(unchanged)
 	var_post <- 1 / (sum_yt1_yt1 * sigma2_inv + prior_prec)
 	mean_post <- var_post * (sum_yt_yt1 * sigma2_inv + prior_mean * prior_prec)
 	# stationary initial condition at t = 1, which always contributes
@@ -469,6 +483,12 @@
 		S1 <- S1 + st$ss
 		n1 <- n1 + st$cnt
 	}
+	# an inverse gamma (shape, scale) on the stationary variance enters like a first period
+	# (R/uv_var_prior.R): its density at sigma^2 / (1 - rho^2) has the same form in rho
+	if (!is.null(stationary_prior)) {
+		S1 <- S1 + 2 * stationary_prior[[2L]]
+		n1 <- n1 + 2 * stationary_prior[[1L]]
+	}
 	.lame_rho_uv_mh_stationary(
 		rho_current,
 		mean_post,
@@ -476,8 +496,20 @@
 		S1,
 		n1,
 		sigma_uv,
-		stat_var_cap = stat_var_cap
+		stat_var_cap = stat_var_cap,
+		with_u = with_u
 	)
+}
+# best-effort checkpoint write: the run continues when it fails, with one warning per run
+.lame_write_checkpoint <- function(ckpt, path, warned) {
+	ok <- !inherits(try(saveRDS(ckpt, file = path), silent = TRUE), "try-error")
+	if (!ok && !warned) {
+		cli::cli_warn(c(
+			"The checkpoint could not be written to {.path {path}}; the run continues without it.",
+			"i" = "Check that the directory exists and is writable; {.fn lame_resume} needs the file."
+		))
+	}
+	warned || !ok
 }
 # counter for draws pushed to the bound of a stationary-variance cap, reported by the fit
 .lame_cap_env <- new.env(parent = emptyenv())
@@ -703,15 +735,18 @@
 	L
 }
 # Metropolis draw of rho_uv in the symmetric gauge (unit stationary variance, innovation variance 1 - rho^2),
-# with the normal prior on rho truncated to (-0.99, 0.99)
+# with the normal prior on rho truncated to (-0.99, 0.99). `with_u = TRUE` returns list(rho, u) with the
+# recycled uniform of the test (R/uv_rho_flip.R)
 .lame_rho_uv_unit_mh <- function(
 	U_cube,
 	rho_current,
 	prior_mean = 0.9,
-	prior_sd = 0.1
+	prior_sd = 0.1,
+	with_u = FALSE
 ) {
 	N <- dim(U_cube)[3L]
-	if (is.null(N) || N < 2L) return(rho_current)
+	keep <- function(r, u = NA_real_) if (with_u) list(rho = r, u = u) else r
+	if (is.null(N) || N < 2L) return(keep(rho_current))
 	n <- dim(U_cube)[1L]
 	R <- dim(U_cube)[2L]
 	s11 <- 0; s12 <- 0; s22 <- 0
@@ -723,7 +758,7 @@
 		s22 <- s22 + sum(U2 * U2)
 	}
 	m <- n * R * (N - 1L)
-	if (!is.finite(s11) || s11 <= 0) return(rho_current)
+	if (!is.finite(s11) || s11 <= 0) return(keep(rho_current))
 	log_post <- function(r) {
 		v <- 1 - r * r
 		-0.5 * m * log(v) - (s22 - 2 * r * s12 + r * r * s11) / (2 * v) +
@@ -734,9 +769,12 @@
 	rc <- min(max(rho_current, lo), hi)
 	step <- min(max(2 / sqrt(m), 0.01), 0.2)
 	prop <- rc + stats::rnorm(1, 0, step)
-	if (prop <= lo || prop >= hi) return(rc)
+	if (prop <= lo || prop >= hi) return(keep(rc))
 	la <- log_post(prop) - log_post(rc)
-	if (is.finite(la) && log(stats::runif(1)) < la) prop else rc
+	if (!is.finite(la)) return(keep(rc))
+	u <- stats::runif(1)
+	accepted <- log(u) < la
+	keep(if (accepted) prop else rc, .lame_recycle_u(u, la, accepted))
 }
 # innovation sd of the symmetric gauge, whose coordinate paths have unit stationary variance
 .lame_sym_uv_innov_sd <- function(rho_uv) {
@@ -1115,10 +1153,6 @@
 .lame_sparse_period_rate <- 1.2
 .lame_sparse_period_rate_intercept <- 0.6
 .lame_sparse_period_rate_intercept_rank <- 1.6
-.lame_ab_sparse <- function(per_period) {
-	pp <- suppressWarnings(as.numeric(per_period))
-	length(pp) == 1L && is.finite(pp) && pp < .lame_sparse_period_rate
-}
 # the rate is higher with a multiplicative term, whose mean the intercept trades off against
 .lame_sparse_intercept_rate <- function(fit) {
 	R <- suppressWarnings(as.numeric(fit[["R"]] %||% fit[["rank"]]))
@@ -1198,10 +1232,6 @@
 	reason <- .lame_ab_data_reason(fit)
 	if (!is.na(reason) && isTRUE(fit[["prior_supplied"]])) return(NA_character_)
 	reason
-}
-# whether a fit carries too little information to report the additive-effect variances
-.lame_ab_var_unidentified <- function(fit) {
-	!is.na(.lame_ab_var_unident_reason(fit))
 }
 # how a nomination-cap share reads in the messages
 .lame_sat_phrase <- function(share, hidden = FALSE) {
@@ -1331,26 +1361,6 @@
 	out
 }
 
-# whether the snap and t position hyperparameters are withheld: at rank two or more their chains
-# mix poorly (see ?lame); a fit that does not record its rank counts as rank two or more
-.lame_uv_rank_withheld <- function(fit) {
-	R <- fit[["R"]]
-	if (is.null(R) && length(dim(fit[["U"]])) >= 2L) R <- dim(fit[["U"]])[2L]
-	!(is.numeric(R) && length(R) == 1L && is.finite(R) && R < 2)
-}
-.lame_snap_rate_unidentified <- function(fit) {
-	if (!is.list(fit)) return(FALSE)
-	if (!isTRUE(fit[["dynamic_uv"]])) return(FALSE)
-	kind <- fit[["dynamic_uv_kind"]] %||% ((fit[["dynamic"]] %||% list())[["uv_kind"]] %||% "ar1")
-	identical(kind, "snap") && .lame_uv_rank_withheld(fit)
-}
-.lame_uv_hyper_unidentified <- function(fit) {
-	if (!is.list(fit)) return(FALSE)
-	if (!isTRUE(fit[["dynamic_uv"]])) return(FALSE)
-	kind <- fit[["dynamic_uv_kind"]] %||% ((fit[["dynamic"]] %||% list())[["uv_kind"]] %||% "ar1")
-	if (!.lame_uv_rank_withheld(fit)) return(FALSE)
-	identical(kind, "snap") || (identical(kind, "t") && !isTRUE(fit[["als_start"]]))
-}
 .lame_expand_rho <- function(rho, n_time) {
 	if (!is.numeric(rho) || !length(rho) || any(!is.finite(rho)) ||
 			any(abs(rho) >= 1)) {
@@ -1553,6 +1563,46 @@
 	out <- out + 0.5 * n_uv * lg - 0.5 * (cc - 1) * q_uv
 	out
 }
+# prior part of the level step at factor ctot and ratio f: static coefficients under their g-prior, or
+# with `path_terms` the coefficients of a dynamic_beta fit as a gaussian block scaled like the others
+.lame_level_coef_logratio <- function(
+	f,
+	ctot,
+	beta,
+	iV0,
+	path_terms,
+	q_lev,
+	n_lev,
+	q_dev = 0,
+	n_dev = 0L,
+	q_uv = 0,
+	n_uv = 0L
+) {
+	if (is.null(path_terms)) {
+		return(.lame_scale_prior_logratio(
+			f,
+			ctot * beta,
+			iV0,
+			ctot * ctot * q_lev,
+			n_lev,
+			ctot * ctot * q_dev,
+			n_dev,
+			ctot * q_uv,
+			n_uv
+		))
+	}
+	.lame_scale_prior_logratio(
+		f,
+		numeric(0),
+		matrix(0, 0L, 0L),
+		ctot * ctot * (q_lev + path_terms$q),
+		n_lev + path_terms$dimension,
+		ctot * ctot * q_dev,
+		n_dev,
+		ctot * q_uv,
+		n_uv
+	)
+}
 # redraw the binary latent array given the shared dyad factors, within the sign region Y implies
 .lame_binary_z_given_factor <- function(
 	Z,
@@ -1616,10 +1666,22 @@
 #'
 #' Set \code{sampler = "tempered"} for a common actor grid with
 #' \code{family = "binary"}, \code{symmetric = TRUE}, \code{dynamic_ab = TRUE},
-#' positive static rank, a static intercept and optional symmetric dyadic
+#' positive static rank, an intercept and optional symmetric dyadic
 #' covariates. At least four actors and two equally spaced periods are required.
 #' The observed likelihood contains each unordered dyad once:
-#' \deqn{P(Y_{ijt}=1)=\Phi(x_{ijt}^{T}\beta+a_{it}+a_{jt}+u_i^T\Lambda u_j).}
+#' \deqn{P(Y_{ijt}=1)=\Phi(x_{ijt}^{T}\beta+\mu_t+a_{it}+a_{jt}+u_i^T\Lambda u_j).}
+#' As on the other routes the intercept moves under \code{dynamic_ab}, with the kind
+#' \code{dynamic_beta_kind} gives it (\code{"rw1"} when that is \code{"ar1"}).
+#' The intercept of period \eqn{t} is the intercept coefficient plus \eqn{\mu_t},
+#' with \eqn{\mu_1=0}; for \code{"rw1"} \eqn{\mu_t-\mu_{t-1}\sim N(0,\sigma_\beta^2\lambda_0)}; for
+#' \code{"rw2"} the second differences have that distribution and the first
+#' increment does too; for \code{"matern32"} \eqn{\mu_t} is the change since the
+#' first period of a Matern 3/2 process with variance \eqn{\sigma_\beta^2\lambda_0}
+#' and length scale \code{prior$matern32_length_scale} (default
+#' \eqn{\max(2, T/4)} periods). \eqn{\sigma_\beta^2} is
+#' inverse-gamma with shape \code{prior$sigma_beta_shape} and
+#' scale \code{prior$sigma_beta_scale} and \eqn{\lambda_0} is the innovation scale of
+#' the intercept; \code{BETA} holds the intercept per period.
 #' Shared actor effects comprise a zero-sum level and a zero-sum stationary
 #' Gaussian AR(1) deviation. Their level variance has an inverse-gamma prior
 #' with shape \code{etaab/2} and scale \code{etaab * Sab0[1,1]/2};
@@ -1639,10 +1701,29 @@
 #' The sampler uses bounded Langevin proposals with their complete forward
 #' and reverse Gaussian densities, a fixed ladder of 21 likelihood powers,
 #' replica exchanges, prior refreshes at power zero, and signed-weight
-#' reflections. Step sizes adapt only during burn-in. \code{fit$tempering}
-#' records transition counts, step sizes and replica sign traces;
-#' convergence diagnostics are computed from the stored draws of
-#' independently seeded fits.
+#' reflections. After each Langevin step every replica redraws its scale
+#' parameters given the centred effects (an interweaving step, Yu and Meng 2011):
+#' the level variance from its inverse-gamma conditional given the levels,
+#' \eqn{(\rho_{ab}, \sigma_{ab})} jointly given the deviation paths (a slice
+#' update of the persistence with the innovation variance integrated out, then the
+#' innovation variance), and \eqn{\sigma_\beta} given the intercept path; the
+#' latent effects and every linear predictor are unchanged by this step. It then
+#' updates the intercept of each period on its own, by a random-walk Metropolis
+#' step that leaves the other periods' intercepts in place. Under the non-centred
+#' coordinates of the Langevin step alone these scales and the first-period
+#' intercept move as a slow random walk. The replica at power one, whose states
+#' are stored, makes four such transitions per sweep and every other replica one.
+#' Step sizes adapt only during burn-in. \code{fit$tempering}
+#' records transition counts, step sizes and replica sign traces, one record per
+#' chain in a fit of several chains.
+#'
+#' The tempered sampler runs under the same chain policy as the default sampler
+#' (see \emph{Chains and convergence policy} below): two independently seeded chains
+#' by default, the drift check and the between-chain R-hat gate on the same monitored
+#' set, extensions of every chain and the same chain fields. A chain is extended,
+#' and \code{\link{lame_resume}} continues a fit, from its complete replica state
+#' (every replica, the step sizes and both random-number streams), so an extended
+#' chain is exactly the chain an uninterrupted run would have produced.
 #'
 #' This route accepts only its documented factor and additive prior settings;
 #' \code{Sab0} must be a positive multiple of the two by two identity and
@@ -1676,8 +1757,16 @@
 #' time-varying homophily, latent community structure, and transitivity dynamics.
 #' The \code{"snap"} transition uses a mixture of AR(1) drift and discontinuous
 #' reset transitions, while \code{"t"} uses heavy-tailed Student-t innovations
-#' represented by local transition scales. On the MCMC path, snap and t
-#' transitions are supported for directed unipartite models. With
+#' represented by local transition scales: given its scale \eqn{\lambda_{i,t}
+#' \sim \mathrm{Gamma}(\nu/2, \nu/2)} (\eqn{\nu} = \code{prior$t_nu}), the
+#' innovation of actor i at period t is \eqn{N(0, \sigma_{uv}^2 / \lambda_{i,t})}.
+#' In the MCMC sampler the first period is Student-t with the same \eqn{\nu}
+#' and the stationary scale \eqn{\sigma_{uv} / \sqrt{1 - \rho_{uv}^2}}, drawn
+#' as \eqn{N(0, \sigma_{uv}^2 / ((1 - \rho_{uv}^2) \lambda_{i,1}))} with its own
+#' scale \eqn{\lambda_{i,1}}, so that it has the tail of the transitions; the
+#' ALS estimator keeps a Gaussian first period. On the MCMC path, snap transitions
+#' are supported for directed, bipartite and symmetric models and t transitions
+#' for directed unipartite models, at any rank. With
 #' \code{method = "als"}, Student-t dynamic UV is supported for directed and
 #' symmetric normal, binary, and Poisson panels, including named panels where
 #' actors enter or exit; the snap kind has no ALS route.
@@ -1725,10 +1814,13 @@
 #' \itemize{
 #'   \item \eqn{\rho_{uv}, \rho_{ab} \sim TruncNormal(mean, sd, -0.99, 0.99)}:
 #'         Ensures stationarity of AR(1) process
-#'   \item \eqn{\sigma_{uv}^2, \sigma_{ab}^2 \sim InverseGamma(shape, scale)}:
+#'   \item \eqn{\sigma_{uv}^2 / (1 - \rho_{uv}^2) \sim InverseGamma(shape, scale)}
+#'         independently of \eqn{\rho_{uv}}: the stationary variance of a
+#'         coordinate path (\code{prior$uv_var_shape}, \code{prior$uv_var_scale})
+#'   \item \eqn{\sigma_{ab}^2 \sim InverseGamma(shape, scale)}:
 #'         Controls innovation variance
-#'   \item Default priors (\eqn{\rho_{uv}} mean=0.9, \eqn{\rho_{ab}} mean=0.8)
-#'         favor smooth evolution
+#'   \item Default priors (\eqn{\rho_{uv}} mean=0.7, sd=0.3; \eqn{\rho_{ab}}
+#'         mean=0.8) favor persistent evolution
 #'   \item Adjust rho_*_mean closer to 1 for slower evolution, closer to 0 for
 #'         more rapid changes
 #' }
@@ -1750,8 +1842,11 @@
 #' run forked, on at most \code{cores} workers (all cores but one by default); on
 #' Windows they run one after the other. The draws do not depend on the number of
 #' workers. The result is the pooled fit of \code{\link{combine_ame_chains}}, with
-#' \code{fit$chains}, \code{fit$chain_seeds}, \code{fit$rhat} (the R-hat of the
-#' monitored set), the state each chain stopped in, and the \code{chain_indicator}
+#' \code{fit$chains}, \code{fit$chain_seeds}, \code{fit$rhat} (the R-hat of each
+#' monitored series with its effective draws per split chain, pooled \code{ess} and
+#' of the least-mixing chain \code{ess_chain}, its \code{threshold}, whether the
+#' chains hold enough effective draws to be compared on it, \code{informative}, and
+#' how many that takes, \code{ess_needed}), the state each chain stopped in, and the \code{chain_indicator}
 #' that \code{as_draws()} and \code{\link{trace_plot}} use. Two chains
 #' cost twice the CPU time and about the same wall time on a multicore machine.
 #'
@@ -1761,53 +1856,126 @@
 #' \code{ve}, \code{rho}, \code{rho_ab}, \code{sigma_ab}, \code{rho_uv},
 #' \code{sigma_uv} and \code{pi_snap} are compared with batch-means standard errors
 #' (ten batches per third); a quantity is flagged when the two means differ by more
-#' than 3 standard errors and by more than half a posterior standard deviation of the
-#' whole series. Between chains, the split rank-normalised R-hat (Vehtari et al.,
-#' 2021) of the monitored set is compared with 1.05: every regression coefficient
-#' (each period's under \code{dynamic_beta}), \code{va}, \code{vb}, \code{cab},
+#' than half a posterior standard deviation of the whole series and by more standard
+#' errors than the drift threshold. Between chains, the split rank-normalised R-hat
+#' (Vehtari et al., 2021) of each series of the monitored set is compared with its
+#' threshold. Both thresholds are set so that chance alone flags settled chains
+#' anywhere in the fit with probability about 1 percent per check, however many
+#' quantities are checked. The chains are compared on a series only when they hold
+#' enough effective draws for its threshold to catch chains one posterior standard
+#' deviation apart at least 95 percent of the time; a series with fewer is flagged
+#' as having too few effective draws to compare (see \emph{Gate thresholds} below). The monitored set
+#' is every regression coefficient (each period's under \code{dynamic_beta}), \code{va}, \code{vb}, \code{cab},
 #' \code{ve}, \code{rho}, the dynamic hyperparameters, and summaries of the
 #' additive and latent structure recorded at every stored draw (the rms of
 #' \code{a} and \code{b}, the largest actor effect, the rms of the latent product
 #' \eqn{UGV'}, the norm of \code{G} of a bipartite fit and the split of scale
 #' between \code{U} and \code{V} of a directed fit, per period for dynamic fits).
 #' The dyadic products are not monitored. Quantities a fit reports as not estimated
-#' are left out, and a run with fewer than 60 stored draws per chain is not checked.
+#' are left out, and a run with fewer than 60 stored draws per chain is not checked
+#' (\code{print()} says so).
 #' The gate is computed on the draws the returned fit holds (the last block of
 #' every chain). \code{fit$diagnostics$rhat}, from
 #' \code{\link{compute_mcmc_diagnostics}}, is the same statistic of the same
 #' draws and equals \code{fit$rhat} for every monitored coefficient and variance
 #' component.
 #'
-#' When a chain drifts or an R-hat exceeds 1.05, every chain is extended by a block
-#' of \code{nscan} sweeps from its own final state, as \code{\link{lame_resume}} does
-#' (the seeds advance by the sweeps already run); the flagged block counts as extra
-#' burn-in, its draws are discarded, and both checks run again. Up to
-#' \code{prior$chain_extensions} extensions are made (default 3, so at most four
-#' times \code{nscan} post-burn sweeps per chain). The returned fit has the same
-#' number of stored draws as a fit that needed no extension, and
-#' \code{fit$auto_extend} records the extensions, the sweeps discarded and the
-#' quantities that triggered each. If the last block is still flagged, \code{lame()}
-#' stops with an error of class \code{lame_chain_unsettled}: its \code{fits} field
-#' holds the chains, \code{fit} the pooled fit of the last block, \code{rhat} the
-#' monitored table and \code{moving} the offending quantities, and
+#' When a chain drifts, an R-hat exceeds its threshold or a series has too few
+#' effective draws to compare, every chain is extended by a block of sweeps from its
+#' own final state, as \code{\link{lame_resume}} does (the seeds advance by the
+#' sweeps already run); the flagged block counts as extra burn-in, its draws are
+#' discarded, and both checks run again. The block is \code{nscan} sweeps or, when
+#' series are short of effective draws, long enough for each to hold a quarter more
+#' than it needs at its autocorrelation (at most four times \code{nscan}; the stored
+#' draws grow with the block). Up to \code{prior$chain_extensions} extensions are
+#' made (default 3). The returned fit holds the draws of the last block, and
+#' \code{fit$auto_extend} records the extensions, the sweeps discarded, the length
+#' of the last block (\code{block_nscan}) and the quantities that triggered each. If
+#' a chain of the last block still drifts or an R-hat is still above its threshold,
+#' \code{lame()} stops with an error of class \code{lame_chain_unsettled}: its
+#' \code{fits} field holds the chains, \code{fit} the pooled fit of the last block,
+#' \code{rhat} the monitored table (R-hat, effective draws, threshold and verdict of
+#' every series) and \code{moving} the offending quantities with the reason, and
 #' \code{lame_resume(e$fit, nscan = nscan)} continues every chain
-#' (\code{lame_resume(e$fits[[k]], nscan = nscan)} one). \code{prior = list(chain_extensions
-#' = 0)} refuses at the first flag; \code{chains = 1} runs one chain with the drift
-#' check only. There is no mode that returns a flagged fit.
+#' (\code{lame_resume(e$fits[[k]], nscan = nscan)} one). If the chains of the last
+#' block only hold too few effective draws on some series, the fit is returned with
+#' a warning of class \code{lame_chain_not_compared} that names them and the
+#' \code{nscan} that would be enough, and \code{fit$rhat} marks them
+#' \code{informative = FALSE}. \code{prior = list(chain_extensions = 0)} decides on
+#' the first block; \code{chains = 1} runs one chain with the drift check only. No
+#' fit is returned with a drifting chain or an R-hat above its threshold.
 #'
-#' Measured on chains that were already stationary (112 blocks of 400 draws from 28
-#' simulated configurations, two chains each), the largest monitored R-hat had a
-#' median of 1.007 and a maximum of 1.040, and no block was flagged by either
-#' check (the 95 percent upper bound on the false-extension rate is 3.2 percent;
-#' three consecutive false flags have probability below \eqn{4 \times 10^{-5}}).
-#' Measured on the 13 simulated configurations of the replication study that
-#' failed a two-chain R-hat gate in earlier builds (four pairs of seeds each, 52
-#' two-chain fits at the defaults, \code{burn = 500}, \code{nscan = 10000},
-#' \code{odens = 25}), the policy settled 47 fits as run, extended 5 (four once,
-#' one twice) and refused none. 47 of the 52 pass the book's gate, an R-hat below
-#' 1.05 on every identified parameter including every dyadic product; the other five
-#' sit at R-hat 1.04 to 1.08 on dyadic products or one actor effect, which the
-#' monitored set leaves out.
+#' \emph{Gate thresholds.} Each quantity is tested on its own, so a fixed threshold
+#' flags settled chains more often the more quantities are monitored and the fewer
+#' effective draws they hold. Both checks therefore use thresholds for the whole fit
+#' at the family-wise level \eqn{\alpha = 0.01}. With \eqn{m} tests, each is made at
+#' the Sidak level \eqn{a = 1 - (1 - \alpha)^{1/m}}. The drift threshold is the
+#' two-sided \eqn{a} quantile of Student's t on the Welch degrees of freedom of the
+#' two batch-means errors, \eqn{m} counting every quantity of every chain, and never
+#' below 3. For R-hat, \eqn{m} is twice the number of compared series (bulk and tail
+#' R-hat). For \eqn{K} split chains of \eqn{n} draws holding \eqn{e} effective draws
+#' each (pooled over the chains, from the autocorrelation within each chain of the
+#' rank-normalised draws by Geyer's initial monotone sequence), settled chains have a
+#' squared split R-hat of about \eqn{(n - 1)/n \, (1 + F/(e - 1))}, with \eqn{F}
+#' distributed as \eqn{F(K - 1, K(e - 1))}; the threshold of a series is the larger
+#' of 1.05 and this value at the \eqn{1 - a} quantile of \eqn{F}. Two chains
+#' \eqn{d} posterior standard deviations apart make \eqn{F} noncentral, with
+#' noncentrality \eqn{e d^2}. The chains are compared on a series when its threshold
+#' flags \eqn{d = 1} with probability at least 0.95, which takes about 35 effective
+#' draws per split chain with 12 compared series, 38 with 30 and 41 with 100, almost
+#' whatever the run length; the threshold of a compared series is then between 1.05
+#' and about 1.09. A series with fewer effective draws is flagged as too few to
+#' compare, and one whose R-hat exceeds even the wider threshold of its effective
+#' draws as disagreeing. The pooled effective draws are those of the comparison (the
+#' difference of two chain means varies as for chains holding the harmonic mean of
+#' their effective draws), so one sticky chain beside a mixing one leaves too few.
+#' Chains constant on a series at different values have an infinite R-hat and are
+#' flagged; chains constant at one value pass. The threshold falls and the power
+#' rises with the effective draws, and at a fixed autocorrelation time with the run
+#' length, so settled chains are extended less often, and chains one standard
+#' deviation apart flagged at least 95 percent of the time, the more or the better
+#' mixing their draws.
+#'
+#' A split chain of \eqn{n} stored draws holds at most \eqn{n} effective draws, so
+#' in a first block of 100 stored draws per chain (\code{nscan = 2000}, \code{odens = 20}) the chains
+#' can be compared only on series whose draws are nearly independent (an
+#' autocorrelation time up to about 1.3 stored draws, a lag-one autocorrelation of
+#' about 0.14 for an autoregressive series), and at the defaults (400 stored draws
+#' per chain) on series with an autocorrelation time up to about 5 (lag-one about
+#' 0.68); the longer extension blocks (up to four times as long) take these to about 4
+#' and 17 stored draws (lag-one about 0.6 and 0.89). No comparison of two chains does much better: the z test of the
+#' difference of the chain means with the variance known needs 27 effective draws
+#' per split chain to find a one standard deviation separation 95 percent of the
+#' time at the family-wise level 1 percent over 30 series.
+#'
+#' Measured on two-chain blocks cut from long stationary runs of six simulated
+#' configurations (static and dynamic, normal, binary \code{"t"} kind, Poisson,
+#' bipartite Poisson and frn; 12 to 48 monitored series), no block of 400 stored
+#' draws per chain had an R-hat above its threshold, and 4 of the 48 bipartite
+#' Poisson blocks (none of the other 163) had too few effective draws on
+#' \code{rho_uv}; at 100 stored draws per chain 79 percent of the static normal
+#' blocks and every block of the other five had too few on some series. On 30
+#' settled autoregressive series per fit, chance put an R-hat above its threshold
+#' on at most 0.5 percent of series at every lag-one autocorrelation from 0 to 0.95
+#' and both lengths; a fit of 400 stored draws per chain was extended for too few
+#' effective draws in 0 percent of fits up to 0.3, 2 percent at 0.5, 77 percent at
+#' 0.6 and every fit from 0.7, and one of 100 stored draws in every fit. A one
+#' standard deviation separation on one series was flagged in at least 98 percent of
+#' fits at every autocorrelation and length, and in at least 96 percent of those in
+#' which the chains could be compared.
+#'
+#' Rerun with the seeds and settings of the release sweep (\code{burn = 500},
+#' \code{nscan = 2000}, \code{odens = 20}, two chains) on 63 fits that the fixed
+#' thresholds had refused or extended, the gate refused none. 48 passed, every one
+#' after one or two longer blocks (100 stored draws per chain leave most series too
+#' few effective draws), with a largest R-hat of 1.056 and at least 39 effective
+#' draws per split chain. 15 were returned with too few effective draws on some
+#' series: all 8 fits whose directed scale split was left to the conditional updates
+#' (\code{uv_split_move = FALSE}; \code{uv_split} held 6 to 13 effective draws per
+#' split chain after four blocks) and 7 of the 11 snap fits (\code{uv_rms} and
+#' \code{uv_split}, 4 to 36). With the earlier thresholds the same draws gave 11
+#' refusals, all among those 15 fits and one snap fit that passes once its chains
+#' run longer.
 #'
 #' The dyadic products are left out because their largest R-hat crosses 1.05 on
 #' settled chains. A fit has about \eqn{10^4} of them, and on stationary chains of
@@ -1869,17 +2037,12 @@
 #' \deqn{V_{j,k,t} = \rho_{uv} V_{j,k,t-1} + \eta_{j,k,t}}
 #' where i indexes row nodes, j indexes column nodes, k indexes latent dimensions.
 #'
-#' A time-varying bipartite interaction matrix is not supported:
-#' \code{dynamic_G = TRUE} is refused on both the MCMC and the ALS route. With
-#' moving positions a per-period interaction matrix is not identified apart
-#' from them -- \eqn{U_t G_t V_t'} and \eqn{(U_t G_t) V_t'} describe the same
-#' products, so a fit cannot separate movement in \eqn{G_t} from movement in
-#' \eqn{U_t} and \eqn{V_t}. With static positions, \eqn{U G_t V'} is identified
-#' as a static \eqn{G} is, but it is not implemented. Use
-#' \code{dynamic_uv = TRUE} for a time-varying multiplicative
-#' term and read the per-period product \code{fit$UVPM}, which is the identified
-#' quantity; every bipartite fit still estimates a single interaction matrix and
-#' returns it as \code{fit$G}.
+#' Every bipartite fit estimates a single interaction matrix and returns it as
+#' \code{fit$G}: with moving positions a per-period interaction matrix is not
+#' identified apart from them (\eqn{U_t G_t V_t'} and \eqn{(U_t G_t) V_t'}
+#' describe the same products). Use \code{dynamic_uv = TRUE} for a
+#' time-varying multiplicative term and read the per-period product
+#' \code{fit$UVPM}, which is the identified quantity.
 #'
 #' \emph{Key Differences from Unipartite Models:}
 #' \itemize{
@@ -1907,7 +2070,7 @@
 #'
 #' \strong{Collinear covariates:}
 #'
-#' A regression design whose columns are exactly aliased over the observed
+#' A regression design whose columns are aliased over the observed
 #' cells of the whole panel (a covariate that duplicates another, or one that
 #' is a linear combination of others, counting the intercept and the sender and
 #' receiver covariates), static or with \code{dynamic_beta}, is an error of
@@ -1917,7 +2080,8 @@
 #' pooled, so a covariate that duplicates another in some periods only is
 #' fitted, and period indicators that span the intercept still drop it, with the
 #' warning. A column is aliased when it is a combination of the columns before it
-#' to a relative 1e-8 (as \code{lm()} reports them); a design that is only
+#' to a relative 1.5e-7, the collinearity below which the cross products
+#' the coefficient updates work with keep fewer than two digits; a design that is only
 #' nearly collinear is fitted. \code{method = "als"} refuses the same designs
 #' with the same condition (fields \code{aliased}, \code{rank} and
 #' \code{n_col}) for every estimator and family.
@@ -2121,7 +2285,8 @@
 #' \code{prior$actor_move_every} sweeps (default 10).
 #'
 #' With moving positions (\code{dynamic_uv = TRUE} with a positive rank, of the
-#' \code{"ar1"} kind, or the \code{"t"} kind of a directed network) the sweep
+#' \code{"ar1"} and \code{"snap"} kinds, or the \code{"t"} kind of a directed
+#' network) the sweep
 #' moves the position path of an actor whose cells say little (no events, or
 #' absent from most periods) by a step of about \eqn{\sqrt{s_2 / m}} per sweep,
 #' \eqn{m} the number of its cells, however wide the posterior of the path is
@@ -2144,8 +2309,39 @@
 #' their interaction matrix and symmetric fits the signed weights of their
 #' unit-variance coordinate paths. A directed binary fit with
 #' \code{dynamic_ab} at rank two already has the paired-actor slice step
-#' described below and is left to it; the \code{"snap"} kind and ordinal fits
-#' keep the sampler's own updates. A symmetric Poisson or
+#' described below and is left to it; ordinal fits keep the sampler's own
+#' updates. Under the \code{"snap"} kind every family takes a compiled visit of
+#' the paths (every sweep; Poisson fits with their translations): binary and
+#' Poisson fits with the factors above, the normal, ordinal, \code{"cbin"} and
+#' \code{"frn"} families with the latent array held and the Gaussian density of
+#' each latent cell given its reciprocal partner (bipartite and symmetric cells
+#' have none; a symmetric actor's line holds each of its pairs once, and the
+#' visit moves both triangles and the diagonal). A bipartite fit visits its row
+#' and then its column paths, each with its own resets, through \eqn{G}; a
+#' symmetric fit visits its one set of unit-variance paths through their
+#' weights. Each path takes five exact
+#' steps given the rest of the state. Its prior with the
+#' resets summed out is \eqn{N(x_1; 0, \sigma^2 / (1 - \rho^2) I) \prod_t m(x_t \mid x_{t-1})},
+#' \eqn{m(x_t \mid x_{t-1}) = (1 - \pi) N(\rho x_{t-1}, \sigma^2 I) + \pi N(0, \kappa^2 I)}:
+#' (1) a slice step under a Gaussian reference prior, the AR(1) path or with equal
+#' chance the path that resets at one later period, whose likelihood is the factor
+#' of the cells times the ratio of the two priors, so the step can open or close a
+#' reset; (2) Metropolis steps on \eqn{\log c} for \eqn{x_s \to c x_s},
+#' \eqn{s \ge t_0} with \eqn{t_0} drawn at random, with the Jacobian
+#' \eqn{c^{R (N - t_0 + 1)}}, which crosses the width of a reset position; (3) the
+#' resets given the path; (4) a slice step given the resets; (5) the resets again.
+#' The sampler's own update draws an actor's reset and position for one period at
+#' a time given the latent array and the neighbouring periods, so on its own it
+#' rarely passes between a reset and a
+#' drift explanation of a period change. Given the resets the prior of the paths
+#' is Gaussian, with each reset position entering the moments of the paths at
+#' weight \eqn{\sigma^2 / \kappa^2} and no transition from the period before, so
+#' the exact gauge moves of bipartite and symmetric paths (the scale split, the
+#' common gauge against \eqn{G}, the split of a symmetric column against its
+#' weight, the period signs and the signs along the singular directions of
+#' \eqn{G}) read those moments, and the persistence of symmetric paths is drawn
+#' from their drifting transitions alone (the first period and, under the linked
+#' scale of 1, a reset position do not depend on it). A symmetric \code{"ar1"} Poisson or
 #' binary fit also draws, every sweep, the scale ridge between its coordinate
 #' paths and their weights (scaling a coordinate of every path by \eqn{c} and its
 #' weight by \eqn{1/c^2} changes no cell of the predictor, so the draw is a
@@ -2306,7 +2502,8 @@
 #' positions trades against the scale of the interaction matrix, which the
 #' unit priors anchor weakly. Each sweep also draws, exactly from its
 #' conditional, the factors by which the columns of the positions and the rows
-#' and columns of the interaction matrix are rescaled without changing their
+#' and columns of the interaction matrix are rescaled, and the shears between
+#' columns of a side (each a Gaussian draw), without changing their
 #' product (recorded in \code{fit$uv_g_scale_move};
 #' \code{prior$uv_g_scale_move = FALSE} omits it).
 #'
@@ -2439,8 +2636,8 @@
 #' temporal structure; the chain then samples the paths and hyperparameters
 #' from there.
 #' The ALS fit is deterministic, so the start does not depend on \code{seed};
-#' it is the penalised point estimate (\code{bias_correct = "none"}), not the
-#' empirical-Bayes fit. A start fit that is refused as unconverged (class
+#' it is an internal penalised point estimate, not the empirical-Bayes fit
+#' that \code{method = "als"} returns. A start fit that is refused as unconverged (class
 #' \code{"lame_als_convergence"}) contributes its last iterate; a start with
 #' non-finite values, or positions beyond \code{prior$uv_max_abs}, is not used.
 #' \code{fit$als_start} records whether it was used.
@@ -2546,14 +2743,16 @@
 #' \code{posterior_opts} (or with \code{posterior_opts = list(save_UV_draws =
 #' TRUE)}), and give the posterior standard deviations. Default \code{FALSE}.
 #' With \code{method = "als"} and a normal, binary or Poisson outcome the positions are
-#' estimated by the dynamic empirical-Bayes estimator (see
-#' \code{bias_correct}): \code{fit$U} and \code{fit$V} are the posterior means
+#' estimated by the dynamic empirical-Bayes estimator: \code{fit$U} and
+#' \code{fit$V} are the posterior means
 #' (n x R x T) with posterior standard deviations \code{fit$U_sd} and
 #' \code{fit$V_sd}, \code{fit$Oarr} (alias \code{fit$UVPM}) is the
 #' posterior-mean product, \code{fit$rho_uv} and \code{fit$sigma_uv} are the
-#' persistence and innovation scale, and \code{fit$eb$uv_scale} and
-#' \code{fit$eb$uv_search} are the stationary variance and the search that chose
-#' it. Directed, bipartite (\code{R_row} and \code{R_col} may differ: the
+#' persistence and innovation scale of the positions, smoothing settings chosen
+#' by the fit rather than estimates (prediction, simulation and warm starts
+#' read them; the sampler estimates the persistence with an interval), and
+#' \code{fit$eb$uv_scale} and \code{fit$eb$uv_search} are the stationary
+#' variance and the search that chose it. Directed, bipartite (\code{R_row} and \code{R_col} may differ: the
 #' interaction has rank \code{min(R_row, R_col)}) and undirected networks are
 #' covered.
 #' @param dynamic_ab logical: fit dynamic additive effects (sender/receiver effects) that
@@ -2581,6 +2780,26 @@
 #'   an intercept is included. Under that constraint an individual actor's
 #'   marginal variance has the additional factor \code{1 - 1/n}, where
 #'   \code{n} is the number of actors in that margin.
+#'
+#'   Because the effects of every period sum to zero, a static intercept
+#'   would leave no room for a shift common to all actors in one period (the
+#'   whole network busier in period t), which the data identify. With an
+#'   intercept the intercept is therefore a \code{dynamic_beta} coefficient
+#'   whenever \code{dynamic_ab = TRUE}: it is added to the coefficients that
+#'   \code{dynamic_beta} names, and \code{dynamic_beta = FALSE} gives a
+#'   dynamic intercept alone (its own block). The added intercept is a random
+#'   walk (\code{"rw1"}) when \code{dynamic_beta_kind} is \code{"ar1"}, so its
+#'   forecasts hold the last level of the network. Blocks
+#'   the user names keep \code{dynamic_beta_kind}; with \code{"rw1"},
+#'   \code{"rw2"} or \code{"matern32"} the intercept takes that kind.
+#'   \code{fit$dynamic_beta_kind_by_block} gives the kind of each block, and
+#'   an \code{"rw1"} block holds \code{RHO_BETA = 1}. \code{BETA} is then an
+#'   iterations x coefficients x periods array, and
+#'   \code{fit$dynamic_intercept_from_ab} records that the rule added the
+#'   intercept. The rule applies with \code{dynamic_rho = TRUE}, whose
+#'   coefficient paths are filtered under each period's \eqn{\rho_t}, and with
+#'   the tempered sampler, which carries the random-walk intercept in its
+#'   replica state.
 #'
 #'   The reported intercept and effects are the identified quantities when
 #'   the fit has a multiplicative term; see the details.
@@ -2611,18 +2830,12 @@
 #'   Dynamic latent coordinates retain the coordinates drawn under their
 #'   proper path prior. Compare fitted predictors and per-period products
 #'   across chains; raw coordinates can differ through latent rotations.
-#' @param dynamic_G logical. Not supported: \code{TRUE} is refused with an
-#' error on both the MCMC and the ALS route, and the argument is kept only so
-#' that existing calls and saved call objects still parse. With moving
-#' positions a per-period interaction matrix is not identified apart from
-#' them, because \eqn{U_t G_t V_t'} and \eqn{(U_t G_t) V_t'} describe the same
-#' products; with static positions it is identified but not implemented. The
-#' interaction matrix exists only in bipartite fits. Use \code{dynamic_uv = TRUE} and
-#' read the per-period product \code{fit$UVPM}. Default FALSE.
 #' @param dynamic_rho logical. For directed unipartite normal models, allow the
 #' residual dyadic reciprocity parameter \eqn{\rho_t} to vary by period instead
 #' of using one pooled dyadic correlation across the whole panel. It requires
-#' static latent positions (\code{dynamic_uv = FALSE}). MCMC fits store
+#' static latent positions (\code{dynamic_uv = FALSE}) and combines with
+#' \code{dynamic_beta}, whose paths are filtered under each period's
+#' \eqn{\rho_t}. MCMC fits store
 #' per-draw paths in \code{fit$RHO} and the posterior mean path in
 #' \code{fit$rho_path}. This option is not supported with \code{method = "als"};
 #' use a supported MCMC configuration for period-specific reciprocity.
@@ -2636,27 +2849,38 @@
 #' dynamic multiplicative latent positions when \code{dynamic_uv = TRUE}.
 #' \code{"ar1"} uses Gaussian AR(1) drift, \code{"snap"} uses a mixture of
 #' AR(1) drift and discontinuous reset transitions, and \code{"t"} uses
-#' heavy-tailed Student-t innovations represented by local transition scales.
-#' On the MCMC path, \code{"snap"} and \code{"t"} are available for directed
-#' unipartite fits; symmetric fits use \code{"ar1"} (the symmetric product's
-#' unit-variance coordinates do not hold their scale under the reset and
-#' scale-mixture transitions). Under \code{"snap"}, a reset lands on the
-#' stationary distribution of the position paths unless
+#' heavy-tailed Student-t innovations represented by local transition scales,
+#' with (in the MCMC sampler) a Student-t first period of the same degrees of
+#' freedom and the stationary scale (see Details).
+#' On the MCMC path, \code{"snap"} is available for directed, bipartite and
+#' symmetric fits and \code{"t"} for directed unipartite fits, at any rank
+#' (the symmetric product's unit-variance coordinates do not hold their scale
+#' under the scale-mixture transitions). A bipartite snap fit carries the resets
+#' of its row and of its column actors, each with its own paths, under one
+#' persistence, innovation scale and reset rate; a symmetric one carries one set
+#' of unit-variance paths, so its linked reset scale is 1. Under \code{"snap"},
+#' a reset lands on the stationary distribution of the position paths unless
 #' \code{prior$snap_kappa} fixes its scale, and \code{rho_uv} and
-#' \code{sigma_uv} are updated jointly with the latent reset indicators.
-#' At rank one, \code{summary()} and \code{print()} report \code{rho_uv},
-#' \code{sigma_uv} and (for \code{"snap"}) \code{pi_snap}. At rank two or
-#' more, simulation studies found the \code{"snap"} chains settle where extra
-#' resets stand in for drift, so those three are not reported for it (the
-#' draws stay on the fit). A \code{"t"} chain starts from a dynamic ALS fit
-#' and then recovers \code{rho_uv} and \code{sigma_uv} at any rank; if that
-#' start is unavailable they are not reported at rank two or more.
+#' \code{sigma_uv} are updated jointly with the latent reset indicators. Each
+#' actor's whole path is also drawn with its resets summed out
+#' (\code{prior$actor_move_paths}, see Details), so a period change can pass
+#' between a reset and a drift explanation.
+#' At every rank, \code{summary()}, \code{print()} and \code{trace_plot()}
+#' report \code{rho_uv}, \code{sigma_uv} and the reset rate \code{pi_snap} of
+#' a \code{"snap"} fit, and the two-chain check monitors them; at rank two or
+#' more the exact rotation move (\code{prior$uv_rotation_move}) keeps the
+#' orientations of the periods of a directed fit aligned, and bipartite and
+#' symmetric fits draw their own gauge given the resets. They report \code{rho_uv} and
+#' \code{sigma_uv} of a \code{"t"} fit at every rank too, and the check
+#' monitors them. A \code{"t"} chain starts from a dynamic ALS fit by default
+#' (\code{prior$als_start}); that is a warm start only, and a chain started
+#' cold reports and monitors them the same way.
 #' Both kinds receive conditional sign updates that preserve the fitted
 #' products and help chains explore alternative trajectory orientations.
 #' With \code{method = "als"}, \code{"snap"} is refused. The ALS
 #' \code{"t"} kind supports directed and symmetric normal, binary and
 #' Poisson panels; bipartite Student ALS is refused.
-#' A normal, binary or Poisson fit with \code{bias_correct = NULL} is fitted by the
+#' A normal, binary or Poisson fit is fitted by the
 #' dynamic empirical-Bayes estimator for \code{"ar1"} (Gaussian) and \code{"t"}
 #' transitions (directed and undirected networks): the weights of the scale
 #' mixture have a variational posterior, and the degrees of freedom are
@@ -2692,17 +2916,38 @@
 #' (\code{R} > 0) and additive random effects for every family, across
 #' unipartite/bipartite and directed/symmetric panels and in combination
 #' with \code{dynamic_ab} / \code{dynamic_uv}.
-#' The state equation is a zero-mean AR(1) on the coefficient itself,
-#' \eqn{\beta_t = \rho_\beta \beta_{t-1} + e_t}, with no level term, so
-#' \eqn{\rho_\beta} is the persistence of the coefficient's level toward zero
-#' rather than the persistence of its movement around a level. A coefficient
-#' whose level is far from zero therefore has a persistence close to 1 whatever
-#' its movement: for a path with mean \eqn{m}, deviation sd \eqn{s} and
-#' deviation persistence \eqn{r} the value this state equation implies is
-#' \eqn{(m^2 + r s^2) / (m^2 + s^2)}, which is 0.95 for a coefficient of 0.7
-#' whose deviation has sd 0.3 and persistence 0.7. Read \eqn{\rho_\beta} that
-#' way, and read the path \code{BETA[, k, ]} for how much the coefficient
-#' moves.
+#' An AR(1) coefficient reverts to its own long-run mean \eqn{\mu_k}:
+#' \deqn{\beta_{k,t} - \mu_k = \rho_\beta (\beta_{k,t-1} - \mu_k) + e_{k,t},
+#'   \quad e_{k,t} \sim N(0, \sigma_\beta^2 \lambda_k),}
+#' with the first period drawn from the stationary law
+#' \eqn{N(\mu_k, \sigma_\beta^2 \lambda_k / (1 - \rho_\beta^2))}, where
+#' \eqn{\lambda_k} is the innovation scale of the coefficient (one over the
+#' mean square of its covariate). \eqn{\mu_k} has the prior the coefficient
+#' has when static (see \code{g}): in a unipartite fit the marginal of the
+#' panel prior on its column, with precision from
+#' \code{sum_t(crossprod(X_t)) / (T g)} and free of \eqn{s^2}; in a bipartite
+#' fit \eqn{N(0, g_k s^2)} with \eqn{g_k} the default \code{g} over the
+#' mean square of the covariate column (\code{g} itself for the intercept or a
+#' user-supplied \code{g}) and \eqn{s^2} the dyadic variance (one for the
+#' probit and rank families). It is drawn from its Gaussian conditional given
+#' the path and \eqn{(\rho_\beta, \sigma_\beta)}; the path is drawn given
+#' \eqn{\mu_k}. \eqn{\rho_\beta} is therefore the persistence of the
+#' coefficient's movement around its level, and an \eqn{h}-step forecast of the
+#' coefficient reverts to \eqn{\mu_k} as \eqn{\rho_\beta^h}. The long-run
+#' means are \code{fit$mu_beta} (posterior means) and \code{fit$MU_BETA}
+#' (draws, one column per AR(1) coefficient); \code{print()}, \code{summary()},
+#' \code{confint(fit, parm = "mu_beta")} and \code{trace_plot()} report them
+#' and the convergence checks monitor them. Random-walk (\code{"rw1"}),
+#' \code{"rw2"} and \code{"matern32"} paths have no long-run mean. An
+#' \code{"rw2"} or \code{"matern32"} path is its first-period level, with the
+#' prior of a static coefficient, plus its change since then: under
+#' \code{"rw2"} the first increment is \eqn{N(0, \sigma_\beta^2 \lambda_k)}
+#' and so is each second difference; under \code{"matern32"} the change is
+#' that of a Matern 3/2 process with variance \eqn{\sigma_\beta^2 \lambda_k}
+#' and length scale \code{prior$matern32_length_scale} (default
+#' \eqn{\max(2, T/4)}). The tempered sampler carries the same laws, and an
+#' \eqn{h}-step forecast draws the future periods from their conditional given
+#' the fitted ones.
 #' With a single dynamic coefficient block and small \eqn{T}, only
 #' \eqn{T - 1} transitions inform its AR(1) persistence, so the data inform
 #' \eqn{\rho_\beta} weakly and its posterior stays near the prior; the path
@@ -2721,9 +2966,9 @@
 #' \eqn{(\sigma_\beta, \rho_\beta)} by a symmetric walk on
 #' \eqn{(\log \sigma_\beta, \mathrm{logit}\,\rho_\beta)}, rebuilds the path
 #' from the same standardised innovations (the state equation divided by the
-#' innovation scale; \code{"rw2"}: the part of the path that its second
-#' differences leave flat stays fixed; \code{"matern32"}: the path scales with
-#' \eqn{\sigma_\beta}, the length scale being fixed) and accepts with the
+#' innovation scale; \code{"rw2"} and \code{"matern32"}: the first period
+#' stays fixed and the change since then scales with \eqn{\sigma_\beta}, the
+#' length scale being fixed) and accepts with the
 #' Metropolis ratio of the likelihood of the rebuilt path and the
 #' hyperprior (the pooled hierarchies included). It targets the funnel of
 #' hierarchical models: where the data say little about the path (few actors,
@@ -2743,8 +2988,10 @@
 #' including named panels where actors enter or exit. Dynamic ALS uses
 #' period-specific \code{Xrow} or
 #' \code{Xcol} values for selected dynamic node coefficients; static node
-#' coefficients still use per-actor means. Dynamic intercepts are
-#' unavailable when \code{family = "ordinal"}.
+#' coefficients still use per-actor means. The ALS estimator fits the same
+#' long-run means (\code{fit$mu_beta}), as random effects under the static
+#' coefficient prior, with Laplace standard errors in \code{fit$eb$mu_beta_se}.
+#' Dynamic intercepts are unavailable when \code{family = "ordinal"}.
 #' Default FALSE.
 #' @param dynamic_beta_kind character: state-space prior on the dynamic
 #'   coefficient block(s). \code{"ar1"} (default) gives mean-reverting
@@ -2864,7 +3111,11 @@
 #'         \code{"binary"}, \code{"ordinal"}, \code{"cbin"} and \code{"frn"}
 #'         fits, where vdfmlt is a probit-moment variance multiplier estimated
 #'         from \code{Y}, and round(4 + 3 \\* n/100) otherwise, where n is the
-#'         number of actors). Higher values impose stronger shrinkage of the
+#'         number of actors; 1 for a \code{"poisson"} fit, whose default
+#'         \code{Sab0} is the effects covariance the fast route
+#'         (\code{\link{lame_als}}) estimates for the same panel, or the
+#'         log-rate scale where that fit fails; see \code{\link{ame}}). Higher
+#'         values impose stronger shrinkage of the
 #'         row/column effects toward the prior scale. The multiplicative-effects
 #'         static unipartite prior is the one of \code{\link{ame}}: an
 #'         inverse-Wishart covariance with the degrees of freedom and the
@@ -2878,25 +3129,112 @@
 #'   \item{ab_min_observed}{Observation count used to shrink sparse actor
 #'         initial values (default: max(10, T)). Subsequent actor updates use
 #'         the specified Gaussian prior without deterministic shrinkage.}
-#'   \item{rho_uv_mean}{For dynamic_uv=TRUE: Prior mean for UV AR(1) persistence.
-#'         Gaussian bipartite AR(1) MCMC fits default to 0.5; other routes
-#'         default to 0.9. Values close to 1 indicate high persistence.}
-#'   \item{rho_uv_sd}{For dynamic_uv=TRUE: Prior SD for UV AR(1) persistence.
-#'         Gaussian bipartite AR(1) MCMC fits default to 0.2; other routes
-#'         default to 0.1. Explicit settings override these defaults.}
-#'   \item{sigma_uv_shape}{For dynamic_uv=TRUE: Shape parameter for inverse-gamma
-#'         prior on UV innovation variance (default: 2). Symmetric fits do not
-#'         draw the innovation variance: their coordinate paths have unit
-#'         stationary variance, so the innovation SD is
-#'         \eqn{\sqrt{1 - \rho_{uv}^2}} and the diagonal \code{L} of the
-#'         product carries the scale.}
-#'   \item{sigma_uv_scale}{For dynamic_uv=TRUE: Scale parameter for inverse-gamma
-#'         prior on UV innovation variance (default: 1; for the normal family of
-#'         a directed unipartite network the typical size of the additive effects,
-#'         the scale of the factor prior above, so that the prior is the one of a
-#'         response measured in other units. The positions of a bipartite or
-#'         undirected network are unit free: the interaction matrix and the
-#'         weights carry the unit).}
+#'   \item{rho_uv_mean}{For dynamic_uv=TRUE: Prior mean of the persistence
+#'         \eqn{\rho_{uv}} of the latent positions, a normal prior truncated to
+#'         (-0.99, 0.99). Default 0.7 on the MCMC path for every family, kind and
+#'         mode (the dynamic ALS estimator keeps 0.5 for Gaussian bipartite AR(1)
+#'         fits and 0.9 otherwise). Values close to 1 indicate high persistence.}
+#'   \item{rho_uv_sd}{For dynamic_uv=TRUE: Prior SD of \eqn{\rho_{uv}}. Default 0.3
+#'         on the MCMC path (the ALS estimator keeps 0.2 and 0.1). A setting of
+#'         either is used as given and the other keeps its default, so a fit that
+#'         sets both is unchanged by the default. The data see
+#'         \eqn{|\rho_{uv}|} only (see \code{uv_rho_flip_move}) and the draws are
+#'         stored with \eqn{\rho_{uv} \ge 0}, so the prior acts through its mass
+#'         folded onto [0, 0.99). The default comes from a simulation study
+#'         (AR(1) positions at rank two, 20 and 40 actors, 4, 6 and 10 periods, true
+#'         persistence 0.3, 0.6 and 0.9, normal, binary and Poisson responses, the
+#'         three kinds and the three modes; 522 panels, the posterior under each
+#'         candidate prior reweighted from one fit under a nearly flat prior). Under
+#'         the former default N(0.9, 0.1) the 90 percent intervals covered a true 0.3,
+#'         0.6 and 0.9 in 11, 51 and 82 percent of the panels (mean standardised bias
+#'         +5.3, +1.6 and -0.2 posterior sd); under N(0.7, 0.3) they cover in 90, 88
+#'         and 80 percent (+0.36, +0.22 and -0.22). Flatter priors (N(0.5, 0.5), a
+#'         uniform, a Beta(9, 2) on \eqn{(\rho + 1)/2}) did no better and priors whose
+#'         sd shrinks with the Fisher information of the panel did worse; the former
+#'         Gaussian bipartite N(0.5, 0.2) pulled a persistence of 0.9 down without
+#'         helping at 0.3. The low coverage of a true 0.9 in binary and Poisson
+#'         panels that this study left came from the prior on the innovation
+#'         variance (see \code{uv_var_shape}). Under the \code{"t"} kind, whose
+#'         first period has the tail of its transitions, directed panels of
+#'         Gaussian AR(1) paths (20 actors, 6 periods, 24 panels per family and
+#'         persistence) are covered in 85, 86 and 86 percent at a true 0.3, 0.6
+#'         and 0.9 (mean standardised bias +0.50, -0.18 and +0.13); with a
+#'         Gaussian first period and the inverse gamma on \eqn{\sigma_{uv}^2}
+#'         they were covered in 79, 92 and 68 percent (+0.68, +0.18 and +0.20).
+#'         Directed Poisson panels at a true 0.3 are the low cell: on the 24
+#'         panels of that study (20 actors, 6 periods) the \code{"t"} kind
+#'         covers 67 percent (+1.24) and \code{"ar1"} 75 percent (+0.92). The
+#'         panels' own paths place the persistence +0.25 sd above the average
+#'         panel and the prior adds +0.4 sd (a nearly flat prior gives +0.85),
+#'         and the heavy-tailed transitions read the estimation noise of weakly
+#'         identified count positions as innovations: \eqn{\rho_{uv}} sits 0.031
+#'         higher than under \code{"ar1"} on the same panels (0.002 with
+#'         \code{prior$t_nu = 50}, 0.045 over 12 periods, where the
+#'         \code{"t"} kind covers 75 percent at +1.10 against \code{"ar1"}'s 75
+#'         percent at +0.31, and 0.010 with 40 actors, where it covers 83 percent
+#'         at +0.33). On Poisson panels whose paths have Student-t transitions,
+#'         the kind's own model, it covers a true 0.3 in 92 percent of 24 panels
+#'         at 6 periods (+0.14) and in all 12 at 12 periods (-0.11).}
+#'   \item{uv_var_shape}{For dynamic_uv=TRUE: shape of the inverse-gamma prior on the
+#'         stationary variance \eqn{w = \sigma_{uv}^2 / (1 - \rho_{uv}^2)} of a
+#'         latent coordinate path, independent of \eqn{\rho_{uv}} (default 2). Given
+#'         \eqn{\rho_{uv}} it is the inverse gamma with scale
+#'         \code{uv_var_scale} \eqn{\times (1 - \rho_{uv}^2)} on the innovation
+#'         variance, so the innovations shrink with the persistence. It is the
+#'         default unless \code{sigma_uv_shape} or \code{sigma_uv_scale} is set;
+#'         setting both kinds is an error. The default comes
+#'         from a simulation study (AR(1) positions at rank two, directed and
+#'         bipartite, normal, binary and Poisson, 20 actors over 4 and 10
+#'         periods and 40 actors over 4, true persistence 0.3, 0.6 and 0.9, and
+#'         the \code{"t"} and \code{"snap"} kinds on directed binary and Poisson
+#'         panels; 336 panels, every candidate reweighted from one fit under a
+#'         nearly flat prior). The former default, an inverse gamma IG(2, b) on
+#'         \eqn{\sigma_{uv}^2}, pulls a persistent path toward a lower
+#'         \eqn{\rho_{uv}}: given the stationary variance, which the data fix,
+#'         its density in \eqn{\rho_{uv}} falls as \eqn{\exp(-b / (w (1 -
+#'         \rho_{uv}^2)))}. Its 90 percent intervals covered a true 0.9 in 76
+#'         percent of the panels (mean standardised bias -0.84 posterior sd; 62
+#'         percent and -1.7 for directed Poisson panels, 75 percent and -0.9 for
+#'         binary ones), and removing or halving \code{uv_var_cap} changed
+#'         nothing, since the stationary variance never came near it. Under the
+#'         default the intervals cover a true 0.3, 0.6 and 0.9 in 96, 90 and 86
+#'         percent of the panels (+0.23, +0.16 and -0.18), directed binary 0.9 in
+#'         92 percent and directed Poisson 0.9 in 85 percent of the AR(1) and
+#'         snap panels (+0.16). Inverse gammas of shape 1, 1.5 and 3, scales from
+#'         0.1 b to 2 b, half-t and flat priors on \eqn{w} did as well within
+#'         Monte Carlo error, and a scale of b / 2 gave the best coverage of
+#'         directed Poisson panels; inverse gammas on \eqn{\sigma_{uv}^2} with
+#'         smaller scales or a half-Cauchy on \eqn{\sigma_{uv}} moved the
+#'         persistence at 0.3 and 0.6 up by about 0.1 posterior sd. With this
+#'         prior the posterior allows the small innovation variances of
+#'         persistent paths, which the conditional draws of the paths and of
+#'         \eqn{(\rho_{uv}, w)} cross slowly, so directed and bipartite fits of
+#'         the \code{"ar1"} kind also take a non-centred update of
+#'         \eqn{(\rho_{uv}, w)} with the whitened innovations held fixed, binary
+#'         and Poisson fits also with the latent array carried along the product
+#'         (\code{fit$uv_nc_hyper_move}). On the release sweep's dynamic
+#'         positions cells the two-chain check then extends the chains as often
+#'         as under the former prior (1.22 against 1.23 extensions a fit over 144 fits, none
+#'         refused).}
+#'   \item{uv_var_scale}{For dynamic_uv=TRUE: scale of that prior. Default b / 2,
+#'         where b is 1 and, for the normal family of a directed unipartite
+#'         network, the typical size of the additive effects (the scale of the
+#'         factor prior above), so the prior is the same for a response measured
+#'         in other units; the positions
+#'         of a bipartite or undirected network are unit free, the interaction
+#'         matrix and the weights carrying the unit. Symmetric fits draw neither
+#'         variance: their coordinate paths have unit stationary variance, so the
+#'         innovation SD is \eqn{\sqrt{1 - \rho_{uv}^2}} and the diagonal
+#'         \code{L} of the product carries the scale.}
+#'   \item{sigma_uv_shape}{For dynamic_uv=TRUE: shape of an inverse-gamma prior on
+#'         the innovation variance \eqn{\sigma_{uv}^2} itself, used instead of the
+#'         stationary-variance prior when this or \code{sigma_uv_scale} is set
+#'         (the other then defaults to 2 for the shape and to b for the scale).
+#'         Fits and checkpoints written
+#'         with these settings, including those of lame 1.4.1 and earlier, whose
+#'         default this was, are unchanged.}
+#'   \item{sigma_uv_scale}{For dynamic_uv=TRUE: scale of that inverse-gamma prior
+#'         on \eqn{\sigma_{uv}^2}.}
 #'   \item{uv_max_abs}{For dynamic_uv=TRUE: absolute bound on each free
 #'         latent coordinate. Each actor-vector conditional rejects proposals
 #'         outside this joint prior support. Default 8 for binary, ordinal,
@@ -2963,10 +3301,11 @@
 #'   eigen-direction (its weight and coordinate paths, the latent array carried with the predictor), which crosses
 #'   between the signatures of the weights that the other draws cross only in thousands of sweeps. Recorded in
 #'   \code{fit$uv_temper_move}.}
-#'   \item{uv_nc_move}{Logical, default \code{TRUE}. For \code{dynamic_uv} of the \code{"ar1"} kind: in
+#'   \item{uv_nc_move}{Logical, default \code{TRUE}. For \code{dynamic_uv} of the \code{"ar1"} and \code{"snap"} kinds: in
 #'   symmetric fits, draw the persistence \code{rho_uv} given the standardised innovations of the paths
-#'   (the paths then follow the new persistence), and in bipartite fits draw the factor by which the paths, the
-#'   innovation scale \code{sigma_uv} and the interaction matrix trade scale at no cost to the predictor. The
+#'   (the paths then follow the new persistence; a snap reset position, which does not involve it, is held), and in bipartite fits draw the factor by which the paths, the
+#'   innovation scale \code{sigma_uv} and the interaction matrix trade scale at no cost to the predictor
+#'   (under \code{"snap"} with a fixed \code{prior$snap_kappa}, the reset positions add their prior ratio). The
 #'   conditional draws cross these directions slowly (30 to 70 effective draws of 400 for the
 #'   persistence of a 50-actor symmetric panel). \code{FALSE} omits them.}
 #'   \item{cov_ridge_move}{Logical, default \code{TRUE}. For directed fits with a row or column
@@ -2997,7 +3336,8 @@
 #'         \code{actor_move} every sweep unless \code{actor_move_every} says otherwise.}
 #'   \item{sparse_position_every}{Sweeps between visits of \code{sparse_position_move}
 #'         (default 1: every sweep).}
-#'   \item{uv_split_move}{For directed fits with static positions (\code{R > 0}, not
+#'   \item{uv_split_move}{For directed, symmetric and bipartite fits with latent positions
+#'   (\code{R > 0}, or \code{R_row > 0} and \code{R_col > 0}; bipartite fits only with
 #'   \code{dynamic_uv}): draw the split of the scale between the two factors exactly
 #'   (default \code{TRUE}). Multiplying \eqn{U} by \eqn{c} and \eqn{V} by \eqn{1/c}
 #'   leaves the product, so the likelihood, unchanged; with the covariance of the rows
@@ -3006,7 +3346,136 @@
 #'   moved the split by a few percent per sweep against a posterior sd of 0.2 to 0.5
 #'   (24 to 54 effective draws of 1,600 in the static directed cells of the acceptance
 #'   sweep, 4 on a 170-actor ordinal panel); the coordinates of the actors the data say
-#'   little about, and their products, followed it. \code{FALSE} omits the draw.}
+#'   little about, and their products, followed it. For static positions at \eqn{R \ge 2}
+#'   the rest of the gauge \eqn{U \to UA}, \eqn{V \to VA^{-T}} follows under the same
+#'   prior: one slice step for the scale of each column and one for each shear
+#'   \eqn{A = I + h e_k e_l'}, which together reach every \eqn{A} of positive
+#'   determinant; without them the stretch of \eqn{A} kept an autocorrelation of 0.9
+#'   at lag 20 sweeps and the two-chain check refused a \code{dynamic_rho} fit on the
+#'   split. Static symmetric factors split each column of \eqn{U} against its
+#'   eigen-weight. With \code{dynamic_uv = TRUE}
+#'   (directed unipartite fits of every \code{dynamic_uv_kind}, and bipartite fits)
+#'   the same orbit is drawn for the position paths: \eqn{U_t \to cU_t},
+#'   \eqn{V_t \to V_t/c} for all periods together, then for each period alone, each
+#'   \eqn{\log c} by a slice step from the AR(1) prior of the paths (with the
+#'   scale-mixture weights of kind \code{"t"} and the resets of kind \code{"snap"})
+#'   and the Jacobian of the map, cut at \code{prior$uv_max_abs}. Without it the
+#'   two-chain check refused fits on the split \eqn{\log(||U_t|| / ||V_t||)}. The
+#'   paths then draw the rest of their common gauge \eqn{U_t \to U_t A},
+#'   \eqn{V_t \to V_t A^{-T}} for every period together (bipartite paths against
+#'   \eqn{G \to A^{-1}G}, \eqn{G \to G C^{-T}}): the scale of each column by a slice
+#'   step and each shear \eqn{A = I + h e_k e_l'} as a Gaussian, both from the path
+#'   prior along the orbit and the Jacobian; symmetric \code{"ar1"} and \code{"snap"}
+#'   paths split each column against its weight. The two-chain check monitors the split of symmetric
+#'   fits too (\eqn{V = UL}, named \code{uv_split} as for directed fits).
+#'   Recorded in \code{fit$uv_split_move} (visits, and visits that moved the split).
+#'   \code{FALSE} omits the draw.}
+#'   \item{uv_rotation_move}{For directed unipartite fits with \code{dynamic_uv = TRUE}
+#'   and \code{R >= 2}, of every \code{dynamic_uv_kind}: draw the orientation of the
+#'   position paths exactly (default \code{TRUE}). \eqn{U_s \to U_s Q},
+#'   \eqn{V_s \to V_s Q} for \eqn{s = t, \dots, N} with \eqn{Q} orthogonal (a rotation
+#'   or a reflection) leaves every \eqn{U_s V_s'}, so the likelihood, unchanged, and
+#'   changes the AR(1) prior of the paths only through the transition into \eqn{t};
+#'   \eqn{Q} then has a matrix Fisher density (with the scale-mixture weights of kind
+#'   \code{"t"} and the resets of kind \code{"snap"}), drawn for each
+#'   \eqn{t = 2, \dots, N} one coordinate plane at a time from its two von Mises
+#'   components, cut at \code{prior$uv_max_abs}. Under kind \code{"snap"} each plane
+#'   also tries its mirror image with the resets of that transition summed out, by a
+#'   Metropolis step, and those resets are then drawn again. The conditional draws
+#'   cannot reach a reflection, and without the move a kind \code{"snap"} chain whose
+#'   later periods came out reflected against an earlier one explained it by resetting
+#'   most actors there, so the two-chain check refused rank-2 fits on AR(1) data.
+#'   Recorded in \code{fit$uv_rotation_move} (visits, and visits that moved an
+#'   orientation). Bipartite fits carry \eqn{U_t G V_t'} with \eqn{G} common to the
+#'   periods and have no such freedom beyond the signs along \eqn{G}. Symmetric
+#'   \code{"snap"} fits at \code{R >= 2} draw the same freedom of \eqn{U_t L U_t'}: for each
+#'   pair of coordinates, the rotation (weights of one sign) or boost (weights of opposite
+#'   signs) of the pair in the coordinates scaled by \eqn{|L|^{1/2}}, applied from each
+#'   period on, by a slice step along its group from the path prior given the resets
+#'   (the conditional draws turn a period only one actor at a time).
+#'   \code{FALSE} omits the draw.}
+#'   \item{uv_rho_flip_move}{For fits with \code{dynamic_uv = TRUE} (unipartite and
+#'   bipartite, directed and symmetric, every rank and every \code{dynamic_uv_kind}):
+#'   a Metropolis move between \eqn{\rho_{uv}} and its mirror image, once per sweep
+#'   (default \code{TRUE}). Changing the sign of \eqn{\rho_{uv}} together with the sign
+#'   of every position in every second period, \eqn{x_t \to (-1)^{t-1} x_t} on both
+#'   sides, leaves each product \eqn{U_t V_t'} (\eqn{U_t G V_t'}, \eqn{U_t L U_t'}),
+#'   so the likelihood, and each transition \eqn{x_t - \rho_{uv} x_{t-1}} up to its
+#'   sign, so the AR(1) prior of the paths with its resets and weights; only the prior
+#'   of \eqn{\rho_{uv}} tells the two states apart, and the move is accepted with
+#'   probability \eqn{\min\{1, \pi(-\rho_{uv}) / \pi(\rho_{uv})\}}. Its uniform is the
+#'   one the draw of \eqn{\rho_{uv}} in the same sweep used, rescaled, so the move draws
+#'   no random numbers. The conditional draws of the paths and of \eqn{\rho_{uv}} cannot
+#'   cross between the two states: a chain whose \eqn{\rho_{uv}} passed zero early in
+#'   the burn-in took alternating period signs and stayed at the negative mirror of the
+#'   persistence, and the two-chain check refused it on \eqn{\rho_{uv}}. Recorded in
+#'   \code{fit$uv_rho_flip_move} (visits, and visits that moved to the mirror).
+#'   \code{FALSE} omits the move. Since the data see \eqn{|\rho_{uv}|} only, every
+#'   stored draw is kept in the gauge \eqn{\rho_{uv} \ge 0}: a draw taken at negative
+#'   \eqn{\rho_{uv}} is stored as its mirror (the same likelihood and path prior), so
+#'   \code{fit$rho_uv}, \code{fit$U_draws} and \code{fit$V_draws}, the forecast states,
+#'   the two-chain check and \code{trace_plot()} all see one gauge; the sampler itself
+#'   goes on from its state, and \code{fit$start_vals} holds that state.}
+#'   \item{uv_sym_sign_move}{For symmetric fits with \code{dynamic_uv = TRUE}: an exact
+#'   draw, every sweep, of the sign of each coordinate path in each period (default
+#'   \code{TRUE}). Changing the sign of coordinate \eqn{r} of every actor in period
+#'   \eqn{t} leaves \eqn{U_t L U_t'}, so the likelihood; the AR(1) prior of the
+#'   unit-variance paths sees the signs through the products of adjacent periods only
+#'   (of the drifting transitions under kind \code{"snap"}, a reset position being
+#'   symmetric about zero), and the relative signs are drawn from their exact conditional. The conditional
+#'   draws of the paths cannot change a sign, so without the move two chains could keep
+#'   different signs in some periods and report different persistences (the two-chain
+#'   check refused 6 of 24 weakly informed symmetric panels under the default prior,
+#'   1 with the move). Recorded in \code{fit$uv_sym_sign_move} (visits, and visits
+#'   that changed a sign). \code{FALSE} omits the move.}
+#'   \item{uv_sym_pair_move}{For symmetric fits with \code{dynamic_uv = TRUE} of the
+#'   \code{"ar1"} kind and \code{R >= 2} (\code{"snap"} fits draw the same group given
+#'   their resets, see \code{uv_rotation_move}): an exact draw, every sweep, of the
+#'   rest of the gauge of the paths against their weights (default \code{TRUE}).
+#'   \eqn{U_t L U_t'} is unchanged by
+#'   \eqn{U_t \to U_t A} whenever \eqn{A L A' = L}: for two coordinates whose weights
+#'   have opposite signs \eqn{A} is a hyperbolic rotation of the coordinates scaled by
+#'   \eqn{|L_r|^{1/2}}, for two of the same sign a circular one. The angle of each pair
+#'   is drawn by a slice step from its exact density under the AR(1) prior of the
+#'   paths, for every period together and from each period on, cut at
+#'   \code{prior$uv_max_abs}. The conditional draws of the paths cannot move along
+#'   these directions, and without the move a chain at a persistence near 0.9 could
+#'   sit at a different gauge from the other chain and report a different
+#'   \code{rho_uv}. Recorded in \code{fit$uv_sym_pair_move} (visits, and visits that
+#'   moved a pair). \code{FALSE} omits the move.}
+#'   \item{uv_size_move}{For directed and bipartite binary and Poisson fits with
+#'   \code{dynamic_uv = TRUE}: exact draws, every sweep, of the size of the product of
+#'   the positions in every period together (through \eqn{G} in bipartite fits, through
+#'   the paths and \code{sigma_uv} in directed ones) and in each period alone (default
+#'   \code{TRUE}). The latent array is integrated out of the binary draws (the dyadic
+#'   correlation kept through a shared factor) and redrawn after them, and carried with
+#'   the predictor by the Poisson draws; under kind \code{"t"} the weights of the
+#'   transitions into and out of the period are integrated out and drawn again. The
+#'   conditional draws move the size of a period's product only as far as the latent
+#'   array lets them. Recorded in \code{fit$uv_size_move} (visits, and visits that
+#'   moved a size). \code{FALSE} omits the draws.}
+#'   \item{uv_rho_nc_move}{For directed and bipartite normal, binary and Poisson fits
+#'   with \code{dynamic_uv = TRUE}, of every \code{dynamic_uv_kind}: an exact draw, every
+#'   sweep, of \code{rho_uv} with the stationary variance of the paths and their
+#'   standardised innovations held, so the paths follow \code{rho_uv} and
+#'   \code{sigma_uv} follows the stationary variance (default \code{TRUE}). The
+#'   likelihood of the product enters as for \code{uv_size_move}; the unobserved cells
+#'   of a normal fit are carried. Given the paths \code{rho_uv} is pinned far more
+#'   tightly than its posterior, so its draw alone mixes slowly. Recorded in
+#'   \code{fit$uv_rho_nc_move} (visits, and visits that moved \code{rho_uv}). Under
+#'   \code{"snap"}, in bipartite fits too, the positions at the resets are held.
+#'   Symmetric fits draw \code{rho_uv} the same way through \code{uv_nc_move}.
+#'   \code{FALSE} omits the draw.}
+#'   \item{ab_shift_move}{For directed and bipartite fits without an intercept
+#'   (\code{intercept = FALSE}, the default of \code{"ordinal"}) with sender and receiver
+#'   effects (\code{rvar} and \code{cvar}): draw the shift of the sender effects against the
+#'   receiver effects exactly (default \code{TRUE}). Adding \eqn{c} to every \eqn{a_i} and
+#'   subtracting it from every \eqn{b_j} leaves every \eqn{a_i + b_j}, so the likelihood,
+#'   unchanged; only the prior of the effects pins \eqn{c}, and \eqn{c} is drawn from that
+#'   normal conditional once per sweep. With \code{dynamic_ab = TRUE} the per-actor levels
+#'   move and the deviations are kept. With an intercept the effects are centred and the
+#'   draw is not needed. Recorded in \code{fit$ab_shift_move} (visits, and visits that moved
+#'   the effects). \code{FALSE} omits the draw.}
 #'   \item{symmetric_node_tie}{For symmetric binary and ordinal fits with a nodal
 #'   covariate: draw the row and the column coefficient of the covariate as one
 #'   (default \code{TRUE}). The design carries a nodal covariate twice, and the
@@ -3104,15 +3573,23 @@
 #'   runs under the same switch (default \code{TRUE}). With
 #'   \code{dynamic_uv}, Poisson and binary fits also redraw the position paths
 #'   (\code{actor_move_paths}). See Details.}
-#'   \item{chain_extensions}{Number of times a chain that is still moving at
-#'   the end of the run is continued before the call is refused (default 3;
-#'   0 refuses at the first flag). See the convergence policy.}
+#'   \item{chain_extensions}{Number of times the chains are continued while the
+#'   drift check or the between-chain check flags them (a drifting chain, an R-hat
+#'   above its threshold, or a series with too few effective draws to compare the
+#'   chains; default 3). Chains that still drift or disagree after the last
+#'   extension are refused with an error of class \code{lame_chain_unsettled};
+#'   chains still too short to compare are returned with a warning of class
+#'   \code{lame_chain_not_compared}; 0 decides on the first block. An extension is
+#'   a block of \code{nscan} sweeps, longer when series are short of effective
+#'   draws (see the convergence policy).}
 #'   \item{actor_move_every}{Number of sweeps between visits of the collapsed
 #'   per-actor update (default 10), of the translations of the Poisson (default
 #'   2) and ordinal (default 10) families or of the receiver-level translation and the
 #'   level, period and room updates of \code{"cbin"} and \code{"frn"} fits, and
 #'   of the sender translation of their \code{dynamic_ab} fits (default 1; their
-#'   reciprocity update runs on every tenth visit).}
+#'   reciprocity update runs on every tenth visit). The position paths of a
+#'   \code{dynamic_uv_kind = "snap"} fit are visited every sweep (a binary fit by
+#'   default; the other families always, Poisson with its translations).}
 #'   \item{actor_move_rho}{For directed fits with \code{dcor = TRUE}, also
 #'   update the dyadic correlation with the latent responses integrated out at
 #'   each visit of the collapsed per-actor update (default \code{TRUE}); for
@@ -3150,8 +3627,10 @@
 #'   the actor-specific paths with the paths (default \code{TRUE}); \code{FALSE}
 #'   omits it and keeps the draws at every sweep.}
 #'   \item{actor_move_paths}{For Poisson and binary fits with moving positions
-#'   (\code{dynamic_uv = TRUE}): redraw the whole position path of each actor
-#'   at each visit (default \code{TRUE}); \code{FALSE} omits it and leaves the
+#'   (\code{dynamic_uv = TRUE}), and for every family under kind \code{"snap"}:
+#'   redraw the whole position path of each actor at each visit (default
+#'   \code{TRUE}), under kind \code{"snap"} with the resets summed out and then
+#'   drawn again; \code{FALSE} omits it and leaves the
 #'   other updates of \code{actor_move} as they are. See Details.}
 #'   \item{ab_hyper_move}{For \code{dynamic_ab} fits with an additive margin
 #'   (every family and mode): draw the level variances (their covariance for
@@ -3177,7 +3656,8 @@
 #'   and the reset positions enter the \code{rho_uv} and \code{sigma_uv}
 #'   draws as stationary draws. A positive number fixes the scale. A fixed
 #'   scale well above the positions' spread makes a reset implausible for any
-#'   ordinary jump; choose this scale in the units of the latent coordinates.}
+#'   ordinary jump; choose this scale in the units of the latent coordinates
+#'   (the unit-variance paths of a symmetric fit, whose linked scale is 1).}
 #'   \item{rho_beta_mean}{For dynamic_beta: Prior mean for the per-block AR(1)
 #'         parameter on time-varying regression coefficients
 #'         (default: 0.8). Closer to 1 = smoother evolution.}
@@ -3213,9 +3693,11 @@
 #'         the normal family). Affects mixing, not
 #'         the stationary distribution.}
 #'   \item{beta0_mean}{For dynamic_beta: Mean of the Gaussian prior on the
-#'         first observed coefficient state under AR(1) or RW1 (default: 0).}
+#'         first observed coefficient state under RW1 (default: 0). An AR(1)
+#'         path starts from its stationary law around its long-run mean, whose
+#'         prior is that of a static coefficient (see \code{dynamic_beta}).}
 #'   \item{beta0_var}{For dynamic_beta: Variance of the Gaussian prior on the
-#'         first observed coefficient state under AR(1) or RW1 (default: 10;
+#'         first observed coefficient state under RW1 (default: 10;
 #'         \code{10 * var(Y)} for the normal family, in the unit of the response).
 #'         This prior is independent of the sampled evolution parameters.
 #'         RW2 uses its proper difference-precision prior and Matern 3/2 its
@@ -3228,11 +3710,17 @@
 #' @param g optional scalar or vector for g-prior on regression coefficients.
 #' Default is \code{n^2}, where \code{n} is the number of actors (\code{nA} for a
 #' bipartite fit). The prior of the normal family scales with the response, for
-#' every unit of \code{Y}: a static unipartite fit has the coefficient precision
-#' \code{sum_t(crossprod(X_t)) / (T g)}, whatever the residual variance, and takes
-#' \code{n^2 * var(Y)}; the coefficients of a bipartite fit, and the static
-#' coefficients next to dynamic ones, have the prior \code{N(0, g s2)}, whose
-#' \code{s2} already carries the unit, and take \code{n^2}. The g-prior
+#' every unit of \code{Y}. The static coefficients of a unipartite fit have the
+#' panel prior with precision \code{sum_t(crossprod(X_t)) / (T g)}, whatever the
+#' residual variance, and take \code{g = n^2 * var(Y)} (\code{n^2} where the
+#' link fixes the scale); when other coefficients have paths (\code{dynamic_beta},
+#' or the intercept path that \code{dynamic_ab} adds), the static ones keep the
+#' marginal of that same prior, so the prior of a static slope does not depend
+#' on whether another coefficient moves. The coefficients of a bipartite fit
+#' have the prior \code{N(0, g s2)}, whose \code{s2} already carries the unit,
+#' and take \code{n^2} divided, for a slope, by the mean square of its
+#' covariate, with or without paths. In both modes the unit of a covariate only
+#' rescales its coefficient. The g-prior
 #' controls the variance of regression coefficients: larger values allow for
 #' larger coefficient values. Can be a vector of length p for parameter-specific
 #' control.
@@ -3252,8 +3740,7 @@
 #'   or \code{getOption("lame.chains")}). Chain \eqn{k} runs with seed
 #'   \code{seed + 1000 * (k - 1)}. With \code{chains > 1} the chains are checked,
 #'   compared and pooled (see the convergence policy); \code{chains = 1} runs one
-#'   chain and the drift check only. ALS fits and \code{sampler = "tempered"} run one
-#'   chain.
+#'   chain and the drift check only. ALS fits run one chain.
 #' @param cores integer or \code{NULL}: workers for the chains. The chains run
 #'   forked on Unix, at most one worker per chain; \code{NULL} uses
 #'   \code{getOption("lame.cores")} if set and otherwise all cores but one.
@@ -3261,59 +3748,43 @@
 #' @param plot logical: plot results while running?
 #' @param verbose logical: print progress while running? Default FALSE.
 #' @param method character: \code{"mcmc"} (default, the Bayesian MCMC fit) or
-#'   \code{"als"} (the fast, MCMC-free point-estimation path). With no dynamic
+#'   \code{"als"} (the fast, MCMC-free empirical-Bayes fit, which reports a
+#'   standard error for every estimate). With no dynamic
 #'   arguments, \code{method = "als"} uses the pooled-static
-#'   \code{\link{lame_als}} estimator. For normal, binary,
+#'   \code{\link{lame_als}} estimator. Both methods return named actors
+#'   sorted by name. For normal, binary,
 #'   and Poisson panels, \code{method = "als"} also supports a dynamic
-#'   estimator (an empirical-Bayes fit for normal, binary and Poisson panels,
-#'   or with \code{bias_correct = "none"} the penalized point estimate; see
-#'   \code{bias_correct}) for \code{dynamic_ab}, selected
+#'   empirical-Bayes estimator (see the section \emph{Dynamic fast fits}) for
+#'   \code{dynamic_ab}, selected
 #'   \code{dynamic_beta}, smooth AR(1) \code{dynamic_uv} in directed,
 #'   symmetric, and bipartite panels, and
 #'   Student-t \code{dynamic_uv} in directed and symmetric panels (bipartite
 #'   t requests are refused).
 #'   \code{dynamic_uv_kind = "snap"} is refused on this route (use
-#'   \code{method = "mcmc"}). For a normal, binary or Poisson panel the dynamic
-#'   route is by default an empirical-Bayes fit (see \code{bias_correct}):
+#'   \code{method = "mcmc"}). On the dynamic route
 #'   \code{rho_ab}, \code{sigma_ab}, \code{rho_uv}, \code{sigma_uv},
-#'   \code{rho_beta} and \code{sigma_beta} are then estimates under the
+#'   \code{rho_beta} and \code{sigma_beta} are set under the
 #'   hyperpriors of \code{lame()} (the variance components and persistences by
 #'   EM, the stationary variance of moving positions by a profile of the
-#'   marginal objective), not the prior means and penalty-implied scales of the
-#'   penalised fit. The uncorrected penalised fit (\code{bias_correct = "none"}
-#'   or \code{"jackknife"}) reports \code{rho_uv},
-#'   \code{rho_ab} and \code{rho_beta} as the AR(1) persistences its smoothness
-#'   penalties used, which are the prior means unless \code{prior} sets them,
-#'   not as estimates, and \code{sigma_uv}, \code{sigma_ab} and
-#'   \code{sigma_beta} as the innovation scales implied by the fitted paths,
-#'   which the penalty shrinks below the posterior scale. Either can seed a
+#'   marginal objective). The fit can seed a
 #'   warm-started MCMC run via \code{\link{als_start_vals}}. Under
 #'   \code{dynamic_ab} the reported \code{VC} entries \code{va} and \code{vb}
-#'   are the variances of the actor \emph{levels}, as in an MCMC fit: the
-#'   empirical-Bayes fit estimates them by EM (\code{fit$eb$sab}), and the
-#'   penalised fits take them from the
-#'   cross-period covariance profile of the fitted paths, whose lag-\eqn{k}
-#'   means follow \eqn{v_a + \tau^2 \rho^k}, so the AR(1) deviation and the
-#'   per-period estimation noise both decay out of the reported level variance.
-#'   The mean per-period variance of the paths -- level plus deviation -- is
-#'   kept as \code{fit$vc_period}, and the uncorrected variance of the
-#'   time-averaged paths as \code{fit$vc_raw}. For a penalised normal-family
-#'   fit (\code{bias_correct = "none"}), \code{\link{ame_als_bootstrap}}
-#'   redraws the actor paths (level plus AR(1) deviation) in each replicate,
-#'   so its intervals for \code{va} and \code{vb} carry the uncertainty of
-#'   that split.
+#'   are the variances of the actor \emph{levels}, as in an MCMC fit, estimated
+#'   by EM (\code{fit$eb$sab}).
 #'   Node-covariate coefficients use the same orthogonal additive-effect
 #'   decomposition as \code{\link{lame_als}}; dynamic node coefficients use
 #'   period-specific node values when selected by \code{dynamic_beta}, while
 #'   static node coefficients use per-actor means. Named changing-composition
-#'   panels are aligned to the union actor set; actor-entry gaps break the
-#'   smoothing penalties of the penalised fits, and the empirical-Bayes fit
-#'   treats an absent actor-period as a free AR state. Posterior draws and
+#'   panels are aligned to the union actor set; the fit treats an absent
+#'   actor-period as a free AR state. Posterior draws and
 #'   rank/censored families
 #'   are not handled by the ALS routes. Dynamic ALS prediction evaluates
 #'   the fitted periods, optionally with replacement dyadic covariates;
 #'   \code{predict(fit, h = ...)} forecasting is not implemented and a
 #'   positive horizon is refused.
+#'   With \code{method = "als"}, a binary network whose observed density \eqn{d} has
+#'   \eqn{\min(d, 1 - d) < 0.20} (ties among the observed cells, the diagonal of a one-mode network left out,
+#'   pooled over periods) is fitted with a warning: there the sampler is the better choice.
 #' @param als_stability character (only used when \code{method = "als"} and a
 #'   dynamic ALS path is selected): \code{"none"} (default), \code{"quick"}, or
 #'   \code{"validation"}. The non-\code{"none"} presets rerun the dynamic ALS
@@ -3321,20 +3792,13 @@
 #'   fitted-surface and coefficient-path differences across starts.
 #' @param als_max_iter positive integer (only used when \code{method = "als"}):
 #'   maximum iterations for the selected ALS solver. Default \code{1000}.
-#'   Dynamic binary and count fits count IRLS updates, each with at most 40
-#'   block-coordinate sweeps. Stalled Gaussian bipartite and directed Poisson
-#'   fits with AR position paths and static coefficients also allow this many
-#'   joint gradient-refinement iterations (with static interactions in the
-#'   bipartite case). They retain that result only when the same objective
-#'   decreases and the likelihood-score convergence criterion passes.
 #'   The dynamic empirical-Bayes estimator needs up to a few hundred passes on
 #'   a weakly identified panel; the Gaussian-transition fit of a 40 x 10 panel
 #'   takes about 150 passes at the scale its search settles on.
-#'   A dynamic fit (empirical-Bayes or penalised) that has not met its
+#'   A dynamic fit that has not met its
 #'   convergence criterion in this many iterations is an error of class
 #'   \code{"lame_als_convergence"}; its field \code{fit} holds the last
-#'   iterate. The sweep limit of a penalised normal fit is raised once, to four
-#'   times this value, before the fit is refused. A static fit that does not
+#'   iterate. A static fit that does not
 #'   converge is refused in the same way, without a \code{fit} field (see
 #'   \code{max_iter} in \code{\link{ame_als}}).
 #' @param als_tol optional positive scalar (only used when
@@ -3346,15 +3810,14 @@
 #'   point; for a Poisson fit the estimated distance of the noise variance
 #'   \code{ve} to the limit of its iteration must be below the threshold as
 #'   well.
-#' @param als_lowrank_method optional character (only used when
-#'   \code{method = "als"}): inner solver for the low-rank factor block,
-#'   \code{"mm"}, \code{"als"}, or \code{"hybrid"}. \code{NULL} (default)
-#'   keeps each route's own default -- \code{"mm"} on the static
-#'   \code{\link{lame_als}} route, \code{"hybrid"} on the dynamic route. The
-#'   dynamic empirical-Bayes estimator (the default for normal, binary and
-#'   Poisson panels) solves the factors jointly with the other effects by Gauss-Newton
-#'   and warns that the argument does not apply; \code{bias_correct = "none"}
-#'   uses the alternating low-rank solvers.
+#' @param als_lowrank_method optional character: inner solver for the
+#'   low-rank factor block of the dynamic fast fit that seeds the warm start
+#'   of a \code{dynamic_uv} chain (see Details), \code{"mm"}, \code{"als"}, or
+#'   \code{"hybrid"}. \code{NULL} (default) keeps \code{"hybrid"}. With
+#'   \code{method = "als"} the dynamic empirical-Bayes estimator solves the
+#'   factors jointly with the other effects by Gauss-Newton and warns that the
+#'   argument does not apply; the static fast route (no dynamic arguments)
+#'   does not use it.
 #' @param als_linear_solver optional character (only used when
 #'   \code{method = "als"} with no dynamic arguments): linear solver for the
 #'   static block updates, \code{"eigen"}, \code{"qr"}, or \code{"auto"}.
@@ -3373,31 +3836,42 @@
 #'   several starts and keeps the one with the lowest objective. The dynamic
 #'   ALS route has no multi-start and ignores this argument with a warning;
 #'   use \code{als_stability} there instead.
-#' @param bias_correct character or \code{NULL} (only used when
-#'   \code{method = "als"}): how the ALS point estimate handles the
-#'   finite-sample (incidental-parameter) bias of a fixed-effects fit.
-#'   For the static ALS point estimate it is forwarded to
-#'   \code{\link{lame_als}}. \code{NULL} (default) fits a normal, binary or count
-#'   static model by the empirical-Bayes estimator (\code{"eb"}: a Gaussian
-#'   prior on the actor effects with its covariance estimated from the data,
-#'   Laplace standard errors from \code{vcov()}, the exact Gaussian cell for a normal response and for counts the
-#'   Poisson-lognormal model that \code{lame()} samples; see
-#'   \code{bias_correct} in \code{\link{ame_als}}), for directed, bipartite and
-#'   undirected networks, with or without a latent rank. \code{"eb"} asks for
-#'   the empirical-Bayes estimator explicitly.
 #'
-#'   A normal, binary or Poisson fit with \code{dynamic_ab},
-#'   \code{dynamic_beta} or \code{dynamic_uv} (of the \code{"ar1"} or
-#'   \code{"t"} kind, with static or moving latent positions) and
-#'   \code{bias_correct = NULL} is fitted by the dynamic empirical-Bayes
+#' @section Dynamic fast fits:
+#'   A normal, binary or Poisson fit with \code{method = "als"} and
+#'   \code{dynamic_ab}, \code{dynamic_beta} or \code{dynamic_uv} (of the
+#'   \code{"ar1"} or \code{"t"} kind, with static or moving latent positions)
+#'   is fitted by the dynamic empirical-Bayes
 #'   estimator of the model \code{lame()} samples: the actor levels and
 #'   zero-mean AR(1) deviation paths are random effects and the coefficients
 #'   have a Gaussian prior; the variance of the cell-level noise (normal and
-#'   Poisson), the covariance of the actor levels, the persistence and
-#'   innovation scale of the additive paths (and of moving coefficients and
-#'   positions) are estimated by EM under the \code{lame()} hyperpriors; the
-#'   coefficients have Laplace standard errors (\code{vcov()},
-#'   \code{confint()}, \code{fit$eb$se}; exact for a normal response); static
+#'   Poisson) and the covariance of the actor levels are estimated by EM under
+#'   the \code{lame()} hyperpriors; the persistence and innovation scale of the
+#'   additive paths (\code{fit$rho_ab}, \code{fit$sigma_ab}), the
+#'   persistences of the moving coefficients (\code{fit$rho_beta}) and the
+#'   persistence and innovation scale of moving positions (\code{fit$rho_uv},
+#'   \code{fit$sigma_uv}) are set by EM too, as smoothing settings chosen by
+#'   the fit rather than estimates: prediction, simulation and warm starts
+#'   read them, \code{summary()} does not report them, and the sampler
+#'   estimates the persistence with an interval; the
+#'   innovation scales of moving coefficients (\code{fit$sigma_beta}) are
+#'   estimated by EM with standard errors; the coefficients have Laplace standard errors (\code{vcov()},
+#'   \code{confint()}, \code{fit$eb$se}, \code{fit$eb$se_path} for moving
+#'   coefficients; exact for a normal response); the additive effects, their
+#'   paths and levels have posterior standard deviations (\code{fit$a_sd},
+#'   \code{fit$b_sd}, \code{fit$a_dynamic_sd}, \code{fit$b_dynamic_sd},
+#'   \code{fit$a_level_sd}, \code{fit$b_level_sd}), the variance components
+#'   and the innovation scales of the moving coefficients standard errors by
+#'   Louis' identity (\code{fit$eb$vc_se}, \code{fit$eb$hyper_se}), and the cells of
+#'   the latent product posterior standard deviations (\code{fit$UVPM_sd});
+#'   \code{summary()} shows them with 95 percent intervals. A binary fit with
+#'   static factors whose signal does not reproduce a static intercept fits the
+#'   intercept as an rw1 path (\code{fit$eb$intercept_path}). A static product
+#'   is reported at mean zero, its grand mean (and its variance) carried by the
+#'   intercept; a product below the information threshold is reported
+#'   with its cell errors (\code{fit$eb$product_weak}); a fit whose equations
+#'   are certified when the passes run out is returned
+#'   (\code{fit$eb$iteration_limit}); static
 #'   factors are the variational posterior of \code{ame_als()}
 #'   (\code{options(lame.eb_scale)} selects the rule that sets the scale of
 #'   their prior, \code{"cavity"} by default) and moving positions have a
@@ -3409,7 +3883,8 @@
 #'   coefficients, the levels and the paths at the hyperparameters is exact,
 #'   the standard errors are the marginal ones given the hyperparameters, the
 #'   dyadic correlation is an exact bivariate normal pair, and the reported
-#'   intercept is the population intercept. A Poisson response is the
+#'   intercept is the level of the effects centred over the actors in each
+#'   period, as in the samplers. A Poisson response is the
 #'   Poisson-lognormal model: the correlation of a directed panel is taken at
 #'   the fitted state, with the information of the pairs in the standard
 #'   errors; the paths and levels are reported at their first-order posterior
@@ -3423,75 +3898,32 @@
 #'   \code{"lame_dynamic_uv_scale_edge"} or
 #'   \code{"lame_dynamic_uv_scale_unsettled"} whose field \code{fit} holds the
 #'   last iterate.
-#'
-#'   \code{"none"} returns the fixed-effects fit of the earlier releases at any
-#'   size (on the dynamic route the penalised fit with fixed smoothness
-#'   penalties). The penalised dynamic fit descends at every sweep and is
-#'   returned only if it met its first-order criterion; the static factors of
-#'   a binary or Poisson fit carry the level prior of the dynamic factors
-#'   (precision 1). \code{"jackknife"} requires the split-sample correction of a
-#'   static fixed-effects fit. On the dynamic route it is available for
-#'   directed Poisson panels with static coefficients, at least four actors,
-#'   and rank zero or AR(1) positions, and corrects the penalised fit for
-#'   latent count variance and reciprocal covariance using two complementary
-#'   dyad histories. The correction combines natural variances and covariances
-#'   as twice the full estimate minus the observation-fraction-weighted
-#'   halves. It preserves response means by shifting the latent intercept by
-#'   half the variance change. Unrestricted moments, boundary projections and
-#'   every half-fit attempt are retained in \code{fit$bias_correct};
-#'   \code{fit$raw} holds the original summaries. Each half uses
-#'   \code{als_max_iter}, with one warm retry at five times that budget if
-#'   necessary. All final halves must pass the same likelihood-score criterion.
-#'   The correction removes the first-order term of the finite-sample bias of
-#'   the latent variance and reciprocal covariance, the term that falls as the
-#'   inverse of the number of observed cells per actor. Other
-#'   dynamic specifications refuse an explicit \code{"jackknife"} request
-#'   (class \code{"lame_jk_split"}). \code{"bootstrap"}, the
-#'   parametric-bootstrap correction, is for static binary fits.
-#'
-#'   On the dynamic route the empirical-Bayes estimator
-#'   estimates the persistences and innovation scales, so it refuses the
-#'   smoothness penalties of the penalised fit (\code{prior$lambda_ab_als},
-#'   \code{prior$lambda_beta_als}, \code{prior$lambda_uv_als}) with an error of
-#'   class \code{"lame_dynamic_eb_unsupported"} (which also has class
-#'   \code{"lame_als_eb"}), and a bootstrap (\code{bootstrap > 0}) with an
-#'   error of class \code{"lame_dynamic_eb_unsupported"}; use
-#'   \code{bias_correct = "none"} to fix the penalties. A bootstrap of a
-#'   penalised dynamic fit exists for the normal family only.
 #' @param bootstrap integer (only used when \code{method = "als"}): number of
-#'   bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N >= 30}
-#'   runs \code{N} replicates and attaches the result so that \code{\link{confint}}
-#'   returns bootstrap intervals (a smaller positive \code{N} is an error, on
-#'   the static and the dynamic route alike, raised before anything is
-#'   fitted). The dynamic route bootstraps the penalised normal-family fit
-#'   (\code{bias_correct = "none"}) only. Each replicate is drawn as
-#'   \code{\link{ame_als_bootstrap}} draws it (the additive paths redrawn, then
-#'   the residual) and refit from the fitted trajectories; a replicate that has
-#'   not converged within \code{als_max_iter} iterations is retried at four
-#'   times that budget and otherwise dropped, never kept; more than 5 percent
-#'   of the replicates dropped is an error of class
-#'   \code{"lame_als_bootstrap_convergence"}, as is a bootstrap of a fit that
-#'   has not converged. A binary static network fitted with
-#'   \code{bias_correct = "none"} has no bootstrap (an error of class
-#'   \code{"lame_als_bootstrap_bias"}), nor has a penalised binary or Poisson
-#'   dynamic fit (class \code{"lame_als_bootstrap_unsupported"}).
+#'   bootstrap replicates. \code{0} (default) skips the bootstrap: every fit
+#'   already carries analytic standard errors. \code{N >= 30} runs \code{N}
+#'   replicates of a static fit and attaches the result, so that
+#'   \code{vcov()}, \code{\link{confint}} and \code{summary()} report the
+#'   bootstrap errors of the coefficients, with the analytic error kept for any
+#'   quantity the bootstrap gives none (a smaller positive \code{N} is an error,
+#'   raised before anything is fitted). Each replicate is drawn as
+#'   \code{\link{ame_als_bootstrap}} draws it and refit from the fitted state; a
+#'   replicate that has not converged within \code{als_max_iter} iterations is
+#'   retried at four times that budget and otherwise dropped, never kept. A
+#'   bootstrap that cannot run on the fitted model (more than 5 percent of the
+#'   replicates dropped, for example), and any bootstrap of a dynamic fit,
+#'   whose empirical-Bayes standard errors are its own, leaves the fit with
+#'   its analytic standard errors and a message of class
+#'   \code{"lame_als_bootstrap_not_run"}.
 #' @param bootstrap_type character (only used when \code{method = "als"}):
 #'   \code{"parametric"} (default) or \code{"block"}. The block scheme needs
 #'   at least ten resampling blocks
-#'   (\code{ceiling(T / bootstrap_block_length)}); on a shorter panel, and on
-#'   any dynamic ALS fit, it warns and uses the parametric scheme instead.
-#'   The block scheme returns no standard error or interval for the parameters
-#'   that resampling time slices cannot vary (see
-#'   \code{\link{ame_als_bootstrap}}); the parametric scheme gives them.
-#'   A dynamic ALS fit has a bootstrap only when it is a penalised normal fit
-#'   (\code{bias_correct = "none"}). The default dynamic empirical-Bayes
-#'   estimator of every family refuses it with an error of class
-#'   \code{"lame_dynamic_eb_unsupported"}, and \code{vcov()}, \code{confint()}
-#'   and \code{summary()} carry its Laplace standard errors; a penalised binary
-#'   or Poisson fit refuses it too.
+#'   (\code{ceiling(T / bootstrap_block_length)}); on a shorter panel it runs
+#'   the parametric scheme instead, with a message. The block scheme gives no
+#'   replicate standard error for the parameters that resampling time slices
+#'   cannot vary (see \code{\link{ame_als_bootstrap}}); they keep their
+#'   analytic errors.
 #' @param bootstrap_block_length integer: block length for the block bootstrap.
 #' @param bootstrap_seed optional integer seed for the bootstrap.
-#' @param print Deprecated. Use \code{verbose} instead.
 #' @param gof logical: calculate goodness of fit statistics?
 #' @param start_vals list of parameter starting values for the MCMC chain.
 #'   Tempered fits accept their own \code{fit$start_vals} replica matrix as a
@@ -3546,10 +3978,10 @@
 #'   \code{dynamic_uv_kind = "snap"}. \code{"none"} keeps only the posterior
 #'   mean snap probabilities. \code{"summary"} stores cell-level count, mean,
 #'   and variance summaries. \code{"draws"} stores retained binary indicator
-#'   arrays as \code{fit$snap_draws} and, for directed fits,
+#'   arrays as \code{fit$snap_draws} and, for directed and bipartite fits
+#'   (the column actors of a bipartite fit),
 #'   \code{fit$snap_draws_v}, with dimensions draw x actor x time and first
-#'   period set to \code{NA}. \code{"chunked"} currently stores the same arrays
-#'   in memory and labels the storage mode for downstream tooling.
+#'   period set to \code{NA}.
 #' @param dynamic_beta_per_actor optional, one of \code{NULL} (default),
 #'   \code{"row"}, or \code{"col"}. When non-\code{NULL}, fits
 #'   actor-specific time-varying deviations for one dyadic covariate on the
@@ -3573,14 +4005,13 @@
 #'   conditionals at every sweep from the first one, and an interweaving step
 #'   moves them together with the paths (\code{prior$actor_hyper_nc}). Where each
 #'   actor's data say little about its path, which is the usual case, the
-#'   draws every 20th sweep of earlier versions left them with 18 to 75 effective draws in 2,000
-#'   and the draws at every sweep with 220 to 900; the step adds a factor of
-#'   1.1 to 2.4.
+#'   draws at every sweep leave them with 220 to 900 effective draws in 2,000,
+#'   and the step multiplies that by 1.1 to 2.4.
 #' @param per_actor_covariate_idx positive integer; index into the
 #'   dyadic covariate cube to slope on for the per-actor extension.
 #'   Default \code{1L}.
-#' @param per_actor_identifiability one of \code{"center"} (default),
-#'   \code{"exact_center"} or \code{"drop_population"}. \code{"center"}
+#' @param per_actor_identifiability one of \code{"center"} (default) or
+#'   \code{"exact_center"}. \code{"center"}
 #'   preserves the population coefficient and constrains the per-actor
 #'   deviations to sum to zero per period via pairwise contrast FFBS.
 #'   \code{"exact_center"} draws each actor's path from its own conditional
@@ -3589,8 +4020,6 @@
 #'   that case uses a joint Gaussian draw on the constrained subspace, at a
 #'   higher cost per sweep. Actor-specific slopes require directed or bipartite
 #'   data and unit-spaced periods.
-#'   \code{"drop_population"} is reserved and currently falls back to
-#'   \code{"center"} with a warning.
 #' @param keep_per_actor one of \code{"auto"} (default; full draws
 #'   when memory cost < 250 MB else streaming summary), \code{"draws"}
 #'   (full \code{[n_iter, n_actors, T]} cube), \code{"summary"}
@@ -3649,8 +4078,8 @@
 #'   checkpoint writes. Default \code{100L}.
 #' @param sampler MCMC transition method. Default \code{"gibbs"} retains the
 #'   established sampler. \code{"tempered"} uses exact observed-probit replica
-#'   exchange for symmetric binary networks with positive static rank, a static
-#'   intercept and optional symmetric dyadic covariates, and shared dynamic
+#'   exchange for symmetric binary networks with positive static rank, a
+#'   random-walk intercept and optional symmetric dyadic covariates, and shared dynamic
 #'   additive effects on a common actor grid. Its default burn-in is 15,000
 #'   sweeps and default post-burn length is 200,000 sweeps. See Details for its
 #'   explicit latent-coordinate prior and supported options.
@@ -3720,7 +4149,13 @@
 #'   Ignored for other families.
 #' @param log_lik_path directory to write log-lik chunks to when
 #'   \code{save_log_lik = "chunked"}. Default \code{NULL} creates a
-#'   session-scoped subdirectory under \code{tempdir()}.
+#'   session-scoped subdirectory under \code{tempdir()}. With several chains,
+#'   chain \code{k} writes to its own directory, \code{<log_lik_path>_chain<k>},
+#'   and \code{read_log_lik(fit)} returns the chains stacked in the order of the
+#'   pooled draws.
+#'   \code{lame_resume()} writes the block it adds to
+#'   \code{<log_lik_path>_resume<k>}, so the chunks of the fit it continues stay
+#'   readable.
 #' @param log_lik_chunk_size column-width of each on-disk chunk when
 #'   \code{save_log_lik = "chunked"}. Larger chunks mean fewer files (and
 #'   one \code{readBin} per chunk on read) but more memory during MCMC.
@@ -3788,7 +4223,13 @@
 #' \item{U_sd, V_sd}{for \code{dynamic_uv = TRUE} with saved latent draws (the
 #'   default), the posterior standard deviation of each reported coordinate,
 #'   same shape as \code{U} and \code{V}; \code{latent_positions()} reports
-#'   them as \code{posterior_sd}}
+#'   them as \code{posterior_sd}. A \code{method = "als"} fit with static
+#'   factors (\code{dynamic_ab} or \code{dynamic_beta} without
+#'   \code{dynamic_uv}) reports the Laplace sd of each reported coordinate,
+#'   with the directions that leave the product unchanged left out (below the
+#'   signal threshold at least the variational sd of each row, as
+#'   \code{ame_als()}), and an undirected one also \code{L_sd} and
+#'   \code{L_ci}, the sd and interval of each eigenvalue}
 #' \item{UVPM}{on the union of actors; under changing composition the dynamic array has NA rows and columns for actors absent from a period, and a static fit gives one matrix for every pair. posterior mean of UV}
 #' \item{ULUPM}{posterior mean of ULU (symmetric case)}
 #' \item{L}{for symmetric fits, the diagonal of the product \eqn{U L U'}: the
@@ -3804,10 +4245,13 @@
 #' lexicographic sort of the input actor names (so \code{"r10"} sorts
 #' before \code{"r2"} unless you zero-pad).}
 #' \item{YPM}{Stored response-scale fitted value, one matrix per period: the
-#' average of the outcomes replicated at each stored draw, except for Poisson
-#' fits, where it is the mean count \eqn{e_t \exp(\eta + \sigma^2 / 2)} at the
-#' posterior means of the linear predictor and of the residual variance; see the
-#' Poisson model details.}
+#' average over the stored draws of the mean response given each draw, which is
+#' the tie probability for binary fits, the linear predictor for normal fits and
+#' the expected category value for ordinal fits with explicit cutpoints. For
+#' cbin, frn and data-induced ordinal fits it is the average of ten outcomes
+#' replicated at each stored draw. For Poisson fits it is the mean count
+#' \eqn{e_t \exp(\eta + \sigma^2 / 2)} at the posterior means of the linear
+#' predictor and of the residual variance; see the Poisson model details.}
 #' \item{coefficient_prior}{Recorded specification of the coefficient prior
 #'   used by the fitting build, as displayed by \code{prior_summary()}.}
 #' \item{static_uv_prior}{For static asymmetric unipartite factors, the
@@ -3830,6 +4274,13 @@
 #'   records are kept in their corresponding move fields.
 #'   \code{sampler_health_iterations} gives the number of sweeps counted,
 #'   including burn-in.}
+#' \item{exact_fallbacks}{Named counts of the times a step kept its state after a
+#'   numerical failure where keeping it leaves the posterior invariant (a block
+#'   skipped given quantities it does not move, a proposal rejected, or the same
+#'   conditional drawn by a second kernel). They do not stop the fit;
+#'   \code{print()} and \code{summary()} state them, and a count above a tenth of
+#'   the sweeps warns with class \code{lame_exact_fallbacks}. Empty when there was
+#'   none.}
 #' \item{var_cap_hits}{number of sweeps in which a stationary-variance cap
 #'   (\code{prior$uv_var_cap}, \code{prior$ab_var_cap}) removed most of a
 #'   conditional draw}
@@ -3893,9 +4344,14 @@
 #' \item{pa_hyper_move}{for \code{dynamic_beta_per_actor} fits, the sweeps, proposals and
 #'   accepts of the interweaving step of the actor-specific slope hyperparameters and its
 #'   acceptance rate; absent when the step did not run}
-#' \item{uv_nc_move}{for \code{dynamic_uv} fits of the \code{"ar1"} kind, the calls and the draws that
+#' \item{uv_nc_move}{for \code{dynamic_uv} fits of the \code{"ar1"} and \code{"snap"} kinds, the calls and the draws that
 #'   changed the value (\code{sym_calls}, \code{sym_moved}, \code{bip_calls}, \code{bip_moved}) of the non-centred
 #'   persistence step (symmetric) and scale step (bipartite); absent when the move did not run}
+#' \item{uv_nc_hyper_move}{for directed and bipartite \code{dynamic_uv} fits of the \code{"ar1"} kind
+#'   under the stationary-variance prior (\code{prior$uv_var_shape}), the visits and the accepted
+#'   proposals of the non-centred update of \code{rho_uv} and the stationary variance (four proposals
+#'   of each per visit, and four more of each with the latent array carried along in binary and
+#'   Poisson fits); absent when the step did not run}
 #' \item{uv_temper_move}{for symmetric Poisson \code{dynamic_uv} fits, the tempered transitions made, accepted
 #'   and those that changed the sign of the weight; absent when the move did not run}
 #' \item{ab_period_move}{for \code{"poisson"} fits with \code{dynamic_ab}, the sweeps, the pairs (or single
@@ -3917,7 +4373,8 @@
 #'   rejections, and separate numerical failures.}
 #' \item{dynamic_marginal_move}{For supported binary fits with moving factors,
 #'   Hamiltonian attempts, accepts, acceptance rate, tuned step size,
-#'   numerical rejections and prior-bound rejections.}
+#'   numerical rejections, prior-bound rejections and proposals whose
+#'   likelihood underflowed to zero density (\code{underflow_rejections}).}
 #' \item{nc_ar_move}{Attempts and accepts for the joint persistence and
 #'   path-scale updates of the factors and actor effects.}
 #' \item{translation_move}{Number of visits to the factor/actor translation
@@ -3969,7 +4426,7 @@
 #' for a future model run.}
 #' \item{model.name}{Name of the model (if provided)}
 #' @seealso \code{\link{ame}} for cross-sectional models,
-#'   \code{\link{lame_als}} for the fast MCMC-free point estimator,
+#'   \code{\link{lame_als}} for the fast MCMC-free empirical-Bayes fit,
 #'   \code{\link{als_dynamic_beta}} for a regression-only penalised
 #'   smoother on the time-varying coefficient path,
 #'   \code{\link{lame_resume}} for resuming saved checkpoints,
@@ -4020,7 +4477,6 @@ lame <- function(
 	mode = c("unipartite", "bipartite"), # network mode
 	dynamic_uv = FALSE,
 	dynamic_ab = FALSE,
-	dynamic_G = FALSE,
 	dynamic_beta = FALSE,
 	dynamic_rho = FALSE,
 	dynamic_beta_kind = c("ar1", "rw1", "rw2", "matern32"),
@@ -4047,12 +4503,12 @@ lame <- function(
 	posterior_opts = NULL,
 	log_lik_path = NULL,
 	log_lik_chunk_size = 10000L,
-	keep_snap_draws = c("none", "summary", "draws", "chunked"),
+	keep_snap_draws = c("none", "summary", "draws"),
 	freeze_call = FALSE,
 	dynamic_beta_pool = c("none", "rho", "sigma", "both"),
 	dynamic_beta_per_actor = NULL,
 	per_actor_covariate_idx = 1L,
-	per_actor_identifiability = c("center", "exact_center", "drop_population"),
+	per_actor_identifiability = c("center", "exact_center"),
 	keep_per_actor = c("auto", "draws", "summary", "none"),
 	time_index = NULL,
 	period_exposure = NULL,
@@ -4069,7 +4525,6 @@ lame <- function(
 	als_linear_solver = NULL,
 	als_multistart = NULL,
 	multistart = c("none", "cheap", "full"),
-	bias_correct = NULL,
 	bootstrap = 0L,
 	bootstrap_type = c("parametric", "block"),
 	bootstrap_block_length = 1L,
@@ -4077,10 +4532,12 @@ lame <- function(
 	chains = .lame_chains_default(),
 	cores = NULL,
 	resume_from = NULL,
-	print,
 	sampler = c("gibbs", "tempered")
 ) {
-	`%||%` <- function(x, y) if (is.null(x)) y else x
+	# the sampler's warm start asks the dynamic fast route for its penalised fit through an attribute of
+	# prior (see the warm start below); a user call carries none
+	als_estimator <- attr(prior, "lame_als_estimator", exact = TRUE)
+	if (!is.null(als_estimator)) attr(prior, "lame_als_estimator") <- NULL
 	# catch abbreviations of model.name: `model = "bin"` would partial-match it and silently fit
 	# the default family. exact matches of other formals win over partial matching
 	sc_nms <- names(sys.call()) %||% character()
@@ -4126,8 +4583,6 @@ lame <- function(
 	} else if (is.list(prior) && !is.null(prior[["uv_prior"]])) {
 		cli::cli_abort("{.code prior$uv_prior} is supported only with {.code sampler = \"tempered\"}.")
 	}
-	# a time-varying interaction matrix is refused on every route (see .lame_refuse_dynamic_G())
-	.lame_refuse_dynamic_G(dynamic_G)
 	family_missing <- missing(family)
 	mode_missing <- missing(mode)
 	symmetric_missing <- missing(symmetric)
@@ -4155,17 +4610,6 @@ lame <- function(
 		family <- netify_input$family
 		symmetric <- netify_input$symmetric
 	}
-	# deprecated print argument
-	if (!missing(print)) {
-		# warn only when verbose was not also passed; multi-chain wrappers pass both
-		if (missing(verbose)) {
-			cli::cli_warn(c(
-				"The {.arg print} argument is deprecated.",
-				"i" = "Use {.arg verbose} instead."
-			))
-			verbose <- print
-		}
-	}
 	# capture the call so summary.lame can echo it
 	mc <- match.call()
 	# the chain policy: a continuation block of an extension, or the user's call
@@ -4173,17 +4617,11 @@ lame <- function(
 	# the call as evaluated (the ALS start re-evaluates it); a chain's block shows the user's call
 	.mc_eval <- mc
 	if (isTRUE(.chain_ctx$block)) mc <- .chain_ctx$mc
-	# several chains: each is a call of this function with chains = 1; tempered and ALS fits have none
+	# several chains: each is a call of this function with chains = 1, for either sampler; ALS fits have none
 	if (!isTRUE(.chain_ctx$block)) {
-		if (missing(chains) && identical(sampler[1L], "tempered")) chains <- 1L
 		chains <- .lame_chains_check(chains)
-		if (chains > 1L && identical(method[1L], "mcmc") && identical(sampler[1L], "gibbs")) {
+		if (chains > 1L && identical(method[1L], "mcmc")) {
 			return(.lame_chains_from_lame(environment(), .chain_ctx, chains))
-		}
-		if (chains > 1L && identical(sampler[1L], "tempered")) {
-			cli::cli_abort(
-				"{.code sampler = \"tempered\"} runs one chain; set {.code chains = 1}.", class = "lame_chains_arg"
-			)
 		}
 	}
 	if (!is.null(attr(prior, "lame_chain_block", exact = TRUE))) attr(prior, "lame_chain_block") <- NULL
@@ -4196,7 +4634,7 @@ lame <- function(
 	.lame_refit_options <- mget(
 		c(
 			"rvar", "cvar", "dcor", "nvar", "R", "R_row", "R_col",
-			"mode", "dynamic_uv", "dynamic_ab", "dynamic_G", "dynamic_beta", "dynamic_rho",
+			"mode", "dynamic_uv", "dynamic_ab", "dynamic_beta", "dynamic_rho",
 			"dynamic_beta_kind", "dynamic_uv_kind", "family", "intercept", "symmetric",
 			"odmax", "prior", "g", "seed", "nscan", "burn", "odens", "gof",
 			"dynamic_beta_pool", "dynamic_beta_per_actor", "per_actor_covariate_idx",
@@ -4283,9 +4721,20 @@ lame <- function(
 	if (!is.logical(dynamic_rho) || length(dynamic_rho) != 1L || is.na(dynamic_rho)) {
 		cli::cli_abort("{.arg dynamic_rho} must be TRUE or FALSE.")
 	}
+	# dynamic_ab centres the effects per period, so the intercept carries the period shift (see ?lame)
+	dynamic_beta_user <- dynamic_beta
+	dynamic_beta <- .lame_ab_dynamic_intercept(dynamic_beta, dynamic_ab, intercept, family)
+	dynamic_intercept_from_ab <- !identical(dynamic_beta, dynamic_beta_user)
+	# the rule-added intercept is rw1 when the kind is ar1; with no other dynamic block the whole fit is rw1
+	dynamic_beta_kind_intercept <- NULL
+	if (dynamic_intercept_from_ab && identical(dynamic_beta_kind, "ar1")) {
+		user_dyn_none <- is.null(dynamic_beta_user) ||
+			(is.logical(dynamic_beta_user) && length(dynamic_beta_user) == 1L && isFALSE(dynamic_beta_user))
+		if (user_dyn_none) dynamic_beta_kind <- "rw1" else dynamic_beta_kind_intercept <- "rw1"
+	}
 	dynamic_beta_requested_global <- !is.null(dynamic_beta) &&
 		!(is.logical(dynamic_beta) && length(dynamic_beta) == 1L && isFALSE(dynamic_beta))
-	# choose the static, dynamic, or snap point estimator
+	# choose the sampler or the fast route
 	method <- match.arg(method)
 	if (identical(sampler, "tempered")) return(.lame_tempered_fit(environment()))
 	als_stability <- match.arg(als_stability)
@@ -4324,6 +4773,12 @@ lame <- function(
 		c("none", "cheap", "full")
 	)
 	if (identical(method, "als")) {
+		# the fast route returns actors as the sampler does, sorted by name
+		als_sorted <- .ae_sort_panel_actors(Y, Xdyad, Xrow, Xcol, identical(mode, "bipartite"))
+		Y <- als_sorted$Y
+		Xdyad <- als_sorted$Xdyad
+		Xrow <- als_sorted$Xrow
+		Xcol <- als_sorted$Xcol
 		# check family support before the intercept guard, since the ordinal default sets intercept = FALSE itself
 		if (!family %in% .ae_supported_families) {
 			supported <- .ae_supported_families
@@ -4358,7 +4813,6 @@ lame <- function(
 		}
 		bootstrap <- as.integer(bootstrap)
 		multistart <- match.arg(multistart)
-		bias_correct <- .ae_check_bias_correct(bias_correct)
 		# only the static lame_als() route reruns from several starts
 		warn_als_no_multistart <- function(route) {
 			if (multistart != "none") {
@@ -4461,9 +4915,8 @@ lame <- function(
 				bootstrap = bootstrap,
 				bootstrap_type = bootstrap_type,
 				bootstrap_block_length = bootstrap_block_length,
-				bootstrap_seed = bootstrap_seed,
 				stability = als_stability,
-				bias_correct = bias_correct,
+				bias_correct = als_estimator,
 				max_iter = als_max_iter,
 				tol = if (is.null(als_tol)) 5e-5 else als_tol,
 				verbose = verbose,
@@ -4478,9 +4931,17 @@ lame <- function(
 			for (nm in intersect(als_user_args, c("rvar", "cvar", "nvar", "dcor", "dynamic_beta_pool"))) {
 				dyn_args[[nm]] <- get(nm, inherits = FALSE)
 			}
+			# pass the kind of the rule-added intercept, as in the sampler
+			if (!is.null(dynamic_beta_kind_intercept)) dyn_args$beta_kind_intercept <- dynamic_beta_kind_intercept
+			# a sparse or dense binary panel warns (.lame_fast_binary_warn); the sampler's warm start does not
+			if (is.null(als_estimator)) .lame_fast_binary_warn(Y, family, mode, "lame")
 			# quote = TRUE: the list already holds values, and `call` would otherwise be re-evaluated
 			fit <- do.call(lame_dynamic_als, dyn_args, quote = TRUE)
 			fit$call <- mc
+			if (!is.null(dynamic_beta_kind_intercept)) {
+				fit$dynamic_beta_kind_by_block <- fit$dynamic$beta_kind_by_block %||%
+					c(intercept = dynamic_beta_kind_intercept)
+			}
 			return(fit)
 		}
 		user_args <- names(as.list(mc))[-1L]
@@ -4491,10 +4952,10 @@ lame <- function(
 			"bootstrap_block_length", "bootstrap_seed",
 			"als_stability", "als_max_iter", "als_tol",
 			"als_lowrank_method", "als_linear_solver",
-			"als_multistart", "multistart", "bias_correct", "dcor",
+			"als_multistart", "multistart", "dcor",
 			"verbose", "seed", "method", "intercept", "odmax", "prior",
 			# the dynamic flags choose between the static and dynamic ALS estimators
-			"dynamic_uv", "dynamic_ab", "dynamic_G", "dynamic_rho",
+			"dynamic_uv", "dynamic_ab", "dynamic_rho",
 			"dynamic_beta", "dynamic_beta_kind", "dynamic_uv_kind",
 			# cosmetic MCMC args with no ALS equivalent
 			"plot", "model.name"
@@ -4520,9 +4981,6 @@ lame <- function(
 			bootstrap_block_length = bootstrap_block_length,
 			bootstrap_seed = bootstrap_seed,
 			multistart = if (is.null(als_multistart)) multistart else als_multistart,
-			bias_correct = bias_correct,
-			lowrank_method = if (is.null(als_lowrank_method)) "mm" else
-				als_lowrank_method,
 			linear_solver = if (is.null(als_linear_solver)) "eigen" else
 				als_linear_solver,
 			max_iter = als_max_iter,
@@ -4539,8 +4997,9 @@ lame <- function(
 	# since the cold start can settle on too little persistence; prior$als_start = FALSE keeps the cold start.
 	# a start that is not finite or leaves prior$uv_max_abs is dropped
 	als_start_used <- FALSE
-	dyn_beta_req <- !is.null(dynamic_beta) &&
-		!(is.logical(dynamic_beta) && length(dynamic_beta) == 1L && isFALSE(dynamic_beta))
+	# a rule-added dynamic intercept keeps the ALS start (its path starts flat at the ALS level)
+	dyn_beta_req <- !is.null(dynamic_beta_user) &&
+		!(is.logical(dynamic_beta_user) && length(dynamic_beta_user) == 1L && isFALSE(dynamic_beta_user))
 	if (is.null(start_vals) && isTRUE(dynamic_uv) && dynamic_uv_kind %in% c("ar1", "t") &&
 			!isTRUE(symmetric) && !identical(mode, "bipartite") &&
 			family %in% c("normal", "poisson", "binary") &&
@@ -4561,13 +5020,13 @@ lame <- function(
 				"out_file", "save_interval", "model.name", "save_log_lik",
 				"posterior_opts", "log_lik_method", "log_lik_path",
 				"log_lik_chunk_size", "keep_snap_draws", "g", "bootstrap",
-				"bootstrap_type", "multistart", "bias_correct", "prior"
+				"bootstrap_type", "multistart", "prior"
 			)
 		)) {
 			als_call[[nm]] <- NULL
 		}
-		# the start needs a point estimate only, so skip the bias correction (which refits half samples)
-		als_call$bias_correct <- "none"
+		# the start is the penalised point estimate of the dynamic fast route, asked for on prior
+		als_call$prior <- structure(list(), lame_als_estimator = "none")
 		t_als <- proc.time()[["elapsed"]]
 		# a fit that stops short of its criterion still gives a usable start; the checks below drop unusable ones
 		als_fit <- tryCatch(
@@ -4661,14 +5120,6 @@ lame <- function(
 		if (!is.character(dynamic_beta_per_actor) ||
 				!dynamic_beta_per_actor %in% c("row", "col")) {
 			cli::cli_abort("{.arg dynamic_beta_per_actor} must be one of {.val NULL}, {.val row}, or {.val col}.")
-		}
-		# drop_population is reserved; the fitted path stays centered
-		if (identical(per_actor_identifiability, "drop_population")) {
-			cli::cli_warn(c(
-				"!" = "{.arg per_actor_identifiability} = {.val drop_population} is reserved but not available yet.",
-				"i" = "Using {.val center}: zero-sum per-actor deviations on top of the population coefficient.",
-				"i" = "Pass {.val center} to silence this warning."
-			))
 		}
 		if (isTRUE(symmetric)) cli::cli_abort("Actor-specific row or column coefficient paths require a directed or bipartite model.")
 		if (!is.null(time_index) && any(abs(diff(as.numeric(time_index)) - 1) > 1e-10))
@@ -4934,12 +5385,6 @@ lame <- function(
 		if (!identical(family, "normal")) {
 			cli::cli_abort("{.arg dynamic_rho} currently supports {.code family = \"normal\"}.")
 		}
-		if (isTRUE(dynamic_beta_requested_global)) {
-			cli::cli_abort(c(
-				"{.arg dynamic_rho} is not yet combined with {.arg dynamic_beta}.",
-				"i" = "Fit time-varying reciprocity with static coefficients, or keep {.arg dynamic_beta} and scalar {.code rho}."
-			))
-		}
 	}
 	# dynamic_beta needs at least two periods, like the other dynamics
 	if (!is.null(dynamic_beta) &&
@@ -4959,7 +5404,7 @@ lame <- function(
 			"ab_min_observed",
 			"rho_uv_mean", "rho_uv_sd",
 			"rho_ab_mean", "rho_ab_sd",
-			"sigma_uv_shape", "sigma_uv_scale",
+			"sigma_uv_shape", "sigma_uv_scale", "uv_var_shape", "uv_var_scale",
 			"uv_max_abs", "G_max", "sigma_uv_max",
 			"sigma_ab_shape", "sigma_ab_scale",
 			"sigma_actor_shape", "sigma_actor_scale",
@@ -4976,6 +5421,13 @@ lame <- function(
 			"ghk_n_mc",
 			"symmetric_node_tie",
 			"uv_split_move",
+			"uv_rotation_move",
+			"uv_rho_flip_move",
+			"uv_sym_sign_move",
+			"uv_sym_pair_move",
+			"uv_size_move",
+			"uv_rho_nc_move",
+			"ab_shift_move",
 			"uv_nc_move",
 			"uv_temper_move", "uv_temper_every",
 			"cov_ridge_move",
@@ -5015,6 +5467,23 @@ lame <- function(
 	if (!is.null(prior[["uv_split_move"]]) &&
 			(!is.logical(prior[["uv_split_move"]]) || length(prior[["uv_split_move"]]) != 1L ||
 					is.na(prior[["uv_split_move"]]))) cli::cli_abort("prior$uv_split_move must be TRUE or FALSE.")
+	if (!is.null(prior[["uv_rotation_move"]]) &&
+			(!is.logical(prior[["uv_rotation_move"]]) || length(prior[["uv_rotation_move"]]) != 1L ||
+					is.na(prior[["uv_rotation_move"]]))) cli::cli_abort("prior$uv_rotation_move must be TRUE or FALSE.")
+	if (!is.null(prior[["uv_sym_sign_move"]]) &&
+			(!is.logical(prior[["uv_sym_sign_move"]]) || length(prior[["uv_sym_sign_move"]]) != 1L ||
+					is.na(prior[["uv_sym_sign_move"]]))) cli::cli_abort("prior$uv_sym_sign_move must be TRUE or FALSE.")
+	for (sw in c("uv_sym_pair_move", "uv_size_move", "uv_rho_nc_move")) {
+		if (!is.null(prior[[sw]]) && (!is.logical(prior[[sw]]) || length(prior[[sw]]) != 1L || is.na(prior[[sw]]))) {
+			cli::cli_abort("prior${sw} must be TRUE or FALSE.")
+		}
+	}
+	if (!is.null(prior[["uv_rho_flip_move"]]) &&
+			(!is.logical(prior[["uv_rho_flip_move"]]) || length(prior[["uv_rho_flip_move"]]) != 1L ||
+					is.na(prior[["uv_rho_flip_move"]]))) cli::cli_abort("prior$uv_rho_flip_move must be TRUE or FALSE.")
+	if (!is.null(prior[["ab_shift_move"]]) &&
+			(!is.logical(prior[["ab_shift_move"]]) || length(prior[["ab_shift_move"]]) != 1L ||
+					is.na(prior[["ab_shift_move"]]))) cli::cli_abort("prior$ab_shift_move must be TRUE or FALSE.")
 	if (!is.null(prior[["sparse_position_every"]]) &&
 			(!is.numeric(prior[["sparse_position_every"]]) || length(prior[["sparse_position_every"]]) != 1L ||
 					!is.finite(prior[["sparse_position_every"]]) || prior[["sparse_position_every"]] < 1))
@@ -5380,6 +5849,12 @@ lame <- function(
 		}
 	}
 
+	# a count sampler's default effects prior: one actor's weight at the fast route's effects
+	# covariance for this call (.ame_pois_effects_prior)
+	if (identical(family, "poisson") && !.lame_ab_prior_given(prior)) {
+		prior <- .ame_pois_effects_prior(prior, Y, Xdyad, Xrow, Xcol, R, mode, symmetric, longitudinal = TRUE)
+	}
+
 	# convert into large array format
 	if (bip) {
 		arrayObj <- list_to_array_bipartite(rowActorSet, colActorSet, Y, Xdyad, Xrow, Xcol)
@@ -5437,10 +5912,11 @@ lame <- function(
 		.lame_inform_cov_na(sum(is.na(Y)) - n_na_before)
 	}
 	# g-prior parameter when not provided; `g` may be a scalar or a per-coefficient vector
-	if (length(g) == 1L && is.na(g)) {
-		# Zellner's g-prior default: for the static unipartite prior g carries the unit of the response
-		# (n^2 times its variance, as in ame()); bipartite and dynamic fits use g = n^2 since their prior is N(0, g s2)
-		g <- n^2 * (if (isTRUE(bip) || dynamic_beta_requested_global || !is.null(dynamic_beta_per_actor)) 1 else .lame_unit_var(Y, family))
+	g_default <- length(g) == 1L && is.na(g)
+	if (g_default) {
+		# Zellner's g-prior default: for the unipartite panel prior g carries the unit of the response
+		# (n^2 times its variance, as in ame()); bipartite and per-actor fits use g = n^2 since their prior is N(0, g s2)
+		g <- n^2 * (if (isTRUE(bip) || !is.null(dynamic_beta_per_actor)) 1 else .lame_unit_var(Y, family))
 	}
 	# the unit of the response: 1 where the link fixes the latent scale, the response variance for the normal family.
 	# starting values, several prior variances and the rails of the dynamic priors are written in it
@@ -5590,19 +6066,19 @@ lame <- function(
 		))
 	}
 	if (isTRUE(dynamic_uv) && isTRUE(bip) &&
-			dynamic_uv_kind %in% c("snap", "t")) {
+			identical(dynamic_uv_kind, "t")) {
 		cli::cli_abort(c(
 			"{.arg dynamic_uv_kind = \"{dynamic_uv_kind}\"} is not available for this bipartite MCMC path.",
-			"i" = "Use {.arg dynamic_uv_kind = \"ar1\"}, here or with {.code method = \"als\"}; the ALS route refuses bipartite snap and t as well."
+			"i" = "Use {.arg dynamic_uv_kind = \"ar1\"} or {.val snap}; the ALS route refuses bipartite t as well."
 		))
 	}
-	# the symmetric product's unit-variance coordinates do not hold their scale under the reset
-	# and scale-mixture transitions
+	# the symmetric product's unit-variance coordinates do not hold their scale under the scale-mixture
+	# transitions
 	if (isTRUE(dynamic_uv) && isTRUE(symmetric) && !isTRUE(bip) &&
-			dynamic_uv_kind %in% c("snap", "t")) {
+			identical(dynamic_uv_kind, "t")) {
 		cli::cli_abort(c(
 			"{.arg dynamic_uv_kind = \"{dynamic_uv_kind}\"} is not available for symmetric fits on the MCMC path.",
-			"i" = "Use {.arg dynamic_uv_kind = \"ar1\"}, which also follows paths with resets or heavy-tailed steps."
+			"i" = "Use {.arg dynamic_uv_kind = \"ar1\"} or {.val snap}, which also follow paths with heavy-tailed steps or resets."
 		))
 	}
 	if (dynamic_uv && verbose) {
@@ -5771,6 +6247,15 @@ lame <- function(
 	}
 	# a design aliased over the observed panel has coefficients the data cannot separate
 	.lame_check_design_rank(Xlist, Y)
+	# an intercept dropped as redundant takes the dynamic_ab rule with it, as with intercept = FALSE
+	if (isTRUE(dynamic_intercept_from_ab) && !isTRUE(intercept)) {
+		dynamic_beta <- dynamic_beta_user
+		dynamic_intercept_from_ab <- FALSE
+		dynamic_beta_kind <- dynamic_beta_kind_requested
+		dynamic_beta_kind_intercept <- NULL
+		dynamic_beta_requested_global <- !is.null(dynamic_beta) &&
+			!(is.logical(dynamic_beta) && length(dynamic_beta) == 1L && isFALSE(dynamic_beta))
+	}
 	# a directed normal model with a dyadic correlation has an improper posterior when every reciprocal
 	# pair is exactly equal and the pairs outnumber what the mean parameters absorb: check the pooled
 	# bound (.lame_panel_reciprocity_bound) and the per-period ame() check
@@ -5958,37 +6443,18 @@ lame <- function(
 
 	# dynamic UV needs the relevant multiplicative ranks
 	.dyn_uv_has_rank <- isTRUE(dynamic_uv) && .lame_has_uv_rank(bip, R, RA, RB)
-	# at rank two or more the snap sampler, and a t sampler without an ALS start, do not recover their
-	# position hyperparameters (see .lame_uv_hyper_unidentified)
-	if (.dyn_uv_has_rank && isTRUE(R >= 2) && (identical(dynamic_uv_kind, "snap") ||
-			(identical(dynamic_uv_kind, "t") && !isTRUE(als_start_used)))) {
-		cli::cli_inform(c(
-			"i" = if (identical(dynamic_uv_kind, "snap")) {
-				"With {.code dynamic_uv_kind = \"snap\"} at rank two or more, {.fn summary} and {.fn print} do not report {.code rho_uv}, {.code sigma_uv} or the reset rate {.code pi_snap}: extra resets stand in for drift, so the data do not separate the reset rate from the drift."
-			} else {
-				"This {.code dynamic_uv_kind = \"t\"} chain could not start from a dynamic ALS fit, so at rank two or more {.fn summary} and {.fn print} do not report {.code rho_uv} or {.code sigma_uv}: started cold, the chain lets heavy-tailed steps stand in for drift."
-			},
-			"i" = "The positions and the stationary spread of their paths were recovered.",
-			"i" = if (identical(dynamic_uv_kind, "snap")) {
-				"Read {.code fit$UVPM} and the positions; the draws stay in {.code fit$rho_uv}, {.code fit$sigma_uv} and {.code fit$pi_snap}."
-			} else {
-				"Read {.code fit$UVPM} and the positions; the draws stay in {.code fit$rho_uv} and {.code fit$sigma_uv}."
-			}
-		))
-	}
 	# dynamic UV priors
 	if (.dyn_uv_has_rank) {
-		gaussian_bipartite_ar <- isTRUE(bip) && identical(family, "normal") &&
-			identical(dynamic_uv_kind, "ar1")
-		if (is.null(prior$rho_uv_mean)) {
-			prior$rho_uv_mean <- if (gaussian_bipartite_ar) .5 else .9
-		}
-		if (is.null(prior$rho_uv_sd)) {
-			prior$rho_uv_sd <- if (gaussian_bipartite_ar) .2 else .1
-		}
-		if (is.null(prior$sigma_uv_shape)) { prior$sigma_uv_shape <- 2 }
-		# scale of the inverse-gamma prior on the position innovation variance (see .lame_sigma_uv_scale_default)
-		if (is.null(prior$sigma_uv_scale)) { prior$sigma_uv_scale <- .lame_sigma_uv_scale_default(Y, family, bip, symmetric) }
+		# persistence prior, one for every family, kind and mode (calibration in ?lame, prior)
+		if (is.null(prior$rho_uv_mean)) { prior$rho_uv_mean <- .7 }
+		if (is.null(prior$rho_uv_sd)) { prior$rho_uv_sd <- .3 }
+		# inverse-gamma prior on the stationary variance of the position paths (R/uv_var_prior.R); a fit
+		# that sets the innovation prior (sigma_uv_shape, sigma_uv_scale) keeps it, as do its checkpoints
+		prior <- .lame_uv_var_prior_resolve(
+			prior,
+			.lame_sigma_uv_scale_default(Y, family, bip, symmetric),
+			dynamic_uv_kind
+		)
 		# a saturating likelihood can push the product scale up without limit once the fit separates the data,
 		# so those families cap the stationary variance of the coordinate paths; the probit-scale families also
 		# take a tighter coordinate rail and a bounded interaction matrix
@@ -6401,6 +6867,8 @@ lame <- function(
 	g_rail_count <- 0L
 	.lame_cap_env$hits <- 0L
 	.lame_cap_env$draws <- 0L
+	.lame_fallback_reset()
+	.ckpt_warned <- FALSE
 	tryErrorChecks <- list(
 		s2 = 0, betaAB = 0, rho = 0, UV = 0, Z = 0, beta = 0,
 		rho_sigma_beta = 0, # dynamic_beta hyperparameter updates
@@ -6613,18 +7081,7 @@ lame <- function(
 		DELTA_SUM_V <- matrix(0, if (bip) nB else n, N)
 		DELTA_COUNT <- matrix(0L, if (bip) nA else n, N)
 		DELTA_COUNT_V <- matrix(0L, if (bip) nB else n, N)
-		if (SNAP_DRAWS_MODE %in% c("draws", "chunked")) {
-			snap_bytes <- 8 * (nscan / odens) * N *
-				((if (bip) nA else n) + if (!symmetric) (if (bip) nB else n) else 0)
-			if (identical(SNAP_DRAWS_MODE, "chunked")) {
-				cli::cli_warn(c(
-					"{.code keep_snap_draws = \"chunked\"} currently stores snap indicators as in-memory arrays.",
-					"i" = "Estimated storage for this fit is {.val {round(snap_bytes / 1024^2, 1)}} MB.",
-					"i" = "Use {.code keep_snap_draws = \"summary\"} for cell-level summaries without retained draw arrays."
-				))
-			}
-		}
-		if (SNAP_DRAWS_MODE %in% c("draws", "chunked")) {
+		if (identical(SNAP_DRAWS_MODE, "draws")) {
 			SNAP_DRAWS <- array(NA_real_, dim = c(nscan / odens, if (bip) nA else n, N))
 			if (!symmetric) {
 				SNAP_DRAWS_V <- array(NA_real_, dim = c(nscan / odens, if (bip) nB else n, N))
@@ -6762,6 +7219,7 @@ lame <- function(
 	)
 	# the fit reports the mask and block labels on the stored layout
 	beta_dyn_fit <- beta_dyn
+	beta_to_store <- seq_along(beta_dyn$mask)
 	# a symmetric fit stores one coefficient per nodal covariate but samples its row and column slices
 	# separately, so the sampler's mask, indices and labels are expanded to the design layout
 	if (symmetric && beta_dyn$any && dim(X)[3] > ncol(BETA)) {
@@ -6776,6 +7234,7 @@ lame <- function(
 		beta_dyn$dynamic_idx <- which(beta_dyn$mask)
 		beta_dyn$static_idx <- which(!beta_dyn$mask)
 		beta_dyn_labels <- beta_dyn_labels[to_store]
+		beta_to_store <- to_store
 	}
 	# per-period long-format design matrices and the XtX / n_dyads caches for the FFBS, built only when
 	# dynamic_beta is active
@@ -6811,6 +7270,19 @@ lame <- function(
 			XtX_per_t[[t]] <- crossprod(Xmat)
 			n_dyads_per_t[[t]] <- n_long
 		}
+		# default N(0, g s2) of a static bipartite slope per unit of its covariate: g over the mean square of its column
+		if (g_default && bip) {
+			for (k in setdiff(beta_dyn$static_idx, if (intercept) 1L else integer(0))) {
+				ms_k <- sum(vapply(XtX_per_t, function(m) m[k, k], numeric(1))) / max(sum(unlist(n_dyads_per_t)), 1)
+				if (is.finite(ms_k) && ms_k > 0) g[k] <- g[k] / ms_k
+			}
+		}
+		# unipartite static coefficients keep the panel design prior of a fit without paths: its marginal on
+		# their columns, free of s2 (NULL for bipartite, whose static coefficients are N(0, g s2) each)
+		panel_P <- if (!bip) .lame_replicated_prior(mXLong, xxLong, as.numeric(g[1L]), dim(xxLong)[1L], N)
+		static_P0 <- if (!bip && length(beta_dyn$static_idx)) {
+			.lame_static_panel_precision(panel_P, beta_dyn$static_idx)
+		} else NULL
 		# innovation scales: one diag(p_dyn) matrix per period
 		Lambda_list <- build_beta_state_scales(
 			beta_dyn,
@@ -6820,13 +7292,18 @@ lame <- function(
 		Lambda_full <- Lambda_list[[1]]
 		# per-coefficient rho / sigma, broadcast from the per-block parameters
 		rho_beta_by_group <- init_rho_beta(beta_dyn$group_names, prior)
-		# rw1 pins rho to 1 for every block and skips its sampling
-		if (identical(dynamic_beta_kind, "rw1") && length(rho_beta_by_group) > 0L) {
-			rho_beta_by_group[] <- 1
+		# kind of each block: the fit's, or rw1 for the intercept the dynamic_ab rule adds to ar1 blocks
+		beta_kind_by_group <- stats::setNames(rep(dynamic_beta_kind, beta_dyn$n_groups), beta_dyn$group_names)
+		if (!is.null(dynamic_beta_kind_intercept) && "intercept" %in% names(beta_kind_by_group)) {
+			beta_kind_by_group[["intercept"]] <- dynamic_beta_kind_intercept
 		}
+		# rw1 pins rho to 1 and skips its sampling (the ar1 transition at rho = 1)
+		rw1_group <- unname(beta_kind_by_group == "rw1")
+		n_ar1_groups <- sum(beta_kind_by_group == "ar1")
+		if (any(rw1_group)) rho_beta_by_group[rw1_group] <- 1
 		sigma_beta_by_group <- init_sigma_beta(beta_dyn$group_names, prior)
 		if (dynamic_beta_pool %in% c("rho", "both") &&
-				identical(dynamic_beta_kind, "ar1") && beta_dyn$n_groups >= 2L) {
+				identical(dynamic_beta_kind, "ar1") && n_ar1_groups >= 2L) {
 			pool_rho_mu <- 0
 			pool_rho_tau <- 1
 		}
@@ -6853,6 +7330,18 @@ lame <- function(
 		beta_dyn_path <- matrix(0, N, p_dyn)
 		for (t in seq_len(N)) beta_dyn_path[t, ] <- beta[beta_dyn$dynamic_idx]
 		beta_static <- beta[beta_dyn$static_idx]
+		# an ar1 path reverts to its own long-run mean, with the static coefficient prior (R/dynamic_beta_mean.R)
+		beta_ar1 <- .lame_beta_ar1_mask(group_id, beta_kind_by_group)
+		beta_centred <- any(beta_ar1)
+		# an rw2 or matern32 path is its first-period level, under the static coefficient prior, plus its change
+		beta_smooth <- dynamic_beta_kind %in% c("rw2", "matern32")
+		beta_mu <- ifelse(beta_ar1, beta[beta_dyn$dynamic_idx], 0)
+		beta_mu_g <- .lame_beta_mean_scale(g, beta_dyn$dynamic_idx, XtX_per_t, n_dyads_per_t, g_default, intercept)
+		# a unipartite mean or level takes the prior its coefficient has when static: the marginal of the
+		# panel prior on its column, free of s2 (R/residual_variance_prior.R); bipartite keeps N(0, g_k s2)
+		beta_mu_v0 <- if (!bip && (beta_centred || beta_smooth)) {
+			.lame_static_panel_var(panel_P, beta_dyn$dynamic_idx)
+		} else NULL
 		# 3d BETA storage for dynamic beta, [iter, p, t]
 		BETA <- array(
 			NA_real_,
@@ -6876,6 +7365,14 @@ lame <- function(
 			ncol = beta_dyn$n_groups,
 			dimnames = list(NULL, beta_dyn$group_names)
 		)
+		# storage for the long-run means, one column per stored ar1 coefficient
+		mu_store_cols <- sort(unique(beta_to_store[beta_dyn$dynamic_idx[beta_ar1]]))
+		MU_BETA <- if (beta_centred) matrix(
+			NA_real_,
+			nrow = nscan / odens,
+			ncol = length(mu_store_cols),
+			dimnames = list(NULL, colnames(BETA)[mu_store_cols])
+		) else NULL
 		# memory warning for large 3d BETA storage
 		est_bytes <- prod(dim(BETA)) * 8
 		if (est_bytes > 1024^3) {
@@ -6891,11 +7388,23 @@ lame <- function(
 		Lambda_full <- NULL; Lambda_list <- NULL
 		rho_beta_by_group <- numeric(0)
 		sigma_beta_by_group <- numeric(0)
+		beta_kind_by_group <- character(0); rw1_group <- logical(0); n_ar1_groups <- 0L
 		rho_by_coef <- numeric(0); sigma_by_coef <- numeric(0)
 		group_id <- integer(0)
-		beta_dyn_path <- NULL; beta_static <- NULL
+		beta_dyn_path <- NULL; beta_static <- NULL; static_P0 <- NULL
 		beta0_mean <- NULL; beta0_cov <- NULL
 		RHO_BETA <- NULL; SIGMA_BETA <- NULL
+		beta_ar1 <- logical(0); beta_centred <- FALSE; beta_smooth <- FALSE; beta_mu <- numeric(0); beta_mu_g <- numeric(0)
+		beta_mu_v0 <- NULL
+		MU_BETA <- NULL
+	}
+	# per-unit default g of a bipartite slope: g over the mean square of its design column
+	if (g_default && bip && !isTRUE(beta_dyn$any) && length(Xlist) > 0L) {
+		n_cells <- sum(vapply(Xlist, function(x) prod(dim(x)[1:2]), numeric(1)))
+		for (k in setdiff(seq_along(g), if (intercept) 1L else integer(0))) {
+			ms_k <- sum(vapply(Xlist, function(x) sum(x[, , k]^2, na.rm = TRUE), numeric(1))) / max(n_cells, 1)
+			if (is.finite(ms_k) && ms_k > 0) g[k] <- g[k] / ms_k
+		}
 	}
 	if (isTRUE(dynamic_rho)) {
 		RHO <- matrix(
@@ -7022,42 +7531,92 @@ lame <- function(
 	BETA_static_view <- function() {
 		matrix(0, 1, length(beta))
 	}
+	# N x p matrix of per-period beta when dynamic_beta is on, NULL otherwise
 	.lame_beta_full_path <- function() {
-		# N x p matrix of per-period beta when dynamic_beta is on, NULL otherwise
 		if (!beta_dyn$any) return(NULL)
 		out <- matrix(0, N, length(beta))
-		for (t_ in seq_len(N)) {
-			out[t_, ] <- assemble_beta_path(
-				beta_dyn_path[t_, ],
-				beta_static,
-				beta_dyn$dynamic_idx,
-				beta_dyn$static_idx,
-				length(beta)
-			)
+		if (length(beta_dyn$dynamic_idx) > 0L) out[, beta_dyn$dynamic_idx] <- beta_dyn_path
+		if (length(beta_dyn$static_idx) > 0L) {
+			out[, beta_dyn$static_idx] <- matrix(beta_static, N, length(beta_dyn$static_idx), byrow = TRUE)
 		}
 		out
+	}
+	# prior variance of each long-run mean (ar1) or first-period level (rw2, matern32): beta_mu_v0, free
+	# of s2, in a unipartite fit; N(0, g_k s2) with g_k = beta_mu_g in a bipartite one
+	.lame_beta_mu_var_now <- function() if (is.null(beta_mu_v0)) beta_mu_g * s2 else beta_mu_v0
+	# first-state covariance and mean of the paths the path priors read: an ar1 path is read as its
+	# deviation from its long-run mean, with the stationary first state (beta0_cov when no block is ar1);
+	# the first state of an rw2 or matern32 path is its level, with the static coefficient prior
+	.lame_beta_init_now <- function() {
+		if (beta_smooth) return(diag(.lame_beta_mu_var_now(), length(beta_mu_g)))
+		.lame_beta_init_cov(
+			beta0_cov,
+			beta_ar1,
+			rho_beta_by_group[group_id],
+			sigma_beta_by_group[group_id],
+			diag(Lambda_full)
+		)
+	}
+	.lame_beta_m0_now <- function() {
+		if (beta_smooth) return(numeric(length(beta0_mean)))
+		if (beta_centred) .lame_beta_init_mean(beta0_mean, beta_ar1) else beta0_mean
+	}
+	# terms of the s2 conditional from the coefficients whose prior variance is proportional to s2: in a
+	# bipartite fit the static ones, the long-run means of ar1 paths and the levels of rw2 and matern32
+	# paths; none in a unipartite fit, whose static coefficients, means and levels take the panel prior
+	.lame_beta_s2_terms_now <- function() {
+		if (!bip) return(.lame_static_s2_terms(static_P0, beta_static, g, beta_dyn$static_idx))
+		.lame_s2_beta_terms(
+			c(beta_static, beta_mu[beta_ar1], if (beta_smooth) beta_dyn_path[1L, ]),
+			c(.lame_static_g_scale(g, beta_dyn$static_idx), beta_mu_g[beta_ar1], if (beta_smooth) beta_mu_g)
+		)
+	}
+	.lame_beta_dev_now <- function() if (beta_centred) .lame_beta_deviation(beta_dyn_path, beta_mu) else beta_dyn_path
+	# per-period covariate slices, taken once
+	.lame_x_slices <- if (beta_dyn$any) {
+		lapply(seq_len(N), function(t_) {
+			Xt_ <- if (bip) Xlist[[t_]] else X[, , , t_]
+			if (length(dim(Xt_)) == 2L) Xt_ <- array(Xt_, c(dim(Xt_), 1L))
+			lapply(seq_len(dim(Xt_)[3]), function(k_) Xt_[, , k_])
+		})
+	} else NULL
+	# X beta of period t for a p-length beta, NULL when every term is zero
+	.lame_xbeta_slice <- function(t_, b_t_) {
+		xs_ <- .lame_x_slices[[t_]]
+		if (length(xs_) == 0L || length(b_t_) < length(xs_)) return(NULL)
+		acc_ <- NULL
+		for (k_ in seq_along(xs_)) {
+			if (b_t_[k_] != 0) {
+				term_ <- b_t_[k_] * xs_[[k_]]
+				acc_ <- if (is.null(acc_)) term_ else acc_ + term_
+			}
+		}
+		acc_
 	}
 	.lame_xbeta_cube <- function(beta_full_path) {
 		if (is.null(beta_full_path)) return(NULL)
-		n_a_ <- if (bip) nA else n
-		n_b_ <- if (bip) nB else n
-		out <- array(0, dim = c(n_a_, n_b_, N))
+		out <- array(0, dim = c(if (bip) nA else n, if (bip) nB else n, N))
 		for (t_ in seq_len(N)) {
-			if (bip) Xt_ <- Xlist[[t_]] else Xt_ <- X[, , , t_]
-			if (length(dim(Xt_)) == 2L) Xt_ <- array(Xt_, c(n_a_, n_b_, 1))
-			p_t_ <- dim(Xt_)[3]
-			b_t_ <- beta_full_path[t_, ]
-			if (p_t_ > 0 && length(b_t_) >= p_t_) {
-				for (k_ in seq_len(p_t_)) {
-					if (b_t_[k_] != 0) out[, , t_] <- out[, , t_] + b_t_[k_] * Xt_[, , k_]
-				}
-			}
+			xb_ <- .lame_xbeta_slice(t_, beta_full_path[t_, ])
+			if (!is.null(xb_)) out[, , t_] <- xb_
 		}
 		out
 	}
+	# X beta of the dynamic coefficients alone, per period: the offset of moves on the static ones
+	.lame_xbeta_dyn_cube <- function() {
+		bp <- .lame_beta_full_path()
+		if (length(beta_dyn$static_idx) > 0L) bp[, beta_dyn$static_idx] <- 0
+		.lame_xbeta_cube(bp)
+	}
+	# sum-to-zero bases of the additive effects under a dynamic intercept; fixed for the whole run
+	ab_bases_fixed <- NULL
 	# snap indicators carried across scans for the storage gate
 	delta_uv <- NULL
 	delta_uv_v <- NULL
+	if (bip && dynamic_uv && identical(dynamic_uv_kind, "snap") && isTRUE(.dyn_uv_has_rank)) {
+		delta_uv <- matrix(0, nA, N)
+		delta_uv_v <- matrix(0, nB, N)
+	}
 	# local scales carried across scans for the heavy-tailed dynamic UV kind
 	if (dynamic_uv && identical(dynamic_uv_kind, "t")) {
 		lambda_u <- matrix(1, n, N)
@@ -7083,6 +7642,10 @@ lame <- function(
 		per_actor = dynamic_beta_per_actor,
 		ordinal_cutpoints = ordinal_cutpoints
 	)
+	# record mixed kinds (ar1 blocks with the rw1 intercept of dynamic_ab) in the checkpoint layout
+	if (!is.null(dynamic_beta_kind_intercept) && any(rw1_group)) {
+		checkpoint_layout$dynamic_beta_kind_by_block <- beta_kind_by_group
+	}
 	if (per_actor_active) checkpoint_layout$per_actor_model_version <- 2L
 	# the current sampler state as a start_vals list, written into every checkpoint and returned as fit$start_vals
 	.lame_snapshot_state <- function() {
@@ -7206,7 +7769,13 @@ lame <- function(
 	npm_every <- max(1L, as.integer(prior[["sparse_position_every"]] %||% 2L))
 	# ridge of a row or column covariate with the additive effects of its margin (R/covariate_ridge_move.R);
 	# prior$cov_ridge_move = FALSE omits it
-	cr_on <- !bip && !symmetric && (isTRUE(rvar) || isTRUE(cvar)) && !isTRUE(beta_dyn$any) && length(beta) > 0L &&
+	# a dynamic_beta fit moves its static row and column coefficients and shifts an rw1 intercept path whole;
+	# other dynamic coefficients are held
+	cr_dyn_ok <- isTRUE(beta_dyn$any) && dynamic_beta_kind %in% c("ar1", "rw1") && all(beta0_mean == 0) &&
+		(!isTRUE(intercept) || !(1L %in% beta_dyn$dynamic_idx) ||
+			identical(beta_kind_by_group[["intercept"]], "rw1"))
+	cr_on <- !bip && !symmetric && (isTRUE(rvar) || isTRUE(cvar)) &&
+		(!isTRUE(beta_dyn$any) || cr_dyn_ok) && length(beta) > 0L &&
 		is.null(dynamic_beta_per_actor) && !is.null(xxLong) && !identical(prior[["cov_ridge_move"]], FALSE)
 	cr_stats <- c(visits = 0, ridge_calls = 0, ridge_moved = 0)
 	if (cr_on) {
@@ -7235,8 +7804,14 @@ lame <- function(
 	beta_nc_stats <- c(sweeps = 0, attempts = 0, accepts = 0)
 	# joint scale move along the level / spread ridge of the binary unipartite sampler, where a probit panel
 	# identifies the predictor scale weakly; prior$level_move_every sets how often it runs
+	# coefficient paths that scale under their own prior: ar1 or rw1 on the regular grid, zero initial means
+	# and diagonal innovation scaling
+	lev_path_ok <- isTRUE(beta_dyn$any) && dynamic_beta_kind %in% c("ar1", "rw1") && is.null(time_index) &&
+		is.null(dynamic_beta_per_actor) && all(beta0_mean == 0) &&
+		all(Lambda_full[row(Lambda_full) != col(Lambda_full)] == 0)
+	# the static-position path variant allows dcor; marginal_move below excludes it
 	static_path_move <- identical(family, "binary") && !bip && !symmetric &&
-		isTRUE(intercept) && isTRUE(rvar) && isTRUE(cvar) && !isTRUE(dcor) &&
+		isTRUE(intercept) && isTRUE(rvar) && isTRUE(cvar) &&
 		isTRUE(dynamic_ab) && !isTRUE(.dyn_uv_has_rank) && R %in% c(1L, 2L) &&
 		isTRUE(beta_dyn$any) && dynamic_beta_kind %in% c("ar1", "rw1") &&
 		is.null(dynamic_beta_per_actor) && is.null(time_index) &&
@@ -7244,7 +7819,7 @@ lame <- function(
 	level_move <- identical(family, "binary") && !bip && !symmetric &&
 		isTRUE(intercept) && length(beta) > 0L &&
 		isTRUE(rvar) && isTRUE(cvar) &&
-		!isTRUE(beta_dyn$any) && is.null(dynamic_beta_per_actor) &&
+		(!isTRUE(beta_dyn$any) || lev_path_ok) && is.null(dynamic_beta_per_actor) &&
 		!isTRUE(dynamic_rho) &&
 		(R == 0L || !isTRUE(dynamic_uv) ||
 				(isTRUE(.dyn_uv_has_rank) && identical(dynamic_uv_kind, "ar1")))
@@ -7300,8 +7875,10 @@ lame <- function(
 	}
 	# non-centred draws of the persistence of a symmetric fit and of the scale of a bipartite fit
 	# (R/uv_nc_step.R); prior$uv_nc_move = FALSE omits them
-	uv_nc_move <- !identical(prior[["uv_nc_move"]], FALSE) && isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "ar1")
+	uv_nc_move <- !identical(prior[["uv_nc_move"]], FALSE) && isTRUE(dynamic_uv) && dynamic_uv_kind %in% c("ar1", "snap")
 	uv_nc_stats <- c(sym_calls = 0, sym_moved = 0, bip_calls = 0, bip_moved = 0)
+	# visits and accepted proposals of the non-centred persistence and variance step
+	uv_nc_hyper_stats <- c(visits = 0, accepts = 0)
 	# a count panel carries its latent array along with the new persistence
 	uv_nc_cx <- NULL
 	if (uv_nc_move && symmetric && identical(family, "poisson"))
@@ -7317,14 +7894,85 @@ lame <- function(
 	uv_temper_every <- max(1L, as.integer(prior[["uv_temper_every"]] %||% 5L))
 	uv_temper_bs <- seq(1, 0.7, length.out = 33L)
 	uv_temper_stats <- c(calls = 0, accepted = 0, flipped = 0)
-	if (!is.null(uv_nc_cx) && isTRUE(
+	if (!is.null(uv_nc_cx) && identical(dynamic_uv_kind, "ar1") && isTRUE(
 		prior[["uv_temper_move"]] %||% TRUE
 	)) uv_temper_dt <- .lame_temper_data(uv_nc_cx, dim(Y)[1L], dim(Y)[3L])
 	# exact draw of the split of scale between the static factors U and V (R/uv_scale_split.R);
 	# prior$uv_split_move = FALSE switches it off
 	uv_split_on <- !bip && !symmetric && R > 0L && !isTRUE(dynamic_uv) && !isTRUE(.dyn_uv_has_rank) && !is.null(uv_prior_static) &&
 		!identical(prior[["uv_split_move"]], FALSE)
+	# and of the static factors of a symmetric network against their eigen-weights
+	uv_split_sym_on <- !bip && symmetric && R > 0L && !isTRUE(dynamic_uv) && !isTRUE(.dyn_uv_has_rank) &&
+		!identical(prior[["uv_split_move"]], FALSE)
+	# the same split for dynamic position paths (R/uv_split_dynamic.R)
+	uv_split_dyn_on <- !symmetric && isTRUE(dynamic_uv) && (bip && RA > 0 && RB > 0 || !bip && R > 0) &&
+		!identical(prior[["uv_split_move"]], FALSE)
+	# the rest of the common gauge of the paths, U_t A and V_t A^-T (R/uv_gauge_dynamic.R): directed paths at R >= 2,
+	# bipartite paths against G, symmetric unit-variance paths against their weights
+	uv_gauge_dyn_on <- uv_split_dyn_on && (bip || R >= 2L)
+	uv_split_symdyn_on <- symmetric && !bip && isTRUE(dynamic_uv) && R > 0L && dynamic_uv_kind %in% c("ar1", "snap") &&
+		!identical(prior[["uv_split_move"]], FALSE)
 	uv_split_stats <- c(visits = 0, moved = 0)
+	# orientation of directed unipartite paths (R/uv_rotation_dynamic.R); bipartite paths share G and have none
+	uv_rot_on <- !symmetric && !bip && isTRUE(dynamic_uv) && R >= 2L &&
+		!identical(prior[["uv_rotation_move"]], FALSE)
+	uv_rot_stats <- c(visits = 0, moved = 0)
+	# mirror of the persistence with alternating period signs of the paths (R/uv_rho_flip.R), visited
+	# right after each draw of rho_uv with the uniform of that draw
+	uv_flip_on <- .dyn_uv_has_rank && !identical(prior[["uv_rho_flip_move"]], FALSE)
+	uv_flip_stats <- c(visits = 0, moved = 0)
+	.lame_uv_flip_visit <- function(u) {
+		if (!uv_flip_on) return(invisible(FALSE))
+		fl <- .lame_uv_rho_flip(U_cube, V_cube, rho_uv, prior$rho_uv_mean, prior$rho_uv_sd, u)
+		uv_flip_stats <<- uv_flip_stats + c(fl$visited, fl$moved)
+		if (fl$moved) {
+			U_cube <<- fl$U
+			V_cube <<- fl[["V"]]
+			rho_uv <<- fl$rho
+			U <<- apply(U_cube, c(1, 2), mean)
+			V <<- apply(V_cube, c(1, 2), mean)
+		}
+		invisible(fl$moved)
+	}
+	# period signs of the coordinate paths of a symmetric fit (R/uv_rho_flip.R), drawn before rho_uv
+	uv_sym_sign_on <- .dyn_uv_has_rank && symmetric && !identical(prior[["uv_sym_sign_move"]], FALSE)
+	uv_sym_sign_stats <- c(visits = 0, moved = 0)
+	# pair gauge of the coordinate paths of a symmetric ar1 fit against their weights (R/uv_gauge_dynamic.R);
+	# snap paths take the same group given their resets (uv_sym_orient_on)
+	uv_sym_pair_on <- uv_split_symdyn_on && identical(dynamic_uv_kind, "ar1") && R >= 2L && !identical(prior[["uv_sym_pair_move"]], FALSE)
+	uv_sym_pair_stats <- c(visits = 0, moved = 0)
+	# size of the product of each period with the latent array integrated out or carried (R/uv_product_scale.R)
+	uv_size_on <- family %in% c("binary", "poisson") && .dyn_uv_has_rank && !symmetric && !isTRUE(dynamic_rho) &&
+		is.null(dynamic_beta_per_actor) && (identical(family, "poisson") || isTRUE(s2 == 1)) &&
+		!identical(prior[["uv_size_move"]], FALSE)
+	uv_size_stats <- c(visits = 0, moved = 0)
+	# persistence of directed and bipartite paths with the paths following at fixed innovations (R/uv_product_scale.R)
+	uv_rho_nc_on <- family %in% c("normal", "binary", "poisson") && .dyn_uv_has_rank && !symmetric &&
+		!isTRUE(dynamic_rho) && is.null(dynamic_beta_per_actor) && (!identical(family, "binary") || isTRUE(s2 == 1)) &&
+		!identical(prior[["uv_rho_nc_move"]], FALSE)
+	uv_rho_nc_stats <- c(visits = 0, moved = 0)
+	if (uv_size_on || uv_rho_nc_on) uv_lik_cx <- .lame_uvps_context(
+		Y,
+		family,
+		if (bip) "bip" else "dir",
+		offset = if (identical(family, "poisson") && poisson_exposure_active) log(period_exposure)
+	)
+	# orientation of symmetric snap paths against their weights (R/snap_modes.R)
+	uv_sym_orient_on <- .dyn_uv_has_rank && symmetric && !bip && R >= 2L && identical(dynamic_uv_kind, "snap") &&
+		!identical(prior[["uv_rotation_move"]], FALSE)
+	uv_sym_orient_stats <- c(visits = 0, moved = 0)
+	# stored draws are kept in the gauge rho_uv >= 0 (R/uv_rho_flip.R): a state at negative rho_uv is
+	# saved as its mirror, which has the same likelihood and path prior, and turned back after the save
+	.lame_uv_store_mirror <- function() {
+		U_cube <<- .lame_uv_mirror(U_cube)
+		if (!is.null(V_cube)) V_cube <<- .lame_uv_mirror(V_cube)
+		rho_uv <<- -rho_uv
+		invisible(NULL)
+	}
+	# exact draw of the sender-receiver shift of a fit without an intercept (R/ab_shift.R)
+	ab_shift_on <- !symmetric && !isTRUE(intercept) && isTRUE(rvar) && isTRUE(cvar) &&
+		!identical(prior[["ab_shift_move"]], FALSE)
+	ab_shift_stats <- c(visits = 0, moved = 0)
 	# tie the row and column coefficients of a nodal covariate of a symmetric binary or ordinal fit after
 	# every draw (R/symmetric_node_tie.R); prior$symmetric_node_tie = FALSE omits it
 	sym_tie <- symmetric && !bip && length(rb) > 0L && family %in% c("binary", "ordinal") &&
@@ -7332,36 +7980,47 @@ lame <- function(
 	# bipartite counterpart of the level direction (R/bipartite_predictor_scale.R) for binary panels with an
 	# intercept, both margins and static coefficients; schedule and proposals as in the unipartite move
 	bip_level_move <- bip && identical(family, "binary") && isTRUE(intercept) && length(beta) > 0L &&
-		isTRUE(rvar) && isTRUE(cvar) && !isTRUE(beta_dyn$any) && is.null(dynamic_beta_per_actor) &&
+		isTRUE(rvar) && isTRUE(cvar) && (!isTRUE(beta_dyn$any) || lev_path_ok) && is.null(dynamic_beta_per_actor) &&
 		nA >= 3L && nB >= 3L
 	if (bip_level_move) {
 		bpl_cx <- .lame_bpl_context(Y)
 		# a panel with no events either way leaves the step no signal
 		if (bpl_cx$n1 == 0L || bpl_cx$n0 == 0L) bip_level_move <- FALSE
-		bpl_every <- max(1L, as.integer(prior[["level_move_every"]] %||% 30L))
+		# with the size draws of dynamic positions the level of the predictor follows every sweep
+		bpl_every <- max(1L, as.integer(prior[["level_move_every"]] %||% if (uv_size_on) 1L else 30L))
 		bpl_tries <- max(1L, as.integer(prior[["level_move_tries"]] %||% 8L))
 		# the coefficients' prior precision, N(0, g s2) each
-		bpl_iV0 <- diag(length(beta)) / (as.numeric(g[1]) * s2)
+		bpl_iV0 <- diag(length(beta)) / (as.numeric(g) * s2)
 	}
 	# whitened dynamic observed-data HMC and its companion moves (translation, factor scale, non-centred AR,
 	# collapsed rho, actor slice); valid at any rank, enabled at rank two for efficiency
-	dynamic_joint_move <- level_move && isTRUE(.dyn_uv_has_rank) &&
-		dynamic_ab && R == 2L && !isTRUE(beta_dyn$any) && is.null(time_index) &&
+	# the companions also run when the only dynamic block is the rw1 intercept the dynamic_ab rule adds
+	dyn_rule_icpt_only <- !isTRUE(beta_dyn$any) || (isTRUE(dynamic_intercept_from_ab) &&
+		all(beta_dyn$groups[beta_dyn$dynamic_idx] == "intercept") &&
+		identical(beta_kind_by_group[["intercept"]], "rw1"))
+	dynamic_ez_move <- level_move && isTRUE(.dyn_uv_has_rank) &&
+		dynamic_ab && R == 2L && dyn_rule_icpt_only && is.null(time_index) &&
 		!identical(prior[["marginal_move"]], FALSE) && rvar && cvar &&
 		is.null(dynamic_beta_per_actor)
-	actor_slice_enabled <- dynamic_joint_move && n >= 3L &&
+	dyn_pairs <- if (dynamic_ez_move) .lame_binary_dynamic_collapsed_rho_context(Y) else NULL
+	actor_slice_enabled <- dynamic_ez_move && n >= 3L &&
 		!identical(prior[["actor_factor_slice"]], FALSE)
 	actor_slice_rounds <- actor_slice_blocks <- actor_slice_evaluations <-
 		actor_slice_bounds <- actor_slice_bad <- 0L
-	dhmc_enabled <- dynamic_joint_move
-	rho_collapsed_context <- if (dynamic_joint_move && isTRUE(dcor)) .lame_binary_dynamic_collapsed_rho_context(Y) else NULL
-	dhmc_context <- if (dhmc_enabled) .lame_binary_dynamic_pair_hmc_context(Y, Xlist, R) else NULL
+	# the joint trajectory draws the static coefficients with the coefficient paths in its offset
+	dhmc_enabled <- dynamic_ez_move
+	rho_collapsed_context <- if (dynamic_ez_move && isTRUE(dcor)) dyn_pairs else NULL
+	dhmc_context <- if (dhmc_enabled) .lame_binary_dynamic_pair_hmc_context(
+		Y,
+		if (isTRUE(beta_dyn$any)) lapply(Xlist, function(x) x[, , beta_dyn$static_idx, drop = FALSE]) else Xlist,
+		R
+	) else NULL
 	dhmc_sd <- if (is.null(dhmc_sd_start)) .12 else dhmc_sd_start
 	if (!is.numeric(dhmc_sd) || length(dhmc_sd) != 1L || !is.finite(dhmc_sd) ||
 			dhmc_sd < .001 || dhmc_sd > .5) cli::cli_abort("Invalid dynamic marginal move step size.")
-	ncar_enabled <- dynamic_joint_move
+	ncar_enabled <- dynamic_ez_move
 	ncar_uv_att <- ncar_uv_acc <- ncar_ab_att <- ncar_ab_acc <- 0L
-	dhmc_att <- dhmc_acc <- dhmc_nonfinite <- dhmc_bounds <- 0L
+	dhmc_att <- dhmc_acc <- dhmc_nonfinite <- dhmc_bounds <- dhmc_underflow <- 0L
 	# second direction of the visit: the additive deviations together with their innovation scale, a ridge
 	# the separate deviation and sigma_ab draws cross slowly; the joint move leaves their Gaussian prior invariant
 	dev_move <- level_move && isTRUE(dynamic_ab)
@@ -7419,7 +8078,7 @@ lame <- function(
 		am_cx_bip <- .lame_actor_move_context_bip(Y)
 		am_every_bip <- max(1L, as.integer(prior[["actor_move_every"]] %||% 10L))
 		# coefficient prior of rbeta_ab_bip_gibbs_cpp, N(0, g s2) each with the intercept first
-		am_iV0_bip <- diag(length(beta)) / (as.numeric(g[1]) * s2)
+		am_iV0_bip <- diag(length(beta)) / (as.numeric(g) * s2)
 		am_comp_bip <- isTRUE(intercept) && length(beta) > 0L
 		# dynamic effects: the deviation paths of pairs of actors are drawn too, their sum held
 		am_dev_bip <- isTRUE(dynamic_ab) && N >= 2L
@@ -7431,17 +8090,25 @@ lame <- function(
 	dpm_bin <- identical(family, "binary") && isTRUE(dynamic_uv) && isTRUE(.dyn_uv_has_rank) &&
 		!identical(prior[["actor_move"]], FALSE) && !identical(prior[["actor_move_paths"]], FALSE) &&
 		is.null(dynamic_beta_per_actor) &&
-		dynamic_uv_kind %in% c("ar1", "t") && (identical(dynamic_uv_kind, "ar1") || (!bip && !symmetric)) &&
+		(dynamic_uv_kind %in% c("ar1", "snap") || (!bip && !symmetric)) &&
 		(!symmetric || !is.null(L_dyn)) &&
 		(if (bip) nA >= 2L && nB >= 2L && isTRUE(s2 == 1) else n >= 3L && !isTRUE(dynamic_rho) && !actor_slice_enabled)
 	dpm_stats <- c(dpm_visits = 0, dpm_calls = 0, dpm_evals = 0, dpm_stuck = 0)
+	# the snap kind's path move for the families with a Gaussian latent array (R/dynamic_position_move.R)
+	snap_gauss <- family %in% c("normal", "ordinal", "cbin", "frn") && isTRUE(dynamic_uv) && isTRUE(.dyn_uv_has_rank) &&
+		identical(dynamic_uv_kind, "snap") && (!symmetric || !is.null(L_dyn)) &&
+		!identical(prior[["actor_move"]], FALSE) && !identical(prior[["actor_move_paths"]], FALSE)
+	if ((dpm_bin || snap_gauss) && identical(dynamic_uv_kind, "snap")) {
+		dpm_stats <- c(dpm_stats, snap_scales = 0, snap_scales_accepted = 0)
+	}
 	if (dpm_bin) {
 		dpm_cx <- .lame_dpm_binary_context(
 			Y,
 			if (bip) "bip" else if (symmetric) "sym" else "dir",
 			if (bip && actor_move_bip) am_cx_bip else if (!bip && actor_move) am_cx
 		)
-		dpm_every <- max(1L, as.integer(prior[["actor_move_every"]] %||% 10L))
+		# the snap kind visits every sweep (its compiled visit costs little next to the sweep)
+		dpm_every <- max(1L, as.integer(prior[["actor_move_every"]] %||% if (identical(dynamic_uv_kind, "snap")) 1L else 10L))
 		dpm_uv_max <- as.numeric(prior$uv_max_abs %||% Inf)
 		if (!is.finite(dpm_uv_max) || dpm_uv_max <= 0) dpm_uv_max <- Inf
 	}
@@ -7523,11 +8190,12 @@ lame <- function(
 		# (R/dynamic_position_move.R); a symmetric fit needs the weights of its product and has no t kind
 		ltm_duv <- identical(family, "poisson") && isTRUE(dynamic_uv) && isTRUE(.dyn_uv_has_rank) &&
 			!identical(prior[["actor_move_paths"]], FALSE) &&
-			dynamic_uv_kind %in% c("ar1", "t") && (!symmetric || (identical(dynamic_uv_kind, "ar1") && !is.null(L_dyn)))
+			(!symmetric || (dynamic_uv_kind %in% c("ar1", "snap") && !is.null(L_dyn)))
 		if (ltm_duv) {
 			ltm_uv_max <- as.numeric(prior$uv_max_abs %||% Inf)
 			if (!is.finite(ltm_uv_max) || ltm_uv_max <= 0) ltm_uv_max <- Inf
 			ltm_stats <- c(ltm_stats, dpm_calls = 0, dpm_evals = 0, dpm_stuck = 0)
+			if (identical(dynamic_uv_kind, "snap")) ltm_stats <- c(ltm_stats, snap_scales = 0, snap_scales_accepted = 0)
 		}
 	}
 	# translations of the actor-period effects of a poisson dynamic_ab fit with the latent array
@@ -7647,8 +8315,7 @@ lame <- function(
 		is.null(dynamic_beta_per_actor) && is.null(time_index) && n >= 3L && N >= 2L &&
 		length(beta_dyn$static_idx) > 0L && all(beta0_mean == 0) &&
 		all(Lambda_full[row(Lambda_full) != col(Lambda_full)] == 0)
-	marginal_move <- (static_path_move && level_move && n >= 3L && N >= 2L &&
-			length(beta_dyn$static_idx) > 0L) || static_actor_marginal
+	marginal_move <- (static_path_move && !isTRUE(dcor) && level_move && n >= 3L && N >= 2L) || static_actor_marginal
 	if (!is.null(prior[["marginal_move"]])) marginal_move <- marginal_move && prior[["marginal_move"]]
 	marginal_att <- 0L
 	marginal_acc <- 0L
@@ -7668,12 +8335,21 @@ lame <- function(
 		}
 	}
 	# joint Gaussian block removing the coupling between coefficients and actor levels
+	# a dynamic_beta fit draws its static coefficients and level contrasts with the paths as an offset
 	joint_levels_enabled <- identical(family, "binary") && !bip && !symmetric &&
-		isTRUE(dynamic_ab) && !isTRUE(beta_dyn$any) && R == 0L &&
+		isTRUE(dynamic_ab) && R == 0L &&
 		isTRUE(intercept) && isTRUE(rvar) && isTRUE(cvar) &&
 		!isTRUE(dynamic_rho) && is.null(dynamic_beta_per_actor) && is.null(time_index)
-	joint_levels_context <- if (joint_levels_enabled)
-		.lame_joint_levels_context(Xlist, apply(xxLong, c(1L, 2L), sum) / (N * g[1L])) else NULL
+	joint_levels_context <- if (joint_levels_enabled && isTRUE(beta_dyn$any)) {
+		.lame_joint_levels_static_context(
+			Xlist,
+			beta_dyn$static_idx,
+			.lame_static_g_scale(g, beta_dyn$static_idx) * s2,
+			static_P0
+		)
+	} else if (joint_levels_enabled) {
+		.lame_joint_levels_context(Xlist, apply(xxLong, c(1L, 2L), sum) / (N * g[1L]))
+	} else NULL
 	joint_levels_enabled <- joint_levels_enabled && !is.null(joint_levels_context)
 	joint_levels_attempts <- 0L
 	if (joint_levels_enabled) tryErrorChecks$joint_levels <- 0L
@@ -7773,7 +8449,7 @@ lame <- function(
 						requested_prior = .lame_input_prior,
 						timestamp = Sys.time()
 					)
-					try(saveRDS(.ckpt, file = checkpoint_path), silent = TRUE)
+					.ckpt_warned <- .lame_write_checkpoint(.ckpt, checkpoint_path, .ckpt_warned)
 				}
 				break
 			}
@@ -7792,8 +8468,7 @@ lame <- function(
 				requested_prior = .lame_input_prior,
 				timestamp = Sys.time()
 			)
-			# best-effort write; on failure the MCMC continues
-			try(saveRDS(.ckpt, file = checkpoint_path), silent = TRUE)
+			.ckpt_warned <- .lame_write_checkpoint(.ckpt, checkpoint_path, .ckpt_warned)
 		}
 		# symmetric dyads are counted once: as in ame_unipartite, rho ramps to min(.9999, 1 - 1/sqrt(s)) so the
 		# pair-whitened GLS collapses each mirrored pair into one observation. the ramp runs on the cumulative
@@ -7952,10 +8627,11 @@ lame <- function(
 						# one latent per unordered pair
 						Z[, , t] <- rZ_bin_sym_fc(Z[, , t], EZ[, , t], Y[, , t], .lame_rho_scalar(rho))
 					} else {
-						# fused C++ kernel (same conditional and sweep order as rZ_bin_fc), with the R sampler as fallback
+						# fused C++ kernel (same conditional and sweep order as rZ_bin_fc); the R sampler draws
+						# the same conditional when it fails, counted as an exact fallback
 						z_new <- tryCatch(
 							rZ_bin_fused_cpp(Z[, , t], EZ[, , t], rho, Y[, , t]),
-							error = function(e) { tryErrorChecks$Z <<- tryErrorChecks$Z + 1; NULL }
+							error = function(e) { .lame_fallback_note("Z_compiled"); NULL }
 						)
 						Z[, , t] <- if (!is.null(z_new)) z_new else rZ_bin_fc(Z[, , t], EZ[, , t], rho, Y[, , t])
 					}
@@ -8041,6 +8717,36 @@ lame <- function(
 				}
 			}
 		}
+		# snap kind: each position path with its resets summed out, given the latent array just drawn
+		if (snap_gauss) {
+			sg_o <- .lame_dpm_snap_visit(
+				NULL,
+				Z,
+				EZ,
+				if (isTRUE(dynamic_rho)) vapply(seq_len(N), function(t) .lame_rho_at(rho, t), numeric(1))
+				else .lame_rho_scalar(rho),
+				U_cube,
+				V_cube,
+				rho_uv,
+				sigma_uv,
+				.lame_dpm_snap_arg(pi_snap, prior$snap_kappa, rho_uv, sigma_uv, delta_uv, delta_uv_v, n, N),
+				max_abs = as.numeric(prior$uv_max_abs %||% Inf),
+				family = "gaussian",
+				s2 = s2,
+				mode = if (bip) "bip" else if (symmetric) "sym" else "dir",
+				G = G,
+				Ld = L_dyn
+			)
+			EZ <- sg_o$EZ
+			U_cube <- sg_o$U; V_cube <- sg_o$V
+			delta_uv <- sg_o$delta_u; delta_uv_v <- sg_o$delta_v
+			U <- apply(U_cube, c(1, 2), mean)
+			V <- apply(V_cube, c(1, 2), mean)
+			E.nrm <- Z - EZ
+			dpm_stats["dpm_visits"] <- dpm_stats["dpm_visits"] + 1
+			dpm_stats[names(sg_o$stats)] <- dpm_stats[names(sg_o$stats)] + sg_o$stats
+			rm(sg_o)
+		}
 
 		# the state EZ describes, for the collapsed translations below
 		if (nom_room) nom_top <- list(
@@ -8083,10 +8789,12 @@ lame <- function(
 				sigma_beta_by_group,
 				Lambda_full,
 				group_id,
-				beta0_mean,
-				beta0_cov,
+				.lame_beta_m0_now(),
+				.lame_beta_init_now(),
 				g,
-				s2
+				s2,
+				static_P0,
+				mu = if (beta_centred) beta_mu
 			)
 		}
 		# the level of the rows free above moves with the intercept against the rows with room (.lame_nom_level_shift)
@@ -8101,7 +8809,7 @@ lame <- function(
 				bip,
 				nom_shift_rows,
 				beta,
-				if (bip) diag(1 / (as.numeric(g[1]) * s2), length(beta)) else nom_lvl_iV0,
+				if (bip) diag(1 / (as.numeric(g) * s2), length(beta)) else nom_lvl_iV0,
 				ic = nom_ic
 			)
 			Z <- nom_lv$Z
@@ -8153,7 +8861,7 @@ lame <- function(
 				nom_col_ok,
 				center = isTRUE(intercept),
 				beta = beta,
-				iV0 = if (isTRUE(intercept) && bip) diag(1 / (as.numeric(g[1]) * s2), length(beta)) else nom_col_iV0,
+				iV0 = if (isTRUE(intercept) && bip) diag(1 / (as.numeric(g) * s2), length(beta)) else nom_col_iV0,
 				ic = nom_ic
 			)
 			Z <- nom_cs$Z
@@ -8187,10 +8895,12 @@ lame <- function(
 				sigma_beta_by_group,
 				Lambda_full,
 				group_id,
-				beta0_mean,
-				beta0_cov,
+				.lame_beta_m0_now(),
+				.lame_beta_init_now(),
 				g,
-				s2
+				s2,
+				static_P0,
+				mu = if (beta_centred) beta_mu
 			)
 			if (identical(nom_pic$kind, "path")) {
 				nom_dpath <- nom_pic$path - nom_top$path
@@ -8257,17 +8967,24 @@ lame <- function(
 				uv_eigen <- pmax(uv_eigen, 0)
 				q_uv <- sum(uv_eigen) / n; n_uv <- length(U) + length(V)
 			}
-			if (static_path_move) {
+			# a dynamic_beta fit scales its coefficient paths under their own prior in every branch
+			if (isTRUE(beta_dyn$any)) {
 				lev_beta_terms <- .lame_path_scale_terms(
 					beta_static,
 					beta_dyn_path,
 					rho_beta_by_group[group_id],
 					sigma_beta_by_group[group_id],
 					Lambda_full,
-					beta0_cov,
+					.lame_beta_init_now(),
 					.lame_static_g_scale(g, beta_dyn$static_idx),
-					s2
+					s2,
+					static_P0,
+					mu = if (beta_centred) beta_mu,
+					mu_var = if (beta_centred) ifelse(beta_ar1, .lame_beta_mu_var_now(), NA_real_)
 				)
+			}
+			if (static_path_move) {
+				# the static positions enter through their matrix-t term below
 			} else if (static_uv_move) {
 				# the static positions enter through their matrix-t term below
 			} else if (lev_uv) {
@@ -8301,13 +9018,15 @@ lame <- function(
 							uv_prior_static$psi
 						)
 					} else if (static_uv_move) {
-						.lame_scale_prior_logratio(
+						.lame_level_coef_logratio(
 							cc / ctot,
-							ctot * beta,
+							ctot,
+							beta,
 							lev_iV0,
-							ctot * ctot * q_lev,
+							if (isTRUE(beta_dyn$any)) lev_beta_terms,
+							q_lev,
 							n_lev - lev_cen_lev,
-							ctot * ctot * q_dev,
+							q_dev,
 							max(n_dev - lev_cen_dev, 0L)
 						) +
 							.lame_static_scale_logratio(
@@ -8321,15 +9040,17 @@ lame <- function(
 								uv_prior_static$df,
 								uv_prior_static$psi
 							)
-					} else .lame_scale_prior_logratio(
+					} else .lame_level_coef_logratio(
 						cc / ctot,
-						ctot * beta,
+						ctot,
+						beta,
 						lev_iV0,
-						ctot * ctot * q_lev,
+						if (isTRUE(beta_dyn$any)) lev_beta_terms,
+						q_lev,
 						n_lev - lev_cen_lev,
-						ctot * ctot * q_dev,
+						q_dev,
 						max(n_dev - lev_cen_dev, 0L),
-						ctot * q_uv,
+						q_uv,
 						max(n_uv - lev_cen_uv, 0L)
 					)
 					lev_ok <- is.finite(lr) && log(runif(1)) < lr
@@ -8404,9 +9125,10 @@ lame <- function(
 			}
 			if (ctot != 1 || dtot != 1) {
 				beta <- ctot * beta
-				if (static_path_move) {
+				if (isTRUE(beta_dyn$any)) {
 					beta_dyn_path <- ctot * beta_dyn_path
 					beta_static <- ctot * beta_static
+					if (beta_centred) beta_mu <- ctot * beta_mu
 				}
 				a <- ctot * a
 				b <- ctot * b
@@ -8468,17 +9190,38 @@ lame <- function(
 				bpl_qd <- 0
 				bpl_nd <- 0L
 			}
+			# a dynamic_beta fit scales its coefficient paths as a gaussian block that joins G
+			bpl_pt <- if (isTRUE(beta_dyn$any)) .lame_path_scale_terms(
+				beta_static,
+				beta_dyn_path,
+				rho_beta_by_group[group_id],
+				sigma_beta_by_group[group_id],
+				Lambda_full,
+				.lame_beta_init_now(),
+				.lame_static_g_scale(g, beta_dyn$static_idx),
+				s2,
+				static_P0,
+				mu = if (beta_centred) beta_mu,
+				mu_var = if (beta_centred) ifelse(beta_ar1, .lame_beta_mu_var_now(), NA_real_)
+			) else NULL
+			bpl_ca <- .lame_bpl_coef_args(
+				beta,
+				bpl_iV0,
+				if (bpl_G) sum(G^2) else 0,
+				if (bpl_G) length(G) else 0L,
+				bpl_pt
+			)
 			bpl_o <- .lame_bpl_scale(
 				bpl_ez,
 				bpl_cx$sY,
-				beta,
-				bpl_iV0,
+				bpl_ca$beta,
+				bpl_ca$iV0,
 				bpl_ql,
 				nA + nB - 2L,
 				bpl_qd,
 				bpl_nd,
-				if (bpl_G) sum(G^2) else 0,
-				if (bpl_G) length(G) else 0L,
+				bpl_ca$q_g,
+				bpl_ca$n_g,
 				room = if (bpl_G && is.finite(
 					prior$G_max %||% g_rail_default
 				) && max(abs(G)) > 0) (prior$G_max %||% g_rail_default) / max(abs(G)) else Inf,
@@ -8492,6 +9235,11 @@ lame <- function(
 			lev_sd <- bpl_o$sd
 			if (bpl_o$c != 1) {
 				beta <- bpl_o$c * beta
+				if (isTRUE(beta_dyn$any)) {
+					beta_dyn_path <- bpl_o$c * beta_dyn_path
+					beta_static <- bpl_o$c * beta_static
+					if (beta_centred) beta_mu <- bpl_o$c * beta_mu
+				}
 				a <- bpl_o$c * a
 				b <- bpl_o$c * b
 				if (dynamic_ab) {
@@ -8505,12 +9253,12 @@ lame <- function(
 				Z <- rZ_bin_bip_batch_cpp(Z, EZ, Y)
 				E.nrm <- Z - EZ
 			}
-			rm(bpl_ez, bpl_ql, bpl_qd, bpl_nd, bpl_o, bpl_G)
+			rm(bpl_ez, bpl_ql, bpl_qd, bpl_nd, bpl_o, bpl_G, bpl_pt, bpl_ca)
 		}
 		# collapsed per-actor update: exact slice draws of level translations and static positions with the
 		# latent array integrated out (with no additive margin, positions only after the first half of burn-in)
 		if (actor_move && (s %% am_every == 0L) && (any(am_lev) || s > .5 * burn)) {
-			# prior of the intercept of a dynamic_beta fit: its path, or N(0, g s2) when static
+			# prior of the intercept of a dynamic_beta fit: its path, or its static coefficient prior
 			am_ic <- NULL
 			if (am_centred && isTRUE(beta_dyn$any)) {
 				am_kd <- match(1L, beta_dyn$dynamic_idx)
@@ -8520,16 +9268,13 @@ lame <- function(
 						path = beta_dyn_path[, am_kd],
 						rho = rho_beta_by_group[group_id[am_kd]],
 						sd2 = sigma_beta_by_group[group_id[am_kd]]^2 * Lambda_full[am_kd, am_kd],
-						m0 = beta0_mean[am_kd],
-						v0 = beta0_cov[am_kd, am_kd]
+						m0 = .lame_beta_m0_now()[am_kd],
+						v0 = .lame_beta_init_now()[am_kd, am_kd],
+						centre = if (beta_centred) beta_mu[am_kd]
 					)
 				} else {
 					am_ks <- match(1L, beta_dyn$static_idx)
-					am_ic <- list(
-						kind = "static",
-						value = beta_static[am_ks],
-						prec = 1 / (.lame_static_g_scale(g, beta_dyn$static_idx)[am_ks] * s2)
-					)
+					am_ic <- .lame_static_icpt_prior(beta_static, am_ks, static_P0, g, beta_dyn$static_idx, s2)
 				}
 			}
 			if (symmetric) {
@@ -8639,16 +9384,13 @@ lame <- function(
 						path = beta_dyn_path[, am_kd],
 						rho = rho_beta_by_group[group_id[am_kd]],
 						sd2 = sigma_beta_by_group[group_id[am_kd]]^2 * Lambda_full[am_kd, am_kd],
-						m0 = beta0_mean[am_kd],
-						v0 = beta0_cov[am_kd, am_kd]
+						m0 = .lame_beta_m0_now()[am_kd],
+						v0 = .lame_beta_init_now()[am_kd, am_kd],
+						centre = if (beta_centred) beta_mu[am_kd]
 					)
 				} else {
 					am_ks <- match(1L, beta_dyn$static_idx)
-					am_ic <- list(
-						kind = "static",
-						value = beta_static[am_ks],
-						prec = 1 / (.lame_static_g_scale(g, beta_dyn$static_idx)[am_ks] * s2)
-					)
+					am_ic <- .lame_static_icpt_prior(beta_static, am_ks, static_P0, g, beta_dyn$static_idx, s2)
 				}
 			}
 			am_out <- .lame_actor_move_visit_bip(
@@ -8702,7 +9444,22 @@ lame <- function(
 		# position paths of a binary fit with moving positions, with the latent array integrated out and redrawn
 		# (persistence and innovation scale held)
 		if (dpm_bin && (s %% dpm_every == 0L)) {
-			dpm_o <- .lame_dpm_visit_binary(
+			dpm_o <- if (identical(dynamic_uv_kind, "snap")) .lame_dpm_snap_visit(
+				dpm_cx,
+				Z,
+				EZ,
+				.lame_rho_scalar(rho),
+				U_cube,
+				V_cube,
+				rho_uv,
+				sigma_uv,
+				.lame_dpm_snap_arg(pi_snap, prior$snap_kappa, rho_uv, sigma_uv, delta_uv, delta_uv_v, n, N),
+				max_abs = dpm_uv_max,
+				mode = dpm_cx$mode,
+				G = G,
+				Ld = L_dyn,
+				Y = Y
+			) else .lame_dpm_visit_binary(
 				dpm_cx,
 				Z,
 				EZ,
@@ -8718,6 +9475,7 @@ lame <- function(
 				lambda_u = if (identical(dynamic_uv_kind, "t")) lambda_u else NULL,
 				lambda_v = if (identical(dynamic_uv_kind, "t")) lambda_v else NULL
 			)
+			if (!is.null(dpm_o$delta_u)) { delta_uv <- dpm_o$delta_u; delta_uv_v <- dpm_o$delta_v }
 			Z <- dpm_o$Z; EZ <- dpm_o$EZ
 			U_cube <- dpm_o$U
 			if (symmetric) {
@@ -8733,10 +9491,22 @@ lame <- function(
 		# ridge of a row or column covariate with the additive effects of its margin (R/covariate_ridge_move.R)
 		if (cr_on) {
 			cr_dyn <- isTRUE(dynamic_ab)
+			cr_st <- if (isTRUE(beta_dyn$any)) .lame_cov_ridge_dyn_state(
+				length(beta),
+				beta_dyn$static_idx,
+				beta_dyn$dynamic_idx,
+				beta_static,
+				beta_dyn_path,
+				.lame_static_g_scale(g, beta_dyn$static_idx),
+				s2,
+				beta0_cov,
+				isTRUE(intercept),
+				static_P0
+			) else NULL
 			cr_o <- .lame_cov_ridge_visit(
 				Xlist,
-				beta,
-				cr_P0,
+				if (is.null(cr_st)) beta else cr_st$beta,
+				if (is.null(cr_st)) cr_P0 else cr_st$P0,
 				if (cr_dyn) a_lev else a,
 				if (cr_dyn) b_lev else b,
 				if (cr_dyn) a_mat else NULL,
@@ -8751,9 +9521,16 @@ lame <- function(
 				M = cr_M,
 				rho_t = vapply(seq_len(N), function(tt) if (isTRUE(dcor)) .lame_rho_at(rho, tt) else 0, numeric(1)),
 				s2 = s2,
-				skip = if (isTRUE(intercept)) 1L else integer(0)
+				skip = if (!is.null(cr_st)) cr_st$skip else if (isTRUE(intercept)) 1L else integer(0)
 			)
-			beta <- cr_o$beta
+			if (is.null(cr_st)) {
+				beta <- cr_o$beta
+			} else {
+				cr_ap <- .lame_cov_ridge_dyn_apply(cr_st, cr_o$beta, beta_dyn_path, beta_dyn$static_idx)
+				beta_static <- cr_ap$beta_static; beta_dyn_path <- cr_ap$path
+				beta[beta_dyn$static_idx] <- beta_static; beta[beta_dyn$dynamic_idx] <- colMeans(beta_dyn_path)
+				rm(cr_ap)
+			}
 			if (cr_dyn) {
 				a_lev <- cr_o$a_lev; b_lev <- cr_o$b_lev; a_mat <- cr_o$a_mat; b_mat <- cr_o$b_mat
 				a <- a_lev; b <- b_lev
@@ -8797,19 +9574,16 @@ lame <- function(
 						path = beta_dyn_path[, am_kd],
 						rho = rho_beta_by_group[group_id[am_kd]],
 						sd2 = sigma_beta_by_group[group_id[am_kd]]^2 * Lambda_full[am_kd, am_kd],
-						m0 = beta0_mean[am_kd],
-						v0 = beta0_cov[am_kd, am_kd]
+						m0 = .lame_beta_m0_now()[am_kd],
+						v0 = .lame_beta_init_now()[am_kd, am_kd],
+						centre = if (beta_centred) beta_mu[am_kd]
 					)
 				} else {
 					am_ks <- match(1L, beta_dyn$static_idx)
-					ltm_ic <- list(
-						kind = "static",
-						value = beta_static[am_ks],
-						prec = 1 / (.lame_static_g_scale(g, beta_dyn$static_idx)[am_ks] * s2)
-					)
+					ltm_ic <- .lame_static_icpt_prior(beta_static, am_ks, static_P0, g, beta_dyn$static_idx, s2)
 				}
 			}
-			ltm_iV0_now <- if (bip) diag(length(beta)) / (as.numeric(g[1]) * s2) else ltm_iV0
+			ltm_iV0_now <- if (bip) diag(length(beta)) / (as.numeric(g) * s2) else ltm_iV0
 			ltm_st <- .lame_ltm_visit(
 				ltm_cx,
 				Z,
@@ -8915,7 +9689,22 @@ lame <- function(
 			}
 			if (ltm_duv) {
 				# the position paths move with the latent array, persistence and innovation scale held
-				ltm_dp <- .lame_dpm_visit(
+				ltm_dp <- if (identical(dynamic_uv_kind, "snap")) .lame_dpm_snap_visit(
+					ltm_cx,
+					Z,
+					EZ,
+					0,
+					U_cube,
+					V_cube,
+					rho_uv,
+					sigma_uv,
+					.lame_dpm_snap_arg(pi_snap, prior$snap_kappa, rho_uv, sigma_uv, delta_uv, delta_uv_v, n, N),
+					max_abs = ltm_uv_max,
+					family = "poisson",
+					mode = ltm_cx$mode,
+					G = G,
+					Ld = L_dyn
+				) else .lame_dpm_visit(
 					ltm_cx,
 					Z,
 					EZ,
@@ -8929,6 +9718,7 @@ lame <- function(
 					lambda_u = if (identical(dynamic_uv_kind, "t")) lambda_u else NULL,
 					lambda_v = if (identical(dynamic_uv_kind, "t")) lambda_v else NULL
 				)
+				if (!is.null(ltm_dp$delta_u)) { delta_uv <- ltm_dp$delta_u; delta_uv_v <- ltm_dp$delta_v }
 				Z <- ltm_dp$Z; EZ <- ltm_dp$EZ
 				U_cube <- ltm_dp$U
 				if (symmetric) {
@@ -8940,11 +9730,8 @@ lame <- function(
 				rm(ltm_dp)
 			}
 			if (ltm_scale) {
-				ltm_s2b <- if (beta_dyn$any) .lame_s2_beta_terms(
-					beta_static,
-					.lame_static_g_scale(g, beta_dyn$static_idx)
-				)
-				else if (bip) .lame_s2_beta_terms(beta, g[1L]) else c(df = 0, ss = 0)
+				ltm_s2b <- if (beta_dyn$any) .lame_beta_s2_terms_now()
+				else if (bip) .lame_s2_beta_terms(beta, g) else c(df = 0, ss = 0)
 				ltm_two <- !bip && !symmetric && isTRUE(dcor)
 				ltm_sc <- .lame_ltm_scale(
 					ltm_cx,
@@ -8987,25 +9774,27 @@ lame <- function(
 		# translations of the dynamic_beta coefficients with their latent slices (poisson), then the static
 		# coefficients (R/poisson_period_move.R)
 		if (ppm_on) {
+			# the translations read an ar1 path as its deviation from the long-run mean
 			ppm_out <- .lame_ppm_visit(
 				ppm_cx,
 				Z,
 				EZ,
-				beta_dyn_path,
+				.lame_beta_dev_now(),
 				Xdyn_list_per_t,
 				list(
 					kind = dynamic_beta_kind,
 					rho = rho_beta_by_group[group_id],
 					sigma = sigma_beta_by_group[group_id],
 					lam = diag(Lambda_full),
-					m0 = beta0_mean,
-					v0 = diag(beta0_cov),
+					m0 = .lame_beta_m0_now(),
+					v0 = diag(.lame_beta_init_now()),
 					time_positions = ppm_tpos,
 					length_scale = prior$matern32_length_scale %||% NULL
 				),
 				Xz = ppm_Xz
 			)
-			Z <- ppm_out$Z; EZ <- ppm_out$EZ; beta_dyn_path <- ppm_out$path
+			Z <- ppm_out$Z; EZ <- ppm_out$EZ
+			beta_dyn_path <- if (beta_centred) .lame_beta_add_mean(ppm_out$path, beta_mu) else ppm_out$path
 			beta[beta_dyn$dynamic_idx] <- colMeans(beta_dyn_path)
 			ppm_stats[c(
 				"visits",
@@ -9018,7 +9807,7 @@ lame <- function(
 					EZ,
 					beta_static,
 					ppm_Xs,
-					diag(1 / (.lame_static_g_scale(g, beta_dyn$static_idx) * s2), length(beta_static)),
+					.lame_static_prior_prec(static_P0, g, beta_dyn$static_idx, s2),
 					Xz = ppm_Xzs
 				)
 				Z <- ppm_sc$Z; EZ <- ppm_sc$EZ; beta_static <- ppm_sc$beta
@@ -9033,8 +9822,8 @@ lame <- function(
 		}
 		# dyadic variance and correlation with the latent residuals carried along their conditional law
 		if (ppm_scale_on) {
-			ppm_s2b <- if (beta_dyn$any) .lame_s2_beta_terms(beta_static, .lame_static_g_scale(g, beta_dyn$static_idx))
-			else if (bip) .lame_s2_beta_terms(beta, g[1L]) else c(df = 0, ss = 0)
+			ppm_s2b <- if (beta_dyn$any) .lame_beta_s2_terms_now()
+			else if (bip) .lame_s2_beta_terms(beta, g) else c(df = 0, ss = 0)
 			ppm_two <- !bip && !symmetric && isTRUE(dcor)
 			ppm_sc <- .lame_ppm_scale(
 				ppm_cx,
@@ -9081,9 +9870,11 @@ lame <- function(
 			)
 			hmc_h <- list(
 				g = .lame_static_g_scale(g, beta_dyn$static_idx) * s2,
+				P = static_P0,
 				rho_beta = rho_beta_by_group[group_id],
 				var_beta = sigma_beta_by_group[group_id]^2 * diag(Lambda_full),
-				iC0 = solve(beta0_cov),
+				iC0 = solve(.lame_beta_init_now()),
+				mu_beta = if (beta_centred) beta_mu,
 				iSab = solve(Sab),
 				rho_ab = rho_ab,
 				var_ab = sigma_ab^2
@@ -9124,17 +9915,22 @@ lame <- function(
 		}
 		# exact translations: move the factor means with compensating centred actor deviations and intercept,
 		# preserving the full predictor
-		if (dynamic_joint_move && s > .5 * burn &&
+		if (dynamic_ez_move && s > .5 * burn &&
 				s %% 10L == 0L &&
 				is.null(time_index)) {
+			# a static intercept enters with its g-prior, the rw1 intercept path through its first state's N(0, v0)
+			tr_kd <- if (isTRUE(beta_dyn$any)) match(1L, beta_dyn$dynamic_idx) else NA_integer_
+			tr_arg <- if (!is.na(tr_kd)) {
+				.lame_translation_path_prior(beta_dyn_path[, tr_kd], beta0_cov[tr_kd, tr_kd])
+			} else list(beta = beta, iV0 = lev_iV0)
 			tr <- .lame_binary_dynamic_translation_collapsed_step(
 				U_cube,
 				V_cube,
 				b_mat,
 				b_lev,
 				a_lev,
-				beta,
-				lev_iV0,
+				tr_arg$beta,
+				tr_arg$iV0,
 				rho_uv,
 				sigma_uv,
 				rho_ab,
@@ -9143,15 +9939,15 @@ lame <- function(
 				2L,
 				lev_uv_max
 			)
-			U_cube <- tr$U; b_mat <- tr$margin; b_lev <- tr$level; beta <- tr$beta
+			U_cube <- tr$U; b_mat <- tr$margin; b_lev <- tr$level; tr_beta1 <- tr$beta
 			tr <- .lame_binary_dynamic_translation_collapsed_step(
 				V_cube,
 				U_cube,
 				a_mat,
 				a_lev,
 				b_lev,
-				beta,
-				lev_iV0,
+				tr_beta1,
+				tr_arg$iV0,
 				rho_uv,
 				sigma_uv,
 				rho_ab,
@@ -9160,14 +9956,21 @@ lame <- function(
 				1L,
 				lev_uv_max
 			)
-			V_cube <- tr$U; a_mat <- tr$margin; a_lev <- tr$level; beta <- tr$beta
+			V_cube <- tr$U; a_mat <- tr$margin; a_lev <- tr$level
+			if (is.na(tr_kd)) {
+				beta <- tr$beta
+			} else {
+				tr_shift <- tr$beta[1L] - tr_arg$beta[1L]
+				beta_dyn_path[, tr_kd] <- beta_dyn_path[, tr_kd] + tr_shift
+				beta[1L] <- beta[1L] + tr_shift
+			}
 			a <- a_lev; b <- b_lev
 			U <- apply(U_cube, c(1, 2), mean)
 			V <- apply(V_cube, c(1, 2), mean)
 			translation_att <- translation_att + 2L
 		}
 		# non-centred factor scale with binary Z integrated out, given the shared reciprocity factor
-		if (dynamic_joint_move && s > .5 * burn && s %% 30L == 0L) {
+		if (dynamic_ez_move && s > .5 * burn && s %% 30L == 0L) {
 			rho_us <- .lame_rho_scalar(rho)
 			off_us <- .lame_dyad_factor_draw(Z, EZ, rho_us, lev_upper)
 			sd_us <- sqrt(1 - abs(rho_us))
@@ -9180,8 +9983,8 @@ lame <- function(
 				off_us[lev_obs] / sd_us,
 				lev_sY,
 				sigma_uv,
-				prior$sigma_uv_shape,
-				prior$sigma_uv_scale,
+				.lame_uv_ig_shape(prior),
+				.lame_uv_ig_scale(prior, rho_uv),
 				variance_max = min(
 					(prior$sigma_uv_max %||% Inf)^2,
 					(prior$uv_var_cap %||% Inf) * (1 - rho_uv^2)
@@ -9209,7 +10012,7 @@ lame <- function(
 		}
 		# reciprocity update under the observed binary-pair likelihood with both auxiliaries integrated out;
 		# Z is refreshed exactly
-		if (dynamic_joint_move && isTRUE(dcor) && s > .5 * burn && s %% 30L == 0L) {
+		if (dynamic_ez_move && isTRUE(dcor) && s > .5 * burn && s %% 30L == 0L) {
 			mr <- .lame_binary_dynamic_collapsed_rho_mh(rho, EZ, rho_collapsed_context)
 			rho_collapsed_att <- rho_collapsed_att + mr$attempts
 			rho_collapsed_acc <- rho_collapsed_acc + mr$accepts
@@ -9251,11 +10054,12 @@ lame <- function(
 				nc_like_uv,
 				prior$rho_uv_mean,
 				prior$rho_uv_sd,
-				prior$sigma_uv_shape,
-				prior$sigma_uv_scale,
+				.lame_uv_ig_shape(prior),
+				.lame_uv_var_scale(prior),
 				stationary_max = prior$uv_var_cap %||% Inf,
 				sigma_max = prior$sigma_uv_max %||% Inf,
-				max_abs = lev_uv_max
+				max_abs = lev_uv_max,
+				stationary = .lame_uv_var_stationary(prior)
 			)
 			ncar_uv_att <- ncar_uv_att + ncu$attempts; ncar_uv_acc <- ncar_uv_acc + ncu$accepts
 			if (ncu$accepts > 0L) {
@@ -9313,23 +10117,29 @@ lame <- function(
 		# skipped when rho_uv sits at the AR endpoint, which cannot be Fisher transformed
 		if (dhmc_enabled && s > .5 * burn && s %% 20L == 0L && abs(rho_uv) < .99) {
 			dh_offset <- NULL # both Gaussian auxiliaries integrated out
+			# a dynamic_beta fit: the static coefficients under their prior, the paths in the predictor's offset
+			if (isTRUE(beta_dyn$any)) dhmc_context$offset <- .lame_xbeta_dyn_cube()
+			dh_P <- if (isTRUE(beta_dyn$any)) {
+				.lame_static_prior_prec(static_P0, g, beta_dyn$static_idx, s2)
+			} else lev_iV0
 			dh_hyper <- .lame_binary_dynamic_ar_hmc_hyper(
 				dhmc_context,
-				lev_iV0,
+				dh_P,
 				Sab,
 				rho_ab,
 				sigma_ab,
 				rho,
-				prior$sigma_uv_shape,
-				prior$sigma_uv_scale,
+				.lame_uv_ig_shape(prior),
+				.lame_uv_var_scale(prior),
 				prior$rho_uv_mean,
 				prior$rho_uv_sd,
 				variance_max = (prior$sigma_uv_max %||% Inf)^2,
 				stationary_max = prior$uv_var_cap %||% Inf,
-				max_abs = lev_uv_max
+				max_abs = lev_uv_max,
+				stationary = .lame_uv_var_stationary(prior)
 			)
 			dh_q <- .lame_binary_dynamic_ar_hmc_encode(
-				beta,
+				if (isTRUE(beta_dyn$any)) beta_static else beta,
 				cbind(a_lev, b_lev),
 				a_mat - a_lev,
 				b_mat - b_lev,
@@ -9344,10 +10154,13 @@ lame <- function(
 			dhmc_att <- dhmc_att + 1L
 			dhmc_nonfinite <- dhmc_nonfinite + as.integer(dh_proposal$nonfinite)
 			dhmc_bounds <- dhmc_bounds + as.integer(dh_proposal$bound)
+			dhmc_underflow <- dhmc_underflow + as.integer(isTRUE(dh_proposal$underflow))
 			if (dh_proposal$accepted) {
 				dh_state <- .lame_binary_dynamic_ar_hmc_decode(dh_proposal$q, dhmc_context, dh_hyper)
 				sigma_uv <- dh_state$sigma; rho_uv <- dh_state$rho_uv
-				beta <- dh_state$beta
+				if (isTRUE(beta_dyn$any)) {
+					beta_static <- dh_state$beta; beta[beta_dyn$static_idx] <- beta_static
+				} else beta <- dh_state$beta
 				a_lev <- dh_state$level[, 1]; b_lev <- dh_state$level[, 2]
 				a_mat <- a_lev + dh_state$adev; b_mat <- b_lev + dh_state$bdev
 				a <- a_lev; b <- b_lev
@@ -9386,9 +10199,12 @@ lame <- function(
 					rho,
 					lev_uv_max
 				)
-				z$Z <- .lame_binary_dynamic_collapsed_rho_z(z$eta, Y, rho, dhmc_context$pairs)
+				z$Z <- .lame_binary_dynamic_collapsed_rho_z(z$eta, Y, rho, dyn_pairs)
 				z
-			}, error = function(e) NULL)
+			}, error = function(e) {
+				.lame_failure_note("actor_factor_slice", s, e)
+				NULL
+			})
 			actor_slice_rounds <- actor_slice_rounds + 1L
 			if (is.null(as_state)) actor_slice_bad <- actor_slice_bad + 1L else {
 				U_cube <- as_state$U; V_cube <- as_state$V
@@ -9446,14 +10262,12 @@ lame <- function(
 		# update s2
 		s2_before_cap <- s2
 		if (is.element(family, c("normal", "poisson"))) {
-			# include every N(0, g_j * s2) coefficient prior; dynamic paths have their own innovation variance
+			# include every N(0, g_j * s2) coefficient prior (bipartite: the static coefficients, the long-run means
+			# of ar1 paths and the levels of rw2 and matern32 paths); dynamic paths have their own innovation variance
 			s2_beta <- if (beta_dyn$any) {
-				.lame_s2_beta_terms(
-					beta_static,
-					.lame_static_g_scale(g, beta_dyn$static_idx)
-				)
+				.lame_beta_s2_terms_now()
 			} else if (bip) {
-				.lame_s2_beta_terms(beta, g[1L])
+				.lame_s2_beta_terms(beta, g)
 			} else c(df = 0, ss = 0)
 			if (bip) {
 				# bipartite: direct s2 draw (no dyadic correlation; rs2_rep_fc_cpp assumes square matrices)
@@ -9556,7 +10370,8 @@ lame <- function(
 				} else array(0, dim = c(n_b_, 1L, N))
 			}
 			G_eff <- if (bip) G else diag(1, max(1L, dim(U_cube_eff)[2]))
-			# offset = a + b + UV (no X beta)
+			# offset = a + b + UV (no X beta), keeping the per-period products for the residual cube
+			uv_list_ffbs <- vector("list", N)
 			for (t in seq_len(N)) {
 				# bipartite ranks live in RA/RB, and positions are taken per period from the cubes
 				if (bip) {
@@ -9565,7 +10380,8 @@ lame <- function(
 						Ut <- U_cube_eff[, , t]; Vt <- V_cube_eff[, , t]
 						if (!is.matrix(Ut)) Ut <- matrix(Ut, n_a_, 1)
 						if (!is.matrix(Vt)) Vt <- matrix(Vt, n_b_, 1)
-						off_t <- off_t + Ut %*% G_eff %*% t(Vt)
+						uv_list_ffbs[[t]] <- Ut %*% G_eff %*% t(Vt)
+						off_t <- off_t + uv_list_ffbs[[t]]
 					}
 				} else {
 					off_t <- outer(a_mat_eff[, t], b_mat_eff[, t], "+")
@@ -9573,13 +10389,15 @@ lame <- function(
 						Ut <- U_cube_eff[, , t]; Vt <- V_cube_eff[, , t]
 						if (!is.matrix(Ut)) Ut <- matrix(Ut, n_a_, 1)
 						if (!is.matrix(Vt)) Vt <- matrix(Vt, n_b_, 1)
-						off_t <- off_t + Ut %*% t(Vt)
+						uv_list_ffbs[[t]] <- Ut %*% t(Vt)
+						off_t <- off_t + uv_list_ffbs[[t]]
 					}
 				}
 				offset_list_ffbs[[t]] <- off_t
 				Z_list_ffbs[[t]] <- Z[, , t]
 			}
-			use_dyad_rho <- (!bip) && (!symmetric) && isTRUE(dcor) && (.lame_rho_scalar(rho) != 0)
+			# whiten each period's dyad pairs by its own rho under dynamic_rho
+			use_dyad_rho <- (!bip) && (!symmetric) && isTRUE(dcor) && any(.lame_expand_rho(rho, length(rho)) != 0)
 			# interweaving step: the hyperparameters and path move together with the standardised innovations held
 			# fixed, before the path is redrawn; it hands on the per-period statistics the filter needs
 			nc_st <- NULL
@@ -9597,7 +10415,12 @@ lame <- function(
 						symmetric = symmetric,
 						use_dyad_rho = use_dyad_rho
 					),
-					error = function(e) NULL
+					# the step is skipped given the latent array, which it does not move, and the filter forms the
+					# statistics itself
+					error = function(e) {
+						.lame_fallback_note('beta_interweave')
+						NULL
+					}
 				)
 				if (!is.null(nc_st)) {
 					nc_pool_scale <- prior$sigma_beta_scale
@@ -9626,9 +10449,10 @@ lame <- function(
 						prior$rho_beta_lower,
 						prior$rho_beta_upper,
 						rho_pool = if (dynamic_beta_pool %in% c("rho", "both") && identical(dynamic_beta_kind, "ar1") &&
-								beta_dyn$n_groups >= 2L) list(mu = pool_rho_mu, tau = pool_rho_tau) else NULL,
-						movable_rho = identical(dynamic_beta_kind, "ar1"),
-						gaps = nc_gaps
+								n_ar1_groups >= 2L) list(mu = pool_rho_mu, tau = pool_rho_tau) else NULL,
+						movable_rho = identical(dynamic_beta_kind, "ar1") & !rw1_group,
+						gaps = nc_gaps,
+						mu = if (beta_centred) beta_mu
 					)
 					beta_dyn_path <- nc_out$path
 					sigma_beta_by_group[] <- nc_out$sigma
@@ -9642,13 +10466,20 @@ lame <- function(
 			# draw the dynamic coefficient block
 			.nonunit_gaps <- !is.null(time_index) &&
 				any(abs(diff(as.numeric(time_index)) - 1) > 1e-10)
+			# an ar1 path is drawn as its deviation from its long-run mean, the means entering the offsets
+			ffbs_offsets <- offset_list_ffbs
+			ffbs_stats <- nc_st
+			if (beta_centred) {
+				ffbs_offsets <- .lame_beta_mean_offsets(offset_list_ffbs, Xdyn_list_per_t, beta_mu)
+				if (!is.null(nc_st)) ffbs_stats <- .lame_beta_mean_stats(nc_st, beta_mu)
+			}
 			ffbs_out <- if (dynamic_beta_kind %in% c("rw2", "matern32") || .nonunit_gaps) {
 				tryCatch(
 					.sample_beta_dynamic_alt(
 						Xdyn_list = Xdyn_list_per_t,
 						Xstat_list = Xstat_list_per_t,
 						Z_list = Z_list_ffbs,
-						offset_list = offset_list_ffbs,
+						offset_list = ffbs_offsets,
 						beta_static = if (length(beta_static) > 0L) beta_static else numeric(0),
 						sigma_by_coef = sigma_by_coef,
 						Lambda = Lambda_full,
@@ -9657,8 +10488,8 @@ lame <- function(
 						length_scale = prior$matern32_length_scale %||% NULL,
 						time_positions = if (!is.null(time_index)) as.numeric(time_index) else NULL,
 						rho_by_coef = rho_by_coef,
-						beta0_mean = beta0_mean,
-						beta0_cov = beta0_cov,
+						beta0_mean = .lame_beta_m0_now(),
+						beta0_cov = .lame_beta_init_now(),
 						dyad_rho = if (is.null(rho)) 0 else rho,
 						use_dyad_rho = use_dyad_rho,
 						bipartite = bip,
@@ -9672,26 +10503,26 @@ lame <- function(
 						Xdyn_list = Xdyn_list_per_t,
 						Xstat_list = Xstat_list_per_t,
 						Z_list = Z_list_ffbs,
-						offset_list = offset_list_ffbs,
+						offset_list = ffbs_offsets,
 						beta_static = if (length(beta_static) > 0L) beta_static else numeric(0),
 						rho_by_coef = rho_by_coef,
 						sigma_by_coef = sigma_by_coef,
 						Lambda = Lambda_full,
-						beta0_mean = beta0_mean,
-						beta0_cov = beta0_cov,
+						beta0_mean = .lame_beta_m0_now(),
+						beta0_cov = .lame_beta_init_now(),
 						s2 = s2,
 						dyad_rho = if (is.null(rho)) 0 else rho,
 						bipartite = bip,
 						symmetric = symmetric,
 						use_dyad_rho = use_dyad_rho,
-						Omega_in = if (!is.null(nc_st)) nc_st$Omega,
-						h_in = if (!is.null(nc_st)) nc_st$h
+						Omega_in = if (!is.null(ffbs_stats)) ffbs_stats$Omega,
+						h_in = if (!is.null(ffbs_stats)) ffbs_stats$h
 					),
 					error = function(e) NULL
 				)
 			}
 			if (!is.null(ffbs_out) && all(is.finite(ffbs_out$path))) {
-				beta_dyn_path <- ffbs_out$path
+				beta_dyn_path <- if (beta_centred) .lame_beta_add_mean(ffbs_out$path, beta_mu) else ffbs_out$path
 				if (sym_tie) beta_dyn_path <- .lame_sym_tie_state(
 					beta_dyn_path,
 					beta_static,
@@ -9705,12 +10536,40 @@ lame <- function(
 				# on failure keep the current draw and count it
 				tryErrorChecks$beta <- tryErrorChecks$beta + 1L
 			}
+			# long-run means of the ar1 paths given the paths, under the static coefficient prior
+			if (beta_centred) {
+				# a draw that cannot be resolved keeps the current means and is counted
+				mu_new <- tryCatch(
+					.lame_beta_mean_draw(
+						beta_dyn_path,
+						beta_mu,
+						beta_ar1,
+						rho_by_coef,
+						sigma_by_coef,
+						diag(Lambda_full),
+						.lame_beta_mu_var_now(),
+						if (!is.null(time_index)) diff(as.numeric(time_index)) else rep(1, N - 1L)
+					),
+					error = function(e) NULL
+				)
+				if (is.null(mu_new) || !all(is.finite(mu_new))) {
+					tryErrorChecks$beta <- tryErrorChecks$beta + 1L
+				} else beta_mu <- mu_new
+				if (sym_tie) beta_mu <- .lame_sym_tie_state(
+					matrix(beta_mu, 1L),
+					beta_static,
+					beta_dyn$dynamic_idx,
+					beta_dyn$static_idx,
+					rb,
+					cb
+				)$path[1L, ]
+			}
 			# conjugate update of the static coefficients
 			if (length(beta_dyn$static_idx) > 0L) {
-				# prior precision diag(1 / (g * s2)), the g-prior form
+				# prior precision diag(1 / (g * s2)), or the panel precision of a unipartite fit
 				p_static <- length(beta_dyn$static_idx)
 				g_diag <- .lame_static_g_scale(g, beta_dyn$static_idx)
-				prior_prec <- diag(1 / (g_diag * s2), p_static)
+				prior_prec <- if (is.null(static_P0)) diag(1 / (g_diag * s2), p_static) else static_P0
 				ffbs_stat <- tryCatch(
 					sample_beta_static_cpp(
 						Xdyn_list = Xdyn_list_per_t,
@@ -9744,49 +10603,40 @@ lame <- function(
 				}
 			}
 			# the p-length beta (time mean of the path) for summaries; beta_full_path feeds EZ next iteration
-			beta_path_now <- matrix(0, N, length(beta))
-			for (t in seq_len(N)) {
-				beta_path_now[t, ] <- assemble_beta_path(
-					beta_dyn_path[t, ],
-					beta_static,
-					beta_dyn$dynamic_idx,
-					beta_dyn$static_idx,
-					length(beta)
-				)
-			}
+			beta_path_now <- .lame_beta_full_path()
 			beta <- colMeans(beta_path_now)
 			# redraw a and b given the per-period beta path, from the residual cube Z - X beta - UV
 			n_a__ <- if (bip) nA else n
 			n_b__ <- if (bip) nB else n
 			resid_cube <- array(0, dim = c(n_a__, n_b__, N))
+			has_uv_ <- (bip && RA > 0 && RB > 0) || (!bip && R > 0)
 			for (t in seq_len(N)) {
-				if (bip) Xt_ <- Xlist[[t]] else Xt_ <- X[, , , t]
-				if (length(dim(Xt_)) == 2L) Xt_ <- array(Xt_, c(n_a__, n_b__, 1))
-				p_t_ <- dim(Xt_)[3]
-				xb <- matrix(0, n_a__, n_b__)
-				if (p_t_ > 0) {
-					b_t_ <- beta_path_now[t, ]
-					for (k in seq_len(p_t_)) if (b_t_[k] != 0) xb <- xb + b_t_[k] * Xt_[, , k]
-				}
-				uv_ <- if ((bip && RA > 0 && RB > 0) || (!bip && R > 0)) {
-					Ut <- U_cube_eff[, , t]; Vt <- V_cube_eff[, , t]
-					if (!is.matrix(Ut)) Ut <- matrix(Ut, n_a__, 1)
-					if (!is.matrix(Vt)) Vt <- matrix(Vt, n_b__, 1)
-					if (bip) Ut %*% G_eff %*% t(Vt) else Ut %*% t(Vt)
+				xb <- .lame_xbeta_slice(t, beta_path_now[t, ])
+				if (is.null(xb)) xb <- matrix(0, n_a__, n_b__)
+				uv_ <- if (has_uv_) {
+					if (!is.null(uv_list_ffbs[[t]])) uv_list_ffbs[[t]] else {
+						Ut <- U_cube_eff[, , t]; Vt <- V_cube_eff[, , t]
+						if (!is.matrix(Ut)) Ut <- matrix(Ut, n_a__, 1)
+						if (!is.matrix(Vt)) Vt <- matrix(Vt, n_b__, 1)
+						if (bip) Ut %*% G_eff %*% t(Vt) else Ut %*% t(Vt)
+					}
 				} else 0
 				resid_cube[, , t] <- Z[, , t] - xb - uv_
 			}
 			# draw a and b from the residual conditional; the block labels are passed on the sampler's layout
-			# so the helper knows which block is the intercept
-			ab_bases <- build_a_b_constraint_bases(
-				beta_dyn,
-				beta_dyn_labels,
-				n_a__,
-				n_b__,
-				bip,
-				symmetric,
-				intercept = intercept
-			)
+			# so the helper knows which block is the intercept; the bases are built once
+			if (is.null(ab_bases_fixed)) {
+				ab_bases_fixed <- build_a_b_constraint_bases(
+					beta_dyn,
+					beta_dyn_labels,
+					n_a__,
+					n_b__,
+					bip,
+					symmetric,
+					intercept = intercept
+				)
+			}
+			ab_bases <- ab_bases_fixed
 			s2_floor <- s2
 			sab_a_floor <- Sab[1, 1]
 			# projection of a/b onto the constraint space
@@ -9795,7 +10645,9 @@ lame <- function(
 				if (dynamic_ab) {
 					# levels from the likelihood given the deviations, then the whole (a, b) panel from the AR(1) kernel with
 					# the levels folded into the known predictor; the dyadic correlation enters when dcor is on
-					dyad_rho_ab <- if (!symmetric && isTRUE(dcor)) .lame_rho_scalar(rho) else 0
+					dyad_rho_ab <- if (!symmetric && isTRUE(dcor)) {
+						if (isTRUE(dynamic_rho)) rho else .lame_rho_scalar(rho)
+					} else 0
 					a_dev <- a_mat - a_lev
 					b_dev <- b_mat - b_lev
 					if (isTRUE(rvar) || (symmetric && isTRUE(nvar))) {
@@ -9847,7 +10699,7 @@ lame <- function(
 					lev_field <- outer(a_lev, b_lev, "+")
 					lev_cube <- array(rep(as.numeric(lev_field), N), dim = c(n, n, N))
 					ab_update <- tryCatch(
-						sample_dynamic_ab_cpp(
+						.lame_sample_dynamic_ab_period(
 							a_mat - a_lev,
 							b_mat - b_lev,
 							resid_cube,
@@ -9925,7 +10777,23 @@ lame <- function(
 					# so each unordered dyad counts once
 					dyad_rho_eff <- if (symmetric || isTRUE(dcor)) .lame_rho_scalar(rho) else 0
 					abd <- tryCatch(
-						.lame_static_actor_draw(
+						if (isTRUE(dynamic_rho)) {
+							# replicated draw with an empty design, whitened by each period's rho
+							Sab_active <- Sab
+							if (!isTRUE(rvar)) Sab_active[1L, ] <- Sab_active[, 1L] <- 0
+							if (!isTRUE(cvar)) Sab_active[2L, ] <- Sab_active[, 2L] <- 0
+							.lame_dynamic_rho_beta_ab_draw(
+								Zr_ab,
+								array(numeric(0), c(n * n, 0L, N)),
+								array(numeric(0), c(n * n, 0L, N)),
+								array(numeric(0), c(0L, 0L, N)),
+								Sab_active,
+								rho,
+								s2_floor,
+								1,
+								center = isTRUE(intercept)
+							)
+						} else .lame_static_actor_draw(
 							Zr_ab,
 							Sab,
 							dyad_rho_eff,
@@ -9951,6 +10819,9 @@ lame <- function(
 							a <- .apply_H(a, ab_bases$H_a)
 							b <- .apply_H(b, ab_bases$H_b)
 						}
+					} else if (!is.null(abd)) {
+						# a draw that is not finite keeps the current effects and is counted
+						tryErrorChecks$betaAB <- tryErrorChecks$betaAB + 1L
 					}
 				}
 			} else {
@@ -9974,7 +10845,7 @@ lame <- function(
 								a_mat[, t] - cond_a$m,
 								b_mat[, t] - cond_b$m,
 								s2,
-								as.numeric(g[1]),
+								as.numeric(g),
 								cond_a$v,
 								cond_b$v,
 								rvar,
@@ -9990,6 +10861,8 @@ lame <- function(
 								all(is.finite(abd_t$b))) {
 							a_mat[, t] <- .apply_H(cond_a$m + as.numeric(abd_t$a), ab_bases$H_a)
 							b_mat[, t] <- .apply_H(cond_b$m + as.numeric(abd_t$b), ab_bases$H_b)
+						} else if (!is.null(abd_t)) {
+							tryErrorChecks$betaAB <- tryErrorChecks$betaAB + 1L
 						}
 					}
 				} else {
@@ -10009,7 +10882,7 @@ lame <- function(
 							if (length(a) == nA) a else rep(0, nA),
 							if (length(b) == nB) b else rep(0, nB),
 							s2,
-							as.numeric(g[1]),
+							as.numeric(g),
 							Sab[1, 1],
 							Sab[2, 2],
 							rvar,
@@ -10026,6 +10899,8 @@ lame <- function(
 						b <- as.numeric(abd$b)
 						if (!is.null(ab_bases$H_a)) a <- as.numeric(ab_bases$H_a %*% (t(ab_bases$H_a) %*% a))
 						if (!is.null(ab_bases$H_b)) b <- as.numeric(ab_bases$H_b %*% (t(ab_bases$H_b) %*% b))
+					} else if (!is.null(abd)) {
+						tryErrorChecks$betaAB <- tryErrorChecks$betaAB + 1L
 					}
 				}
 			}
@@ -10050,7 +10925,7 @@ lame <- function(
 					ab_hyper_par <- hm$state
 				}
 				# levels given the paths; they stand in for the static effects wherever the sweep needs one
-				ab_lev <- .lame_ab_level_draw(
+				ab_lev <- tryCatch(.lame_ab_level_draw(
 					a_mat,
 					b_mat,
 					rho_ab,
@@ -10060,7 +10935,11 @@ lame <- function(
 					center = isTRUE(intercept),
 					rvar = if (symmetric) isTRUE(nvar) else isTRUE(rvar),
 					cvar = isTRUE(cvar)
-				)
+				), error = function(e) { .lame_failure_note("ab", s, e); NULL })
+				if (is.null(ab_lev)) {
+					tryErrorChecks$ab <- tryErrorChecks$ab + 1L
+					ab_lev <- list(a = a_lev, b = b_lev)
+				}
 				a_lev <- ab_lev$a
 				b_lev <- ab_lev$b
 				a <- a_lev; b <- b_lev
@@ -10089,6 +10968,9 @@ lame <- function(
 			if (N >= 2 && length(beta_dyn$dynamic_idx) > 0L) {
 				# Lambda inverse for the C++ helpers
 				Lambda_inv_full <- .lame_beta_scale_precision(Lambda_full)
+				# an ar1 block is read as deviations from the long-run means, with a stationary first state
+				hyper_path <- .lame_beta_dev_now()
+				stationary_g <- if (beta_centred) !rw1_group else rep(FALSE, beta_dyn$n_groups)
 				# hierarchical pooling updates the shared per-block prior
 				pool_sigma_scale <- prior$sigma_beta_scale
 				pool_rho_mean_vec <- rep(prior$rho_beta_mean, beta_dyn$n_groups)
@@ -10103,10 +10985,11 @@ lame <- function(
 							hyper_b = prior$sigma_beta_scale
 						)
 					}
-					if (dynamic_beta_pool %in% c("rho", "both") && !is_rw1 && !is_alt_kind) {
+					if (dynamic_beta_pool %in% c("rho", "both") && !is_rw1 && !is_alt_kind && n_ar1_groups >= 2L) {
+						# pool the persistences of the ar1 blocks only
 						hyper <- tryCatch(
 							.pool_update_rho_hyper(
-								rho_beta_by_group,
+								rho_beta_by_group[!rw1_group],
 								prior_mu_mean = 0,
 								prior_mu_sd = 10,
 								current_tau = pool_rho_tau,
@@ -10127,21 +11010,57 @@ lame <- function(
 				rho_new <- if (is_rw1 || is_alt_kind) {
 					# rho is not meaningful for rw1/rw2/matern32; report it pinned at 1
 					rep(1, beta_dyn$n_groups)
-				} else if (dynamic_beta_pool %in% c("rho", "both") && beta_dyn$n_groups >= 2L) {
-					.pool_sample_rho(
-						beta_dyn_path,
-						group_id,
-						beta_dyn$n_groups,
-						Lambda_full,
-						sigma_by_coef,
-						rho_beta_by_group,
+				} else if (dynamic_beta_pool %in% c("rho", "both") && n_ar1_groups >= 2L) {
+					ar1_g <- which(!rw1_group)
+					ar1_cols <- which(group_id %in% ar1_g)
+					rho_pooled <- rho_beta_by_group
+					rho_pooled[ar1_g] <- .pool_sample_rho(
+						hyper_path[, ar1_cols, drop = FALSE],
+						match(group_id[ar1_cols], ar1_g),
+						length(ar1_g),
+						Lambda_full[ar1_cols, ar1_cols, drop = FALSE],
+						sigma_by_coef[ar1_cols],
+						rho_beta_by_group[ar1_g],
 						pool_rho_mu,
 						pool_rho_tau,
 						prior$rho_beta_lower,
 						prior$rho_beta_upper,
-						if (!is.null(time_index)) as.numeric(time_index) else seq_len(N)
+						if (!is.null(time_index)) as.numeric(time_index) else seq_len(N),
+						stationary = beta_centred
 					)
-				} else tryCatch(
+					rho_pooled
+				} else if (beta_centred) tryCatch(
+					if (.nonunit_gaps) .lame_sample_rho_beta_gaps(
+						hyper_path,
+						as.integer(group_id),
+						as.integer(beta_dyn$n_groups),
+						Lambda_inv_full,
+						sigma_by_coef,
+						rho_beta_by_group,
+						pool_rho_mean_vec,
+						pool_rho_sd_vec,
+						prior$rho_beta_lower,
+						prior$rho_beta_upper,
+						time_positions = as.numeric(time_index),
+						stationary = stationary_g
+					) else .lame_sample_rho_beta_stationary(
+						hyper_path,
+						group_id,
+						beta_dyn$n_groups,
+						diag(Lambda_full),
+						sigma_by_coef,
+						rho_beta_by_group,
+						pool_rho_mean_vec,
+						pool_rho_sd_vec,
+						prior$rho_beta_lower,
+						prior$rho_beta_upper,
+						stationary_g
+					),
+					error = function(e) {
+						tryErrorChecks$rho_sigma_beta <<- tryErrorChecks$rho_sigma_beta + 1L
+						NULL
+					}
+				) else tryCatch(
 					(if (.nonunit_gaps) function(...) .lame_sample_rho_beta_gaps(
 						...,
 						time_positions = as.numeric(time_index)
@@ -10161,14 +11080,19 @@ lame <- function(
 						NULL
 					}
 				)
+				# keep rw1 blocks of an ar1 fit at rho = 1
+				if (!is.null(rho_new) && any(rw1_group)) rho_new[rw1_group] <- 1
 				if (!is.null(rho_new) && all(is.finite(rho_new))) {
 					rho_beta_by_group <- as.numeric(rho_new)
 					names(rho_beta_by_group) <- beta_dyn$group_names
+				} else if (!is.null(rho_new)) {
+					# a draw that is not finite keeps the current persistences and is counted
+					tryErrorChecks$rho_sigma_beta <- tryErrorChecks$rho_sigma_beta + 1L
 				}
-				sigma_new <- if (is_alt_kind || .nonunit_gaps) {
+				sigma_new <- if (is_alt_kind || .nonunit_gaps || beta_centred) {
 					tryCatch(
 						.sample_sigma_beta_alt(
-							beta_path = beta_dyn_path,
+							beta_path = hyper_path,
 							kind = dynamic_beta_kind,
 							length_scale = prior$matern32_length_scale %||% NULL,
 							prior_shape = prior$sigma_beta_shape,
@@ -10177,7 +11101,8 @@ lame <- function(
 							group_id = group_id,
 							n_groups = beta_dyn$n_groups,
 							time_positions = if (!is.null(time_index)) as.numeric(time_index) else NULL,
-							rho_by_group = rho_beta_by_group
+							rho_by_group = rho_beta_by_group,
+							stationary = stationary_g
 						),
 						error = function(e) {
 							tryErrorChecks$rho_sigma_beta <<- tryErrorChecks$rho_sigma_beta + 1L
@@ -10202,6 +11127,8 @@ lame <- function(
 				if (!is.null(sigma_new) && all(is.finite(sigma_new))) {
 					sigma_beta_by_group <- as.numeric(sigma_new)
 					names(sigma_beta_by_group) <- beta_dyn$group_names
+				} else if (!is.null(sigma_new)) {
+					tryErrorChecks$rho_sigma_beta <- tryErrorChecks$rho_sigma_beta + 1L
 				}
 			}
 		} else if (dynamic_ab) {
@@ -10241,7 +11168,7 @@ lame <- function(
 							numeric(nA),
 							numeric(nB),
 							s2,
-							as.numeric(g[1]),
+							as.numeric(g),
 							1,
 							1,
 							FALSE,
@@ -10580,7 +11507,7 @@ lame <- function(
 				ab_hyper_par <- hm$state
 			}
 			# levels given the paths; the deviations feed the AR(1) hyperparameters below
-			ab_lev <- .lame_ab_level_draw(
+			ab_lev <- tryCatch(.lame_ab_level_draw(
 				a_mat,
 				b_mat,
 				rho_ab,
@@ -10590,7 +11517,11 @@ lame <- function(
 				center = isTRUE(intercept),
 				rvar = if (symmetric) isTRUE(nvar) else isTRUE(rvar),
 				cvar = isTRUE(cvar)
-			)
+			), error = function(e) { .lame_failure_note("ab", s, e); NULL })
+			if (is.null(ab_lev)) {
+				tryErrorChecks$ab <- tryErrorChecks$ab + 1L
+				ab_lev <- list(a = a_lev, b = b_lev)
+			}
 			a_lev <- ab_lev$a
 			b_lev <- ab_lev$b
 			a <- a_lev
@@ -10647,20 +11578,15 @@ lame <- function(
 						if (length(a) == nA) a else rep(0, nA),
 						if (length(b) == nB) b else rep(0, nB),
 						s2,
-						as.numeric(g[1]),
+						as.numeric(g),
 						Sab[1, 1],
 						Sab[2, 2],
 						rvar,
 						cvar,
 						center = isTRUE(intercept)
 					),
-					error = function(e) {
-						list(
-							beta = beta,
-							a = if (length(a) == nA) a else rep(0, nA),
-							b = if (length(b) == nB) b else rep(0, nB)
-						)
-					}
+					# a failed draw keeps the current state and is counted below, as in the unipartite branches
+					error = function(e) structure(conditionMessage(e), class = "try-error")
 				)
 			} else if ((pr + pc + pd + intercept) > 0) {
 				# the sampled correlation enters the effects draw whenever dcor is on
@@ -10740,6 +11666,22 @@ lame <- function(
 				tryErrorChecks$betaAB <- tryErrorChecks$betaAB + 1
 			}
 		}
+		# shift the senders against the receivers (their levels under dynamic_ab); every a_i + b_j is unchanged
+		if (ab_shift_on) {
+			ab_c <- .lame_ab_shift_draw(
+				if (dynamic_ab) a_lev else a,
+				if (dynamic_ab) b_lev else b,
+				Sab,
+				paired = !bip
+			)
+			if (ab_c != 0) {
+				a <- a + ab_c; b <- b - ab_c
+				if (dynamic_ab) { a_lev <- a_lev + ab_c; b_lev <- b_lev - ab_c }
+				if (!is.null(a_mat)) a_mat <- a_mat + ab_c
+				if (!is.null(b_mat)) b_mat <- b_mat - ab_c
+			}
+			ab_shift_stats <- ab_shift_stats + c(1, ab_c != 0)
+		}
 
 		# update Sab
 		if (bip) {
@@ -10784,7 +11726,8 @@ lame <- function(
 					bde,
 					Sab,
 					if (isTRUE(dcor)) .lame_rho_scalar(rho) else 0,
-					joint_levels_context
+					joint_levels_context,
+					offset = if (isTRUE(beta_dyn$any)) .lame_xbeta_dyn_cube() else NULL
 				),
 				error = function(e) {
 					tryErrorChecks$joint_levels <<- tryErrorChecks$joint_levels + 1L
@@ -10793,7 +11736,10 @@ lame <- function(
 			)
 			joint_levels_attempts <- joint_levels_attempts + 1L
 			if (!is.null(joint)) {
-				beta <- joint$beta; a <- a_lev <- joint$a; b <- b_lev <- joint$b
+				if (isTRUE(beta_dyn$any)) {
+					beta_static <- joint$beta; beta[beta_dyn$static_idx] <- beta_static
+				} else beta <- joint$beta
+				a <- a_lev <- joint$a; b <- b_lev <- joint$b
 				a_mat <- a_lev + ade; b_mat <- b_lev + bde
 			}
 		}
@@ -10971,15 +11917,32 @@ lame <- function(
 					uv_max_abs_iter <- Inf
 				}
 				if (bip) {
-					if (!identical(dynamic_uv_kind, "ar1")) {
+					if (!dynamic_uv_kind %in% c("ar1", "snap")) {
 						cli::cli_abort(c(
 							"Internal dynamic-UV dispatch error.",
-							"x" = "Bipartite dynamic UV can only use {.val ar1}; got {.val {dynamic_uv_kind}}."
+							"x" = "Bipartite dynamic UV can only use {.val ar1} or {.val snap}; got {.val {dynamic_uv_kind}}."
 						))
 					}
 					U_prev <- U_cube
 					V_prev <- V_cube
-					UV_try <- tryCatch(
+					# snap kind: positions with their resets, then the signs given the resets (R/snap_modes.R)
+					UV_try <- if (identical(dynamic_uv_kind, "snap")) tryCatch(
+						.lame_snap_bip_kernel(
+							U_cube,
+							V_cube,
+							E,
+							G,
+							rho_uv,
+							sigma_uv,
+							s2,
+							.lame_snap_kappa(prior$snap_kappa, rho_uv, sigma_uv),
+							pi_snap,
+							delta_uv,
+							delta_uv_v,
+							uv_max_abs_iter
+						),
+						error = function(e) NULL
+					) else tryCatch(
 						.lame_uv_sign_ar1(
 							.lame_uv_svd_sign_ar1(
 								rUV_dynamic_bip_fc_cpp(
@@ -11000,7 +11963,10 @@ lame <- function(
 							rho_uv,
 							sigma_uv
 						),
-						error = function(e) NULL
+						error = function(e) {
+							.lame_failure_note("UV", s, e)
+							NULL
+						}
 					)
 					if (!is.null(UV_try) &&
 							.lame_uv_ok(UV_try$U, UV_try[["V"]], uv_max_abs_iter)) {
@@ -11011,6 +11977,11 @@ lame <- function(
 						U_cube <- UV_try$U; V_cube <- UV_try[["V"]]
 						U <- apply(U_cube, c(1, 2), mean)
 						V <- apply(V_cube, c(1, 2), mean)
+						if (identical(dynamic_uv_kind, "snap")) {
+							delta_uv <- UV_try$delta_u
+							delta_uv_v <- UV_try$delta_v
+							pi_snap <- .lame_snap_pi_draw(delta_uv, delta_uv_v, prior$snap_pi_a, prior$snap_pi_b)
+						}
 					} else {
 						tryErrorChecks$UV <- tryErrorChecks$UV + 1
 						if (!is.null(UV_try) && all(is.finite(UV_try$U)) &&
@@ -11019,6 +11990,7 @@ lame <- function(
 								"Internal bipartite UV update left its coordinate support.", call. = FALSE
 							)
 						}
+						if (!is.null(UV_try)) .lame_failure_note("UV", s, simpleError("the position draw was not finite"))
 						U_cube <- U_prev; V_cube <- V_prev
 						UV_try <- NULL # the AR(1) guard treats this as a failure
 					}
@@ -11054,13 +12026,14 @@ lame <- function(
 								G,
 								rho_uv,
 								sigma_uv,
-								prior$sigma_uv_shape,
-								prior$sigma_uv_scale,
-								sigma_max = prior$sigma_uv_max %||% 10,
+								.lame_uv_ig_shape(prior),
+								.lame_uv_ig_scale(prior, rho_uv),
+								sigma_max = prior$sigma_uv_max %||% if (identical(dynamic_uv_kind, "snap")) Inf else 10,
 								w_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2),
 								g_var = weight_prior_var,
 								g_cap = prior$G_max %||% g_rail_default,
-								max_abs = uv_max_abs_iter
+								max_abs = uv_max_abs_iter,
+								lg_extra = .lame_snap_scale_extra(prior$snap_kappa, U_cube, V_cube, delta_uv, delta_uv_v)
 							)
 							uv_nc_stats[c("bip_calls", "bip_moved")] <- uv_nc_stats[c("bip_calls", "bip_moved")] + c(1, nc_o$c != 1)
 							if (nc_o$c != 1) {
@@ -11070,23 +12043,183 @@ lame <- function(
 							}
 							rm(nc_o)
 						}
-						pmean_uv <- prior$rho_uv_mean %||% 0.9
-						psd_uv <- prior$rho_uv_sd %||% 0.1
-						# persistence and stationary variance as a block (R/uv_rho_w_step.R)
-						uvh <- .lame_uv_rho_w_step(
+						# transition weights of the kind (NULL for ar1)
+						kw <- .lame_uv_dyn_kind_weights(
+							dynamic_uv_kind,
+							NULL,
+							NULL,
+							delta_uv,
+							delta_uv_v,
+							if (identical(dynamic_uv_kind, "snap"))
+								sigma_uv^2 / .lame_snap_kappa(prior$snap_kappa, rho_uv, sigma_uv)^2 else 1
+						)
+						if (uv_split_dyn_on) {
+							# scale split of the paths, U_t G V_t' unchanged (R/uv_split_dynamic.R)
+							sd_o <- .lame_uv_split_dynamic_draw(
+								U_cube,
+								V_cube,
+								rho_uv,
+								sigma_uv,
+								kw$w_u,
+								kw$w_v,
+								kw$k_u,
+								kw$k_v,
+								max_abs = uv_max_abs_iter
+							)
+							U_cube <- sd_o$U; V_cube <- sd_o$V
+							U <- apply(U_cube, c(1, 2), mean)
+							V <- apply(V_cube, c(1, 2), mean)
+							uv_split_stats <- uv_split_stats + c(1, sd_o$moved > 0)
+							rm(sd_o)
+						}
+						if (uv_gauge_dyn_on && !is.null(G)) {
+							# column scales and shears of the paths against G, U_t G V_t' unchanged (R/uv_gauge_dynamic.R)
+							gd_o <- .lame_uv_gauge_bip_dynamic_draw(
+								U_cube,
+								V_cube,
+								G,
+								rho_uv,
+								sigma_uv,
+								g_var = weight_prior_var,
+								g_max = prior$G_max %||% g_rail_default,
+								max_abs = uv_max_abs_iter,
+								w_u = kw$w_u,
+								w_v = kw$w_v,
+								k_u = kw$k_u,
+								k_v = kw$k_v
+							)
+							U_cube <- gd_o$U; V_cube <- gd_o$V; G <- gd_o$G
+							U <- apply(U_cube, c(1, 2), mean)
+							V <- apply(V_cube, c(1, 2), mean)
+							rm(gd_o)
+						}
+						if (uv_size_on && !is.null(G)) {
+							# size of the product of every period and of each period (R/uv_product_scale.R)
+							ps_o <- .lame_uvps_visit(
+								uv_lik_cx,
+								Z,
+								Z - E + .lame_uvps_product(U_cube, V_cube, G),
+								Y,
+								U_cube,
+								V_cube,
+								rho_uv,
+								sigma_uv,
+								.lame_uv_ig_shape(prior),
+								.lame_uv_ig_scale(prior, rho_uv),
+								G = G,
+								g_var = weight_prior_var,
+								g_max = prior$G_max %||% g_rail_default,
+								max_abs = uv_max_abs_iter,
+								kind = dynamic_uv_kind,
+								kappa = prior$snap_kappa,
+								delta_u = delta_uv,
+								delta_v = delta_uv_v
+							)
+							E <- E + (ps_o$Z - Z)
+							Z <- ps_o$Z; U_cube <- ps_o$U; V_cube <- ps_o$V; G <- ps_o$G
+							U <- apply(U_cube, c(1, 2), mean)
+							V <- apply(V_cube, c(1, 2), mean)
+							uv_size_stats <- uv_size_stats + c(1, ps_o$moved > 0L)
+							rm(ps_o)
+						}
+						rm(kw)
+						pmean_uv <- prior$rho_uv_mean
+						psd_uv <- prior$rho_uv_sd
+						# non-centred persistence and stationary variance of ar1 paths under the stationary prior (R/uv_nc_hyper_step.R)
+						if (.lame_uv_var_stationary(prior) && !npm_on && !is.null(G) && identical(dynamic_uv_kind, "ar1")) {
+							nch_o <- .lame_uv_nc_hyper_step(
+								U_cube,
+								V_cube,
+								E,
+								s2,
+								rho_uv,
+								sigma_uv,
+								pmean_uv,
+								psd_uv,
+								prior$uv_var_shape,
+								prior$uv_var_scale,
+								G = G,
+								rho_dyad = 0,
+								stat_var_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2),
+								sigma_max = prior$sigma_uv_max %||% 10,
+								max_abs = uv_max_abs_iter,
+								carry = if (family %in% c("binary", "poisson")) list(
+									family = family,
+									Z = Z,
+									Y = Y,
+									log_exposure = if (poisson_exposure_active) log(period_exposure) else 0
+								)
+							)
+							uv_nc_hyper_stats <- uv_nc_hyper_stats + c(1, nch_o$accepts)
+							if (nch_o$accepts > 0L) {
+								U_cube <- nch_o$U; V_cube <- nch_o$V; rho_uv <- nch_o$rho; sigma_uv <- nch_o$sigma
+								if (!is.null(nch_o$Z)) Z <- array(nch_o$Z, dim(Z))
+								U <- apply(U_cube, c(1, 2), mean)
+								V <- apply(V_cube, c(1, 2), mean)
+							}
+							rm(nch_o)
+						}
+						# persistence and stationary variance as a block (R/uv_rho_w_step.R), given the resets for snap
+						uvh <- if (identical(dynamic_uv_kind, "snap")) .lame_snap_hyper_step(
+							U_cube,
+							V_cube,
+							rho_uv,
+							sigma_uv,
+							delta_uv,
+							delta_uv_v,
+							prior,
+							(prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2)
+						) else .lame_uv_rho_w_step(
 							U_cube,
 							V_cube,
 							rho_uv,
 							sigma_uv,
 							pmean_uv,
 							psd_uv,
-							prior$sigma_uv_shape,
-							prior$sigma_uv_scale,
+							.lame_uv_ig_shape(prior),
+							.lame_uv_var_scale(prior),
 							sigma_max = prior$sigma_uv_max %||% 10,
-							stat_var_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2)
+							stat_var_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2),
+							stationary = .lame_uv_var_stationary(prior)
 						)
 						rho_uv <- uvh$rho
 						sigma_uv <- uvh$sigma
+						# mirror of the persistence, U_t G V_t' unchanged
+						.lame_uv_flip_visit(uvh$u)
+						if (uv_rho_nc_on && !is.null(G)) {
+							# persistence with the paths following at fixed innovations (R/uv_product_scale.R)
+							nc_o <- .lame_uv_nc_rho_draw(
+								uv_lik_cx,
+								Z,
+								Z - E + .lame_uvps_product(U_cube, V_cube, G),
+								Y,
+								U_cube,
+								V_cube,
+								rho_uv,
+								sigma_uv,
+								pmean_uv,
+								psd_uv,
+								.lame_uv_ig_shape(prior),
+								.lame_uv_var_scale(prior),
+								s2 = s2,
+								G = G,
+								sigma_max = prior$sigma_uv_max %||% if (identical(dynamic_uv_kind, "snap")) Inf else 10,
+								max_abs = uv_max_abs_iter,
+								kind = dynamic_uv_kind,
+								kappa = prior$snap_kappa,
+								delta_u = delta_uv,
+								delta_v = delta_uv_v,
+								stationary = .lame_uv_var_stationary(prior)
+							)
+							if (nc_o$moved) {
+								E <- E + (nc_o$Z - Z)
+								Z <- nc_o$Z; U_cube <- nc_o$U; V_cube <- nc_o$V; rho_uv <- nc_o$rho; sigma_uv <- nc_o$sigma
+								U <- apply(U_cube, c(1, 2), mean)
+								V <- apply(V_cube, c(1, 2), mean)
+							}
+							uv_rho_nc_stats <- uv_rho_nc_stats + c(1, nc_o$moved)
+							rm(nc_o)
+						}
 					}
 				} else {
 					U_prev <- U_cube
@@ -11100,7 +12233,18 @@ lame <- function(
 						if (is.null(delta_uv)) { delta_uv <- matrix(0, n, N) }
 						if (is.null(delta_uv_v)) { delta_uv_v <- matrix(0, n, N) }
 						UV <- try(
-							rUV_dynamic_snap_fc_cpp(
+							if (symmetric) rUV_dynamic_snap_sym_fc_cpp(
+								U_cube,
+								L_dyn,
+								E,
+								rho_uv,
+								sigma_uv,
+								s2,
+								.lame_snap_kappa(prior$snap_kappa, rho_uv, sigma_uv),
+								pi_snap,
+								delta_uv,
+								max_abs = uv_max_abs_iter
+							) else rUV_dynamic_snap_fc_cpp(
 								U_cube,
 								V_cube,
 								E,
@@ -11154,14 +12298,15 @@ lame <- function(
 								),
 								rho_uv,
 								sigma_uv,
-								enabled = (identical(family, "normal") || dynamic_joint_move) && !symmetric && R == 2L,
+								enabled = (identical(family, "normal") || dynamic_ez_move) && !symmetric && R == 2L,
 								align = shrink,
 								max_abs = uv_max_abs_iter
 							),
 							silent = FALSE
 						)
 					}
-					if (!inherits(UV, "try-error") && identical(dynamic_uv_kind, "snap")) {
+					# a symmetric fit draws the signs of each coordinate below
+					if (!inherits(UV, "try-error") && identical(dynamic_uv_kind, "snap") && !symmetric) {
 						UV <- .lame_uv_sign_ar1(
 							UV,
 							rho_uv,
@@ -11247,13 +12392,209 @@ lame <- function(
 							npm_stats[c("visits", names(npm_o$stats))] <- npm_stats[c("visits", names(npm_o$stats))] + c(1, npm_o$stats)
 							rm(npm_o)
 						}
-						pmean_uv <- prior$rho_uv_mean %||% 0.9
-						psd_uv <- prior$rho_uv_sd %||% 0.1
+						if (uv_split_dyn_on || uv_rot_on) {
+							# transition weights of the kind for the split and rotation moves
+							kw <- .lame_uv_dyn_kind_weights(
+								dynamic_uv_kind,
+								lambda_u,
+								lambda_v,
+								delta_uv,
+								delta_uv_v,
+								if (identical(dynamic_uv_kind, "snap"))
+									sigma_uv^2 / .lame_snap_kappa(prior$snap_kappa, rho_uv, sigma_uv)^2 else 1
+							)
+						}
+						if (uv_split_dyn_on) {
+							# scale split of the paths, U_t V_t' unchanged (R/uv_split_dynamic.R)
+							sd_o <- .lame_uv_split_dynamic_draw(
+								U_cube,
+								V_cube,
+								rho_uv,
+								sigma_uv,
+								kw$w_u,
+								kw$w_v,
+								kw$k_u,
+								kw$k_v,
+								max_abs = uv_max_abs_iter
+							)
+							U_cube <- sd_o$U; V_cube <- sd_o$V
+							U <- apply(U_cube, c(1, 2), mean)
+							V <- apply(V_cube, c(1, 2), mean)
+							uv_split_stats <- uv_split_stats + c(1, sd_o$moved > 0)
+							rm(sd_o)
+						}
+						if (uv_gauge_dyn_on) {
+							# column scales and shears of the paths, U_t V_t' unchanged (R/uv_gauge_dynamic.R)
+							gd_o <- .lame_uv_gauge_dynamic_draw(
+								U_cube,
+								V_cube,
+								rho_uv,
+								sigma_uv,
+								kw$w_u,
+								kw$w_v,
+								kw$k_u,
+								kw$k_v,
+								max_abs = uv_max_abs_iter
+							)
+							U_cube <- gd_o$U; V_cube <- gd_o$V
+							U <- apply(U_cube, c(1, 2), mean)
+							V <- apply(V_cube, c(1, 2), mean)
+							rm(gd_o)
+						}
+						if (uv_rot_on) {
+							# orientation of the paths, U_t V_t' unchanged (R/uv_rotation_dynamic.R)
+							snap_rd <- if (identical(dynamic_uv_kind, "snap")) list(
+								pi = pi_snap,
+								kappa = .lame_snap_kappa(prior$snap_kappa, rho_uv, sigma_uv),
+								delta_u = delta_uv,
+								delta_v = delta_uv_v
+							)
+							rd_o <- .lame_uv_rotation_dynamic_draw(
+								U_cube,
+								V_cube,
+								rho_uv,
+								sigma_uv,
+								kw$w_u,
+								kw$w_v,
+								kw$k_u,
+								kw$k_v,
+								max_abs = uv_max_abs_iter,
+								snap = snap_rd
+							)
+							U_cube <- rd_o$U; V_cube <- rd_o$V
+							if (!is.null(snap_rd)) { delta_uv <- rd_o$delta_u; delta_uv_v <- rd_o$delta_v }
+							U <- apply(U_cube, c(1, 2), mean)
+							V <- apply(V_cube, c(1, 2), mean)
+							uv_rot_stats <- uv_rot_stats + c(1, rd_o$moved > 0)
+							rm(rd_o, snap_rd)
+						}
+						if (uv_split_dyn_on || uv_rot_on) rm(kw)
+						if (uv_size_on) {
+							# size of the product of every period and of each period (R/uv_product_scale.R)
+							snap_ps <- identical(dynamic_uv_kind, "snap")
+							t_ps <- identical(dynamic_uv_kind, "t")
+							ps_o <- .lame_uvps_visit(
+								uv_lik_cx,
+								Z,
+								Z - E + .lame_uvps_product(U_cube, V_cube),
+								Y,
+								U_cube,
+								V_cube,
+								rho_uv,
+								sigma_uv,
+								.lame_uv_ig_shape(prior),
+								.lame_uv_ig_scale(prior, rho_uv),
+								rho = rho_dyad_uv,
+								sigma_max = prior$sigma_uv_max %||% Inf,
+								w_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2),
+								max_abs = uv_max_abs_iter,
+								kind = dynamic_uv_kind,
+								lambda_u = if (t_ps) lambda_u,
+								lambda_v = if (t_ps) lambda_v,
+								nu = prior$t_nu %||% 4,
+								kappa = if (snap_ps) prior$snap_kappa,
+								delta_u = delta_uv,
+								delta_v = delta_uv_v
+							)
+							E <- E + (ps_o$Z - Z)
+							Z <- ps_o$Z; U_cube <- ps_o$U; V_cube <- ps_o$V; sigma_uv <- ps_o$sigma
+							if (t_ps) { lambda_u <- ps_o$lambda_u; lambda_v <- ps_o$lambda_v }
+							U <- apply(U_cube, c(1, 2), mean)
+							V <- apply(V_cube, c(1, 2), mean)
+							uv_size_stats <- uv_size_stats + c(1, ps_o$moved > 0L)
+							rm(ps_o, snap_ps, t_ps)
+						}
+						if (uv_sym_pair_on && !is.null(L_dyn)) {
+							# pair gauge of the coordinate paths against their weights, U_t L U_t' unchanged (R/uv_gauge_dynamic.R)
+							sp_o <- .lame_uv_sym_pair_dynamic_draw(U_cube, L_dyn, rho_uv, max_abs = uv_max_abs_iter)
+							if (sp_o$moved > 0L) {
+								U_cube <- sp_o$U
+								for (t in seq_len(N)) V_cube[, , t] <- matrix(U_cube[, , t], n, R) %*% diag(L_dyn, R)
+								U <- apply(U_cube, c(1, 2), mean)
+								V <- apply(V_cube, c(1, 2), mean)
+							}
+							uv_sym_pair_stats <- uv_sym_pair_stats + c(1, sp_o$moved > 0L)
+							rm(sp_o)
+						}
+						if (uv_split_symdyn_on && !is.null(L_dyn)) {
+							# scale of each column of the unit-variance paths against its weight (R/uv_gauge_dynamic.R)
+							kw_s <- .lame_uv_dyn_kind_weights(
+								dynamic_uv_kind,
+								NULL,
+								NULL,
+								delta_uv,
+								delta_uv,
+								if (identical(dynamic_uv_kind, "snap"))
+									sigma_uv^2 / .lame_snap_kappa(prior$snap_kappa, rho_uv, sigma_uv)^2 else 1
+							)
+							sy_o <- .lame_uv_sym_split_dynamic_draw(
+								U_cube,
+								L_dyn,
+								rho_uv,
+								.lame_sym_uv_innov_sd(rho_uv),
+								weight_prior_var,
+								max_abs = uv_max_abs_iter,
+								w = kw_s$w_u,
+								k = kw_s$k_u
+							)
+							if (sy_o$moved > 0) {
+								U_cube <- sy_o$U; L_dyn <- sy_o$Ld
+								for (t in seq_len(N)) V_cube[, , t] <- matrix(U_cube[, , t], n, R) %*% diag(L_dyn, R)
+								U <- apply(U_cube, c(1, 2), mean)
+								V <- apply(V_cube, c(1, 2), mean)
+							}
+							uv_split_stats <- uv_split_stats + c(1, sy_o$moved > 0)
+							rm(sy_o, kw_s)
+						}
+						pmean_uv <- prior$rho_uv_mean
+						psd_uv <- prior$rho_uv_sd
+						if (uv_sym_sign_on && !is.null(L_dyn)) {
+							# period signs of each coordinate, U_t L U_t' unchanged
+							sg_o <- .lame_uv_sym_sign_draw(
+								U_cube,
+								rho_uv,
+								keep = if (identical(dynamic_uv_kind, "snap")) 1 - delta_uv
+							)
+							if (sg_o$moved > 0L) {
+								U_cube <- sg_o$U
+								for (t in seq_len(N)) V_cube[, , t] <- matrix(U_cube[, , t], n, R) %*% diag(L_dyn, R)
+								U <- apply(U_cube, c(1, 2), mean)
+								V <- apply(V_cube, c(1, 2), mean)
+							}
+							uv_sym_sign_stats <- uv_sym_sign_stats + c(1, sg_o$moved > 0L)
+							rm(sg_o)
+						}
+						if (uv_sym_orient_on && !is.null(L_dyn)) {
+							# rotations and boosts of pairs of coordinates from each period on, U_t L U_t' unchanged
+							so_o <- .lame_snap_sym_orient_draw(
+								U_cube,
+								L_dyn,
+								rho_uv,
+								sigma_uv,
+								delta_uv,
+								sigma_uv^2 / .lame_snap_kappa(prior$snap_kappa, rho_uv, sigma_uv)^2,
+								max_abs = uv_max_abs_iter
+							)
+							if (so_o$moved > 0L) {
+								U_cube <- so_o$U
+								for (t in seq_len(N)) V_cube[, , t] <- matrix(U_cube[, , t], n, R) %*% diag(L_dyn, R)
+								U <- apply(U_cube, c(1, 2), mean)
+								V <- apply(V_cube, c(1, 2), mean)
+							}
+							uv_sym_orient_stats <- uv_sym_orient_stats + c(1, so_o$moved > 0L)
+							rm(so_o)
+						}
 						if (symmetric && !is.null(L_dyn)) {
 							# symmetric gauge: rho_uv from the transitions of the unit-variance paths; the innovation sd follows
-							rho_uv <- if (dpm_sym) .lame_dpm_rho_unit_mh(U_cube, rho_uv, pmean_uv, psd_uv)
-							else .lame_rho_uv_unit_mh(U_cube, rho_uv, pmean_uv, psd_uv)
+							rho_draw <- if (identical(dynamic_uv_kind, "snap")) {
+								.lame_dpm_rho_unit_mh(U_cube, rho_uv, pmean_uv, psd_uv, with_u = TRUE, keep = 1 - delta_uv)
+							} else if (dpm_sym) .lame_dpm_rho_unit_mh(U_cube, rho_uv, pmean_uv, psd_uv, with_u = TRUE)
+							else .lame_rho_uv_unit_mh(U_cube, rho_uv, pmean_uv, psd_uv, with_u = TRUE)
+							rho_uv <- rho_draw$rho
 							sigma_uv <- .lame_sym_uv_innov_sd(rho_uv)
+							# mirror of the persistence, U_t L U_t' unchanged
+							.lame_uv_flip_visit(rho_draw$u)
+							rm(rho_draw)
 							if (uv_nc_move) {
 								# persistence given the standardised innovations, the paths following it (R/uv_nc_step.R)
 								nc_o <- if (is.null(uv_nc_cx)) .lame_uv_sym_nc_rho(
@@ -11264,7 +12605,8 @@ lame <- function(
 									rho_uv,
 									pmean_uv,
 									psd_uv,
-									max_abs = uv_max_abs_iter
+									max_abs = uv_max_abs_iter,
+									keep = if (identical(dynamic_uv_kind, "snap")) 1 - delta_uv
 								)
 								else .lame_uv_sym_nc_rho_carry(
 									U_cube,
@@ -11274,7 +12616,8 @@ lame <- function(
 									rho_uv,
 									pmean_uv,
 									psd_uv,
-									max_abs = uv_max_abs_iter
+									max_abs = uv_max_abs_iter,
+									keep = if (identical(dynamic_uv_kind, "snap")) 1 - delta_uv
 								)
 								uv_nc_stats[c("sym_calls", "sym_moved")] <- uv_nc_stats[c("sym_calls", "sym_moved")] + c(1, nc_o$rho != rho_uv)
 								if (nc_o$rho != rho_uv) {
@@ -11329,7 +12672,7 @@ lame <- function(
 							}
 						} else if (identical(dynamic_uv_kind, "snap") && !is.null(delta_uv)) {
 							snap_linked <- is.null(prior$snap_kappa)
-							rho_uv <- .lame_sample_rho_uv_drift_only(
+							rho_draw <- .lame_sample_rho_uv_drift_only(
 								U_cube,
 								V_cube,
 								sigma_uv,
@@ -11340,8 +12683,14 @@ lame <- function(
 								prior_mean = pmean_uv,
 								prior_sd = psd_uv,
 								reset_stationary = snap_linked,
-								stat_var_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2)
+								stat_var_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2),
+								with_u = TRUE,
+								stationary_prior = if (.lame_uv_var_stationary(prior)) c(prior$uv_var_shape, prior$uv_var_scale)
 							)
+							rho_uv <- rho_draw$rho
+							# mirror of the persistence, U_t V_t' unchanged
+							.lame_uv_flip_visit(rho_draw$u)
+							rm(rho_draw)
 							sigma_uv <- .lame_sample_sigma_uv_drift_only(
 								U_cube,
 								V_cube,
@@ -11350,8 +12699,8 @@ lame <- function(
 								symmetric,
 								delta_uv,
 								delta_uv_v,
-								prior$sigma_uv_shape,
-								prior$sigma_uv_scale,
+								.lame_uv_ig_shape(prior),
+								.lame_uv_ig_scale(prior, rho_uv),
 								sigma_max = prior$sigma_uv_max %||% Inf,
 								stat_var_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2),
 								reset_stationary = snap_linked
@@ -11365,17 +12714,53 @@ lame <- function(
 								sigma_uv,
 								pmean_uv,
 								psd_uv,
-								prior$sigma_uv_shape,
-								prior$sigma_uv_scale,
+								.lame_uv_ig_shape(prior),
+								.lame_uv_var_scale(prior),
 								sigma_max = prior$sigma_uv_max %||% Inf,
 								stat_var_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2),
 								symmetric = symmetric,
 								lambda_u = lambda_u,
-								lambda_v = lambda_v
+								lambda_v = lambda_v,
+								stationary = .lame_uv_var_stationary(prior)
 							)
 							rho_uv <- uvh$rho
 							sigma_uv <- uvh$sigma
+							.lame_uv_flip_visit(uvh$u)
 						} else {
+							# non-centred persistence and stationary variance under the stationary prior (R/uv_nc_hyper_step.R)
+							if (.lame_uv_var_stationary(prior) && !npm_on && !symmetric && identical(dynamic_uv_kind, "ar1")) {
+								nch_o <- .lame_uv_nc_hyper_step(
+									U_cube,
+									V_cube,
+									E,
+									s2,
+									rho_uv,
+									sigma_uv,
+									pmean_uv,
+									psd_uv,
+									prior$uv_var_shape,
+									prior$uv_var_scale,
+									G = NULL,
+									rho_dyad = rho_dyad_uv,
+									stat_var_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2),
+									sigma_max = prior$sigma_uv_max %||% Inf,
+									max_abs = uv_max_abs_iter,
+									carry = if (family %in% c("binary", "poisson")) list(
+										family = family,
+										Z = Z,
+										Y = Y,
+										log_exposure = if (poisson_exposure_active) log(period_exposure) else 0
+									)
+								)
+								uv_nc_hyper_stats <- uv_nc_hyper_stats + c(1, nch_o$accepts)
+								if (nch_o$accepts > 0L) {
+									U_cube <- nch_o$U; V_cube <- nch_o$V; rho_uv <- nch_o$rho; sigma_uv <- nch_o$sigma
+									if (!is.null(nch_o$Z)) Z <- array(nch_o$Z, dim(Z))
+									U <- apply(U_cube, c(1, 2), mean)
+									V <- apply(V_cube, c(1, 2), mean)
+								}
+								rm(nch_o)
+							}
 							# persistence and stationary variance as a block (R/uv_rho_w_step.R)
 							uvh <- .lame_uv_rho_w_step(
 								U_cube,
@@ -11384,14 +12769,54 @@ lame <- function(
 								sigma_uv,
 								pmean_uv,
 								psd_uv,
-								prior$sigma_uv_shape,
-								prior$sigma_uv_scale,
+								.lame_uv_ig_shape(prior),
+								.lame_uv_var_scale(prior),
 								sigma_max = prior$sigma_uv_max %||% Inf,
 								stat_var_cap = (prior$uv_var_cap %||% Inf) * .lame_cap_unit(family, s2),
-								symmetric = symmetric
+								symmetric = symmetric,
+								stationary = .lame_uv_var_stationary(prior)
 							)
 							rho_uv <- uvh$rho
 							sigma_uv <- uvh$sigma
+							.lame_uv_flip_visit(uvh$u)
+						}
+						if (uv_rho_nc_on) {
+							# persistence with the paths following at fixed innovations (R/uv_product_scale.R)
+							snap_nc <- identical(dynamic_uv_kind, "snap")
+							t_nc <- identical(dynamic_uv_kind, "t")
+							nc_o <- .lame_uv_nc_rho_draw(
+								uv_lik_cx,
+								Z,
+								Z - E + .lame_uvps_product(U_cube, V_cube),
+								Y,
+								U_cube,
+								V_cube,
+								rho_uv,
+								sigma_uv,
+								prior$rho_uv_mean,
+								prior$rho_uv_sd,
+								.lame_uv_ig_shape(prior),
+								.lame_uv_var_scale(prior),
+								rho = rho_dyad_uv,
+								s2 = s2,
+								sigma_max = prior$sigma_uv_max %||% Inf,
+								max_abs = uv_max_abs_iter,
+								kind = dynamic_uv_kind,
+								lambda_u = if (t_nc) lambda_u,
+								lambda_v = if (t_nc) lambda_v,
+								kappa = if (snap_nc) prior$snap_kappa,
+								delta_u = if (snap_nc) delta_uv,
+								delta_v = if (snap_nc) delta_uv_v,
+								stationary = .lame_uv_var_stationary(prior)
+							)
+							if (nc_o$moved) {
+								E <- E + (nc_o$Z - Z)
+								Z <- nc_o$Z; U_cube <- nc_o$U; V_cube <- nc_o$V; rho_uv <- nc_o$rho; sigma_uv <- nc_o$sigma
+								U <- apply(U_cube, c(1, 2), mean)
+								V <- apply(V_cube, c(1, 2), mean)
+							}
+							uv_rho_nc_stats <- uv_rho_nc_stats + c(1, nc_o$moved)
+							rm(nc_o, snap_nc, t_nc)
 						}
 					}
 				}
@@ -11432,6 +12857,13 @@ lame <- function(
 					)
 					if (inherits(UV, 'try-error')) { UV <- list(U = U, V = V) ; tryErrorChecks$UV <- tryErrorChecks$UV + 1 }
 					U <- UV$U ; V <- UV[["V"]]
+					# scale split of each column against its eigen-weight (R/uv_scale_split.R)
+					if (uv_split_sym_on) {
+						uv_sp <- .lame_uv_sym_split_draw(U, V, weight_prior_var, hier = shrink)
+						U <- uv_sp$U; V <- uv_sp$V
+						uv_split_stats <- uv_split_stats + c(1, uv_sp$moved > 0)
+						rm(uv_sp)
+					}
 				} else if (isTRUE(dynamic_rho)) {
 					UV <- rUV_rep_fc(E, U, V, rho, s2, shrink, uv_prior_static$df, uv_prior_static$psi)
 					U <- UV$U; V <- UV$V
@@ -11454,6 +12886,8 @@ lame <- function(
 						silent = TRUE
 					)
 					if (inherits(UV, 'try-error')) {
+						# the R kernel draws the same conditional afresh
+						.lame_fallback_note('UV_compiled')
 						UV <- try(
 							rUV_rep_fc(E, U, V, rho_eff, s2, shrink, uv_prior_static$df, uv_prior_static$psi),
 							silent = TRUE
@@ -11468,6 +12902,9 @@ lame <- function(
 				uv_sp <- .lame_uv_split_draw(U, V, uv_prior_static$df, uv_prior_static$psi, hier = shrink)
 				U <- uv_sp$U; V <- uv_sp$V
 				uv_split_stats <- uv_split_stats + c(1, uv_sp$c != 1)
+				# column scales and shears, the rest of the gauge U A, V A^-T
+				uv_sp <- .lame_uv_gauge_draw(U, V, uv_prior_static$df, uv_prior_static$psi, hier = shrink)
+				U <- uv_sp$U; V <- uv_sp$V
 				rm(uv_sp)
 			}
 			# update G for bipartite (interaction between the row and column latent spaces)
@@ -11544,8 +12981,8 @@ lame <- function(
 					G,
 					sigma_uv,
 					rho_uv,
-					prior$sigma_uv_shape,
-					prior$sigma_uv_scale,
+					.lame_uv_ig_shape(prior),
+					.lame_uv_ig_scale(prior, rho_uv),
 					max_abs = uv_max_abs_iter,
 					max_G = prior$G_max %||% g_rail_default,
 					sigma_max = prior$sigma_uv_max %||% 10,
@@ -11696,9 +13133,9 @@ lame <- function(
 			osm_pr <- .lame_osm_prior_lame(
 				beta_dyn,
 				beta,
-				if (beta_dyn$any) beta_dyn_path else NULL,
+				if (beta_dyn$any) .lame_beta_dev_now() else NULL,
 				if (beta_dyn$any) beta_static else NULL,
-				osm_P0,
+				if (beta_dyn$any) static_P0 else osm_P0,
 				g,
 				s2,
 				a,
@@ -11713,11 +13150,12 @@ lame <- function(
 				rho_beta_by_group[group_id],
 				sigma_beta_by_group[group_id],
 				diag(Lambda_full),
-				beta0_mean,
-				diag(beta0_cov),
+				.lame_beta_m0_now(),
+				diag(.lame_beta_init_now()),
 				osm_tpos,
 				prior$matern32_length_scale %||% NULL,
-				N
+				N,
+				mean_terms = if (beta_centred) .lame_beta_mean_terms(beta_mu, beta_ar1, .lame_beta_mu_var_now())
 			)
 			osm_o <- .lame_osm_visit(
 				Z,
@@ -11734,7 +13172,8 @@ lame <- function(
 					beta_dyn$dynamic_idx,
 					beta_dyn$static_idx,
 					N,
-					isTRUE(beta_dyn$any)
+					isTRUE(beta_dyn$any),
+					beta_ar1
 				) else 0L) + (if (use_explicit_cutpoints) length(alpha) - 1L else 0L),
 				affine = !use_explicit_cutpoints,
 				orbit = !is.null(osm_pr)
@@ -11750,6 +13189,7 @@ lame <- function(
 				if (beta_dyn$any) {
 					beta_dyn_path <- osm_o$c * beta_dyn_path
 					beta_static <- osm_o$c * beta_static
+					if (beta_centred) beta_mu <- osm_o$c * beta_mu
 					beta[beta_dyn$dynamic_idx] <- colMeans(beta_dyn_path)
 					beta[beta_dyn$static_idx] <- beta_static
 				} else beta <- osm_o$c * beta
@@ -11793,9 +13233,9 @@ lame <- function(
 			bso_pr <- .lame_osm_prior_lame(
 				beta_dyn,
 				beta,
-				if (beta_dyn$any) beta_dyn_path else NULL,
+				if (beta_dyn$any) .lame_beta_dev_now() else NULL,
 				if (beta_dyn$any) beta_static else NULL,
-				bso_P0,
+				if (beta_dyn$any) static_P0 else bso_P0,
 				g,
 				s2,
 				a,
@@ -11810,11 +13250,12 @@ lame <- function(
 				rho_beta_by_group[group_id],
 				sigma_beta_by_group[group_id],
 				diag(Lambda_full),
-				beta0_mean,
-				diag(beta0_cov),
+				.lame_beta_m0_now(),
+				diag(.lame_beta_init_now()),
 				bso_tpos,
 				prior$matern32_length_scale %||% NULL,
-				N
+				N,
+				mean_terms = if (beta_centred) .lame_beta_mean_terms(beta_mu, beta_ar1, .lame_beta_mu_var_now())
 			)
 			if (!is.null(bso_pr)) {
 				bso_o <- .lame_bso_visit(
@@ -11831,7 +13272,8 @@ lame <- function(
 						beta_dyn$dynamic_idx,
 						beta_dyn$static_idx,
 						N,
-						isTRUE(beta_dyn$any)
+						isTRUE(beta_dyn$any),
+						beta_ar1
 					) else 0L)
 				)
 				bso_stats <- bso_stats + c(1, bso_o$evals, bso_o$c != 1)
@@ -11840,6 +13282,7 @@ lame <- function(
 					if (beta_dyn$any) {
 						beta_dyn_path <- bso_o$c * beta_dyn_path
 						beta_static <- bso_o$c * beta_static
+						if (beta_centred) beta_mu <- bso_o$c * beta_mu
 						beta[beta_dyn$dynamic_idx] <- colMeans(beta_dyn_path)
 						beta[beta_dyn$static_idx] <- beta_static
 					} else beta <- bso_o$c * beta
@@ -11868,6 +13311,8 @@ lame <- function(
 			cli::cli_progress_bar("Sampling", total = nscan, .envir = environment())
 		}
 		if (s %% odens == 0 & s > burn) {
+			uv_store_mirror <- .dyn_uv_has_rank && length(rho_uv) == 1L && is.finite(rho_uv) && rho_uv < 0
+			if (uv_store_mirror) .lame_uv_store_mirror()
 
 			# per-period full beta path when dynamic_beta is on, for 3-d BETA storage and summaries
 			beta_path_now_store <- if (beta_dyn$any) {
@@ -12076,6 +13521,15 @@ lame <- function(
 			if (beta_dyn$any) {
 				RHO_BETA[iter, ] <- rho_beta_by_group
 				SIGMA_BETA[iter, ] <- sigma_beta_by_group
+				if (beta_centred) {
+					MU_BETA[iter, ] <- .lame_beta_mean_store(
+						beta_mu,
+						beta_ar1,
+						beta_dyn$dynamic_idx,
+						beta_to_store,
+						mu_store_cols
+					)
+				}
 			}
 			# store explicit ordinal cutpoints alpha_2..alpha_{K-1} (none for K = 2)
 			if (use_explicit_cutpoints && !is.null(ALPHA)) {
@@ -12254,113 +13708,135 @@ lame <- function(
 			}
 
 			# simulate from the posterior predictive, using the complete current predictor
-			if (!bip) {
-				dimnames(EZ) <- dimnames(Y)
-				Ys <- EZ * 0
-				# cbin / frn: a hidden cell may hold a nomination in the replicate, as in the sampler; the diagonal and
-				# absent actors stay out (.lame_nom_predictive_yo)
-				if (family %in% c("cbin", "frn") && is.null(yo_pred)) {
-					yo_pred <- lapply(1:N, function(tt) .lame_nom_predictive_yo(Y[, , tt], bip))
-				}
-				for (t in 1:N) {
-					if (symmetric) { EZ[, , t] <- (EZ[, , t] + t(EZ[, , t])) / 2 }
-					rho_t <- if (isTRUE(dynamic_rho)) .lame_rho_at(rho, t) else rho
+			if (!bip) dimnames(EZ) <- dimnames(Y)
+			# cbin / frn: a hidden cell may hold a nomination in the replicate, as in the sampler; the diagonal and
+			# absent actors stay out (.lame_nom_predictive_yo)
+			if (family %in% c("cbin", "frn") && is.null(yo_pred)) {
+				yo_pred <- lapply(1:N, function(tt) .lame_nom_predictive_yo(Y[, , tt], bip))
+			}
+			if (symmetric && !bip) {
+				for (t in 1:N) EZ[, , t] <- (EZ[, , t] + t(EZ[, , t])) / 2
+			}
+			# one replicate of the panel; further calls draw the extra replicates averaged into YPS
+			draw_ys <- function() {
+				if (!bip) {
+					Ys <- EZ * 0
+					for (t in 1:N) {
+						rho_t <- if (isTRUE(dynamic_rho)) .lame_rho_at(rho, t) else rho
 
-					if (family == "binary") { Ys[, , t] <- simY_bin(EZ[, , t], rho_t) }
-					if (family == "cbin") { Ys[, , t] <- 1 * (simY_frn(EZ[, , t], rho_t, odmax, YO = yo_pred[[t]]) > 0)}
-					if (family == "frn") { Ys[, , t] <- simY_frn(EZ[, , t], rho_t, odmax, YO = yo_pred[[t]]) }
-					if (family == "normal") { Ys[, , t] <- simY_nrm(EZ[, , t], rho_t, s2) }
-					if (family == "ordinal") {
-						Ys[, , t] <- if (use_explicit_cutpoints)
-							.simY_ord_explicit(EZ[, , t], rho_t, alpha, ord_lvls, symmetric)
-						else simY_ord(EZ[, , t], rho_t, Y[, , t])
-					}
-					if (family == "poisson") {
-						# exposure-aware simulation when exposures are non-trivial
-						if (poisson_exposure_active) {
-							# with the latent overdispersion layer: y ~ Pois(exp(z)), z ~ N(EZ, s2 Sigma_rho)
-							Ys[, , t] <- simY_pois_exposure(
-								simZ(EZ[, , t], rho_t, s2),
-								period_exposure[t]
-							)
-						} else {
-							Ys[, , t] <- simY_pois(simZ(EZ[, , t], rho_t, s2))
+						if (family == "binary") { Ys[, , t] <- simY_bin(EZ[, , t], rho_t) }
+						if (family == "cbin") { Ys[, , t] <- 1 * (simY_frn(EZ[, , t], rho_t, odmax, YO = yo_pred[[t]]) > 0)}
+						if (family == "frn") { Ys[, , t] <- simY_frn(EZ[, , t], rho_t, odmax, YO = yo_pred[[t]]) }
+						if (family == "normal") { Ys[, , t] <- simY_nrm(EZ[, , t], rho_t, s2) }
+						if (family == "ordinal") {
+							Ys[, , t] <- if (use_explicit_cutpoints)
+								.simY_ord_explicit(EZ[, , t], rho_t, alpha, ord_lvls, symmetric)
+							else simY_ord(EZ[, , t], rho_t, Y[, , t])
 						}
-					}
-
-					if (symmetric) {
-						Yst <- Ys[, , t] ; Yst[lower.tri(Yst)] <- 0 ; Ys[, , t] <- Yst + t(Yst)
-					}
-				}
-			} else {
-				# bipartite posterior predictive simulation (no dyadic correlation)
-				Ys <- array(0, dim = c(nA, nB, N))
-				# cbin / frn: hidden cells may hold a nomination, as in the sampler; absent actors' cells may not
-				if (family %in% c("cbin", "frn") && is.null(yo_pred)) {
-					yo_pred <- lapply(1:N, function(tt) .lame_nom_predictive_yo(Y[, , tt], bip))
-				}
-				for (t in 1:N) {
-					EZ_t <- EZ[, , t]
-					if (family == "binary") {
-						noise <- matrix(rnorm(nA * nB), nA, nB)
-						Ys[, , t] <- 1 * (EZ_t + noise > 0)
-					} else if (family == "normal") {
-						Ys[, , t] <- EZ_t + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
-					} else if (family == "poisson") {
-						# overdispersed predictive as on the unipartite path: y ~ Pois(exposure * e^z), z ~ N(EZ, s2)
-						Zs <- EZ_t + matrix(rnorm(nA * nB, 0, sqrt(max(s2, 0))), nA, nB)
-						exposure_t <- if (poisson_exposure_active) period_exposure[t] else 1
-						Ys[, , t] <- simY_pois_exposure(Zs, exposure_t, bipartite = TRUE)
-					} else if (family == "ordinal") {
-						# quantile-based discretization
-						uY <- sort(unique(c(Y[, , t])))
-						uY <- uY[!is.na(uY)]
-						FY <- table(c(Y[, , t]))
-						FY <- FY / sum(FY)
-						FY <- cumsum(FY)
-						ZS <- EZ_t + matrix(rnorm(nA * nB), nA, nB)
-						qZ <- quantile(ZS, FY[-length(FY)], na.rm = TRUE)
-						YS <- ZS * 0 + max(uY)
-						for (w in 1:(length(uY) - 1)) {
-							YS[(YS == max(uY)) & ZS <= qZ[w]] <- uY[w]
-						}
-						Ys[, , t] <- YS
-					} else if (family == "cbin") {
-						# censored binary: the predictive draw honours the per-row cap odmax, as in the unipartite branch
-						ZS <- EZ_t + matrix(rnorm(nA * nB), nA, nB)
-						ZS[!is.finite(ZS)] <- 0
-						out_t <- is.na(yo_pred[[t]])
-						if (any(out_t)) ZS[out_t] <- -Inf
-						YS <- ZS * 0
-						for (i in 1:nA) {
-							rs <- rank(ZS[i, ]) - (nB - odmax[i])
-							YS[i, ] <- 1 * ((rs > 0) & (ZS[i, ] > 0))
-						}
-						if (any(out_t)) YS[out_t] <- NA
-						Ys[, , t] <- YS
-					} else if (family == "frn") {
-						# fixed rank nomination; non-finite ZS is zeroed so rank() gives no NA
-						ZS <- EZ_t + matrix(rnorm(nA * nB), nA, nB)
-						ZS[!is.finite(ZS)] <- 0
-						out_t <- is.na(yo_pred[[t]])
-						if (any(out_t)) ZS[out_t] <- -Inf
-						YS <- ZS * 0
-						for (i in 1:nA) {
-							rs <- rank(ZS[i, ]) - (nB - odmax[i])
-							YS[i, ] <- rs * (rs > 0) * (ZS[i, ] > 0)
-							pos <- YS[i, ] > 0
-							if (any(pos)) {
-								YS[i, pos] <- match(YS[i, pos], sort(unique(YS[i, pos])))
+						if (family == "poisson") {
+							# exposure-aware simulation when exposures are non-trivial
+							if (poisson_exposure_active) {
+								# with the latent overdispersion layer: y ~ Pois(exp(z)), z ~ N(EZ, s2 Sigma_rho)
+								Ys[, , t] <- simY_pois_exposure(
+									simZ(EZ[, , t], rho_t, s2),
+									period_exposure[t]
+								)
+							} else {
+								Ys[, , t] <- simY_pois(simZ(EZ[, , t], rho_t, s2))
 							}
 						}
-						if (any(out_t)) YS[out_t] <- NA
-						Ys[, , t] <- YS
+
+						if (symmetric) {
+							Yst <- Ys[, , t] ; Yst[lower.tri(Yst)] <- 0 ; Ys[, , t] <- Yst + t(Yst)
+						}
+					}
+				} else {
+					# bipartite posterior predictive simulation (no dyadic correlation)
+					Ys <- array(0, dim = c(nA, nB, N))
+					for (t in 1:N) {
+						EZ_t <- EZ[, , t]
+						if (family == "binary") {
+							noise <- matrix(rnorm(nA * nB), nA, nB)
+							Ys[, , t] <- 1 * (EZ_t + noise > 0)
+						} else if (family == "normal") {
+							Ys[, , t] <- EZ_t + matrix(rnorm(nA * nB, 0, sqrt(s2)), nA, nB)
+						} else if (family == "poisson") {
+							# overdispersed predictive as on the unipartite path: y ~ Pois(exposure * e^z), z ~ N(EZ, s2)
+							Zs <- EZ_t + matrix(rnorm(nA * nB, 0, sqrt(max(s2, 0))), nA, nB)
+							exposure_t <- if (poisson_exposure_active) period_exposure[t] else 1
+							Ys[, , t] <- simY_pois_exposure(Zs, exposure_t, bipartite = TRUE)
+						} else if (family == "ordinal") {
+							# quantile-based discretization
+							uY <- sort(unique(c(Y[, , t])))
+							uY <- uY[!is.na(uY)]
+							FY <- table(c(Y[, , t]))
+							FY <- FY / sum(FY)
+							FY <- cumsum(FY)
+							ZS <- EZ_t + matrix(rnorm(nA * nB), nA, nB)
+							qZ <- quantile(ZS, FY[-length(FY)], na.rm = TRUE)
+							YS <- ZS * 0 + max(uY)
+							for (w in 1:(length(uY) - 1)) {
+								YS[(YS == max(uY)) & ZS <= qZ[w]] <- uY[w]
+							}
+							Ys[, , t] <- YS
+						} else if (family == "cbin") {
+							# censored binary: the predictive draw honours the per-row cap odmax, as in the unipartite branch
+							ZS <- EZ_t + matrix(rnorm(nA * nB), nA, nB)
+							ZS[!is.finite(ZS)] <- 0
+							out_t <- is.na(yo_pred[[t]])
+							if (any(out_t)) ZS[out_t] <- -Inf
+							if (.frn_rankable(ZS)) {
+								YS <- 1 * (.frn_top_ranks(ZS, odmax) > 0)
+							} else {
+								YS <- ZS * 0
+								for (i in 1:nA) {
+									rs <- rank(ZS[i, ]) - (nB - odmax[i])
+									YS[i, ] <- 1 * ((rs > 0) & (ZS[i, ] > 0))
+								}
+							}
+							if (any(out_t)) YS[out_t] <- NA
+							Ys[, , t] <- YS
+						} else if (family == "frn") {
+							# fixed rank nomination; non-finite ZS is zeroed so rank() gives no NA
+							ZS <- EZ_t + matrix(rnorm(nA * nB), nA, nB)
+							ZS[!is.finite(ZS)] <- 0
+							out_t <- is.na(yo_pred[[t]])
+							if (any(out_t)) ZS[out_t] <- -Inf
+							if (.frn_rankable(ZS)) {
+								YS <- .frn_top_ranks(ZS, odmax)
+							} else {
+								YS <- ZS * 0
+								for (i in 1:nA) {
+									rs <- rank(ZS[i, ]) - (nB - odmax[i])
+									YS[i, ] <- rs * (rs > 0) * (ZS[i, ] > 0)
+									pos <- YS[i, ] > 0
+									if (any(pos)) {
+										YS[i, pos] <- match(YS[i, pos], sort(unique(YS[i, pos])))
+									}
+								}
+							}
+							if (any(out_t)) YS[out_t] <- NA
+							Ys[, , t] <- YS
+						}
 					}
 				}
+				Ys
 			}
+			Ys <- draw_ys()
 
-			# update posterior sum
-			YPS <- YPS + Ys
+			# update posterior sum with the replicate's mean given this draw where it has a closed form, otherwise
+			# the average of ten replicates
+			YPS <- YPS + .predictive_mean_term(
+				Ys,
+				EZ,
+				family,
+				alpha = if (use_explicit_cutpoints) alpha else NULL,
+				levels = if (use_explicit_cutpoints) ord_lvls else NULL,
+				symmetric = symmetric && !bip,
+				draw = draw_ys,
+				seed = seed,
+				index = iter
+			)
 
 			# posterior predictive GOF stats
 			if (gof) {
@@ -12506,6 +13982,7 @@ lame <- function(
 				RHO_ACTOR[iter] <- rho_actor
 				SIGMA_ACTOR[iter] <- sqrt(sigma_actor_sq)
 			}
+			if (uv_store_mirror) .lame_uv_store_mirror()
 			iter <- iter + 1
 		} # post burn-in
 		if (verbose && s > burn) {
@@ -12546,7 +14023,7 @@ lame <- function(
 		for (nm in c(
 			"BETA", "VC", "ALPHA", "RHO_AB", "SIGMA_AB",
 			"RHO_UV", "SIGMA_UV", "PI_SNAP", "SNAP_DRAWS", "SNAP_DRAWS_V",
-			"RHO_BETA", "SIGMA_BETA", "RHO", "LOG_LIK", "THETA_ACTOR",
+			"RHO_BETA", "SIGMA_BETA", "MU_BETA", "RHO", "LOG_LIK", "THETA_ACTOR",
 			"RHO_ACTOR", "SIGMA_ACTOR"
 		)) {
 			if (exists(nm, inherits = FALSE)) assign(nm, trim_draws(get(nm, inherits = FALSE)))
@@ -12610,8 +14087,10 @@ lame <- function(
 			tryErrorChecks$ab <- tryErrorChecks$ab + 1L
 		}
 	}
+	exact_fallbacks <- .lame_fallback_take()
 	sampler_health <- .lame_sampler_health(tryErrorChecks, uv_rail_count, g_rail_count)
 	.lame_report_sampler_health(sampler_health, total_iters)
+	.lame_report_fallbacks(exact_fallbacks, total_iters)
 	# start_vals for future runs
 	start_vals <- .lame_snapshot_state()
 
@@ -12709,6 +14188,16 @@ lame <- function(
 		RHO = RHO,
 		period_exposure = period_exposure
 	)
+	# record whether the dynamic_ab rule made the intercept dynamic
+	fit$dynamic_intercept_from_ab <- isTRUE(dynamic_intercept_from_ab) && isTRUE(beta_dyn$any)
+	# long-run means of the ar1 coefficient paths: draws and posterior means
+	if (!is.null(MU_BETA)) {
+		fit$MU_BETA <- MU_BETA
+		fit$mu_beta <- if (nrow(MU_BETA) > 0L) colMeans(MU_BETA) else stats::setNames(
+			rep(NA_real_, ncol(MU_BETA)),
+			colnames(MU_BETA)
+		)
+	}
 	if (!is.null(A_SAMPLES)) {
 		actual_ab <- ab_draw_index <= if (no_draws_stored) 0L else n_stored_draws
 		ab_names <- if (any(actual_ab)) paste0("draw", ab_draw_index[actual_ab]) else character(0)
@@ -12742,6 +14231,8 @@ lame <- function(
 	# chunked mode: close all connections and attach metadata
 	if (!is.null(LOG_LIK_CONNS)) {
 		for (cc in LOG_LIK_CONNS) close(cc)
+		# after an early exit the files hold the draws that were stored
+		LOG_LIK_META$n_stored <- if (no_draws_stored) 0L else n_stored_draws
 		fit$log_lik_index <- obs_idx
 		fit$log_lik_chunks <- LOG_LIK_META
 	}
@@ -12775,6 +14266,7 @@ lame <- function(
 		ab = isTRUE(dynamic_ab),
 		beta = isTRUE(beta_dyn$any),
 		beta_kind = if (isTRUE(beta_dyn$any)) dynamic_beta_kind else NULL,
+		beta_kind_by_block = if (isTRUE(beta_dyn$any)) beta_kind_by_group else NULL,
 		snap_model_estimated = isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "snap") &&
 			isTRUE(.dyn_uv_has_rank),
 		t_model_estimated = isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "t") &&
@@ -12894,7 +14386,7 @@ lame <- function(
 				var_mat[ok] <- prob[ok] * (1 - prob[ok]) * n_mat[ok] / (n_mat[ok] - 1L)
 				list(n = n_mat, mean = prob, variance = var_mat)
 			}
-			if (SNAP_DRAWS_MODE %in% c("summary", "draws", "chunked")) {
+			if (SNAP_DRAWS_MODE %in% c("summary", "draws")) {
 				fit$snap_draws_summary <- .snap_summary_from_prob(fit$snap_prob, DELTA_COUNT)
 				if (!symmetric && !is.null(fit$snap_prob_v)) {
 					fit$snap_draws_summary_v <- .snap_summary_from_prob(fit$snap_prob_v, DELTA_COUNT_V)
@@ -13078,15 +14570,24 @@ lame <- function(
 	# ordinal scale move: visits and the visits at which the scale of the whole state moved
 	if (osm_on && osm_stats[["visits"]] > 0) fit$ordinal_scale_move <- osm_stats
 	if (pab_on && pab_stats[["visits"]] > 0) fit$ab_period_move <- pab_stats
-	if (uv_split_on && uv_split_stats[["visits"]] > 0) fit$uv_split_move <- uv_split_stats
+	if ((uv_split_on || uv_split_sym_on || uv_split_dyn_on || uv_split_symdyn_on) && uv_split_stats[["visits"]] > 0) fit$uv_split_move <- uv_split_stats
+	if (uv_rot_on && uv_rot_stats[["visits"]] > 0) fit$uv_rotation_move <- uv_rot_stats
+	if (uv_sym_orient_on && uv_sym_orient_stats[["visits"]] > 0) fit$uv_rotation_move <- uv_sym_orient_stats
+	if (uv_flip_on && uv_flip_stats[["visits"]] > 0) fit$uv_rho_flip_move <- uv_flip_stats
+	if (uv_sym_sign_on && uv_sym_sign_stats[["visits"]] > 0) fit$uv_sym_sign_move <- uv_sym_sign_stats
+	if (uv_sym_pair_on && uv_sym_pair_stats[["visits"]] > 0) fit$uv_sym_pair_move <- uv_sym_pair_stats
+	if (uv_size_on && uv_size_stats[["visits"]] > 0) fit$uv_size_move <- uv_size_stats
+	if (uv_rho_nc_on && uv_rho_nc_stats[["visits"]] > 0) fit$uv_rho_nc_move <- uv_rho_nc_stats
+	if (ab_shift_on && ab_shift_stats[["visits"]] > 0) fit$ab_shift_move <- ab_shift_stats
 	if (uv_nc_move && (uv_nc_stats[["sym_calls"]] + uv_nc_stats[["bip_calls"]]) > 0) fit$uv_nc_move <- uv_nc_stats
+	if (uv_nc_hyper_stats[["visits"]] > 0) fit$uv_nc_hyper_move <- uv_nc_hyper_stats
 	if (!is.null(uv_temper_dt) && uv_temper_stats[["calls"]] > 0) fit$uv_temper_move <- uv_temper_stats
 	if (bso_on && bso_stats[["visits"]] > 0) fit$binary_scale_move <- bso_stats
 	if (dpm_sym && dpm_sym_stats[["dpm_scale_attempts"]] > 0) {
 		fit$actor_move <- if (is.null(fit$actor_move)) dpm_sym_stats else c(fit$actor_move, dpm_sym_stats)
 	}
 	# the position-path move of a binary fit adds its counts to the collapsed update's record
-	if (dpm_bin && dpm_stats[["dpm_visits"]] > 0) {
+	if ((dpm_bin || snap_gauss) && dpm_stats[["dpm_visits"]] > 0) {
 		fit$actor_move <- if (is.null(fit$actor_move)) c(
 			visits = dpm_stats[["dpm_visits"]],
 			dpm_stats[-1L]
@@ -13129,7 +14630,8 @@ lame <- function(
 			rho_attempts = nom_rho_stats[["attempts"]],
 			rho_accepts = nom_rho_stats[["accepts"]]
 		)
-		fit$actor_move <- nom_rec
+		# the snap path move's counts join the nomination record
+		fit$actor_move <- if (snap_gauss && dpm_stats[["dpm_visits"]] > 0) c(nom_rec, dpm_stats[-1L]) else nom_rec
 	}
 	if (ab_hyper_move && !is.null(ab_hyper_par) && ab_hyper_par[3L] > 0) {
 		fit$ab_hyper_move <- c(
@@ -13165,7 +14667,8 @@ lame <- function(
 		rate = dhmc_acc / dhmc_att,
 		step_sd = dhmc_sd,
 		numerical_rejections = dhmc_nonfinite,
-		bound_rejections = dhmc_bounds
+		bound_rejections = dhmc_bounds,
+		underflow_rejections = dhmc_underflow
 	)
 	if (joint_levels_enabled) fit$joint_levels_move <- c(
 		attempts = joint_levels_attempts,
@@ -13239,6 +14742,8 @@ lame <- function(
 	# record the dynamic_beta_kind used, and the one requested, for summaries and forecasting
 	if (isTRUE(beta_dyn$any)) {
 		fit$dynamic_beta_kind <- dynamic_beta_kind
+		# the kind of each coefficient block (columns of RHO_BETA / SIGMA_BETA)
+		fit$dynamic_beta_kind_by_block <- beta_kind_by_group
 		if (!identical(dynamic_beta_kind, dynamic_beta_kind_requested)) {
 			fit$dynamic_beta_kind_requested <- dynamic_beta_kind_requested
 		}
@@ -13262,13 +14767,17 @@ lame <- function(
 		list(
 			kind = "actor_dynamic", description = "Actor-specific coefficient paths use the fitted initialization and transition priors."
 		)
+	} else if (isTRUE(beta_dyn$any) && bip) {
+		list(
+			kind = "dynamic", description = "Dynamic coefficients use the fitted initialization and transition priors; an AR(1) path reverts to its long-run mean and an rw2 or matern32 path starts from its first-period level, each with the N(0, g_j * s2) prior of a static coefficient; static coefficients have independent N(0, g_j * s2) priors."
+		)
 	} else if (isTRUE(beta_dyn$any)) {
 		list(
-			kind = "dynamic", description = "Dynamic coefficients use the fitted initialization and transition priors; static coefficients have independent N(0, g_j * s2) priors."
+			kind = "dynamic", description = "Dynamic coefficients use the fitted initialization and transition priors; static coefficients keep the panel design prior of a fit without paths, its marginal with precision from sum_t(X_t'X_t) / (T * g[1]), independent of residual s2; the long-run mean of an AR(1) path and the first-period level of an rw2 or matern32 path take the marginal of that prior on their column."
 		)
 	} else if (bip) {
 		list(
-			kind = "independent_scaled", description = "Regression coefficients have independent N(0, g[1] * s2) priors."
+			kind = "independent_scaled", description = "Regression coefficients have independent N(0, g_j * s2) priors."
 		)
 	} else {
 		list(
@@ -13290,6 +14799,7 @@ lame <- function(
 	fit$tryErrorChecks <- tryErrorChecks
 	fit$sampler_health <- sampler_health
 	fit$sampler_health_iterations <- total_iters
+	fit$exact_fallbacks <- exact_fallbacks
 	# fraction of sweeps with a rejected conditional or a numerical failure
 	fit$refusal_share <- c(
 		UV = (tryErrorChecks$UV %||% 0L) / max(total_iters, 1L),
@@ -13323,15 +14833,16 @@ lame <- function(
 	.lame_report_joint_sampler_health(fit)
 	.lame_report_bipartite_scale_health(fit)
 	.lame_report_actor_slice_health(fit)
-	# the chain policy: extend a chain that is still moving, or refuse it
 	if (isTRUE(.chain_ctx$record)) fit$chain_summary <- .lame_chain_acc_finish(.chain_acc)
+	# a run stopped before its first stored draw returns empty draw arrays
+	if (no_draws_stored) fit <- .lame_empty_draws(fit)
+	# a refused fit carries the class too, so lame_resume() and the methods accept it
+	class(fit) <- c("lame", "ame")
+	# the chain policy: extend a chain that is still moving, or refuse it
 	.chain_out <- .lame_chain_policy(fit, .chain_ctx, environment())
 	if (isTRUE(.chain_out$done)) return(.chain_out$fit)
 	fit$auto_extend <- .chain_out$record
 	.lame_separation_check(fit)
-	# a run stopped before its first stored draw returns empty draw arrays
-	if (no_draws_stored) fit <- .lame_empty_draws(fit)
-	class(fit) <- c("lame", "ame")
 	return(fit)
 
 }

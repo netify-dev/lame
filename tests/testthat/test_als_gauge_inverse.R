@@ -109,8 +109,7 @@ test_that("a fit to a disconnected panel reports finite noise variances", {
 		Yl,
 		R = 0,
 		family = "normal",
-		verbose = FALSE,
-		bias_correct = "none"
+		verbose = FALSE
 	)))
 	expect_true(all(is.finite(fit$vc_noise)))
 	expect_lt(max(fit$vc_noise), 1)

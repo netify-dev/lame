@@ -1,6 +1,6 @@
 skip_on_cran()
 
-test_that("persistence defaults are scoped to Gaussian bipartite AR1 fits", {
+test_that("the persistence default is the same for every dynamic_uv route", {
 	set.seed(116)
 	Y = array(
 		rnorm(8 * 7 * 4),
@@ -22,8 +22,8 @@ test_that("persistence defaults are scoped to Gaussian bipartite AR1 fits", {
 		verbose = FALSE
 	)
 	fit = do.call(lame, args)
-	expect_equal(fit$prior$rho_uv_mean, .5)
-	expect_equal(fit$prior$rho_uv_sd, .2)
+	expect_equal(fit$prior$rho_uv_mean, .7)
+	expect_equal(fit$prior$rho_uv_sd, .3)
 	expect_identical(fit$refit_options$prior, list())
 	args$prior = list(rho_uv_mean = .9, rho_uv_sd = .1)
 	explicit = do.call(lame, args)
@@ -33,8 +33,8 @@ test_that("persistence defaults are scoped to Gaussian bipartite AR1 fits", {
 	args$family = "bin"
 	args$Y = 1 * (Y > 0)
 	binary = do.call(lame, args)
-	expect_equal(binary$prior$rho_uv_mean, .9)
-	expect_equal(binary$prior$rho_uv_sd, .1)
+	expect_equal(binary$prior$rho_uv_mean, .7)
+	expect_equal(binary$prior$rho_uv_sd, .3)
 	args$family = "normal"
 	args$mode = "unipartite"
 	args$Y = array(
@@ -44,6 +44,6 @@ test_that("persistence defaults are scoped to Gaussian bipartite AR1 fits", {
 	)
 	for (tt in 1:4) diag(args$Y[, , tt]) = NA_real_
 	directed = do.call(lame, args)
-	expect_equal(directed$prior$rho_uv_mean, .9)
-	expect_equal(directed$prior$rho_uv_sd, .1)
+	expect_equal(directed$prior$rho_uv_mean, .7)
+	expect_equal(directed$prior$rho_uv_sd, .3)
 })

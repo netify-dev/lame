@@ -62,27 +62,3 @@
 	)
 	lapply(ans, as.numeric)
 }
-
-# exact mean and covariance of (beta, a, b) under the same conditional
-.lame_replicated_gaussian_moments <- function(
-	ZT,
-	mX,
-	Sab,
-	rho,
-	s2,
-	g,
-	center = FALSE,
-	XX = NULL
-) {
-	x <- .lame_replicated_gaussian_args(ZT, mX, Sab, rho, s2, g, XX)
-	replicated_gaussian_moments_cpp(
-		x$design,
-		ZT,
-		Sab,
-		x$rho,
-		s2,
-		x$P0,
-		x$m0,
-		isTRUE(center)
-	)
-}

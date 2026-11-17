@@ -23,8 +23,7 @@
 #' @param return_latent logical: return latent Z matrices in addition to Y? (default: FALSE)
 #' @param type simulation route: \code{"posterior"} (default) replicates the
 #'   network from aligned saved posterior draws; \code{"approximate"} is the
-#'   conditional approximation. \code{"auto"} is accepted as an alias of
-#'   \code{"posterior"}. See Details.
+#'   conditional approximation. See Details.
 #' @param ... additional arguments (not currently used)
 #'
 #' @return A list with components:
@@ -48,9 +47,7 @@
 #'
 #' \code{type = "approximate"} is the conditional approximation: it substitutes
 #' posterior summaries for the latent trajectories and does not propagate their
-#' joint posterior uncertainty. It runs only when requested. The former default
-#' \code{type = "auto"} chose between the two routes; it is now an alias of
-#' \code{"posterior"}. The returned \code{method} identifies the route.
+#' joint posterior uncertainty. It runs only when requested. The returned \code{method} identifies the route.
 #'
 #' Ordinal fits with explicit cutpoints use the corresponding saved cutpoint
 #' draw. Data-induced ordinal fits match the observed category frequencies, so
@@ -81,7 +78,7 @@ simulate.ame <- function(
 	burn_in = 0,
 	thin = 1,
 	return_latent = FALSE,
-	type = c("posterior", "approximate", "auto"),
+	type = c("posterior", "approximate"),
 	...
 ) {
 	.lame_require_draws(object, "simulate")
@@ -100,8 +97,6 @@ simulate.ame <- function(
 	}
 
 	type <- match.arg(type)
-	# "auto" is an alias for the posterior route
-	if (identical(type, "auto")) type <- "posterior"
 	if (identical(type, "posterior")) {
 		joint <- .simulate_joint_state(object, burn_in, thin)
 		designs <- if (is.null(newdata)) NULL else list(.joint_new_design(object, newdata))

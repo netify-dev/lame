@@ -209,6 +209,16 @@ static void accumulate_Omega_h(const arma::mat& Xdyn_t,
 	}
 }
 
+// the dyadic correlation of period t: one value for every period, or one per period
+// (a period-varying correlation); unused when the dyad-correlation branch is off
+static double dyad_rho_at(const arma::vec& dyad_rho, int t, int T, bool use_dyad_rho) {
+	if (!use_dyad_rho) return dyad_rho.n_elem ? dyad_rho[0] : 0.0;
+	if (dyad_rho.n_elem == 1) return dyad_rho[0];
+	if ((int) dyad_rho.n_elem != T)
+		Rcpp::stop("Dyadic correlations must have length one or one value per period.");
+	return dyad_rho[t];
+}
+
 // --- 0) per-period sufficient statistics of the dynamic block ---------------
 
 //' Per-period sufficient statistics of the dynamic coefficient block
@@ -227,7 +237,7 @@ static void accumulate_Omega_h(const arma::mat& Xdyn_t,
 List beta_dynamic_stats_cpp(List Xdyn_list, List Xstat_list,
                             List Z_list, List offset_list,
                             arma::vec beta_static,
-                            double s2, double dyad_rho,
+                            double s2, arma::vec dyad_rho,
                             bool bipartite, bool symmetric,
                             bool use_dyad_rho) {
 	const int T = Xdyn_list.size();
@@ -250,7 +260,7 @@ List beta_dynamic_stats_cpp(List Xdyn_list, List Xstat_list,
 		arma::mat Omega_t(p_dyn, p_dyn, fill::zeros);
 		arma::vec h_t(p_dyn, fill::zeros);
 		accumulate_Omega_h(Xdyn_t, Xstat_t, Z_t, offset_t, beta_static,
-		                   s2, dyad_rho, bipartite, symmetric, use_dyad_rho,
+		                   s2, dyad_rho_at(dyad_rho, t, T, use_dyad_rho), bipartite, symmetric, use_dyad_rho,
 		                   Omega_t, h_t);
 		Omega.slice(t) = Omega_t;
 		h.row(t) = h_t.t();
@@ -287,7 +297,7 @@ List beta_dynamic_stats_cpp(List Xdyn_list, List Xstat_list,
 //'   fixed matrix that does not depend on the current (rho, sigma) draw so
 //'   the transition-only hyperparameter conditionals remain exact.
 //' @param s2 Dyadic variance.
-//' @param dyad_rho Dyadic correlation (ignored when use_dyad_rho=FALSE).
+//' @param dyad_rho Dyadic correlation: one value, or one per period (ignored when use_dyad_rho=FALSE).
 //' @param bipartite Whether the network is bipartite.
 //' @param symmetric Whether the network is symmetric.
 //' @param use_dyad_rho Whether to use the dyad-corr branch (TRUE only for
@@ -307,7 +317,7 @@ List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list,
                              arma::mat Lambda,
                              arma::vec beta0_mean,
                              arma::mat beta0_cov,
-                             double s2, double dyad_rho,
+                             double s2, arma::vec dyad_rho,
                              bool bipartite, bool symmetric,
                              bool use_dyad_rho,
                              Rcpp::Nullable<arma::cube> Omega_in = R_NilValue,
@@ -393,7 +403,7 @@ List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list,
 			arma::mat Z_t = as<arma::mat>(Z_list[t]);
 			arma::mat offset_t = as<arma::mat>(offset_list[t]);
 			accumulate_Omega_h(Xdyn_t, Xstat_t, Z_t, offset_t, beta_static,
-			                   s2, dyad_rho, bipartite, symmetric, use_dyad_rho,
+			                   s2, dyad_rho_at(dyad_rho, t, T, use_dyad_rho), bipartite, symmetric, use_dyad_rho,
 			                   Omega_t, h_t);
 		}
 		// posterior precision K = inv(C_pred) + Omega, then C_filt = inv(K)
@@ -454,7 +464,7 @@ List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list,
 //' @param prior_mean Length p_static prior mean.
 //' @param prior_prec p_static x p_static prior precision.
 //' @param s2 Dyadic variance.
-//' @param dyad_rho Dyadic correlation.
+//' @param dyad_rho Dyadic correlation: one value, or one per period.
 //' @param bipartite TRUE/FALSE.
 //' @param symmetric TRUE/FALSE.
 //' @param use_dyad_rho TRUE/FALSE.
@@ -465,7 +475,7 @@ List sample_beta_static_cpp(List Xdyn_list, List Xstat_list,
                             arma::mat beta_dyn_path,
                             arma::vec prior_mean,
                             arma::mat prior_prec,
-                            double s2, double dyad_rho,
+                            double s2, arma::vec dyad_rho,
                             bool bipartite, bool symmetric,
                             bool use_dyad_rho) {
 	const int T = Z_list.size();
@@ -501,7 +511,7 @@ List sample_beta_static_cpp(List Xdyn_list, List Xstat_list,
 		arma::mat Xempty(Xs_t.n_rows, 0);
 		arma::vec b_empty(arma::uword(0));
 		accumulate_Omega_h(Xs_t, Xempty, Z_t, off_t, b_empty,
-		                   s2, dyad_rho, bipartite, symmetric, use_dyad_rho,
+		                   s2, dyad_rho_at(dyad_rho, t, T, use_dyad_rho), bipartite, symmetric, use_dyad_rho,
 		                   Omega_t, h_t);
 		Omega_post += Omega_t;
 		h_post     += h_t;

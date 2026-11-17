@@ -15,7 +15,8 @@
 A named numeric vector of coefficients.
 }
 \description{
-Returns the point-estimated regression coefficients (intercept first) of an
-\code{ame_als} fit. There is no posterior here; for uncertainty use
-\code{\link{ame_als_bootstrap}}.
+Returns the estimated regression coefficients (intercept first) of an
+\code{ame_als} fit. Their standard errors come from
+\code{\link{vcov.ame_als}} and \code{\link{confint.ame_als}}, or from
+\code{\link{ame_als_bootstrap}} for bootstrap ones.
 }

@@ -9,10 +9,11 @@
 }
 
 # additive-effects prior of ame() and lame() for normal data: scale .lame_ab_scale (R/normal_scale.R)
-# and degrees of freedom round(4 + 3 n / 100), n the number of row actors
+# and the weight of one actor (.ae_eb_prior_weight; the sampler's is round(4 + 3 n / 100), n the
+# number of row actors)
 .ae_eb_hyperprior_norm <- function(Yarr) {
 	nact <- dim(Yarr)[1L]
-	list(Sab0 = diag(2) * .lame_ab_scale(Yarr), eta0 = round(4 + 3 * nact / 100))
+	list(Sab0 = diag(2) * .lame_ab_scale(Yarr), eta0 = .ae_eb_prior_weight(round(4 + 3 * nact / 100), min(dim(Yarr)[1:2])))
 }
 
 # floors for the noise variance and effect covariance: relative to the response scale for a normal
@@ -40,9 +41,6 @@
 	list(z = z, w = w)
 }
 
-# minus twice the observed-cell log likelihood
-.ae_dev_gauss <- function(terms) -2 * sum(terms$l)
-
 # expected working problem for cells with predictor N(m, v): z = y, weight 1 / ve, expected log
 # likelihood and ee, the expected noise second moment for the EM image of ve (zero off the observed cells)
 .ae_gauss_cells <- function(y, m, v, ve) {
@@ -58,7 +56,7 @@
 	list(z = z, w = w, ell = ell, ee = ee)
 }
 
-# cavity information weight for the factor-row covariance (see .ae_mf_info_w_r): 1 / (ve + v)
+# cavity information weight for the factor-row covariance (see .ae_mf_info_w): 1 / (ve + v)
 .ae_gauss_info_w <- function(y, m, v, ve) {
 	out <- array(0, .ae_dims(y))
 	ix <- which(is.finite(y) & is.finite(m))
@@ -195,52 +193,12 @@
 	)
 }
 
-# information-weighted signal per loading below which an EB latent product is withheld for every
-# family; below it the variational mean overstates the product's size (see ?ame_als)
+# information-weighted signal per loading below which the data barely determine an EB latent product;
+# a dynamic fit withholds such a product (R/lame_dynamic_als_eb.R), a static fit reports it with its
+# standard errors (see ?ame_als)
 .ae_product_threshold <- 2.1
 
-# withhold an EB latent product the data do not determine: U, V, L and UVPM / ULUPM become NA, and
-# fit$eb$product_withheld keeps the statistic, threshold, lower-rank Laplace evidence and the variational
-# means used for prediction and refits; `lower(r)` returns the log marginal likelihood at rank r.
-# options(lame.eb_withhold_product = FALSE) turns this off
-.ae_withhold_product <- function(fit, lower) {
-	if (isFALSE(getOption("lame.eb_withhold_product", TRUE))) return(fit)
-	info <- fit$eb$variational$information
-	R <- fit$R
-	stat <- .ae_product_statistic(fit$family, info)
-	if (!isTRUE(fit$family %in% c("normal", "binary", "poisson")) || is.null(R) || R < 1L || !is.finite(stat) ||
-			stat >= info[["threshold"]] || !identical(
-				fit$eb$estimator,
-				"variational"
-			) || inherits(fit, "lame_dynamic_als")) {
-		return(fit)
-	}
-	lm <- vapply(seq_len(R) - 1L, function(r) {
-		v <- tryCatch(lower(r), error = function(e) NA_real_)
-		if (is.numeric(v) && length(v) == 1L) v else NA_real_
-	}, 0)
-	lm <- c(lm, fit$eb$log_marginal)
-	names(lm) <- as.character(seq_len(R + 1L) - 1L)
-	chosen <- if (any(is.finite(lm))) as.integer(
-		names(lm)[which.max(replace(lm, !is.finite(lm), -Inf))]
-	) else NA_integer_
-	em <- .ae_product_empty(fit)
-	fit <- em$fit
-	fit$eb$product_withheld <- list(
-		reason = "the latent product is not identified by the data at this rank",
-		per_loading = stat,
-		threshold = info[["threshold"]],
-		loadings = info[["loadings"]],
-		rank = R,
-		family = fit$family,
-		log_marginal = lm,
-		rank_chosen = chosen,
-		means = em$means
-	)
-	fit
-}
-
-# statistic the withholding reads: noise-variance based for normal, information weighted for binary
+# statistic the threshold reads: noise-variance based for normal, information weighted for binary
 # and counts (NA for a record without one)
 .ae_product_statistic <- function(family, info) {
 	if (is.null(info) || !"signal" %in% names(info)) return(NA_real_)
@@ -250,24 +208,92 @@
 .ae_product_is_withheld <- function(object) !is.null(object$eb$product_withheld)
 
 # the fit with its variational means back in the withheld slots, for internal computations that start
-# from the fitted state; the withholding record stays
-.ae_product_restore <- function(object) {
+# from the fitted state; the withholding record stays. `state = FALSE` keeps the reported
+# (identified) values of the intercept, effects and positions (.ae_report_fold)
+.ae_product_restore <- function(object, state = TRUE) {
 	object <- .lde_intercept_restore(object)
 	pw <- object$eb$product_withheld
-	if (is.null(pw) || is.null(pw$means)) return(object)
-	m <- pw$means
-	for (k in names(m)) object[k] <- list(m[[k]])
-	object
+	if (!is.null(pw) && !is.null(pw$means)) {
+		m <- pw$means
+		# the means were withheld as reported; a fit already in its fitted state takes that state's
+		rf <- object$eb$report_fold
+		if (!is.null(rf) && identical(rf$view, "state")) {
+			k <- intersect(names(m), names(rf$state))
+			m[k] <- rf$state[k]
+		}
+		for (k in names(m)) object[k] <- list(m[[k]])
+	}
+	if (isTRUE(state)) .ae_report_set(object, "state") else object
 }
 
-# slots a withheld product empties: positions, eigenvalues, their sds and the static and per-period products
-.ae_product_slots <- c("U", "V", "L", "UVPM", "ULUPM", "Omat", "Oarr", "U_sd", "V_sd")
-.ae_product_empty <- function(fit) {
-	present <- .ae_product_slots[vapply(.ae_product_slots, function(k) !is.null(fit[[k]]), NA)]
-	means <- fit[present]
-	for (k in present) { x <- fit[[k]]; x[] <- NA_real_; fit[k] <- list(x) }
-	list(fit = fit, means = means)
+# slots the identified report rewrites
+.ae_report_slots <- c("mu", "coefficients", "a", "b", "U", "V", "L", "UVPM", "ULUPM")
+
+# identified report of an empirical-bayes fit, as the sampler stores its draws: the positions are
+# centred over the actors and the row, column and grand means the product loses go to a, b and the
+# intercept, so the linear predictor is unchanged. fit$eb$report_fold keeps the fitted state the
+# internal computations start from beside the reported values (.ae_report_set)
+.ae_report_fold <- function(out) {
+	R <- out$R
+	U <- out$U; V <- out[["V"]]; Om <- out$UVPM
+	if (is.null(out$eb) || is.null(R) || R < 1L || !is.matrix(U) || !is.matrix(V) || !is.matrix(Om) ||
+			!all(is.finite(U)) || !all(is.finite(V))) {
+		return(out)
+	}
+	sym <- isTRUE(out$symmetric)
+	cen <- if (sym) .lame_center_uv_period(U, U, diag(out$L, R)) else .lame_center_uv_period(U, V, diag(1, R))
+	if (is.null(cen)) return(out)
+	slots <- intersect(.ae_report_slots, names(out))
+	state <- out[slots]
+	a_row <- cen$a_row; b_col <- cen$b_col
+	# one effect per actor: the row and column halves agree, and averaging keeps that under rounding
+	if (sym) a_row <- b_col <- (a_row + b_col) / 2
+	out$mu <- out$mu + cen$const
+	out$coefficients[1L] <- out$coefficients[1L] + cen$const
+	out$a <- out$a + a_row
+	out$b <- out$b + b_col
+	Oc <- Om - outer(a_row, rep(1, ncol(Om))) - outer(rep(1, nrow(Om)), b_col) - cen$const
+	out$UVPM <- Oc
+	if (!is.null(out$ULUPM)) out$ULUPM <- Oc
+	if (sym) {
+		# the centred product keeps its rank: orthonormal positions and eigenvalues again, each
+		# column signed as the centred column it loads on most
+		eg <- eigen(cen$U %*% (out$L * t(cen$U)), symmetric = TRUE)
+		idx <- order(abs(eg$values), decreasing = TRUE)[seq_len(R)]
+		Un <- eg$vectors[, idx, drop = FALSE]
+		ld <- crossprod(cen$U, Un)
+		sgn <- vapply(seq_len(R), function(r) if (ld[which.max(abs(ld[, r])), r] < 0) -1 else 1, 0)
+		Un <- sweep(Un, 2L, sgn, "*")
+		dimnames(Un) <- dimnames(U)
+		out$U <- Un
+		out[["V"]] <- Un
+		out$L <- eg$values[idx]
+	} else {
+		out$U <- cen$U
+		out[["V"]] <- cen[["V"]]
+	}
+	out$eb$report_fold <- list(
+		view = "report",
+		state = state,
+		report = out[slots],
+		const = cen$const,
+		a_row = a_row,
+		b_col = b_col
+	)
+	out
 }
+
+# the fit with its fitted state ("state") or its reported values ("report") in the slots of the
+# identified report; a fit with no record, or already in that view, is returned as it is
+.ae_report_set <- function(object, view) {
+	rf <- object$eb$report_fold
+	if (is.null(rf) || identical(rf$view, view)) return(object)
+	m <- rf[[view]]
+	for (k in names(m)) object[k] <- list(m[[k]])
+	object$eb$report_fold$view <- view
+	object
+}
+.ae_report_view <- function(object) .ae_report_set(object, "report")
 
 # sentence print() and summary() give for a withheld product
 .ae_product_withheld_text <- function(pw) {

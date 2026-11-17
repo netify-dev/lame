@@ -217,6 +217,13 @@
 	)
 }
 
+# the context the static scale functions read (ame_als_meanfield.R). the family flags keep the read of
+# a binary fit (.ae_mf_scale_target) away from normal and count panels, and give the scale priors of a
+# normal panel the unit of its response (`ysd`, one for the other families) as the static fit has it
+.lde_fac_cx <- function(ctx) {
+	list(R = ctx$R, sym = isTRUE(ctx$sym), gauss = isTRUE(ctx$nrm), pln = isTRUE(ctx$pln), ysd = ctx$ysd)
+}
+
 # cavity-rule update of the prior scale: the root of log target(s) - log s, where the target is the
 # plug-in scale from the rows' cavity second moments (.ae_mf_scale_target()), found by a few secant
 # Newton steps (plain steps bounded by 10 smax in the log); solving it within each evaluation keeps
@@ -224,7 +231,7 @@
 # correlation takes a plain step of at most smax; returns the prior and the size of the move
 .lde_fac_scale_update <- function(ctx, pos, prior, C, smax = 0.05, max_eval = 6L) {
 	R <- ctx$R
-	cx <- list(R = R, sym = isTRUE(ctx$sym))
+	cx <- .lde_fac_cx(ctx)
 	S <- .lde_fac_state(ctx, pos, prior)
 	clip <- function(x, m) pmax(pmin(x, m), -m)
 	direct <- identical(prior$kind, "joint")
@@ -349,7 +356,7 @@
 # variance and the cavity weights at it, which carry the coefficient information (as .ae_mf_refine());
 # `lap` is the iterate's Laplace record (`vcell`, and `cvpair` under a dyadic correlation)
 .lde_fac_cavity <- function(ctx, st, lap) {
-	cx <- list(R = ctx$R, sym = isTRUE(ctx$sym))
+	cx <- .lde_fac_cx(ctx)
 	sta <- st
 	sta$O <- NULL
 	m <- .lde_eta(ctx, sta) + st$O
@@ -445,6 +452,9 @@
 	if (!is.null(extra) && length(extra$J) == m && is.finite(extra$var) && extra$var > 0) {
 		Vcov <- Vcov + extra$var * tcrossprod(extra$J)
 	}
+	# the joint factorisation and the factor means it was formed at, for the
+	# standard errors of the effects and the product (lame_dynamic_als_eb_se.R)
+	attr(Vcov, "joint") <- list(fac = fj, U = U, V = V, ifi = ifi)
 	Vcov
 }
 
@@ -452,7 +462,7 @@
 # a normal in the log scale multiplier with precision c_data + c_prior, and the coefficient response
 # J = d theta / d log f, both from two refits with the scales held at exp(+-h); returns J, `var` and `sd_log`
 .lde_fac_scale_uncertainty <- function(ctx, st, h = 0.15, tol = 1e-5, max_iter = 200L) {
-	cx <- list(R = ctx$R, sym = isTRUE(ctx$sym))
+	cx <- .lde_fac_cx(ctx)
 	ctx1 <- ctx
 	ctx1$hold_scale <- TRUE
 	# the dyadic correlation is held at the fit's value; its uncertainty is a separate matter
@@ -462,8 +472,16 @@
 		s1$hyp$fac <- .lde_fac_fix(.ae_mf_prior_shift(st$hyp$fac, exp(sgn * h)))
 		r1 <- .lde_fit_core_dyn(ctx1, s1, max_iter = max_iter, tol = tol)
 		cav <- .lde_fac_cavity(ctx1, r1$st, r1$ev$lap)
+		# the eigenvalues of an undirected product (uncentred, largest magnitude first) respond too
+		lam <- NULL
+		if (cx$sym) {
+			Fs <- matrix(r1$st$pos$qu$mean[, , 1L], ctx$na, ctx$R)
+			ev_s <- eigen(Fs %*% (ctx$sgn * t(Fs)), symmetric = TRUE, only.values = TRUE)$values
+			lam <- ev_s[order(abs(ev_s), decreasing = TRUE)[seq_len(ctx$R)]]
+		}
 		list(
 			theta = r1$st$theta,
+			lam = lam,
 			g = .ae_mf_scale_score(cx, .lde_fac_state(ctx1, r1$st$pos, r1$st$hyp$fac), cav$C),
 			ok = isTRUE(r1$converged)
 		)
@@ -475,6 +493,7 @@
 	cc <- max(c_data, 0) + c_prior
 	list(
 		J = (a$theta - b$theta) / (2 * h),
+		J_L = if (!is.null(a$lam) && length(a$lam) == length(b$lam)) (a$lam - b$lam) / (2 * h),
 		c = cc,
 		c_data = c_data,
 		c_prior = c_prior,
@@ -489,8 +508,37 @@
 .lde_fac_vcov <- function(ctx, st, ev, ctx_info = ctx) {
 	extra <- NULL
 	if (identical(ctx$fscale, "cavity") && .ae_mf_uncertainty_on()) {
-		su <- tryCatch(.lde_fac_scale_uncertainty(ctx, st), error = function(e) NULL)
-		if (!is.null(su) && is.finite(su$var) && all(is.finite(su$J))) extra <- su
+		what <- "the uncertainty of the factor-prior scale in the standard errors"
+		su <- tryCatch(.lde_fac_scale_uncertainty(ctx, st), error = function(e) {
+			.ae_note_failure("fac_scale_uncertainty", what, e)
+			NULL
+		})
+		if (!is.null(su) && is.finite(su$var) && all(is.finite(su$J)) && isTRUE(su$ok)) {
+			extra <- su
+		} else if (!is.null(su)) {
+			.ae_note_failure("fac_scale_uncertainty", what, "the refits at the shifted scale did not converge or gave no curvature")
+		}
 	}
-	list(vcov = .lde_fac_joint(ctx_info, st, ev, extra), scale = extra)
+	V <- .lde_fac_joint(ctx_info, st, ev, extra)
+	jt <- attr(V, "joint")
+	attr(V, "joint") <- NULL
+	list(vcov = V, scale = extra, joint = jt)
+}
+
+# cell variance of the static columns of a directed binary panel held at zero, as the static report
+# adds it (.ae_eb_report_se): lambda_c / 2 per held column, lambda_c = 1 / (w sqrt(na nb)) the edge
+# of the dyad-level working noise. the periods share the static product, so w is a dyad's working
+# weight summed over its periods, as the static panel's is; 0 when none is held
+.lde_held_cell_var <- function(ctx, jt, ev) {
+	if (isTRUE(ctx$sym) || isTRUE(ctx$bip) || isTRUE(ctx$nrm) || isTRUE(ctx$pln)) return(0)
+	if (!is.matrix(jt$U) || !is.matrix(jt$V) || is.null(ev$wk$w)) return(0)
+	# held: every cell of the column under 1e-10, the static fit's dead column (.ae_mf_refine), read
+	# from the largest entries; the dynamic iteration leaves such a column at rounding level
+	held <- apply(abs(jt$U), 2L, max) * apply(abs(jt$V), 2L, max) < 1e-10
+	if (!any(held)) return(0)
+	w <- ev$wk$w
+	if (length(dim(w)) == 3L) w <- rowSums(w, dims = 2L, na.rm = TRUE)
+	wbar <- mean(w[is.finite(w) & w > 0])
+	if (!is.finite(wbar) || !(wbar > 0)) return(0)
+	sum(held) / (2 * wbar * sqrt(ctx$na * ctx$nb))
 }

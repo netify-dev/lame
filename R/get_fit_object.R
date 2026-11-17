@@ -3,7 +3,10 @@
 #' @param APS summed additive sender random effects (or matrix for dynamic)
 #' @param BPS summed additive receiver random effects (or matrix for dynamic)
 #' @param UVPS summed multiplicative random effects
-#' @param YPS summed Y posterior predictive values. For a Poisson fit the
+#' @param YPS sum over the stored draws of the mean response given each draw
+#'   (binary, normal and explicit-cutpoint ordinal), of the average of ten
+#'   replicated outcomes per draw (cbin, frn, data-induced ordinal) or of the
+#'   replicated outcome (Poisson). For a Poisson fit the
 #'   fitted values \code{YPM} are not formed from it: they are the mean counts
 #'   at the posterior means of the linear predictor and of the residual variance
 #' @param BETA Matrix of draws for regression coefficient estimates
@@ -328,7 +331,16 @@ get_fit_object <- function(
 			} else {
 				EZ <- tryCatch(
 					get_EZ_bip_cpp(base_cube, a_mat_ez, b_mat_ez, U_cube, V_cube, G),
-					error = function(e) NULL
+					error = function(e) {
+						cli::cli_warn(
+							c(
+								'The linear predictor {.code fit$EZ} could not be formed from the posterior mean positions, so it is not stored.',
+								'x' = '{conditionMessage(e)}'
+							),
+							class = 'lame_ez_unavailable'
+						)
+						NULL
+					}
 				)
 			}
 			if (!is.null(EZ) && length(dim(EZ)) == 3L && !is.null(row_actors) &&
@@ -337,6 +349,10 @@ get_fit_object <- function(
 				dimnames(EZ) <- list(row_actors, col_actors, pd_labs)
 			}
 		} else {
+			cli::cli_warn(
+				'The linear predictor {.code fit$EZ} needs the design, the interaction matrix {.code G} and both actor counts; one is missing, so it is not stored.',
+				class = 'lame_ez_unavailable'
+			)
 			EZ <- NULL
 		}
 	}

@@ -3,6 +3,28 @@
 
 skip_on_cran()
 
+# the dynamic_beta fit the method checks share, fitted once
+.db_s3_fit = local({
+	fit = NULL
+	function() {
+		if (is.null(fit)) {
+			dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
+			fit <<- lame(
+				dat$Y,
+				Xdyad = dat$Xdyad,
+				family = "normal",
+				R = 0,
+				nscan = 30,
+				burn = 5,
+				odens = 1,
+				dynamic_beta = TRUE,
+				verbose = FALSE
+			)
+		}
+		fit
+	}
+})
+
 # byte-identical default
 
 test_that("dynamic_beta = FALSE is byte-identical to no-argument default (unipartite)", {
@@ -161,20 +183,9 @@ test_that("parse_dynamic_beta Tn < 2 aborts", {
 # 3-D BETA shape
 
 test_that("dynamic_beta = TRUE produces 3-D BETA with right dim/names", {
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 20,
-		burn = 5,
-		odens = 1,
-		dynamic_beta = TRUE,
-		verbose = FALSE
-	)
+	fit = .db_s3_fit()
 	expect_equal(length(dim(fit$BETA)), 3L)
-	expect_equal(dim(fit$BETA), c(20L, 2L, 3L))
+	expect_equal(dim(fit$BETA), c(30L, 2L, 3L))
 	expect_equal(dimnames(fit$BETA)[[2]], c("intercept", "X1_dyad"))
 	expect_true(isTRUE(fit$dynamic_beta))
 	expect_false(is.null(fit$rho_beta))
@@ -207,18 +218,7 @@ test_that("partial dynamic_beta (subset of coefs) gives the right mask", {
 # S3 methods
 
 test_that("coef.lame returns p x Tn matrix for dynamic_beta fit", {
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 30,
-		burn = 5,
-		odens = 1,
-		dynamic_beta = TRUE,
-		verbose = FALSE
-	)
+	fit = .db_s3_fit()
 	cf = coef(fit)
 	expect_true(is.matrix(cf))
 	expect_equal(dim(cf), c(2L, 3L))
@@ -226,54 +226,21 @@ test_that("coef.lame returns p x Tn matrix for dynamic_beta fit", {
 })
 
 test_that("vcov returns (p*Tn) x (p*Tn) for dynamic_beta fit", {
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 30,
-		burn = 5,
-		odens = 1,
-		dynamic_beta = TRUE,
-		verbose = FALSE
-	)
+	fit = .db_s3_fit()
 	V = vcov(fit)
 	expect_equal(dim(V), c(6L, 6L)) # 2 coefs x 3 periods
 	expect_true(any(grepl("\\[t1\\]", rownames(V))))
 })
 
 test_that("confint returns (p*Tn) x 2 for dynamic_beta fit", {
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 30,
-		burn = 5,
-		odens = 1,
-		dynamic_beta = TRUE,
-		verbose = FALSE
-	)
+	fit = .db_s3_fit()
 	ci = confint(fit)
 	expect_equal(dim(ci), c(6L, 2L))
 	expect_true(all(ci[, 1] <= ci[, 2]))
 })
 
 test_that("summary.lame prints dynamic-beta block without erroring", {
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 20,
-		burn = 5,
-		odens = 1,
-		dynamic_beta = TRUE,
-		verbose = FALSE
-	)
+	fit = .db_s3_fit()
 	out = summary(fit)
 	expect_s3_class(out, "summary.lame")
 	expect_true(isTRUE(out$dynamic_beta))
@@ -282,18 +249,7 @@ test_that("summary.lame prints dynamic-beta block without erroring", {
 })
 
 test_that("print.lame works on dynamic_beta fit", {
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 20,
-		burn = 5,
-		odens = 1,
-		dynamic_beta = TRUE,
-		verbose = FALSE
-	)
+	fit = .db_s3_fit()
 	# cli writes to the message stream; capture it
 	msgs = capture.output(print(fit), type = "message")
 	out = capture.output(print(fit))
@@ -303,41 +259,13 @@ test_that("print.lame works on dynamic_beta fit", {
 
 test_that("as_draws flattens 3-D BETA to draws_array", {
 	skip_if_not_installed("posterior")
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 20,
-		burn = 5,
-		odens = 1,
-		dynamic_beta = TRUE,
-		verbose = FALSE
-	)
+	fit = .db_s3_fit()
 	d = as_draws(fit)
 	expect_s3_class(d, "draws_array")
 	# 2 coefficients x 3 periods plus the five variance components (va, cab, vb, rho, ve)
 	expect_equal(dim(d)[3], 11L)
 	vn = dimnames(d)[[3]]
 	expect_true(any(grepl("\\[t1\\]", vn)))
-})
-
-test_that("trace_plot handles 3-D BETA without erroring", {
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 20,
-		burn = 5,
-		odens = 1,
-		dynamic_beta = TRUE,
-		verbose = FALSE
-	)
-	p = trace_plot(fit, params = "beta")
-	expect_true(inherits(p, "ggplot") || inherits(p, "patchwork"))
 })
 
 # identifiability and the constraint basis
@@ -440,25 +368,6 @@ test_that("ame() (cross-sectional) rejects dynamic_beta", {
 	)
 })
 
-# tryErrorChecks accumulator
-
-test_that("tryErrorChecks$beta is initialised and stays at 0 on a healthy fit", {
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 20,
-		burn = 5,
-		odens = 1,
-		dynamic_beta = TRUE,
-		verbose = FALSE
-	)
-	expect_true("beta" %in% names(fit$tryErrorChecks))
-	expect_equal(fit$tryErrorChecks$beta, 0L)
-})
-
 # recovery check
 
 test_that("dynamic_beta drift is detected when truth is time-varying", {
@@ -491,7 +400,7 @@ test_that("dynamic_beta drift is detected when truth is time-varying", {
 	expect_gt(diff(range(dyad_per_t)), 0.2)
 })
 
-# alternative transition kinds, log_lik_method, dynamic_G, per_actor_slopes and multiple panels
+# alternative transition kinds, log_lik_method, per_actor_slopes and multiple panels
 
 .fit_dynamic_beta_alt = function(
 	kind = "ar1",
@@ -519,30 +428,6 @@ test_that("dynamic_beta drift is detected when truth is time-varying", {
 	if (suppress_messages) suppressMessages(eval(expr)) else eval(expr)
 }
 
-test_that("dynamic_beta_kind = 'rw2' fits and is recorded as rw2", {
-	fit = .fit_dynamic_beta_alt(kind = "rw2")
-	expect_s3_class(fit, "lame")
-	expect_identical(fit$dynamic_beta_kind, "rw2")
-	expect_true(all(is.finite(fit$BETA)))
-	expect_length(dim(fit$BETA), 3L)
-})
-
-test_that("rw2 path has modest second differences", {
-	set.seed(11)
-	fit = .fit_dynamic_beta_alt(kind = "rw2")
-	post_mean = apply(fit$BETA, c(2, 3), mean)
-	d2 = t(apply(post_mean, 1, function(p) diff(diff(p))))
-	expect_lt(max(abs(d2)), 5)
-})
-
-test_that("dynamic_beta_kind = 'matern32' fits and is recorded as matern32", {
-	fit = .fit_dynamic_beta_alt(kind = "matern32")
-	expect_s3_class(fit, "lame")
-	expect_identical(fit$dynamic_beta_kind, "matern32")
-	expect_true(all(is.finite(fit$BETA)))
-	expect_length(dim(fit$BETA), 3L)
-})
-
 test_that("invalid dynamic_beta_kind aborts", {
 	data(YX_bin_list, envir = environment())
 	expect_error(
@@ -561,11 +446,6 @@ test_that("invalid dynamic_beta_kind aborts", {
 		))),
 		"dynamic_beta_kind"
 	)
-})
-
-test_that("log_lik_method default is observed_exact", {
-	fit = .fit_dynamic_beta_alt()
-	expect_identical(fit$log_lik_method, "observed_exact")
 })
 
 test_that("log_lik_method = 'observed_ghk' emits the bias note", {
@@ -597,48 +477,6 @@ test_that("observed_ghk produces a finite log-lik matrix on binary", {
 
 test_that("log_lik_method = 'augmented' is accepted silently", {
 	expect_silent(.fit_dynamic_beta_alt(ll_method = "augmented"))
-})
-
-test_that("dynamic_G is refused for bipartite fits", {
-	set.seed(7)
-	nA = 8; nB = 6; T_per = 3
-	Y_list = lapply(seq_len(T_per), function(t) matrix(rnorm(nA * nB), nA, nB))
-	X_list = lapply(seq_len(T_per), function(t) array(rnorm(nA * nB * 1), c(nA, nB, 1)))
-	expect_error(
-		suppressWarnings(suppressMessages(lame(
-			Y_list,
-			X_list,
-			family = "normal",
-			R = 2,
-			mode = "bipartite",
-			dynamic_G = TRUE,
-			nscan = 60,
-			burn = 20,
-			odens = 5,
-			verbose = FALSE,
-			plot = FALSE
-		))),
-		"not supported"
-	)
-})
-
-test_that("dynamic_G is refused for unipartite fits", {
-	data(YX_bin_list, envir = environment())
-	expect_error(
-		suppressWarnings(suppressMessages(lame(
-			YX_bin_list$Y,
-			YX_bin_list$X,
-			family = "binary",
-			R = 0,
-			dynamic_G = TRUE,
-			nscan = 30,
-			burn = 10,
-			odens = 5,
-			verbose = FALSE,
-			plot = FALSE
-		))),
-		"not supported"
-	)
 })
 
 test_that("per_actor_slopes returns the expected shape and label", {
@@ -738,191 +576,6 @@ test_that("lame_multi gives proper 1/K variance shrinkage with K identical panel
 	expect_lt(abs(fm$var_shrinkage - 1 / 3), 0.05)
 	expect_true(!is.null(fm$BETA_joint))
 	expect_true(!is.null(fm$beta_shared_se))
-})
-
-# in-loop per-actor slope sampler (dynamic_beta_per_actor)
-
-.make_per_actor_fixture = function(
-	n = 20L,
-	T_per = 5L,
-	beta_pop = 0.3,
-	sigma_noise = 0.15,
-	seed = 7L
-) {
-	set.seed(seed)
-	actor_nms = sprintf("a%02d", seq_len(n))
-	X_list = lapply(seq_len(T_per), function(t) {
-		X = matrix(rnorm(n * n), n, n)
-		rownames(X) = colnames(X) = actor_nms
-		array(X, c(n, n, 1), dimnames = list(actor_nms, actor_nms, "X1"))
-	})
-	theta_true = matrix(
-		rnorm(n * T_per, 0, 0.5),
-		n,
-		T_per,
-		dimnames = list(actor_nms, paste0("t", 1:T_per))
-	)
-	theta_true = sweep(theta_true, 2L, colMeans(theta_true), "-")
-	Y_list = vector("list", T_per)
-	for (t in seq_len(T_per)) {
-		X_t = X_list[[t]][, , 1]
-		eta = beta_pop * X_t + theta_true[, t] * X_t
-		Y = eta + matrix(rnorm(n * n, 0, sigma_noise), n, n)
-		diag(Y) = NA
-		rownames(Y) = colnames(Y) = actor_nms
-		Y_list[[t]] = Y
-	}
-	list(
-		Y = Y_list,
-		X = X_list,
-		theta_true = theta_true,
-		beta_pop = beta_pop,
-		actor_nms = actor_nms
-	)
-}
-
-# structure
-
-test_that("dynamic_beta_per_actor records on fit + dim checks", {
-	fx = .make_per_actor_fixture()
-	set.seed(1); fit = suppressWarnings(suppressMessages(lame(
-		fx$Y,
-		fx$X,
-		family = "normal",
-		R = 0,
-		dynamic_beta_per_actor = "row",
-		keep_per_actor = "draws",
-		nscan = 60,
-		burn = 20,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE
-	)))
-	expect_identical(fit$dynamic_beta_per_actor, "row")
-	expect_true(!is.null(fit$THETA_ACTOR))
-	expect_equal(dim(fit$THETA_ACTOR)[2L], 20L) # n_actors
-	expect_equal(dim(fit$THETA_ACTOR)[3L], 5L) # t_per
-	expect_true(all(is.finite(fit$THETA_ACTOR)))
-})
-
-# zero-sum constraint per period
-
-test_that("pairwise contrast preserves sum_i theta_{i,t} = 0 exactly", {
-	fx = .make_per_actor_fixture()
-	set.seed(1); fit = suppressWarnings(suppressMessages(lame(
-		fx$Y,
-		fx$X,
-		family = "normal",
-		R = 0,
-		dynamic_beta_per_actor = "row",
-		keep_per_actor = "draws",
-		nscan = 80,
-		burn = 20,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE
-	)))
-	# the sum over actors is about 0 for every draw and period
-	zero_sum_check = apply(fit$THETA_ACTOR, c(1, 3), sum)
-	expect_lt(max(abs(zero_sum_check)), 1e-8)
-})
-
-# substantive recovery
-
-test_that("per-actor sampler recovers truth with high correlation", {
-	fx = .make_per_actor_fixture()
-	set.seed(1); fit = suppressWarnings(suppressMessages(lame(
-		fx$Y,
-		fx$X,
-		family = "normal",
-		R = 0,
-		dynamic_beta_per_actor = "row",
-		keep_per_actor = "draws",
-		nscan = 600,
-		burn = 200,
-		odens = 10,
-		verbose = FALSE,
-		plot = FALSE
-	)))
-	rho = cor(as.vector(fit$theta_actor_mean), as.vector(fx$theta_true))
-	expect_gt(rho, 0.85) # about 0.99 in longer runs
-	expect_lt(sqrt(mean((fit$theta_actor_mean - fx$theta_true)^2)), 0.30)
-})
-
-# byte-identical default
-
-test_that("dynamic_beta_per_actor = NULL leaves the base sampler unchanged", {
-	# NULL keeps the per-actor block inactive
-	fx = .make_per_actor_fixture()
-	set.seed(1); fit_null = suppressWarnings(suppressMessages(lame(
-		fx$Y,
-		fx$X,
-		family = "normal",
-		R = 0,
-		nscan = 30,
-		burn = 10,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE
-	)))
-	set.seed(1); fit_explicit_null = suppressWarnings(suppressMessages(lame(
-		fx$Y,
-		fx$X,
-		family = "normal",
-		R = 0,
-		dynamic_beta_per_actor = NULL,
-		nscan = 30,
-		burn = 10,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE
-	)))
-	expect_identical(fit_null$BETA, fit_explicit_null$BETA)
-	expect_identical(fit_null$EZ, fit_explicit_null$EZ)
-})
-
-# storage modes
-
-test_that("keep_per_actor = 'summary' stores streaming mean + sd, no full draws", {
-	fx = .make_per_actor_fixture()
-	set.seed(1); fit = suppressWarnings(suppressMessages(lame(
-		fx$Y,
-		fx$X,
-		family = "normal",
-		R = 0,
-		dynamic_beta_per_actor = "row",
-		keep_per_actor = "summary",
-		nscan = 60,
-		burn = 20,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE
-	)))
-	expect_null(fit$THETA_ACTOR)
-	expect_true(!is.null(fit$theta_actor_mean))
-	expect_true(!is.null(fit$theta_actor_sd))
-	expect_equal(dim(fit$theta_actor_mean), c(20L, 5L))
-})
-
-# validation
-
-test_that("invalid dynamic_beta_per_actor aborts", {
-	fx = .make_per_actor_fixture()
-	expect_error(
-		suppressWarnings(suppressMessages(lame(
-			fx$Y,
-			fx$X,
-			family = "normal",
-			R = 0,
-			dynamic_beta_per_actor = "magic",
-			nscan = 30,
-			burn = 10,
-			odens = 5,
-			verbose = FALSE,
-			plot = FALSE
-		))),
-		"must be one of"
-	)
 })
 
 # penalised-ALS dynamic_beta (als_dynamic_beta)

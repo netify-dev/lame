@@ -34,8 +34,9 @@ test_that('the path prior of a coefficient is the law the samplers draw from, fo
 				z = ns$.lame_beta_gap_transition(if (kind == 'rw1') 1 else rho, diff(pos))
 				-0.5 * (x[1] - m0)^2 / v0 - 0.5 * sum((x[-1] - z$f * x[-nt])^2 / (z$q * sig^2 * lam))
 			} else {
+				# the level under its own prior and the change since the first period
 				K = ns$.dynamic_beta_kind_to_prec(kind, nt, NULL, pos)
-				-0.5 * sum(x * (K %*% x)) / (sig^2 * lam)
+				-0.5 * (x[1] - m0)^2 / v0 - 0.5 * sum(x * (K %*% x)) / (sig^2 * lam)
 			}
 		}
 		x = rnorm(nt); y = rnorm(nt)
@@ -79,7 +80,7 @@ pp_state = function(kind, mode, gaps_on, seed, n = 8L, nt = 4L, nc = NULL, p = 2
 			)
 		} else {
 			pri = ns$.lame_ppm_path_prior(kind, nt, rho_b, sigma[k], lam[k], tpos, NULL, m0[k], v0[k])
-			path[, k] = backsolve(chol(pri$P), rnorm(nt))
+			path[, k] = drop(solve(pri$P, pri$b)) + backsolve(chol(pri$P), rnorm(nt))
 		}
 	}
 	bst = rnorm(1, 0, sqrt(g * s2)); a = rnorm(nr, 0, 0.3); b = rnorm(nc, 0, 0.3)
@@ -240,9 +241,9 @@ pp_geweke_visit = function(
 
 test_that('one translation sweep leaves the joint law of paths, latent array and counts unchanged', {
 	skip_on_cran()
-	# (rw2 has a nearly flat prior in two directions whose draws are beyond any Poisson rate: its terms are checked against the density above)
 	for (cfg in list(
 		list('ar1', 'dir', FALSE, 11),
+		list('rw2', 'bip', FALSE, 16),
 		list('rw1', 'sym', TRUE, 12),
 		list('ar1', 'bip', FALSE, 13),
 		list('matern32', 'dir', TRUE, 14)

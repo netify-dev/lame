@@ -502,3 +502,84 @@ test_that("symmetric LFO scores each unordered dyad once", {
 	res = suppressWarnings(lfo(f, periods = 3, nscan = 20, burn = 5, odens = 2))
 	expect_equal(res$per_period$n_obs, 45)
 })
+
+# the refit of lfo() carries one intercept
+
+# fit$Xlist holds the augmented design (intercept slice first); lfo() strips that slice before refitting, since the refit
+# adds its own intercept and two constant slices are only jointly identified
+.capture_lfo_refit = function(fit, ...) {
+	cap = new.env()
+	real_lame = lame
+	testthat::local_mocked_bindings(lame = function(...) {
+		args = list(...)
+		cap$Xdyad = args$Xdyad
+		cap$fit = do.call(real_lame, args)
+		cap$fit
+	}, .package = "lame", .env = parent.frame())
+	cap$res = suppressWarnings(lfo(fit, ...))
+	cap
+}
+
+test_that("lfo refit carries exactly one intercept (binary T=4, one covariate)", {
+	skip_on_cran()
+	data(YX_bin_list, envir = environment())
+	X1 = lapply(YX_bin_list$X, function(x) x[, , 1L, drop = FALSE])
+	fit = suppressWarnings(lame(
+		YX_bin_list$Y,
+		X1,
+		family = "binary",
+		R = 0,
+		nscan = 40,
+		burn = 10,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		seed = 7L
+	))
+	# premise: the stored design is augmented with the intercept slice
+	expect_identical(dimnames(fit$Xlist[[1L]])[[3L]][1L], "intercept")
+	cap = .capture_lfo_refit(
+		fit,
+		periods = 4L,
+		refit = TRUE,
+		nscan = 20L,
+		burn = 5L,
+		odens = 5L
+	)
+	# refit design: the covariate only, no stored intercept slice
+	expect_equal(length(cap$Xdyad), 3L)
+	expect_equal(dim(cap$Xdyad[[1L]])[3L], 1L)
+	expect_false("intercept" %in% dimnames(cap$Xdyad[[1L]])[[3L]])
+	# refit coefficients: one intercept and one covariate; a stacked constant slice would be labelled "intercept_dyad", so match the prefix
+	expect_equal(sum(startsWith(colnames(cap$fit$BETA), "intercept")), 1L)
+	expect_equal(ncol(cap$fit$BETA), 2L)
+	expect_true(is.finite(cap$res$elpd_lfo))
+})
+
+test_that("lfo refit of an intercept-only fit passes Xdyad = NULL", {
+	skip_on_cran()
+	data(YX_bin_list, envir = environment())
+	fit = suppressWarnings(lame(
+		YX_bin_list$Y,
+		family = "binary",
+		R = 0,
+		nscan = 40,
+		burn = 10,
+		odens = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		seed = 7L
+	))
+	expect_identical(dimnames(fit$Xlist[[1L]])[[3L]], "intercept")
+	cap = .capture_lfo_refit(
+		fit,
+		periods = 4L,
+		refit = TRUE,
+		nscan = 20L,
+		burn = 5L,
+		odens = 5L
+	)
+	expect_null(cap$Xdyad)
+	expect_identical(colnames(cap$fit$BETA), "intercept")
+	expect_true(is.finite(cap$res$elpd_lfo))
+})

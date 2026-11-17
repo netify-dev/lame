@@ -80,6 +80,6 @@ fit_smooth <- als_dynamic_beta(Y, X, lambda = 10) # smoother path
 \seealso{
 \code{\link{lame}} for the full Bayesian dynamic-\eqn{\beta}
 fit (AR(1) / RW1 / RW2 / Matern 3/2);
-\code{\link{lame_als}} for the longitudinal AME point estimator
+\code{\link{lame_als}} for the fast empirical-Bayes longitudinal AME fit
 (static \eqn{\beta}, full \eqn{a, b, U, V}).
 }

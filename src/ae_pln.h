@@ -20,7 +20,7 @@
 // Laplace scale. Relative to the Gaussian of the Laplace approximation the integrand is
 // exp(-Xs (expm1(t) - t - t^2 / 2)), t = s z, Xs = exp(zeta*), so the weights of the nodes carry only the
 // part of the integrand that is not Gaussian. Header only, no R API and no state, so every function is
-// safe inside an OpenMP loop. The R reference is .ae_pln_node_r() (R/ame_als_pln.R); the two agree to
+// safe inside an OpenMP loop. The R reference is .ae_pln_node_r() (tests/testthat/helper-reference-engines-als.R); the two agree to
 // rounding.
 
 #ifndef LAME_AE_PLN_H

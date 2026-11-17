@@ -27,9 +27,9 @@ knitr::opts_chunk$set(
 ## What this vignette covers
 
 `lame()` with at least one dynamic component (`dynamic_beta`,
-`dynamic_ab`, `dynamic_uv`) gives you a state-space model that is
-exactly the right object for forecasting future periods. This vignette
-walks through:
+`dynamic_ab`, `dynamic_uv`) is a state-space model, and
+`predict(fit, h = ...)` carries its posterior forward to future periods.
+This vignette walks through:
 
 1. **Fit a model with dynamic coefficients.**
 2. **Forecast `h` periods ahead** on the link scale and the response
@@ -37,8 +37,8 @@ walks through:
 3. **Compute counterfactual forecasts** by feeding in alternative
    future covariates.
 4. **Visualise** the forecast and the per-coefficient ribbon plot.
-5. **Diagnose** whether the forecast variance has exploded (near-
-   unit-root coefficients).
+5. **Check the forecast**: choose the transition model, score held-out
+   periods and assess calibration.
 
 ## Step 1: Fit
 
@@ -47,15 +47,9 @@ and a directed binary outcome `cooperation`. The effect of `trade` on
 cooperation is time-varying and **mean-reverting** in the simulation: it
 follows an AR(1) around 0.5 with persistence 0.7, starting high (0.9)
 and settling toward its long-run level. The network is moderately dense
-(~37%). Even with many observed dyads, six periods provide limited
-information about temporal persistence. The chains below are short, to show
-the interface.
-
-A note on data choice: `dynamic_beta` needs both a reasonable number of
-periods and enough ties per period to pin down a coefficient *for that
-period*. A sparse panel with only a few periods informs both the coefficient
-path and its persistence weakly. Step 5 examines the resulting uncertainty
-using the fitted posterior and forecast intervals.
+(~37%), more than 300 ties in each period. `dynamic_beta` estimates one
+coefficient per period, and the ties of a period are what inform its
+coefficient.
 
 ```{r fit}
 library(lame)
@@ -101,7 +95,7 @@ fit <- lame(
 	R = 0,
 	dynamic_beta = "dyad", # the trade coefficient is AR(1)
 	dynamic_beta_kind = "ar1", # mean-reverting; switch to "rw1" for drift
-	nscan = 150,
+	nscan = 300,
 	burn = 30,
 	odens = 5,
 	verbose = FALSE
@@ -113,20 +107,14 @@ trade_row <- grep("^trade[._]dyad$|trade", rownames(coef_path), value = TRUE)[1]
 round(coef_path[trade_row, ], 3)
 ```
 
-Compare the estimated coefficients with the simulated path above. Step 5
-also checks the upper posterior bound on $\rho_\beta$: a short panel carries
-limited information about the persistence even when the process mean-reverts.
-
-A quick diagnostic: `summary(fit)` prints the per-block posterior-mean ρ_β
-and fires a stationarity warning when, for any block, the 5th
-percentile of the posterior on ρ_β is ≥ 0.97 **and** the IQR is < 0.1
-(i.e. at least 95% of the mass sits near a unit root with little
-spread). The forecast-time warning fires on a complementary trigger:
-the upper 97.5% credible bound on ρ_β reaches 0.99. If either warning
-fires, examine the persistence draws, chain diagnostics and forecast
-uncertainty. Use `dynamic_beta_kind = "rw1"` when permanent drift is an
-appropriate model: RW1 fixes the persistence at one and changes the
-forecast law.
+The estimated path follows the simulated one: it starts high and settles
+toward the long-run level, and the largest gap between the two is
+`r round(max(abs(coef_path[trade_row, ] - beta_t_true)), 2)`. `lame()` ran
+two independently seeded chains and compared them before returning the
+fit; the largest R-hat among the monitored quantities is
+`r round(max(fit$rhat$rhat, na.rm = TRUE), 2)`. `summary(fit)` reports the
+posterior of the persistence $\rho_\beta$, which Step 5 uses to choose the
+transition model.
 
 ## Step 2: Forecast `h` periods ahead
 
@@ -152,15 +140,15 @@ fc_ci <- predict(fit, h = 3, type = "response", interval = "credible")
 str(fc_ci[[1]]) # lower, median and upper, each n x n
 ```
 
-The typical cell of `fc_ci[[1]]` carries an informative `lower` /
-`median` / `upper` triple -- a genuine sub-interval of [0, 1] rather
-than the whole range, because the coefficient path is mean-reverting
-(the posterior mean of `rho_beta` is `r round(mean(fit$RHO_BETA), 2)`; Step 5 reports its upper bound). A small fraction of cells do
-reach the boundary, but the vast majority stay well inside it. The
-interval widens with the horizon `h` as forecast uncertainty
-accumulates; on a stationary fit it rarely collapses toward the
-degenerate [0, 1] you see pervasively near a unit root (Step 5 shows
-that failure mode and the warning that catches it).
+Each element of `fc_ci` holds `lower`, `median` and `upper` matrices of
+tie probabilities for one future period. The 95% interval of a dyad is on
+average `r round(mean(fc_ci[[1]]$upper - fc_ci[[1]]$lower, na.rm = TRUE), 3)`
+wide on the probability scale at `h = 1` and
+`r round(mean(fc_ci[[3]]$upper - fc_ci[[3]]$lower, na.rm = TRUE), 3)` at
+`h = 3`. Uncertainty about the coefficient path accumulates with the
+horizon; because the path is mean-reverting (the posterior mean of
+`rho_beta` is `r round(mean(fit$RHO_BETA), 2)`), it levels off at the rate
+given in Step 5.
 
 ### Visualising the forecast
 
@@ -266,9 +254,8 @@ conditional on the latent log-rate `Z`, the Poisson mean is
 noise within a parameter draw gives
 `period_exposure[t] * exp(η_t + ve / 2)`; at the posterior means of `η_t`
 and `ve` this is the mean count `fitted()` reports. Zero exposure
-gives a structural zero count.
-Setting a non-trivial (any value not equal to 1) `period_exposure` for a
-non-Poisson family is rejected with an error.
+gives a structural zero count. `period_exposure` belongs to the Poisson
+family.
 When you call `predict(fit, h = K)` later without `newexposure`, the
 response-scale forecast reuses the last observed exposure for every
 future period; pass `newexposure = rep(e_new, K)` to forecast under a
@@ -302,27 +289,25 @@ delta_h3 <- fc_up[[3]] - fc_cf[[3]]
 summary(as.vector(delta_h3))
 ```
 
-The trade coefficient is positive and mean-reverting, so a one-unit
-increase in `trade` raises the posterior-mean cooperation probability at
-`h = 3` on average (the mean and median of `delta_h3` are both positive).
-The per-dyad shift varies in size, and a minority of dyads even show a
-small *negative* shift: the three-step-ahead forecast of the coefficient
-is itself uncertain (its posterior at `h = 3` is centred well above zero
-but has nonzero mass below it), and the marginal probit effect
-$\phi(\eta)\,\beta$ is smallest for dyads whose baseline linear predictor
-$\eta = a_i + b_j + \beta x_{ij}$ already sits far from the 0.5
-probability boundary. For substantive interpretation, summarise
+The trade coefficient is positive, so one more unit of `trade` raises the
+forecast cooperation probability at `h = 3`: by
+`r round(mean(delta_h3, na.rm = TRUE), 2)` on average, and by between
+`r round(min(delta_h3, na.rm = TRUE), 2)` and
+`r round(max(delta_h3, na.rm = TRUE), 2)` across dyads. The marginal
+probit effect $\phi(\eta)\,\beta$ is largest for dyads whose baseline
+linear predictor $\eta = a_i + b_j + \beta x_{ij}$ is near zero (a tie
+probability near one half) and smallest for dyads whose probability is
+already close to 0 or 1. For substantive interpretation, summarise
 `delta_h3` for the dyads that matter rather than reporting the aggregate
 `summary()`.
 
 Two properties of counterfactual covariates. (1) Because `dynamic_beta`
 draws the coefficient path forward from its posterior, the same
-covariate change can produce different magnitudes at different horizons,
-because the multiplier on `trade` is itself uncertain and drifting. (2)
-Multiplicative counterfactuals on covariates that take negative or zero
-values (such as this centred `trade` covariate) do not make substantive
-sense; prefer additive shifts there, which is why we used `+ 1` rather
-than `* 2` above.
+covariate change produces different magnitudes at different horizons:
+the multiplier on `trade` moves with the horizon. (2) For a covariate
+centred at zero, such as `trade`, an additive shift (`+ 1`) is the
+meaningful counterfactual; a multiplicative one (`* 2`) suits strictly
+positive covariates.
 
 ## Step 4: Visualise the coefficient path
 
@@ -341,48 +326,40 @@ posterior median per coefficient and period; faceted by coefficient.
 
 ## Step 5: Forecast diagnostics
 
-`predict(fit, h = ...)` fires a one-per-fit warning if the upper
-97.5% credible bound on ρ_β reaches 0.99 (i.e. the posterior puts
-non-trivial mass near the unit root). For the fit above, that bound is
-`r round(quantile(fit$RHO_BETA, 0.975), 3)`;
-`r if (quantile(fit$RHO_BETA, 0.975) >= 0.99) "it reaches the warning threshold" else "it is below the warning threshold"`.
-The simulated process mean-reverts, and the bound reports what this panel
-says about its persistence.
-The two transition models have different conditional forecast variances:
+The transition model decides how forecast uncertainty grows with the
+horizon:
 
 - **AR(1), `dynamic_beta_kind = "ar1"`** with $|\rho| < 1$: the
   conditional $h$-step variance of $\beta_{T+h}$ given the training
   window is $\sigma_\beta^2 \cdot (1 - \rho^{2h}) / (1 - \rho^2)$. It
   *saturates* (the increment from $h$ to $h+1$ shrinks geometrically
-  to zero) and the limit is the stationary variance
-  $\sigma_\beta^2 / (1 - \rho^2)$. That stationary level itself blows
-  up as $\rho \to 1$, so AR(1) is still informative at long horizons
-  only when $\rho$ is comfortably bounded away from 1.
+  to zero) at the stationary variance $\sigma_\beta^2 / (1 - \rho^2)$,
+  which grows as $\rho \to 1$.
 - **RW1, `dynamic_beta_kind = "rw1"`**: $\rho = 1$ by construction and
   the $h$-step variance is exactly $\sigma_\beta^2 \cdot h$, *linear*
-  growth in $h$, never saturating.
+  growth in $h$.
 
-In words: AR(1) eventually forgets the training window and falls back
-to a stationary distribution; RW1 keeps adding innovation variance
-every period. AR(1) forecasts can stay tight for moderate $h$ when
-$\rho$ is small; RW1 forecasts get linearly wider every step
-regardless. When the AR(1) stationarity warning fires and the
-underlying process is genuinely unit-root, refit with
-`dynamic_beta_kind = "rw1"`; if the AR(1) posterior on $\rho$ is
-near-but-not-at 1 and the science supports eventual mean reversion,
-assess AR(1) forecasts over the horizons supported by held-out validation. The
-warning printed by `predict()` states whichever of these two variance
-behaviours applies to your `dynamic_beta_kind`.
+In words: an AR(1) coefficient returns to its long-run mean and its
+forecast settles into a stationary distribution; an RW1 coefficient
+keeps its last level and adds innovation variance every period.
 
-### A sparse, short, drifting panel
+`lame` checks which of the two the data support. After an AR(1) fit,
+`summary(fit)` recommends `dynamic_beta_kind = "rw1"` when the posterior
+of $\rho_\beta$ is concentrated at or above 0.97, and `predict()` says
+so once per fit when the upper 97.5% bound of $\rho_\beta$ reaches 0.99.
+For the Step 1 fit that bound is
+`r round(quantile(fit$RHO_BETA, 0.975), 3)`,
+`r if (quantile(fit$RHO_BETA, 0.975) >= 0.99) "at the threshold: RW1 is the model to refit with" else "below 0.99: the mean-reverting forecast stands"`.
 
-We now simulate fewer actors, only four periods, single-digit tie density in
-the early periods, and a covariate effect that *drifts upward*
-instead of mean-reverting. There is no long-run level for the AR(1)
-to find in these four periods. The fitted persistence and forecast
-intervals show how the AR(1) model represents that uncertainty:
+### A drifting coefficient: AR(1) or RW1
 
-```{r sparse-fail}
+On a short panel the choice rests on the substantive question: does the
+effect return to a long-run level, or keep the level it has reached? Fit
+both transition models and compare their forecasts. Here a covariate
+effect drifts upward over four periods of a 20-actor network. The cells
+are simulated independently, so the fits set `dcor = FALSE`:
+
+```{r drift-fit}
 set.seed(2026)
 n_sp <- 20
 T_sp <- 4
@@ -405,84 +382,64 @@ Y_sp <- lapply(seq_len(T_sp), function(t) {
 names(Y_sp) <- paste0("t", seq_len(T_sp))
 sapply(Y_sp, function(y) round(mean(y, na.rm = TRUE), 3)) # sparse early on
 
-fit_sparse <- lame(
-	Y_sp,
-	Xdyad = X_sp,
-	family = "binary",
-	R = 0,
-	dynamic_beta = "dyad",
-	dynamic_beta_kind = "ar1",
-	nscan = 400,
-	burn = 100,
-	odens = 5,
-	verbose = FALSE
-)
-round(quantile(fit_sparse$RHO_BETA, c(0.5, 0.975)), 3)
+fit_drift <- lapply(c(ar1 = "ar1", rw1 = "rw1"), function(kind) {
+	lame(
+		Y_sp,
+		Xdyad = X_sp,
+		family = "binary",
+		R = 0,
+		dcor = FALSE,
+		dynamic_beta = "dyad",
+		dynamic_beta_kind = kind,
+		nscan = 250,
+		burn = 50,
+		odens = 5,
+		verbose = FALSE
+	)
+})
+# estimated coefficient path under each transition model
+round(t(sapply(fit_drift, function(f) coef(f)["sanction_risk_dyad", ])), 3)
 ```
 
-The upper 97.5% bound on $\rho_\beta$ is now
-`r round(quantile(fit_sparse$RHO_BETA, 0.975), 3)`, against the 0.99 at
-which `predict()` raises its warning, and the median sits at
-`r round(quantile(fit_sparse$RHO_BETA, 0.5), 3)`. The forecasts are already
-behaving like a unit root:
+Both fits recover the upward drift, and they agree on the fitted
+periods. Four periods leave the posterior of $\rho_\beta$ close to its
+prior (prior mean 0.8, posterior median
+`r round(median(fit_drift$ar1$RHO_BETA), 2)` in the AR(1) fit), which is why the choice is made on substance. The two fits differ
+in what they carry forward. The forecast coefficient
+at horizon `h` is the link-scale difference between a forecast with
+`sanction_risk = 1` for every dyad and one with `sanction_risk = 0`:
 
-```{r sparse-fail-warn}
-set.seed(1)
-fc_sparse <- predict(
-	fit_sparse,
-	h = 6,
-	type = "response",
-	interval = "credible"
-)
-```
-
-The upper bound
-`r if (quantile(fit_sparse$RHO_BETA, 0.975) >= 0.99) "reaches the warning threshold" else "is below the warning threshold"`.
-Compare how the average
-95% forecast-interval width grows with the horizon on this fit versus
-the mean-reverting Step 1 fit:
-
-```{r sparse-fail-width, fig.width = 6, fig.height = 3.2, fig.alt="Line plot comparing the across-dyad mean 95 percent forecast interval width at horizons one through six for the Step 1 fit and the sparse drifting-panel fit. These intervals are on the bounded probability scale."}
-set.seed(1)
-fc_healthy <- predict(
-	fit,
-	h = 6,
-	type = "response",
-	interval = "credible"
-)
-width_by_h <- function(fc) {
-	sapply(fc, function(m) mean(m$upper - m$lower, na.rm = TRUE))
+```{r drift-forecast, fig.width = 6, fig.height = 3.2, fig.alt="Line plot of the forecast coefficient on sanction_risk at horizons one through six under the AR(1) and RW1 transition models fitted to the drifting panel. The AR(1) line declines toward the long-run mean; the RW1 line stays at the last fitted level."}
+x_at <- function(value) {
+	lapply(seq_len(6), function(h) {
+		array(
+			value,
+			dim = c(n_sp, n_sp, 1),
+			dimnames = list(NULL, NULL, "sanction_risk")
+		)
+	})
 }
-w_healthy <- width_by_h(fc_healthy)
-w_sparse <- width_by_h(fc_sparse)
-round(rbind(mean_reverting = w_healthy, near_unit_root = w_sparse), 3)
+# the same seed gives both forecasts the same coefficient draws
+beta_forecast <- function(f) {
+	set.seed(1)
+	fc_one <- predict(f, h = 6, type = "link", newdata = x_at(1))
+	set.seed(1)
+	fc_zero <- predict(f, h = 6, type = "link", newdata = x_at(0))
+	mapply(function(a, b) mean(a - b, na.rm = TRUE), fc_one, fc_zero)
+}
+beta_fc <- sapply(fit_drift, beta_forecast)
+round(t(beta_fc), 3)
 
-# share of high-|sanction_risk| dyads whose h = 3 interval spans nearly [0, 1]
-x_last <- X_sp[[T_sp]][, , 1]
-hi_x <- abs(x_last) >= quantile(abs(x_last), 0.9)
-deg_h3 <- mean(
-	fc_sparse[[3]]$lower[hi_x] < 0.05 &
-		fc_sparse[[3]]$upper[hi_x] > 0.95,
-	na.rm = TRUE
+drift_df <- data.frame(
+	h = rep(seq_len(6), 2),
+	model = rep(c("AR(1)", "RW1"), each = 6),
+	coefficient = c(beta_fc[, "ar1"], beta_fc[, "rw1"])
 )
-round(deg_h3, 2)
-
-width_df <- data.frame(
-	h = rep(seq_along(w_healthy), 2),
-	fit = rep(
-		c(
-			"mean-reverting (Step 1 fit)",
-			"near-unit-root (sparse fit)"
-		),
-		each = length(w_healthy)
-	),
-	width = c(w_healthy, w_sparse)
-)
-ggplot(width_df, aes(h, width, linetype = fit)) +
+ggplot(drift_df, aes(h, coefficient, linetype = model)) +
 	geom_line() + geom_point(size = 1.8) +
 	labs(
-		title = "Forecast interval width by horizon",
-		x = "Forecast horizon h", y = "Mean 95% interval width"
+		title = "Forecast coefficient by horizon",
+		x = "Forecast horizon h", y = "Coefficient on sanction_risk"
 	) +
 	theme_bw(base_size = 9) +
 	theme(
@@ -497,22 +454,21 @@ ggplot(width_df, aes(h, width, linetype = fit)) +
 	)
 ```
 
-The ratio of mean interval width at `h = 6` to that at `h = 1` is
-`r round(w_healthy[6] / w_healthy[1], 1)` for the Step 1 fit and
-`r round(w_sparse[6] / w_sparse[1], 1)` for the sparse fit. These are
-probability intervals, so their widths also reflect the nonlinear probit
-transformation and the [0, 1] bounds, so a flat probability-width curve shows
-the bounds as well as the coefficient uncertainty.
+The last fitted coefficient is
+`r round(coef(fit_drift$ar1)["sanction_risk_dyad", T_sp], 2)` (AR(1)) and
+`r round(coef(fit_drift$rw1)["sanction_risk_dyad", T_sp], 2)` (RW1). The
+AR(1) forecast draws it back toward its long-run mean, to `r round(beta_fc[1, "ar1"], 2)` at `h = 1` and
+`r round(beta_fc[6, "ar1"], 2)` at `h = 6`; the RW1 forecast holds the
+last level, `r round(beta_fc[6, "rw1"], 2)` at `h = 6`. The same two
+fits at the default chain length give 1.25 and 1.87 at `h = 6`, and their
+95% forecast intervals on the link scale behave as the two variance
+formulas say: under AR(1) the average width goes from 2.0 at `h = 1` to
+2.9 at `h = 5` and stays there, under RW1 it goes from 1.9 to 3.4 at
+`h = 6` and is still growing. Choose AR(1) when the effect is expected to
+settle and RW1 when a shift is expected to persist; `lfo()` below scores
+either choice on held-out periods.
 
-Among dyads in the top decile of `|sanction_risk|`,
-`r round(100 * deg_h3)`% of the sparse fit's `h = 3` intervals extend below
-0.05 and above 0.95. The maximum observed period density is
-`r round(100 * max(sapply(Y_sp, mean, na.rm = TRUE)))`%. Those broad
-intervals provide little precision about individual tie probabilities.
-The leave-future-out scores below compare reporting horizons, and RW1 is the
-choice when permanent drift is the assumption.
-
-For a longer-horizon diagnostic, use the exact rolling-origin
+To score forecasts on held-out periods, use the exact rolling-origin
 leave-future-out CV:
 
 ```{r lfo}
@@ -525,26 +481,27 @@ lfo_res <- lfo(
 	fit,
 	periods = lfo_periods,
 	refit = TRUE,
-	nscan = 100,
-	burn = 25,
+	nscan = 500,
+	burn = 100,
 	odens = 5,
 	verbose = FALSE
 )
 print(lfo_res)
 ```
 
-The `nscan = 100, burn = 25, odens = 5` settings inside `lfo()` are
-chosen so the vignette builds in well under a minute on a laptop. They
-give `100 / 5 = 20` stored draws per leave-out refit (burn-in is run and
-discarded, not subtracted from `nscan`). This demonstrates the output
-format; an analysis gives every training fit a longer chain.
+`lfo()` refits the model on the periods before each origin and scores
+the held-out period with that period's own covariates. `elpd` is the log
+predictive density summed over the `n_obs` observed dyads of the period;
+higher is better. `nscan`, `burn` and `odens` set the chain of each refit
+and, left out, the refits run at the length of `fit`. Period 5 scores
+`r round(lfo_res$per_period$elpd[1], 1)` and period 6
+`r round(lfo_res$per_period$elpd[2], 1)` here; refits at the default
+length (`nscan = 10000`) score -481.8 and -473.1.
 
-Compare the two reported leave-out scores directly. A sharp decline at the
-last origin can suggest a late change in the data-generating process, but short
-chains and predictive variability can also move a score. After checking those
-sources of uncertainty, `detect_change_point(fit)` can identify a coefficient
-path and period for closer inspection. Its tail ratio is a heuristic reference,
-not a formal test or a Bayes factor.
+Compare the scores across origins. A sharp decline at the last origin
+points to a late change in the data-generating process, and
+`detect_change_point(fit)` then names the coefficient path and the period
+to inspect.
 
 ### Probability-integral-transform (PIT) calibration
 
@@ -587,40 +544,25 @@ Bars that hug the uniform reference indicate a well-calibrated forecast.
 A U-shape (mass piling up in the tails) is the signature of an
 over-confident forecast whose intervals are too narrow; a central hump
 is the opposite, an under-confident forecast with intervals that are too
-wide. On this single binary held-out period the randomised PIT is noisy,
-so read the plot for gross departures rather than small wiggles, and
-corroborate it with `cover_95` below.
-
-`fit_train` has only five training periods. Its upper 97.5% posterior
-bound on $\rho_\beta$ is
-`r round(quantile(fit_train$RHO_BETA, 0.975), 3)`, which
-`r if (quantile(fit_train$RHO_BETA, 0.975) >= 0.99) "reaches" else "is below"`
-the forecast warning threshold; a bound at the threshold means the forecast
-carries the unit-root variance described in Step 5.
+wide. Read the plot for its overall shape; `cover_95` summarises it in
+one number.
 
 `pit$cover_95` is the fraction of PIT values in [0.025, 0.975]; here it
 is `r round(pit$cover_95, 3)`, compared with 0.95 under marginal
-calibration. For discrete outcomes this uses the randomised PIT and is
-not the coverage of a discrete outcome interval. The KS statistic
-describes the distance between the empirical PIT distribution and the
-uniform reference.
-
-`pit$ks_p` is `NA`: dependent network cells require a calibrated joint
-reference for a global significance test. Neither the PIT fraction nor
-the descriptive KS statistic supplies such a test. For binary outcomes,
-randomisation adds variability as well, and this vignette shows one held-out
-period; several held-out periods and the forecast scores above give the
-comparison. The seed above makes this displayed randomisation reproducible.
+calibration (0.929 when `fit_train` runs at the default chain length).
+The KS statistic (`r round(pit$ks_stat, 3)` here) is the
+largest distance between the empirical PIT distribution and the uniform
+reference. Network cells are dependent, so it is reported as a
+descriptive distance and `pit$ks_p` is `NA`. To pool evidence over
+several held-out periods, pass one matrix per horizon in `y_future`.
 
 ## Comparing two fits with `loo_compare()`
 
 When you have two candidate specifications, say a static-`beta`
 baseline and a `dynamic_beta = "dyad"` variant, `loo::loo_compare()`
-is the one-liner that ranks them on out-of-sample predictive
-performance when their saved scores are valid observed likelihood factors.
-The following models explicitly set `dcor = FALSE`; estimated residual dyad
-correlation would require joint dyad factors. Both save the matched observed
-scores with `save_log_lik = TRUE`:
+ranks them on out-of-sample predictive performance. Fit both with
+`save_log_lik = TRUE` and independent residuals (`dcor = FALSE`), so that
+each observed cell is one likelihood factor:
 
 ```{r loo-compare, eval = FALSE}
 # two candidates with independent residuals and saved log-likelihoods
@@ -672,30 +614,28 @@ pointwise predictive density relative to that model and the standard error of
 the difference. A difference that is large relative to its standard error
 supports the preferred model; when the two are similar, the specifications are
 not distinguishable on this predictive criterion. The Pareto-$k$ diagnostics
-in the `loo` output report which pointwise estimates are reliable.
+in the `loo` output report which pointwise estimates are reliable. Run as
+written on this panel, the comparison prefers the dynamic model: the
+static model has `elpd_diff` = -22.2 with standard error 6.6, and every
+Pareto-$k$ is below 0.5.
 
-These binary models store probit observed-cell likelihood factors and use
-independent residuals. `normal`, `binary`, `poisson`, and explicit-cutpoint
-ordinal models support observed marginal scores; Poisson scores use adaptive
-numerical integration with an accuracy check. A correct marginal score becomes
-a LOO factor only when the saved factorization contract supports it. Symmetric
-fits use each unordered dyad once; directed fits with estimated or nonzero
-residual correlation are refused by LOO/WAIC until joint dyad factors are supplied.
-
-Capped binary, fixed-rank nomination and data-induced ordinal models do not
-supply an exact observed score through the current dispatcher. An explicit
-`log_lik_method = "observed_ghk"` request provides the documented legacy
-approximate diagnostic for those models; `"augmented"` provides a latent-Z
-diagnostic. Neither is accepted by LOO/WAIC. Use held-out evaluation appropriate
-to the fitted rank/cap model, rather than treating a diagnostic as its likelihood.
+`loo::loo()` and `loo::waic()` read the saved scores of `normal`,
+`binary` and `poisson` fits, and of ordinal fits with
+`ordinal_cutpoints = "explicit"`, whenever the observed cells are
+independent given the parameters: directed fits with `dcor = FALSE`,
+symmetric fits (each unordered dyad counted once) and bipartite fits.
+Fits with residual dyad correlation are compared on whole held-out
+periods with `lfo()` above; capped-binary, fixed-rank-nomination and
+rank-likelihood ordinal fits are compared with the posterior predictive
+checks of `gof()`.
 
 ### Memory-conscious long runs
 
 If the in-memory log-likelihood matrix from `save_log_lik = TRUE`
-would exceed RAM, pass `save_log_lik = "chunked"` instead. The
-on-disk chunks are read by `loo()` when the same observed-factor contract
-passes. `read_log_lik(fit)` also reads marginal or diagnostic scores that cannot
-be used for LOO/WAIC:
+would exceed RAM, pass `save_log_lik = "chunked"` instead. Each chain
+writes its scores to disk as it samples. `loo()` reads the on-disk chunks
+as it reads the in-memory matrix, and `read_log_lik(fit)` returns them as
+a matrix:
 
 ```{r chunked, eval = FALSE}
 fit_chk <- lame(

@@ -1,7 +1,7 @@
 #' Bipartite network helper functions
 #'
 #' @name bipartite_helpers
-#' @keywords internal
+#' @noRd
 
 #' @description Initialize bipartite starting values
 #' @return List of starting values for bipartite MCMC
@@ -231,7 +231,7 @@ init_bipartite_startvals <- function(
 
 #' Convert bipartite list data to array format
 #' @return List with components \code{Y}, \code{Xdyad}, \code{Xrow}, \code{Xcol} in array format
-#' @keywords internal
+#' @noRd
 list_to_array_bipartite <- function(
 	rowActorSet,
 	colActorSet,

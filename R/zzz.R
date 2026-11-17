@@ -3,13 +3,17 @@
 #' @importFrom utils head object.size
 NULL
 
-# register S3 methods (posterior, loo, ggplot2::autoplot, generics::tidy) at load so
-# package::generic(fit) dispatches to them
+# methods for posterior, loo, generics and ggplot2 generics are registered by
+# NAMESPACE when those packages load, so loading lame loads none of them
 .onLoad <- function(libname, pkgname) {
-	.register_posterior_methods()
-	.register_loo_methods()
-	.register_autoplot_method()
-	.register_tidy_methods()
+	# exported autoplot is ggplot2's generic, bound lazily so loading lame
+	# does not load ggplot2
+	delayedAssign(
+		"autoplot",
+		ggplot2::autoplot,
+		eval.env = baseenv(),
+		assign.env = asNamespace(pkgname)
+	)
 }
 
 # warn at attach when amen is also loaded: both export ame()

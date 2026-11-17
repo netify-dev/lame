@@ -25,16 +25,19 @@ absolute effect (default \code{Inf}, show all).}
 A \code{ggplot} object.
 }
 \description{
-Sender (a) and receiver (b) additive-effect point estimates as a sorted
-lollipop chart. Mirrors \code{\link{ab_plot}} but without posterior
-intervals: this is a point estimator. If the fit was produced via
-\code{ame_als(..., bootstrap = N)}, bootstrap 95\\% intervals are drawn as
-error bars.
+Sender (a) and receiver (b) additive-effect estimates as a sorted
+lollipop chart. Mirrors \code{\link{ab_plot}}, with 95\\% Wald intervals
+from the posterior standard deviations of the effects (\code{fit$a_sd},
+\code{fit$b_sd}) as error bars. If the fit was produced via
+\code{ame_als(..., bootstrap = N)}, the bootstrap 95\\% intervals are drawn
+instead.
 }
 \examples{
+\donttest{
 set.seed(1)
 n <- 12
 Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
 fit <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
 ab_plot(fit, effect = "sender")
+}
 }

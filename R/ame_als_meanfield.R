@@ -33,15 +33,8 @@
 	out
 }
 
-# quadrature engine: compiled kernels (src/ae_kernels.cpp) by default; options(lame.als_engine = "r") runs the
-# _r reference implementations, and options(lame.als_threads = k) sets OpenMP threads without changing the result
-.ae_engine <- function() {
-	opt <- getOption("lame.als_engine", "cpp")
-	if (!is.character(opt) || length(opt) != 1L || !opt %in% c("cpp", "r")) {
-		cli::cli_abort("{.code options(lame.als_engine)} must be {.val cpp} or {.val r}.")
-	}
-	opt
-}
+# quadrature kernels are compiled (src/ae_kernels.cpp); options(lame.als_threads = k) sets their OpenMP
+# threads without changing the result
 .ae_threads <- function() {
 	opt <- getOption("lame.als_threads", 1L)
 	if (!is.numeric(opt) || length(opt) != 1L || !is.finite(opt) || opt < 1) {
@@ -51,54 +44,13 @@
 }
 
 # expected working problem of the observed cells of `y` with predictor N(m, v): response z = m + E psi / w,
-# weight w = -E psi' and expected log likelihood ell, zero elsewhere; the increment is capped at 30 as in IRLS
-.ae_mf_cells_r <- function(y, m, v, link, K = 9L) {
-	obs <- is.finite(y)
-	ix <- which(obs)
-	sgn <- 2 * y[ix] - 1
-	mm <- m[ix]
-	nodes <- .ae_mf_gh(K)
-	sdv <- sqrt(pmax(v[ix], 0))
-	probit <- identical(link, "probit")
-	es <- ew <- el <- 0
-	for (k in seq_along(nodes$z)) {
-		e <- mm + sdv * nodes$z[k]
-		se <- sgn * e
-		if (probit) {
-			lps <- stats::pnorm(se, log.p = TRUE)
-			lam <- exp(-0.5 * e * e - 0.91893853320467267 - lps)
-			psi <- sgn * lam
-			w <- lam * (lam + se)
-		} else {
-			lps <- stats::plogis(se, log.p = TRUE)
-			p1 <- exp(lps)
-			psi <- sgn * (1 - p1)
-			w <- p1 * (1 - p1)
-		}
-		es <- es + nodes$w[k] * psi
-		ew <- ew + nodes$w[k] * w
-		el <- el + nodes$w[k] * lps
-	}
-	delta <- es / pmax(ew, 1e-12)
-	big <- abs(delta) > 30
-	if (any(big)) {
-		delta[big] <- sign(delta[big]) * 30
-		ew[big] <- abs(es[big]) / 30
-	}
-	z <- w <- ell <- array(0, dim(y))
-	z[ix] <- mm + delta
-	w[ix] <- ew
-	ell[ix] <- el
-	list(z = z, w = w, ell = ell)
-}
-
-# the same by the compiled kernel (ae_cells_cpp)
+# weight w = -E psi' and expected log likelihood ell, zero elsewhere; the increment is capped at 30 as in IRLS.
+# compiled kernel (ae_cells_cpp)
 .ae_mf_cells <- function(y, m, v, link, K = 9L, ve = NULL, kin = NULL) {
 	# a count cell is Poisson-lognormal (R/ame_als_pln.R), with noise variance `ve` and an inner rule of `kin` nodes
 	if (identical(link, "log")) return(.ae_pln_cells(y, m, v, ve, K, if (is.null(kin)) .ae_pln_kin(ve) else kin))
 	# a normal cell is Gaussian, in closed form (R/ame_als_gauss.R)
 	if (identical(link, "identity")) return(.ae_gauss_cells(y, m, v, ve))
-	if (identical(.ae_engine(), "r")) return(.ae_mf_cells_r(y, m, v, link, K))
 	out <- ae_cells_cpp(y, m, v, identical(link, "probit"), as.integer(K), .ae_threads())
 	d <- dim(y)
 	dim(out$z) <- d; dim(out$w) <- d; dim(out$ell) <- d
@@ -107,42 +59,9 @@
 
 # cavity information weight of a cell for the factor-row covariances, nu = -d^2 log Z / dm^2 with
 # Z(m, v) = E p(y | eta), eta ~ N(m, v); the expected weight E w(eta) would count the other side's variance twice
-.ae_mf_info_w_r <- function(y, m, v, link, K = 9L) {
-	obs <- is.finite(y)
-	ix <- which(obs)
-	sgn <- 2 * y[ix] - 1
-	mm <- m[ix]
-	vv <- pmax(v[ix], 0)
-	w <- if (identical(link, "probit")) {
-		sq <- sqrt(1 + vv)
-		t <- sgn * mm / sq
-		lam <- exp(stats::dnorm(t, log = TRUE) - stats::pnorm(t, log.p = TRUE))
-		out <- lam * (lam + t)
-		far <- t < -30
-		if (any(far)) out[far] <- 1 - 1 / t[far]^2 + 6 / t[far]^4
-		out / (1 + vv)
-	} else {
-		nodes <- .ae_mf_gh(K)
-		sdv <- sqrt(vv)
-		z0 <- z1 <- z2 <- 0
-		for (k in seq_along(nodes$z)) {
-			p1 <- stats::plogis(sgn * (mm + sdv * nodes$z[k]))
-			z0 <- z0 + nodes$w[k] * p1
-			z1 <- z1 + nodes$w[k] * sgn * p1 * (1 - p1)
-			z2 <- z2 + nodes$w[k] * p1 * (1 - p1) * (1 - 2 * p1)
-		}
-		(z1 / z0)^2 - z2 / z0
-	}
-	w[!is.finite(w) | w < 0] <- 0
-	out <- array(0, dim(y))
-	out[ix] <- w
-	out
-}
-
 .ae_mf_info_w <- function(y, m, v, link, K = 9L, ve = NULL) {
 	if (identical(link, "log")) return(.ae_pln_info_w(y, m, v, ve))
 	if (identical(link, "identity")) return(.ae_gauss_info_w(y, m, v, ve))
-	if (identical(.ae_engine(), "r")) return(.ae_mf_info_w_r(y, m, v, link, K))
 	out <- ae_info_w_cpp(y, m, v, identical(link, "probit"), as.integer(K), .ae_threads())
 	dim(out) <- dim(y)
 	out
@@ -199,7 +118,6 @@
 			Sig = Sig
 		))
 	}
-	if (identical(.ae_engine(), "r")) return(.ae_mf_row_solve_r(Gflat, L, rhs))
 	out <- ae_row_solve_cpp(Gflat, L, rhs, .ae_threads())
 	for (i in out$bad) {
 		g <- matrix(Gflat[i, ], R, R) + L
@@ -209,20 +127,6 @@
 		out$x[i, ] <- Si %*% rhs[i, ]
 	}
 	list(x = out$x, Sig = out$Sig)
-}
-
-# R reference for the general rank, one system at a time
-.ae_mf_row_solve_r <- function(Gflat, L, rhs) {
-	n <- nrow(rhs); R <- ncol(rhs)
-	x <- matrix(0, n, R); Sig <- array(0, c(R, R, n))
-	for (i in seq_len(n)) {
-		g <- matrix(Gflat[i, ], R, R) + L
-		g <- (g + t(g)) / 2
-		Si <- .ae_safe_inverse(g)
-		Sig[, , i] <- Si
-		x[i, ] <- Si %*% rhs[i, ]
-	}
-	list(x = x, Sig = Sig)
 }
 
 # log determinants of the n small positive definite matrices of an (R, R, n) array
@@ -1029,6 +933,21 @@
 	if (identical(pr$kind, "diag")) {
 		S2 <- S
 		S2$Sig <- rest$Sig; S2$Om <- rest$Om
+		# a binary fit reads the sender scale from the rows' second moments at the information of the
+		# sampler's draw of a row given drawn receivers, sum_j C_ij (vhat_j vhat_j' + Om_j). the receivers'
+		# means alone leave the rows of a column the data barely determine at their prior, so the scale stays
+		# where its hyperprior puts it, and the latent scale, fixed at one, takes that product variance v as
+		# noise: the coefficients grow by about sqrt(1 + v) (15 percent on a 30 x 24 network with a weak
+		# product). a normal or count fit keeps the cavity moments, its noise variance takes up what the
+		# product does not
+		if (!isTRUE(cx$gauss) && !isTRUE(cx$pln)) {
+			pb <- .ae_mf_prior_blocks(pr, R)
+			S2$Sig <- .ae_mf_row_solve(
+				C %*% (.ae_mf_outer_rows(S[["V"]]) + .ae_mf_array_to_rows(S$Om)),
+				pb$uu,
+				matrix(0, nrow(S$U), R)
+			)$Sig
+		}
 		sm <- .ae_mf_second_moments(S2, R)
 		return(
 			list(
@@ -1039,6 +958,22 @@
 	}
 	S2 <- S
 	S2$Sig <- rest$Sig; S2$Om <- rest$Om
+	# a directed binary fit reads its rows' second moments as a bipartite one does (above): each side at
+	# the information of the sampler's draw given the other side drawn. the cavity moments of a weak
+	# product kept its variance at the prior, and the dyadic coefficient ran 4 percent high at 60 actors
+	if (!isTRUE(cx$gauss) && !isTRUE(cx$pln)) {
+		pb <- .ae_mf_prior_blocks(pr, R)
+		S2$Sig <- .ae_mf_row_solve(
+			C %*% (.ae_mf_outer_rows(S[["V"]]) + .ae_mf_array_to_rows(S$Om)),
+			pb$uu,
+			matrix(0, nrow(S$U), R)
+		)$Sig
+		S2$Om <- .ae_mf_row_solve(
+			crossprod(C, .ae_mf_outer_rows(S$U) + .ae_mf_array_to_rows(S$Sig)),
+			pb$vv,
+			matrix(0, nrow(S[["V"]]), R)
+		)$Sig
+	}
 	sm <- .ae_mf_second_moments(S2, R)
 	# keep at least one pseudo-observation beyond the rows in the posterior-mean divisor, so a supplied
 	# kappa0 <= 2 R + 1 cannot make the update expand

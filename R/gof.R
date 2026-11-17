@@ -41,6 +41,23 @@
 	y
 }
 
+# restrict an observed period to the actors of its predictive grid; an actor outside the grid
+# must be absent from the period, with no observed cell on that axis
+.lame_gof_present <- function(observed, grid) {
+	for (axis in 1:2) {
+		have <- dimnames(observed)[[axis]]; want <- dimnames(grid)[[axis]]
+		if (is.null(have) || is.null(want)) next
+		out <- !(have %in% want)
+		if (!any(out)) next
+		cells <- if (axis == 1L) observed[out, , drop = FALSE] else observed[, out, drop = FALSE]
+		if (any(is.finite(cells))) cli::cli_abort(
+			"Observed GOF actors are absent from the fitted predictive grid.", class = "lame_gof_alignment"
+		)
+		observed <- if (axis == 1L) observed[!out, , drop = FALSE] else observed[, !out, drop = FALSE]
+	}
+	observed
+}
+
 # average a custom statistic over periods, checking it is consistent
 .lame_gof_custom_average <- function(fun, periods, scalar = FALSE) {
 	z <- lapply(periods, fun)
@@ -65,7 +82,9 @@
 #' when the model was fitted with \code{gof = FALSE} to speed up MCMC sampling,
 #' or when you want to evaluate custom GOF statistics without re-running the model.
 #'
-#' @param fit An ame model object that was run with posterior sampling enabled
+#' @param fit An ame or lame model object that was run with posterior sampling
+#'   enabled, or an ALS fit (\code{method = "als"}, \code{\link{ame_als}},
+#'   \code{\link{lame_als}})
 #' @param Y Original data. For ame objects, an n x n matrix (or nA x nB for
 #'   bipartite). For lame objects, a list of matrices (one per time period).
 #'   If NULL, extracted from the fit object.
@@ -102,7 +121,18 @@
 #' ordinal outcomes and only assess the dependence structure (degree spread,
 #' dyadic and triadic dependence).
 #'
-#' This function requires joint posterior replication and refuses fits that
+#' A panel whose actor set changes is checked period by period on the actors
+#' present in each period, as the sampler's own goodness of fit is; an actor
+#' absent from a period has no observed cell there.
+#'
+#' An ALS fit has no posterior draws: its replicates are
+#' drawn from \code{\link{simulate.ame_als}} at the estimate, with the noise
+#' resampled (attribute \code{replication_method} \code{"point estimate"}), the
+#' replicates \code{\link{gof_plot}} draws for it. The parameters are held at
+#' the estimate; the posterior predictive check, which also draws them, is the
+#' one of an \code{\link{ame}} or \code{\link{lame}} (MCMC) fit.
+#'
+#' For a sampler fit this function requires joint posterior replication and refuses fits that
 #' lack aligned saved draws; it never substitutes conditional mean trajectories.
 #' This function requires that the model was estimated with posterior sampling
 #' of the parameters needed to generate posterior predictive datasets.
@@ -172,16 +202,20 @@ gof <- function(
 		}
 	}
 
-	if (is.null(fit$BETA) || is.null(fit$VC)) {
-		cli::cli_abort("Model must have BETA and VC posterior samples. Re-run with appropriate posterior_opts.")
+	# an ALS fit has no draws: its replicates are drawn at the estimate, as in gof_plot()
+	is_als <- inherits(fit, "ame_als")
+	if (!is_als) {
+		if (is.null(fit$BETA) || is.null(fit$VC)) {
+			cli::cli_abort("Model must have BETA and VC posterior samples. Re-run with appropriate posterior_opts.")
+		}
+		n_mcmc <- nrow(fit$BETA)
+		if (n_mcmc < 2) {
+			cli::cli_abort("Insufficient MCMC samples. Model must have at least 2 saved iterations. Check burn, nscan, and odens parameters.")
+		}
 	}
 
 	is_bipartite <- identical(fit$mode, "bipartite")
-	n_mcmc <- nrow(fit$BETA)
-	if (n_mcmc < 2) {
-		cli::cli_abort("Insufficient MCMC samples. Model must have at least 2 saved iterations. Check burn, nscan, and odens parameters.")
-	}
-	if (is.null(nsim)) nsim <- n_mcmc - 1L
+	if (is.null(nsim)) nsim <- if (is_als) 100L else n_mcmc - 1L
 	if (length(nsim) != 1L || !is.finite(nsim) || nsim < 1L || nsim > .Machine$integer.max || nsim != as.integer(nsim))
 		cli::cli_abort("nsim must be a positive integer.")
 
@@ -191,6 +225,16 @@ gof <- function(
 	}
 
 	network_mode <- if (is_bipartite) "bipartite" else "unipartite"
+
+	sims <- if (is_als) {
+		simulate(fit, nsim = nsim, seed = 6886)
+	} else simulate(fit, nsim = nsim, seed = 6886, type = "posterior")
+
+	# each period on the actors present in it, as in the sampler's own GOF
+	grid <- .lame_gof_periods(sims$Y[[1L]])
+	if (length(grid) != length(Y_list))
+		cli::cli_abort("Predictive and observed GOF periods differ.", class = "lame_gof_alignment")
+	Y_list <- lapply(seq_along(Y_list), function(t) .lame_gof_present(Y_list[[t]], grid[[t]]))
 
 	# observed GOF averaged over periods
 	obs_gof_list <- lapply(Y_list, function(y) gof_stats(y, mode = network_mode, family = fit$family))
@@ -222,15 +266,13 @@ gof <- function(
 			if (is.null(custom_gof_names)) {
 				custom_gof_names <- paste0("custom", seq_len(n_custom_stats))
 			}
-			custom_obs <- numeric(n_custom_stats)
+			# a statistic that fails (or is not a function) stays NA; the handler cannot assign here
+			custom_obs <- rep(NA_real_, n_custom_stats)
 			for (i in seq_along(custom_gof)) {
 				if (is.function(custom_gof[[i]])) {
 					tryCatch({
 						custom_obs[i] <- .lame_gof_custom_average(custom_gof[[i]], Y_list, scalar = TRUE)
-					}, error = function(e) {
-						.record_custom_gof_err(.cg_tracker, e)
-						custom_obs[i] <- NA
-					})
+					}, error = function(e) .record_custom_gof_err(.cg_tracker, e))
 				}
 			}
 			obs_gof <- c(obs_gof, custom_obs)
@@ -249,8 +291,6 @@ gof <- function(
 	if (verbose) {
 		cli::cli_progress_bar("Computing posterior predictive GOF", total = nsim)
 	}
-
-	sims <- simulate(fit, nsim = nsim, seed = 6886, type = "posterior")
 
 	# GOF of a simulated dataset averaged over periods
 	avg_gof <- function(y_sim) {
@@ -312,7 +352,7 @@ gof <- function(
 
 	.maybe_warn_custom_gof(.cg_tracker, where = "GOF simulation")
 
-	attr(GOF, "replication_method") <- sims$method
+	attr(GOF, "replication_method") <- if (is_als) "point estimate" else sims$method
 	attr(GOF, "draw_index") <- sims$draw_index
 	return(GOF)
 }

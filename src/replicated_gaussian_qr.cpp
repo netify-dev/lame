@@ -395,37 +395,3 @@ List replicated_gaussian_draw_cpp(const List& design, const arma::cube& ZT, cons
 	return List::create(_["beta"] = beta, _["a"] = a, _["b"] = b);
 }
 
-// Exact mean and covariance of (beta, a, b) under the same conditional.
-// [[Rcpp::export(rng = false)]]
-List replicated_gaussian_moments_cpp(const List& design, const arma::cube& ZT, const arma::mat& Sab,
-		const arma::vec& rho, double s2, const arma::mat& P0, const arma::vec& m0, bool center = false) {
-	const Design ds(design);
-	const System sy = build_system(ds, ZT, Sab, rho, s2, P0, m0, center);
-	const uword p = sy.p, k = sy.k, n = sy.n, nr = sy.nr, dim = p + nr * k;
-	// root columns: p coefficient normals, then k normals per actor block
-	mat root(p + 2 * n, dim, fill::zeros);
-	vec mean(p + 2 * n, fill::zeros);
-	if (p) {
-		root.submat(0, 0, p - 1, p - 1) = sy.beta_root;
-		mean.head(p) = sy.beta_mean;
-	}
-	mat Fmean(nr, k);
-	std::vector<mat> Fcol(dim, mat(nr, k, fill::zeros));
-	if (k) for (uword h = 0; h < nr; ++h) {
-		mat Ri = block_inverse(sy, h);
-		Fmean.row(h) = (Ri * (sy.D.col(h) - sy.C.slice(h) * sy.beta_mean)).t();
-		mat coupling = -Ri * sy.C.slice(h) * sy.beta_root;
-		for (uword j = 0; j < p; ++j) Fcol[j].row(h) = coupling.col(j).t();
-		for (uword j = 0; j < k; ++j) Fcol[p + h * k + j].row(h) = Ri.col(j).t();
-	}
-	vec a, b;
-	actor_effects(sy, Fmean, a, b);
-	mean.subvec(p, p + n - 1) = a;
-	mean.subvec(p + n, p + 2 * n - 1) = b;
-	for (uword j = 0; j < dim; ++j) {
-		actor_effects(sy, Fcol[j], a, b);
-		root.submat(p, j, p + n - 1, j) = a;
-		root.submat(p + n, j, p + 2 * n - 1, j) = b;
-	}
-	return List::create(_["mean"] = mean, _["covariance"] = root * root.t(), _["rank"] = k);
-}

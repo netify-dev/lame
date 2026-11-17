@@ -18,7 +18,6 @@
 # log bivariate normal cdf of .lame_binary_dynamic_bvn_log() computed by the compiled kernel
 # (pbivnorm's scheme), with the same quadrature fallback below 1e-10
 .ae_bvn_log <- function(a, b, rho) {
-	if (identical(.ae_engine(), "r")) return(.lame_binary_dynamic_bvn_log(a, b, rho))
 	rho <- rep(rho, length.out = length(a))
 	stopifnot(all(is.finite(a)), all(is.finite(b)), all(abs(rho) < 1))
 	if (!length(a)) return(numeric())
@@ -94,7 +93,7 @@
 	)
 }
 
-# refresh dependence after a full fit or a split-sample correction so the likelihood
+# refresh dependence after a full fit so the likelihood
 # and simulations use the reported marginal predictor
 .ae_update_binary_rho <- function(object, link) {
 	if (object$family != "binary" || isTRUE(object$symmetric) ||

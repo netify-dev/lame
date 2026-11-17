@@ -20,7 +20,15 @@ dynamic_df_dense_reference = function(prep, mask, w, dynamic_ab, lab, rab, lbeta
 	temporal = function(kind, rho) {if (kind == 'rw2') return(
 		diff(diag(nt), differences = 2)
 	);D = matrix(0, nt - 1, nt);for (t in 2:nt) {D[t - 1, t] = 1;D[t - 1, t - 1] = if (kind == 'ar1') -rho else -1};D}
-	for (k in which(mask)) {jj = map[k, ];P[jj, jj] = P[jj, jj] + lbeta * crossprod(temporal(kind, rbeta))}
+	# an ar1 coefficient path is stationary around its long-run mean, which the penalty profiles out
+	coef_pen = function(kind, rho) {
+		K = crossprod(temporal(kind, rho))
+		if (kind != 'ar1') return(K)
+		K[1, 1] = K[1, 1] + 1 - rho^2
+		k1 = rowSums(K)
+		K - tcrossprod(k1) / sum(k1)
+	}
+	for (k in which(mask)) {jj = map[k, ];P[jj, jj] = P[jj, jj] + lbeta * coef_pen(kind, rbeta)}
 	C = matrix(0, ta * (if (sym) 1 else 2), q)
 	for (t in seq_len(ta)) {C[t, nbeta + (t - 1) * nr + seq_len(nr)] = 1;if (!sym) C[ta + t, nbeta + na + (t - 1) * nc + seq_len(nc)] = 1}
 	if (dynamic_ab) {
@@ -62,17 +70,17 @@ test_that("changing coefficients retain the exact unpenalized residual dimension
 		cbind(period, diag(n)[ij[, 1], -1, drop = FALSE], diag(n)[ij[, 2], -1, drop = FALSE])
 	}))
 	y = unlist(Y);keep = is.finite(y);y = y[keep];reference = qr(design);mean = qr.fitted(reference, y)
-	fit = lame(
+	# the penalised fit, as the sampler's warm start asks for it
+	fit = lame:::lame_dynamic_als(
 		Y,
 		Xdyad = X,
 		R = 0,
 		family = 'normal',
-		method = 'als',
 		dynamic_beta = TRUE,
 		bias_correct = 'none',
-		prior = list(lambda_beta_als = 0),
-		als_max_iter = 1000,
-		als_tol = 1e-10,
+		lambda_beta = 0,
+		max_iter = 1000,
+		tol = 1e-10,
 		verbose = FALSE
 	)
 	expect_true(fit$converged)
@@ -149,13 +157,13 @@ test_that("dynamic count dispersion uses the remaining mean dimension", {
 	for (t in seq_len(nt)) {
 		x = matrix(rnorm(n * n), n);eta = .5 + .4 * x + outer(rnorm(n, 0, .3), rnorm(n, 0, .3), '+')
 		y = matrix(rpois(n * n, exp(eta + matrix(rnorm(n * n, 0, sqrt(.5)), n))), n);diag(y) = NA_real_
-		dimnames(y) = list(paste0('a', 1:n), paste0('a', 1:n));Y[[t]] = y;X[[t]] = array(
+		dimnames(y) = list(sprintf('a%02d', 1:n), sprintf('a%02d', 1:n));Y[[t]] = y;X[[t]] = array(
 			x,
 			c(n, n, 1),
 			dimnames = c(dimnames(y), list('x'))
 		)
 	}
-	# the raw Pearson root, before the jackknife correction tested separately
+	# the raw pearson root of the penalised fit, as the sampler's warm start asks for it
 	fit = lame(
 		Y,
 		Xdyad = X,
@@ -163,7 +171,7 @@ test_that("dynamic count dispersion uses the remaining mean dimension", {
 		family = 'poisson',
 		method = 'als',
 		dynamic_ab = TRUE,
-		bias_correct = 'none',
+		prior = structure(list(), lame_als_estimator = 'none'),
 		als_max_iter = 1000,
 		als_tol = 1e-6,
 		verbose = FALSE

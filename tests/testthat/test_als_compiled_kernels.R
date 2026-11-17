@@ -3,26 +3,11 @@ skip_on_cran()
 library(lame)
 
 # compiled kernels of the binary probit empirical-Bayes estimator (src/ae_kernels.cpp) against their R
-# references (suffix _r); they agree to rounding on realistic predictors, and the tolerance is looser where the
+# references (suffix _r, helper-reference-engines-als.R); they agree to rounding on realistic predictors, and the tolerance is looser where the
 # references are noisy themselves: at the hand-over between the series and the log-domain integral, and far in the tails
 
 kn = function(f) get(f, envir = asNamespace("lame"))
 rel_diff = function(x, y, floor = 1e-8) max(abs(x - y) / (abs(y) + floor * max(abs(y[is.finite(y)]))))
-
-test_that("the Gauss-Hermite rule of the kernels is the rule of the R reference to the last bit", {
-	for (k in c(1L, 2L, 3L, 5L, 9L, 15L, 21L)) {
-		g0 = lame:::.ae_mf_gh(k); g1 = kn("ae_gh_rule_cpp")(k)
-		expect_identical(g1$z, g0$z)
-		expect_identical(g1$w, g0$w)
-	}
-})
-
-test_that("the log normal cdf kernel agrees with pnorm over the whole line", {
-	x = c(seq(-60, 12, by = 0.173), -1e3, -1e5, 38, 100, 0)
-	l0 = pnorm(x, log.p = TRUE); l1 = kn("ae_log_pnorm_cpp")(x)
-	expect_lt(max(abs(l1 - l0) / pmax(abs(l0), 1e-300)), 1e-13)
-	expect_identical(kn("ae_log_pnorm_cpp")(c(-Inf, Inf, NaN)), c(-Inf, 0, NaN))
-})
 
 test_that("the bivariate normal probability kernel reproduces pbivnorm", {
 	skip_if_not_installed("pbivnorm")
@@ -48,9 +33,9 @@ test_that("the log bivariate probability and its derivatives agree with the R re
 	set.seed(5)
 	n = 3000
 	a = rnorm(n, -1, 2); b = rnorm(n, -1, 2); r = runif(n, -0.97, 0.97)
-	l0 = lame:::.ae_pair_logphi2_r(a, b, r); l1 = kn("ae_pair_logphi2_cpp")(a, b, r)
+	l0 = .ae_pair_logphi2_r(a, b, r); l1 = kn("ae_pair_logphi2_cpp")(a, b, r)
 	expect_lt(max(abs(l1 - l0)), 1e-10)
-	d0 = lame:::.ae_pair_logp_r(a, b, r); d1 = kn("ae_pair_logp_cpp")(a, b, r)
+	d0 = .ae_pair_logp_r(a, b, r); d1 = kn("ae_pair_logp_cpp")(a, b, r)
 	for (f in names(d0)) expect_lt(rel_diff(d1[[f]], d0[[f]]), 1e-8, label = f)
 	# scalar correlation: the same as the vector of copies
 	d2 = kn("ae_pair_logp_cpp")(a, b, 0.45)
@@ -67,13 +52,13 @@ test_that("the log bivariate probability and its derivatives agree with the R re
 	}, 0)
 	expect_equal(truth[1], pnorm(-5.56, log.p = TRUE) + pnorm(31, log.p = TRUE), tolerance = 1e-12)
 	expect_lt(max(abs(kn("ae_pair_logphi2_cpp")(a2, b2, r2) - truth)), 1e-8)
-	expect_lt(max(abs(lame:::.ae_pair_logphi2_r(a2, b2, r2) - truth)), 1e-8)
+	expect_lt(max(abs(.ae_pair_logphi2_r(a2, b2, r2) - truth)), 1e-8)
 	# very small probabilities take the log-domain integral, the same value as the reference
 	ab = rbind(c(-8, -8, -0.5), c(-10, -5, -0.9), c(-6, -6, -0.3), c(-8, -8, 0.8), c(-3, -8, 0.8), c(-4, -4, 0.9))
 	expect_lt(
 		max(
 			abs(
-				kn("ae_pair_logphi2_cpp")(ab[, 1], ab[, 2], ab[, 3]) - lame:::.ae_pair_logphi2_r(ab[, 1], ab[, 2], ab[, 3])
+				kn("ae_pair_logphi2_cpp")(ab[, 1], ab[, 2], ab[, 3]) - .ae_pair_logphi2_r(ab[, 1], ab[, 2], ab[, 3])
 			)
 		),
 		1e-10
@@ -86,26 +71,23 @@ test_that("the cell quadrature kernels agree with the R references, observed cel
 	y = array(sample(c(0, 1, NA), nc, TRUE, prob = c(.45, .45, .1)), c(nc, 1L, 1L))
 	m = array(rnorm(nc, -1, 2), dim(y)); v = array(runif(nc, 0, 2), dim(y))
 	for (link in c("probit", "logit")) for (k in c(3L, 9L)) {
-		w0 = lame:::.ae_mf_cells_r(y, m, v, link, k); w1 = kn("ae_cells_cpp")(y, m, v, link == "probit", k)
+		w0 = .ae_mf_cells_r(y, m, v, link, k); w1 = kn("ae_cells_cpp")(y, m, v, link == "probit", k)
 		for (f in c("z", "w", "ell")) expect_lt(
 			rel_diff(as.vector(w1[[f]]), as.vector(w0[[f]])),
 			1e-10,
 			label = paste(link, k, f)
 		)
 		expect_true(all(as.vector(w1$w)[is.na(y)] == 0))
-		i0 = lame:::.ae_mf_info_w_r(y, m, v, link, k); i1 = kn("ae_info_w_cpp")(y, m, v, link == "probit", k)
+		i0 = .ae_mf_info_w_r(y, m, v, link, k); i1 = kn("ae_info_w_cpp")(y, m, v, link == "probit", k)
 		expect_lt(rel_diff(i1, as.vector(i0)), 1e-9, label = paste(link, k, "info_w"))
 	}
 	# predictors tens of standard deviations out: the cells are conditioned badly and both engines are noisy
 	m[1:20] = runif(20, -40, -20); v[1:20] = 5
-	w0 = lame:::.ae_mf_cells_r(y, m, v, "probit", 9L); w1 = kn("ae_cells_cpp")(y, m, v, TRUE, 9L)
+	w0 = .ae_mf_cells_r(y, m, v, "probit", 9L); w1 = kn("ae_cells_cpp")(y, m, v, TRUE, 9L)
 	expect_lt(rel_diff(as.vector(w1$w), as.vector(w0$w)), 1e-6)
-	# the wrapper takes the engine from the option, and the arrays keep their shape
-	old = options(lame.als_engine = "r")
-	on.exit(options(old), add = TRUE)
-	r_wrap = lame:::.ae_mf_cells(y, m, v, "probit", 9L)
-	options(lame.als_engine = "cpp")
+	# the wrapper keeps the shape of the arrays, and the reference engine swaps in the reference
 	c_wrap = lame:::.ae_mf_cells(y, m, v, "probit", 9L)
+	r_wrap = local({ local_als_r_engine(); lame:::.ae_mf_cells(y, m, v, "probit", 9L) })
 	expect_identical(dim(c_wrap$z), dim(y))
 	expect_identical(r_wrap, w0)
 	expect_lt(rel_diff(as.vector(c_wrap$w), as.vector(r_wrap$w)), 1e-6)
@@ -132,7 +114,7 @@ test_that("the pair quadrature kernel (observed information) agrees with the R r
 	skip_if_not_installed("pbivnorm")
 	d = pair_inputs()
 	for (rho in c(-0.8, -0.3, 0, 0.5, 0.9)) for (k in c(3L, 5L)) {
-		q0 = lame:::.ae_pair_quad_r(d$m1, d$m2, d$v1, d$v2, d$cv, d$s1, d$s2, rho, k)
+		q0 = .ae_pair_quad_r(d$m1, d$m2, d$v1, d$v2, d$cv, d$s1, d$s2, rho, k)
 		q1 = kn("ae_pair_quad_cpp")(d$m1, d$m2, d$v1, d$v2, d$cv, d$s1, d$s2, rho, k, 0L)
 		expect_identical(names(q1), names(q0))
 		scale = max(abs(unlist(q0[c("psi1", "psi2", "w11", "w22")])))
@@ -157,7 +139,7 @@ test_that("the pair quadrature kernel (Fisher information) agrees with the R ref
 	d = pair_inputs(np = 500, seed = 8)
 	k = rep(c(1L, 5L, 9L), length.out = length(d$m1))
 	for (rho in c(-0.6, 0.4)) {
-		q0 = lame:::.ae_pair_quad_fisher_r(
+		q0 = .ae_pair_quad_fisher_r(
 			d$m1,
 			d$m2,
 			d$v1,
@@ -230,21 +212,24 @@ test_that("the pair quadrature kernel (Fisher information) agrees with the R ref
 	}
 })
 
-test_that("the pair quadrature wrappers select the engine with the option", {
+test_that("the pair quadrature wrappers agree with the reference engine", {
 	skip_if_not_installed("pbivnorm")
 	d = pair_inputs(np = 200, seed = 9)
-	old = options(lame.als_engine = "r", lame.als_threads = 1L)
+	old = options(lame.als_threads = 1L)
 	on.exit(options(old), add = TRUE)
-	a = lame:::.ae_pair_quad(d$m1, d$m2, d$v1, d$v2, d$cv, d$s1, d$s2, 0.3, 5L)
-	f_a = lame:::.ae_pair_quad_fisher(d$m1, d$m2, d$v1, d$v2, 0, d$s1, d$s2, 0.3, 5L, TRUE, TRUE)
-	options(lame.als_engine = "cpp")
+	ref = local({
+		local_als_r_engine()
+		list(
+			a = lame:::.ae_pair_quad(d$m1, d$m2, d$v1, d$v2, d$cv, d$s1, d$s2, 0.3, 5L),
+			f = lame:::.ae_pair_quad_fisher(d$m1, d$m2, d$v1, d$v2, 0, d$s1, d$s2, 0.3, 5L, TRUE, TRUE)
+		)
+	})
+	a = ref$a; f_a = ref$f
 	b = lame:::.ae_pair_quad(d$m1, d$m2, d$v1, d$v2, d$cv, d$s1, d$s2, 0.3, 5L)
 	f_b = lame:::.ae_pair_quad_fisher(d$m1, d$m2, d$v1, d$v2, 0, d$s1, d$s2, 0.3, 5L, TRUE, TRUE)
 	for (f in names(a)) expect_lt(rel_diff(b[[f]], a[[f]]), 1e-8, label = f)
 	for (f in names(f_a)) expect_lt(rel_diff(f_b[[f]], f_a[[f]], floor = 1e-6), 1e-7, label = f)
-	options(lame.als_engine = "nonsense")
-	expect_error(lame:::.ae_engine(), "must be")
-	options(lame.als_engine = "cpp", lame.als_threads = 0)
+	options(lame.als_threads = 0)
 	expect_error(lame:::.ae_threads(), "positive")
 })
 
@@ -256,7 +241,7 @@ test_that("the sums of the pair engine and the signed weighted sums equal their 
 	cw = array(rnorm(n * n * Tt), c(n, n, Tt)); cw[sample(length(cw), 20)] = NA
 	cw[cbind(naX[, 1], naX[, 2], naX[, 4])] = 0
 	cx = list(nr = n, Tt = Tt, p = p, X = X)
-	a = lame:::.ae_pair_cross_r(cx, cw); b = lame:::.ae_pair_cross(cx, cw)
+	a = .ae_pair_cross_r(cx, cw); b = lame:::.ae_pair_cross(cx, cw)
 	expect_identical(names(a), names(b))
 	for (f in c("Csum", "gmc", "xx", "d", "th_a", "th_b")) expect_equal(b[[f]], a[[f]], tolerance = 1e-12, label = f)
 	for (k in seq_along(a$Mk)) expect_equal(b$Mk[[k]], a$Mk[[k]], tolerance = 1e-12)
@@ -264,18 +249,16 @@ test_that("the sums of the pair engine and the signed weighted sums equal their 
 	hp[cbind(naX[, 1], naX[, 2], naX[, 4])] = 0
 	expect_equal(
 		lame:::.ae_eb_hprime_sums(hp, X, n, n, Tt, p),
-		lame:::.ae_eb_hprime_sums_r(hp, X, n, n, Tt, p),
+		.ae_eb_hprime_sums_r(hp, X, n, n, Tt, p),
 		tolerance = 1e-12
 	)
 	# the terms of the probit working response and the derivative of its weight
 	eta = array(rnorm(n * n * Tt, 0, 3), c(n, n, Tt))
-	t0 = lame:::.ae_probit_terms_r(eta, which(rbinom(length(eta), 1, .2) == 1)); t1 = lame:::.ae_probit_terms(eta, NULL)
+	t0 = .ae_probit_terms_r(eta, which(rbinom(length(eta), 1, .2) == 1)); t1 = lame:::.ae_probit_terms(eta, NULL)
 	for (f in c("ld", "lp1", "lp0")) expect_equal(t1[[f]], t0[[f]], tolerance = 1e-13, label = f)
 	expect_identical(dim(t1$lp1), dim(eta))
 	h0 = lame:::.ae_eb_hprime(eta, "probit", t0)
-	old = options(lame.als_engine = "r")
-	h1 = lame:::.ae_eb_hprime(eta, "probit", t0)
-	options(old)
+	h1 = ae_probit_hprime_r(eta, t0$ld, t0$lp1, t0$lp0)
 	expect_equal(h0, h1, tolerance = 1e-12)
 	# the log bivariate cdf of the correlation estimate is that of the sampler's function
 	a = rnorm(500, 0, 1.5); b = rnorm(500, 0, 1.5); r = runif(500, -0.95, 0.95)
@@ -303,7 +286,7 @@ test_that("the row solves of the factor sweeps agree with the one-at-a-time refe
 		)
 		Lm = crossprod(matrix(rnorm(R * R), R)) / 3 + diag(R)
 		rhs = matrix(rnorm(n * R), n)
-		a = lame:::.ae_mf_row_solve_r(Gflat, Lm, rhs); b = lame:::.ae_mf_row_solve(Gflat, Lm, rhs)
+		a = .ae_mf_row_solve_r(Gflat, Lm, rhs); b = lame:::.ae_mf_row_solve(Gflat, Lm, rhs)
 		expect_equal(b$x, a$x, tolerance = 1e-12)
 		expect_equal(b$Sig, a$Sig, tolerance = 1e-12)
 	}
@@ -311,7 +294,7 @@ test_that("the row solves of the factor sweeps agree with the one-at-a-time refe
 	Gflat = t(vapply(seq_len(n), function(i) as.vector(crossprod(matrix(rnorm(R * R), R))), numeric(R * R)))
 	Gflat[2, ] = as.vector(diag(c(1, -5, 1)))
 	Lm = diag(R) * 0.1; rhs = matrix(rnorm(n * R), n)
-	a = lame:::.ae_mf_row_solve_r(Gflat, Lm, rhs); b = lame:::.ae_mf_row_solve(Gflat, Lm, rhs)
+	a = .ae_mf_row_solve_r(Gflat, Lm, rhs); b = lame:::.ae_mf_row_solve(Gflat, Lm, rhs)
 	expect_equal(b$x, a$x, tolerance = 1e-12)
 	expect_equal(b$Sig, a$Sig, tolerance = 1e-12)
 })
@@ -373,8 +356,9 @@ als_engine_panel = function(n = 14L, Tt = 2L, seed = 13) {
 }
 
 als_engine_fit = function(d, engine, threads, dcor, R) {
-	old = options(lame.als_engine = engine, lame.als_threads = threads)
+	old = options(lame.als_threads = threads)
 	on.exit(options(old), add = TRUE)
+	if (identical(engine, "r")) local_als_r_engine()
 	suppressWarnings(suppressMessages(lame_als(d$Y, d$X, R = R, family = "binary", verbose = FALSE, dcor = dcor)))
 }
 

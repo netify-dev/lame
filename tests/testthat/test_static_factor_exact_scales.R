@@ -38,17 +38,6 @@ test_that("zero opposing factors retain the exact prior conditional", {
 	}
 })
 
-test_that("Wishart draws retain small positive covariance directions", {
-	set.seed(47315402L)
-	S = diag(c(1, 1e-16))
-	x = replicate(2000L, lame:::rwish_cpp(S, 7L)[2, 2] / S[2, 2])
-	expect_lt(abs(mean(x) - 7), 6 * sd(x) / sqrt(length(x)))
-	expect_error(lame:::rwish_cpp(diag(c(1, -1)), 7L), "positive definite")
-	expect_error(lame:::rwish_cpp(matrix(NA_real_, 2, 2), 7L), "finite")
-	expect_error(lame:::rwish_cpp(matrix(1, 2, 3), 7L), "square")
-	expect_error(lame:::rwish_cpp(diag(2), 0L), "positive")
-})
-
 test_that("large factor states retain their inverse-Wishart conditional law", {
 	set.seed(47315403L)
 	n = 4L

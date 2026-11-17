@@ -147,8 +147,8 @@ ame_memory_usage <- function(fit = NULL, detailed = TRUE) {
 #' Display memory usage information for AME models
 #'
 #' @description
-#' Shows estimated memory usage for networks of given size.
-#' Memory optimization is automatic, so this is informational only.
+#' Shows estimated memory usage for networks of given size, with the levers
+#' that reduce the memory of a fit.
 #'
 #' @param n_nodes Number of nodes in network
 #' @param R Rank of multiplicative effects (default: 2)
@@ -183,19 +183,11 @@ ame_memory_settings <- function(n_nodes, R = 2) {
 	cli::cli_text("  - Each n x n matrix: {.val {round(matrix_size_mb, 1)}} MB")
 	cli::cli_text("  - Factor matrices (U,V): {.val {round(factor_size_mb, 1)}} MB")
 
-	# totals for each storage configuration; networks of more than 100 nodes keep YPM only
-	full_size <- matrix_size_mb * 3 + factor_size_mb # YPM, EZ, UVPM and factors
-	ypm_only <- n_nodes > 100
-	optimized_size <- if (ypm_only) matrix_size_mb + factor_size_mb else full_size
+	# the posterior-mean matrices (YPM, EZ, UVPM) and the factors
+	full_size <- matrix_size_mb * 3 + factor_size_mb
 
 	cli::cli_text("")
-	cli::cli_text("Memory usage by configuration:")
 	cli::cli_text("  - All posterior-mean matrices (YPM, EZ, UVPM): {.val {round(full_size, 1)}} MB")
-	if (ypm_only) {
-		cli::cli_text("  - Optimized (YPM only, for n > 100): {.val {round(optimized_size, 1)}} MB")
-	} else {
-		cli::cli_text("  - Optimized (all matrices kept for n <= 100): {.val {round(optimized_size, 1)}} MB")
-	}
 
 	cli::cli_text("")
 	cli::cli_text("Recommendations:")
@@ -209,7 +201,6 @@ ame_memory_settings <- function(n_nodes, R = 2) {
 	invisible(list(
 		matrix_mb = matrix_size_mb,
 		factor_mb = factor_size_mb,
-		total_mb = full_size,
-		optimized_mb = optimized_size
+		total_mb = full_size
 	))
 }

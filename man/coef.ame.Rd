@@ -33,6 +33,9 @@ coefficient is time-varying), \code{fit$BETA} is a 3-dimensional array
 matrix of per-period posterior means. Rownames are the coefficient names;
 colnames are the period labels (from \code{names(Y)} or \code{t1, t2, ...}).
 Static coefficients in a dynamic fit are constant across the columns.
+A coefficient whose path is AR(1) reverts to its own long-run mean; its
+posterior mean is in \code{fit$mu_beta}, its draws in \code{fit$MU_BETA},
+and \code{confint(fit, parm = "mu_beta")} gives its intervals.
 
 For binary models, these are on the probit (latent) scale. Use
 \code{\link{predict.ame}} with \code{type = "response"} to get predicted

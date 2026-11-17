@@ -92,7 +92,8 @@
 		inR <- seq_len(n_r) %in% R
 		ua <- ifelse(inR, -(1 - r), r)
 		ut <- ifelse(inP, 1 - r, -r)
-		path <- ic$path
+		# an ar1 path is read as its deviation from its long-run mean `centre`
+		path <- ic$path - (ic$centre %||% 0)
 		du <- ut[-1L] - ic$rho * ut[-N]
 		Q <- sum(ua^2) / s2 + ut[1L]^2 / ic$v0 + sum(du^2) / ic$sd2
 		lin <- sum(ua * (a - m)) / s2 + ut[1L] * (path[1L] - ic$m0) / ic$v0 +

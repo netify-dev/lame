@@ -34,7 +34,9 @@ test_that("bipartite scalar g follows the fitted coefficient layout", {
 	withr::local_preserve_seed()
 	args = bipartite_g_layout_fixture()
 	fit = do.call(lame, args)
-	expect_identical(fit$g, rep(25, 4L))
+	# default g = n^2 divided by the mean square of each slope's design column
+	ms = vapply(2:4, function(k) mean(unlist(lapply(fit$Xlist, function(x) x[, , k]^2))), numeric(1))
+	expect_equal(fit$g, c(25, 25 / ms), tolerance = 1e-12)
 	expect_identical(length(fit$g), dim(fit$Xlist[[1L]])[3L])
 	expect_identical(colnames(fit$BETA), c("intercept", "x_dyad", "z_dyad", "w_dyad"))
 	args$g = 7

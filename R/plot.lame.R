@@ -15,7 +15,6 @@
 #'         posterior predictive intervals}
 #'   \item{Effects over time}{Evolution of additive effects across time periods
 #'         (if applicable)}
-#'   \item{Network snapshots}{Visualization of network at selected time points}
 #' }
 #'
 #' The plot adapts to the longitudinal structure:
@@ -28,11 +27,8 @@
 #'        1 or "trace" = MCMC trace plots,
 #'        2 or "density" = posterior density plots,
 #'        3 or "gof" = longitudinal goodness-of-fit plots,
-#'        4 or "effects" = additive and multiplicative effects,
-#'        5 or "network" = network snapshots at selected times.
+#'        4 or "effects" = additive and multiplicative effects.
 #'        Default is c(1,2,3,4) to show main diagnostic plots.
-#' @param time.points numeric vector of time points for network snapshots
-#'        (only used if "network" in which). Default is c(1, middle, last).
 #' @param ask logical; if TRUE, user is prompted before each plot page
 #' @param pages character string specifying how to arrange plots:
 #'        "single" = one combined page (default),
@@ -62,12 +58,9 @@
 #' }
 #' @method plot lame
 #' @export
-#' @import ggplot2
-#' @import patchwork
 plot.lame <- function(
 	x,
 	which = c(1, 2, 3, 4),
-	time.points = NULL,
 	ask = FALSE,
 	pages = c("single", "multiple"),
 	...
@@ -90,7 +83,6 @@ plot.lame <- function(
 		if (2 %in% which) plot_types <- c(plot_types, "density")
 		if (3 %in% which) plot_types <- c(plot_types, "gof")
 		if (4 %in% which) plot_types <- c(plot_types, "effects")
-		if (5 %in% which) plot_types <- c(plot_types, "network")
 	} else {
 		plot_types <- which
 	}
@@ -126,15 +118,15 @@ plot.lame <- function(
 	}
 
 	# theme shared by all panels
-	lame_theme <- theme_bw() +
-		theme(
-			panel.border = element_blank(),
-			plot.caption = element_text(hjust = 0),
-			axis.ticks = element_blank(),
+	lame_theme <- ggplot2::theme_bw() +
+		ggplot2::theme(
+			panel.border = ggplot2::element_blank(),
+			plot.caption = ggplot2::element_text(hjust = 0),
+			axis.ticks = ggplot2::element_blank(),
 			legend.position = "top",
-			strip.background = element_rect(fill = "black", color = "black"),
-			strip.text = element_text(color = "white", hjust = 0, size = 8),
-			panel.spacing = unit(0.5, "lines")
+			strip.background = ggplot2::element_rect(fill = "black", color = "black"),
+			strip.text = ggplot2::element_text(color = "white", hjust = 0, size = 8),
+			panel.spacing = ggplot2::unit(0.5, "lines")
 		)
 
 	plot_list <- list()
@@ -179,10 +171,10 @@ plot.lame <- function(
 		if (nrow(trace_data) > 0) {
 			trace_data$parameter <- relabel(trace_data$parameter, vc_labels)
 
-			p_trace <- ggplot(trace_data, aes(x = iteration, y = value)) +
-				geom_line(alpha = 0.7) +
-				facet_wrap(~parameter, scales = "free_y", ncol = 3) +
-				labs(title = "MCMC trace plots", x = "Iteration", y = "Value") +
+			p_trace <- ggplot2::ggplot(trace_data, ggplot2::aes(x = iteration, y = value)) +
+				ggplot2::geom_line(alpha = 0.7) +
+				ggplot2::facet_wrap(~parameter, scales = "free_y", ncol = 3) +
+				ggplot2::labs(title = "MCMC trace plots", x = "Iteration", y = "Value") +
 				lame_theme
 
 			plot_list[["trace"]] <- p_trace
@@ -227,11 +219,11 @@ plot.lame <- function(
 		if (nrow(density_data) > 0) {
 			density_data$parameter <- relabel(density_data$parameter, vc_labels)
 
-			p_density <- ggplot(density_data, aes(x = value)) +
-				geom_density() +
-				geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
-				facet_wrap(~parameter, scales = "free", ncol = 3) +
-				labs(title = "Posterior distributions", x = "Value", y = "Density") +
+			p_density <- ggplot2::ggplot(density_data, ggplot2::aes(x = value)) +
+				ggplot2::geom_density() +
+				ggplot2::geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+				ggplot2::facet_wrap(~parameter, scales = "free", ncol = 3) +
+				ggplot2::labs(title = "Posterior distributions", x = "Value", y = "Density") +
 				lame_theme
 
 			plot_list[["density"]] <- p_density
@@ -277,13 +269,13 @@ plot.lame <- function(
 			if (nrow(gof_long_data) > 0) {
 				gof_long_data$statistic <- relabel(gof_long_data$statistic, gof_stat_labels)
 
-				p_gof <- ggplot(gof_long_data, aes(x = time)) +
-					geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
-					geom_line(aes(y = median), linewidth = 1, linetype = "dashed") +
-					geom_line(aes(y = observed), linewidth = 1) +
-					geom_point(aes(y = observed), size = 2) +
-					facet_wrap(~statistic, scales = "free_y", ncol = 2) +
-					labs(
+				p_gof <- ggplot2::ggplot(gof_long_data, ggplot2::aes(x = time)) +
+					ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper), alpha = 0.3) +
+					ggplot2::geom_line(ggplot2::aes(y = median), linewidth = 1, linetype = "dashed") +
+					ggplot2::geom_line(ggplot2::aes(y = observed), linewidth = 1) +
+					ggplot2::geom_point(ggplot2::aes(y = observed), size = 2) +
+					ggplot2::facet_wrap(~statistic, scales = "free_y", ncol = 2) +
+					ggplot2::labs(
 						title = gof_time_title,
 						x = "Period",
 						y = "Value"
@@ -332,18 +324,18 @@ plot.lame <- function(
 			if (nrow(gof_long_data) > 0) {
 				gof_long_data$statistic <- relabel(gof_long_data$statistic, gof_stat_labels)
 
-				p_gof <- ggplot(gof_long_data, aes(x = as.numeric(factor(time)))) +
-					geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
-					geom_line(aes(y = median), linewidth = 1, linetype = "dashed") +
-					geom_line(aes(y = observed), linewidth = 1) +
-					geom_point(aes(y = observed), size = 2) +
-					facet_wrap(~statistic, scales = "free_y", ncol = 2) +
-					labs(
+				p_gof <- ggplot2::ggplot(gof_long_data, ggplot2::aes(x = as.numeric(factor(time)))) +
+					ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper), alpha = 0.3) +
+					ggplot2::geom_line(ggplot2::aes(y = median), linewidth = 1, linetype = "dashed") +
+					ggplot2::geom_line(ggplot2::aes(y = observed), linewidth = 1) +
+					ggplot2::geom_point(ggplot2::aes(y = observed), size = 2) +
+					ggplot2::facet_wrap(~statistic, scales = "free_y", ncol = 2) +
+					ggplot2::labs(
 						title = gof_time_title,
 						x = "Period",
 						y = "Value"
 					) +
-					scale_x_continuous(breaks = 1:n_time, labels = time_names) +
+					ggplot2::scale_x_continuous(breaks = 1:n_time, labels = time_names) +
 					lame_theme
 
 				plot_list[["gof"]] <- p_gof
@@ -392,13 +384,13 @@ plot.lame <- function(
 				if (nrow(gof_long_data) > 0) {
 					gof_long_data$statistic <- relabel(gof_long_data$statistic, gof_stat_labels)
 
-					p_gof <- ggplot(gof_long_data, aes(x = time)) +
-						geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
-						geom_line(aes(y = median), linewidth = 1, linetype = "dashed") +
-						geom_line(aes(y = observed), linewidth = 1) +
-						geom_point(aes(y = observed), size = 2) +
-						facet_wrap(~statistic, scales = "free_y", ncol = 2) +
-						labs(
+					p_gof <- ggplot2::ggplot(gof_long_data, ggplot2::aes(x = time)) +
+						ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper), alpha = 0.3) +
+						ggplot2::geom_line(ggplot2::aes(y = median), linewidth = 1, linetype = "dashed") +
+						ggplot2::geom_line(ggplot2::aes(y = observed), linewidth = 1) +
+						ggplot2::geom_point(ggplot2::aes(y = observed), size = 2) +
+						ggplot2::facet_wrap(~statistic, scales = "free_y", ncol = 2) +
+						ggplot2::labs(
 							title = gof_time_title,
 							x = "Period",
 							y = "Value"
@@ -431,11 +423,11 @@ plot.lame <- function(
 				if (nrow(gof_plot_data) > 0) {
 					gof_plot_data$statistic <- relabel(gof_plot_data$statistic, gof_stat_labels)
 
-					p_gof <- ggplot(gof_plot_data, aes(x = value)) +
-						geom_histogram(aes(y = after_stat(density)), bins = 30) +
-						geom_vline(aes(xintercept = observed), linewidth = 1) +
-						facet_wrap(~statistic, scales = "free", ncol = 2) +
-						labs(
+					p_gof <- ggplot2::ggplot(gof_plot_data, ggplot2::aes(x = value)) +
+						ggplot2::geom_histogram(ggplot2::aes(y = ggplot2::after_stat(density)), bins = 30) +
+						ggplot2::geom_vline(ggplot2::aes(xintercept = observed), linewidth = 1) +
+						ggplot2::facet_wrap(~statistic, scales = "free", ncol = 2) +
+						ggplot2::labs(
 							title = gof_static_title,
 							x = "Value",
 							y = "Density"
@@ -467,11 +459,11 @@ plot.lame <- function(
 
 			gof_plot_data$statistic <- relabel(gof_plot_data$statistic, gof_stat_labels)
 
-			p_gof <- ggplot(gof_plot_data, aes(x = value)) +
-				geom_histogram(aes(y = after_stat(density)), bins = 30) +
-				geom_vline(aes(xintercept = observed), linewidth = 1) +
-				facet_wrap(~statistic, scales = "free", ncol = 2) +
-				labs(
+			p_gof <- ggplot2::ggplot(gof_plot_data, ggplot2::aes(x = value)) +
+				ggplot2::geom_histogram(ggplot2::aes(y = ggplot2::after_stat(density)), bins = 30) +
+				ggplot2::geom_vline(ggplot2::aes(xintercept = observed), linewidth = 1) +
+				ggplot2::facet_wrap(~statistic, scales = "free", ncol = 2) +
+				ggplot2::labs(
 					title = gof_static_title,
 					x = "Value",
 					y = "Density"
@@ -552,18 +544,18 @@ plot.lame <- function(
 						effects_time_data$name %in% top_actors$name,
 					]
 
-					p_effects_time <- ggplot(
+					p_effects_time <- ggplot2::ggplot(
 						effects_time_data,
-						aes(
+						ggplot2::aes(
 							x = time,
 							y = effect,
 							color = name,
 							linetype = type
 						)
 					) +
-						geom_line(alpha = 0.7) +
-						geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-						labs(
+						ggplot2::geom_line(alpha = 0.7) +
+						ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+						ggplot2::labs(
 							title = "Top 20 actors: effects over time",
 							x = "Period",
 							y = "Effect",
@@ -593,18 +585,18 @@ plot.lame <- function(
 				effects_data <- effects_data[order(effects_data$type, effects_data$effect), ]
 				effects_data$index <- 1:nrow(effects_data)
 
-				p_additive <- ggplot(effects_data, aes(x = index, y = effect, color = type)) +
-					geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-					geom_point(size = 1.5, alpha = 0.7) +
-					geom_segment(aes(xend = index, yend = 0), alpha = 0.5) +
-					labs(
+				p_additive <- ggplot2::ggplot(effects_data, ggplot2::aes(x = index, y = effect, color = type)) +
+					ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+					ggplot2::geom_point(size = 1.5, alpha = 0.7) +
+					ggplot2::geom_segment(ggplot2::aes(xend = index, yend = 0), alpha = 0.5) +
+					ggplot2::labs(
 						title = "Additive effects (time-averaged)",
 						x = "Actor (sorted)",
 						y = "Effect",
 						color = "Type"
 					) +
 					lame_theme +
-					theme(axis.text.x = element_blank())
+					ggplot2::theme(axis.text.x = ggplot2::element_blank())
 
 				effects_plots[["additive"]] <- p_additive
 			}
@@ -669,18 +661,18 @@ plot.lame <- function(
 			}
 
 			if (!is.null(mult_data)) {
-				p_mult <- ggplot(mult_data, aes(x = x, y = y, color = type)) +
-					geom_point(size = 2, alpha = 0.7) +
-					geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-					geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
-					labs(
+				p_mult <- ggplot2::ggplot(mult_data, ggplot2::aes(x = x, y = y, color = type)) +
+					ggplot2::geom_point(size = 2, alpha = 0.7) +
+					ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+					ggplot2::geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+					ggplot2::labs(
 						title = "Multiplicative effects",
 						x = "Dimension 1",
 						y = "Dimension 2",
 						color = "Type"
 					) +
 					lame_theme +
-					coord_fixed()
+					ggplot2::coord_fixed()
 
 				effects_plots[["multiplicative"]] <- p_mult
 			}
@@ -691,90 +683,6 @@ plot.lame <- function(
 				plot_list[["effects"]] <- patchwork::wrap_plots(effects_plots, ncol = 1)
 			} else {
 				plot_list[["effects"]] <- effects_plots[[1]]
-			}
-		}
-	}
-
-	# network snapshots at selected time points
-	if ("network" %in% plot_types && !is.null(fit$Y_T)) {
-		n_time <- length(fit$Y_T)
-
-		if (is.null(time.points)) {
-			time.points <- c(1, ceiling(n_time / 2), n_time)
-			time.points <- unique(time.points[time.points <= n_time])
-		}
-		time.points <- time.points[time.points >= 1 & time.points <= n_time]
-
-		network_plots <- list()
-
-		for (t in time.points) {
-			Y_t <- fit$Y_T[[t]]
-			if (!is.null(Y_t)) {
-				net_data <- data.frame()
-				n <- nrow(Y_t)
-				for (i in 1:n) {
-					for (j in 1:n) {
-						if (i != j && !is.na(Y_t[i, j]) && Y_t[i, j] > 0) {
-							net_data <- rbind(
-								net_data,
-								data.frame(
-									from = i,
-									to = j,
-									weight = Y_t[i, j],
-									stringsAsFactors = FALSE
-								)
-							)
-						}
-					}
-				}
-
-				if (nrow(net_data) > 0) {
-					angles <- seq(0, 2 * pi, length.out = n + 1)[1:n]
-					node_positions <- data.frame(
-						node = 1:n,
-						x = cos(angles),
-						y = sin(angles)
-					)
-
-					net_data <- merge(net_data, node_positions, by.x = "from", by.y = "node")
-					names(net_data)[names(net_data) %in% c("x", "y")] <- c("x_from", "y_from")
-					net_data <- merge(net_data, node_positions, by.x = "to", by.y = "node")
-					names(net_data)[names(net_data) %in% c("x", "y")] <- c("x_to", "y_to")
-
-					p_net <- ggplot() +
-						geom_segment(
-							data = net_data,
-							aes(x = x_from, y = y_from, xend = x_to, yend = y_to),
-							alpha = 0.3,
-							color = "gray50"
-						) +
-						geom_point(
-							data = node_positions,
-							aes(x = x, y = y),
-							size = 3
-						) +
-						labs(title = paste("Network at period", t)) +
-						theme_bw() +
-						theme(
-							panel.border = element_blank(),
-							plot.caption = element_text(hjust = 0),
-							axis.ticks = element_blank(),
-							axis.text = element_blank(),
-							axis.title = element_blank(),
-							legend.position = "top"
-						) +
-						coord_fixed()
-
-					network_plots[[paste0("t", t)]] <- p_net
-				}
-			}
-		}
-
-		if (length(network_plots) > 0) {
-			if (has_patchwork) {
-				plot_list[["network"]] <- patchwork::wrap_plots(network_plots, ncol = length(network_plots))
-			} else {
-				plot_list[["network"]] <- network_plots[[1]]
 			}
 		}
 	}
@@ -796,7 +704,7 @@ plot.lame <- function(
 			combined_plot <- patchwork::wrap_plots(plot_list, ncol = 1) +
 				patchwork::plot_annotation(
 					title = "LAME model diagnostics",
-					theme = theme(plot.title = element_text(size = 14, face = "bold"))
+					theme = ggplot2::theme(plot.title = ggplot2::element_text(size = 14, face = "bold"))
 				)
 			print(combined_plot)
 		}

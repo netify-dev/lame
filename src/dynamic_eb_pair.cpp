@@ -6,7 +6,7 @@
 // (or of the static factors). The estimator needs the expectations of 19 functions of (eta_1, eta_2): the log
 // probability of the observed pair, its score in the two predictors, the Fisher information over the four outcomes
 // (I11, I22, I12), the derivatives of the information in the predictors, and the derivatives in the correlation of the
-// log probability, of its scores and of the information (R/ame_als_pair.R, .ae_pair_node_fisher_r()).
+// log probability, of its scores and of the information (.ae_pair_node_fisher_r() in tests/testthat/helper-reference-engines-als.R).
 //
 // The tensor Gauss-Hermite rule of the static estimator (ae_pair_quad_cpp, mode 1) needs a number of nodes in
 // proportion to the standard deviation of the noise, because the functions have features of width one: 61 nodes a side

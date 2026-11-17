@@ -95,7 +95,10 @@ test_that("fitter ordinal predictive draws use each stored cutpoint row", {
 	records = list()
 	testthat::local_mocked_bindings(.simY_ord_explicit = function(EZ, rho, alpha, levels, symmetric = FALSE) {
 		y = original(EZ, rho, alpha, levels, symmetric)
-		records[[length(records) + 1L]] <<- list(alpha = alpha, y = y)
+		# the fitted value takes the mean of the replicate given the same predictor and cutpoints
+		mu = lame:::.ordinal_response_mean(EZ, alpha, levels)
+		mu[is.na(y)] = NA
+		records[[length(records) + 1L]] <<- list(alpha = alpha, y = y, mu = mu)
 		y
 	}, .package = "lame")
 	Y = matrix(rep(c(10, 20, 50), 12), 6, 6); diag(Y) = NA
@@ -122,14 +125,15 @@ test_that("fitter ordinal predictive draws use each stored cutpoint row", {
 		nt = if (long) 2L else 1L
 		expect_length(records, nrow(fit$BETA) * nt)
 		for (t in seq_len(nt)) {
-			ys = lapply(seq_len(nrow(fit$BETA)), function(s) {
+			mus = lapply(seq_len(nrow(fit$BETA)), function(s) {
 				r = records[[(s - 1L) * nt + t]]
 				expect_equal(r$alpha, c(0, unname(fit$ALPHA[s, ])), tolerance = 0)
-				r$y
+				expect_true(all(r$y %in% c(10, 20, 50, NA)))
+				r$mu
 			})
 			expect_equal(
 				unname(if (long) fit$YPM[[t]] else fit$YPM),
-				unname(Reduce(`+`, ys) / length(ys)),
+				unname(Reduce(`+`, mus) / length(mus)),
 				tolerance = 0
 			)
 		}

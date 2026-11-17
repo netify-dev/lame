@@ -81,21 +81,12 @@ test_that('complete bipartite Gaussian fits match an independent SVD solution', 
 	}
 })
 
-test_that('public Gaussian fits and warm refits retain their convergence evidence', {
+test_that('the score certificate refuses a weighted fit', {
 	set.seed(912003L);d = .gaussian_score_fixture(FALSE, 2L, TRUE)
-	f = lame_als(d$Z, R = 2L, family = 'normal', bias_correct = 'none', multistart = 'cheap', seed = 3, verbose = FALSE)
-	expect_true(f$converged);expect_true(f$gaussian_diagnostics$pass)
-	expect_length(f$multistart_gaussian_diagnostics, 4L)
-	expect_true(all(vapply(f$multistart_gaussian_diagnostics, `[[`, logical(1), 'pass')))
-	g = ame_als_refit(f, verbose = FALSE)
-	expect_true(g$converged);expect_true(g$gaussian_diagnostics$pass)
-	one = ame_als_refit(f, max_iter = 1L, verbose = FALSE)
-	expect_false(one$converged)
 	expect_error(.ae_bcd_fit(d$Z, d$X, 2L, FALSE, 2L, 1e-6, weights = 1 + 0 * d$Z, certify = TRUE), 'unweighted')
 })
 
-
-test_that('rank-zero public refinement preserves absent factors and the least-squares solution', {
+test_that('rank-zero certified refinement preserves absent factors and the least-squares solution', {
 	Y = array(NA_real_, c(3L, 3L, 3L))
 	index = cbind(c(1L, 2L, 1L, 3L, 2L, 3L), c(1L, 1L, 2L, 2L, 3L, 3L), rep(1:3, each = 2))
 	Y[index] = c(1, 0, 2, 1, 0, 3)
@@ -103,17 +94,7 @@ test_that('rank-zero public refinement preserves absent factors and the least-sq
 	X[cbind(index[, 1:2], 1L, index[, 3])] = seq(.1, .6, .1)
 	refinements = 0L
 	for (with_x in c(FALSE, TRUE)) {
-		args = list(
-			Y = Y,
-			R = 0L,
-			mode = 'bipartite',
-			family = 'normal',
-			bias_correct = 'none',
-			max_iter = 20L,
-			verbose = FALSE
-		)
-		if (with_x) args$Xdyad = X
-		fit = do.call(lame_als, args)
+		fit = .ae_bcd_fit(Y, if (with_x) X else array(numeric(), c(3L, 3L, 0L, 3L)), 0L, FALSE, 20L, 1e-6, certify = TRUE)
 		expect_true(fit$converged)
 		expect_true(fit$gaussian_diagnostics$pass)
 		refinements = refinements + length(fit$gaussian_diagnostics$refinement)

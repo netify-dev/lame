@@ -125,7 +125,7 @@ test_that('the compiled tempered transition gives the draws of the R reference',
 	dt = lame:::.lame_temper_data(lame:::.lame_ltm_context(yy, 'poisson', 'sym', offset = off), n, N)
 	bs = seq(1, .7, length.out = 6)
 	run = function(engine, cycles) {
-		withr::local_options(lame.temper_engine = engine)
+		if (identical(engine, 'r')) local_move_r_engine()
 		set.seed(97)
 		Zs = Z; Us = U; Ls = L
 		out = vector('list', 4L)

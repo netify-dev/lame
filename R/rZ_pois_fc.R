@@ -44,7 +44,7 @@ rZ_pois_fc <- function(Z, EZ, rho, s2, Y) {
 #' @return updated symmetric n x n latent matrix; the diagonal is refreshed
 #'   with unconstrained normal draws around \code{diag(EZ)}.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
-#' @keywords internal
+#' @noRd
 rZ_pois_sym_fc <- function(Z, EZ, s2, Y, log_exposure = 0, rho = 0) {
 	n <- nrow(Z)
 	ut <- upper.tri(Z)

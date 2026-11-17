@@ -1,44 +1,7 @@
 # joint Gaussian samplers for dynamic_beta paths of kind rw2 or matern32, and
 # for AR(1) paths over unequal time gaps; each kind supplies a T x T prior
-# precision K, and the path is drawn from its joint Gaussian conditional
-
-#' @noRd
-.rw2_precision <- function(T_per, jitter = 1e-6, time_positions = seq_len(T_per)) {
-	if (T_per < 3L) {
-		# rw2 needs at least three periods; use a diagonal ridge otherwise
-		return(diag(jitter, T_per))
-	}
-	D <- matrix(0, T_per - 2L, T_per)
-	gaps <- diff(time_positions)
-	for (i in seq_len(T_per - 2L)) {
-		weight <- sqrt(mean(gaps[i + 0:1]))
-		D[i, i] <- 1 / gaps[i] / weight
-		D[i, i + 1L] <- -(1 / gaps[i] + 1 / gaps[i + 1L]) / weight
-		D[i, i + 2L] <- 1 / gaps[i + 1L] / weight
-	}
-	K <- crossprod(D)
-	# rank deficient by 2; a small ridge lets the Cholesky succeed
-	K + diag(jitter, T_per)
-}
-
-#' @noRd
-.matern32_precision <- function(
-	T_per,
-	length_scale = NULL,
-	time_positions = NULL,
-	jitter = 1e-8
-) {
-	if (is.null(length_scale) || !is.finite(length_scale) || length_scale <= 0) {
-		length_scale <- max(2, T_per / 4)
-	}
-	tt <- if (is.null(time_positions)) seq_len(T_per) else as.numeric(time_positions)
-	dst <- abs(outer(tt, tt, "-"))
-	a <- sqrt(3) * dst / length_scale
-	Sigma <- (1 + a) * exp(-a)
-	# small ridge for a stable Cholesky inverse
-	Sigma <- Sigma + diag(jitter, T_per)
-	chol2inv(chol(Sigma))
-}
+# precision K (.lame_beta_change_precision), and the path is drawn from its
+# joint Gaussian conditional
 
 #' @noRd
 # tridiagonal AR(1) precision K over time gaps, with transition factor
@@ -64,6 +27,30 @@
 	K + diag(jitter, T_per)
 }
 
+# prior precision, in units of sigma^2 lam, of the change of an rw2 or matern32 path since its first
+# period: rw2 a first increment and second differences (the first increment over gap g has variance
+# sigma^2 lam g, as under rw1), matern32 the change since period 1 of a Matern 3/2 process (length scale
+# as in .matern32_precision()). its null space is the constant, the level, which has its own prior
+.lame_beta_change_precision <- function(kind, T_per, length_scale = NULL, time_positions = seq_len(T_per)) {
+	tt <- as.numeric(time_positions)
+	gaps <- diff(tt)
+	if (identical(kind, "rw2")) {
+		D <- matrix(0, T_per - 1L, T_per)
+		D[1L, 1:2] <- c(-1, 1) / sqrt(gaps[1L])
+		for (i in seq_len(T_per - 2L)) {
+			weight <- sqrt(mean(gaps[i + 0:1]))
+			D[i + 1L, i] <- 1 / gaps[i] / weight
+			D[i + 1L, i + 1L] <- -(1 / gaps[i] + 1 / gaps[i + 1L]) / weight
+			D[i + 1L, i + 2L] <- 1 / gaps[i + 1L] / weight
+		}
+		return(crossprod(D))
+	}
+	if (is.null(length_scale) || !is.finite(length_scale) || length_scale <= 0) length_scale <- max(2, T_per / 4)
+	a <- sqrt(3) * abs(outer(tt, tt, "-")) / length_scale
+	M <- cbind(-1, diag(T_per - 1L))
+	crossprod(M, solve(M %*% ((1 + a) * exp(-a)) %*% t(M), M))
+}
+
 #' @noRd
 .dynamic_beta_kind_to_prec <- function(
 	kind,
@@ -80,12 +67,8 @@
 		kind,
 		ar1 = .ar1_precision(T_per, gaps = gaps, rho = if (is.null(rho)) 0 else rho),
 		rw1 = .ar1_precision(T_per, gaps = gaps, rho = 0.999999),
-		rw2 = .rw2_precision(T_per, time_positions = time_positions),
-		matern32 = .matern32_precision(
-			T_per,
-			length_scale,
-			time_positions = time_positions
-		),
+		rw2 = .lame_beta_change_precision("rw2", T_per, time_positions = time_positions),
+		matern32 = .lame_beta_change_precision("matern32", T_per, length_scale, time_positions),
 		cli::cli_abort(sprintf("kind '%s' not handled by alt sampler", kind))
 	)
 }
@@ -185,12 +168,11 @@
 		} else .dynamic_beta_kind_to_prec(kind, nt, length_scale, time_positions)
 		Q[idx, idx] <- K / (sigma_by_coef[k]^2 * Lambda[k, k])
 	}
-	if (kind %in% c("ar1", "rw1")) {
-		idx <- 1L + (seq_len(p) - 1L) * nt
-		Q0 <- solve(beta0_cov)
-		Q[idx, idx] <- Q[idx, idx] + Q0
-		h[idx] <- Q0 %*% beta0_mean
-	}
+	# the first state: its prior under ar1 and rw1, the level of an rw2 or matern32 path
+	idx <- 1L + (seq_len(p) - 1L) * nt
+	Q0 <- solve(beta0_cov)
+	Q[idx, idx] <- Q[idx, idx] + Q0
+	h[idx] <- Q0 %*% beta0_mean
 	for (t in seq_len(nt)) {
 		r <- Z_list[[t]] - offset_list[[t]]
 		if (length(beta_static)) r <- r - matrix(Xstat_list[[t]] %*% beta_static, nrow(r), ncol(r))
@@ -212,7 +194,8 @@
 }
 
 # draw one innovation sd per coefficient group, pooling quadratic forms and
-# degrees of freedom across the group
+# degrees of freedom across the group; a `stationary` ar1 group also counts the
+# first state of each path, N(0, sigma^2 lam / (1 - rho^2))
 .sample_sigma_beta_alt <- function(
 	beta_path,
 	kind,
@@ -223,7 +206,8 @@
 	group_id = seq_len(ncol(beta_path)),
 	n_groups = max(group_id),
 	time_positions = NULL,
-	rho_by_group = rep(0, n_groups)
+	rho_by_group = rep(0, n_groups),
+	stationary = rep(FALSE, n_groups)
 ) {
 	nt <- nrow(beta_path)
 	if (is.null(time_positions)) time_positions <- seq_len(nt)
@@ -234,15 +218,21 @@
 		K <- if (kind %in% c("ar1", "rw1")) {
 			.lame_beta_transition_precision(if (kind == "rw1") 1 else rho_by_group[g], diff(time_positions))
 		} else .dynamic_beta_kind_to_prec(kind, nt, length_scale, time_positions)
-		# the rw2 and matern32 precisions are full rank
-		df <- if (kind %in% c("ar1", "rw1")) nt - 1L else nt
+		# every kind informs sigma through nt - 1 changes; the first state has its own prior
+		df <- nt - 1L
+		if (identical(kind, "ar1") && isTRUE(stationary[g])) {
+			K[1L, 1L] <- K[1L, 1L] + 1 - rho_by_group[g]^2
+			df <- nt
+		}
 		shape[g] <- shape[g] + df / 2
 		rate[g] <- rate[g] + drop(crossprod(beta_path[, k], K %*% beta_path[, k])) / (2 * Lambda[k, k])
 	}
 	sqrt(1 / rgamma(n_groups, shape = shape, rate = rate))
 }
 
-# Metropolis-Hastings update of the persistence rho over unequal time gaps
+# Metropolis-Hastings update of the persistence rho over unequal time gaps; the
+# paths of a `stationary` group are deviations whose first state has variance
+# sigma^2 lam / (1 - rho^2)
 .lame_sample_rho_beta_gaps <- function(
 	beta_path,
 	group_id,
@@ -254,7 +244,8 @@
 	rho_prior_sd,
 	rho_lower,
 	rho_upper,
-	time_positions
+	time_positions,
+	stationary = rep(FALSE, n_groups)
 ) {
 	gaps <- diff(time_positions)
 	log_target <- function(rho, idx, g) {
@@ -264,8 +255,13 @@
 		x <- beta_path[, idx, drop = FALSE]
 		err <- x[-1L, , drop = FALSE] - z$f * x[-nrow(x), , drop = FALSE]
 		ss <- colSums(err^2 / z$q) * diag(Lambda_inv)[idx] / sigma_by_coef[idx]^2
-		dnorm(rho, rho_prior_mean[g], rho_prior_sd[g], log = TRUE) -
+		lp <- dnorm(rho, rho_prior_mean[g], rho_prior_sd[g], log = TRUE) -
 			.5 * (sum(ss) + length(idx) * sum(log(z$q)))
+		if (isTRUE(stationary[g])) {
+			lp <- lp + .5 * length(idx) * log1p(-rho^2) -
+				.5 * (1 - rho^2) * sum(x[1L, ]^2 * diag(Lambda_inv)[idx] / sigma_by_coef[idx]^2)
+		}
+		lp
 	}
 	for (g in seq_len(n_groups)) {
 		idx <- which(group_id == g)

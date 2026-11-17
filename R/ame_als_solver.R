@@ -75,10 +75,7 @@
 		sw <- sqrt(oc$Wv)
 		qrD <- qr(cbind(1, oc$Xcols) * sw) # weighted observed design
 		solve_fun <- function(resid_arr) {
-			cf <- tryCatch(
-				qr.coef(qrD, sw * resid_arr[obs_idx]),
-				error = function(e) rep(NA_real_, pa)
-			)
+			cf <- qr.coef(qrD, sw * resid_arr[obs_idx])
 			cf[!is.finite(cf)] <- 0 # aliased columns -> 0
 			as.numeric(cf)
 		}

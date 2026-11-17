@@ -15,14 +15,13 @@
 Never returns; raises an error.
 }
 \description{
-The fast estimator minimises a (working-response) least-squares objective,
-not a family likelihood, so it has no log-likelihood and \code{AIC} / \code{BIC}
-are undefined. Calling \code{logLik()} raises an informative error rather
-than returning a misleading number.
+The fast estimator is an empirical-Bayes fit, not a maximum of the
+likelihood over all of its parameters, so it has no maximised log-likelihood
+and \code{AIC} / \code{BIC} are undefined. Calling \code{logLik()} raises an
+informative error rather than returning a misleading number.
 }
 \details{
-An empirical-Bayes fit (the default for normal, binary and Poisson
-responses) carries a Laplace approximation, at its posterior
+Every fit carries a Laplace approximation, at its posterior
 mode, to its log marginal likelihood, \code{fit$eb$log_marginal} (see
 \strong{Choosing the rank} in \code{\link{ame_als}}), which compares fits of
 different latent ranks.

@@ -20,11 +20,11 @@
 # and receiver paths are visited in turn; rho_uv and sigma_uv keep their own
 # updates, and the rail prior$uv_max_abs enters as the indicator of the box.
 
-# the covariance of an AR(1) path of length nt, per coordinate: stationary start N(0, sigma^2 / (1 - rho^2)),
+# the covariance of an AR(1) path of length nt, per coordinate: stationary start N(0, sigma^2 / ((1 - rho^2) lambda_1)),
 # transitions N(rho u_{t-1}, sigma^2 / lambda_t) (lambda NULL: all 1)
 .lame_dpm_cov <- function(nt, rho, sigma, lambda = NULL) {
 	v <- numeric(nt)
-	v[1L] <- sigma^2 / (1 - rho^2)
+	v[1L] <- sigma^2 / ((1 - rho^2) * (if (is.null(lambda)) 1 else lambda[1L]))
 	cv <- matrix(0, nt, nt)
 	cv[1L, 1L] <- v[1L]
 	if (nt > 1L) {
@@ -42,7 +42,10 @@
 # the root of the prior of a path (rk coordinates by nt periods, stored column by column): kron(L, I_rk)
 .lame_dpm_root <- function(nt, rk, rho, sigma, lambda = NULL) {
 	ch <- tryCatch(chol(.lame_dpm_cov(nt, rho, sigma, lambda)), error = function(e) NULL)
-	if (is.null(ch)) return(NULL)
+	if (is.null(ch)) {
+		.lame_fallback_note('position_path')
+		return(NULL)
+	}
 	kronecker(t(ch), diag(rk))
 }
 
@@ -285,22 +288,36 @@
 # information at the least-squares persistence (a function of the paths alone,
 # so the walk stays symmetric)
 
-# Metropolis draw of the gauge persistence; U_cube n x R x N paths. target as in .lame_rho_uv_unit_mh()
-.lame_dpm_rho_unit_mh <- function(U_cube, rho_current, prior_mean = 0.9, prior_sd = 0.1, scales = c(2.4, 0.6, 6)) {
+# Metropolis draw of the gauge persistence; U_cube n x R x N paths. target as in .lame_rho_uv_unit_mh().
+# `with_u = TRUE` returns list(rho, u) with the recycled uniform of the last step's test (R/uv_rho_flip.R).
+# `keep` (n x N) 1 where a period drifts from the last and 0 at a snap reset limits the transitions
+.lame_dpm_rho_unit_mh <- function(
+	U_cube,
+	rho_current,
+	prior_mean = 0.9,
+	prior_sd = 0.1,
+	scales = c(2.4, 0.6, 6),
+	with_u = FALSE,
+	keep = NULL
+) {
 	N <- dim(U_cube)[3L]
-	if (is.null(N) || N < 2L) return(rho_current)
+	if (is.null(N) || N < 2L) return(if (with_u) list(rho = rho_current, u = NA_real_) else rho_current)
 	n <- dim(U_cube)[1L]
 	R <- dim(U_cube)[2L]
 	s11 <- 0; s12 <- 0; s22 <- 0
 	for (t in 2:N) {
 		U1 <- matrix(U_cube[, , t - 1L], n, R)
 		U2 <- matrix(U_cube[, , t], n, R)
+		if (!is.null(keep)) {
+			U1 <- U1 * keep[, t]
+			U2 <- U2 * keep[, t]
+		}
 		s11 <- s11 + sum(U1 * U1)
 		s12 <- s12 + sum(U1 * U2)
 		s22 <- s22 + sum(U2 * U2)
 	}
-	m <- n * R * (N - 1L)
-	if (!is.finite(s11) || s11 <= 0) return(rho_current)
+	m <- if (is.null(keep)) n * R * (N - 1L) else R * sum(keep[, -1L])
+	if (!is.finite(s11) || s11 <= 0) return(if (with_u) list(rho = rho_current, u = NA_real_) else rho_current)
 	log_post <- function(r) {
 		v <- 1 - r * r
 		-0.5 * m * log(v) - (s22 - 2 * r * s12 + r * r * s11) / (2 * v) + stats::dnorm(
@@ -315,13 +332,19 @@
 	rc <- min(max(rho_current, lo), hi)
 	rhat <- min(max(s12 / s11, -0.98), 0.98)
 	info <- m * (1 + rhat^2) / (1 - rhat^2)^2
+	u_flip <- NA_real_
 	for (sc in scales) {
+		u_flip <- NA_real_
 		prop <- rc + stats::rnorm(1, 0, min(max(sc / sqrt(info), 1e-3), 0.2))
 		if (prop <= lo || prop >= hi) next
 		la <- log_post(prop) - log_post(rc)
-		if (is.finite(la) && log(stats::runif(1)) < la) rc <- prop
+		if (!is.finite(la)) next
+		u <- stats::runif(1)
+		accepted <- log(u) < la
+		u_flip <- .lame_recycle_u(u, la, accepted)
+		if (accepted) rc <- prop
 	}
-	rc
+	if (with_u) list(rho = rc, u = u_flip) else rc
 }
 
 # scale ridge move. `U` the n x R x N paths, `Ld` the R weights (prior variance
@@ -350,4 +373,115 @@
 		}
 	}
 	list(U = U, Ld = Ld, stats = stats)
+}
+
+# snap kind: the whole-path move of a panel with the resets summed out (src/snap_path_move.cpp).
+# a path's prior is N(x_1; 0, sigma^2 / (1 - rho^2)) prod_t m(x_t | x_t-1) with
+#     m(y | x) = (1 - pi) N(y; rho x, sigma^2 I) + pi N(y; 0, kappa^2 I),
+# and each path takes, given the rest: an elliptical slice step under a Gaussian reference prior (the AR(1)
+# path, or the path that resets at a period drawn at random) with the likelihood factor times the ratio of
+# the two priors; Metropolis steps on log c for x_s -> c x_s, s >= t0 (t0 drawn at random), with the
+# Jacobian c^(R (N - t0 + 1)); the resets given the path; a slice step given the resets (a reset position
+# N(0, kappa^2 I)); the resets again. every step is exact for the path and its resets, and a period change
+# can pass between a reset and a drift without the latent array or the neighbouring periods holding it.
+# `family` "binary": the latent array integrated out given the shared dyad factor and redrawn after the
+# visit; "poisson": the latent array moves with the predictor; "gaussian" (normal, ordinal, cbin, frn): the
+# Gaussian density of each latent cell given its reciprocal partner (variance s2, correlation rho_t per
+# period), the latent array held. `snap` = list(pi, kappa, delta_u, delta_v). `mode` "bip" takes the
+# interaction matrix `G` (lines weighted by V_t G' and U_t G), "sym" the weights `Ld` of U_t diag(Ld) U_t'
+# (one side, V unused; the resets come back on both sides); a binary bipartite or symmetric visit redraws
+# the latent array from `Y`
+.lame_dpm_snap_visit <- function(
+	cx,
+	Z,
+	EZ,
+	rho,
+	U,
+	V,
+	rho_uv,
+	sigma_uv,
+	snap,
+	max_abs = Inf,
+	family = "binary",
+	s2 = 1,
+	mode = "dir",
+	G = NULL,
+	Ld = NULL,
+	Y = NULL
+) {
+	if (!identical(mode, "dir")) {
+		return(.lame_dpm_snap_visit_mode(cx, Z, EZ, rho, U, V, rho_uv, sigma_uv, snap, max_abs, family, s2, mode, G, Ld, Y))
+	}
+	still <- list(
+		Z = Z,
+		EZ = EZ,
+		U = U,
+		V = V,
+		delta_u = snap$delta_u,
+		delta_v = snap$delta_v,
+		stats = c(dpm_calls = 0, dpm_evals = 0, dpm_stuck = 0, snap_scales = 0, snap_scales_accepted = 0)
+	)
+	ok <- is.finite(rho_uv) && abs(rho_uv) < 1 && is.finite(sigma_uv) && sigma_uv > 0 &&
+		is.finite(snap$pi) && snap$pi > 0 && snap$pi < 1 && is.finite(snap$kappa) && snap$kappa > 0 &&
+		is.finite(s2) && s2 > 0
+	if (!ok) return(still)
+	if (!is.finite(max_abs) || max_abs <= 0) max_abs <- Inf
+	N <- dim(Z)[3L]
+	off <- numeric(0)
+	counts <- numeric(0)
+	period_off <- numeric(0)
+	sd_cell <- 1
+	rho_t <- numeric(N)
+	if (identical(family, "poisson")) {
+		kind <- 1L
+		mask <- array(as.numeric(cx$obs3), dim(Z))
+		counts <- array(ifelse(cx$obs3, cx$Y, 0), dim(Z))
+		period_off <- as.numeric(cx$offset)
+	} else if (identical(family, "gaussian")) {
+		kind <- 2L
+		mask <- array(as.numeric(is.finite(Z)), dim(Z))
+		for (t in seq_len(N)) diag(mask[, , t]) <- 0
+		rho_t <- rep_len(as.numeric(rho), N)
+		if (!all(is.finite(rho_t)) || any(abs(rho_t) >= 1)) return(still)
+	} else {
+		kind <- 0L
+		off <- .lame_dyad_factor_draw(Z, EZ, rho, cx$upper)
+		mask <- array(0, dim(Z))
+		mask[cx$i1] <- 1
+		mask[cx$i0] <- -1
+		sd_cell <- sqrt(1 - abs(rho))
+	}
+	o <- snap_path_visit_cpp(
+		EZ,
+		Z,
+		off,
+		mask,
+		counts,
+		period_off,
+		U,
+		V,
+		rho_uv,
+		sigma_uv,
+		snap$kappa,
+		snap$pi,
+		snap$delta_u,
+		snap$delta_v,
+		sd_cell,
+		max_abs,
+		s2,
+		rho_t,
+		kind
+	)
+	if (kind == 0L) o$Z <- .lame_binary_z_given_factor(Z, o$EZ, off, rho, cx$i1, cx$i0, cx$ina, cx$idg)
+	o
+}
+
+# the `snap` argument of .lame_dpm_snap_visit(): rate, reset scale and current resets
+.lame_dpm_snap_arg <- function(pi_snap, kappa_fixed, rho_uv, sigma_uv, delta_u, delta_v, n, N) {
+	list(
+		pi = pi_snap,
+		kappa = .lame_snap_kappa(kappa_fixed, rho_uv, sigma_uv),
+		delta_u = if (is.null(delta_u)) matrix(0, n, N) else delta_u,
+		delta_v = if (is.null(delta_v)) matrix(0, n, N) else delta_v
+	)
 }

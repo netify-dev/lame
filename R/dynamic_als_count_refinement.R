@@ -7,8 +7,13 @@
 	nc <- prep$nc
 	nt <- prep$Tt
 	p <- nrow(v$coef_path)
+	# dynamic coefficients enter with their whole path, static ones with one value
+	path_k <- if (isTRUE(s$beta_dyn$any)) s$beta_dyn$mask else rep(FALSE, p)
+	coef_theta <- unlist(lapply(seq_len(p), function(k) {
+		if (path_k[k]) v$coef_path[k, ] else v$coef_path[k, 1L]
+	}), use.names = FALSE)
 	initial <- c(
-		v$coef_path[, 1L],
+		coef_theta,
 		if (s$dynamic_ab) c(v$a_mat) else v$a_mat[, 1L],
 		if (s$dynamic_ab) c(v$b_mat) else v$b_mat[, 1L],
 		c(v$U),
@@ -22,7 +27,7 @@
 			index <<- index + n
 			theta[old + seq_len(n)]
 		}
-		out$coef_path[] <- take(p)
+		for (k in seq_len(p)) out$coef_path[k, ] <- if (path_k[k]) take(nt) else rep(take(1L), nt)
 		a <- if (s$dynamic_ab) matrix(take(nr * nt), nr, nt) else
 			matrix(rep(take(nr), nt), nr, nt)
 		b <- if (s$dynamic_ab) matrix(take(nc * nt), nc, nt) else

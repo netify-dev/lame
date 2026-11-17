@@ -29,7 +29,10 @@
 #'   - "response"/"link": Matrix of predictions
 #'   - "distribution": Array of posterior predictive samples
 #'
-#' @details For MCMC Poisson models the response is the mean count of a cell,
+#' @details Without \code{newdata}, \code{type = "response"} returns the
+#'   stored \code{YPM} (see \code{\link{fitted.ame}}).
+#'
+#'   For MCMC Poisson models the response is the mean count of a cell,
 #'   \eqn{\exp(\eta + \sigma^2 / 2)}, at the posterior mean \eqn{\eta} of its
 #'   linear predictor and the posterior mean \eqn{\sigma^2} of the residual
 #'   variance (the model is \eqn{Y \sim \mathrm{Poisson}(\exp(z))},
@@ -206,10 +209,12 @@ transform_to_response <- function(Z, family, s2 = 0, exposure = 1) {
 
 #' Extract fitted values from AME model
 #'
-#' Returns the stored response-scale summary (YPM).
-#' For binary models, these are predicted probabilities between 0 and 1.
-#' For normal models, these are predicted continuous values.
-#' For MCMC Poisson models, these are mean counts,
+#' Returns the stored response-scale summary (YPM): the average over the
+#' stored draws of the mean response given each draw. For binary models these
+#' are tie probabilities, for normal models the linear predictor, and for
+#' ordinal models with explicit cutpoints the expected category value. For
+#' cbin, frn and data-induced ordinal models they are the average of ten
+#' outcomes replicated at each stored draw. For MCMC Poisson models, these are mean counts,
 #' \eqn{\exp(\eta + \sigma^2 / 2)}, at the posterior mean \eqn{\eta} of the
 #' linear predictor and the posterior mean \eqn{\sigma^2} of the residual
 #' variance, the form the fast estimators report. Predictive quantiles and
@@ -350,10 +355,14 @@ residuals.ame <- function(object, type = c("response", "pearson"), ...) {
 #'   returns a list of \code{h} matrices (one per future period). Requires
 #'   at least one dynamic component on the fit. Warns when posterior
 #'   \eqn{\rho_\beta} is near 1.
-#'   Coefficient innovations retain the fitted design-based scale. Dynamic
-#'   coefficient forecasts require equally spaced AR(1) or RW1 periods;
-#'   irregular-period, RW2, Matern and actor-specific coefficient laws are
-#'   refused until their future transition is implemented.
+#'   Coefficient innovations retain the fitted design-based scale. An AR(1)
+#'   coefficient reverts to its long-run mean and an RW1 coefficient keeps its
+#'   last level; an RW2 or Matern 3/2 coefficient is drawn from the Gaussian
+#'   conditional of its prior over the fitted and future periods (an RW2 path
+#'   extends its last slope, a Matern path returns toward zero over its length
+#'   scale), each at the draw's innovation scale. Dynamic coefficient forecasts
+#'   require equally spaced periods; actor-specific coefficient laws are
+#'   refused.
 #' @param by_draw When \code{TRUE} and \code{h > 0}, returns an
 #'   \code{n x n x h x n_draws} array of per-draw forecasts instead of
 #'   per-period means.
@@ -653,7 +662,8 @@ predict.lame <- function(
 
 #' Extract fitted values from LAME model
 #'
-#' Returns the stored response-scale summaries. For MCMC Poisson models these
+#' Returns the stored response-scale summaries, computed per period as in
+#' \code{\link{fitted.ame}}. For MCMC Poisson models these
 #' are mean counts, \eqn{e_t \exp(\eta + \sigma^2 / 2)}, at the posterior mean
 #' \eqn{\eta} of the linear predictor and the posterior mean \eqn{\sigma^2} of
 #' the residual variance, with \eqn{e_t} the exposure of the period
@@ -668,10 +678,7 @@ predict.lame <- function(
 #'
 #' @method fitted lame
 #' @export
-fitted.lame <- function(object, ...) {
-	.lame_require_draws(object, "fitted")
-	return(object$YPM)
-}
+fitted.lame <- fitted.ame
 
 #' Extract residuals from LAME model
 #'

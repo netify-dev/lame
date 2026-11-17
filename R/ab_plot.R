@@ -58,7 +58,6 @@
 #' ab_plot(fit, effect = "receiver", sorted = FALSE)
 #' }
 #' @export
-#' @import ggplot2
 #' @import cli
 #' @importFrom stats reorder
 ab_plot <- function(
@@ -232,48 +231,48 @@ ab_plot <- function(
 	mu_df$key <- factor(mu_df$key, levels = mu_df$key[ord])
 	key_labels <- stats::setNames(mu_df$id, as.character(mu_df$key))
 
-	p <- ggplot(mu_df, aes(x = .data$key, y = .data$mu)) +
-		geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-		geom_segment(aes(xend = .data$key, yend = 0)) +
-		geom_point(size = 2) +
-		scale_x_discrete(labels = key_labels) +
-		xlab("") +
-		ylab(ylabel) +
-		theme_bw() +
-		theme(
-			panel.border = element_blank(),
-			plot.caption = element_text(hjust = 0),
-			axis.ticks = element_blank(),
+	p <- ggplot2::ggplot(mu_df, ggplot2::aes(x = .data$key, y = .data$mu)) +
+		ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+		ggplot2::geom_segment(ggplot2::aes(xend = .data$key, yend = 0)) +
+		ggplot2::geom_point(size = 2) +
+		ggplot2::scale_x_discrete(labels = key_labels) +
+		ggplot2::xlab("") +
+		ggplot2::ylab(ylabel) +
+		ggplot2::theme_bw() +
+		ggplot2::theme(
+			panel.border = ggplot2::element_blank(),
+			plot.caption = ggplot2::element_text(hjust = 0),
+			axis.ticks = ggplot2::element_blank(),
 			legend.position = "top"
 		)
 
 	if (facet) {
-		p <- p + facet_wrap(~margin, scales = "free_x") +
-			theme(
-				strip.background = element_rect(fill = "black", color = "black"),
-				strip.text = element_text(color = "white", hjust = 0)
+		p <- p + ggplot2::facet_wrap(~margin, scales = "free_x") +
+			ggplot2::theme(
+				strip.background = ggplot2::element_rect(fill = "black", color = "black"),
+				strip.text = ggplot2::element_text(color = "white", hjust = 0)
 			)
 	}
 
 	if (!labels) {
-		p <- p + theme(
-			axis.text.x = element_blank()
-		) + xlab(if (sorted) "Actors (sorted by effect magnitude)" else "Actors")
+		p <- p + ggplot2::theme(
+			axis.text.x = ggplot2::element_blank()
+		) + ggplot2::xlab(if (sorted) "Actors (sorted by effect magnitude)" else "Actors")
 	} else {
 		# smaller, steeper labels as the number of actors grows
 		ang <- if (n_actors > 30L) 90 else if (n_actors > 15L) 75 else 45
 		size <- if (n_actors > 30L) 7 else if (n_actors > 15L) 8 else 10
-		p <- p + theme(
-			axis.text.x = element_text(angle = ang, hjust = 1, size = size)
+		p <- p + ggplot2::theme(
+			axis.text.x = ggplot2::element_text(angle = ang, hjust = 1, size = size)
 		)
 	}
 
 	if (!is.null(title)) {
-		p <- p + ggtitle(title)
+		p <- p + ggplot2::ggtitle(title)
 	} else if (sorted) {
-		p <- p + ggtitle(paste(default_title, "(sorted)"))
+		p <- p + ggplot2::ggtitle(paste(default_title, "(sorted)"))
 	} else {
-		p <- p + ggtitle(default_title)
+		p <- p + ggplot2::ggtitle(default_title)
 	}
 
 	p
@@ -384,33 +383,33 @@ ab_plot_dynamic_internal <- function(
 				labels <- n_actors <= 50
 			}
 
-			p <- ggplot(mu_df, aes(x = id, y = mu)) +
-				geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-				geom_segment(aes(xend = id, yend = 0)) +
-				geom_point(size = 2) +
-				xlab("") + ylab(paste(ylabel, "(time-averaged)")) +
-				theme_bw() +
-				theme(
-					panel.border = element_blank(),
-					plot.caption = element_text(hjust = 0),
-					axis.ticks = element_blank(),
+			p <- ggplot2::ggplot(mu_df, ggplot2::aes(x = id, y = mu)) +
+				ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+				ggplot2::geom_segment(ggplot2::aes(xend = id, yend = 0)) +
+				ggplot2::geom_point(size = 2) +
+				ggplot2::xlab("") + ggplot2::ylab(paste(ylabel, "(time-averaged)")) +
+				ggplot2::theme_bw() +
+				ggplot2::theme(
+					panel.border = ggplot2::element_blank(),
+					plot.caption = ggplot2::element_text(hjust = 0),
+					axis.ticks = ggplot2::element_blank(),
 					legend.position = "top"
 				)
 
 			if (!labels) {
-				p <- p + theme(
-					axis.text.x = element_blank()
-				) + xlab("Actors")
+				p <- p + ggplot2::theme(
+					axis.text.x = ggplot2::element_blank()
+				) + ggplot2::xlab("Actors")
 			} else {
-				p <- p + theme(
-					axis.text.x = element_text(angle = 45, hjust = 1)
+				p <- p + ggplot2::theme(
+					axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)
 				)
 			}
 
 			if (!is.null(title)) {
-				p <- p + ggtitle(title)
+				p <- p + ggplot2::ggtitle(title)
 			} else {
-				p <- p + ggtitle(paste(default_title, "- average across time"))
+				p <- p + ggplot2::ggtitle(paste(default_title, "- average across time"))
 			}
 
 			return(p)
@@ -456,33 +455,33 @@ ab_plot_dynamic_internal <- function(
 			labels <- n_actors <= 50
 		}
 
-		p <- ggplot(mu_df, aes(x = id, y = mu)) +
-			geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-			geom_segment(aes(xend = id, yend = 0)) +
-			geom_point(size = 2) +
-			xlab("") + ylab(ylabel) +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
+		p <- ggplot2::ggplot(mu_df, ggplot2::aes(x = id, y = mu)) +
+			ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+			ggplot2::geom_segment(ggplot2::aes(xend = id, yend = 0)) +
+			ggplot2::geom_point(size = 2) +
+			ggplot2::xlab("") + ggplot2::ylab(ylabel) +
+			ggplot2::theme_bw() +
+			ggplot2::theme(
+				panel.border = ggplot2::element_blank(),
+				plot.caption = ggplot2::element_text(hjust = 0),
+				axis.ticks = ggplot2::element_blank(),
 				legend.position = "top"
 			)
 
 		if (!labels) {
-			p <- p + theme(
-				axis.text.x = element_blank()
-			) + xlab("Actors")
+			p <- p + ggplot2::theme(
+				axis.text.x = ggplot2::element_blank()
+			) + ggplot2::xlab("Actors")
 		} else {
-			p <- p + theme(
-				axis.text.x = element_text(angle = 45, hjust = 1)
+			p <- p + ggplot2::theme(
+				axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)
 			)
 		}
 
 		if (!is.null(title)) {
-			p <- p + ggtitle(title)
+			p <- p + ggplot2::ggtitle(title)
 		} else {
-			p <- p + ggtitle(paste(default_title, "at", time_labels[time_point]))
+			p <- p + ggplot2::ggtitle(paste(default_title, "at", time_labels[time_point]))
 		}
 
 		return(p)
@@ -513,24 +512,24 @@ ab_plot_dynamic_internal <- function(
 			))
 		}
 
-		p <- ggplot(traj_data, aes(x = time, y = effect, group = actor, color = actor)) +
-			geom_line(alpha = 0.7, linewidth = 1) +
-			geom_point(size = 2) +
-			geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-			scale_x_continuous(breaks = 1:n_times, labels = time_labels) +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
+		p <- ggplot2::ggplot(traj_data, ggplot2::aes(x = time, y = effect, group = actor, color = actor)) +
+			ggplot2::geom_line(alpha = 0.7, linewidth = 1) +
+			ggplot2::geom_point(size = 2) +
+			ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+			ggplot2::scale_x_continuous(breaks = 1:n_times, labels = time_labels) +
+			ggplot2::theme_bw() +
+			ggplot2::theme(
+				panel.border = ggplot2::element_blank(),
+				plot.caption = ggplot2::element_text(hjust = 0),
+				axis.ticks = ggplot2::element_blank(),
 				legend.position = "top"
 			) +
-			labs(x = "Time", y = ylabel, color = "Actor")
+			ggplot2::labs(x = "Time", y = ylabel, color = "Actor")
 
 		if (!is.null(title)) {
-			p <- p + ggtitle(title)
+			p <- p + ggplot2::ggtitle(title)
 		} else {
-			p <- p + ggtitle(paste("Trajectories of", tolower(default_title)))
+			p <- p + ggplot2::ggtitle(paste("Trajectories of", tolower(default_title)))
 		}
 
 		return(p)
@@ -556,27 +555,27 @@ ab_plot_dynamic_internal <- function(
 			stringsAsFactors = FALSE
 		)
 
-		p <- ggplot(facet_data, aes(x = reorder(actor, effect), y = effect)) +
-			geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-			geom_segment(aes(xend = actor, yend = 0)) +
-			geom_point(size = 1.5) +
-			facet_wrap(~time, scales = "free_x") +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
+		p <- ggplot2::ggplot(facet_data, ggplot2::aes(x = reorder(actor, effect), y = effect)) +
+			ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+			ggplot2::geom_segment(ggplot2::aes(xend = actor, yend = 0)) +
+			ggplot2::geom_point(size = 1.5) +
+			ggplot2::facet_wrap(~time, scales = "free_x") +
+			ggplot2::theme_bw() +
+			ggplot2::theme(
+				panel.border = ggplot2::element_blank(),
+				plot.caption = ggplot2::element_text(hjust = 0),
+				axis.ticks = ggplot2::element_blank(),
 				legend.position = "top",
-				strip.background = element_rect(fill = "black", color = "black"),
-				strip.text = element_text(color = "white", hjust = 0),
-				axis.text.x = element_text(angle = 45, hjust = 1, size = 6)
+				strip.background = ggplot2::element_rect(fill = "black", color = "black"),
+				strip.text = ggplot2::element_text(color = "white", hjust = 0),
+				axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 6)
 			) +
-			labs(x = "", y = ylabel)
+			ggplot2::labs(x = "", y = ylabel)
 
 		if (!is.null(title)) {
-			p <- p + ggtitle(title)
+			p <- p + ggplot2::ggtitle(title)
 		} else {
-			p <- p + ggtitle(paste(default_title, "over time"))
+			p <- p + ggplot2::ggtitle(paste(default_title, "over time"))
 		}
 
 		return(p)
@@ -617,24 +616,24 @@ ab_plot_dynamic_internal <- function(
 			))
 		}
 
-		p <- ggplot(ribbon_data, aes(x = time, y = mean_effect, group = actor)) +
-			geom_ribbon(aes(ymin = lower, ymax = upper, fill = actor), alpha = 0.3) +
-			geom_line(aes(color = actor), linewidth = 1) +
-			geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-			scale_x_continuous(breaks = seq_len(n_times), labels = time_labels) +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
+		p <- ggplot2::ggplot(ribbon_data, ggplot2::aes(x = time, y = mean_effect, group = actor)) +
+			ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper, fill = actor), alpha = 0.3) +
+			ggplot2::geom_line(ggplot2::aes(color = actor), linewidth = 1) +
+			ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+			ggplot2::scale_x_continuous(breaks = seq_len(n_times), labels = time_labels) +
+			ggplot2::theme_bw() +
+			ggplot2::theme(
+				panel.border = ggplot2::element_blank(),
+				plot.caption = ggplot2::element_text(hjust = 0),
+				axis.ticks = ggplot2::element_blank(),
 				legend.position = "top"
 			) +
-			labs(x = "Time", y = ylabel, color = "Actor", fill = "Actor")
+			ggplot2::labs(x = "Time", y = ylabel, color = "Actor", fill = "Actor")
 
 		if (!is.null(title)) {
-			p <- p + ggtitle(title)
+			p <- p + ggplot2::ggtitle(title)
 		} else {
-			p <- p + ggtitle(paste(default_title, "with 95% credible intervals"))
+			p <- p + ggplot2::ggtitle(paste(default_title, "with 95% credible intervals"))
 		}
 
 		return(p)

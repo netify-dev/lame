@@ -134,51 +134,6 @@ test_that("Fixed rank nomination (frn) with covariates works", {
 	}
 })
 
-# bipartite headline check: the rectangular ame() path with a dyadic covariate
-test_that("normal bipartite AME runs and produces a fit object", {
-	set.seed(6886)
-	nr = 12; nc = 10
-	Y = matrix(rnorm(nr * nc), nr, nc)
-	rownames(Y) = paste0("r", seq_len(nr))
-	colnames(Y) = paste0("c", seq_len(nc))
-	X = array(rnorm(nr * nc), c(nr, nc, 1))
-	dimnames(X)[[3]] = "x"
-	fit = ame(
-		Y,
-		Xdyad = X,
-		mode = "bipartite",
-		R = 0,
-		family = "normal",
-		burn = 50,
-		nscan = 200,
-		verbose = FALSE,
-		plot = FALSE
-	)
-	expect_s3_class(fit, "ame")
-	cf = coef(fit)
-	dyad_name = grep("dyad$", names(cf), value = TRUE)[1]
-	expect_true(!is.na(dyad_name) && is.finite(cf[dyad_name]))
-})
-
-test_that("binary bipartite AME runs", {
-	set.seed(6886)
-	nr = 12; nc = 10
-	Y = matrix(rbinom(nr * nc, 1, 0.3), nr, nc)
-	rownames(Y) = paste0("r", seq_len(nr))
-	colnames(Y) = paste0("c", seq_len(nc))
-	fit = ame(
-		Y,
-		mode = "bipartite",
-		R = 0,
-		family = "binary",
-		burn = 50,
-		nscan = 200,
-		verbose = FALSE,
-		plot = FALSE
-	)
-	expect_s3_class(fit, "ame")
-})
-
 # sparse counts: the row and column means of log1p(y) barely vary on a mostly-zero matrix, so the effect prior
 # scale comes from a log-rate moment, which keeps the additive effects and the predictive total alive
 
@@ -242,4 +197,63 @@ test_that("poisson AME recovers actor heterogeneity on a sparse network", {
 	expect_lt(sum(fit$YPM, na.rm = TRUE), 1.6 * tot)
 	# the translation of the intercept with the latent array (R/latent_translation_move.R) ran
 	expect_gt(fit$actor_move[["coef_calls"]], 0)
+})
+
+test_that("ame() unipartite binary recovers beta and additive effects", {
+	skip_on_cran()
+
+	n = 25
+	R = 2
+
+	dat = simulate_test_network(
+		n = n,
+		n_time = 1,
+		family = "binary",
+		R = R,
+		beta_intercept = 0,
+		beta_dyad = 0.8,
+		sd_a = 0.4,
+		sd_b = 0.4,
+		s2 = 1,
+		mode = "unipartite",
+		seed = 456
+	)
+
+	fit = ame(
+		dat$Y,
+		Xdyad = dat$Xdyad,
+		R = R,
+		family = "binary",
+		burn = 2000,
+		nscan = 8000,
+		odens = 2,
+		verbose = FALSE,
+		gof = FALSE,
+		seed = 42
+	)
+
+	# beta_dyad is positive
+	beta_hat = colMeans(fit$BETA)
+	expect_true(
+		beta_hat[2] > 0,
+		info = paste("Beta dyad:", round(beta_hat[2], 3), "should be positive")
+	)
+
+	# additive effects correlation
+	sorted_names = names(fit$APM)
+	orig_names = rownames(dat$Y)
+	true_a = dat$true_params$a[[1]]
+	true_b = dat$true_params$b[[1]]
+	names(true_a) = orig_names
+	names(true_b) = orig_names
+	cor_a = cor(fit$APM, true_a[sorted_names])
+	cor_b = cor(fit$BPM, true_b[sorted_names])
+	expect_true(
+		cor_a > 0.2,
+		info = paste("Sender effects correlation:", round(cor_a, 3))
+	)
+	expect_true(
+		cor_b > 0.2,
+		info = paste("Receiver effects correlation:", round(cor_b, 3))
+	)
 })

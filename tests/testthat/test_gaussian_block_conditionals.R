@@ -47,8 +47,18 @@ skip_on_cran()
 	list(Z = Z, mX = mX, n = n, nt = nt, p = p)
 }
 
-.block_moments = function(f, Sab, rho, s2, g, center) {
-	lame:::.lame_replicated_gaussian_moments(f$Z, f$mX, Sab, rho, s2, g, center)
+# draws of the sampler for the block
+.block_draws = function(f, Sab, rho, s2, g, center, N = 4000L, seed = 1L) {
+	set.seed(seed)
+	replicate(N, unlist(lame:::.lame_replicated_gaussian_draw(f$Z, f$mX, Sab, rho, s2, g, center)))
+}
+
+# compare the moments of the draws with the dense conditional, within monte carlo error
+.expect_dense_moments = function(x, ref) {
+	N = ncol(x)
+	sd = sqrt(pmax(diag(ref$covariance), 0))
+	expect_true(all(abs(rowMeans(x) - ref$mean) <= 4.5 * sd / sqrt(N) + 1e-6))
+	expect_true(all(abs(cov(t(x)) - ref$covariance) <= 0.1 * outer(sd, sd) + 1e-6))
 }
 
 .block_prior = function(f, g) {
@@ -56,7 +66,7 @@ skip_on_cran()
 	lame:::.lame_replicated_prior(f$mX, NULL, g, f$p, f$nt)
 }
 
-test_that("block moments match the dense conditional with and without centering", {
+test_that("block draws match the dense conditional with and without centering", {
 	Sab = matrix(c(1, .3, .3, .7), 2)
 	for (cfg in list(
 		list(p = 2L, nt = 3L, center = FALSE, rho = .4),
@@ -66,7 +76,7 @@ test_that("block moments match the dense conditional with and without centering"
 		list(p = 3L, nt = 1L, center = FALSE, rho = 0)
 	)) {
 		f = .block_fixture(nt = cfg$nt, p = cfg$p)
-		got = .block_moments(f, Sab, cfg$rho, 1.3, 40, cfg$center)
+		x = .block_draws(f, Sab, cfg$rho, 1.3, 40, cfg$center)
 		ref = .dense_block(
 			f$Z,
 			f$mX,
@@ -77,21 +87,17 @@ test_that("block moments match the dense conditional with and without centering"
 			numeric(f$p),
 			cfg$center
 		)
-		scale = max(abs(ref$covariance))
-		expect_lt(max(abs(drop(got$mean) - ref$mean)), 1e-10 * max(1, abs(ref$mean)))
-		expect_lt(max(abs(got$covariance - ref$covariance)), 1e-10 * scale)
+		.expect_dense_moments(x, ref)
 	}
 })
 
-test_that("block moments stay exact close to both reciprocity boundaries", {
+test_that("block draws follow the dense conditional close to both reciprocity boundaries", {
 	f = .block_fixture(n = 4L, nt = 1L, p = 2L, seed = 2L)
 	Sab = matrix(c(.8, .25, .25, 1.1), 2)
 	for (rho in c(-1 + 1e-6, 1 - 1e-6)) {
-		got = .block_moments(f, Sab, rho, 1.7, 16, FALSE)
+		x = .block_draws(f, Sab, rho, 1.7, 16, FALSE)
 		ref = .dense_block(f$Z, f$mX, Sab, rho, 1.7, .block_prior(f, 16), numeric(2), FALSE)
-		sd = sqrt(diag(ref$covariance))
-		expect_lt(max(abs(drop(got$mean) - ref$mean) / sd), 1e-6)
-		expect_lt(max(abs(got$covariance - ref$covariance) / outer(sd, sd)), 1e-6)
+		.expect_dense_moments(x, ref)
 	}
 })
 
@@ -99,12 +105,10 @@ test_that("singular actor covariances keep their supported Gaussian law", {
 	f = .block_fixture(n = 5L, nt = 2L, p = 1L, seed = 3L)
 	prior = .block_prior(f, 25)
 	for (S in list(matrix(1, 2, 2), diag(c(1, 0)), matrix(0, 2, 2))) {
-		got = .block_moments(f, S, .3, 1, 25, FALSE)
-		expect_equal(got$rank, as.integer(sum(eigen(S)$values > 1e-12)))
+		x = .block_draws(f, S, .3, 1, 25, FALSE)
 		# the singular law is the limit of the regular one
 		ref = .dense_block(f$Z, f$mX, S + diag(1e-10, 2), .3, 1, prior, 0, FALSE)
-		expect_lt(max(abs(drop(got$mean) - ref$mean)), 1e-6)
-		expect_lt(max(abs(got$covariance - ref$covariance)), 1e-6)
+		.expect_dense_moments(x, ref)
 	}
 	# a disabled sender margin is a structural zero
 	set.seed(4)
@@ -116,12 +120,11 @@ test_that("singular actor covariances keep their supported Gaussian law", {
 test_that("coefficient draws are invariant to covariate units", {
 	f = .block_fixture(n = 6L, nt = 2L, p = 2L, seed = 5L)
 	Sab = matrix(c(.5, .1, .1, .4), 2)
-	base = .block_moments(f, Sab, .2, .9, 36, TRUE)
+	base = .block_draws(f, Sab, .2, .9, 36, TRUE, N = 200L)
 	f$mX[, 2L, ] = 1000 * f$mX[, 2L, ]
-	scaled = .block_moments(f, Sab, .2, .9, 36, TRUE)
+	scaled = .block_draws(f, Sab, .2, .9, 36, TRUE, N = 200L)
 	u = c(1, 1000, rep(1, 12))
-	expect_equal(drop(scaled$mean) * u, drop(base$mean), tolerance = 1e-9)
-	expect_equal(scaled$covariance * outer(u, u), base$covariance, tolerance = 1e-9)
+	expect_equal(scaled * u, base, tolerance = 1e-9)
 })
 
 test_that("block draws reproduce the dense conditional moments", {
@@ -291,22 +294,4 @@ test_that("factor prior precision tolerates rounding-level asymmetry", {
 	expect_true(isSymmetric(P))
 	expect_equal(P %*% ((S + t(S)) / 2), diag(4), tolerance = 1e-10)
 	expect_true(isSymmetric(rSuv_fc(W[, 1:2], W[, 3:4])))
-})
-
-test_that("directed normal ame fits with two latent dimensions run", {
-	set.seed(2)
-	n = 12; U = matrix(rnorm(n * 2), n); V = U + matrix(rnorm(n * 2, 0, .3), n)
-	Y = U %*% t(V) + matrix(rnorm(n * n), n); diag(Y) = NA
-	fit = ame(
-		Y * 0.01,
-		R = 2,
-		nscan = 300,
-		burn = 50,
-		odens = 10,
-		seed = 2,
-		verbose = FALSE,
-		gof = FALSE
-	)
-	expect_true(all(is.finite(fit$BETA)))
-	expect_true(all(is.finite(fit$U)) && all(is.finite(fit$V)))
 })

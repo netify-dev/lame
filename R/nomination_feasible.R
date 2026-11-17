@@ -9,8 +9,7 @@
 	room <- rep_len(odobs < odmax, nr)
 	room[is.na(room)] <- FALSE
 	# hidden cells also use up a row's room, so rows with hidden cells skip the room rule
-	bad <- if (identical(getOption("lame.nomination_engine"), "r")) .lame_nom_bad_rows_r(Z, Y, YL, room, bip)
-	else nom_bad_rows_cpp(Z, Y, if (is.null(YL)) matrix(0L, 0L, 0L) else matrix(as.integer(YL), nrow(YL)), room, bip)
+	bad <- nom_bad_rows_cpp(Z, Y, if (is.null(YL)) matrix(0L, 0L, 0L) else matrix(as.integer(YL), nrow(YL)), room, bip)
 	if (!any(bad)) return(Z)
 	nom <- !is.na(Y) & Y > 0
 	non <- !is.na(Y) & Y == 0
@@ -34,29 +33,4 @@
 		if (length(o)) Z[i, o] <- pmin(Z[i, o], min(v) - 0.05, if (room[i]) -0.05 else Inf)
 	}
 	Z
-}
-
-# the rows that break the constraints, in R (the reference of nom_bad_rows_cpp)
-.lame_nom_bad_rows_r <- function(Z, Y, YL, room, bip) {
-	nom <- !is.na(Y) & Y > 0
-	nr <- nrow(Z)
-	if (!any(nom)) return(rep(FALSE, nr))
-	non <- !is.na(Y) & Y == 0
-	Zn <- Z
-	Zn[!nom] <- Inf
-	mn <- apply(Zn, 1L, min)
-	Zo <- Z
-	Zo[!non] <- -Inf
-	mx <- apply(Zo, 1L, max)
-	hrow <- rowSums(.lame_nom_hidden_cells(Y, bip)) > 0L
-	room_chk <- room & !hrow
-	bad <- is.finite(mn) & (mn <= 0 | (is.finite(mx) & mx >= mn) | (room_chk & is.finite(mx) & mx >= 0))
-	if (!is.null(YL)) {
-		for (i in which(is.finite(mn) & !bad)) {
-			cols <- YL[i, ]
-			cols <- cols[!is.na(cols)]
-			if (length(cols) > 1L && any(diff(Z[i, cols]) <= 0)) bad[i] <- TRUE
-		}
-	}
-	bad
 }

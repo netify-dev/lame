@@ -33,112 +33,10 @@
 	out
 }
 
-# reference implementation of the cell (as pln_node() in src/ae_pln.h): log likelihood, score,
-# information, its derivative, and the noise posterior's second moment and mean; processed in chunks
-.ae_pln_node_r <- function(y, eta, ve, K = .ae_pln_kin(max(ve)), chunk = 20000L) {
-	n <- length(y)
-	ve <- rep_len(ve, n)
-	out <- vector("list", ceiling(n / chunk))
-	for (k in seq_along(out)) {
-		ix <- ((k - 1L) * chunk + 1L):min(k * chunk, n)
-		out[[k]] <- .ae_pln_node_block(y[ix], eta[ix], ve[ix], K)
-	}
-	if (!length(out)) return(list(
-		l = numeric(),
-		s = numeric(),
-		w = numeric(),
-		hp = numeric(),
-		ee = numeric(),
-		me = numeric()
-	))
-	if (length(out) == 1L) return(out[[1L]])
-	nm <- names(out[[1L]])
-	setNames(lapply(nm, function(a) unlist(lapply(out, `[[`, a), use.names = FALSE)), nm)
-}
-
-.ae_pln_node_block <- function(y, eta, ve, K) {
-	n <- length(y)
-	eta <- pmin(pmax(eta, -700), 700)
-	ve <- pmin(pmax(ve, 1e-8), 1e6)
-	iv <- 1 / ve
-	ly <- ifelse(y > 0, log(y), -Inf)
-	# posterior mode of the noise by a monotone Newton iteration from the right of the root
-	zeta <- pmax(eta, ly)
-	u <- y + eta / ve
-	act <- seq_len(n)
-	for (it in seq_len(100L)) {
-		if (!length(act)) break
-		zt <- zeta[act]
-		ez <- exp(zt)
-		step <- (ez + zt / ve[act] - u[act]) / (ez + iv[act])
-		zt <- zt - step
-		zeta[act] <- zt
-		act <- act[!(abs(step) <= 1e-13 * pmax(1, abs(zt)))]
-	}
-	Xs <- exp(zeta)
-	s <- 1 / sqrt(Xs + iv)
-	estar <- zeta - eta
-	rule <- .ae_pln_rule(K)
-	Z <- matrix(rule$z, n, K, byrow = TRUE)
-	tt <- s * Z
-	# expm1(t) - t - t^2 / 2, by its series where the subtraction loses every digit
-	r <- expm1(tt) - tt - 0.5 * tt * tt
-	sm <- abs(tt) < 0.1
-	if (any(sm)) {
-		t1 <- tt[sm]
-		r[sm] <- t1 * t1 * t1 / 6 * (1 + t1 / 4 * (1 + t1 / 5 * (1 + t1 / 6 * (1 + t1 / 7 * (1 + t1 / 8 *
-				(1 + t1 / 9 * (1 + t1 / 10 * (1 + t1 / 11))))))))
-	}
-	lw <- matrix(rule$lw, n, K, byrow = TRUE) - Xs * r
-	ex <- expm1(tt)
-	mx <- lw[cbind(seq_len(n), max.col(lw, ties.method = "first"))]
-	p <- exp(lw - mx)
-	tot <- rowSums(p)
-	p <- p / tot
-	# a node whose weight underflowed carries nothing
-	ex[p == 0] <- 0
-	ez1 <- rowSums(p * Z)
-	d <- Z - ez1
-	vz <- rowSums(p * d * d)
-	k3 <- rowSums(p * d * d * d)
-	eex <- rowSums(p * ex)
-	cze <- rowSums(p * d * (ex - eex))
-	me <- estar + s * ez1
-	gs <- y * estar - Xs - estar * estar / (2 * ve)
-	list(
-		l = y * eta - lgamma(y + 1) - 0.5 * log(2 * pi * ve) + gs + log(s) + 0.918938533204672741780329736406 +
-			mx + log(tot),
-		s = me / ve,
-		w = Xs * s * cze / ve,
-		hp = -(s * s * s) * k3 / (ve * ve * ve),
-		ee = s * s * vz + me * me,
-		me = me
-	)
-}
-
-# the same by the compiled kernel (ae_pln_node_cpp); zero off the observed cells and where
+# log likelihood, score, information, its derivative and the noise posterior's moments of each cell (as
+# pln_node() in src/ae_pln.h) by the compiled kernel (ae_pln_node_cpp); zero off the observed cells and where
 # the predictor is not finite
-.ae_pln_terms_r <- function(y, eta, ve, K = .ae_pln_kin(ve)) {
-	ix <- which(is.finite(y) & is.finite(eta))
-	nd <- .ae_pln_node_r(y[ix], eta[ix], ve, K)
-	fill <- function(v) {
-		o <- array(0, .ae_dims(y))
-		o[ix] <- v
-		o
-	}
-	list(
-		l = fill(nd$l),
-		s = fill(nd$s),
-		w = fill(nd$w),
-		hp = fill(nd$hp),
-		ee = fill(nd$ee),
-		me = fill(nd$me),
-		ve = ve
-	)
-}
-
 .ae_pln_terms <- function(y, eta, ve, K = .ae_pln_kin(ve)) {
-	if (identical(.ae_engine(), "r")) return(.ae_pln_terms_r(y, eta, ve, K))
 	rule <- .ae_pln_rule(K)
 	out <- ae_pln_node_cpp(
 		as.numeric(y),
@@ -155,45 +53,9 @@
 	out
 }
 
-# expected working problem of cells with predictor N(m, v), as .ae_mf_cells_r() for a binary cell,
-# plus `ee`, the expected second moment of the noise; the response increment is capped at 30
-.ae_pln_cells_r <- function(y, m, v, ve, K = 9L, Kin = .ae_pln_kin(ve)) {
-	obs <- is.finite(y) & is.finite(m)
-	ix <- which(obs)
-	mm <- m[ix]
-	vv <- pmax(rep_len(v, length(y))[ix], 0)
-	yy <- y[ix]
-	rules <- .ae_pln_outer(K)
-	rule_of <- findInterval(vv, rules$vcut, left.open = TRUE) + 1L
-	es <- ew <- el <- ee <- numeric(length(ix))
-	for (r in seq_along(rules$z)) {
-		sel <- which(rule_of == r)
-		if (!length(sel)) next
-		sdv <- sqrt(vv[sel])
-		for (k in seq_along(rules$z[[r]])) {
-			nd <- .ae_pln_node_r(yy[sel], mm[sel] + sdv * rules$z[[r]][k], ve, Kin)
-			es[sel] <- es[sel] + rules$w[[r]][k] * nd$s
-			ew[sel] <- ew[sel] + rules$w[[r]][k] * nd$w
-			el[sel] <- el[sel] + rules$w[[r]][k] * nd$l
-			ee[sel] <- ee[sel] + rules$w[[r]][k] * nd$ee
-		}
-	}
-	delta <- es / pmax(ew, 1e-12)
-	big <- abs(delta) > 30
-	if (any(big)) {
-		delta[big] <- sign(delta[big]) * 30
-		ew[big] <- abs(es[big]) / 30
-	}
-	z <- w <- ell <- eev <- array(0, .ae_dims(y))
-	z[ix] <- mm + delta
-	w[ix] <- ew
-	ell[ix] <- el
-	eev[ix] <- ee
-	list(z = z, w = w, ell = ell, ee = eev)
-}
-
+# expected working problem of cells with predictor N(m, v), as .ae_mf_cells() for a binary cell, plus `ee`, the
+# expected second moment of the noise; the response increment is capped at 30
 .ae_pln_cells <- function(y, m, v, ve, K = 9L, Kin = .ae_pln_kin(ve)) {
-	if (identical(.ae_engine(), "r")) return(.ae_pln_cells_r(y, m, v, ve, K, Kin))
 	rule <- .ae_pln_rule(Kin)
 	outer <- .ae_pln_outer(K)
 	out <- ae_pln_cells_cpp(
@@ -214,19 +76,9 @@
 	out
 }
 
-# cavity weight of the cells for the covariance of the factor rows (see .ae_mf_info_w_r): the
-# information of a Poisson-lognormal cell with variance v + ve at mean m
-.ae_pln_info_w_r <- function(y, m, v, ve, Kin = .ae_pln_kin(max(ve + pmax(v, 0), na.rm = TRUE))) {
-	ix <- which(is.finite(y) & is.finite(m))
-	w <- .ae_pln_node_r(y[ix], m[ix], ve + pmax(rep_len(v, length(y))[ix], 0), Kin)$w
-	w[!is.finite(w) | w < 0] <- 0
-	out <- array(0, .ae_dims(y))
-	out[ix] <- w
-	out
-}
-
+# cavity weight of the cells for the covariance of the factor rows (see .ae_mf_info_w): the information of a
+# Poisson-lognormal cell with variance v + ve at mean m
 .ae_pln_info_w <- function(y, m, v, ve, Kin = .ae_pln_kin(max(ve + pmax(v, 0), na.rm = TRUE))) {
-	if (identical(.ae_engine(), "r")) return(.ae_pln_info_w_r(y, m, v, ve, Kin))
 	rule <- .ae_pln_rule(Kin)
 	out <- ae_pln_info_w_cpp(
 		as.numeric(y),
@@ -244,19 +96,29 @@
 
 # variance of the noise
 
-# prior of ve used by rs2_fc() for counts: scaled inverse chi-square, nu0 = 1 and s20 = 1
+# prior of ve for counts: scaled inverse chi-square on s20. a scale the user gives carries one
+# degree of freedom, as rs2_fc() does; without one the prior has none (nu0 = 0), so no scale
+# pulls ve, which the likelihood of a count network barely informs
 .ae_pln_ve_prior <- c(nu0 = 1, s20 = 1)
+.ae_pln_ve_flat <- c(nu0 = 0, s20 = 1)
+.ae_pln_ve_prior_of <- function(s20 = NULL, nu0 = NULL) {
+	if (is.null(s20)) return(.ae_pln_ve_flat)
+	c(nu0 = if (is.null(nu0)) .ae_pln_ve_prior[["nu0"]] else as.numeric(nu0), s20 = as.numeric(s20))
+}
 
 # EM image of ve, (nu0 s20 + SS) / (N + nu0 - 2), the posterior mean of its inverse-gamma full
-# conditional; an undirected network counts its dyads once (`nu` = 1/2)
-.ae_pln_ve_image <- function(ee_sum, n_cells, nu = 1, pr = .ae_pln_ve_prior, floor = 1e-8) {
-	if (is.null(pr)) pr <- .ae_pln_ve_prior
-	max((pr[["nu0"]] * pr[["s20"]] + nu * ee_sum) / (nu * n_cells + pr[["nu0"]] - 2), floor)
+# conditional; an undirected network counts its dyads once (`nu` = 1/2). a network of two or
+# fewer cells has no such mean, and the image is then the ML one, SS / N
+.ae_pln_ve_image <- function(ee_sum, n_cells, nu = 1, pr = .ae_pln_ve_flat, floor = 1e-8) {
+	if (is.null(pr)) pr <- .ae_pln_ve_flat
+	den <- nu * n_cells + pr[["nu0"]] - 2
+	if (!(den > 0)) den <- max(nu * n_cells, 1)
+	max((pr[["nu0"]] * pr[["s20"]] + nu * ee_sum) / den, floor)
 }
 
 # hyperprior of ve on the log-likelihood scale, stationary at the EM image
-.ae_pln_ve_logprior <- function(ve, pr = .ae_pln_ve_prior) {
-	if (is.null(pr)) pr <- .ae_pln_ve_prior
+.ae_pln_ve_logprior <- function(ve, pr = .ae_pln_ve_flat) {
+	if (is.null(pr)) pr <- .ae_pln_ve_flat
 	-0.5 * (pr[["nu0"]] - 2) * log(ve) - 0.5 * pr[["nu0"]] * pr[["s20"]] / ve
 }
 
@@ -283,6 +145,9 @@
 # found by continuation on log ve from a cold solve at a small ve, where weak factor columns stay alive,
 # then a bracket and parabolic search; the variational stage holds ve at this value
 .ae_pln_ve_lo <- 0.05
+# smallest ve searched: the log density of the prior already holds the maximum off zero, and
+# lognormal noise of this variance is not distinguishable from none in any count network
+.ae_pln_ve_min <- 1e-6
 .ae_pln_mode_init <- function(fit, ve) {
 	init <- list(
 		mu = fit$mu,
@@ -299,13 +164,44 @@
 	init
 }
 # run(ve, from) solves the mode at the value ve held, cold when `from` is NULL and warm from the mode `from` otherwise
-.ae_pln_ve_search <- function(run, ve0, from0 = NULL, local = FALSE, max_eval = 24L, ve_prior = .ae_pln_ve_prior) {
-	if (is.null(ve_prior)) ve_prior <- .ae_pln_ve_prior
+.ae_pln_ve_search <- function(run, ve0, from0 = NULL, local = FALSE, max_eval = 24L, ve_prior = .ae_pln_ve_flat) {
+	if (is.null(ve_prior)) ve_prior <- .ae_pln_ve_flat
 	xs <- numeric(0); Js <- numeric(0); irs <- list(); pass <- logical(0); its <- integer(0)
+	base <- numeric(0); wl <- list(); tl <- list()
+	# the Laplace evidence plus the log density of the prior, and the second-order part of the
+	# variance of the product cells the evidence omits (.ae_pln_second_order)
 	objective <- function(ir, ve) {
-		lm <- ir$fit$eb_vcov$evidence$log_marginal
-		if (is.null(lm) || !is.finite(lm)) return(-Inf)
-		lm + .ae_pln_ve_logprior(ve, ve_prior)
+		ev <- ir$fit$eb_vcov$evidence
+		lm <- ev$log_marginal
+		so <- ev$second_order
+		ok <- is.list(so) && all(is.finite(so$w)) && all(is.finite(so$t))
+		list(
+			base = if (is.null(lm) || !is.finite(lm)) -Inf else lm + .ae_pln_ve_logprior(ve, ve_prior),
+			w = if (ok) so$w else NULL,
+			t = if (ok) so$t else NULL
+		)
+	}
+	# each point is scored with that variance held at its value at the best point, -sum w t_best,
+	# so the scores differ only through the cell information w: the maximum is then the EM fixed
+	# point whose second moment of the noise carries the full posterior variance of the product
+	rescore <- function() {
+		b <- which.max(if (length(Js) == length(base)) Js else base)
+		for (pass_k in 1:2) {
+			tb <- tl[[b]]
+			if (is.null(tb)) {
+				Js <<- base
+				return(invisible())
+			}
+			Js <<- base - vapply(seq_along(base), function(k) if (is.null(wl[[k]])) 0 else sum(wl[[k]] * tb), 0)
+			b <- which.max(Js)
+		}
+	}
+	record <- function(k, ir, ve) {
+		o <- objective(ir, ve)
+		base[k] <<- o$base
+		wl[k] <<- list(o$w)
+		tl[k] <<- list(o$t)
+		rescore()
 	}
 	# solved point nearest to x (any point, if none has solved)
 	nearest <- function(x) {
@@ -313,7 +209,7 @@
 		irs[[cand[which.min(abs(xs[cand] - x))]]]
 	}
 	ev <- function(x, from) {
-		x <- as.numeric(x)
+		x <- max(as.numeric(x), log(.ae_pln_ve_min))
 		ir <- run(exp(x), from)
 		# a warm solve that misses the certificate is repeated from the nearest solved point
 		if (!isTRUE(ir$stationarity$pass) && any(pass)) {
@@ -323,7 +219,8 @@
 				if (isTRUE(ir2$stationarity$pass)) ir <- ir2
 			}
 		}
-		xs <<- c(xs, x); Js <<- c(Js, objective(ir, exp(x))); irs[[length(irs) + 1L]] <<- ir
+		xs <<- c(xs, x); irs[[length(irs) + 1L]] <<- ir
+		record(length(xs), ir, exp(x))
 		pass <<- c(pass, isTRUE(ir$stationarity$pass)); its <<- c(its, as.integer(ir$irls_iters))
 		length(xs)
 	}
@@ -385,7 +282,8 @@
 		res <- through(irs[[b]])
 		if (!isTRUE(res$stationarity$pass)) res <- through(run(exp(xs[b]), NULL))
 		if (isTRUE(res$stationarity$pass)) {
-			irs[[b]] <- res; Js[b] <- objective(res, exp(xs[b])); pass[b] <- TRUE
+			irs[[b]] <- res; record(b, res, exp(xs[b])); pass[b] <- TRUE
+			b <- which.max(Js)
 		}
 	}
 	list(
@@ -404,11 +302,12 @@
 
 # prior of the actor effects of a count network
 
-# additive-effects prior of ame() and lame() for counts: scale from .ame_pois_effect_scale,
-# df = round(4 + 3 n / 100) with n the (row) actors
+# additive-effects prior of a count fit: the scale of ame() and lame() (.ame_pois_effect_scale) with
+# the weight of one actor. the log row and column rates that scale is read from carry the latent
+# product and the count noise, so it is several times the effect variance under a strong product,
+# and the sampler's weight of round(4 + 3 n / 100) actors pulls the estimate towards it
 .ae_eb_hyperprior_pois <- function(Yarr) {
-	nact <- dim(Yarr)[1L]
-	list(Sab0 = diag(2) * .ame_pois_effect_scale(Yarr), eta0 = round(4 + 3 * nact / 100))
+	list(Sab0 = diag(2) * .ame_pois_effect_scale(Yarr), eta0 = 1)
 }
 
 # starting working response: log count plus the samplers' pseudo-count (the mean count, at most one)
@@ -425,6 +324,3 @@
 .ae_irls_pln <- function(eta, terms, delta_cap = 30) {
 	.ae_irls_score_step(eta, terms$s, terms$w, delta_cap)
 }
-
-# minus twice the log likelihood of the observed cells
-.ae_dev_pln <- function(terms) -2 * sum(terms$l)

@@ -54,6 +54,9 @@ Generate predictions from fitted AME models, including point estimates
 and predictive distributions.
 }
 \details{
+Without \code{newdata}, \code{type = "response"} returns the
+stored \code{YPM} (see \code{\link{fitted.ame}}).
+
 For MCMC Poisson models the response is the mean count of a cell,
 \eqn{\exp(\eta + \sigma^2 / 2)}, at the posterior mean \eqn{\eta} of its
 linear predictor and the posterior mean \eqn{\sigma^2} of the residual

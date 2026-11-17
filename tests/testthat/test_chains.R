@@ -54,7 +54,8 @@ test_that("the pooled fit carries the chain record and works with the methods", 
 	expect_identical(f$chains, 2L)
 	expect_equal(dim(f$BETA)[1], 600L)
 	expect_s3_class(f$rhat, "data.frame")
-	expect_true(all(c("intercept", "sigma_ab") %in% f$rhat$parameter))
+	# under dynamic_ab the intercept is a path, monitored per period
+	expect_true(all(c("intercept[t1]", "sigma_ab") %in% f$rhat$parameter))
 	expect_identical(f$auto_extend$chains, 2L)
 	expect_length(f$chain_start_vals, 2L)
 	expect_match(paste(capture.output(print(f)), collapse = " "), "2 chains")
@@ -131,16 +132,14 @@ test_that("ame_parallel() and lame_parallel() are the chains of ame() and lame()
 	expect_identical(lst[[2]]$BETA, b$BETA[21:40, , drop = FALSE])
 })
 
-test_that("n_chains is the older name of chains, and the arguments are checked", {
+test_that("the chains argument is checked", {
 	Y = cross_section()
-	expect_identical(fit_ame(Y, n_chains = 2)$chains, 2L)
-	expect_error(fit_ame(Y, n_chains = 2, chains = 3), class = "lame_chains_arg")
 	expect_error(fit_ame(Y, chains = 0), class = "lame_chains_arg")
 	expect_error(fit_ame(Y, chains = 1.5), class = "lame_chains_arg")
 	d = chains_panel()
 	expect_error(quiet(lame(d$Y, R = 0, burn = 5, nscan = 20, odens = 5, chains = "a")), class = "lame_chains_arg")
 	expect_error(
-		quiet(lame(d$Y, R = 0, burn = 5, nscan = 20, odens = 5, chains = 2, sampler = "tempered")),
+		quiet(lame(d$Y, R = 0, burn = 5, nscan = 20, odens = 5, chains = 0, sampler = "tempered")),
 		class = "lame_chains_arg"
 	)
 })
@@ -165,13 +164,53 @@ test_that("the gate compares the chains on the monitored set and not on the prod
 	)
 	tab = lame:::.lame_gate_table(list(mk(0), mk(0)))
 	expect_true(all(c("intercept", "va") %in% tab$parameter))
+	expect_named(tab, c("parameter", "rhat", "ess", "ess_chain", "threshold", "informative", "ess_needed"))
+	expect_true(all(tab$informative))
+	expect_true(all(tab$threshold >= 1.05))
 	expect_equal(nrow(lame:::.lame_gate_flagged(tab)), 0L)
 	tab = lame:::.lame_gate_table(list(mk(0), mk(2)))
 	flagged = lame:::.lame_gate_flagged(tab)
 	expect_identical(flagged$parameter, "intercept")
+	expect_gt(flagged$rhat, flagged$threshold)
 	# short runs are not compared
 	short = function() list(BETA = cbind(intercept = rnorm(30)), family = "normal", mode = "unipartite")
 	expect_equal(nrow(lame:::.lame_gate_table(list(short(), short()))), 0L)
+})
+
+test_that("chains too short to compare get a longer block and are returned, not refused", {
+	Y = cross_section()
+	short = data.frame(
+		parameter = "va",
+		rhat = 1.01,
+		ess = 10,
+		ess_chain = 10,
+		threshold = 1.2,
+		informative = FALSE,
+		ess_needed = 35,
+		stringsAsFactors = FALSE
+	)
+	calls = 0L
+	local_mocked_bindings(.lame_gate_table = function(fits) {
+		calls <<- calls + 1L
+		if (calls == 1L) short else short[0, ]
+	}, .package = "lame")
+	f = fit_ame(Y, chains = 2)
+	# 100 sweeps held 10 of 35 effective draws: 100 * 1.25 * 3.5 = 440 sweeps, capped at 4 * nscan
+	expect_identical(f$auto_extend$extensions, 1L)
+	expect_identical(f$auto_extend$block_nscan, 400L)
+	expect_identical(f$auto_extend$discarded_sweeps, 100L)
+	expect_equal(nrow(f$BETA), 2L * 80L)
+	expect_equal(f$auto_extend$next_seeds, c(7, 1007) + 20 + 100 + 400)
+	# still too short after the last extension: returned with a warning that names the series
+	local_mocked_bindings(.lame_gate_table = function(fits) short, .package = "lame")
+	expect_warning(
+		g <- suppressMessages(ame(Y, R = 1, burn = 20, nscan = 100, odens = 5, seed = 7, verbose = FALSE, chains = 2)),
+		class = "lame_chain_not_compared"
+	)
+	expect_s3_class(g, "ame")
+	expect_identical(g$auto_extend$extensions, 3L)
+	expect_identical(g$auto_extend$block_nscan, 400L)
+	expect_false(isTRUE(g$auto_extend$refused))
 })
 
 test_that("chains that disagree are extended together and then refused with every chain", {
@@ -185,7 +224,9 @@ test_that("chains that disagree are extended together and then refused with ever
 	expect_equal(e$rhat$rhat, 1.4)
 	expect_identical(e$fit$chains, 2L)
 	expect_match(conditionMessage(e), "intercept")
+	expect_match(conditionMessage(e), "R-hat 1.400 above 1.050", fixed = TRUE)
 	expect_match(conditionMessage(e), "lame_resume", fixed = TRUE)
+	expect_identical(e$fit$auto_extend$alpha, lame:::.lame_chain_alpha)
 	# no extension at all
 	e0 = tryCatch(fit_ame(Y, chains = 2, prior = list(chain_extensions = 0)), error = function(e) e)
 	expect_identical(e0$extensions, 0L)
@@ -210,14 +251,6 @@ test_that("a pooled fit that settled resumes every chain from its own state", {
 	expect_equal(nrow(r$BETA), 20L)
 	expect_identical(r$chain_seeds, f$auto_extend$next_seeds)
 	expect_false(identical(r$BETA[1:10, ], f$BETA[1:10, ]))
-})
-
-test_that("a resumed two-chain fit holds nscan_more / odens draws per chain", {
-	Y = cross_section()
-	f = fit_ame(Y, chains = 2)
-	r = quiet(lame_resume(f, nscan_more = 200))
-	expect_equal(nrow(r$BETA), 2L * 200L / 5L)
-	expect_identical(as.integer(table(r$chain_indicator)), c(40L, 40L))
 })
 
 test_that("a resumed two-chain lame() fit holds nscan_more / odens draws per chain, and a fit stopped by max_seconds keeps its time limit unless lifted", {
@@ -255,9 +288,10 @@ test_that("a resumed two-chain lame() fit holds nscan_more / odens draws per cha
 		)
 	)
 	expect_true(cut$terminated_early)
-	again = quiet(lame_resume(cut, nscan_more = 200))
+	# the resume inherits the time limit, so more scans than fit in it force the stop
+	again = quiet(lame_resume(cut, nscan_more = 100000))
 	expect_true(again$terminated_early)
-	expect_lt(nrow(again$BETA), 80L)
+	expect_lt(nrow(again$BETA), nrow(cut$BETA) + 20000L)
 	full = quiet(lame_resume(cut, nscan_more = 200, max_seconds = Inf))
 	expect_false(isTRUE(full$terminated_early))
 	expect_equal(nrow(full$BETA), 80L)
@@ -297,4 +331,64 @@ test_that("a single-period lame() fit pools its chains and plots its goodness of
 	# one period row; the observed column plus 20 draws from each chain
 	expect_true(all(vapply(f$GOF, function(g) identical(dim(g), c(1L, 41L)), logical(1))))
 	expect_s3_class(quiet(gof_plot(f)), "ggplot")
+})
+
+test_that("chunked likelihood storage keeps a directory per chain and reads back the pooled draws", {
+	d = chains_panel()
+	ll_dir = withr::local_tempdir()
+	args = list(
+		Y = d$Y, Xdyad = d$X, R = 1, dcor = FALSE, burn = 50, nscan = 400, odens = 5, seed = 7,
+		verbose = FALSE, chains = 2
+	)
+	mem = quiet(do.call(lame, c(args, list(save_log_lik = TRUE))))
+	chunk = quiet(do.call(lame, c(args, list(
+		save_log_lik = "chunked", log_lik_path = file.path(ll_dir, "ll"), log_lik_chunk_size = 100L
+	))))
+	expect_setequal(list.files(ll_dir), c("ll_chain1", "ll_chain2"))
+	expect_null(chunk$log_lik)
+	expect_identical(chunk$BETA, mem$BETA)
+	expect_identical(nrow(read_log_lik(chunk)), nrow(chunk$BETA))
+	expect_identical(unname(read_log_lik(chunk)), unname(mem$log_lik))
+	if (requireNamespace("loo", quietly = TRUE)) {
+		expect_equal(suppressWarnings(loo(chunk))$estimates, suppressWarnings(loo(mem))$estimates)
+	}
+	# a resumed block has its own directories, and the fit it continues still reads its own draws
+	more = quiet(lame_resume(chunk, nscan_more = 100))
+	more_mem = quiet(lame_resume(mem, nscan_more = 100))
+	expect_true(all(c("ll_resume1_chain1", "ll_resume1_chain2") %in% list.files(ll_dir)))
+	expect_identical(unname(read_log_lik(more)), unname(more_mem$log_lik))
+	expect_identical(unname(read_log_lik(chunk)), unname(mem$log_lik))
+	# chains pooled by hand, with either storage
+	one = function(seed, ...) quiet(lame(
+		d$Y, Xdyad = d$X, R = 1, dcor = FALSE, burn = 20, nscan = 100, odens = 5, seed = seed,
+		verbose = FALSE, chains = 1, ...
+	))
+	ref = rbind(one(7, save_log_lik = TRUE)$log_lik, one(1007, save_log_lik = TRUE)$log_lik)
+	both = quiet(combine_ame_chains(list(one(7, save_log_lik = "chunked"), one(1007, save_log_lik = "chunked"))))
+	expect_identical(read_log_lik(both), ref)
+	mixed = quiet(combine_ame_chains(list(one(7, save_log_lik = "chunked"), one(1007, save_log_lik = TRUE))))
+	expect_identical(unname(read_log_lik(mixed)), ref)
+})
+
+test_that("a time limit leaves chunked likelihood storage with the draws that were kept", {
+	d = chains_panel()
+	stopped = quiet(lame(
+		d$Y, Xdyad = d$X, R = 1, dcor = FALSE, burn = 20, nscan = 50000, odens = 5, seed = 7,
+		verbose = FALSE, chains = 1, save_log_lik = "chunked", max_seconds = 4
+	))
+	ll = read_log_lik(stopped)
+	expect_equal(stopped$log_lik_chunks$n_stored, nrow(stopped$BETA))
+	expect_identical(nrow(ll), nrow(stopped$BETA))
+	expect_true(all(is.finite(ll)))
+})
+
+test_that("a 2-d dyadic covariate is named after its argument on every route", {
+	Y = cross_section()
+	set.seed(3)
+	Xd = matrix(rnorm(length(Y)), nrow(Y), dimnames = dimnames(Y))
+	nm = c("intercept", "Xd_dyad")
+	expect_identical(names(coef(fit_ame(Y, Xdyad = Xd))), nm)
+	expect_identical(names(coef(fit_ame(Y, Xdyad = Xd, chains = 1))), nm)
+	expect_identical(names(coef(quiet(ame(Y, Xdyad = Xd, method = "als", verbose = FALSE)))), nm)
+	expect_identical(names(coef(quiet(ame_als(Y, Xdyad = Xd, verbose = FALSE)))), nm)
 })

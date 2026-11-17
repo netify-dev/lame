@@ -32,9 +32,9 @@ dpr_panel = function(family, n = 12, Tt = 3, seed = 5, sym = FALSE) {
 	names(Y) = names(X) = names(Wr) = paste0("t", seq_len(Tt))
 	list(Y = Y, X = X, Xrow = Wr)
 }
+# bias_correct = "none" is the penalised fit the sampler's warm start asks for
 dpr_fit = function(d, family, bias_correct = NULL, ...) {
-	args = c(list(d$Y, d$X, family = family, dynamic_ab = TRUE, verbose = FALSE), list(...))
-	if (!is.null(bias_correct)) args$bias_correct = bias_correct
+	args = c(list(d$Y, d$X, family = family, dynamic_ab = TRUE, verbose = FALSE, bias_correct = bias_correct), list(...))
 	suppressWarnings(do.call(lame:::lame_dynamic_als, args))
 }
 

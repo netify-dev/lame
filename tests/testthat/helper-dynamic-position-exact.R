@@ -27,7 +27,7 @@ dpmt_exact = function(mode, kind = 'ar1', rk = 1L, ndraw = 2e5, seed = 1L, rail 
 	ar_paths = function(m, n, lam = NULL) {
 		e = array(rnorm(m * n * rk * N), c(m, n, rk, N))
 		out = array(0, c(m, n, rk, N))
-		out[, , , 1] = e[, , , 1] * sigma_uv / sqrt(1 - rho_uv^2)
+		out[, , , 1] = e[, , , 1] * sigma_uv / sqrt(1 - rho_uv^2) / (if (is.null(lam)) 1 else sqrt(rep(lam[, , 1], rk)))
 		for (t in 2:N) out[, , , t] = rho_uv * out[, , , t - 1] + sigma_uv * e[, , , t] / (if (is.null(lam)) 1 else sqrt(rep(lam[, , t], rk)))
 		out
 	}
@@ -194,7 +194,7 @@ dpmt_exact_binary = function(mode, kind = 'ar1', rk = 1L, ndraw = 2e5, seed = 1L
 	ar_paths = function(m, n, lam = NULL) {
 		e = array(rnorm(m * n * rk * N), c(m, n, rk, N))
 		out = array(0, c(m, n, rk, N))
-		out[, , , 1] = e[, , , 1] * sigma_uv / sqrt(1 - rho_uv^2)
+		out[, , , 1] = e[, , , 1] * sigma_uv / sqrt(1 - rho_uv^2) / (if (is.null(lam)) 1 else sqrt(rep(lam[, , 1], rk)))
 		for (t in 2:N) out[, , , t] = rho_uv * out[, , , t - 1] + sigma_uv * e[, , , t] / (if (is.null(lam)) 1 else sqrt(rep(lam[, , t], rk)))
 		out
 	}

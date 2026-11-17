@@ -1,6 +1,6 @@
 # shared-grid quadrature for the expected pair problem of the dynamic binary
 # empirical-Bayes estimator when the predictor noise is wide (src/dynamic_eb_pair.cpp).
-# the 19 pair functions of .ae_pair_node_fisher_r() are tabulated once per correlation
+# the 19 functions of the Fisher pair problem (.ae_pair_quad_fisher()) are tabulated once per correlation
 # on the grid x_k = cc sinh(k du) (lde_pair_table_cpp()), and a pair's expectation
 # contracts its two Gaussian weight vectors with the table (lde_pair_apply_cpp()).
 # pairs the grid does not resolve go to the direct kernel (lde_pair_direct_cpp()), and
@@ -102,7 +102,7 @@
 	cached <- .lde_pair_env$fam
 	use_cached <- !is.null(cached) && abs(rho - cached$rc) <= cached$h + 1e-15 && cached$du <= cap + 1e-12 &&
 		bitwAnd(vall, cached$vmask) == vall && cached$tier >= tier
-	fam_on <- .lde_pair_family_on() && !identical(.ae_engine(), "r")
+	fam_on <- .lde_pair_family_on()
 	nfam <- if (!fam_on) 1L else if (tier <= 1L) 4L else 6L
 	# the grid of the last plan is reused for seven calls in eight (pairs change slowly between passes)
 	hint <- .lde_pair_env$hint
@@ -223,8 +223,8 @@
 .lde_pair_tab_cols <- 40L
 
 # the family of tables of a plan's grid at the Chebyshev-Lobatto nodes of
-# [rho - h, rho + h]; one exact table when the family is off, under the R engine, for
-# |rho| > 0.9, or beyond options(lame.pair_family_bytes)
+# [rho - h, rho + h]; one exact table when the family is off, for |rho| > 0.9, or beyond
+# options(lame.pair_family_bytes)
 .lde_pair_family <- function(plan, rho, vmask, threads, tier) {
 	N <- plan$N
 	# refuse a table of more than 2 GB (the positions reproduce the panel exactly)
@@ -234,8 +234,7 @@
 			"i" = "The positions or factors reproduce the panel exactly (their scale is not identified); lower {.arg R} or fit with {.code dcor = FALSE}."
 		))
 	}
-	ref <- identical(.ae_engine(), "r")
-	n <- if (!.lde_pair_family_on() || ref) 1L else if (tier <= 1L) 4L else 6L
+	n <- if (!.lde_pair_family_on()) 1L else if (tier <= 1L) 4L else 6L
 	if (n > 1L && (abs(rho) > 0.9 || n * as.double(N)^2 * .lde_pair_tab_cols * 8 > getOption("lame.pair_family_bytes", 3e8))) n <- 1L
 	xmax <- plan$cc * sinh(max(abs(plan$klo), abs(plan$khi)) * plan$du)
 	h <- if (n > 1L) min(if (tier <= 1L) 0.012 else 0.015, 0.05 * (1 - abs(rho)), 2 / xmax) else 0
@@ -249,8 +248,7 @@
 		bw <- 1
 	}
 	tabs <- lapply(nodes, function(r) {
-		if (ref) .lde_pair_table_r(r, plan$cc, plan$du, plan$klo, plan$khi, vmask)$table
-		else lde_pair_table_cpp(
+		lde_pair_table_cpp(
 			r,
 			plan$cc,
 			plan$du,
@@ -316,159 +314,4 @@
 		.lde_pair_env$fam <- .lde_pair_family(plan, rho, vmask, threads, tier)
 	}
 	.lde_pair_blend(rho, threads)
-}
-
-# R reference of the table and the contraction, which the tests compare the kernels with
-
-# the 12 + 4 x 7 functions at the nodes (a, b), n x 40: the information functions of .ae_pair_node_fisher_r() and, for each
-# outcome (+,+) (+,-) (-,+) (-,-), the log probability of the observed pair and its derivatives from the log-domain terms
-# of the bivariate probit (no floor of the probabilities: they grow in the tails)
-.lde_pair_node_r <- function(a, b, r, vmask = 15L) {
-	n <- length(a)
-	nd <- .ae_pair_node_fisher_r(a, b, rep_len(r, n), rep(1, n), rep(1, n), TRUE, TRUE)
-	out <- matrix(0, n, 40L)
-	info <- c("I11", "I22", "I12", "I11a", "I11b", "I22a", "I22b", "I12a", "I12b", "I11r", "I22r", "I12r")
-	for (k in seq_along(info)) out[, k] <- nd[[info[k]]]
-	sg1 <- c(1, 1, -1, -1)
-	sg2 <- c(1, -1, 1, -1)
-	for (j in 1:4) {
-		if (!bitwAnd(vmask, bitwShiftL(1L, j - 1L))) next
-		s1 <- sg1[j]; s2 <- sg2[j]
-		A <- s1 * a; B <- s2 * b; R <- rep_len(s1 * s2 * r, n)
-		d <- .ae_pair_logp_r(A, B, R)
-		om <- 1 - R^2
-		LAR <- d$Lr * (R * B - A) / om - d$La * d$Lr
-		LBR <- d$Lr * (R * A - B) / om - d$Lb * d$Lr
-		cols <- cbind(d$L, s1 * d$La, s2 * d$Lb, s1 * s2 * d$Lr, d$Lrr, s2 * LAR, s1 * LBR)
-		cols[!is.finite(cols)] <- 0
-		out[, 12L + 7L * (j - 1L) + 1:7] <- cols
-	}
-	out
-}
-
-.lde_pair_table_r <- function(rho, cc, du, klo, khi, vmask = 15L) {
-	k <- klo:khi
-	x <- cc * sinh(k * du)
-	N <- length(k)
-	a <- rep(x, each = N) # index i of the first cell varies slowest: [i * N + j]
-	b <- rep(x, times = N)
-	nodes <- .lde_pair_node_r(a, b, rho, vmask)
-	list(
-		table = as.vector(nodes),
-		N = N,
-		cc = cc,
-		du = du,
-		klo = klo,
-		khi = khi,
-		rho = rho,
-		vmask = vmask,
-		cols = nodes
-	)
-}
-
-# the contraction of the columns (the same output as lde_pair_apply_cpp())
-.lde_pair_apply_r <- function(tab, m1, m2, sd1, sd2, variant, cutoff = 7.5, deriv = TRUE, rho_deriv = FALSE) {
-	N <- tab$N
-	x <- tab$cc * sinh((tab$klo:tab$khi) * tab$du)
-	jac <- tab$cc * cosh((tab$klo:tab$khi) * tab$du) * tab$du
-	n <- length(m1)
-	rho_deriv <- deriv && rho_deriv
-	nm <- c(
-		"ell",
-		"psi1",
-		"psi2",
-		"I11",
-		"I22",
-		"I12",
-		if (deriv) c("I11a", "I11b", "I22a", "I22b", "I12a", "I12b"),
-		if (rho_deriv) c("s0", "rc0", "psi1r", "psi2r", "I11r", "I22r", "I12r")
-	)
-	# output column -> table column
-	info <- c(NA, NA, NA, 1, 2, 3, 4, 5, 6, 7, 8, 9, NA, NA, NA, NA, 10, 11, 12)
-	obs <- c(1, 2, 3, NA, NA, NA, NA, NA, NA, NA, NA, NA, 4, 5, 6, 7, NA, NA, NA)
-	out <- stats::setNames(replicate(length(nm), numeric(n), simplify = FALSE), nm)
-	ok <- integer(n)
-	K <- integer(n)
-	cols <- matrix(tab$table, N * N, 40L)
-	for (p in seq_len(n)) {
-		w1 <- jac * stats::dnorm((x - m1[p]) / sd1[p]) / sd1[p]
-		w2 <- jac * stats::dnorm((x - m2[p]) / sd2[p]) / sd2[p]
-		i1 <- which(abs(x - m1[p]) <= cutoff * sd1[p])
-		i2 <- which(abs(x - m2[p]) <= cutoff * sd2[p])
-		if (!length(i1) || !length(i2) || m1[p] - cutoff * sd1[p] < x[1L] || m1[p] + cutoff * sd1[p] > x[N] ||
-				m2[p] - cutoff * sd2[p] < x[1L] || m2[p] + cutoff * sd2[p] > x[N]) next
-		wt <- as.vector(outer(w1[i1], w2[i2]))
-		ix <- as.vector(outer((i1 - 1L) * N, i2, "+"))
-		for (c in seq_along(nm)) {
-			tc <- if (!is.na(info[c])) info[c] else 12L + 7L * variant[p] + obs[c]
-			out[[c]][p] <- sum(wt * cols[ix, tc])
-		}
-		ok[p] <- 1L
-		K[p] <- max(length(i1), length(i2))
-	}
-	c(out, list(ok = ok, K = K))
-}
-
-# the direct kernel's R reference: the product of the rules a predictor, the functions of .lde_pair_node_r() at the nodes
-.lde_pair_direct_r <- function(
-	m1,
-	m2,
-	sd1,
-	sd2,
-	variant,
-	type1,
-	type2,
-	K1,
-	K2,
-	rho,
-	cc,
-	du,
-	cutoff = 7.5,
-	deriv = TRUE,
-	rho_deriv = FALSE
-) {
-	n <- length(m1)
-	rho_deriv <- deriv && rho_deriv
-	nm <- c(
-		"ell",
-		"psi1",
-		"psi2",
-		"I11",
-		"I22",
-		"I12",
-		if (deriv) c("I11a", "I11b", "I22a", "I22b", "I12a", "I12b"),
-		if (rho_deriv) c("s0", "rc0", "psi1r", "psi2r", "I11r", "I22r", "I12r")
-	)
-	info <- c(NA, NA, NA, 1, 2, 3, 4, 5, 6, 7, 8, 9, NA, NA, NA, NA, 10, 11, 12)
-	obs <- c(1, 2, 3, NA, NA, NA, NA, NA, NA, NA, NA, NA, 4, 5, 6, 7, NA, NA, NA)
-	out <- stats::setNames(replicate(length(nm), numeric(n), simplify = FALSE), nm)
-	ok <- integer(n)
-	K <- integer(n)
-	rule <- function(m, sd, type, k) {
-		if (!(sd > 0) || (type == 0L && k <= 1L)) return(list(x = m, w = 1))
-		if (type == 0L) {
-			g <- .ae_mf_gh(k)
-			return(list(x = m + sd * g$z, w = g$w))
-		}
-		i0 <- ceiling(asinh((m - cutoff * sd) / cc) / du)
-		i1 <- floor(asinh((m + cutoff * sd) / cc) / du)
-		u <- (i0:i1) * du
-		x <- cc * sinh(u)
-		list(x = x, w = cc * cosh(u) * du * stats::dnorm((x - m) / sd) / sd)
-	}
-	for (p in seq_len(n)) {
-		r1 <- rule(m1[p], sd1[p], type1[p], K1[p])
-		r2 <- rule(m2[p], sd2[p], type2[p], K2[p])
-		a <- rep(r1$x, times = length(r2$x))
-		b <- rep(r2$x, each = length(r1$x))
-		w <- as.vector(outer(r1$w, r2$w))
-		cols <- .lde_pair_node_r(a, b, rho, bitwShiftL(1L, variant[p]))
-		for (c in seq_along(nm)) {
-			tc <- if (!is.na(info[c])) info[c] else 12L + 7L * variant[p] + obs[c]
-			out[[c]][p] <- sum(w * cols[, tc])
-		}
-		ok[p] <- 1L
-		K[p] <- max(length(r1$x), length(r2$x))
-	}
-	c(out, list(ok = ok, K = K))
 }

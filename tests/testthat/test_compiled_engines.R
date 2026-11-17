@@ -1,10 +1,9 @@
 # compiled kernels of the Poisson translation moves, the symmetric actor-period move and the nomination feasibility check
-# match their R versions to rounding (options lame.ltm_engine = "r", lame.pab_engine, lame.nomination_engine) on the same inputs and seeds
+# match their R references (helper-reference-engines-moves.R) to rounding on the same inputs and seeds
 
-ce_with = function(opt, val, code) {
-	old = getOption(opt); options(structure(list(val), names = opt)); on.exit(
-		options(structure(list(old), names = opt))
-	)
+# evaluates `code` on the compiled kernels (eng = 'cpp') or on their R references (eng = 'r')
+ce_with = function(eng, code) {
+	if (identical(eng, 'r')) local_move_r_engine()
 	force(code)
 }
 
@@ -24,11 +23,12 @@ ce_panel = function(mode, seed = 5L, n = 7L, N = 3L, nb = 9L) {
 }
 
 test_that('the compiled level translations of a Poisson fit give the draws of the R loop', {
+	skip_on_cran()
 	for (mode in c('dir', 'sym', 'bip')) {
 		s = ce_panel(mode)
 		cx = lame:::.lame_ltm_context(s$Y, 'poisson', mode, offset = c(0, .2, -.1))
 		Sab = if (mode == 'bip') diag(c(1.1, .8)) else if (mode == 'sym') matrix(1.1, 2, 2) else matrix(c(1, .3, .3, 1.2), 2)
-		out = lapply(c('r', 'cpp'), function(eng) ce_with('lame.ltm_engine', eng, {
+		out = lapply(c('r', 'cpp'), function(eng) ce_with(eng, {
 			set.seed(21); st = s
 			for (rep in 1:5) {
 				o = lame:::.lame_ltm_visit(cx, st$Z, st$EZ, st$la, st$lb, NULL, NULL, 0.5, Sab, NULL, centred = FALSE)
@@ -41,6 +41,7 @@ test_that('the compiled level translations of a Poisson fit give the draws of th
 })
 
 test_that('the compiled position translations of a Poisson fit give the draws of the R loop', {
+	skip_on_cran()
 	for (mode in c('dir', 'sym', 'bip')) for (R in c(1L, 2L)) {
 		s = ce_panel(mode, seed = 8L)
 		set.seed(2)
@@ -49,7 +50,7 @@ test_that('the compiled position translations of a Poisson fit give the draws of
 		Ld = if (mode == 'sym') c(.8, -.5)[seq_len(R)] else NULL
 		if (mode == 'sym') V = U %*% diag(Ld, R)
 		cx = lame:::.lame_ltm_context(s$Y, 'poisson', mode, offset = c(0, .2, -.1))
-		out = lapply(c('r', 'cpp'), function(eng) ce_with('lame.ltm_engine', eng, {
+		out = lapply(c('r', 'cpp'), function(eng) ce_with(eng, {
 			set.seed(22); Z = s$Z; EZ = s$EZ; Ui = U; Vi = V
 			for (rep in 1:5) {
 				o = lame:::.lame_ltm_uv_visit(
@@ -72,12 +73,13 @@ test_that('the compiled position translations of a Poisson fit give the draws of
 })
 
 test_that('the compiled coefficient translation gives the draws of the R step', {
+	skip_on_cran()
 	s = ce_panel('dir', seed = 9L)
 	cx = lame:::.lame_ltm_context(s$Y, 'poisson', 'dir', offset = c(0, .2, -.1))
 	cxp = list(ltm = cx, mode = 'dir')
 	Xk = list(array(1, dim(s$Z)), array(rnorm(length(s$Z)), dim(s$Z)))
 	beta = c(-0.4, 0.3); iV0 = diag(2) / 4
-	out = lapply(c('r', 'cpp'), function(eng) ce_with('lame.ltm_engine', eng, {
+	out = lapply(c('r', 'cpp'), function(eng) ce_with(eng, {
 		set.seed(23); Z = s$Z; EZ = s$EZ; b = beta
 		for (rep in 1:6) { o = lame:::.lame_ppm_static(cxp, Z, EZ, b, Xk, iV0); Z = o$Z; EZ = o$EZ; b = o$beta }
 		c(o, list(u = runif(1)))
@@ -86,12 +88,13 @@ test_that('the compiled coefficient translation gives the draws of the R step', 
 })
 
 test_that('the compiled symmetric actor-period loop gives the draws of the R loop', {
+	skip_on_cran()
 	set.seed(1); n = 12
 	for (centred in c(TRUE, FALSE)) {
 		Zt = matrix(rnorm(n * n, -1, .7), n, n); Zt = (Zt + t(Zt)) / 2; Et = Zt + 0.1
 		y = matrix(rpois(n * n, 1), n, n); y = pmax(y, t(y)); y[sample(n * n, 16)] = NA; y = ifelse(is.na(t(y)), NA, y); diag(y) = NA
 		eff = rnorm(n); eff[3] = NA; m = rnorm(n, 0, .2); v = rep(0.3, n)
-		out = lapply(c('r', 'cpp'), function(eng) ce_with('lame.pab_engine', eng, {
+		out = lapply(c('r', 'cpp'), function(eng) ce_with(eng, {
 			set.seed(11); Z = Zt; E = Et; e = eff; ev = 0L
 			for (s in 1:60) { r = lame:::.lame_pab_sym_period(
 				Z,
@@ -110,6 +113,7 @@ test_that('the compiled symmetric actor-period loop gives the draws of the R loo
 })
 
 test_that('the compiled feasibility check finds the rows of the R check', {
+	skip_on_cran()
 	set.seed(3)
 	for (r in 1:400) {
 		bip = r %% 2 == 0; frn = r %% 3 == 0; n = sample(4:8, 1); nc = if (bip) sample(4:8, 1) else n; cap = sample(1:3, 1)
@@ -125,8 +129,8 @@ test_that('the compiled feasibility check finds the rows of the R check', {
 		if (frn) { YL = matrix(NA_integer_, n, cap); for (i in 1:n) for (q in 1:cap) { j = which(Y[i, ] == q); if (length(j)) YL[i, q] = j[1] } }
 		odobs = rowSums(!is.na(Y) & Y > 0)
 		if (r %% 4 == 0) odobs = odobs + rowSums(lame:::.lame_nom_hidden_cells(Y, bip) & Z > 0)
-		a = ce_with('lame.nomination_engine', 'r', lame:::.lame_nom_feasible(Z, Y, YL, rep(cap, n), odobs, bip))
-		b = ce_with('lame.nomination_engine', 'cpp', lame:::.lame_nom_feasible(Z, Y, YL, rep(cap, n), odobs, bip))
+		a = ce_with('r', lame:::.lame_nom_feasible(Z, Y, YL, rep(cap, n), odobs, bip))
+		b = ce_with('cpp', lame:::.lame_nom_feasible(Z, Y, YL, rep(cap, n), odobs, bip))
 		expect_identical(a, b)
 	}
 })

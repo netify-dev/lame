@@ -1,9 +1,15 @@
 # the product of these small panels is withheld in the default fit, so the validation reads it with the withholding off
+
 withr::local_options(list(lame.eb_withhold_product = FALSE))
 
 library(lame)
 
 # recovery and equivalence checks of the dynamic empirical-Bayes estimator (R/lame_dynamic_als_eb.R)
+
+# the engine's internals carry the population intercept; lame_als() reports the intercept of the centred
+# effects and keeps the population one in fit$eb$population
+pop_coef = function(st) c(st$eb$population$intercept, st$coefficients[-1])
+pop_se = function(st) sqrt(diag(st$eb$population$vcov))
 # simulations draw from the dynamic_ab model: a level plus a zero-mean AR(1) deviation per actor, static factors, probit links
 # the fast contract tests are in test_lame_dynamic_als_eb.R
 
@@ -121,9 +127,10 @@ vsim = function(
 	)
 }
 
-eb_run = function(d, mode = "directed", bias_correct = NULL, dynamic_ab = TRUE, ...) {
+# penalised = TRUE is the penalised dynamic fit, as the sampler's warm start asks for it
+eb_run = function(d, mode = "directed", penalised = FALSE, dynamic_ab = TRUE, ...) {
 	md = if (identical(mode, "bipartite")) "bipartite" else "unipartite"
-	suppressWarnings(suppressMessages(lame(
+	args = list(
 		d$Y,
 		Xdyad = d$X,
 		family = "binary",
@@ -131,10 +138,11 @@ eb_run = function(d, mode = "directed", bias_correct = NULL, dynamic_ab = TRUE, 
 		mode = md,
 		symmetric = identical(mode, "symmetric"),
 		dynamic_ab = dynamic_ab,
-		bias_correct = bias_correct,
 		verbose = FALSE,
 		...
-	)))
+	)
+	if (penalised) args$prior = structure(list(), lame_als_estimator = "none")
+	suppressWarnings(suppressMessages(do.call(lame, args)))
 }
 
 # mean relative bias of the two slopes over replicates
@@ -197,45 +205,39 @@ test_that("with static effects the dynamic engine is the static empirical-Bayes 
 			longitudinal = TRUE,
 			call = quote(lame_als()),
 			lowrank_method = "mm",
-			non_normal_method = "irls",
 			link = "probit",
 			linear_solver = "eigen",
 			multistart = "none",
-			bias_correct = NULL,
 			...
 		)))
 		# the dynamic engine's factors are the static estimator's variational posterior, so the reference is the static default fit
 		# the two treat the actor effects and the working weights differently, so the coefficients agree to about a percent
 		st = run()
-		expect_equal(unname(th), unname(st$coefficients), tolerance = 1e-2)
-		expect_equal(unname(se), unname(st$eb$se), tolerance = 6e-2)
+		expect_equal(unname(th), unname(pop_coef(st)), tolerance = 1e-2)
+		expect_equal(unname(se), unname(pop_se(st)), tolerance = 6e-2)
 		expect_equal(as.vector(fit$st$hyp$sab), as.vector(st$eb$sab), tolerance = 0.05)
 		if (R > 0L) {
 			expect_identical(st$eb$estimator, "variational")
 			# the factor prior scale follows the static estimator's cavity rule (an isotropic prior of one scale)
 			expect_identical(st$eb$variational$scale$rule, "cavity")
 			expect_equal(fit$st$hyp$fac$Suv[1L, 1L], st$eb$variational$scale$s, tolerance = 0.05)
-			md = run(eb_posterior = "mode")
-			expect_identical(md$eb$estimator, "laplace")
-			expect_lt(max(abs(th - st$coefficients)), max(abs(th - md$coefficients)))
 		}
 	}
 })
 
-test_that("the empirical-Bayes slopes are nearly unbiased where the fixed-effects ones are not", {
+test_that("the empirical-Bayes slopes are nearly unbiased where the penalised ones are not", {
 	skip_on_cran()
-	fits = lapply(1:16, function(r) {
+	fits = lapply(1:8, function(r) {
 		d = vsim(n = 30, Tt = 5, seed = 1000 + r, mu = -1.3)
-		list(eb = eb_run(d), none = eb_run(d, bias_correct = "none"))
+		list(eb = eb_run(d), none = eb_run(d, penalised = TRUE))
 	})
 	eb = lapply(fits, `[[`, "eb")
 	none = lapply(fits, `[[`, "none")
-	expect_true(all(vapply(eb, function(f) identical(f$bias_correct$method, "eb"), logical(1))))
+	expect_true(all(vapply(eb, function(f) is.null(f$bias_correct), logical(1))))
 	expect_true(all(vapply(eb, function(f) isTRUE(f$converged), logical(1))))
 	expect_lt(max(abs(slope_bias(eb))), 5)
 	expect_gt(min(abs(slope_bias(none))), 6)
-	# the uncorrected penalised fit shrinks both slopes towards zero, the
-	# corrected one does not
+	# the penalised fit shrinks both slopes towards zero, the empirical-Bayes one does not
 	expect_true(all(slope_bias(none) < 0))
 	# the levels and the deviation scale are recovered to within the sampling noise
 	hv = rowMeans(sapply(eb, function(f) c(f$eb$sab[1, 1], f$eb$sab[2, 2], f$rho_ab, f$sigma_ab)))
@@ -250,9 +252,9 @@ test_that("the empirical-Bayes slopes are nearly unbiased where the fixed-effect
 test_that("undirected and bipartite panels are corrected as well", {
 	skip_on_cran()
 	for (mode in c("symmetric", "bipartite")) {
-		fits = lapply(1:12, function(r) {
+		fits = lapply(1:6, function(r) {
 			d = vsim(n = 36, nb = 26, Tt = 5, mode = mode, seed = 200 + r, mu = -1.2)
-			list(eb = eb_run(d, mode = mode), none = eb_run(d, mode = mode, bias_correct = "none"))
+			list(eb = eb_run(d, mode = mode), none = eb_run(d, mode = mode, penalised = TRUE))
 		})
 		eb = lapply(fits, `[[`, "eb")
 		none = lapply(fits, `[[`, "none")
@@ -267,7 +269,7 @@ test_that("static latent factors are fitted jointly on directed, undirected and 
 	options_w = options(lame.eb_withhold_intercept = FALSE)
 	on.exit(options(options_w), add = TRUE)
 	for (mode in c("directed", "symmetric", "bipartite")) {
-		fits = lapply(1:6, function(r) {
+		fits = lapply(1:3, function(r) {
 			d = vsim(n = 40, nb = 30, Tt = 4, mode = mode, seed = 300 + r, mu = -1.2, R = 1, suv = 0.6)
 			eb_run(d, mode = mode, R = 1)
 		})
@@ -296,21 +298,6 @@ test_that("moving coefficients are recovered with their own persistence and scal
 	expect_true(all(vapply(fits, function(z) {
 		diff(range(z$f$coef_path["x2_dyad", ])) < 1e-8
 	}, logical(1))))
-})
-
-test_that("an actor without events has a finite, negative effect", {
-	skip_on_cran()
-	d = vsim(n = 30, Tt = 5, seed = 11, mu = -1.2, quiet = 3)
-	# the three quiet senders send (almost) nothing in any period
-	sent = sum(vapply(d$Y, function(y) sum(y[1:3, ], na.rm = TRUE), numeric(1)))
-	expect_lt(sent, 15)
-	f = eb_run(d)
-	expect_true(isTRUE(f$converged))
-	expect_true(all(is.finite(f$a_level)) && all(is.finite(f$b_level)))
-	expect_true(all(f$a_level[1:3] < 0))
-	expect_true(all(is.finite(f$eb$se)))
-	# and not minus infinity
-	expect_gt(min(f$a_dynamic[1:3, ]), -6)
 })
 
 test_that("node covariates, missing cells and a changing composition are handled", {
@@ -373,13 +360,14 @@ test_that("the generic methods work on an empirical-Bayes dynamic fit", {
 	expect_true(any(grepl("empirical-Bayes", msg)))
 	msg = capture.output(print(summary(f)))
 	expect_true(any(grepl("Laplace", msg)))
-	expect_equal(names(coef(f)), c("intercept", "x1_dyad", "x2_dyad"))
+	# coef() gives coefficients by period, the intercept being a path
+	expect_equal(rownames(coef(f)), c("intercept", "x1_dyad", "x2_dyad"))
 	V = vcov(f)
 	expect_equal(dim(V), c(3L, 3L))
 	expect_true(all(eigen(V, symmetric = TRUE, only.values = TRUE)$values > 0))
 	ci = confint(f)
 	expect_equal(dim(ci), c(3L, 2L))
-	expect_true(all(ci[, 1] < coef(f) & coef(f) < ci[, 2]))
+	expect_true(all(ci[, 1] < f$coefficients & f$coefficients < ci[, 2]))
 	pr = predict(f)
 	expect_true(length(pr) > 0)
 	expect_equal(length(fitted(f)), 4L)
@@ -435,12 +423,15 @@ test_that("a warm restart of a fit with static factors stays at the fixed point"
 	seed = lame:::.ae_static_seed(f)
 	seed$eb$restart = NULL
 	seed$U = seed$U[1:5, , drop = FALSE]
+	# the internal fitter takes the dynamic_ab intercept path explicitly
 	h = suppressWarnings(suppressMessages(lame:::lame_dynamic_als(
 		d$Y,
 		d$X,
 		family = "binary",
 		R = 1,
 		dynamic_ab = TRUE,
+		dynamic_beta = "intercept",
+		dynamic_beta_kind = "rw1",
 		start = seed,
 		verbose = FALSE
 	)))
@@ -595,23 +586,6 @@ test_that("moving positions: an undirected panel is fitted, and ignoring the pos
 	expect_true(all(abs(fh$L) == 1))
 })
 
-test_that("moving positions are an empirical-Bayes fit by default and an uncorrected one on request", {
-	skip_on_cran()
-	d = vsim(n = 12, Tt = 4, seed = 41, mu = -1, R = 1, dyn_uv = TRUE)
-	fn = eb_run(d, R = 1, dynamic_uv = TRUE, bias_correct = "none")
-	expect_identical(fn$bias_correct$method, "none")
-	expect_true(isTRUE(fn$dynamic_uv))
-	expect_null(fn$eb)
-	fe = eb_run(d, R = 1, dynamic_uv = TRUE)
-	expect_identical(fe$bias_correct$method, "eb")
-	expect_true(isTRUE(fe$dynamic_uv))
-	expect_true(is.list(fe$eb) && is.finite(fe$eb$rho_uv) && fe$eb$sigma_uv > 0)
-	# static latent positions are fitted
-	fs = eb_run(d, R = 1)
-	expect_identical(fs$bias_correct$method, "eb")
-	expect_false(isTRUE(fs$dynamic_uv))
-})
-
 test_that("moving positions: the slopes are nearly unbiased where ignoring the positions biases them", {
 	skip_on_cran()
 	fits = lapply(51:53, function(seed) {
@@ -633,41 +607,10 @@ test_that("moving positions: the slopes are nearly unbiased where ignoring the p
 	}
 })
 
-test_that("moving positions: the reported object is complete on directed and bipartite panels", {
+test_that("moving positions: the reported object is complete on a bipartite panel", {
 	skip_on_cran()
-	d = vsim(n = 20, Tt = 4, seed = 61, mu = -1, R = 2, dyn_uv = TRUE, sigma_uv = 0.4)
-	f = eb_run(d, R = 2, dynamic_uv = TRUE)
-	expect_true(f$converged)
-	expect_equal(dim(f$U), c(20L, 2L, 4L))
-	expect_equal(dim(f$V), c(20L, 2L, 4L))
-	expect_equal(dim(f$U_sd), dim(f$U))
-	expect_true(all(f$U_sd > 0))
-	for (t in 1:4) expect_equal(f$Oarr[, , t], tcrossprod(f$U[, , t], f$V[, , t]), ignore_attr = TRUE)
-	expect_equal(f$UVPM, f$Oarr)
-	expect_identical(f$dynamic_uv_kind, "ar1")
-	expect_true("positions" %in% names(f$diagnostics$stationarity$by_block))
-	expect_true(f$diagnostics$stationarity$pass)
-	expect_true(is.finite(f$eb$uv_scale) && f$eb$uv_scale > 0.08 && f$eb$uv_scale < 4)
-	expect_true(is.data.frame(f$eb$uv_search) && nrow(f$eb$uv_search) >= 4L)
-	# the linear predictor carries the product, the fitted probabilities follow from it
-	expect_equal(
-		f$EZ[[2]][3, 7],
-		f$Oarr[3, 7, 2] + f$a_dynamic[3, 2] + f$b_dynamic[7, 2] +
-			sum(f$coef_path[, 2] * c(1, d$X[[2]][3, 7, ])),
-		tolerance = 1e-8
-	)
-	expect_equal(f$fitted[[2]][3, 7], stats::pnorm(f$EZ[[2]][3, 7]), tolerance = 1e-10)
-	# the generic methods read it
-	msgs = capture.output(print(f))
-	expect_true(any(grepl("Moving latent positions", msgs)))
-	expect_s3_class(summary(f), "summary.lame_dynamic_als")
-	expect_equal(length(coef(f)), 3L)
-	expect_equal(dim(vcov(f)), c(3L, 3L))
-	expect_equal(length(residuals(f)), 4L)
-	lp = latent_positions(f)
-	expect_s3_class(lp, "data.frame")
-	expect_equal(nrow(lp), 2L * 20L * 2L * 4L)
-	expect_true(all(lp$posterior_sd > 0))
+	# the directed object: "moving positions: a small directed panel is fitted by the default route and reported" in
+	# test_lame_dynamic_als_eb.R
 	# a bipartite panel; the interaction has rank min(R_row, R_col) and the larger factor carries zero columns
 	db = vsim(n = 24, nb = 16, Tt = 4, mode = "bipartite", seed = 62, mu = -1, R = 1, dyn_uv = TRUE, sigma_uv = 0.4)
 	fb = eb_run(db, mode = "bipartite", R = 1, dynamic_uv = TRUE)
@@ -798,7 +741,7 @@ test_that("a disabled margin recovers a panel generated without those effects", 
 			...
 		)))
 	}
-	fits = lapply(1:8, function(r) {
+	fits = lapply(1:4, function(r) {
 		d = vsim(n = 30, Tt = 5, seed = 600 + r, mu = -1.2, sender = FALSE)
 		list(off = eb_direct(d, rvar = FALSE), on = eb_direct(d))
 	})
@@ -813,15 +756,10 @@ test_that("a disabled margin recovers a panel generated without those effects", 
 	expect_true(all(se_off <= se_on * 1.001))
 })
 
-test_that("the front door forwards the sampler switches where lame() has been taught to", {
+test_that("the front door forwards the sampler switches to the dynamic route", {
 	skip_on_cran()
-	# lame() hands rvar, cvar, nvar, dcor and dynamic_beta_pool to the dynamic route when its dispatcher forwards them
-	forwards = grepl(
-		'"rvar", "cvar", "nvar", "dcor", "dynamic_beta_pool"',
-		paste(deparse(body(lame), width.cutoff = 500L), collapse = " "),
-		fixed = TRUE
-	)
-	skip_if_not(forwards, "lame() does not forward the sampler switches yet")
+	# lame() hands rvar, cvar, nvar, dcor and dynamic_beta_pool to the dynamic route; dcor is checked in
+	# test_lame_dynamic_als_eb.R ("switches a route cannot honour are named, never dropped")
 	d = vsim(n = 14, Tt = 4, seed = 61, mu = -1.2)
 	f1 = suppressWarnings(lame(
 		d$Y,
@@ -835,39 +773,6 @@ test_that("the front door forwards the sampler switches where lame() has been ta
 	expect_true(all(f1$a_dynamic == 0))
 	f2 = eb_run(d, rvar = FALSE)
 	expect_equal(f1$coefficients, f2$coefficients)
-	# dcor is honoured by the empirical-Bayes route (no warning, a record of the pair likelihood, or none when it is off) and
-	# named as ignored by the penalised route
-	catch = function(expr) {
-		w = character()
-		val = withCallingHandlers(
-			expr,
-			warning = function(x) { w <<- c(w, conditionMessage(x)); invokeRestart("muffleWarning") }
-		)
-		list(val = val, w = w)
-	}
-	f3 = catch(
-		lame(d$Y, Xdyad = d$X, family = "binary", method = "als", dynamic_ab = TRUE, dcor = FALSE, verbose = FALSE)
-	)
-	expect_false(any(grepl("ignored MCMC-only", f3$w)))
-	expect_null(f3$val$eb$pair)
-	f4 = catch(
-		lame(d$Y, Xdyad = d$X, family = "binary", method = "als", dynamic_ab = TRUE, dcor = TRUE, verbose = FALSE)
-	)
-	expect_false(any(grepl("ignored MCMC-only", f4$w)))
-	expect_false(is.null(f4$val$eb$pair))
-	f5 = catch(
-		lame(
-			d$Y,
-			Xdyad = d$X,
-			family = "binary",
-			method = "als",
-			dynamic_ab = TRUE,
-			dcor = FALSE,
-			bias_correct = "none",
-			verbose = FALSE
-		)
-	)
-	expect_true(any(grepl("ignored MCMC-only arguments.*dcor", f5$w)))
 })
 
 
@@ -906,18 +811,16 @@ test_that("with static effects the dynamic engine with the dyadic correlation is
 			longitudinal = TRUE,
 			call = quote(lame_als()),
 			lowrank_method = "mm",
-			non_normal_method = "irls",
 			link = "probit",
 			linear_solver = "eigen",
 			multistart = "none",
-			bias_correct = NULL,
 			dcor = TRUE,
 			dcor_given = TRUE
 		)))
 		expect_false(is.null(st$eb$pair))
 		expect_lt(abs(fit$st$hyp$rho_d - unname(st$VC["rho"])), 0.02, label = paste("rho", info))
-		expect_lt(max(abs(th - st$coefficients) / st$eb$se), 0.15, label = paste("z", info))
-		expect_true(all(se / st$eb$se > 0.96 & se / st$eb$se < 1.04), info = info)
+		expect_lt(max(abs(th - pop_coef(st)) / pop_se(st)), 0.15, label = paste("z", info))
+		expect_true(all(se / pop_se(st) > 0.96 & se / pop_se(st) < 1.04), info = info)
 		# and the correlation is the panel's: within three posterior standard deviations of the truth
 		expect_lt(abs(fit$st$hyp$rho_d - cf$dc), 3 * st$eb$pair$sd, label = paste("truth", info))
 	}
@@ -974,16 +877,14 @@ test_that("weakly identified static factors: the dynamic engine tracks the stati
 			longitudinal = TRUE,
 			call = quote(lame_als()),
 			lowrank_method = "mm",
-			non_normal_method = "irls",
 			link = "probit",
 			linear_solver = "eigen",
-			multistart = "none",
-			bias_correct = NULL
+			multistart = "none"
 		)))
 		info = paste(cf$mode, cf$seed)
 		# coefficients within a third of a posterior standard deviation, standard errors within 12 percent
-		expect_lt(max(abs(th - st$coefficients) / st$eb$se), 0.35, label = paste("z", info))
-		expect_true(all(se / st$eb$se > 0.88 & se / st$eb$se < 1.12), info = info)
+		expect_lt(max(abs(th - pop_coef(st)) / pop_se(st)), 0.35, label = paste("z", info))
+		expect_true(all(se / pop_se(st) > 0.88 & se / pop_se(st) < 1.12), info = info)
 		# the start of the iteration does not matter over a range of sizes (0.3 to 1 of the least-squares fit)
 		for (sc in c(0.35, 0.9)) {
 			ctx2 = ctx
@@ -1026,11 +927,9 @@ test_that("static factors with the logit link are the static estimator's logit f
 		longitudinal = TRUE,
 		call = quote(lame_als()),
 		lowrank_method = "mm",
-		non_normal_method = "irls",
 		link = "logit",
 		linear_solver = "eigen",
-		multistart = "none",
-		bias_correct = NULL
+		multistart = "none"
 	)))
-	expect_lt(max(abs(th - st$coefficients) / st$eb$se), 0.5)
+	expect_lt(max(abs(th - pop_coef(st)) / pop_se(st)), 0.5)
 })

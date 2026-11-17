@@ -56,125 +56,6 @@ test_that("lame() runs with normal family and returns correct structure", {
 	)
 })
 
-test_that("lame() runs with binary family and returns correct structure", {
-	skip_on_cran()
-
-	set.seed(102)
-	n = 15
-	n_time = 3
-	actors = paste0("a", 1:n)
-
-	# binary data generated directly, avoiding simulator edge cases
-	Y_list = list()
-	for (t in 1:n_time) {
-		Y = matrix(rbinom(n * n, 1, 0.3), n, n)
-		diag(Y) = NA
-		rownames(Y) = colnames(Y) = actors
-		Y_list[[t]] = Y
-	}
-	names(Y_list) = paste0("t", 1:n_time)
-
-	fit = lame(
-		Y = Y_list,
-		family = "binary",
-		R = 0,
-		burn = 100,
-		nscan = 500,
-		odens = 5,
-		verbose = FALSE,
-		gof = TRUE
-	)
-
-	expect_s3_class(fit, "lame")
-	expect_false(is.null(fit$BETA))
-	expect_false(is.null(fit$VC))
-
-	# YPM holds probabilities in [0, 1]
-	if (!is.null(fit$YPM)) {
-		# YPM may be an array or a list
-		ypm_vals = unlist(fit$YPM)
-		ypm_vals = ypm_vals[!is.na(ypm_vals)]
-		expect_true(
-			all(ypm_vals >= 0 & ypm_vals <= 1),
-			info = "Binary YPM should be probabilities in [0,1]"
-		)
-	}
-
-	# the intercept is negative for a sparse (30%) network
-	intercept_hat = median(fit$BETA[, 1])
-	expect_true(
-		intercept_hat < 1,
-		info = "Sparse network should have negative/small intercept"
-	)
-})
-
-test_that("lame() with multiplicative effects (R > 0) returns UV", {
-	skip_on_cran()
-
-	dat = simulate_test_network(
-		n = 15, n_time = 3, family = "normal",
-		R = 2, beta_intercept = 0, beta_dyad = 0.5,
-		rvar = TRUE, cvar = TRUE, seed = 103
-	)
-
-	fit = lame(
-		Y = dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 2,
-		burn = 100,
-		nscan = 500,
-		odens = 5,
-		verbose = FALSE,
-		gof = TRUE
-	)
-
-	expect_s3_class(fit, "lame")
-
-	# U and V exist with the right dimensions
-	expect_false(is.null(fit$U))
-	expect_false(is.null(fit$V))
-
-	# a static model has n x R matrices U and V
-	expect_equal(ncol(fit$U), 2)
-	expect_equal(ncol(fit$V), 2)
-})
-
-test_that("lame() with symmetric networks works", {
-	skip_on_cran()
-
-	dat = simulate_test_network(
-		n = 15, n_time = 3, family = "normal",
-		R = 0, beta_intercept = 0, beta_dyad = 0.5,
-		rvar = TRUE, cvar = TRUE, symmetric = TRUE, seed = 104
-	)
-
-	# symmetrize the data, and the covariate: a symmetric fit needs a symmetric regression term
-	for (t in seq_along(dat$Y)) {
-		Y_t = dat$Y[[t]]
-		Y_t = (Y_t + t(Y_t)) / 2
-		diag(Y_t) = NA
-		dat$Y[[t]] = Y_t
-	}
-	dat$Xdyad = lapply(dat$Xdyad, function(x) { x[, , 1] = (x[, , 1] + t(x[, , 1])) / 2; x })
-
-	fit = lame(
-		Y = dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		symmetric = TRUE,
-		burn = 100,
-		nscan = 500,
-		odens = 5,
-		verbose = FALSE,
-		gof = TRUE
-	)
-
-	expect_s3_class(fit, "lame")
-	expect_false(is.null(fit$BETA))
-})
-
 test_that("lame() with covariates recovers known effects", {
 	skip_on_cran()
 
@@ -358,132 +239,6 @@ test_that("lame() works with ordinal family", {
 	expect_false(is.null(fit$BETA))
 })
 
-test_that("lame() works with poisson family", {
-	skip_on_cran()
-
-	set.seed(505)
-	n = 15
-	n_time = 3
-	actors = paste0("a", 1:n)
-
-	Y_list = list()
-	Xdyad_list = list()
-	for (t in 1:n_time) {
-		X = matrix(rnorm(n * n, 0, 0.3), n, n)
-		diag(X) = NA
-		rownames(X) = colnames(X) = actors
-		lambda = exp(0.5 + 0.2 * X)
-		lambda[is.na(lambda)] = exp(0.5)
-		Y = matrix(rpois(n * n, lambda), n, n)
-		diag(Y) = NA
-		rownames(Y) = colnames(Y) = actors
-		Y_list[[t]] = Y
-		Xdyad_list[[t]] = X
-	}
-	names(Y_list) = names(Xdyad_list) = paste0("t", 1:n_time)
-
-	# short chain: the settling check may warn that it was still moving
-	fit = suppressWarnings(lame(
-		Y = Y_list,
-		Xdyad = Xdyad_list,
-		family = "poisson",
-		R = 0,
-		burn = 100,
-		nscan = 300,
-		odens = 3,
-		verbose = FALSE,
-		gof = FALSE
-	))
-
-	expect_s3_class(fit, "lame")
-	expect_false(is.null(fit$BETA))
-
-	# YPM holds non-negative counts
-	if (!is.null(fit$YPM)) {
-		ypm_vals = unlist(fit$YPM)
-		ypm_vals = ypm_vals[!is.na(ypm_vals)]
-		expect_true(
-			all(ypm_vals >= 0),
-			info = "Poisson YPM should be non-negative"
-		)
-	}
-})
-
-test_that("lame() works with cbin family", {
-	skip_on_cran()
-
-	set.seed(506)
-	n = 15
-	n_time = 3
-	actors = paste0("a", 1:n)
-	odmax_val = 4
-
-	Y_list = list()
-	for (t in 1:n_time) {
-		Y = matrix(0, n, n)
-		for (i in 1:n) {
-			nominees = sample(setdiff(1:n, i), odmax_val)
-			Y[i, nominees] = 1
-		}
-		diag(Y) = NA
-		rownames(Y) = colnames(Y) = actors
-		Y_list[[t]] = Y
-	}
-	names(Y_list) = paste0("t", 1:n_time)
-
-	# short chain: the settling check may warn that it was still moving
-	fit = suppressWarnings(lame(
-		Y = Y_list,
-		family = "cbin",
-		R = 0,
-		burn = 100,
-		nscan = 300,
-		odens = 3,
-		verbose = FALSE,
-		gof = FALSE
-	))
-
-	expect_s3_class(fit, "lame")
-	expect_false(is.null(fit$BETA))
-})
-
-test_that("lame() works with frn family", {
-	skip_on_cran()
-
-	set.seed(507)
-	n = 15
-	n_time = 3
-	actors = paste0("a", 1:n)
-	odmax_val = 3
-
-	Y_list = list()
-	for (t in 1:n_time) {
-		Y = matrix(0, n, n)
-		for (i in 1:n) {
-			nominees = sample(setdiff(1:n, i), odmax_val)
-			Y[i, nominees] = 1:odmax_val
-		}
-		diag(Y) = NA
-		rownames(Y) = colnames(Y) = actors
-		Y_list[[t]] = Y
-	}
-	names(Y_list) = paste0("t", 1:n_time)
-
-	fit = lame(
-		Y = Y_list,
-		family = "frn",
-		R = 0,
-		burn = 100,
-		nscan = 300,
-		odens = 3,
-		verbose = FALSE,
-		gof = FALSE
-	)
-
-	expect_s3_class(fit, "lame")
-	expect_false(is.null(fit$BETA))
-})
-
 test_that("lame() works with all families with R > 0", {
 	skip_on_cran()
 
@@ -529,4 +284,62 @@ test_that("lame() works with all families with R > 0", {
 			info = paste("V should exist for", fam, "with R=2")
 		)
 	}
+})
+
+test_that("lame() unipartite binary recovers beta and additive effects", {
+	skip_on_cran()
+
+	n = 20
+	n_time = 3
+
+	dat = simulate_test_network(
+		n = n,
+		n_time = n_time,
+		family = "binary",
+		R = 0,
+		beta_intercept = 0,
+		beta_dyad = 0.8,
+		sd_a = 0.4,
+		sd_b = 0.4,
+		s2 = 1,
+		mode = "unipartite",
+		seed = 101
+	)
+
+	Xdyad_list = lapply(dat$Xdyad, function(x) x[, , 1])
+
+	fit = lame(
+		dat$Y,
+		Xdyad = Xdyad_list,
+		R = 0,
+		family = "binary",
+		burn = 300,
+		nscan = 1200,
+		odens = 2,
+		verbose = FALSE,
+		gof = FALSE,
+		seed = 42
+	)
+
+	# the 95% interval of beta_dyad covers the generating 0.8 and excludes zero
+	ci = quantile(fit$BETA[, 2], c(0.025, 0.975))
+	expect_true(ci[1] > 0 && ci[1] < 0.8 && ci[2] > 0.8, info = paste("Beta dyad interval:", paste(round(ci, 3), collapse = " to ")))
+
+	# additive effects correlation
+	sorted_names = names(fit$APM)
+	orig_names = rownames(dat$Y[[1]])
+	true_a_avg = rowMeans(do.call(cbind, dat$true_params$a))
+	true_b_avg = rowMeans(do.call(cbind, dat$true_params$b))
+	names(true_a_avg) = orig_names
+	names(true_b_avg) = orig_names
+	cor_a = cor(fit$APM, true_a_avg[sorted_names])
+	cor_b = cor(fit$BPM, true_b_avg[sorted_names])
+	expect_true(
+		cor_a > 0.2,
+		info = paste("Sender effects correlation:", round(cor_a, 3))
+	)
+	expect_true(
+		cor_b > 0.2,
+		info = paste("Receiver effects correlation:", round(cor_b, 3))
+	)
 })

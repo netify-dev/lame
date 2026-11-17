@@ -1,5 +1,5 @@
-# the latent product the data do not determine is withheld in binary and count fits and in the dynamic
-# normal estimator (R/ame_als_gauss.R, R/lame_dynamic_als_eb.R)
+# a static binary or count product the data barely determine is reported with its standard errors
+# (R/ame_als_report_se.R); the dynamic estimator withholds such a product (R/lame_dynamic_als_eb.R)
 
 pw_glm = function(fam, suv, n = 40, seed = 1, kind = "directed") {
 	set.seed(seed)
@@ -23,7 +23,7 @@ pw_fit = function(d, R = 1) suppressWarnings(
 )
 pw_print = function(f) paste(utils::capture.output(print(f)), collapse = " ")
 
-test_that("a binary or count product below the information threshold is withheld, and one above it is reported", {
+test_that("a binary or count product below the information threshold is reported with its standard errors and a note", {
 	skip_on_cran()
 	for (fam in c("binary", "poisson")) {
 		weak = pw_fit(pw_glm(fam, 0.02, seed = 3))
@@ -34,33 +34,28 @@ test_that("a binary or count product below the information threshold is withheld
 		)
 		expect_equal(info[["threshold"]], 2.1)
 		expect_lt(info[["signal_per_loading"]], 2.1)
-		expect_true(lame:::.ae_product_is_withheld(weak), label = fam)
-		expect_true(all(is.na(weak$U)) && all(is.na(weak$UVPM)), label = fam)
-		expect_identical(weak$eb$product_withheld$family, fam)
+		expect_false(lame:::.ae_product_is_withheld(weak), label = fam)
+		expect_true(all(is.finite(weak$U)) && all(is.finite(weak$UVPM)), label = fam)
+		off = row(weak$UVPM) != col(weak$UVPM)
+		expect_true(all(weak$UVPM_sd[off] > 0) && all(weak$U_sd > 0), label = fam)
 		expect_match(pw_print(weak), "units of signal per loading", fixed = TRUE)
-		expect_error(uv_plot(weak), class = "lame_product_withheld")
+		expect_s3_class(suppressMessages(uv_plot(weak)), "ggplot")
 		strong = pw_fit(pw_glm(fam, 1.5, seed = 4))
 		expect_gte(strong$eb$variational$information[["signal_per_loading"]], 2.1)
 		expect_false(lame:::.ae_product_is_withheld(strong), label = fam)
 		expect_true(all(is.finite(strong$UVPM)), label = fam)
+		expect_false(grepl("barely determine", pw_print(strong), fixed = TRUE))
 	}
 })
 
-test_that("a withheld binary or count fit has the predictive values, coefficients and standard errors of the fit", {
+test_that("a weak binary or count product is the fit the withholding switch leaves", {
 	skip_on_cran()
 	for (fam in c("binary", "poisson")) {
 		d = pw_glm(fam, 0.02, seed = 3)
 		f = pw_fit(d)
 		g = withr::with_options(list(lame.eb_withhold_product = FALSE), pw_fit(d))
-		expect_true(lame:::.ae_product_is_withheld(f)); expect_false(lame:::.ae_product_is_withheld(g))
-		# predictive probabilities and counts integrate the variational posterior of the product
-		expect_identical(fitted(f), fitted(g))
-		expect_identical(fitted(f, plug_in = FALSE), fitted(g, plug_in = FALSE))
-		expect_identical(predict(f, type = "link"), predict(g, type = "link"))
-		expect_identical(residuals(f), residuals(g))
-		expect_identical(coef(f), coef(g))
-		expect_identical(vcov(f), vcov(g))
-		expect_identical(f$eb$product_withheld$means$UVPM, g$UVPM)
+		f$call = g$call = NULL
+		expect_identical(f, g)
 		expect_true(all(is.finite(fitted(f)[!is.na(d$Y)])))
 	}
 })
@@ -97,39 +92,106 @@ pw_dfit = function(d) suppressWarnings(suppressMessages(lame(
 	dynamic_uv = d$cfg == "duv"
 )))
 
-test_that("the dynamic normal estimator withholds static factors and moving positions the data do not determine", {
+test_that("the dynamic normal estimator reports a weak product with its cell errors", {
 	skip_on_cran()
 	for (cfg in c("dab", "duv")) {
 		weak = pw_dfit(pw_dyn(cfg, 0.02, seed = 5))
 		info = weak$eb$information
 		expect_equal(info[["threshold"]], if (cfg == "duv") 1.3 else 2.1, label = cfg)
 		expect_lt(info[["per_loading"]], info[["threshold"]])
-		expect_true(lame:::.ae_product_is_withheld(weak), label = cfg)
-		expect_true(all(is.na(weak$UVPM)) && all(is.na(weak$U)) && all(is.na(weak$Omat)), label = cfg)
-		expect_identical(isTRUE(weak$eb$product_withheld$moving), cfg == "duv")
-		expect_match(pw_print(weak), "not identified by the data at this rank", fixed = TRUE)
-		lp = suppressMessages(latent_positions(weak))
-		expect_true(all(is.na(lp$value)))
-		expect_error(uv_plot(weak), class = "lame_product_withheld")
+		# static factors and moving positions below the threshold are shrunken and reported with their cell errors
+		expect_false(lame:::.ae_product_is_withheld(weak), label = cfg)
+		expect_true(is.list(weak$eb$product_weak))
+		expect_true(all(is.finite(weak$UVPM)) && all(is.finite(weak$UVPM_sd)) && all(weak$UVPM_sd > 0))
+		expect_false(any(c("rho_uv", "sigma_uv") %in% names(weak$eb$hyper_se)))
+		expect_match(pw_print(weak), "carries little signal", fixed = TRUE)
 		strong = pw_dfit(pw_dyn(cfg, 0.8, seed = 6))
 		expect_gte(strong$eb$information[["per_loading"]], strong$eb$information[["threshold"]])
 		expect_false(lame:::.ae_product_is_withheld(strong), label = cfg)
 	}
 })
 
-test_that("a withheld dynamic fit has the fitted values, predictions and coefficients of the fit", {
+test_that("a weak dynamic normal fit has the fitted values, predictions and coefficients of the fit without the rule", {
 	skip_on_cran()
 	for (cfg in c("dab", "duv")) {
 		d = pw_dyn(cfg, 0.02, seed = 5)
 		f = pw_dfit(d)
 		g = withr::with_options(list(lame.eb_withhold_product = FALSE), pw_dfit(d))
-		expect_true(lame:::.ae_product_is_withheld(f)); expect_false(lame:::.ae_product_is_withheld(g))
+		expect_false(lame:::.ae_product_is_withheld(f)); expect_false(lame:::.ae_product_is_withheld(g))
 		expect_identical(fitted(f), fitted(g))
 		expect_identical(residuals(f), residuals(g))
 		Xa = array(unlist(d$X), c(20, 20, 1, 3))
 		expect_identical(predict(f, newdata = Xa), predict(g, newdata = Xa))
 		expect_identical(coef(f), coef(g))
-		expect_identical(f$eb$product_withheld$means$UVPM, g$UVPM)
-		expect_identical(f$eb$product_withheld$means$Omat, g$Omat)
+		expect_identical(f$UVPM, g$UVPM)
+		expect_identical(f$UVPM_sd, g$UVPM_sd)
+	}
+})
+
+# a dynamic binary or count fit reports a latent product the data barely determine with its cell errors and
+# marks it weak: the statistic is the weighted squared double-centred product per loading (fit$eb$information),
+# against .lde_glm_product_threshold
+
+dpg_panel = function(family, suv, cfg = "dab", n = 30, Tt = 4L, seed = 71) {
+	set.seed(seed)
+	rn = sprintf("a%02d", seq_len(n))
+	ar = function(k, v, rho) { x = matrix(0, k, Tt); x[, 1] = rnorm(k, 0, sqrt(v)); for (t in 2:Tt) x[, t] = rho * x[, t - 1] + rnorm(k, 0, sqrt(v * (1 - rho^2))); x }
+	A = ar(n, 0.5, 0.8); B = ar(n, 0.5, 0.8)
+	U = if (cfg == "duv") ar(n, suv, 0.9) else matrix(rnorm(n, 0, sqrt(suv)), n, Tt)
+	V = if (cfg == "duv") ar(n, suv, 0.9) else matrix(rnorm(n, 0, sqrt(suv)), n, Tt)
+	Y = X = vector("list", Tt)
+	for (t in seq_len(Tt)) {
+		x = matrix(rnorm(n * n), n)
+		eta = (if (family == "binary") 0.3 else -0.2) + outer(A[, t], B[, t], "+") + tcrossprod(U[, t], V[, t]) + 0.6 * x
+		y = if (family == "binary") 1 * (eta + matrix(rnorm(n * n), n) > 0) else matrix(rpois(n * n, exp(eta)), n)
+		diag(y) = NA
+		dimnames(y) = list(rn, rn)
+		Y[[t]] = y
+		X[[t]] = array(x, c(n, n, 1), dimnames = list(rn, rn, "x"))
+	}
+	names(Y) = names(X) = paste0("t", seq_len(Tt))
+	list(Y = Y, X = X, cfg = cfg)
+}
+dpg_fit = function(d, family) {
+	args = list(d$Y, Xdyad = d$X, family = family, method = "als", R = 1, dynamic_ab = TRUE, verbose = FALSE)
+	if (d$cfg == "duv") args$dynamic_uv = TRUE
+	suppressWarnings(suppressMessages(do.call(lame, args)))
+}
+
+test_that("a binary or count fit reports a weakly identified product with its cell errors, and a strong one without the mark", {
+	skip_on_cran()
+	thr = lame:::.lde_glm_product_threshold
+	for (family in c("binary", "poisson")) {
+		weak = dpg_fit(dpg_panel(family, 0.15, "duv"), family)
+		strong = dpg_fit(dpg_panel(family, 0.9, "dab"), family)
+		info = paste(family)
+		expect_lt(weak$eb$information[["signal_per_loading"]], thr)
+		expect_gte(strong$eb$information[["signal_per_loading"]], thr)
+		# neither product is withheld; the weak one is marked and its moving positions' AR(1) law keeps no error
+		expect_null(weak$eb$product_withheld, info = info)
+		expect_null(strong$eb$product_withheld, info = info)
+		expect_false(lame:::.ae_product_is_withheld(weak), label = info)
+		expect_true(is.list(weak$eb$product_weak), info = info)
+		expect_null(strong$eb$product_weak, info = info)
+		expect_false(any(c("rho_uv", "sigma_uv") %in% names(weak$eb$hyper_se)), info = info)
+		expect_match(pw_print(weak), "carries little signal", fixed = TRUE)
+		for (f in list(weak, strong)) {
+			P = unlist(f$UVPM); S = unlist(f$UVPM_sd)
+			expect_true(all(is.finite(P)), info = info)
+			expect_identical(length(S), length(P))
+			expect_true(all(is.finite(S)) && all(S > 0), info = info)
+		}
+		expect_true(all(is.finite(weak$coefficients)) && all(is.finite(weak$eb$se[names(weak$coefficients)])))
+		expect_true(all(is.finite(unlist(fitted(weak)))[!is.na(unlist(weak$EZ))]))
+		# the option leaves the fit alone and only drops the mark
+		old = options(lame.eb_withhold_product = FALSE)
+		on.exit(options(old), add = TRUE)
+		kept = dpg_fit(dpg_panel(family, 0.15, "duv"), family)
+		options(old)
+		expect_null(kept$eb$product_weak)
+		expect_identical(kept$coefficients, weak$coefficients)
+		expect_identical(kept$UVPM, weak$UVPM)
+		expect_identical(kept$UVPM_sd, weak$UVPM_sd)
+		expect_false(any(c("rho_uv", "sigma_uv") %in% names(kept$eb$hyper_se)), info = info)
 	}
 })

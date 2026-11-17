@@ -182,3 +182,13 @@ test_that('the exact-posterior check detects a move that mis-states the prior of
 	)
 	expect_gt(bplt_exact('static', ndraw = 3e5, seed = 321L)$maxz, 6)
 })
+
+test_that('the move keeps the exact posterior with the rw1 intercept path of dynamic_ab and a user ar1 block', {
+	skip_on_cran()
+	for (bl in c('rw1', 'mixed')) {
+		r = bplt_path_exact(bl, ndraw = 3e6, seed = if (bl == 'rw1') 41L else 42L)
+		expect_gt(r$ess, 500)
+		expect_lt(r$maxz, 4.6)
+	}
+	expect_gt(bplt_path_exact('rw1', ndraw = 3e6, seed = 43L, bad_dim = 2L)$maxz, 6)
+})

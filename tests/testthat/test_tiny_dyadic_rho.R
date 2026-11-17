@@ -8,7 +8,9 @@ tiny_uv_context = function(rank = 1L, reciprocal = 1e13) {
 
 tiny_uv_oracle = function(cx, rho, route, snap = 0) {
 	rank = dim(cx$U)[2L]
-	H = diag((1 - cx$ar^2) / cx$sigma^2, rank)
+	# the t route weights the first period and the transition by 1.7 (tiny_uv_call)
+	first = if (route == "t") 1.7 else 1
+	H = diag(first * (1 - cx$ar^2) / cx$sigma^2, rank)
 	h = numeric(rank)
 	forward = if (route == "snap") as.numeric(snap < 0.5) else if (route == "t") 1.7 else 1
 	H = H + diag(forward * cx$ar^2 / cx$sigma^2, rank)

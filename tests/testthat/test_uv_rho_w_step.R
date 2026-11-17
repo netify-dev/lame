@@ -12,7 +12,9 @@ uvrw_grid = function(p, cap, pm = .9, ps = .1, shape = 2, scale = 1, smax = 10, 
 	S1 = n1 = Stt = Sxy = Syy = ntr = 0
 	for (k in 1:2) {
 		cu = list(p$U, p$V)[[k]]; lam = list(lu, lv)[[k]]
-		S1 = S1 + sum(cu[, , 1]^2); n1 = n1 + prod(dim(cu)[1:2])
+		# the first period with its weight (one without weights)
+		w1 = if (is.null(lam)) rep(1, dim(cu)[1]) else lam[, 1]
+		S1 = S1 + sum(w1 * apply(cu[, , 1, drop = FALSE]^2, 1, sum)); n1 = n1 + prod(dim(cu)[1:2])
 		# the transition of actor i into period t, with its weight (one without weights)
 		for (t in 2:N) for (i in seq_len(dim(cu)[1])) {
 			w = if (is.null(lam)) 1 else lam[i, t]

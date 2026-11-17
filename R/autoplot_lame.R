@@ -1,9 +1,23 @@
 # autoplot() methods: ribbons for dynamic coefficients, coefplots otherwise
 
-# re-export ggplot2's autoplot generic so plain autoplot(fit) dispatches
-#' @importFrom ggplot2 autoplot
-#' @export
-ggplot2::autoplot
+# re-export ggplot2's autoplot generic so plain autoplot(fit) dispatches;
+# .onLoad binds it as a promise, so ggplot2 loads on first use, not with lame
+#' @title Objects exported from other packages
+#'
+#' @description
+#' These objects are imported from other packages. Follow the links
+#' below to see their documentation.
+#'
+#' \describe{
+#'   \item{ggplot2}{\code{\link[ggplot2]{autoplot}}}
+#' }
+#'
+#' @name reexports
+#' @aliases autoplot
+#' @docType import
+#' @keywords internal
+#' @rawNamespace export(autoplot)
+NULL
 
 # R CMD check globals for bare names in aes()
 utils::globalVariables(c(
@@ -46,7 +60,7 @@ utils::globalVariables(c(
 #' }
 #'
 #' @method autoplot lame
-#' @export
+#' @exportS3Method ggplot2::autoplot
 autoplot.lame <- function(
 	object,
 	which = c("beta", "ab", "uv"),
@@ -214,7 +228,7 @@ autoplot.lame <- function(
 # autoplot.ame shares the autoplot.lame body
 #' @rdname autoplot.lame
 #' @method autoplot ame
-#' @export
+#' @exportS3Method ggplot2::autoplot
 autoplot.ame <- function(
 	object,
 	which = c("beta", "ab", "uv"),
@@ -231,9 +245,8 @@ autoplot.ame <- function(
 #' Coefficient point-and-interval plot for an \code{\link{ame_als}} or
 #' \code{\link{lame_als}} fit. The body builds the same frame
 #' \code{\link{autoplot.lame}} uses, sourcing the point estimate from
-#' \code{coef(fit)} and the interval from \code{confint(fit)} (sandwich
-#' or bootstrap, depending on which is available). \code{which =
-#' "beta"} is the only mode supported; \code{which = "uv"} /
+#' \code{coef(fit)} and the interval from \code{confint(fit)}.
+#' \code{which = "beta"} is the only mode supported; \code{which = "uv"} /
 #' \code{"ab"} return an informative error.
 #'
 #' @param object A fitted \code{ame_als} / \code{lame_als} object.
@@ -241,11 +254,10 @@ autoplot.ame <- function(
 #'   value).
 #' @param conf.level Confidence level for the interval. Default
 #'   \code{0.95}.
-#' @param ... Passed to \code{\link{vcov.ame_als}} / \code{\link{confint.ame_als}}
-#'   (e.g. \code{cluster}).
+#' @param ... Passed to \code{\link{confint.ame_als}}.
 #' @return A \code{ggplot} object.
 #' @method autoplot ame_als
-#' @export
+#' @exportS3Method ggplot2::autoplot
 autoplot.ame_als <- function(
 	object,
 	which = c("beta", "uv", "ab"),
@@ -256,7 +268,7 @@ autoplot.ame_als <- function(
 	if (!identical(which, "beta")) {
 		cli::cli_abort(c(
 			"{.code which = \"{which}\"} is not supported on {.cls ame_als} fits.",
-			"i" = "ALS produces a point estimate without posterior draws for {.code u} / {.code v} / {.code a} / {.code b}.",
+			"i" = "An ALS fit has no posterior draws of {.code u} / {.code v} / {.code a} / {.code b}; their posterior standard deviations are {.code fit$U_sd}, {.code fit$V_sd}, {.code fit$a_sd} and {.code fit$b_sd}.",
 			"i" = "Use the MCMC path ({.fn ame} / {.fn lame}) or {.code which = \"beta\"}."
 		))
 	}
@@ -290,7 +302,7 @@ autoplot.ame_als <- function(
 		) +
 		ggplot2::coord_flip() +
 		ggplot2::labs(
-			x = NULL, y = "Coefficient (sandwich/bootstrap CI)",
+			x = NULL, y = "Coefficient",
 			title = "ALS coefficient estimates"
 		) +
 		ggplot2::theme_bw() +
@@ -304,7 +316,7 @@ autoplot.ame_als <- function(
 
 #' @rdname autoplot.ame_als
 #' @method autoplot lame_als
-#' @export
+#' @exportS3Method ggplot2::autoplot
 autoplot.lame_als <- function(
 	object,
 	which = c("beta", "uv", "ab"),
@@ -312,48 +324,4 @@ autoplot.lame_als <- function(
 	...
 ) {
 	autoplot.ame_als(object, which = which, conf.level = conf.level, ...)
-}
-
-#' @noRd
-.register_autoplot_method <- function() {
-	if (requireNamespace("ggplot2", quietly = TRUE)) {
-		# best effort: registration is skipped when ggplot2 lacks an autoplot generic,
-		# and autoplot.lame(fit) stays callable directly
-		try(
-			registerS3method(
-				"autoplot",
-				"lame",
-				autoplot.lame,
-				envir = asNamespace("ggplot2")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"autoplot",
-				"ame",
-				autoplot.ame,
-				envir = asNamespace("ggplot2")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"autoplot",
-				"ame_als",
-				autoplot.ame_als,
-				envir = asNamespace("ggplot2")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"autoplot",
-				"lame_als",
-				autoplot.lame_als,
-				envir = asNamespace("ggplot2")
-			),
-			silent = TRUE
-		)
-	}
 }

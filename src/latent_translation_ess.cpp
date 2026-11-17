@@ -27,45 +27,6 @@ List ess_pois_scalar_cpp(double ys, double s, double mu, double sd) {
 	}
 }
 
-// the position of one actor: state cur (R), prior N(mu, root root'), opp (n x R) the matrix that carries a change of the position to the
-// shifts of the line's cells, w the weights, ys and s the counts and exp(z + offset) sums of the cells of the line, `skip` the cell (1-based,
-// 0 for none) whose shift is held at zero (a symmetric network's diagonal)
-// [[Rcpp::export]]
-List ess_pois_uv_cpp(NumericVector cur, NumericVector mu, NumericMatrix root, NumericMatrix opp, NumericVector w, NumericVector ys, NumericVector s,
-		int skip) {
-	const int R = cur.size();
-	const int n = opp.nrow();
-	const double twopi = 2.0 * M_PI;
-	bool trivial = true;
-	for (int j = 0; j < n; ++j) if (ys[j] > 0 || s[j] > 0) { trivial = false; break; }
-	std::vector<double> z(R), nu(R), xc(R), xp(R), t(R), d(n);
-	for (int a = 0; a < R; ++a) z[a] = norm_rand();
-	for (int a = 0; a < R; ++a) { double acc = 0; for (int b = 0; b < R; ++b) acc += root(a, b) * z[b]; nu[a] = acc; }
-	for (int a = 0; a < R; ++a) xc[a] = cur[a] - mu[a];
-	auto ll = [&](const std::vector<double>& x) {
-		if (trivial) return 0.0;
-		for (int a = 0; a < R; ++a) t[a] = w[a] * (x[a] - cur[a]);
-		for (int j = 0; j < n; ++j) { double acc = 0; for (int a = 0; a < R; ++a) acc += opp(j, a) * t[a]; d[j] = acc; }
-		if (skip > 0) d[skip - 1] = 0.0;
-		long double acc = 0;
-		for (int j = 0; j < n; ++j) acc += ys[j] * d[j] - s[j] * std::expm1(d[j]);
-		return (double)acc;
-	};
-	const double thr = 0.0 + std::log(unif_rand());
-	double theta = R::runif(0.0, twopi);
-	double lo = theta - twopi, hi = theta;
-	int evals = 0;
-	for (;;) {
-		for (int a = 0; a < R; ++a) xp[a] = mu[a] + xc[a] * std::cos(theta) + nu[a] * std::sin(theta);
-		const double llp = ll(xp);
-		++evals;
-		if (std::isfinite(llp) && llp > thr) return List::create(_["x"] = NumericVector(xp.begin(), xp.end()), _["evals"] = evals, _["stuck"] = false);
-		if (theta < 0) lo = theta; else hi = theta;
-		if (evals >= 100) return List::create(_["x"] = clone(cur), _["evals"] = evals, _["stuck"] = true);
-		theta = R::runif(lo, hi);
-	}
-}
-
 // ---- whole phases of the Poisson translation visits (non-centred, static effects: ame() and the static lame() fits) ----
 
 struct Ess1 { double x; int evals; bool stuck; };

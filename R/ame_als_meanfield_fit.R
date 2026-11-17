@@ -50,6 +50,39 @@
 			identical(res$scale$stat, "mean")) {
 		res <- fit_with("plugin")
 	}
+	# a normal fit: the noise its factor columns take up beyond the regular count goes back into
+	# the noise variance (.ae_gauss_bulk_ve); an undirected one has the same bulk edge and spike
+	# relation, its matrix being the square case of the singular values with eigenvalues of either sign
+	if (identical(link, "identity") && R > 0L && !isTRUE(ve_fixed)) {
+		res <- .ae_gauss_bulk_ve(res, function(S1, stat) .ae_mf_fit(
+			prep,
+			NULL,
+			ab,
+			R,
+			symmetric,
+			link,
+			NULL,
+			max_iter = .ae_mf_budget(max_iter, scale),
+			tol = .ae_mf_tol(tol),
+			verbose = verbose,
+			start = S1,
+			scale = scale,
+			pair = pair,
+			ve_fixed = TRUE,
+			scale_stat = stat
+		))
+	}
+	# a factor column the iteration drove below the precision of the predictor (every product cell
+	# under 1e-10 response units, read from the largest entries since their squares can underflow)
+	# is zero, the state of a column held at zero (.ae_mf_info_state)
+	if (R > 0L && !isTRUE(symmetric) && is.matrix(res$S$U) && is.matrix(res$S[["V"]])) {
+		mag <- apply(abs(res$S$U), 2L, max) * apply(abs(res$S[["V"]]), 2L, max)
+		dead <- is.finite(mag) & mag < 1e-10 * res$cx$ysd
+		if (any(dead)) {
+			res$S$U[, dead] <- 0
+			res$S[["V"]][, dead] <- 0
+		}
+	}
 	cx <- res$cx
 	S <- res$S
 	# the fit reports the cavity covariances (.ae_mf_cavity_cov); the state of the updates,
@@ -127,10 +160,26 @@
 	if (!is.null(res$scale) && identical(res$scale$rule, "cavity") && isTRUE(defer_uncertainty)) {
 		pending <- list(prep = prep, ab = ab, R = R, symmetric = cx$sym, link = link, res = res)
 	} else if (!is.null(res$scale) && identical(res$scale$rule, "cavity") && .ae_mf_uncertainty_on()) {
-		su <- tryCatch(.ae_mf_scale_uncertainty(prep, ab, R, cx$sym, link, res), error = function(e) NULL)
-		if (!is.null(su) && is.finite(su$sd_log)) {
-			extra <- list(J = su$J, var = su$sd_log^2)
+		su <- tryCatch(.ae_mf_scale_uncertainty(prep, ab, R, cx$sym, link, res), error = function(e) {
+			.ae_note_failure("mf_scale_uncertainty", "the uncertainty of the factor-prior scale in the standard errors", e)
+			NULL
+		})
+		if (!is.null(su) && is.finite(su$sd_log) && isTRUE(su$ok)) {
+			extra <- list(J = su$J, var = su$sd_log^2, J_fold = su$J_fold, J_cells = su$J_cells)
 			record$scale$sd_log <- su$sd_log
+		} else if (!is.null(su)) {
+			.ae_note_failure("mf_scale_uncertainty", "the uncertainty of the factor-prior scale in the standard errors", "the refits at the shifted scale did not converge or gave no curvature")
+		}
+	}
+	# a count fit holds the noise variance of its mode: its uncertainty enters as well (.ae_mf_ve_term())
+	ve_curve <- if (isTRUE(ve_fixed)) ir$fit$ve_search$curve
+	if (!is.null(ve_curve) && .ae_mf_uncertainty_on()) {
+		if (isTRUE(defer_uncertainty)) {
+			if (is.null(pending)) pending <- list(prep = prep, ab = ab, R = R, symmetric = cx$sym, link = link, res = res, scale_on = FALSE)
+			pending$ve_curve <- ve_curve
+		} else {
+			vt <- tryCatch(.ae_mf_ve_term(prep, ab, R, cx$sym, link, res, ve_curve), error = function(e) NULL)
+			if (!is.null(vt)) extra <- c(if (!is.null(extra)) list(extra), list(vt))
 		}
 	}
 	if (!is.null(res$pair)) record$pair <- res$pair
@@ -187,12 +236,14 @@
 	cross <- NULL
 	# a Gaussian cell's information does not depend on the predictor, so the expected
 	# weight 1 / ve is exact there
+	# (a column held at zero enters at the covariances of the fixed point, .ae_mf_info_state())
+	si <- if (!is.null(res$scale) && !cx$gauss) .ae_mf_info_state(cx, S, Sr, evr) else list(S = Sr, ev = evr)
 	Winfo <- if (!is.null(res$scale) && !cx$gauss) {
 		wi <- if (!is.null(cx$pair)) {
-			ci <- .ae_mf_info_pair(cx, evr)
+			ci <- .ae_mf_info_pair(cx, si$ev)
 			cross <- ci$cw
 			ci$w
-		} else .ae_mf_info_w(cx$y, evr$eta, array(evr$V, dim(cx$y)), link, ve = S$ve)
+		} else .ae_mf_info_w(cx$y, si$ev$eta, array(si$ev$V, dim(cx$y)), link, ve = S$ve)
 		wi[!cx$obs] <- NA_real_
 		wi
 	} else {
@@ -204,7 +255,7 @@
 		cross <- pair_fit$cw
 		f$eb_mf$cross <- cross
 	}
-	vb_cov <- list(S = Sr, elbo = elbo, evidence = mode_evidence, cross = cross)
+	vb_cov <- list(S = si$S, elbo = elbo, evidence = mode_evidence, cross = cross)
 	f$eb_vcov <- tryCatch(
 		.ae_eb_vcov(prep, f, Winfo, ab, R, eta = eta, link = link, vb = vb_cov, extra = extra),
 		error = function(e) structure(list(), message = conditionMessage(e))
@@ -222,19 +273,57 @@
 	)
 }
 
+# the noise variance of a converged normal fit `res` with the excess its factor
+# columns take up (.ae_gauss_bulk_excess) added to the noise sum of squares of its EM image,
+# ve = (nu0 s20 + nu (SS + excess)) / (nu N + nu0 - 2), N the observed cells over all periods: the
+# fit is solved again with ve held there (`solve(start, scale_stat)`, warm-started), and the
+# excess is recomputed at that state, for at most `rounds` rounds and until ve moves less than
+# `rtol` relative (a strong fit, whose first move is a small fraction of the sd of ve, is left as it
+# is). a solve that does not converge where the fit did is not taken
+.ae_gauss_bulk_ve <- function(res, solve, rounds = 5L, rtol = 1e-4) {
+	cur <- res
+	for (k in seq_len(rounds)) {
+		cx <- cur$cx
+		ex <- tryCatch(.ae_gauss_bulk_excess(cx, cur$ev, cx$R), error = function(e) 0)
+		if (!isTRUE(is.finite(ex)) || ex == 0) break
+		ve <- .ae_pln_ve_image(sum(cur$ev$wk$ee) + ex, cx$n_obs, cx$nu, cx$ab$ve_prior, .ae_ve_floor(cx$ab))
+		if (!isTRUE(is.finite(ve) && ve > 0) || abs(ve / cur$S$ve - 1) < rtol) break
+		# a first move under a quarter of the sd of ve, ve sqrt(2 / (nu N)), is not worth a solve
+		if (k == 1L && abs(ve / cur$S$ve - 1) < 0.25 * sqrt(2 / (cx$nu * cx$n_obs))) break
+		S1 <- cur$S
+		S1$ve <- ve
+		stat <- if (!is.null(cur$scale)) cur$scale$stat
+		r1 <- tryCatch(solve(S1, stat), error = function(e) NULL)
+		if (!is.null(r1) && !isTRUE(r1$converged) && identical(r1$termination, "no improving step") &&
+				identical(stat, "mean")) {
+			r1 <- tryCatch(solve(S1, "plugin"), error = function(e) NULL)
+		}
+		if (is.null(r1) || (isTRUE(res$converged) && !isTRUE(r1$converged))) break
+		cur <- r1
+	}
+	cur
+}
+
 # add the scale uncertainty a refinement with `defer_uncertainty` left out to the
 # reported fit `ir` (the same computation and state as in .ae_mf_refine)
 .ae_mf_finish <- function(ir) {
 	pd <- ir$mf_pending
 	ir$mf_pending <- NULL
 	if (is.null(pd) || !.ae_mf_uncertainty_on()) return(ir)
-	su <- tryCatch(
+	vt <- if (!is.null(pd$ve_curve)) tryCatch(.ae_mf_ve_term(pd$prep, pd$ab, pd$R, pd$symmetric, pd$link, pd$res, pd$ve_curve), error = function(e) NULL)
+	su <- if (isFALSE(pd$scale_on)) NULL else tryCatch(
 		.ae_mf_scale_uncertainty(pd$prep, pd$ab, pd$R, pd$symmetric, pd$link, pd$res),
-		error = function(e) NULL
+		error = function(e) {
+			.ae_note_failure("mf_scale_uncertainty", "the uncertainty of the factor-prior scale in the standard errors", e)
+			NULL
+		}
 	)
-	if (is.null(su) || !is.finite(su$sd_log)) return(ir)
+	if (!is.null(su) && (!is.finite(su$sd_log) || !isTRUE(su$ok))) {
+		.ae_note_failure("mf_scale_uncertainty", "the uncertainty of the factor-prior scale in the standard errors", "the refits at the shifted scale did not converge or gave no curvature")
+		su <- NULL
+	}
+	if (is.null(su) && is.null(vt)) return(ir)
 	f <- ir$fit
-	f$eb_mf$record$scale$sd_log <- su$sd_log
 	# a covariance that could not be formed stays as it is
 	if (!is.null(f$eb_vcov$vcov)) {
 		vc <- tryCatch(
@@ -247,14 +336,55 @@
 				eta = pd$vcov$eta,
 				link = pd$link,
 				vb = pd$vcov$vb,
-				extra = list(J = su$J, var = su$sd_log^2)
+				extra = c(if (!is.null(su)) list(list(J = su$J, var = su$sd_log^2, J_fold = su$J_fold)), if (!is.null(vt)) list(vt)),
+				report = FALSE
 			),
-			error = function(e) NULL
+			error = function(e) {
+				.ae_note_failure("mf_scale_uncertainty", "the uncertainty of the factor-prior scale in the standard errors", e)
+				NULL
+			}
 		)
-		if (!is.null(vc)) f$eb_vcov$vcov <- vc$vcov
+		if (!is.null(vc)) {
+			f$eb_vcov$vcov <- vc$vcov
+			f$eb_vcov$vcov_centred <- vc$vcov_centred
+			f$eb_vcov$vcov_population <- vc$vcov_population
+			# the product cells respond to the scale of the factor prior too
+			cells <- f$eb_vcov$report_se$cells
+			if (!is.null(su) && !is.null(cells) && identical(dim(su$J_cells), dim(cells))) {
+				f$eb_vcov$report_se$cells <- sqrt(cells^2 + su$sd_log^2 * su$J_cells^2)
+				f$eb_vcov$report_se$cells_scale <- c(f$eb_vcov$report_se$cells_scale, list(su$sd_log * su$J_cells))
+			}
+			if (!is.null(su)) f$eb_mf$record$scale$sd_log <- su$sd_log
+		}
 	}
 	ir$fit <- f
 	ir
+}
+
+# state the information of the fit is evaluated at (the weights, and the second moments of the
+# other side in the factor block, .ae_eb_extend()): the cavity covariances `Sr` and their
+# predictor `evr`, except for a column the fit holds at zero (a zero sender or receiver column, or
+# a zero column of an undirected fit). the cavity covariance of a row conditions on the other side
+# at its mean, so at a zero column it is the prior, and the column's cell variance tr(Sig_i Om_j)
+# is the product of two prior widths, which the data exclude; such a column enters at the
+# covariances of the fixed point `S`, which integrate the spread of the other side. returns the
+# state `S` and its predictor `ev`
+.ae_mf_info_state <- function(cx, S, Sr, evr) {
+	keep <- list(S = Sr, ev = evr)
+	if (cx$R < 1L || is.null(S$Sig) || is.null(Sr$Sig)) return(keep)
+	held <- if (cx$sym) colSums(S$F^2) == 0 else colSums(S$U^2) == 0 | colSums(S$V^2) == 0
+	if (!any(held)) return(keep)
+	Si <- Sr
+	Si$Sig[held, , ] <- S$Sig[held, , , drop = FALSE]
+	Si$Sig[, held, ] <- S$Sig[, held, , drop = FALSE]
+	if (!cx$sym && !is.null(S$Om)) {
+		Si$Om[held, , ] <- S$Om[held, , , drop = FALSE]
+		Si$Om[, held, ] <- S$Om[, held, , drop = FALSE]
+	}
+	pr <- .ae_mf_predictor(cx, Si)
+	ev <- list(eta = pr$eta, V = pr$Vt, ve = S$ve)
+	if (!is.null(cx$pair)) ev$pair <- list(cv = .ae_pair_cov(cx, Si), rho = S$rho)
+	list(S = Si, ev = ev)
 }
 
 # uncertainty of the coefficients from the scale of the factor prior: the log scale
@@ -281,7 +411,15 @@
 			pair = if (!is.null(res$cx$pair)) list(rho = S$rho, quad = res$cx$pair_quad, update = FALSE)
 		)
 		C1 <- .ae_mf_info_sum(r1$cx, r1$ev)
-		list(theta = c(r1$S$mu, r1$S$beta, r1$S$gamma), g = .ae_mf_scale_score(r1$cx, r1$S, C1), ok = r1$converged)
+		# grand mean of the product, which the reported intercept carries (.ae_report_fold)
+		gm <- if (R < 1L) 0 else if (isTRUE(symmetric)) sum(r1$S$sg * colMeans(r1$S$F)^2) else
+			sum(colMeans(r1$S$U) * colMeans(r1$S[["V"]]))
+		# the centred product, which the reported product cells are (.ae_report_fold)
+		cells <- if (R < 1L) NULL else if (isTRUE(symmetric)) {
+			Fc <- sweep(r1$S$F, 2L, colMeans(r1$S$F))
+			Fc %*% (r1$S$sg * t(Fc))
+		} else tcrossprod(sweep(r1$S$U, 2L, colMeans(r1$S$U)), sweep(r1$S[["V"]], 2L, colMeans(r1$S[["V"]])))
+		list(theta = c(r1$S$mu, r1$S$beta, r1$S$gamma), gm = gm, cells = cells, g = .ae_mf_scale_score(r1$cx, r1$S, C1), ok = r1$converged)
 	}
 	a <- one(1); b <- one(-1)
 	c_data <- -(a$g - b$g) / (2 * h)
@@ -290,12 +428,63 @@
 	J <- (a$theta - b$theta) / (2 * h)
 	list(
 		J = J,
+		J_fold = (a$gm - b$gm) / (2 * h),
+		J_cells = if (!is.null(a$cells)) (a$cells - b$cells) / (2 * h),
 		c = cc,
 		c_data = c_data,
 		c_prior = c_prior,
 		sd_log = if (is.finite(cc) && cc > 0) 1 / sqrt(cc) else NA_real_,
 		ok = a$ok && b$ok
 	)
+}
+
+# uncertainty of the held count noise variance in the coefficients of a variational fit
+# (delta method): two fits at ve exp(+-h), each holding ve and the factor-prior scale and
+# started at the fit's state, give J = d coefficients / d log ve, with that of the
+# effects (J_s) and of the grand mean of the product (J_fold); the variance of log ve is
+# that of the evidence curve of the mode's search (.ae_pln_ve_sd_log()). NULL when a refit
+# does not converge or the curve has no curvature
+.ae_mf_ve_term <- function(prep, ab, R, symmetric, link, res, curve, h = 0.1, tol = 1e-4, max_iter = 200L) {
+	sdl <- .ae_pln_ve_sd_log(curve)
+	S <- res$S
+	if (!isTRUE(is.finite(sdl) && sdl > 0) || !isTRUE(S$ve > 0)) return(NULL)
+	one <- function(sgn) {
+		S1 <- S
+		S1$ve <- S$ve * exp(sgn * h)
+		r1 <- .ae_mf_fit(
+			prep,
+			NULL,
+			ab,
+			R,
+			symmetric,
+			link,
+			NULL,
+			max_iter = max_iter,
+			tol = tol,
+			start = S1,
+			scale = "fixed",
+			ve_fixed = TRUE,
+			pair = if (!is.null(res$cx$pair)) list(rho = S$rho, quad = res$cx$pair_quad, update = FALSE)
+		)
+		gm <- if (R < 1L) 0 else if (isTRUE(symmetric)) sum(r1$S$sg * colMeans(r1$S$F)^2) else
+			sum(colMeans(r1$S$U) * colMeans(r1$S[["V"]]))
+		list(
+			theta = c(r1$S$mu, r1$S$beta, r1$S$gamma),
+			s = if (isTRUE(symmetric)) r1$S$a else c(r1$S$a, r1$S$b),
+			gm = gm,
+			ok = isTRUE(r1$converged)
+		)
+	}
+	up <- one(1)
+	dn <- one(-1)
+	out <- list(
+		J = (up$theta - dn$theta) / (2 * h),
+		J_s = (up$s - dn$s) / (2 * h),
+		J_fold = (up$gm - dn$gm) / (2 * h),
+		var = sdl^2
+	)
+	if (!(up$ok && dn$ok) || !length(out$J) || !all(is.finite(c(out$J, out$J_fold)))) return(NULL)
+	out
 }
 
 # the refit of a variational fit on new data: the iteration starts at the fit's
@@ -333,9 +522,9 @@
 				max_iter,
 				tol,
 				lowrank_method = lrm,
-				init = .ae_pln_mode_init(from$fit, ve),
+				init = if (is.null(from)) NULL else .ae_pln_mode_init(from$fit, ve),
 				linear_solver = lsv,
-				warm = TRUE,
+				warm = !is.null(from),
 				ab_prior = ab,
 				ve_fixed = ve,
 				warm_retry = FALSE
@@ -381,7 +570,10 @@
 				linear_solver = mode_args$linear_solver,
 				ab_prior = ab
 			)$fit$eb_vcov$evidence,
-			error = function(e) NULL
+			error = function(e) {
+				.ae_note_failure("mode_evidence", "the Laplace evidence at the mode of the new data", e)
+				NULL
+			}
 		)
 	}
 	fit0 <- list(
@@ -602,22 +794,6 @@
 		}
 	}
 	list(S = S, prep = st$prep, ab = ab, R = R, w = st$w)
-}
-
-# the evidence lower bound of a variational fit, recomputed from the object at
-# its stored state (the value stored in fit$eb$variational$elbo)
-.ae_mf_elbo_object <- function(object) {
-	ms <- .ae_mf_object_state(object)
-	link <- .ae_default(object$link, "probit")
-	cx <- .ae_mf_context(
-		ms$prep,
-		ms$ab,
-		ms$R,
-		link,
-		pair = if (!is.null(object$eb$pair)) list(rho = object$eb$pair$rho, quad = object$eb$pair$quad, update = FALSE)
-	)
-	ev <- .ae_mf_evaluate(cx, ms$S)
-	.ae_mf_elbo(cx, ms$S, ev)
 }
 
 # posterior mean and variance of the linear predictor of every cell of `X` (the fit's

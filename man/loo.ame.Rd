@@ -37,7 +37,7 @@ joint dyad factors would be needed. Symmetric fits store each unordered
 dyad once. Correct marginal predictive scores remain useful and readable
 through \code{read_log_lik()} even when LOO or WAIC is unavailable.
 
-\strong{Chunked log-lik portability.} When fit with
+\strong{Chunked log-lik portability.} When a \code{lame} fit is run with
 \code{save_log_lik = "chunked"}, the on-disk chunk files default to
 \code{tempdir()}, which is cleared at the end of the R session.
 If you intend to \code{saveRDS()} the fit and reload it in a fresh
@@ -49,7 +49,7 @@ session, supply an explicit persistent \code{log_lik_path} (e.g.
 data(YX_nrm)
 # chains = 1 keeps the example short; the default runs two chains and compares them
 fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 0, dcor = FALSE,
-           nscan = 60, burn = 15, odens = 5,
+           nscan = 400, burn = 50, odens = 1,
            save_log_lik = TRUE, verbose = FALSE, chains = 1)
 if (requireNamespace("loo", quietly = TRUE)) {
   loo_res <- loo::loo(fit)

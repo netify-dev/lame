@@ -2,7 +2,7 @@ skip_on_cran()
 
 library(lame)
 
-# the dynamic ALS estimators (empirical-Bayes for the three families, and penalised with bias_correct = "none") refuse an
+# the dynamic ALS estimators (empirical-Bayes for the three families, and the penalised fit) refuse an
 # exactly rank-deficient design over the observed cells with the classed error of ame() and lame() (R/design_rank.R,
 # tested in test_design_rank.R); near-collinearity is fitted
 

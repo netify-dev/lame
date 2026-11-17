@@ -33,8 +33,32 @@
 	gaussian + uv
 }
 
-.lame_path_scale_terms <- function(static, path, rho, sigma, Lambda, beta0_cov, g_static, s2) {
-	q <- sum(static^2 / (g_static * s2)) + drop(
+# quadratic prior form and dimension of a coefficient state under a common scale: static coefficients
+# N(0, g s2) each, or under the panel precision P_static, and the paths under their AR(1) prior. with
+# long-run means `mu` (zero off the ar1 paths) the paths enter as deviations, and the means of the ar1
+# paths (finite `mu_var`) scale with them under their N(0, mu_var) prior
+.lame_path_scale_terms <- function(
+	static,
+	path,
+	rho,
+	sigma,
+	Lambda,
+	beta0_cov,
+	g_static,
+	s2,
+	P_static = NULL,
+	mu = NULL,
+	mu_var = NULL
+) {
+	q_static <- if (is.null(P_static)) sum(static^2 / (g_static * s2)) else drop(crossprod(static, P_static %*% static))
+	d_mean <- 0
+	if (!is.null(mu)) {
+		path <- .lame_beta_deviation(path, mu)
+		k <- is.finite(mu_var)
+		q_static <- q_static + sum(mu[k]^2 / mu_var[k])
+		d_mean <- sum(k)
+	}
+	q <- q_static + drop(
 		path[1, , drop = FALSE] %*% solve(beta0_cov) %*%
 			path[1, ]
 	)
@@ -42,7 +66,7 @@
 		e <- path[-1, , drop = FALSE] - sweep(path[-nrow(path), , drop = FALSE], 2, rho, "*")
 		q <- q + sum(sweep(e^2, 2, sigma^2 * diag(Lambda), "/"))
 	}
-	list(q = q, dimension = length(static) + length(path))
+	list(q = q, dimension = length(static) + d_mean + length(path))
 }
 
 .lame_binary_hmc_context <- function(Y, Xlist, static_idx, dynamic_idx, rank, uv_prior = NULL) {
@@ -75,7 +99,10 @@
 	sizes <- vapply(dims, prod, numeric(1))
 	ends <- cumsum(sizes)
 	starts <- ends - sizes + 1
-	indices <- lapply(seq_along(sizes), function(i) seq.int(starts[i], ends[i]))
+	# a block of size zero (no static coefficient) has no index
+	indices <- lapply(seq_along(sizes), function(i) {
+		if (sizes[i] == 0) integer(0) else seq.int(starts[i], ends[i])
+	})
 	names(indices) <- names(dims)
 	# inverse-Wishart prior of the factor covariance: the host's `uv_prior` or the default
 	uv_df <- if (is.null(uv_prior)) .lame_uv_prior_df(rank) else uv_prior$df
@@ -160,9 +187,22 @@
 	ga <- apply(ge, c(1, 3), sum)
 	gbactor <- apply(ge, c(2, 3), sum)
 	for (t in seq_len(nt)) gb[t, ] <- drop(crossprod(cx$X[[t]], c(ge[, , t])))
-	gs <- colSums(gb[, cx$static_idx, drop = FALSE]) - z$static / h$g
-	lg <- lg - 0.5 * sum(z$static^2 / h$g)
-	ar <- .lame_binary_hmc_ar(z$path, h$rho_beta, h$var_beta, h$iC0)
+	# static coefficients under N(0, g) each, or the panel precision h$P
+	if (is.null(h$P)) {
+		gs <- colSums(gb[, cx$static_idx, drop = FALSE]) - z$static / h$g
+		lg <- lg - 0.5 * sum(z$static^2 / h$g)
+	} else {
+		ps <- drop(h$P %*% z$static)
+		gs <- colSums(gb[, cx$static_idx, drop = FALSE]) - ps
+		lg <- lg - 0.5 * sum(z$static * ps)
+	}
+	# an ar1 path enters its prior as the deviation from its long-run mean
+	ar <- .lame_binary_hmc_ar(
+		if (is.null(h$mu_beta)) z$path else .lame_beta_deviation(z$path, h$mu_beta),
+		h$rho_beta,
+		h$var_beta,
+		h$iC0
+	)
 	gp <- gb[, cx$dynamic_idx, drop = FALSE] + ar$gradient
 	lg <- lg + ar$logp
 	gl <- crossprod(H, cbind(rowSums(ga), rowSums(gbactor))) - z$level %*% h$iSab
@@ -213,7 +253,7 @@
 		q
 	}
 	xx <- t(vapply(cx$X, function(x) colSums(x^2), numeric(cx$p))) * cx$weight
-	ms <- 1 / h$g + colSums(xx[, cx$static_idx, drop = FALSE])
+	ms <- (if (is.null(h$P)) 1 / h$g else diag(h$P)) + colSums(xx[, cx$static_idx, drop = FALSE])
 	mp <- ardiag(cx$nt, h$rho_beta, h$var_beta, diag(h$iC0)) + xx[, cx$dynamic_idx, drop = FALSE]
 	ml <- matrix(rep(diag(h$iSab) + cx$nt * (cx$n - 1) * cx$weight, each = cx$k), cx$k, 2)
 	md <- ardiag(

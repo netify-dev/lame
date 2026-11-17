@@ -36,14 +36,16 @@ statistic, the observed value in each period against the median and the
 central 95 percent of the simulated values in that period.
 
 Uses \code{\link{simulate.ame_als}} for the replicates and is therefore
-conditional on the fitted point estimates: the noise is resampled, but
+conditional on the fitted estimates: the noise is resampled, but
 \code{mu, beta, a, b, U, V} are held fixed. The MCMC \code{gof_plot.ame}
 also averages over posterior movement in those parameters.
 }
 \examples{
+\donttest{
 set.seed(1)
 n <- 12
 Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
 fit <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
 gof_plot(fit, nsim = 20, seed = 1)
+}
 }

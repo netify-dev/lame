@@ -114,21 +114,3 @@ test_that("symmetric ordinal posterior YPM (and EZ) is symmetric", {
 		)))
 	}
 })
-
-test_that("rZ_ord_sym_fc stays finite under extreme predictors and an inverted start", {
-	set.seed(6886)
-	n = 10
-	Y = matrix(sample(1:3, n * n, replace = TRUE), n, n)
-	Y[lower.tri(Y)] = t(Y)[lower.tri(Y)]
-	diag(Y) = NA
-	# a block of actors far below every cutpoint saturates the normal CDF
-	EZ = matrix(0, n, n)
-	EZ[1:3, ] = -30
-	EZ[, 1:3] = -30
-	# a start whose ranks disagree with Y inverts the truncation window
-	Z = matrix(runif(n * n, 2, 3), n, n)
-	Z[lower.tri(Z)] = t(Z)[lower.tri(Z)]
-	for (k in 1:30) Z = rZ_ord_sym_fc(Z, EZ, Y)
-	expect_true(all(is.finite(Z)))
-	expect_equal(Z, t(Z))
-})

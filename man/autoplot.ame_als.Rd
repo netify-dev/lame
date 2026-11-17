@@ -18,8 +18,7 @@ value).}
 \item{conf.level}{Confidence level for the interval. Default
 \code{0.95}.}
 
-\item{...}{Passed to \code{\link{vcov.ame_als}} / \code{\link{confint.ame_als}}
-(e.g. \code{cluster}).}
+\item{...}{Passed to \code{\link{confint.ame_als}}.}
 }
 \value{
 A \code{ggplot} object.
@@ -28,8 +27,7 @@ A \code{ggplot} object.
 Coefficient point-and-interval plot for an \code{\link{ame_als}} or
 \code{\link{lame_als}} fit. The body builds the same frame
 \code{\link{autoplot.lame}} uses, sourcing the point estimate from
-\code{coef(fit)} and the interval from \code{confint(fit)} (sandwich
-or bootstrap, depending on which is available). \code{which =
-"beta"} is the only mode supported; \code{which = "uv"} /
+\code{coef(fit)} and the interval from \code{confint(fit)}.
+\code{which = "beta"} is the only mode supported; \code{which = "uv"} /
 \code{"ab"} return an informative error.
 }

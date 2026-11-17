@@ -95,61 +95,10 @@
 # symmetric network: an actor's cells are its row and column, so actors move one pair (or one actor) at
 # a time from the current latent array; the cell shared by a pair does not move
 .lame_pab_sym_period <- function(Zt, Et, y, off, eff, m, v, centred) {
-	n <- length(eff)
 	act <- which(is.finite(eff) & is.finite(m) & is.finite(v) & v > 0)
-	pairs <- 0L
-	evals <- 0L
 	if (length(act) < (if (centred) 2L else 1L)) return(list(Z = Zt, E = Et, eff = eff, pairs = 0L, evals = 0L))
-	# the compiled loop takes the order of the actors from here and consumes the random numbers in the order of the loop below
-	if (!identical(getOption("lame.pab_engine"), "r")) {
-		return(pab_sym_period_cpp(Zt, Et, y, off, eff, m, v, centred, as.integer(act[sample.int(length(act))])))
-	}
-	obs <- is.finite(y)
-	y0 <- ifelse(obs, y, 0)
-	apply_shift <- function(i, d) {
-		Zt[i, ] <<- Zt[i, ] + d
-		Zt[, i] <<- Zt[, i] + d
-		Et[i, ] <<- Et[i, ] + d
-		Et[, i] <<- Et[, i] + d
-	}
-	stats_of <- function(i, k) {
-		j <- setdiff(seq_len(n), c(i, k))
-		o <- obs[i, j] & is.finite(Zt[i, j])
-		c(sum(y0[i, j][o]), sum(exp(Zt[i, j][o] + off)))
-	}
-	if (centred) {
-		p <- act[sample.int(length(act))]
-		np <- length(p) %/% 2L
-		for (q in seq_len(np)) {
-			i <- p[q]
-			k <- p[np + q]
-			si <- stats_of(i, k)
-			sk <- stats_of(k, i)
-			prec <- 1 / v[i] + 1 / v[k]
-			mu <- ((m[i] - eff[i]) / v[i] + (eff[k] - m[k]) / v[k]) / prec
-			sl <- .lame_pab_slice(mu, prec, si[1L] - sk[1L], si[2L], sk[2L])
-			d <- sl$delta
-			if (d != 0) {
-				eff[i] <- eff[i] + d
-				eff[k] <- eff[k] - d
-				apply_shift(i, d)
-				apply_shift(k, -d)
-			}
-			pairs <- pairs + 1L
-			evals <- evals + sl$evals
-		}
-	} else {
-		for (i in act[sample.int(length(act))]) {
-			si <- stats_of(i, 0L)
-			sl <- .lame_pab_slice(m[i] - eff[i], 1 / v[i], si[1L], si[2L], 0)
-			d <- sl$delta
-			eff[i] <- eff[i] + d
-			apply_shift(i, d)
-			pairs <- pairs + 1L
-			evals <- evals + sl$evals
-		}
-	}
-	list(Z = Zt, E = Et, eff = eff, pairs = pairs, evals = evals)
+	# the compiled loop (src/poisson_ab_sym_move.cpp) takes the order of the actors from here
+	pab_sym_period_cpp(Zt, Et, y, off, eff, m, v, centred, as.integer(act[sample.int(length(act))]))
 }
 
 # one visit: `cx` from .lame_pab_context, `Z`, `EZ` latent array and predictor, `a_mat`, `b_mat` the effects

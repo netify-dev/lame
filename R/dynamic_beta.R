@@ -46,6 +46,24 @@
 	out
 }
 
+# dynamic_ab centres the effects of every period, so the intercept joins the dynamic_beta set
+# (ordinal fits have no intercept)
+.lame_ab_dynamic_intercept <- function(dynamic_beta, dynamic_ab, intercept, family) {
+	if (!isTRUE(dynamic_ab) || !isTRUE(intercept) || identical(family, "ordinal")) {
+		return(dynamic_beta)
+	}
+	if (is.null(dynamic_beta) || isFALSE(dynamic_beta)) return("intercept")
+	if (isTRUE(dynamic_beta)) return(TRUE)
+	# the intercept is the first coefficient
+	if (is.logical(dynamic_beta)) {
+		dynamic_beta[1L] <- TRUE
+		return(dynamic_beta)
+	}
+	if (is.numeric(dynamic_beta)) return(union(1L, dynamic_beta))
+	if (is.character(dynamic_beta)) return(union("intercept", dynamic_beta))
+	dynamic_beta
+}
+
 # parse the `dynamic_beta` argument: FALSE / NULL (nothing dynamic), TRUE (everything), a character vector of
 # coefficient names or block shortcuts (intercept, dyad, row, col), 1-based indices, or a logical mask of length p.
 # each block with a dynamic coefficient gets its own rho_beta and sigma_beta. returns any, mask, static_idx,
@@ -313,4 +331,37 @@ build_a_b_constraint_bases <- function(
 		H_b = H_b,
 		active = !is.null(H_a) || !is.null(H_b)
 	)
+}
+
+# kind of each dynamic block, named as the columns of RHO_BETA; the fit-wide kind for every block when
+# fit$dynamic_beta_kind_by_block is absent
+.lame_beta_block_kinds <- function(fit) {
+	blocks <- colnames(fit$RHO_BETA)
+	if (is.null(blocks)) {
+		g <- fit$beta_dynamic_groups
+		blocks <- if (is.null(g)) character(0) else sort(unique(g[nzchar(g)]))
+	}
+	kinds <- fit$dynamic_beta_kind_by_block
+	if (is.null(kinds) || !all(blocks %in% names(kinds))) {
+		return(stats::setNames(rep(fit$dynamic_beta_kind %||% "ar1", length(blocks)), blocks))
+	}
+	kinds[blocks]
+}
+
+# kinds as text: one kind, or the kind of each block
+.lame_beta_kind_text <- function(kinds) {
+	if (length(kinds) == 0L) return(NULL)
+	if (length(unique(kinds)) == 1L) return(unname(kinds[1L]))
+	paste(paste0(names(kinds), ": ", kinds), collapse = ", ")
+}
+
+# RHO_BETA columns of the ar1 blocks (an rw1 block holds rho = 1)
+.lame_rho_beta_ar1 <- function(fit) {
+	RB <- fit$RHO_BETA
+	if (is.null(RB)) return(NULL)
+	if (!is.matrix(RB)) return(if (identical(fit$dynamic_beta_kind %||% "ar1", "ar1")) RB else NULL)
+	kinds <- .lame_beta_block_kinds(fit)
+	keep <- if (!is.null(colnames(RB)) && all(colnames(RB) %in% names(kinds))) kinds[colnames(RB)] == "ar1"
+	else rep(identical(fit$dynamic_beta_kind %||% "ar1", "ar1"), ncol(RB))
+	RB[, unname(keep), drop = FALSE]
 }

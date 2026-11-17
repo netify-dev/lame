@@ -21,17 +21,19 @@ test_that("high-variance count paths retain descent during reweighting", {
 			paste0('a', seq_len(n))
 		);Y[[t]] = y;X[[t]] = array(x, c(n, n, 1), dimnames = c(dimnames(y), list('x')))
 	}
-	fit = lame(
+	# the penalized fit, called as lame(method = 'als') calls it
+	fit = lame:::lame_dynamic_als(
 		Y,
 		Xdyad = X,
 		R = rank,
 		family = 'poisson',
-		method = 'als',
 		dynamic_ab = TRUE,
 		dynamic_uv = TRUE,
+		dynamic_beta = 'intercept',
+		dynamic_beta_kind = 'rw1',
 		bias_correct = 'none',
-		als_max_iter = 200L,
-		als_tol = 1e-6,
+		max_iter = 200L,
+		tol = 1e-6,
 		verbose = FALSE
 	)
 	expect_equal(fit$diagnostics$objective_increases, 0)

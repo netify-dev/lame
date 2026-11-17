@@ -57,16 +57,15 @@ netlet <- netify::netify(
 fit <- lame(netlet, family = "binary", R = 2, verbose = FALSE)
 ```
 
-Use `missing_to_zero = TRUE` only when unlisted dyads are real zeros; if an
-unlisted dyad means the relation was not observed, keep it `FALSE` so those
-cells enter `lame` as missing values. The underlying shape contract is still
-simple -- `lame()` consumes a named list of matrices plus optional per-period
-covariate arrays -- and the [overview article](https://netify-dev.github.io/lame/articles/lame-overview.html) walks
+`missing_to_zero` says what an unlisted dyad means: `TRUE` records it as a
+zero, and `FALSE` leaves it missing, so `lame()` treats it as unobserved.
+`lame()` itself takes a named list of matrices plus optional per-period
+covariate arrays, and the [overview article](https://netify-dev.github.io/lame/articles/lame-overview.html) walks
 through an executed netify round-trip on real data.
 
 ## Coming from `amen`?
 
-Both `amen` and `lame` export an `ame()` function; if both packages are attached, a startup message reminds you that unqualified `ame(...)` calls dispatch to whichever was attached last, so write `lame::ame(...)` to be explicit. Old `amen` scripts largely run unchanged -- the most common porting fix is `family = "nrm"` becoming `family = "normal"` (the short forms are accepted as aliases, with a message), and `print =` is deprecated in favour of `verbose =`. The full mapping of argument and output differences lives in the *Migration from amen* sections of `?ame` and `?lame`.
+Both `amen` and `lame` export an `ame()` function; if both packages are attached, a startup message reminds you that unqualified `ame(...)` calls dispatch to whichever was attached last, so write `lame::ame(...)` to be explicit. Old `amen` scripts largely run unchanged -- the most common porting fix is `family = "nrm"` becoming `family = "normal"` (the short forms are accepted as aliases, with a message), and `verbose =` takes the place of `print =`. The full mapping of argument and output differences lives in the *Migration from amen* sections of `?ame` and `?lame`.
 
 ## A 5-Minute Example
 
@@ -121,7 +120,7 @@ fit <- lame(
 summary(fit)
 ```
 
-The intercept lands near the true `-1.0` and `similarity_dyad` lands near the true `0.7`, the basic sanity check that the sampler is recovering known parameters. The `_dyad` suffix on the coefficient name flags that the covariate is a pair-level quantity; sender-only and receiver-only covariates carry `_row` and `_col` suffixes respectively. The remaining variance components describe residual actor-level and dyad-level structure that the covariate alone does not explain:
+The intercept is estimated at `r round(coef(fit)[["intercept"]], 2)` (truth `-1.0`) and `similarity_dyad` at `r round(coef(fit)[["similarity_dyad"]], 2)` (truth `0.7`). The `_dyad` suffix on the coefficient name flags that the covariate is a pair-level quantity; sender-only and receiver-only covariates carry `_row` and `_col` suffixes respectively. The remaining variance components describe residual actor-level and dyad-level structure that the covariate alone does not explain:
 
 - `va`: variance of the sender random effects, capturing how much actors differ in their overall tendency to send ties.
 - `vb`: variance of the receiver random effects, capturing how much they differ in their tendency to receive.
@@ -131,10 +130,14 @@ The intercept lands near the true `-1.0` and `similarity_dyad` lands near the tr
 **A note on MCMC settings.** The three key parameters are `burn`
 (iterations discarded as burn-in), `nscan` (post-burn-in iterations kept
 for inference), and `odens` (thinning: keep every `odens`-th sample to
-reduce autocorrelation). With the settings above, we store
-`nscan / odens` = 100 / 5 = 20 posterior samples (kept small for vignette build time). For a final run,
-aim for at least 1000 stored samples with adequate effective sample sizes
-(e.g. `burn = 1000, nscan = 25000, odens = 25`).
+reduce autocorrelation). `lame()` runs two chains by default, so the
+settings above store `nscan / odens` = 100 / 5 = 20 draws per chain,
+`r nrow(fit$BETA)` in all, which keeps this vignette quick to build. The
+defaults (`burn = 500, nscan = 10000, odens = 25`) are the length of a
+final run: 400 draws per chain, which `lame()` compares across the chains
+before it returns the fit. Run at the defaults, this example returns 800
+draws with no continuation, every monitored $\hat R$ at or below 1.005,
+and estimates of $-1.08$ and $0.73$.
 
 ## What Can You Do with a Fitted Model?
 
@@ -168,12 +171,10 @@ resid_list <- residuals(fit)
 cat("Residual SD:", round(sd(unlist(resid_list), na.rm = TRUE), 3), "\n")
 ```
 
-The two regression coefficients (intercept and `similarity_dyad`)
-should land close to the simulation truth. Predicted probabilities
-span a wide range because dyads with high similarity have an
-intercept-plus-effect linear predictor much larger than dyads with low
-similarity. Use `confint(fit)` for the 95% credible intervals on the
-coefficients.
+`coef()`, `confint()` and `tidy()` return the same two coefficients as the
+summary. Predicted probabilities span a wide range because the linear
+predictor of a high-similarity dyad is much larger than that of a
+low-similarity dyad.
 
 `type = "response"` gives predictions back on the natural scale of the
 outcome (probabilities for `family = "binary"` and predicted values for
@@ -198,11 +199,21 @@ For this fit the two regression parameters, the intercept and `similarity_dyad`,
 
 The second diagnostic is whether the model reproduces the structural features of the observed network. Posterior-predictive goodness-of-fit plots simulate networks from the fitted model and compare their structural statistics to those of the observed data. The observed series is a solid black line with points; the posterior-predictive median is a dashed grey line and the 95% credible interval is the grey band.
 
+```{r gof-inside, include = FALSE}
+# observed statistics inside their 95% posterior-predictive bands
+gof_in_band <- unlist(lapply(fit$GOF, function(g) {
+	band <- apply(g[, -1, drop = FALSE], 1, quantile, probs = c(0.025, 0.975), na.rm = TRUE)
+	g[, 1] >= band[1, ] & g[, 1] <= band[2, ]
+}))
+gof_inside <- sum(gof_in_band, na.rm = TRUE)
+gof_total <- sum(!is.na(gof_in_band))
+```
+
 ```{r gof-plot, fig.width=8, fig.height=5, fig.alt="Longitudinal goodness-of-fit panels: each facet plots one network statistic (sender/receiver degree heterogeneity, dyadic dependence, triadic dependence, transitivity) across time. The observed series is a solid black line with points; the posterior-predictive median is a dashed grey line; the 95 percent credible interval is a grey band."}
 gof_plot(fit)
 ```
 
-Panel titles use human-readable names (Sender degree heterogeneity, Transitivity, and so on) rather than the underlying column codes such as `sd.rowmean` or `trans.dep`; the internal codes are what `fit$GOF` returns directly. Because we generated this data purely from `eta = -1 + 0.7 * X` (no planted degree heterogeneity, reciprocity, or clustering), the model reproduces almost every structural statistic: across the five statistics and three periods, fourteen of the fifteen observed values sit inside their 95% posterior-predictive bands. The lone marginal excursion (transitivity at one period) sits just past the band edge on a statistic whose values are all near zero, i.e. Monte-Carlo noise rather than a structural misfit. On real friendship or trade data the picture is different: at least one panel, typically transitivity or sender degree heterogeneity, drifts clearly outside the band. That misfit is informative: it tells the analyst which higher-order features AME absorbs through its actor and latent structure and which remain unexplained. It is a substantive finding about the data, not grounds to discard the fit.
+Panel titles use human-readable names (Sender degree heterogeneity, Transitivity, and so on) rather than the underlying column codes such as `sd.rowmean` or `trans.dep`; the internal codes are what `fit$GOF` returns directly. We generated this data from `eta = -1 + 0.7 * X` alone, and the model reproduces its structure: across the five statistics and three periods, `r gof_inside` of the `r gof_total` observed values lie inside their 95% posterior-predictive bands, and 14 of 15 at the default run length, where each band rests on 800 simulated networks instead of `r nrow(fit$BETA)`. On real friendship or trade data, a panel whose observed line leaves the band shows which higher-order feature the covariates, actor effects and latent positions leave unexplained, which is a substantive finding about the data.
 
 ## Visualizing Network Structure
 
@@ -220,14 +231,14 @@ popular actors:
 ab_plot(fit, effect = "sender")
 ```
 
-A note on this example: the simulation planted no latent
-structure and no sender/receiver heterogeneity (ties depend only on the
-similarity covariate), and the near-zero `va` and `vb` in the summary
-above confirm the model found essentially none. The apparent clusters in
-the latent-space plot and the longer stems here are therefore sampling
-noise: these two figures show the displays and carry no substantive
-finding. On real data these are the plots where the
-substantive story lives; see the [overview article](https://netify-dev.github.io/lame/articles/lame-overview.html)
+The simulation planted no latent structure and no sender or receiver
+heterogeneity (ties depend only on the similarity covariate), and the fit
+agrees: `va` and `vb` are small, at
+`r round(mean(fit$VC[, "va"]), 2)` and `r round(mean(fit$VC[, "vb"]), 2)`,
+so the stems and the spread of positions in these two figures are
+sampling variation. On real data these two plots are where the
+substantive story lives; see the
+[overview article](https://netify-dev.github.io/lame/articles/lame-overview.html)
 for a friendship network in which the latent space captures genuine
 structure.
 
@@ -283,7 +294,7 @@ fit_dyn <- lame(
 summary(fit_dyn)
 ```
 
-The model estimates how persistent the latent positions are ($\rho_{uv}$) and how persistent the additive effects are ($\rho_{ab}$). Values near 1 indicate slow evolution; values near 0 indicate near-independent positions across periods. The simulated data here use a single latent structure across all three periods, varying only the dyadic similarity covariate, so the persistence estimates reflect a mix of the prior and whatever stable-position signal the chain extracts from three time points. The [dynamic effects vignette](https://netify-dev.github.io/lame/articles/dynamic_effects.html) provides a longer-panel example in which temporal evolution is genuinely present in the simulation and the persistence parameters are informative.
+The model estimates how persistent the latent positions are ($\rho_{uv}$) and how persistent the additive effects are ($\rho_{ab}$). Values near 1 indicate slow evolution; values near 0 indicate near-independent positions across periods. Next to each estimate the summary compares its posterior standard deviation with the prior's, which shows how much the data say about persistence. These data were simulated with no drift over three periods, and the summary reports that: the posterior of $\rho_{uv}$ is about as wide as its prior. With `dynamic_ab = TRUE` the intercept is estimated for each period as well, which is the `intercept by period` table. The [dynamic effects vignette](https://netify-dev.github.io/lame/articles/dynamic_effects.html) fits a longer panel in which temporal evolution is present in the simulation and the persistence parameters are informative.
 
 ## Bipartite Networks
 
@@ -328,7 +339,7 @@ fit_bip <- lame(
 summary(fit_bip)
 ```
 
-Notice that the bipartite summary reports `cab = 0.000` and `rho = 0.000`. These two parameters describe relationships *between* the sender and receiver of a tie, which only makes sense when the same set of actors can play both roles. In a bipartite network the rows and columns are different kinds of entities (rows = students, columns = courses; rows = donors, columns = candidates), so a row actor is never also a column actor. There is no within-actor sender / receiver covariance and no reciprocity from $i \to j$ to $j \to i$ to estimate, and the package fixes both at zero. The `similarity_dyad` coefficient has a posterior mean of `r round(mean(fit_bip$BETA[, "similarity_dyad"]), 2)` and a 95% interval of [`r paste(round(confint(fit_bip)["similarity_dyad", ], 3), collapse = ", ")`], compared with a simulation truth of 0.6. This short example demonstrates extraction of posterior summaries. The [bipartite vignette](https://netify-dev.github.io/lame/articles/bipartite.html) walks through the full workflow.
+The bipartite summary reports `cab = 0.000` and `rho = 0.000`. These two parameters describe relationships *between* the sender and receiver of a tie, which only makes sense when the same set of actors can play both roles. In a bipartite network the rows and columns are different kinds of entities (rows = students, columns = courses; rows = donors, columns = candidates), so a row actor is never also a column actor. There is no within-actor sender / receiver covariance and no reciprocity from $i \to j$ to $j \to i$ to estimate, and the package fixes both at zero. The `similarity_dyad` coefficient has a posterior mean of `r round(mean(fit_bip$BETA[, "similarity_dyad"]), 2)` and a 95% interval of [`r paste(round(confint(fit_bip)["similarity_dyad", ], 3), collapse = ", ")`], compared with a simulation truth of 0.6. The [bipartite vignette](https://netify-dev.github.io/lame/articles/bipartite.html) walks through the full workflow.
 
 ## Supported Data Types
 
@@ -346,11 +357,8 @@ Notice that the bipartite summary reports `cab = 0.000` and `rho = 0.000`. These
 A few features that show up in advanced workflows but rarely in a
 first model. Each gets a one-line pointer here rather than a full demo:
 
-- **Choosing the rank.** There is no cap on `R` below the network size: ranks
-  above `floor(n/3)` fit without numerical failure, but the chain mixes more
-  slowly and the fitted values lose accuracy gradually once the rank passes
-  the structure in the data. Compare `R = 0, 1, 2, 3` by their fit; `R = 2`
-  or `R = 3` is the usual default.
+- **Choosing the rank.** Compare `R = 0, 1, 2, 3` by their fit; `R = 2`
+  or `R = 3` is the usual choice. Any rank below the network size is fitted.
 - **Checkpoint / resume for long runs.** Pass `max_seconds` and
   `checkpoint_path` when a run may hit a wall-clock limit, then continue
   with `resume_from`; see `?lame_resume` for the resume-cycle semantics.
@@ -358,10 +366,9 @@ first model. Each gets a one-line pointer here rather than a full demo:
   and pools the per-panel beta posteriors into one precision-weighted
   shared posterior; see `?lame_multi`.
 - **Memory-conscious `loo()`.** `save_log_lik = "chunked"` streams the
-  log-score matrix to disk instead of RAM. `loo(fit)` reads it when
-  the saved observed likelihood-factor contract passes; marginal and latent
-  diagnostic scores remain available through `read_log_lik()`. See the
-  [dynamic effects vignette](https://netify-dev.github.io/lame/articles/dynamic_effects.html).
+  log-score matrix to disk instead of RAM; `read_log_lik()` reads it
+  back, and `loo(fit)` scores it for fits with `dcor = FALSE`. See the
+  [forecasting vignette](forecasting.html).
 - **Multi-chain diagnostics.** `lame()` runs two chains by default
   (`chains = 2`) and stores their $\hat R$ in `fit$rhat`;
   `rhat_dynamic_beta()` gives a multivariate between-chain $\hat R$ for
@@ -369,9 +376,9 @@ first model. Each gets a one-line pointer here rather than a full demo:
   [dynamic effects vignette](https://netify-dev.github.io/lame/articles/dynamic_effects.html).
 - **Held-out predictive scoring.** Mask dyads to `NA`, refit (the
   sampler imputes them), and score the masked cells with
-  `evaluate_heldout()`. AUROC / PR-AUC require `precrec` (or AUROC
-  alone via `pROC`); both are optional and the helper degrades
-  gracefully when neither is installed. See the
+  `evaluate_heldout()`. For binary outcomes it returns the Brier score
+  and log loss, plus AUROC and PR-AUC when `precrec` is installed (AUROC
+  alone with `pROC`). See the
   [cross-sectional vignette](cross_sec_ame.html) for a worked example.
 
 The one code pattern worth spelling out is checkpoint / resume:

@@ -18,7 +18,7 @@ agree = function(x, y, tol, floor = 1e-6) {
 # the cell by numerical integration of the posterior of the noise, independent of the quadrature rule of the kernel
 pln_integral = function(y, eta, ve) {
 	f = function(e) exp(y * e - exp(eta + e) - e^2 / (2 * ve))
-	zeta = lame:::.ae_pln_node_r(y, eta, ve)
+	zeta = .ae_pln_node_r(y, eta, ve)
 	e0 = zeta$me
 	lo = e0 - 25 * sqrt(ve); hi = e0 + 25 * sqrt(ve)
 	br = sort(
@@ -44,7 +44,7 @@ pln_integral = function(y, eta, ve) {
 
 test_that("the Poisson-lognormal cell agrees with direct integration of the posterior of the noise", {
 	g = expand.grid(y = c(0, 1, 4, 30), eta = c(-4, -1, 0.5, 2.5), ve = c(0.05, 0.4, 1.5))
-	nd = lame:::.ae_pln_node_r(g$y, g$eta, g$ve)
+	nd = .ae_pln_node_r(g$y, g$eta, g$ve)
 	for (i in seq_len(nrow(g))) {
 		ref = pln_integral(g$y[i], g$eta[i], g$ve[i])
 		expect_equal(nd$l[i], ref$l, tolerance = 1e-6, label = paste("l", i))
@@ -58,14 +58,14 @@ test_that("the Poisson-lognormal cell agrees with direct integration of the post
 test_that("the score, the information and its derivative are the derivatives of the log likelihood", {
 	g = expand.grid(y = c(0, 2, 12), eta = c(-3, 0, 1.5), ve = c(0.1, 0.8))
 	h = 1e-4
-	at = function(d) lame:::.ae_pln_node_r(g$y, g$eta + d, g$ve)
+	at = function(d) .ae_pln_node_r(g$y, g$eta + d, g$ve)
 	n0 = at(0); np = at(h); nm = at(-h)
 	expect_equal((np$l - nm$l) / (2 * h), n0$s, tolerance = 1e-5)
 	expect_equal(-(np$s - nm$s) / (2 * h), n0$w, tolerance = 1e-4)
 	agree((np$w - nm$w) / (2 * h), n0$hp, 1e-3, floor = 1)
 	# the derivative in the variance is the second moment of the noise: dl/dve = (E[e^2] - ve) / (2 ve^2)
 	hv = 1e-4
-	lv = function(f) lame:::.ae_pln_node_r(g$y, g$eta, g$ve * (1 + f))$l
+	lv = function(f) .ae_pln_node_r(g$y, g$eta, g$ve * (1 + f))$l
 	expect_equal((lv(hv) - lv(-hv)) / (2 * g$ve * hv), (n0$ee - g$ve) / (2 * g$ve^2), tolerance = 1e-4)
 	# the log likelihood is concave in the predictor
 	expect_true(all(n0$w > 0))
@@ -73,7 +73,7 @@ test_that("the score, the information and its derivative are the derivatives of 
 
 test_that("a vanishing noise variance gives the Poisson cell", {
 	y = c(0, 2, 7, 25); eta = c(-1, 0.5, 2, 3)
-	nd = lame:::.ae_pln_node_r(y, eta, 1e-7)
+	nd = .ae_pln_node_r(y, eta, 1e-7)
 	expect_equal(nd$l, dpois(y, exp(eta), log = TRUE), tolerance = 1e-5)
 	expect_equal(nd$s, y - exp(eta), tolerance = 1e-5)
 	expect_equal(nd$w, exp(eta), tolerance = 1e-5)
@@ -82,7 +82,7 @@ test_that("a vanishing noise variance gives the Poisson cell", {
 
 test_that("the cell stays finite at extreme predictors, counts and variances", {
 	g = expand.grid(y = c(0, 1, 50, 1e5), eta = c(-300, -30, 0, 30, 300), ve = c(1e-6, 1, 100))
-	nd = lame:::.ae_pln_node_r(g$y, g$eta, g$ve, 24L)
+	nd = .ae_pln_node_r(g$y, g$eta, g$ve, 24L)
 	for (f in c("l", "s", "w", "hp", "ee", "me")) expect_true(all(is.finite(nd[[f]])), label = f)
 	expect_true(all(nd$w >= 0))
 	cp = kn("ae_pln_node_cpp")(g$y, g$eta, g$ve, lgamma(g$y + 1), rule()$z, rule()$lw, 1L)
@@ -97,14 +97,14 @@ test_that("the compiled cell kernels agree with the R references, observed cells
 	m = rnorm(n, 0.3, 1.3); v = runif(n, 0, 1.5)
 	r = rule()
 	r28 = rule(lame:::.ae_pln_kin(0.6))
-	nd0 = lame:::.ae_pln_node_r(y[!is.na(y)], m[!is.na(y)], 0.6, 24L)
+	nd0 = .ae_pln_node_r(y[!is.na(y)], m[!is.na(y)], 0.6, 24L)
 	nd1 = kn("ae_pln_node_cpp")(y, m, 0.6, lgamma(y + 1), r$z, r$lw, 1L)
 	for (f in names(nd0)) agree(nd1[[f]][!is.na(y)], nd0[[f]], 1e-10)
 	expect_true(all(nd1$w[is.na(y)] == 0))
 	# the outer rules by the variance of the predictor (3, 5, 7 or 9 nodes), and one rule of any size
 	for (K in c(9L, 5L)) {
 		og = lame:::.ae_pln_outer(K)
-		c0 = lame:::.ae_pln_cells_r(y, m, v, 0.6, K)
+		c0 = .ae_pln_cells_r(y, m, v, 0.6, K)
 		c1 = kn("ae_pln_cells_cpp")(y, lgamma(y + 1), m, v, 0.6, og$z, og$w, og$vcut, r28$z, r28$lw, 1L)
 		for (f in c("z", "w", "ell", "ee")) agree(c1[[f]], c0[[f]], 1e-10)
 		expect_true(all(c1$w[is.na(y)] == 0))
@@ -120,24 +120,24 @@ test_that("the compiled cell kernels agree with the R references, observed cells
 	# the rules that depend on the variance of the cell are within 1e-6 of the rule of forty-one nodes
 	vt = c(1e-4, 0.003, 0.02, 0.1, 0.2, 0.5)
 	yt = rep(c(0, 1, 4), length.out = length(vt)); mt = c(-1, 0.3, 1, 0.2, -0.4, 0.8)
-	a41 = lame:::.ae_pln_cells_r(yt, mt, vt, 0.5, 41L); aa = lame:::.ae_pln_cells_r(yt, mt, vt, 0.5, 9L)
+	a41 = .ae_pln_cells_r(yt, mt, vt, 0.5, 41L); aa = .ae_pln_cells_r(yt, mt, vt, 0.5, 9L)
 	agree(
 		aa$ell,
 		a41$ell,
 		1e-6,
 		floor = 1
 	); agree(aa$w, a41$w, 1e-5, floor = 1e-3); agree(aa$z, a41$z, 1e-5, floor = 1e-3)
-	w0 = lame:::.ae_pln_info_w_r(y, m, v, 0.6) # the rule of the largest total variance
+	w0 = .ae_pln_info_w_r(y, m, v, 0.6) # the rule of the largest total variance
 	w1 = kn("ae_pln_info_w_cpp")(y, lgamma(y + 1), m, v, 0.6, lame:::.ae_pln_rule(
 		lame:::.ae_pln_kin(max(0.6 + v, na.rm = TRUE))
 	)$z,
 		lame:::.ae_pln_rule(lame:::.ae_pln_kin(max(0.6 + v, na.rm = TRUE)))$lw, 1L)
 	agree(w1, w0, 1e-10)
 	# at a vanishing predictor variance the expected cell is the cell
-	c2 = lame:::.ae_pln_cells_r(y, m, 0, 0.6, 9L, Kin = 24L)
+	c2 = .ae_pln_cells_r(y, m, 0, 0.6, 9L, Kin = 24L)
 	expect_equal(
 		as.vector(c2$ell)[!is.na(y)],
-		lame:::.ae_pln_node_r(y[!is.na(y)], m[!is.na(y)], 0.6, 24L)$l,
+		.ae_pln_node_r(y[!is.na(y)], m[!is.na(y)], 0.6, 24L)$l,
 		tolerance = 1e-12
 	)
 })
@@ -145,15 +145,15 @@ test_that("the compiled cell kernels agree with the R references, observed cells
 test_that("the cavity weight is the information of the cell at the total variance", {
 	# the count averaged over the predictor and the noise is a Poisson-lognormal count with variance v + ve
 	y = c(0, 1, 3, 9); m = c(0.2, -0.5, 1, 1.8); v = c(0.3, 1, 0.1, 0.6); ve = 0.5
-	w = lame:::.ae_pln_info_w_r(y, m, v, ve)
-	nd = lame:::.ae_pln_node_r(y, m, ve + v)
+	w = .ae_pln_info_w_r(y, m, v, ve)
+	nd = .ae_pln_node_r(y, m, ve + v)
 	expect_equal(as.vector(w), nd$w)
 	# and it is minus the second derivative in the mean of the log of the likelihood averaged over the predictor
 	Z = function(mm) {
 		og = lame:::.ae_mf_gh(41L)
 		vapply(
 			seq_along(y),
-			function(i) sum(og$w * exp(lame:::.ae_pln_node_r(rep(y[i], 41L), mm[i] + sqrt(v[i]) * og$z, ve)$l)),
+			function(i) sum(og$w * exp(.ae_pln_node_r(rep(y[i], 41L), mm[i] + sqrt(v[i]) * og$z, ve)$l)),
 			0
 		)
 	}
@@ -162,16 +162,26 @@ test_that("the cavity weight is the information of the cell at the total varianc
 })
 
 test_that("the variance of the noise has the em image of the sampler's full conditional", {
-	# (nu0 s20 + SS) / (N + nu0 - 2) with nu0 = s20 = 1: the posterior mean of the inverse gamma that rs2_fc() draws from
-	expect_equal(lame:::.ae_pln_ve_image(40, 100), (1 + 40) / 99)
-	expect_equal(lame:::.ae_pln_ve_image(40, 100, 0.5), (1 + 20) / 49)
-	# with no data the image is the floor, and the hyperprior term is the log of the density it comes from
+	# (nu0 s20 + SS) / (N + nu0 - 2): by default no scale (nu0 = 0), so SS / (N - 2)
+	expect_equal(lame:::.ae_pln_ve_image(40, 100), 40 / 98)
+	expect_equal(lame:::.ae_pln_ve_image(40, 100, 0.5), 20 / 48)
+	# a scale the user gives has one degree of freedom, the inverse gamma that rs2_fc() draws from
+	pr = lame:::.ae_pln_ve_prior_of(1)
+	expect_equal(pr, c(nu0 = 1, s20 = 1))
+	expect_equal(lame:::.ae_pln_ve_prior_of(), c(nu0 = 0, s20 = 1))
+	expect_equal(lame:::.ae_pln_ve_image(40, 100, 1, pr), (1 + 40) / 99)
+	expect_equal(lame:::.ae_pln_ve_image(40, 100, 0.5, pr), (1 + 20) / 49)
+	# with no data the image is the floor, with two cells the ML image, and the hyperprior term is the log of the
+	# density it comes from
 	expect_equal(lame:::.ae_pln_ve_image(0, 0), 1e-8)
+	expect_equal(lame:::.ae_pln_ve_image(10, 2), 5)
 	h = 1e-6
 	N = 80; SS = 30
-	obj = function(ve) -(N / 2) * log(ve) - SS / (2 * ve) + lame:::.ae_pln_ve_logprior(ve)
-	ve_hat = lame:::.ae_pln_ve_image(SS, N)
-	expect_equal((obj(ve_hat + h) - obj(ve_hat - h)) / (2 * h), 0, tolerance = 1e-5)
+	for (p0 in list(NULL, pr)) {
+		obj = function(ve) -(N / 2) * log(ve) - SS / (2 * ve) + lame:::.ae_pln_ve_logprior(ve, p0)
+		ve_hat = lame:::.ae_pln_ve_image(SS, N, 1, p0)
+		expect_equal((obj(ve_hat + h) - obj(ve_hat - h)) / (2 * h), 0, tolerance = 1e-5)
+	}
 	# the geometric tail of a slowly converging sequence is extrapolated, and a short or erratic one is not
 	x = log(0.2) + 0.4 * 0.985^(0:40)
 	expect_equal(lame:::.ae_pln_aitken(x[1:30]), 0.5 * (log(0.2) - x[30]), tolerance = 0.02)
@@ -204,11 +214,11 @@ pair_brute = function(y1, y2, m1, m2, s11, s22, s12) {
 test_that("the pair of cells of a dyad agrees with direct integration, and is two cells when the noises are independent", {
 	cases = list(c(0, 1, -0.5, 0.2, 0.4, 0.5, 0.25), c(3, 2, 0.5, 1, 0.6, 0.5, 0.4), c(5, 1, 1.5, 0, 0.3, 0.3, -0.15))
 	for (cs in cases) {
-		nd = lame:::.ae_pln2_node_r(cs[1], cs[2], cs[3], cs[4], cs[5], cs[6], cs[7], K = 16L)
+		nd = .ae_pln2_node_r(cs[1], cs[2], cs[3], cs[4], cs[5], cs[6], cs[7], K = 16L)
 		expect_equal(nd$L, log(pair_brute(cs[1], cs[2], cs[3], cs[4], cs[5], cs[6], cs[7])), tolerance = 1e-8)
 		# the score and the information are the first two derivatives of the log probability in the means
 		h = 1e-4
-		L = function(d1, d2) lame:::.ae_pln2_node_r(
+		L = function(d1, d2) .ae_pln2_node_r(
 			cs[1],
 			cs[2],
 			cs[3] + d1,
@@ -226,13 +236,13 @@ test_that("the pair of cells of a dyad agrees with direct integration, and is tw
 	}
 	# independent noises: the log probabilities add, the cells' informations are theirs and the cross information is zero
 	y1 = c(0, 2, 5, 1); y2 = c(1, 0, 3, 7); m1 = c(-1, 0.5, 1, 0); m2 = c(0.2, -0.5, 0.8, 1.5); s = c(0.4, 0.4, 0.8, 0.3)
-	nd = lame:::.ae_pln2_node_r(y1, y2, m1, m2, s, s, 0, K = 16L)
-	n1 = lame:::.ae_pln_node_r(y1, m1, s, 28L); n2 = lame:::.ae_pln_node_r(y2, m2, s, 28L)
+	nd = .ae_pln2_node_r(y1, y2, m1, m2, s, s, 0, K = 16L)
+	n1 = .ae_pln_node_r(y1, m1, s, 28L); n2 = .ae_pln_node_r(y2, m2, s, 28L)
 	expect_equal(nd$L, n1$l + n2$l, tolerance = 1e-7)
 	expect_equal(nd$w11, n1$w, tolerance = 1e-5); expect_equal(nd$w22, n2$w, tolerance = 1e-5)
 	expect_lt(max(abs(nd$w12)), 1e-12)
 	# positively correlated noises make the cross information negative, negatively correlated ones positive
-	ps = lame:::.ae_pln2_node_r(c(2, 2), c(2, 2), c(0.3, 0.3), c(0.3, 0.3), 0.5, 0.5, c(0.3, -0.3), K = 12L)
+	ps = .ae_pln2_node_r(c(2, 2), c(2, 2), c(0.3, 0.3), c(0.3, 0.3), 0.5, 0.5, c(0.3, -0.3), K = 12L)
 	expect_lt(ps$w12[1], 0); expect_gt(ps$w12[2], 0)
 })
 
@@ -242,7 +252,7 @@ test_that("the compiled pair kernel agrees with the R reference", {
 	y1 = rpois(n, 2); y2 = rpois(n, 2); y1[1:3] = c(0, 40, 1e3); m1 = rnorm(n, 0.3, 1); m2 = rnorm(n, 0.3, 1)
 	s11 = runif(n, 0.1, 1.2); s22 = runif(n, 0.1, 1.2); s12 = runif(n, -0.8, 0.8) * sqrt(s11 * s22)
 	for (K in c(8L, 12L)) {
-		a = lame:::.ae_pln2_node_r(y1, y2, m1, m2, s11, s22, s12, K)
+		a = .ae_pln2_node_r(y1, y2, m1, m2, s11, s22, s12, K)
 		r = lame:::.ae_pln_rule(K)
 		b = kn("ae_pln2_node_cpp")(y1, y2, lgamma(y1 + 1), lgamma(y2 + 1), m1, m2, s11, s22, s12, r$z, r$lw, 1L)
 		for (f in names(a)) agree(b[[f]], a[[f]], 1e-8, floor = 1e-3)
@@ -277,14 +287,9 @@ sim_pln_net = function(n = 24, R = 0, mu = -0.3, beta = 0.5, ve = 0.4, seed = 1,
 
 test_that("an actor without a count gets a finite, shrunk effect, as in the sampler", {
 	d = sim_pln_net(24, zero = 1L, seed = 3)
-	# the fixed-effects fit sends the effect of a zero-count actor to minus infinity
-	fx = suppressWarnings(ame_als(d$Y, Xdyad = d$X, family = "poisson", R = 0, bias_correct = "none", verbose = FALSE))
-	expect_lt(fx$a[1], -10)
-	expect_identical(fx$bias_correct$method, "none")
-	expect_null(fx$eb)
 	fit = suppressWarnings(ame_als(d$Y, Xdyad = d$X, family = "poisson", R = 0, verbose = FALSE))
-	expect_identical(fit$bias_correct$method, "eb")
-	expect_true(isTRUE(fit$bias_correct$default))
+	expect_null(fit$bias_correct)
+	expect_null(fit$bias_correct)
 	expect_identical(fit$eb$estimator, "variational")
 	expect_true(fit$converged)
 	expect_true(all(is.finite(c(fit$a, fit$b))))
@@ -295,23 +300,14 @@ test_that("an actor without a count gets a finite, shrunk effect, as in the samp
 	expect_equal(unname(fit$eb$ve), unname(fit$VC[["ve"]]))
 	# the reported predictor is on the latent scale and the fitted counts add the lognormal mean
 	expect_equal(unname(fit$fitted[[1]][2, 3]), unname(exp(fit$EZ[[1]][2, 3] + fit$VC[["ve"]] / 2)))
-	# requesting the empirical-Bayes estimator by name is the same fit
-	fit2 = suppressWarnings(ame_als(d$Y, Xdyad = d$X, family = "poisson", R = 0, bias_correct = "eb", verbose = FALSE))
-	expect_equal(fit2$coefficients, fit$coefficients)
-	expect_false(isTRUE(fit2$bias_correct$default))
-	# the transformed route of a count fit has no such estimator (a normal fit has it, test_als_normal_eb.R)
-	expect_error(
-		ame_als(d$Y, family = "poisson", non_normal_method = "transform", bias_correct = "eb", verbose = FALSE),
-		class = "lame_als_eb"
-	)
 })
 
-test_that("the prior of the actor effects of a count network is the sampler's", {
+test_that("the prior of the actor effects of a count network has the sampler's scale with the weight of one actor", {
 	d = sim_pln_net(20, seed = 5)
 	prep = lame:::.ae_prepare(d$Y, d$X, NULL, NULL, "unipartite", FALSE, node_time_policy = "mean", symmetric = FALSE)
 	ab = lame:::.ae_eb_prior(prep, FALSE, "poisson")
 	expect_equal(ab$Sab0, diag(2) * lame:::.ame_pois_effect_scale(d$Y))
-	expect_equal(ab$eta0, round(4 + 3 * 20 / 100))
+	expect_equal(ab$eta0, 1)
 	expect_identical(ab$family, "poisson")
 	# the binary prior is untouched
 	expect_null(lame:::.ae_eb_prior(prep, FALSE)$family)
@@ -330,18 +326,15 @@ test_that("a count network with no finite estimate is refused, not returned unco
 		class = "lame_als_separation",
 		regexp = "blk"
 	)
-	# the fixed-effects fit is not refused here (it returns what it can)
-	expect_no_error(
-		suppressWarnings(ame_als(Yb, Xdyad = Xb, family = "poisson", bias_correct = "none", verbose = FALSE))
-	)
 })
 
 test_that("the compiled and the R engines give the same Poisson fit", {
 	skip_on_cran()
 	d = sim_pln_net(16, R = 1, seed = 4)
-	op = options(lame.als_engine = "r"); on.exit(options(op))
-	f_r = suppressWarnings(ame_als(d$Y, Xdyad = d$X, family = "poisson", R = 1, verbose = FALSE))
-	options(lame.als_engine = "cpp")
+	f_r = local({
+		local_als_r_engine()
+		suppressWarnings(ame_als(d$Y, Xdyad = d$X, family = "poisson", R = 1, verbose = FALSE))
+	})
 	f_c = suppressWarnings(ame_als(d$Y, Xdyad = d$X, family = "poisson", R = 1, verbose = FALSE))
 	expect_equal(f_c$coefficients, f_r$coefficients, tolerance = 1e-6)
 	expect_equal(f_c$VC[["ve"]], f_r$VC[["ve"]], tolerance = 1e-6)
@@ -374,18 +367,6 @@ test_that("every kind of network, with and without a latent rank, converges to a
 		expect_gt(fit$VC[["ve"]], 0)
 		expect_equal(unname(fit$coefficients["x_dyad"]), 0.5, tolerance = 0.5, label = cs$label)
 	}
-})
-
-test_that("a longitudinal count panel is fitted by the empirical-Bayes estimator", {
-	skip_on_cran()
-	set.seed(9)
-	n = 18
-	Ys = lapply(1:3, function(t) { d = sim_pln_net(n, seed = 20 + t); d$Y })
-	Xs = lapply(1:3, function(t) { d = sim_pln_net(n, seed = 20 + t); d$X })
-	fit = suppressWarnings(lame_als(Ys, Xdyad = Xs, R = 0, family = "poisson", verbose = FALSE))
-	expect_identical(fit$bias_correct$method, "eb")
-	expect_true(fit$converged)
-	expect_length(fit$fitted, 3L)
 })
 
 test_that("predictions, fitted counts, simulation and covariances of a Poisson fit follow the model", {
@@ -434,7 +415,7 @@ test_that("a refit on new counts uses the empirical-Bayes estimator", {
 			X_new = array(d2$X, c(dim(d2$X), 1L), dimnames = c(dimnames(d2$X), list(NULL)))
 		)
 	)
-	expect_identical(rf$bias_correct$method, "eb")
+	expect_null(rf$bias_correct)
 	expect_true(all(is.finite(rf$eb$se)))
 })
 
@@ -461,8 +442,7 @@ test_that("the dyadic correlation of a count network is estimated from the pairs
 	expect_gt(f1$eb$se[[2]], f0$eb$se[[2]] * 1.1)
 	expect_equal(f1$coefficients, f0$coefficients, tolerance = 1e-8)
 	# the two engines give the same pair stage
-	op = options(lame.als_engine = "r"); on.exit(options(op))
-	f1r = suppressWarnings(ame_als(Y, Xdyad = X, family = "poisson", R = 0, verbose = FALSE))
+	f1r = local({ local_als_r_engine(); suppressWarnings(ame_als(Y, Xdyad = X, family = "poisson", R = 0, verbose = FALSE)) })
 	expect_equal(f1r$VC[["rho"]], f1$VC[["rho"]], tolerance = 1e-6)
 	expect_equal(f1r$eb$se, f1$eb$se, tolerance = 1e-5)
 })
@@ -556,7 +536,7 @@ mode_at = function(f, ve, from = NULL) {
 	)
 }
 
-test_that("the mode holds a noise variance that it is given, and the search finds the maximum of the Laplace marginal likelihood", {
+test_that("the mode holds a noise variance that it is given, and the search finds the maximum of the Laplace marginal likelihood with its second-order term", {
 	skip_on_cran()
 	d = sim_pln_net(30, R = 1, mu = -0.3, ve = 0.4, seed = 21)
 	f = suppressWarnings(ame_als(d$Y, Xdyad = d$X, family = "poisson", R = 1, dcor = FALSE, verbose = FALSE))
@@ -571,7 +551,14 @@ test_that("the mode holds a noise variance that it is given, and the search find
 	expect_equal(f$VC[["ve"]], vs$ve)
 	expect_equal(f$eb$ve, vs$ve)
 	expect_equal(vs$objective, max(vs$curve$objective))
-	J = function(ve) { ir = mode_at(f, ve); ir$fit$eb_vcov$evidence$log_marginal + lame:::.ae_pln_ve_logprior(ve) }
+	# the objective charges each mode for the second-order variance of the product held at the best point
+	t_best = mode_at(f, vs$ve)$fit$eb_vcov$evidence$second_order$t
+	expect_true(all(is.finite(t_best)) && all(t_best >= 0) && any(t_best > 0))
+	J = function(ve) {
+		ev = mode_at(f, ve)$fit$eb_vcov$evidence
+		ev$log_marginal + lame:::.ae_pln_ve_logprior(ve, f$eb$ve_prior) - sum(ev$second_order$w * t_best)
+	}
+	expect_equal(J(vs$ve), vs$objective, tolerance = 1e-3)
 	expect_lte(J(vs$ve * 0.8), vs$objective + 0.05)
 	expect_lte(J(vs$ve * 1.25), vs$objective + 0.05)
 })
@@ -624,9 +611,10 @@ test_that("the scale of the prior of the noise variance is the sampler's prior$s
 	f2 = suppressWarnings(
 		ame_als(d$Y, Xdyad = d$X, family = "poisson", R = 0, dcor = FALSE, verbose = FALSE, prior = list(s20 = 4))
 	)
-	expect_equal(f1$eb$ve_prior[["s20"]], 1)
-	expect_equal(f2$eb$ve_prior[["s20"]], 4)
-	# the larger scale of the prior raises the variance a little
+	# without a scale the prior has no degrees of freedom; a scale the user gives has one
+	expect_equal(f1$eb$ve_prior, c(nu0 = 0, s20 = 1))
+	expect_equal(f2$eb$ve_prior, c(nu0 = 1, s20 = 4))
+	# the scale raises the variance a little
 	expect_gt(f2$VC[["ve"]], f1$VC[["ve"]])
 	expect_lt(f2$VC[["ve"]] / f1$VC[["ve"]], 1.08)
 	# the EM image and the log density read the prior they are given
@@ -634,8 +622,11 @@ test_that("the scale of the prior of the noise variance is the sampler's prior$s
 	expect_equal(lame:::.ae_pln_ve_logprior(0.5, c(nu0 = 1, s20 = 4)), 0.5 * log(0.5) - 0.5 * 4 / 0.5)
 	# a refit keeps the prior of its fit
 	r = suppressWarnings(ame_als_refit(f2, Y_new = d$Y, verbose = FALSE))
-	expect_equal(r$eb$ve_prior[["s20"]], 4)
+	expect_equal(r$eb$ve_prior, c(nu0 = 1, s20 = 4))
 	expect_equal(r$VC[["ve"]], f2$VC[["ve"]], tolerance = 1e-3)
+	r1 = suppressWarnings(ame_als_refit(f1, Y_new = d$Y, verbose = FALSE))
+	expect_equal(r1$eb$ve_prior, c(nu0 = 0, s20 = 1))
+	expect_equal(r1$VC[["ve"]], f1$VC[["ve"]], tolerance = 1e-3)
 	# ame() and lame() hand the prior over to the static route
 	g = suppressWarnings(
 		ame(
@@ -670,9 +661,89 @@ test_that("the scale of the prior of the noise variance is the sampler's prior$s
 	expect_error(ame_als(d$Y, family = "poisson", R = 0, verbose = FALSE, prior = list(s20 = -1)), "positive scalar")
 })
 
-test_that("the additive effects of a bipartite count panel have the degrees of freedom lame() gives them", {
+test_that("the effect prior of a count network weighs one actor whatever its shape", {
 	for (dims in list(c(30L, 50L), c(50L, 30L), c(40L, 40L))) {
 		Y = array(1, c(dims, 1L))
-		expect_equal(lame:::.ae_eb_hyperprior_pois(Y)$eta0, round(4 + 3 * dims[1L] / 100))
+		expect_equal(lame:::.ae_eb_hyperprior_pois(Y)$eta0, 1)
 	}
+})
+
+test_that("a bootstrap replicate whose noise-variance search ends on a stalled mode is solved again from a cold start", {
+	set.seed(102)
+	n = 14L; nt = 3L
+	rn = sample(sprintf("r%02d", seq_len(n)))
+	xr = matrix(rnorm(n), n, 1, dimnames = list(rn, "xr"))
+	xc = matrix(rnorm(n), n, 1, dimnames = list(rn, "xc"))
+	Y = X = vector("list", nt)
+	for (t in seq_len(nt)) {
+		x = matrix(rnorm(n * n), n); e = matrix(rnorm(n * n), n)
+		z = 0.2 + 0.6 * x + 0.4 * xr[, 1] + 0.3 * rep(xc[, 1], each = n) + e
+		y = matrix(rpois(n * n, exp(z / 2)), n); diag(y) = NA
+		dimnames(y) = list(rn, rn)
+		Y[[t]] = y; X[[t]] = array(x, c(n, n, 1), dimnames = list(rn, rn, "x"))
+	}
+	fit = suppressWarnings(lame_als(
+		Y, Xdyad = X, Xrow = rep(list(xr), nt), Xcol = rep(list(xc), nt), R = 1, family = "poisson", verbose = FALSE
+	))
+	# the third replicate's refit used to stop on a start with no effects
+	boot = suppressWarnings(ame_als_bootstrap(fit, R = 10, seed = 1, verbose = FALSE))
+	expect_identical(boot$n_valid, 10L)
+	expect_true(all(is.finite(boot$coefs)))
+})
+
+test_that("a count panel's coefficient variances carry the uncertainty of ve (delta method)", {
+	set.seed(5)
+	n = 15
+	Y = lapply(1:3, function(t) {
+		eta = 0.3 + outer(rnorm(n, 0, 0.4), rnorm(n, 0, 0.4), "+")
+		y = matrix(rpois(n * n, exp(eta + rnorm(n * n, 0, 0.5))), n)
+		diag(y) = NA
+		dimnames(y) = list(paste0("a", 1:n), paste0("a", 1:n))
+		y
+	})
+	names(Y) = paste0("t", 1:3)
+	# the term of the variational stage (.ae_mf_ve_term())
+	orig_mf = lame:::.ae_mf_ve_term
+	term = NULL
+	local_mocked_bindings(
+		.ae_mf_ve_term = function(...) {
+			term <<- orig_mf(...)
+			term
+		},
+		.package = "lame"
+	)
+	f1 = suppressMessages(lame_als(Y, family = "poisson", R = 0, verbose = FALSE))
+	local_mocked_bindings(.ae_mf_ve_term = function(...) NULL, .package = "lame")
+	f0 = suppressMessages(lame_als(Y, family = "poisson", R = 0, verbose = FALSE))
+	expect_equal(coef(f1), coef(f0))
+	expect_false(is.null(term))
+	# the counts pin mu + ve / 2: the reported intercept (mu plus the effects' means) moves by
+	# about -ve / 2 per unit of log ve, and its variance gains var(log ve) times that squared
+	ve = f1$VC[["ve"]]
+	g = term$J[1] + mean(term$J_s[1:n]) + mean(term$J_s[n + 1:n])
+	expect_true(g < -0.25 * ve && g > -0.75 * ve)
+	expect_equal(vcov(f1)[1, 1] - vcov(f0)[1, 1], term$var * g^2, tolerance = 1e-6)
+})
+
+test_that("a count fit charges the noise a weak factor column takes up beyond its regular degrees of freedom", {
+	bulk = kn(".ae_pln_bulk_charge")
+	set.seed(11); n = 60
+	E = matrix(rnorm(n * n), n)
+	uv = tcrossprod(rnorm(n), rnorm(n)); uv = uv / sqrt(sum(uv^2))
+	one = matrix(1, n, n)
+	# a column of strength t fitted at its truth takes up about n^2 / t beyond the regular 2 n:
+	# nothing for a strong one, a sizeable share of n / theta at signal-to-noise theta near the edge
+	strong = bulk(E, 10 * n * uv, one, 1L)
+	weak = bulk(E, sqrt(1.5 * n) * uv, one, 1L)
+	expect_gt(sum(strong), 0)
+	expect_lt(sum(strong), 1)
+	expect_gt(sum(weak), 0.3 * n)
+	expect_lt(sum(weak), n)
+	# spread over the cells in proportion to their working variance
+	w = matrix(runif(n * n, 0.5, 2), n)
+	wt = bulk(sqrt(w) * E, sqrt(1.5 * n) * uv / sqrt(w), w, 1L)
+	expect_lt(diff(range(wt * w)), 1e-10)
+	# nothing without the scores, nor for a column the fit holds at zero
+	expect_identical(bulk(NULL, uv, one, 1L), 0)
+	expect_identical(sum(abs(bulk(sqrt(1.5 * n) * uv + E, 0 * uv, one, 1L))), 0)
 })

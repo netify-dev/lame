@@ -13,9 +13,4 @@ test_that('dynamic fits preserve their initializer and certify their final objec
 	expect_s3_class(fit, 'lame_dynamic_als')
 	expect_true(fit$converged)
 	expect_true(fit$diagnostics$stationarity$pass)
-	# the static fixed-effects request uses the Gaussian certificate; the empirical-Bayes default has its own
-	expect_error(
-		lame_als(Y, family = 'normal', R = 0L, bias_correct = 'none', verbose = FALSE),
-		'reported Gaussian certificate called'
-	)
 })

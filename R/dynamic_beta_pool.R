@@ -54,7 +54,8 @@
 }
 
 # random-walk Metropolis on theta per block, under the Gaussian hierarchy and
-# the gap-aware transition density
+# the gap-aware transition density; `stationary` paths are deviations from their
+# long-run means whose first state has variance sigma^2 lam / (1 - rho^2)
 .pool_sample_rho <- function(
 	beta_path,
 	group_id,
@@ -66,7 +67,8 @@
 	tau,
 	rho_lower,
 	rho_upper,
-	time_positions = seq_len(nrow(beta_path))
+	time_positions = seq_len(nrow(beta_path)),
+	stationary = FALSE
 ) {
 	gaps <- diff(time_positions)
 	theta <- stats::qlogis((rho_current - rho_lower) / (rho_upper - rho_lower))
@@ -79,7 +81,12 @@
 			z <- .lame_beta_gap_transition(rho, gaps)
 			err <- x[-1L, , drop = FALSE] - z$f * x[-nrow(x), , drop = FALSE]
 			ss <- colSums(err^2 / z$q) / (diag(Lambda)[idx] * sigma_by_coef[idx]^2)
-			dnorm(th, mu, tau, log = TRUE) - .5 * (sum(ss) + length(idx) * sum(log(z$q)))
+			lp <- dnorm(th, mu, tau, log = TRUE) - .5 * (sum(ss) + length(idx) * sum(log(z$q)))
+			if (isTRUE(stationary)) {
+				lp <- lp + .5 * length(idx) * log1p(-rho^2) -
+					.5 * (1 - rho^2) * sum(x[1L, ]^2 / (diag(Lambda)[idx] * sigma_by_coef[idx]^2))
+			}
+			lp
 		}
 		for (step in seq_len(4L)) {
 			proposal <- theta[g] + rnorm(1, sd = .5)

@@ -4,7 +4,7 @@
 		"Z", "beta", "a", "b", "a_mat", "b_mat", "a_lev", "b_lev",
 		"U", "V", "U_cube", "V_cube", "L_dyn", "G", "rho", "s2", "Sab",
 		"rho_ab", "sigma_ab", "rho_uv", "sigma_uv", "sigma2_a", "sigma2_b",
-		"beta_dyn_path", "beta_static", "rho_beta_by_group", "sigma_beta_by_group",
+		"beta_dyn_path", "beta_static", "beta_mu", "rho_beta_by_group", "sigma_beta_by_group",
 		"rho_by_coef", "sigma_by_coef", "pool_rho_mu", "pool_rho_tau", "pi_snap", "delta_uv", "delta_uv_v",
 		"lambda_u", "lambda_v", "alpha", "tau_prop",
 		"theta_actor", "theta_actor_prev", "rho_actor", "sigma_actor_sq",
@@ -51,7 +51,7 @@
 	# tuning fields a checkpoint may lack keep their initialized values
 	required <- setdiff(
 		names(.lame_checkpoint_capture(envir, layout)$values),
-		c("marginal_sd", "dhmc_sd", "uv_actor_path_version", "ab_hyper_par")
+		c("marginal_sd", "dhmc_sd", "uv_actor_path_version", "ab_hyper_par", "beta_mu")
 	)
 	if (!all(required %in% names(state$values)) ||
 			!all(vapply(state$values, function(x) is.null(x) || is.numeric(x), logical(1)))) {

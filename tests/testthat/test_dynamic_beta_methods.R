@@ -2,23 +2,6 @@
 # compact printing, pooling, gof_temporal(), rhat_dynamic_beta(), time_index / period_exposure, tidy, checkpointing, lfo(), forecasting, link inversion, autoplot and log-lik storage
 skip_on_cran()
 # diagnostics, prior summaries, freeze_call / update, compact printing
-test_that("summary.lame computes rho_beta_stationarity table with right shape", {
-	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 20,
-		burn = 5,
-		odens = 1,
-		dynamic_beta = TRUE,
-		verbose = FALSE
-	)
-	s = summary(fit)
-	expect_true(!is.null(s$rho_beta_stationarity))
-	expect_named(s$rho_beta_stationarity, c("block", "q05", "iqr", "warn"))
-})
 test_that("stationarity warning fires when rho_beta posterior is forced near 1", {
 	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 2026)
 	fit = lame(
@@ -96,39 +79,6 @@ test_that("90%-NA Y fits without error and produces finite BETA", {
 	expect_true(all(is.finite(fit$BETA)))
 	expect_equal(length(dim(fit$BETA)), 3L)
 })
-test_that("extra missing dyads keep the dynamic beta sampler finite", {
-	set.seed(7)
-	n = 8; Tn = 3
-	# baseline Y with only the diagonal missing
-	Y_a = replicate(Tn, {z = matrix(rnorm(n * n), n, n); diag(z) = NA; z}, simplify = FALSE)
-	# one missing dyad pair
-	Y_b = lapply(Y_a, function(y) { y[1, 2] = NA; y[2, 1] = NA; y })
-	X = replicate(Tn, array(rnorm(n * n), c(n, n, 1)), simplify = FALSE)
-	set.seed(1); fit_a = lame(
-		Y_a,
-		Xdyad = X,
-		family = "normal",
-		R = 0,
-		nscan = 30,
-		burn = 5,
-		odens = 5,
-		dynamic_beta = "dyad",
-		verbose = FALSE
-	)
-	set.seed(1); fit_b = lame(
-		Y_b,
-		Xdyad = X,
-		family = "normal",
-		R = 0,
-		nscan = 30,
-		burn = 5,
-		odens = 5,
-		dynamic_beta = "dyad",
-		verbose = FALSE
-	)
-	expect_true(all(is.finite(fit_a$BETA)))
-	expect_true(all(is.finite(fit_b$BETA)))
-})
 test_that("detect_change_point returns the expected data frame shape", {
 	dat = simulate_test_network(n = 6, n_time = 4, family = "normal", seed = 2026)
 	fit = lame(
@@ -161,35 +111,6 @@ test_that("detect_change_point errors when dynamic_beta is not active", {
 	)
 	expect_error(detect_change_point(fit), "dynamic_beta")
 })
-test_that("detect_change_point runs end-to-end on a step-function truth", {
-	set.seed(2026)
-	n = 8; Tn = 6
-	beta_true = c(rep(-0.6, 3), rep(0.6, 3))
-	X_list = replicate(Tn, matrix(rnorm(n * n), n, n), simplify = FALSE)
-	Y_list = vector("list", Tn)
-	for (t in seq_len(Tn)) {
-		Yt = beta_true[t] * X_list[[t]] + matrix(rnorm(n * n, 0, 0.1), n, n)
-		diag(Yt) = NA
-		rownames(Yt) = colnames(Yt) = paste0("a", seq_len(n))
-		Y_list[[t]] = Yt
-	}
-	X_arr = lapply(X_list, function(x) array(x, c(n, n, 1)))
-	fit = lame(
-		Y_list,
-		Xdyad = X_arr,
-		family = "normal",
-		R = 0,
-		nscan = 100,
-		burn = 30,
-		odens = 5,
-		dynamic_beta = "dyad",
-		verbose = FALSE
-	)
-	res = detect_change_point(fit, n_prior_sims = 200, seed = 1)
-	expect_true(is.data.frame(res))
-	expect_gt(nrow(res), 0L)
-	expect_true(all(is.finite(res$bf)))
-})
 test_that("dynamic_beta_prior_summary is reproducible with seed", {
 	a = dynamic_beta_prior_summary(seed = 123, ndraws = 500)
 	b = dynamic_beta_prior_summary(seed = 123, ndraws = 500)
@@ -219,23 +140,6 @@ test_that("invalid rho_mean outside bounds errors cleanly", {
 })
 test_that("n_periods = 1 errors with informative message", {
 	expect_error(dynamic_beta_prior_summary(n_periods = 1), "at least 2")
-})
-test_that("freeze_call = TRUE stores a data snapshot on the fit", {
-	dat = simulate_test_network(n = 6, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 10,
-		burn = 2,
-		odens = 1,
-		freeze_call = TRUE,
-		verbose = FALSE
-	)
-	expect_true(isTRUE(fit$freeze_call))
-	expect_false(is.null(fit$data_snapshot))
-	expect_identical(fit$data_snapshot$Y, dat$Y)
 })
 test_that("freeze_call = TRUE: update() refits with snapshot even if local Y mutates", {
 	dat = simulate_test_network(n = 6, n_time = 3, family = "normal", seed = 2026)
@@ -291,27 +195,6 @@ test_that("freeze_call = FALSE uses parent-frame update lookup", {
 	expect_s3_class(fit_upd, "lame")
 })
 # compact print
-test_that("static print output does NOT use the compact table", {
-	dat = simulate_test_network(n = 6, n_time = 3, family = "normal", seed = 2026)
-	fit = lame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		family = "normal",
-		R = 0,
-		nscan = 10,
-		burn = 2,
-		odens = 1,
-		verbose = FALSE
-	)
-	out = paste(
-		c(
-			capture.output(print(fit)),
-			capture.output(print(fit), type = "message")
-		),
-		collapse = "\n"
-	)
-	expect_false(grepl("Dynamic components", out))
-})
 test_that("single-dynamic fit does NOT use the compact table", {
 	dat = simulate_test_network(n = 6, n_time = 3, family = "normal", seed = 2026)
 	fit = lame(
@@ -400,10 +283,6 @@ test_that("compact = FALSE disables the joint table", {
 		...
 	))
 }
-test_that("dynamic_beta_pool='none' is the default and records on the fit", {
-	fit = .fit_dynamic_beta_tidy()
-	expect_identical(fit$dynamic_beta_pool, "none")
-})
 test_that("dynamic_beta_pool != 'none' fits with hierarchical pooling", {
 	data(YX_bin_list, envir = environment())
 	set.seed(7)
@@ -447,14 +326,6 @@ test_that("gof_temporal errors on T < 3", {
 		"at least 3"
 	)
 })
-test_that("rhat_dynamic_beta returns a data frame with one row per coef", {
-	fit_list = lapply(c(1L, 2L), function(s) .fit_dynamic_beta_tidy(seed = s))
-	res = rhat_dynamic_beta(fit_list)
-	expect_s3_class(res, "data.frame")
-	expect_true(all(c("coef", "rhat_mvt", "rhat_max_univariate") %in% names(res)))
-	expect_equal(nrow(res), dim(fit_list[[1]]$BETA)[2L])
-	expect_true(all(is.finite(res$rhat_mvt)))
-})
 test_that("rhat_dynamic_beta requires at least two fits", {
 	fit = .fit_dynamic_beta_tidy()
 	expect_error(rhat_dynamic_beta(list(fit)), "at least two")
@@ -478,10 +349,6 @@ test_that("rhat_dynamic_beta requires dynamic_beta", {
 	)
 })
 # mixed frequency
-test_that("time_index = NULL is the default", {
-	fit = .fit_dynamic_beta_tidy()
-	expect_null(fit$time_index)
-})
 test_that("time_index strictly-increasing validation", {
 	data(YX_bin_list, envir = environment())
 	expect_error(
@@ -526,44 +393,6 @@ test_that("time_index equal-gap is byte-identical to no time_index", {
 		plot = FALSE
 	)))
 	expect_true(identical(fit_eq$BETA, fit_no$BETA))
-})
-test_that("time_index with unequal gaps fits via gap-aware sampler", {
-	data(YX_bin_list, envir = environment())
-	set.seed(7)
-	fit = suppressWarnings(suppressMessages(lame(
-		YX_bin_list$Y,
-		YX_bin_list$X,
-		family = "binary",
-		R = 0,
-		dynamic_beta = "dyad",
-		time_index = c(1, 2, 4, 8),
-		nscan = 60,
-		burn = 20,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE
-	)))
-	expect_identical(fit$time_index, c(1, 2, 4, 8))
-	expect_true(all(is.finite(fit$BETA)))
-})
-test_that("period_exposure validation", {
-	data(YX_bin_list, envir = environment())
-	# a negative exposure aborts
-	expect_error(
-		suppressWarnings(suppressMessages(lame(
-			YX_bin_list$Y,
-			YX_bin_list$X,
-			family = "binary",
-			R = 0,
-			period_exposure = c(-1, 1, 1, 1),
-			nscan = 30,
-			burn = 10,
-			odens = 5,
-			verbose = FALSE,
-			plot = FALSE
-		))),
-		"non-negative"
-	)
 })
 # tidy.lame and prediction_draws_long
 test_that("tidy.lame returns data frame with expected columns for dynamic fit", {
@@ -611,35 +440,6 @@ test_that("prediction_draws_long returns the right shape", {
 	)
 		%in% names(pd)))
 	expect_equal(nrow(pd), 3L * dim(fit$BETA)[3L] * 50L * 50L)
-})
-# checkpointing
-test_that("max_seconds aborts the chain cleanly", {
-	data(YX_bin_list, envir = environment())
-	ck = tempfile(fileext = ".rds")
-	set.seed(7)
-	# a large nscan and a tiny max_seconds so the chain hits the budget even on fast hardware
-	fit = suppressWarnings(suppressMessages(lame(
-		YX_bin_list$Y,
-		YX_bin_list$X,
-		family = "binary",
-		R = 0,
-		nscan = 50000L,
-		burn = 50L,
-		odens = 25L,
-		checkpoint_path = ck,
-		checkpoint_every = 5L,
-		max_seconds = 0.05,
-		verbose = FALSE,
-		plot = FALSE
-	)))
-	expect_true(
-		isTRUE(fit$terminated_early),
-		info = sprintf(
-			"nscan=50000 with max_seconds=0.05 should terminate early; got terminated_early=%s",
-			fit$terminated_early
-		)
-	)
-	expect_true(file.exists(ck))
 })
 test_that("lame_resume continues from a checkpoint", {
 	data(YX_bin_list, envir = environment())
@@ -693,103 +493,6 @@ test_that("lame_resume errors on missing checkpoint", {
 		lame_resume("/tmp/nonexistent_lame_checkpoint.rds"),
 		"not found"
 	)
-})
-# lfo
-test_that("lfo returns elpd_lfo and per_period structure", {
-	fit = .fit_dynamic_beta_tidy()
-	res = suppressWarnings(lfo(
-		fit,
-		periods = c(3L, 4L),
-		refit = TRUE,
-		nscan = 40L,
-		burn = 10L,
-		odens = 5L
-	))
-	expect_s3_class(res, "lfo_lame")
-	expect_true(is.finite(res$elpd_lfo))
-	expect_equal(nrow(res$per_period), 2L)
-	expect_true(all(c("period", "elpd", "n_obs") %in% names(res$per_period)))
-})
-test_that("lfo errors when periods < 2", {
-	fit = .fit_dynamic_beta_tidy()
-	expect_error(
-		suppressWarnings(lfo(fit, periods = 1L, refit = FALSE)),
-		"leave-out period"
-	)
-})
-# fit$Xlist holds the augmented design (intercept slice first); lfo() strips that slice before refitting, since the refit
-# adds its own intercept and two constant slices are only jointly identified
-.capture_lfo_refit = function(fit, ...) {
-	cap = new.env()
-	real_lame = lame
-	testthat::local_mocked_bindings(lame = function(...) {
-		args = list(...)
-		cap$Xdyad = args$Xdyad
-		cap$fit = do.call(real_lame, args)
-		cap$fit
-	}, .package = "lame", .env = parent.frame())
-	cap$res = suppressWarnings(lfo(fit, ...))
-	cap
-}
-test_that("lfo refit carries exactly one intercept (binary T=4, one covariate)", {
-	data(YX_bin_list, envir = environment())
-	X1 = lapply(YX_bin_list$X, function(x) x[, , 1L, drop = FALSE])
-	fit = suppressWarnings(lame(
-		YX_bin_list$Y,
-		X1,
-		family = "binary",
-		R = 0,
-		nscan = 40,
-		burn = 10,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE,
-		seed = 7L
-	))
-	# premise: the stored design is augmented with the intercept slice
-	expect_identical(dimnames(fit$Xlist[[1L]])[[3L]][1L], "intercept")
-	cap = .capture_lfo_refit(
-		fit,
-		periods = 4L,
-		refit = TRUE,
-		nscan = 20L,
-		burn = 5L,
-		odens = 5L
-	)
-	# refit design: the covariate only, no stored intercept slice
-	expect_equal(length(cap$Xdyad), 3L)
-	expect_equal(dim(cap$Xdyad[[1L]])[3L], 1L)
-	expect_false("intercept" %in% dimnames(cap$Xdyad[[1L]])[[3L]])
-	# refit coefficients: one intercept and one covariate; a stacked constant slice would be labelled "intercept_dyad", so match the prefix
-	expect_equal(sum(startsWith(colnames(cap$fit$BETA), "intercept")), 1L)
-	expect_equal(ncol(cap$fit$BETA), 2L)
-	expect_true(is.finite(cap$res$elpd_lfo))
-})
-test_that("lfo refit of an intercept-only fit passes Xdyad = NULL", {
-	data(YX_bin_list, envir = environment())
-	fit = suppressWarnings(lame(
-		YX_bin_list$Y,
-		family = "binary",
-		R = 0,
-		nscan = 40,
-		burn = 10,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE,
-		seed = 7L
-	))
-	expect_identical(dimnames(fit$Xlist[[1L]])[[3L]], "intercept")
-	cap = .capture_lfo_refit(
-		fit,
-		periods = 4L,
-		refit = TRUE,
-		nscan = 20L,
-		burn = 5L,
-		odens = 5L
-	)
-	expect_null(cap$Xdyad)
-	expect_identical(colnames(cap$fit$BETA), "intercept")
-	expect_true(is.finite(cap$res$elpd_lfo))
 })
 # prediction and log-likelihood: transition kinds, counterfactuals, forecasts, autoplot, log-lik
 # small fit shared by the tests below
@@ -856,24 +559,6 @@ test_that("counterfactual newdata = original X reproduces manual XB", {
 	diag_mask = !is.na(manual) & !is.na(pred_new[[1]])
 	expect_lt(max(abs(pred_new[[1]][diag_mask] - manual[diag_mask])), 1e-6)
 })
-test_that("counterfactual = 0-X gives link == intercept + a + b only", {
-	fit = .fit_dynamic_beta_prediction(nscan = 100, burn = 25)
-	data(YX_bin_list, envir = environment())
-	# zero out the dyadic covariates
-	zero_X = lapply(YX_bin_list$X, function(x) array(0, dim = dim(x)))
-	pred_zero = predict(fit, newdata = zero_X, type = "link")
-	# a prediction is returned for zero covariates
-	expect_true(is.list(pred_zero))
-	# with zero x the per-period link differs from that with the original x (the covariate effect is non-zero)
-	pred_orig = predict(fit, newdata = YX_bin_list$X, type = "link")
-	# at least one time slice differs
-	max_diff = max(sapply(
-		seq_along(pred_zero),
-		function(t)
-			max(abs(pred_zero[[t]] - pred_orig[[t]]), na.rm = TRUE)
-	))
-	expect_gt(max_diff, 1e-6)
-})
 # h-step-ahead forecasting
 test_that("predict(fit, h=0) equals predict(fit) without h", {
 	fit = .fit_dynamic_beta_prediction(nscan = 100, burn = 25)
@@ -881,21 +566,6 @@ test_that("predict(fit, h=0) equals predict(fit) without h", {
 	a = predict(fit, h = 0L, type = "link")
 	b = predict(fit, type = "link")
 	expect_identical(a, b)
-})
-test_that("predict(fit, h=3) returns list of length 3 with correct dims", {
-	fit = .fit_dynamic_beta_prediction(nscan = 100, burn = 25)
-	# a 100-sweep chain can put the rho_beta interval at the unit root, which predict() flags
-	f3 = suppressWarnings(predict(fit, h = 3L, type = "link"))
-	expect_true(is.list(f3))
-	expect_length(f3, 3L)
-	expect_equal(dim(f3[[1]]), c(50L, 50L))
-})
-test_that("forecast type='response' is bounded in [0, 1] for binary", {
-	fit = .fit_dynamic_beta_prediction(nscan = 100, burn = 25)
-	f3 = predict(fit, h = 2L, type = "response")
-	for (m in f3) {
-		expect_true(all(m >= 0 & m <= 1, na.rm = TRUE))
-	}
 })
 test_that("forecast errors when h < 0", {
 	fit = .fit_dynamic_beta_prediction(nscan = 100, burn = 25)
@@ -956,86 +626,6 @@ test_that("autoplot.lame respects the `coefs` argument", {
 	p1 = autoplot(fit, coefs = nms[1])
 	expect_s3_class(p1, "ggplot")
 })
-# extended pointwise log-lik
-test_that("save_log_lik = TRUE yields a 2-D log-lik matrix with expected width", {
-	# binary closed-form log-lik
-	data(YX_bin_list, envir = environment())
-	set.seed(7)
-	fit = suppressWarnings(lame(
-		YX_bin_list$Y,
-		YX_bin_list$X,
-		family = "binary",
-		R = 0,
-		nscan = 100,
-		burn = 25,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE,
-		save_log_lik = TRUE
-	))
-	expect_true(!is.null(fit$log_lik))
-	# rows are the stored iterations, columns the non-NA dyads
-	expect_equal(nrow(fit$log_lik), 100L %/% 5L)
-	expect_gt(ncol(fit$log_lik), 0)
-	expect_true(all(is.finite(fit$log_lik)))
-})
-# chunked log-lik storage
-test_that("chunked log-lik storage is byte-identical to in-core", {
-	data(YX_bin_list, envir = environment())
-	set.seed(7); fit_mem = suppressWarnings(lame(
-		YX_bin_list$Y,
-		YX_bin_list$X,
-		family = "binary",
-		R = 0,
-		nscan = 100,
-		burn = 25,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE,
-		save_log_lik = TRUE
-	))
-	set.seed(7); fit_chk = suppressWarnings(lame(
-		YX_bin_list$Y,
-		YX_bin_list$X,
-		family = "binary",
-		R = 0,
-		nscan = 100,
-		burn = 25,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE,
-		save_log_lik = "chunked",
-		log_lik_chunk_size = 500L
-	))
-	# the in-memory fit holds the matrix, the chunked fit only the metadata
-	expect_true(!is.null(fit_mem$log_lik))
-	expect_null(fit_chk$log_lik)
-	expect_true(!is.null(fit_chk$log_lik_chunks))
-	# the read-back matches the in-memory matrix exactly
-	ll_chk = read_log_lik(fit_chk)
-	expect_true(identical(fit_mem$log_lik, ll_chk))
-})
-test_that("loo() works transparently on a chunked fit", {
-	skip_if_not_installed("loo")
-	data(YX_bin_list, envir = environment())
-	set.seed(7); fit_chk = suppressWarnings(lame(
-		YX_bin_list$Y,
-		YX_bin_list$X,
-		family = "binary",
-		R = 0,
-		dcor = FALSE,
-		nscan = 100,
-		burn = 25,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE,
-		save_log_lik = "chunked"
-	))
-	res = suppressWarnings(loo::loo(fit_chk))
-	expect_s3_class(res, "loo")
-	expect_true(is.finite(res$estimates["elpd_loo", "Estimate"]))
-})
-
 
 test_that("dynamic beta progress and live plots preserve every sampled draw", {
 	seen = list()

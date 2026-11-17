@@ -23,6 +23,7 @@
 #' @return A \code{posterior::draws_array} (when \pkg{posterior} is
 #'   available) or otherwise a plain 3-D array with named dimnames.
 #' @export
+#' @exportS3Method posterior::as_draws
 as_draws.ame <- function(x, include = c("beta", "vc"), ...) {
 	.lame_require_draws(x, "as_draws")
 	if (is.null(x$BETA) || dim(x$BETA)[1] == 0L) {
@@ -105,17 +106,19 @@ as_draws.ame <- function(x, include = c("beta", "vc"), ...) {
 #' @rdname as_draws.ame
 #' @method as_draws lame
 #' @export
+#' @exportS3Method posterior::as_draws
 as_draws.lame <- as_draws.ame
 
 # as_draws for ame_als: bootstrap replicates, or an error with a refit hint
 #' @rdname as_draws.ame
 #' @method as_draws ame_als
 #' @export
+#' @exportS3Method posterior::as_draws
 as_draws.ame_als <- function(x, ...) {
 	if (is.null(x$bootstrap)) {
 		cli::cli_abort(c(
-			"{.fn posterior::as_draws} requires a draws-like object; an {.cls ame_als} point estimate has none.",
-			"i" = "Refit with {.code ame_als(..., bootstrap = N)} or attach replicates via {.fn ame_als_bootstrap} to get a draws array."
+			"{.fn posterior::as_draws} requires a draws-like object; an {.cls ame_als} fit without a bootstrap has none.",
+			"i" = "For a static fit, refit with {.code ame_als(..., bootstrap = N)} or attach replicates via {.fn ame_als_bootstrap} to get a draws array; the standard errors of every fit are in {.fn vcov}, {.fn confint} and {.fn summary}."
 		))
 	}
 	boot <- x$bootstrap
@@ -154,28 +157,3 @@ as_draws.ame_als <- function(x, ...) {
 #' draws <- as_draws(fit)
 #' @export
 as_draws <- function(x, ...) UseMethod("as_draws")
-
-# register the methods with posterior::as_draws when posterior is available
-# (called from .onLoad in zzz.R)
-.register_posterior_methods <- function() {
-	if (requireNamespace("posterior", quietly = TRUE)) {
-		registerS3method(
-			"as_draws",
-			"ame",
-			as_draws.ame,
-			envir = asNamespace("posterior")
-		)
-		registerS3method(
-			"as_draws",
-			"lame",
-			as_draws.lame,
-			envir = asNamespace("posterior")
-		)
-		registerS3method(
-			"as_draws",
-			"ame_als",
-			as_draws.ame_als,
-			envir = asNamespace("posterior")
-		)
-	}
-}

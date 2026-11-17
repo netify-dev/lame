@@ -16,7 +16,7 @@
 #' @param rho scalar within-dyad correlation.
 #' @param Y square matrix of ordinal outcomes (may contain \code{NA}).
 #' @return the updated square latent matrix \code{Z}.
-#' @keywords internal
+#' @noRd
 #' @author lame authors
 rZ_ord_fc <- function(Z, EZ, rho, Y) {
 	n <- nrow(Z)

@@ -98,13 +98,20 @@ lame_multi <- function(Y_list, Xdyad_list, ...) {
 		return(res)
 	}
 
-	# fit each panel independently
+	# fit each panel independently; each panel's warnings are collected and
+	# issued once, under the panel's name, after its fit
 	fits <- vector("list", K)
+	panel_names <- names(Y_list)
 	for (k in seq_len(K)) {
+		panel_warnings <- list()
 		fits[[k]] <- tryCatch(
-			suppressWarnings(suppressMessages(
-				lame(Y_list[[k]], Xdyad = Xdyad_list[[k]], ...)
-			)),
+			withCallingHandlers(
+				suppressMessages(lame(Y_list[[k]], Xdyad = Xdyad_list[[k]], ...)),
+				warning = function(w) {
+					panel_warnings[[length(panel_warnings) + 1L]] <<- w
+					invokeRestart("muffleWarning")
+				}
+			),
 			lame_chain_unsettled = function(e) {
 				# the panel's own error, labelled by panel; the fit continues with lame_resume()
 				e$message <- paste0("Panel ", k, " of ", K, ": ", conditionMessage(e))
@@ -112,6 +119,19 @@ lame_multi <- function(Y_list, Xdyad_list, ...) {
 				stop(e)
 			}
 		)
+		if (length(panel_warnings)) {
+			label <- if (!is.null(panel_names) && nzchar(panel_names[k])) panel_names[k] else paste0(k, " of ", K)
+			msgs <- unique(vapply(panel_warnings, conditionMessage, character(1)))
+			cli::cli_warn(
+				c(
+					"Panel {.val {label}} warned:",
+					setNames(gsub("}", "}}", gsub("{", "{{", msgs, fixed = TRUE), fixed = TRUE), rep("!", length(msgs)))
+				),
+				class = "lame_multi_panel_warning",
+				panel = k,
+				warnings = panel_warnings
+			)
+		}
 	}
 
 	# information-form pooling: with panels conditionally independent given a

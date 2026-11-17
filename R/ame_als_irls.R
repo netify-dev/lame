@@ -1,14 +1,32 @@
-# reject values that do not belong to the stated observation family
+# the warning of the sampler for a binary response with values other than 0/1
+.ae_warn_thresholded <- function() {
+	cli::cli_warn(
+		c(
+			"{.arg family} = {.val binary} but {.arg Y} contains values other than 0/1.",
+			"i" = "{.arg Y} will be thresholded to {.code 1 * (Y > 0)}; if you meant counts, use {.val poisson}, or {.val normal} as appropriate (ordinal outcomes take {.fn ame} or {.fn lame} with {.code method = \"mcmc\"})."
+		),
+		class = "lame_als_thresholded"
+	)
+}
+
+# the response as given (matrix, array or list of matrices): a binary one with values other than
+# 0/1 is thresholded at zero, as ame() and lame() do it
+.ae_binary_input <- function(Y, family) {
+	if (!identical(family, "binary")) return(Y)
+	vals <- if (is.list(Y)) unlist(lapply(Y, as.vector), use.names = FALSE) else as.vector(Y)
+	if (!(is.numeric(vals) || is.logical(vals)) || all(vals[is.finite(vals)] %in% c(0, 1))) return(Y)
+	.ae_warn_thresholded()
+	cut0 <- function(y) { y[] <- 1 * (y > 0); y }
+	if (is.list(Y)) lapply(Y, cut0) else cut0(Y)
+}
+
+# values that do not belong to the stated observation family, on the prepared array: a binary
+# response is thresholded as above, a negative count is refused. returns the response
 .ae_check_als_response <- function(y, family) {
 	observed_y <- y[is.finite(y)]
 	if (family == "binary" && !all(observed_y %in% c(0, 1))) {
-		cli::cli_abort(
-			c(
-				"family = {.val binary} expects 0/1 data.",
-				"i" = "Supply binary outcomes or use an appropriate family; ordinal outcomes require {.fn ame} or {.fn lame} (MCMC)."
-			),
-			class = "lame_als_data"
-		)
+		.ae_warn_thresholded()
+		y[] <- 1 * (y > 0)
 	}
 	if (family == "poisson" && any(observed_y < 0)) {
 		cli::cli_abort(
@@ -16,7 +34,7 @@
 			class = "lame_als_data"
 		)
 	}
-	invisible(NULL)
+	y
 }
 
 # iteratively reweighted least squares (IRLS) for the binary (logit / probit)
@@ -96,23 +114,10 @@
 	)
 }
 
-# normal log density and both log tail probabilities at a probit predictor,
-# computed once per iterate; `outcome` is the log probability of each cell's
-# observed outcome and `one` the cells with y = 1 (NULL: not needed)
-.ae_probit_terms_r <- function(eta, one) {
-	lp1 <- stats::pnorm(eta, log.p = TRUE)
-	lp0 <- stats::pnorm(eta, lower.tail = FALSE, log.p = TRUE)
-	outcome <- NULL
-	if (!is.null(one)) {
-		outcome <- lp0
-		outcome[one] <- lp1[one]
-	}
-	list(ld = stats::dnorm(eta, log = TRUE), lp1 = lp1, lp0 = lp0, outcome = outcome)
-}
-
-# the same by the compiled kernel (ae_probit_terms_cpp)
+# normal log density and both log tail probabilities at a probit predictor, computed once per iterate by the
+# compiled kernel (ae_probit_terms_cpp); `outcome` is the log probability of each cell's observed outcome and
+# `one` the cells with y = 1 (NULL: not needed)
 .ae_probit_terms <- function(eta, one) {
-	if (identical(.ae_engine(), "r")) return(.ae_probit_terms_r(eta, one))
 	tm <- ae_probit_terms_cpp(eta, .ae_threads())
 	d <- dim(eta)
 	if (!is.null(d)) {
@@ -140,6 +145,9 @@
 	ok <- is.finite(y)
 	-2 * sum((y * log(p) + (1 - y) * log(1 - p))[ok])
 }
+
+# minus twice the observed-cell log likelihood of gaussian or poisson-lognormal cell terms
+.ae_dev_terms <- function(terms) -2 * sum(terms$l)
 
 # deviance from the predictor, so tails keep their exact log probabilities and
 # the Poisson form avoids cancellation between large counts
@@ -291,13 +299,14 @@
 #   prep       canonical prep list (.ae_prepare / .ae_prep_from_canonical)
 #   init       optional warm-start state; when NULL the loop is seeded by the
 #              one-shot transform fit
-#   warm       start the reweighting at `init` (used by the split-sample halves)
-#   ab_prior   NULL, or the EB actor-effect prior (bias_correct = "eb")
+#   warm       start the reweighting at `init`
+#   ab_prior   the EB actor-effect prior (.ae_eb_prior)
 #   warm_retry rerun a warm start that fails the certificate from the spectral start
 #   ve_fixed   count network under EB: noise variance held at this value (used by
 #              .ae_pln_ve_search)
-#   vcov_mode  "full" (covariance and evidence), "evidence" (log determinant
-#              only) or "none"
+#   vcov_mode  "full" (covariance and evidence), "coef" (the same without the
+#              standard errors of the effects and product, for a mode a
+#              variational stage refines), "evidence" (log determinant only) or "none"
 # returns list(fit, Z, W, dev_trace, irls_iters, best_obj, data_deviance, eta,
 # stationarity)
 .ae_irls_run <- function(
@@ -314,18 +323,17 @@
 	init = NULL,
 	linear_solver = "eigen",
 	warm = FALSE,
-	ab_prior = NULL,
+	ab_prior,
 	ve_fixed = NULL,
 	warm_retry = TRUE,
-	vcov_mode = c("full", "evidence", "none")
+	vcov_mode = c("full", "coef", "evidence", "none")
 ) {
 	vcov_mode <- match.arg(vcov_mode)
 	if (is.null(irls_maxit)) irls_maxit <- max_iter
 	if (is.null(irls_tol)) irls_tol <- 1e-9
 
 	Tt <- prep$Tt; nr <- prep$nr; nc <- prep$nc
-	y <- prep$Yarr
-	.ae_check_als_response(y, family)
+	y <- .ae_check_als_response(prep$Yarr, family)
 
 	unobserved <- !is.finite(y)
 
@@ -343,15 +351,14 @@
 
 	# a count network under EB is the Poisson-lognormal model (ame_als_pln.R),
 	# with noise variance ve as a hyperparameter
-	pln <- !is.null(ab_prior) && identical(family, "poisson")
+	pln <- identical(family, "poisson")
 	# a normal network under EB has the Gaussian cell of ame_als_gauss.R: working
 	# response y and constant weight 1 / ve
-	gauss <- !is.null(ab_prior) && identical(family, "normal")
+	gauss <- identical(family, "normal")
 	has_ve <- pln || gauss
 	work_fun <- switch(
 		paste(family, link),
-		"poisson log" = function(eta, terms = NULL)
-			if (pln) .ae_irls_pln(eta, terms) else .ae_irls_poisson(y, eta),
+		"poisson log" = function(eta, terms = NULL) .ae_irls_pln(eta, terms),
 		"binary logit" = function(eta, terms = NULL) .ae_irls_binary_logit(y, eta),
 		"binary probit" = function(eta, terms = NULL)
 			.ae_irls_binary_probit(y, eta, terms = terms),
@@ -359,7 +366,7 @@
 		cli::cli_abort("IRLS is not available for family {.val {family}}.")
 	)
 	dev_fun <- function(eta, terms = NULL)
-		if (pln) .ae_dev_pln(terms) else if (gauss) .ae_dev_gauss(terms) else .ae_irls_deviance(y, eta, family, link, terms)
+		if (pln || gauss) .ae_dev_terms(terms) else .ae_irls_deviance(y, eta, family, link, terms)
 	# probit terms of an iterate serve its working response, deviance and certificate
 	probit <- identical(family, "binary") && identical(link, "probit")
 	one_cells <- if (probit) which(y == 1)
@@ -374,18 +381,16 @@
 	suv0 <- .ae_uv_prior_scale(y, family)
 	# the EB fit of a directed unipartite network uses the uv prior of ame() and
 	# lame() (R/uv_prior.R); other penalised fits keep the stabilising ridge
-	if (R > 0 && !symmetric && !isTRUE(prep$bip) && !is.null(ab_prior)) {
+	if (R > 0 && !symmetric && !isTRUE(prep$bip)) {
 		uvp <- .lame_uv_prior(y, family, R)
 		kappa0 <- uvp$df
 		suv0 <- uvp$psi
 	}
 	uv_prior <- if (R > 0) list(suv0 = suv0, kappa0 = kappa0) else NULL
 
-	# predictors are compared under a common factor penalty
-	eb <- !is.null(ab_prior)
 	# an EB step runs a few BCD sweeps, then refreshes weights, Laplace correction
 	# and EM scale images, so the loop does not stall on stale weights
-	bcd_iter <- if (eb) min(max_iter, .ae_eb_sweeps) else max_iter
+	bcd_iter <- min(max_iter, .ae_eb_sweeps)
 	# EM state a reweighted solve starts from: incoming actor-effect covariance and
 	# sums of h' at its predictor
 	eb_state <- function(f, eta, terms) {
@@ -409,26 +414,20 @@
 	# determinant of their information at the iterate's Fisher weights
 	pdev_of <- function(f, scales = f, dev = NULL, work = NULL) {
 		if (is.null(dev)) dev <- dev_fun(eta_of(f))
-		if (eb) {
-			dev <- dev + .ae_eb_penalty(
-				f,
-				scales$sab,
-				ab_prior,
-				wsum = rowSums(work$w, dims = 2L, na.rm = TRUE)
-			)
-		}
+		dev <- dev + .ae_eb_penalty(
+			f,
+			scales$sab,
+			ab_prior,
+			wsum = rowSums(work$w, dims = 2L, na.rm = TRUE)
+		)
 		if (is.null(uv_prior) || is.null(f$U) || is.null(f$sig2_u)) {
 			return(dev)
 		}
-		if (symmetric && eb) {
+		if (symmetric) {
 			# EB scale update (.ae_lowrank_em_mm) on the scale of the ordered cells
 			s2 <- max(scales$sig2_u[1], 1e-12)
 			dev + (2 * suv0 + 2 * sum(abs(f$L))) / s2 +
 				(2 * nr * R + 2 * kappa0) * log(s2)
-		} else if (symmetric) {
-			s2 <- max(scales$sig2_u[1], 1e-12)
-			dev + (kappa0 * suv0 + 2 * sum(abs(f$L))) / s2 +
-				(2 * nr * R + kappa0) * log(s2)
 		} else {
 			su <- pmax(scales$sig2_u, 1e-12)
 			sv <- pmax(scales$sig2_v, 1e-12)
@@ -440,7 +439,7 @@
 	}
 
 	# certificate of an iterate and its scalar merit (the largest thresholded
-	# score); only the EB loop uses them to accept a step
+	# score), which accept a step
 	cert_of <- function(f, eta, work, terms) {
 		.ae_irls_stationarity(
 			prep,
@@ -504,7 +503,7 @@
 	work_fit <- work_fun(eta_fit, terms_fit)
 	best_fit <- fit
 	best_dev <- pdev_of(fit, dev = dev_fit, work = work_fit)
-	merit_fit <- if (eb) merit_of(cert_of(fit, eta_fit, work_fit, terms_fit)) else Inf
+	merit_fit <- merit_of(cert_of(fit, eta_fit, work_fit, terms_fit))
 	merit_best <- merit_fit
 	dev_trace <- best_dev
 	n_accepted <- 0L
@@ -513,9 +512,6 @@
 	inner_tol <- min(tol, 1e-8)
 	inner_refinements <- 0L
 	certificate_now <- NULL
-	# fraction of each reweighted step taken without the EB prior: 1 until the
-	# objective shows a two-cycle, then halved at each repetition
-	cycle_omega <- 1
 
 	for (k in seq_len(irls_maxit)) {
 		# with a noise variance, move it to its EM image first and form the
@@ -561,57 +557,37 @@
 						sig2_v = fit$sig2_v
 					)
 				),
-			ab_prior = if (eb) eb_state(fit, eta_fit, terms_w)
+			ab_prior = eb_state(fit, eta_fit, terms_w)
 		)
 		if (has_ve) cand$ve <- ve_new
-		if (is.null(ab_prior) && cycle_omega < 1) {
-			anchor0 <- fit
-			anchor0$sig2_u <- cand$sig2_u
-			anchor0$sig2_v <- cand$sig2_v
-			cand <- .ae_irls_blend(anchor0, cand, cycle_omega, symmetric)
-		}
 		eta_cand <- eta_of(cand)
 		terms_cand <- terms_of(eta_cand, cand)
 		dev_cand <- dev_fun(eta_cand, terms_cand)
-		# EB: the candidate's Fisher weights enter its objective
-		work_cand <- if (eb) work_fun(eta_cand, terms_cand)
+		# the candidate's Fisher weights enter its objective
+		work_cand <- work_fun(eta_cand, terms_cand)
 		dev_k <- pdev_of(cand, dev = dev_cand, work = work_cand)
 		prev <- pdev_of(fit, cand, dev = dev_fit, work = work_fit)
-		# EB: the reweighted equations carry the previous Laplace correction, so a
-		# step is also accepted when it lowers the scaled residual of the equations
-		cert_cand <- NULL
-		merit_cand <- Inf
-		if (eb) {
-			cert_cand <- cert_of(cand, eta_cand, work_cand, terms_cand)
-			merit_cand <- merit_of(cert_cand)
-		}
+		# the reweighted equations carry the previous Laplace correction, so a
+		# step is accepted when it lowers the scaled residual of the equations
+		cert_cand <- cert_of(cand, eta_cand, work_cand, terms_cand)
+		merit_cand <- merit_of(cert_cand)
 		improves <- function(dev_s, merit_s) {
-			if (!eb) return(is.finite(dev_s) && dev_s < prev)
 			# allow the residual to rise by 5 percent, never beyond twice the best
 			is.finite(dev_s) && merit_s < min(1.05 * merit_fit, 2 * merit_best)
 		}
 		anchor <- fit
-		if (!eb) {
-			anchor$sig2_u <- cand$sig2_u
-			anchor$sig2_v <- cand$sig2_v
-		}
 		# a full step can overshoot: halve toward the current iterate and keep
 		# the first improving point; stop when no halved step improves
-		if (!improves(dev_k, merit_cand) &&
-				(eb || !is.finite(dev_k) || dev_k > prev)) {
+		if (!improves(dev_k, merit_cand)) {
 			for (step in 2^(-seq_len(20L))) {
 				damped <- .ae_irls_blend(anchor, cand, step, symmetric)
 				eta_damped <- eta_of(damped)
 				terms_damped <- terms_of(eta_damped, damped)
 				dev_damped <- dev_fun(eta_damped, terms_damped)
-				work_damped <- if (eb) work_fun(eta_damped, terms_damped)
+				work_damped <- work_fun(eta_damped, terms_damped)
 				dev_s <- pdev_of(damped, dev = dev_damped, work = work_damped)
-				cert_s <- NULL
-				merit_s <- Inf
-				if (eb) {
-					cert_s <- cert_of(damped, eta_damped, work_damped, terms_damped)
-					merit_s <- merit_of(cert_s)
-				}
+				cert_s <- cert_of(damped, eta_damped, work_damped, terms_damped)
+				merit_s <- merit_of(cert_s)
 				if (improves(dev_s, merit_s)) {
 					cand <- damped; dev_k <- dev_s
 					eta_cand <- eta_damped; dev_cand <- dev_damped
@@ -622,20 +598,11 @@
 			}
 		}
 		dev_trace <- c(dev_trace, dev_k)
-		if (!improves(dev_k, merit_cand) &&
-				(eb || !is.finite(dev_k) ||
-						dev_k > prev + 64 * .Machine$double.eps * max(1, abs(prev)))) {
+		if (!improves(dev_k, merit_cand)) {
 			termination <- "no improving conditional step"
 			break
 		}
 		conditional_gain <- c(conditional_gain, prev - dev_k)
-		if (is.null(ab_prior) && length(dev_trace) >= 5L) {
-			d4 <- utils::tail(dev_trace, 4L)
-			if (abs(d4[4L] - d4[2L]) <= 1e-8 * (1 + abs(d4[4L])) &&
-					abs(d4[4L] - d4[3L]) > 1e-6 * (1 + abs(d4[4L]))) {
-				cycle_omega <- cycle_omega / 2
-			}
-		}
 		best_dev <- dev_k
 		best_fit <- cand
 		n_accepted <- n_accepted + 1L
@@ -643,22 +610,8 @@
 		eta_fit <- eta_cand
 		terms_fit <- terms_cand
 		dev_fit <- dev_cand
-		work_fit <- if (eb) work_cand else work_fun(eta_fit, terms_fit)
-		certificate_now <- if (eb) cert_cand else
-			.ae_irls_stationarity(
-				prep,
-				fit,
-				family,
-				link,
-				R,
-				symmetric,
-				tol,
-				eta = eta_fit,
-				xmat = xmat,
-				working = work_fit,
-				terms = terms_fit,
-				ab_prior = ab_prior
-			)
+		work_fit <- work_cand
+		certificate_now <- cert_cand
 		merit_fit <- merit_cand
 		merit_best <- min(merit_best, merit_cand)
 		if (isTRUE(certificate_now$pass)) {
@@ -766,24 +719,28 @@
 		working$w[, , t] <- .ae_symmetrize(working$w[, , t])
 	}
 	best_fit$sse <- sum(working$w * (working$z - eta)^2, na.rm = TRUE)
-	if (eb) {
-		# Laplace covariance of the regression coefficients at the final weights
-		best_fit$ab_prior <- ab_prior
-		best_fit$eb_vcov <- if (identical(vcov_mode, "none")) list() else
-			tryCatch(
-				.ae_eb_vcov(
-					prep,
-					best_fit,
-					working$w,
-					ab_prior,
-					R,
-					eta = eta,
-					link = link,
-					evidence_only = identical(vcov_mode, "evidence")
-				),
-				error = function(e) structure(list(), message = conditionMessage(e))
-			)
+	# cell scores at the mode summed over periods: the matrix the product of a count fit is fitted to
+	# (.ae_pln_bulk_charge)
+	if (identical(family, "poisson")) {
+		best_fit$score_sum <- rowSums(working$w * (working$z - eta), dims = 2L, na.rm = TRUE)
 	}
+	# Laplace covariance of the regression coefficients at the final weights
+	best_fit$ab_prior <- ab_prior
+	best_fit$eb_vcov <- if (identical(vcov_mode, "none")) list() else
+		tryCatch(
+			.ae_eb_vcov(
+				prep,
+				best_fit,
+				working$w,
+				ab_prior,
+				R,
+				eta = eta,
+				link = link,
+				evidence_only = identical(vcov_mode, "evidence"),
+				report = identical(vcov_mode, "full")
+			),
+			error = function(e) structure(list(), message = conditionMessage(e))
+		)
 	list(
 		fit = best_fit,
 		Z = working$z,
@@ -794,46 +751,6 @@
 		data_deviance = dev_fit,
 		eta = eta,
 		stationarity = certificate
-	)
-}
-
-# actors with observed cells but a single outcome value on one side: their
-# effect there is at the boundary of the maximum-likelihood fit, so their cells
-# on that side carry no information and are dropped, repeatedly, since a drop
-# can leave another actor at the boundary. returns the reduced array and the
-# dropped actors per side with the outcome value of each
-.ae_drop_boundary <- function(Yarr, symmetric) {
-	nr <- dim(Yarr)[1L]; nc <- dim(Yarr)[2L]
-	row_val <- rep(NA_real_, nr); col_val <- rep(NA_real_, nc)
-	side <- function(margin) {
-		obs <- !is.na(Yarr)
-		pos <- obs & Yarr > 0
-		pos[is.na(pos)] <- FALSE
-		n <- apply(obs, margin, sum)
-		k <- apply(pos, margin, sum)
-		list(at = n > 0 & (k == 0 | k == n), val = as.numeric(k > 0))
-	}
-	repeat {
-		r <- side(1L)
-		cc <- if (symmetric) r else side(2L)
-		if (!any(r$at) && !any(cc$at)) break
-		if (any(r$at)) {
-			row_val[r$at] <- r$val[r$at]
-			Yarr[r$at, , ] <- NA_real_
-			if (symmetric) Yarr[, r$at, ] <- NA_real_
-		}
-		if (!symmetric && any(cc$at)) {
-			col_val[cc$at] <- cc$val[cc$at]
-			Yarr[, cc$at, ] <- NA_real_
-		}
-	}
-	if (symmetric) col_val <- row_val
-	list(
-		Y = Yarr,
-		row = which(!is.na(row_val)),
-		col = which(!is.na(col_val)),
-		row_val = row_val[!is.na(row_val)],
-		col_val = col_val[!is.na(col_val)]
 	)
 }
 
@@ -897,31 +814,6 @@
 		" " = "An actor with no observed cell on a side (a covariate missing in every period leaves none) has no effect there to estimate. The effect is NA in {.code a} / {.code b}, {.code va} / {.code vb} describe the estimated effects, and the list is in {.code fit$not_estimated}."
 	))
 	invisible(NULL)
-}
-
-# add actors the covariate rule left without a cell on a side (prep$cov_na) to
-# the not-estimated record, with value NA; a symmetric fit has one effect per actor
-.ae_add_unobserved <- function(db, cov_na, symmetric) {
-	rows <- cov_na$row; cols <- cov_na$col
-	if (!length(rows) && !length(cols)) return(db)
-	if (isTRUE(symmetric)) rows <- cols <- intersect(rows, cols)
-	if (is.null(db)) {
-		db <- list(
-			Y = NULL,
-			row = integer(0),
-			col = integer(0),
-			row_val = numeric(0),
-			col_val = numeric(0)
-		)
-	}
-	add_r <- setdiff(rows, db$row)
-	add_c <- setdiff(cols, db$col)
-	if (!length(add_r) && !length(add_c)) return(db)
-	db$row <- c(db$row, add_r)
-	db$col <- c(db$col, add_c)
-	db$row_val <- c(db$row_val, rep(NA_real_, length(add_r)))
-	db$col_val <- c(db$col_val, rep(NA_real_, length(add_c)))
-	db
 }
 
 # an effect vector with its not-estimated entries at zero (for a warm start)

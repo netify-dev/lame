@@ -82,13 +82,17 @@
 }
 # the intercept of a centred fit moves with each level translation, so a shift c adds
 # -(q c^2 + 2 l c) / 2 to its log prior; `ic` is NULL for static coefficients (l = (iV0 beta)[1],
-# q = iV0[1, 1]), kind "static" for a static intercept with precision prec, or kind "path" for an
-# AR(1) intercept path, where q = 1 / v0 + (N - 1) (1 - rho)^2 / sd2 and
-# l = (beta_1 - m0) / v0 + (1 - rho) sum_t e_t / sd2
+# q = iV0[1, 1]), kind "static" for a static intercept with precision prec (about its conditional
+# mean `mean` when given), or kind "path" for an AR(1) intercept path, where
+# q = 1 / v0 + (N - 1) (1 - rho)^2 / sd2 and l = (beta_1 - m0) / v0 + (1 - rho) sum_t e_t / sd2, the
+# path read as its deviation from its long-run mean `centre` when it has one
 .lame_actor_move_icpt <- function(ic, iV0, beta) {
 	if (is.null(ic)) return(c(l = unname(drop(iV0 %*% beta)[1L]), q = unname(iV0[1L, 1L])))
-	if (identical(ic$kind, "static")) return(c(l = unname(ic$prec * ic$value), q = unname(ic$prec)))
-	path <- ic$path
+	if (identical(ic$kind, "static")) {
+		v <- if (is.null(ic$mean)) ic$value else ic$value - ic$mean
+		return(c(l = unname(ic$prec * v), q = unname(ic$prec)))
+	}
+	path <- ic$path - (ic$centre %||% 0)
 	k <- length(path)
 	e <- if (k > 1L) path[-1L] - ic$rho * path[-k] else numeric(0)
 	c(
@@ -164,6 +168,7 @@
 	stats <- c(level_calls = 0, level_evals = 0, uv_calls = 0, uv_evals = 0, stuck = 0)
 	iS <- if (any(lev)) tryCatch(solve(Sab), error = function(e) NULL) else diag(2L)
 	# an unusable covariance leaves the state to the conditional updates this visit
+	if (is.null(iS) || any(!is.finite(iS))) .lame_fallback_note('actor_move')
 	if (is.null(iS) || any(!is.finite(iS)))
 		return(list(
 			Z = Z,
@@ -196,7 +201,10 @@
 				reg_v = -cov_v %*% P[iv, iu, drop = FALSE]
 			)
 		}, error = function(e) NULL)
-		if (is.null(pri) || any(!is.finite(unlist(pri)))) uv <- FALSE
+		if (is.null(pri) || any(!is.finite(unlist(pri)))) {
+			.lame_fallback_note('actor_move')
+			uv <- FALSE
+		}
 	}
 	ez_off <- function(i, row) {
 		if (row) matrix(EZ[i, , ], n, N) + matrix(off[i, , ], n, N)

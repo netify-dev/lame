@@ -107,6 +107,171 @@ binary_move_fixture = function(rank, uv_prior = NULL) {
 	)
 }
 
+# fixture with no static coefficient: the rw1 intercept path of dynamic_ab and an ar1 coefficient
+binary_move_fixture_nostatic = function(rank, uv_prior = NULL) {
+	n = 4L; nt = 3L; k = n - 1L
+	Y = array(NA_real_, c(n, n, nt))
+	Y[cbind(c(1, 2, 3, 4, 1, 2), c(2, 3, 1, 2, 4, 1), c(1, 1, 2, 2, 3, 3))] = c(1, 0, 0, 1, 0, 0)
+	X = lapply(seq_len(nt), function(t) {
+		x = array(rnorm(n * n * 2), c(n, n, 2))
+		x[, , 1] = 1
+		x
+	})
+	h = list(
+		g = 1.2,
+		rho_beta = c(1, .4),
+		var_beta = c(.2, .3),
+		iC0 = solve(matrix(c(.6, .1, .1, .8), 2)),
+		iSab = solve(matrix(c(.5, .15, .15, .4), 2)),
+		rho_ab = .65,
+		var_ab = .4
+	)
+	dims = list(
+		static = 0L,
+		path = c(nt, 2L),
+		level = c(k, 2L),
+		adev = c(nt, k),
+		bdev = c(nt, k),
+		U = c(n, rank),
+		V = c(n, rank)
+	)
+	cursor = 0L
+	indices = lapply(dims, function(d) {
+		ix = cursor + seq_len(prod(d)); cursor <<- cursor + prod(d)
+		if (length(d) > 1L) dim(ix) = d
+		ix
+	})
+	restore = function(q) lapply(indices, function(ix) {
+		z = q[ix]; if (!is.null(dim(ix))) dim(z) = dim(ix); z
+	})
+	Q = matrix(0, cursor, cursor)
+	add_ar = function(ix, rho, variance, initial) {
+		Q[ix[1], ix[1]] <<- Q[ix[1], ix[1]] + initial
+		for (t in 2:length(ix)) {
+			v = numeric(cursor); v[ix[t]] = 1; v[ix[t - 1]] = -rho
+			Q <<- Q + tcrossprod(v) / variance
+		}
+	}
+	Q[indices$path[1, ], indices$path[1, ]] = h$iC0
+	for (j in 1:2) add_ar(indices$path[, j], h$rho_beta[j], h$var_beta[j], 0)
+	for (i in seq_len(k)) {
+		Q[indices$level[i, ], indices$level[i, ]] = h$iSab
+		for (block in c("adev", "bdev")) add_ar(
+			indices[[block]][, i],
+			h$rho_ab,
+			h$var_ab,
+			(1 - h$rho_ab^2) / h$var_ab
+		)
+	}
+	H = qr.Q(qr(contr.helmert(n)))
+	density = function(q) {
+		z = restore(q); levels = H %*% z$level
+		a = H %*% t(z$adev); b = H %*% t(z$bdev); uv = tcrossprod(z$U, z$V)
+		lp = 0
+		for (t in seq_len(nt)) {
+			eta = matrix(matrix(X[[t]], n * n, 2) %*% z$path[t, ], n, n) +
+				outer(levels[, 1] + a[, t], levels[, 2] + b[, t], "+") + uv
+			observed = is.finite(Y[, , t])
+			lp = lp + sum(pnorm((2 * Y[, , t][observed] - 1) * eta[observed], log.p = TRUE))
+		}
+		W = cbind(z$U, z$V)
+		# factor covariance prior: df degrees of freedom, scale psi I (both 2R + 2 by default)
+		df0 = if (is.null(uv_prior)) 2 * rank + 2 else uv_prior$df
+		psi0 = if (is.null(uv_prior)) 2 * rank + 2 else uv_prior$psi
+		lp - drop(q %*% Q %*% q) / 2 - (n + df0) / 2 *
+			as.numeric(determinant(psi0 * diag(2 * rank) + crossprod(W), logarithm = TRUE)$modulus)
+	}
+	prior_draw = function() {
+		path = matrix(0, nt, 2)
+		path[1, ] = drop(rnorm(2) %*% chol(solve(h$iC0)))
+		for (t in 2:nt) path[t, ] = h$rho_beta * path[t - 1, ] + rnorm(2) * sqrt(h$var_beta)
+		ar = function() {
+			z = matrix(0, nt, k)
+			z[1, ] = rnorm(k, sd = sqrt(h$var_ab / (1 - h$rho_ab^2)))
+			for (t in 2:nt) z[t, ] = h$rho_ab * z[t - 1, ] + rnorm(k, sd = sqrt(h$var_ab))
+			z
+		}
+		S = solve(rWishart(1, 2 * rank + 2, diag(2 * rank) / (2 * rank + 2))[, , 1])
+		W = matrix(rnorm(n * 2 * rank), n, 2 * rank) %*% chol(S)
+		unlist(
+			list(
+				path,
+				matrix(rnorm(k * 2), k, 2) %*% chol(solve(h$iSab)),
+				ar(),
+				ar(),
+				W[, seq_len(rank), drop = FALSE],
+				W[, rank + seq_len(rank), drop = FALSE]
+			),
+			use.names = FALSE
+		)
+	}
+	list(
+		context = lame:::.lame_binary_hmc_context(Y, X, integer(0), 1:2, rank, uv_prior),
+		hyper = h,
+		density = density,
+		draw = prior_draw,
+		restore = restore,
+		size = cursor
+	)
+}
+
+test_that("with no static coefficient the marginal gradients and trajectories agree with the independent density", {
+	set.seed(341536)
+	for (rank in 1:2) {
+		f = binary_move_fixture_nostatic(rank)
+		q = rnorm(f$size, sd = .3)
+		expect_length(f$context$indices$static, 0L)
+		ans = lame:::.lame_binary_hmc_evaluate(q, f$context, f$hyper)
+		q2 = rnorm(f$size, sd = .3)
+		logp2 = lame:::.lame_binary_hmc_evaluate(q2, f$context, f$hyper)$logp
+		expect_equal(ans$logp - logp2, f$density(q) - f$density(q2), tolerance = 1e-10)
+		eps = 1e-5
+		gradient = vapply(seq_along(q), function(i) {
+			a = b = q
+			a[i] = a[i] + eps
+			b[i] = b[i] - eps
+			(f$density(a) - f$density(b)) / (2 * eps)
+		}, numeric(1))
+		expect_equal(ans$gradient, gradient, tolerance = 1e-6)
+		mass = lame:::.lame_binary_hmc_mass(f$context, f$hyper)
+		expect_length(mass, f$size)
+		p = rnorm(length(q)) * sqrt(mass)
+		forward = lame:::.lame_binary_hmc_integrate(q, p, f$context, f$hyper, mass, .12, 7)
+		backward = lame:::.lame_binary_hmc_integrate(forward$q, -forward$p, f$context, f$hyper, mass, .12, 7)
+		expect_equal(backward$q, q, tolerance = 1e-10)
+		expect_equal(backward$p, -p, tolerance = 1e-10)
+	}
+})
+
+test_that("with no static coefficient the complete marginal update preserves independent prior draws", {
+	skip_on_cran()
+	set.seed(493818)
+	for (rank in 1:2) {
+		f = binary_move_fixture_nostatic(rank)
+		f$context$obs[] = FALSE
+		statistic = function(q) {
+			z = f$restore(q)
+			c(
+				z$path[1, 1],
+				z$path[3, 1],
+				z$path[3, 2],
+				z$level[1, 1],
+				z$adev[2, 1],
+				atan(sum(z$U[1, ] * z$V[2, ])),
+				log1p(sum(z$U^2) + sum(z$V^2))
+			)
+		}
+		delta = replicate(800, {
+			q = f$draw()
+			z = lame:::.lame_binary_hmc_step(q, f$context, f$hyper, .15, L = 4)
+			statistic(z$q) - statistic(q)
+		})
+		z = rowMeans(delta) / (apply(delta, 1, sd) / sqrt(ncol(delta)))
+		expect_true(all(is.finite(z)))
+		expect_lt(max(abs(z)), 6)
+	}
+})
+
 test_that("binary marginal gradients and trajectories agree with independent density", {
 	set.seed(341535)
 	# the unit prior and the data-scaled prior of a sparse network (R/uv_prior.R: df = round((2R + 2) m), psi = df s)
@@ -143,6 +308,23 @@ test_that("binary marginal gradients and trajectories agree with independent den
 		expect_equal(backward$q, q, tolerance = 1e-10)
 		expect_equal(backward$p, -p, tolerance = 1e-10)
 	}
+})
+
+test_that("the marginal update reads a static precision matrix as the panel prior of the static block", {
+	set.seed(341536)
+	f = binary_move_fixture(1)
+	q = rnorm(f$size, sd = .3)
+	hp = f$hyper
+	hp$P = matrix(1 / hp$g, 1, 1)
+	hp$g = 999
+	ev = lame:::.lame_binary_hmc_evaluate
+	expect_equal(ev(q, f$context, hp)$logp, ev(q, f$context, f$hyper)$logp, tolerance = 1e-12)
+	expect_equal(ev(q, f$context, hp)$gradient, ev(q, f$context, f$hyper)$gradient, tolerance = 1e-12)
+	expect_equal(
+		lame:::.lame_binary_hmc_mass(f$context, hp),
+		lame:::.lame_binary_hmc_mass(f$context, f$hyper),
+		tolerance = 1e-12
+	)
 })
 
 test_that("the complete binary marginal update preserves independent prior draws", {

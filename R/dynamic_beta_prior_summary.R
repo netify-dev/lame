@@ -13,7 +13,10 @@
 #'
 #' For \code{kind = "ar1"}, \code{rho_mean}/\code{rho_sd} are translated to a
 #' Beta prior on the standardised \eqn{(\rho - \rho_{lower}) /
-#' (\rho_{upper} - \rho_{lower})}. For \code{kind = "rw1"},
+#' (\rho_{upper} - \rho_{lower})}, and the paths are deviations from the
+#' coefficient's long-run mean, which \code{lame()} estimates under the prior of
+#' a static coefficient; every reported summary is the same for the path
+#' itself, since none moves with a constant shift. For \code{kind = "rw1"},
 #' \eqn{\rho = 1} is fixed and only \eqn{\sigma_\beta^2} is sampled. For
 #' \code{kind = "rw2"}, the second-difference variance is sampled
 #' and the first two values use a diffuse \eqn{N(0, 10)} initial prior.
@@ -149,8 +152,10 @@ dynamic_beta_prior_summary <- function(
 			# jitter for numerical stability
 			K <- K + diag(1e-8, n_periods)
 			L <- tryCatch(chol(K), error = function(e) {
-				# diagonal draw when the covariance is degenerate
-				diag(sqrt(diag(K)), n_periods, n_periods)
+				# a nearly singular kernel takes its eigen root, the same covariance; its eigenvalues are at
+				# least the jitter, so a negative one is rounding error
+				ek <- eigen(K, symmetric = TRUE)
+				t(ek$vectors %*% diag(sqrt(pmax(ek$values, 0)), n_periods, n_periods))
 			})
 			paths[m, ] <- as.numeric(crossprod(L, stats::rnorm(n_periods)))
 		}

@@ -52,19 +52,6 @@ test_that("all observed Poisson scores use period exposure and saved parameters"
 	)
 })
 
-test_that("zero exposure leaves the native directed latent Gaussian target unchanged", {
-	Z = matrix(seq(-1.7, 1.8, length.out = 16), 4, 4)
-	eta = matrix(seq(.1, .4, length.out = 16), 4, 4)
-	Y = matrix(0, 4, 4); diag(Y) = NA; Y[1, 3] = NA
-	for (rho in c(-.6, 0, .6)) {
-		v = 2; e = Z - eta
-		ref = -(e * e + t(e) * t(e) - 2 * rho * e * t(e)) / (2 * v * (1 - rho * rho))
-		diag(ref) = -diag(e)^2 / (2 * v * (1 + rho))
-		actual = lame:::ldZgbme_pois_exposure_cpp(Z, Y, eta, rho, v, -Inf)
-		expect_equal(actual, ref, tolerance = 1e-12)
-	}
-})
-
 test_that("zero exposure is consistent for symmetric and rectangular fitted periods", {
 	for (bip in c(FALSE, TRUE)) {
 		n = 6; m = if (bip) 4 else 6

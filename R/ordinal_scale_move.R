@@ -12,23 +12,6 @@
 	switch(mode, dir = nr * nr, sym = nr * (nr - 1) / 2, bip = nr * nc)
 }
 
-# inner product of two matrices in the metric of the covariance of the latent array;
-# `up` the upper-triangle mask (square networks)
-.lame_osm_dot <- function(x, y, rho, s2, mode, up = NULL) {
-	if (identical(mode, "bip")) return(sum(x * y) / s2)
-	if (is.null(up)) up <- upper.tri(x)
-	if (identical(mode, "sym")) {
-		xs <- (x + t(x)) / 2
-		ys <- (y + t(y)) / 2
-		return(sum(xs[up] * ys[up]) / s2)
-	}
-	xt <- t(x)
-	yt <- t(y)
-	sum(((x + xt) * (y + yt))[up]) / (2 * (1 + rho) * s2) +
-		sum(((x - xt) * (y - yt))[up]) / (2 * (1 - rho) * s2) +
-		sum(diag(x) * diag(y)) / ((1 + rho) * s2)
-}
-
 # a draw from the density c^(D - 1) exp(-A c^2 / 2 + B c) on c > 0: exact (gamma) when B
 # is zero, otherwise an independence Metropolis-Hastings step from the Laplace
 # approximation of the density, started at c = 1 (the current state)
@@ -42,78 +25,6 @@
 	lf <- function(x) (D - 1) * log(x) - A * x^2 / 2 + B * x
 	lq <- function(x) -0.5 * curv * (x - cm)^2
 	if (log(stats::runif(1L)) < lf(cp) - lf(1) + lq(1) - lq(cp)) cp else 1
-}
-
-# the shift and the scale of the latent array of one period given its predictor
-.lame_osm_period <- function(Zt, Et, rho, s2, mode) {
-	nr <- nrow(Zt)
-	nc <- ncol(Zt)
-	up <- if (identical(mode, "bip")) NULL else upper.tri(Zt)
-	ncell <- .lame_osm_ncell(nr, nc, mode)
-	if (identical(mode, "sym")) {
-		Zt <- (Zt + t(Zt)) / 2
-		Et <- (Et + t(Et)) / 2
-	}
-	# shift: the density of Z + d around E is Gaussian in d
-	res <- Zt - Et
-	if (identical(mode, "sym")) {
-		prec <- ncell / s2
-		mu <- -sum(res[up]) / ncell
-	} else if (identical(mode, "bip")) {
-		prec <- ncell / s2
-		mu <- -sum(res) / ncell
-	} else {
-		prec <- ncell / ((1 + rho) * s2)
-		mu <- -sum(res) / ncell
-	}
-	Zt <- Zt + stats::rnorm(1L, mu, 1 / sqrt(prec))
-	# scale
-	A <- .lame_osm_dot(Zt, Zt, rho, s2, mode, up)
-	B <- .lame_osm_dot(Zt, Et, rho, s2, mode, up)
-	cc <- .lame_osm_draw_c(ncell, A, B)
-	if (cc != 1) Zt <- cc * Zt
-	Zt
-}
-
-# reference visit written directly on the latent array (the definition that
-# .lame_osm_visit computes from one-pass sums); arguments as for .lame_osm_visit
-.lame_osm_visit_ref <- function(Z, E, m, mode, rho, s2, A_pri, B_pri, d_th, affine = TRUE, orbit = TRUE) {
-	if (!all(is.finite(Z)) || !all(is.finite(E))) return(list(Z = Z, c = 1, E = E))
-	nr <- dim(Z)[1L]
-	nc <- dim(Z)[2L]
-	nt <- dim(Z)[3L]
-	rho <- rep_len(rho, nt)
-	up <- if (identical(mode, "bip")) NULL else upper.tri(matrix(0, nr, nc))
-	ncell <- .lame_osm_ncell(nr, nc, mode)
-	if (identical(mode, "sym")) {
-		sym_t <- function(a) {
-			for (tt in seq_len(dim(a)[3L])) a[, , tt] <- (a[, , tt] + t(a[, , tt])) / 2
-			a
-		}
-		E <- sym_t(E)
-		if (!is.null(m)) m <- sym_t(m)
-	}
-	# the orbit of the whole state: u = Z - E_scaled, the unscaled part m
-	cc <- 1
-	if (orbit) {
-		Es <- if (is.null(m)) E else E - m
-		A <- A_pri
-		B <- B_pri
-		for (tt in seq_len(nt)) {
-			u <- Z[, , tt] - Es[, , tt]
-			A <- A + .lame_osm_dot(u, u, rho[tt], s2, mode, up)
-			if (!is.null(m)) B <- B + .lame_osm_dot(u, m[, , tt], rho[tt], s2, mode, up)
-		}
-		cc <- .lame_osm_draw_c(nt * ncell + d_th, A, B)
-		if (cc != 1) {
-			Z <- cc * Z
-			E <- if (is.null(m)) cc * E else cc * Es + m
-		}
-	}
-	if (affine) {
-		for (tt in seq_len(nt)) Z[, , tt] <- .lame_osm_period(Z[, , tt], E[, , tt], rho[tt], s2, mode)
-	}
-	list(Z = Z, c = cc, E = E)
 }
 
 
@@ -208,15 +119,20 @@
 		return(c(A, d))
 	}
 	Si <- tryCatch(solve(Sab), error = function(e) NULL)
-	if (is.null(Si) || any(!is.finite(Si))) return(NULL)
+	if (is.null(Si) || any(!is.finite(Si))) {
+		.lame_fallback_note('ordinal_scale')
+		return(NULL)
+	}
 	ab <- cbind(a, b)
 	c(sum((ab %*% Si) * ab), 2 * length(a))
 }
 
 # priors of the scaled parameters of lame(): quadratic term A, linear term B and count d, or NULL when
-# Sab cannot be inverted. static coefficients take the sampler's g-prior (`P0` unipartite, I / (g s2)
-# bipartite), dynamic coefficients their path prior (as in R/poisson_period_move.R), static additive
-# effects N(0, Sab); dynamic additive effects stay in the unscaled part of the predictor
+# Sab cannot be inverted. static coefficients take the sampler's g-prior (`P0` unipartite, diag(1 / (g s2))
+# bipartite; on a dynamic_beta fit `P0` is the panel precision of the static block or NULL), dynamic
+# coefficients their path prior (as in R/poisson_period_move.R), static additive
+# effects N(0, Sab); dynamic additive effects stay in the unscaled part of the predictor. `mean_terms`
+# c(q, d) adds the long-run means of ar1 paths, which scale with their deviations
 .lame_osm_prior_lame <- function(
 	beta_dyn,
 	beta,
@@ -241,11 +157,16 @@
 	v0,
 	tpos,
 	length_scale,
-	nt
+	nt,
+	mean_terms = NULL
 ) {
 	A <- 0
 	B <- 0
 	d <- 0
+	if (!is.null(mean_terms)) {
+		A <- A + mean_terms[["q"]]
+		d <- d + mean_terms[["d"]]
+	}
 	if (isTRUE(beta_dyn$any)) {
 		for (j in seq_along(beta_dyn$dynamic_idx)) {
 			pri <- .lame_ppm_path_prior(kind, nt, rho_beta[j], sigma_beta[j], lam[j], tpos, length_scale, m0[j], v0[j])
@@ -255,11 +176,15 @@
 			d <- d + nt
 		}
 		if (length(beta_static)) {
-			A <- A + sum(beta_static^2 / (.lame_static_g_scale(g, beta_dyn$static_idx) * s2))
+			A <- A + if (is.null(P0)) {
+				sum(beta_static^2 / (.lame_static_g_scale(g, beta_dyn$static_idx) * s2))
+			} else drop(crossprod(beta_static, P0 %*% beta_static))
 			d <- d + length(beta_static)
 		}
 	} else if (length(beta)) {
-		A <- A + if (isTRUE(bip)) sum(beta^2) / (as.numeric(g[1L]) * s2) else drop(crossprod(beta, P0 %*% beta))
+		A <- A + if (isTRUE(bip)) {
+			sum(beta^2 / (.lame_static_g_scale(g, seq_along(beta)) * s2))
+		} else drop(crossprod(beta, P0 %*% beta))
 		d <- d + length(beta)
 	}
 	if (!isTRUE(dynamic_ab)) {

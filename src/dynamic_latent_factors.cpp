@@ -387,7 +387,7 @@ static double snap_log_marginal(const arma::mat& iB, double logdet_B,
 // both branch integrands, and folding it into a normalised prior drops this
 // ratio, so the snap log odds carries it explicitly whenever the next period
 // drifts from this one
-static double snap_forward_log_ratio(const arma::vec& x_prev,
+double snap_forward_log_ratio(const arma::vec& x_prev,
                                      const arma::vec& x_next, double rho_uv,
                                      double sigma2, double kappa2, int R) {
   const double v0 = sigma2 * (1.0 + rho_uv * rho_uv);
@@ -402,7 +402,7 @@ static double snap_forward_log_ratio(const arma::vec& x_prev,
 // snap indicator. c_stat is the s2-scaled stationary-init prior precision
 // used at t = 0 (no backward neighbour). fwd_log_ratio is
 // snap_forward_log_ratio() when the next period drifts from this one, else 0.
-static int snap_draw_row(arma::rowvec& update_row, const arma::mat& VtV,
+int snap_draw_row(arma::rowvec& update_row, const arma::mat& VtV,
                          const arma::vec& ei_data, const arma::vec& back_mean,
                          double s2_sigma2_inv, double s2_kappa_inv,
                          double fwd_diag, const arma::vec& fwd_ei,
@@ -668,7 +668,9 @@ List rUV_dynamic_snap_fc_cpp(const arma::cube& U_current, const arma::cube& V_cu
 //' Like rUV_dynamic_fc_cpp but each AR(1) innovation is Student-t rather than
 //' Gaussian, via a scale-mixture: the innovation for \code{u[t, i]} has variance
 //' \code{sigma^2 / lambda[t, i]} with \code{lambda[t, i]} distributed as
-//' Gamma(nu/2, nu/2). Provides a
+//' Gamma(nu/2, nu/2). The first period is Student-t of the same degrees of
+//' freedom and scale \code{sigma / sqrt(1 - rho^2)}, with variance
+//' \code{sigma^2 / ((1 - rho^2) lambda[1, i])}. Provides a
 //' continuous heavy-tailed alternative to the discrete snap-shift model.
 //'
 //' @param U_current Current 3D array of U positions (n x R x T)
@@ -709,9 +711,8 @@ List rUV_dynamic_t_fc_cpp(const arma::cube& U_current, const arma::cube& V_curre
   const double s2_sigma2_inv = s2t * sigma2_inv;
   const double s2_rho_sigma2 = s2t * rho_uv * sigma2_inv;
   const double s2_rho2_sigma2 = s2t * rho_uv * rho_uv * sigma2_inv;
-  // t = 0 initial condition: exactly the Gaussian stationary AR(1) marginal
-  // N(0, sigma^2 / (1 - rho^2)), so the transition-based hyper updates stay
-  // coherent by construction (the t mixture applies to transitions only)
+  // first period: N(0, sigma^2 / ((1 - rho^2) lambda_1)), a Student-t of scale
+  // sigma / sqrt(1 - rho^2) once its weight is integrated out
   const double s2_stat_init = s2t * (1.0 - rho_uv * rho_uv) * sigma2_inv;
 
   // rcpparmadillo wraps the caller's array instead of copying it, so the
@@ -755,7 +756,7 @@ List rUV_dynamic_t_fc_cpp(const arma::cube& U_current, const arma::cube& V_curre
         VtV_mod.diag() += lam * s2_sigma2_inv;
         ei += lam * s2_rho_sigma2 * U_new.slice(t-1).row(i).t();
       } else {
-        VtV_mod.diag() += s2_stat_init;
+        VtV_mod.diag() += lambda_u(i, 0) * s2_stat_init;
       }
       // forward term scaled by the next period's local precision
       if(t < T-1) {
@@ -806,7 +807,7 @@ List rUV_dynamic_t_fc_cpp(const arma::cube& U_current, const arma::cube& V_curre
           UtU_mod.diag() += lam * s2_sigma2_inv;
           ej += lam * s2_rho_sigma2 * V_new.slice(t-1).row(j).t();
         } else {
-          UtU_mod.diag() += s2_stat_init;
+          UtU_mod.diag() += lambda_v(j, 0) * s2_stat_init;
         }
         if(t < T-1) {
           double lam_next = lambda_v(j, t+1);
@@ -836,21 +837,32 @@ List rUV_dynamic_t_fc_cpp(const arma::cube& U_current, const arma::cube& V_curre
     }
   }
 
-  // sample the local scales from the ar(1) residuals (t scale-mixture)
+  // sample the local scales from the first period and the ar(1) residuals (t scale-mixture)
   arma::mat lambda_u_new = lambda_u;
   arma::mat lambda_v_new = lambda_v;
   double shape = (nu + R) / 2.0;
-  for(int t = 1; t < T; t++) {
+  const double stat_prec = (1.0 - rho_uv * rho_uv) * sigma2_inv;
+  for(int t = 0; t < T; t++) {
     for(int i = 0; i < n; i++) {
-      arma::rowvec eps = U_new.slice(t).row(i) - rho_uv * U_new.slice(t-1).row(i);
-      double rate = (nu + arma::dot(eps, eps) * sigma2_inv) / 2.0;
-      lambda_u_new(i, t) = R::rgamma(shape, 1.0 / rate);
+      double q;
+      if(t == 0) {
+        q = arma::dot(U_new.slice(0).row(i), U_new.slice(0).row(i)) * stat_prec;
+      } else {
+        arma::rowvec eps = U_new.slice(t).row(i) - rho_uv * U_new.slice(t-1).row(i);
+        q = arma::dot(eps, eps) * sigma2_inv;
+      }
+      lambda_u_new(i, t) = R::rgamma(shape, 2.0 / (nu + q));
     }
     if(!symmetric) {
       for(int j = 0; j < n; j++) {
-        arma::rowvec eps = V_new.slice(t).row(j) - rho_uv * V_new.slice(t-1).row(j);
-        double rate = (nu + arma::dot(eps, eps) * sigma2_inv) / 2.0;
-        lambda_v_new(j, t) = R::rgamma(shape, 1.0 / rate);
+        double q;
+        if(t == 0) {
+          q = arma::dot(V_new.slice(0).row(j), V_new.slice(0).row(j)) * stat_prec;
+        } else {
+          arma::rowvec eps = V_new.slice(t).row(j) - rho_uv * V_new.slice(t-1).row(j);
+          q = arma::dot(eps, eps) * sigma2_inv;
+        }
+        lambda_v_new(j, t) = R::rgamma(shape, 2.0 / (nu + q));
       }
     } else {
       lambda_v_new.col(t) = lambda_u_new.col(t);

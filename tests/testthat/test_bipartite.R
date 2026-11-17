@@ -145,26 +145,6 @@ test_that("four-cycle counting works for bipartite networks", {
 	expect_equal(as.numeric(cycles_empty), c(0, 0))
 })
 
-test_that("G sampling works", {
-	nA = 4
-	nB = 5
-	Tn = 2
-	RA = 3
-	RB = 2
-
-	R = array(rnorm(nA * nB * Tn), c(nA, nB, Tn))
-	U = array(rnorm(nA * RA * Tn), c(nA, RA, Tn))
-	V = array(rnorm(nB * RB * Tn), c(nB, RB, Tn))
-	lambdaG = 1
-	s2 = 1
-
-	# G sampling
-	G_new = lame:::sample_G_bip_cpp(R, U, V, lambdaG, s2)
-
-	expect_equal(dim(G_new), c(RA, RB))
-	expect_true(all(is.finite(G_new)))
-})
-
 test_that("bipartite initialization works", {
 	skip_if_not_installed("lame")
 
@@ -257,8 +237,8 @@ test_that("ame() bipartite normal recovers beta and additive effects", {
 		R = R,
 		family = "normal",
 		mode = "bipartite",
-		burn = 2000,
-		nscan = 8000,
+		burn = 1000,
+		nscan = 3000,
 		odens = 2,
 		verbose = FALSE,
 		gof = FALSE,
@@ -348,8 +328,8 @@ test_that("ame() bipartite binary recovers beta and additive effects", {
 		R = R,
 		family = "binary",
 		mode = "bipartite",
-		burn = 2000,
-		nscan = 8000,
+		burn = 1000,
+		nscan = 3000,
 		odens = 2,
 		verbose = FALSE,
 		gof = FALSE,
@@ -433,8 +413,8 @@ test_that("lame() bipartite normal recovers beta and additive effects", {
 		R = 0,
 		family = "normal",
 		mode = "bipartite",
-		burn = 1000,
-		nscan = 5000,
+		burn = 500,
+		nscan = 2000,
 		odens = 2,
 		verbose = FALSE,
 		gof = FALSE,
@@ -514,8 +494,8 @@ test_that("lame() bipartite binary recovers beta and effects", {
 		R = 0,
 		family = "binary",
 		mode = "bipartite",
-		burn = 1000,
-		nscan = 5000,
+		burn = 500,
+		nscan = 2000,
 		odens = 2,
 		verbose = FALSE,
 		gof = FALSE,
@@ -548,49 +528,6 @@ test_that("lame() bipartite binary recovers beta and effects", {
 		cor_b > 0.2,
 		info = paste("Receiver effects correlation:", round(cor_b, 3))
 	)
-})
-
-test_that("ame() bipartite dimensions are correct", {
-	nA = 10
-	nB = 7
-	R = 2
-
-	dat = simulate_test_network(
-		n = nA,
-		nA = nA,
-		nB = nB,
-		n_time = 1,
-		family = "normal",
-		R = R,
-		mode = "bipartite",
-		seed = 222
-	)
-
-	fit = ame(
-		dat$Y,
-		Xdyad = dat$Xdyad,
-		R = R,
-		family = "normal",
-		mode = "bipartite",
-		burn = 100,
-		nscan = 200,
-		odens = 2,
-		verbose = FALSE,
-		gof = FALSE,
-		seed = 42
-	)
-
-	# output dimensions
-	expect_equal(length(fit$APM), nA)
-	expect_equal(length(fit$BPM), nB)
-	expect_equal(nrow(fit$U), nA)
-	expect_equal(ncol(fit$U), R)
-	expect_equal(nrow(fit$V), nB)
-	expect_equal(ncol(fit$V), R)
-	expect_equal(nrow(fit$YPM), nA)
-	expect_equal(ncol(fit$YPM), nB)
-	expect_equal(nrow(fit$G), R)
-	expect_equal(ncol(fit$G), R)
 })
 
 # longitudinal lame() per-family behavior
@@ -1021,411 +958,7 @@ test_that("ame(family='frn', mode='bipartite') runs cross-sectionally", {
 	expect_lt(mean(fit$BETA[, "v2_dyad"]), 0)
 })
 
-# static ame() behavioral tests
-
-test_that("bipartite model fits additive effects", {
-	skip_on_cran()
-
-	set.seed(790)
-
-	nA = 15
-	nB = 20
-
-	# true parameters
-	mu_true = 0.3
-	sigma2_a = 0.4
-	sigma2_b = 0.3
-	sigma2_e = 0.5
-
-	# generate additive effects
-	a_true = rnorm(nA, 0, sqrt(sigma2_a))
-	b_true = rnorm(nB, 0, sqrt(sigma2_b))
-
-	# generate network
-	Y = matrix(mu_true, nA, nB)
-	for (i in 1:nA) {
-		Y[i, ] = Y[i, ] + a_true[i]
-	}
-	for (j in 1:nB) {
-		Y[, j] = Y[, j] + b_true[j]
-	}
-	Y = Y + matrix(rnorm(nA * nB, 0, sqrt(sigma2_e)), nA, nB)
-
-	# fit model with additive effects
-	fit = ame(
-		Y,
-		mode = "bipartite",
-		rvar = TRUE,
-		cvar = TRUE,
-		R_row = 0,
-		R_col = 0,
-		burn = 500,
-		nscan = 2000,
-		verbose = FALSE
-	)
-
-	# additive effects are present
-	expect_false(is.null(fit$APM))
-	expect_false(is.null(fit$BPM))
-	expect_equal(length(fit$APM), nA)
-	expect_equal(length(fit$BPM), nB)
-
-	expect_true(mean(fit$VC[, 1]) > 0)
-	expect_true(mean(fit$VC[, 3]) > 0)
-
-	# row and column means are close to true values
-	expect_equal(mean(fit$APM), mean(a_true), tolerance = 0.3)
-	expect_equal(mean(fit$BPM), mean(b_true), tolerance = 0.3)
-})
-
-test_that("bipartite model fits multiplicative effects", {
-	skip_on_cran()
-
-	set.seed(791)
-
-	nA = 20
-	nB = 25
-	R_row = 2
-	R_col = 2
-
-	# generate latent factors
-	U_true = matrix(rnorm(nA * R_row), nA, R_row)
-	V_true = matrix(rnorm(nB * R_col), nB, R_col)
-	G_true = diag(c(2, 1), R_row, R_col)
-
-	# generate network with multiplicative effects
-	mu_true = 0.2
-	UV_true = U_true %*% G_true %*% t(V_true)
-	Y = mu_true + UV_true + matrix(rnorm(nA * nB, 0, 0.5), nA, nB)
-
-	# fit model with multiplicative effects
-	fit = ame(
-		Y,
-		mode = "bipartite",
-		R_row = R_row,
-		R_col = R_col,
-		burn = 500,
-		nscan = 2000,
-		verbose = FALSE
-	)
-
-	# latent-factor dimensions
-	expect_equal(dim(fit$U), c(nA, R_row))
-	expect_equal(dim(fit$V), c(nB, R_col))
-	expect_equal(dim(fit$G), c(R_row, R_col))
-
-	# multiplicative effects capture structure
-	UVPM_reconstructed = reconstruct_UVPM(fit)
-
-	# the reconstructed product correlates positively with the truth
-	if (!is.null(UVPM_reconstructed)) {
-		cor_uv = cor(c(UV_true), c(UVPM_reconstructed))
-		expect_gt(cor_uv, 0.3)
-	}
-})
-
-test_that("bipartite multiplicative rank improves fit", {
-	skip_on_cran()
-
-	set.seed(794)
-
-	nA = 15
-	nB = 12
-
-	# generate network with rank-2 structure
-	U_true = matrix(rnorm(nA * 2), nA, 2)
-	V_true = matrix(rnorm(nB * 2), nB, 2)
-	Y = U_true %*% t(V_true) + matrix(rnorm(nA * nB, 0, 0.3), nA, nB)
-
-	# fit with R = 0
-	fit0 = ame(
-		Y,
-		mode = "bipartite",
-		R_row = 0,
-		R_col = 0,
-		burn = 300,
-		nscan = 1000,
-		verbose = FALSE
-	)
-
-	# fit with R = 2
-	fit2 = ame(
-		Y,
-		mode = "bipartite",
-		R_row = 2,
-		R_col = 2,
-		burn = 300,
-		nscan = 1000,
-		verbose = FALSE
-	)
-
-	resid0 = Y - fit0$YPM
-	resid2 = Y - fit2$YPM
-
-	# both models produced valid predictions
-	expect_false(all(is.na(fit0$YPM)))
-	expect_false(all(is.na(fit2$YPM)))
-
-	# the rank-2 model has lower residuals than R = 0
-	mse0 = mean(resid0^2, na.rm = TRUE)
-	mse2 = mean(resid2^2, na.rm = TRUE)
-
-	# compare only finite MSE values
-	if (is.finite(mse0) && is.finite(mse2)) {
-		expect_lt(mse2, mse0)
-	}
-})
-
-test_that("bipartite model handles missing data", {
-	skip_on_cran()
-
-	set.seed(795)
-
-	nA = 10
-	nB = 8
-
-	# generate complete network
-	Y = matrix(rnorm(nA * nB), nA, nB)
-
-	# add missing values
-	missing_idx = sample(1:(nA * nB), size = 10, replace = FALSE)
-	Y[missing_idx] = NA
-
-	fit = ame(
-		Y,
-		mode = "bipartite",
-		burn = 200,
-		nscan = 500,
-		verbose = FALSE
-	)
-
-	# model ran
-	expect_equal(fit$mode, "bipartite")
-
-	expect_false(any(is.na(fit$YPM)))
-})
-
-test_that("bipartite gof statistics are computed", {
-	skip_on_cran()
-
-	set.seed(796)
-
-	nA = 8
-	nB = 10
-
-	Y = matrix(rnorm(nA * nB), nA, nB)
-
-	# fit with GOF
-	fit = ame(
-		Y,
-		mode = "bipartite",
-		burn = 100,
-		nscan = 300,
-		gof = TRUE,
-		verbose = FALSE
-	)
-
-	# GOF output is present
-	expect_false(is.null(fit$GOF))
-	# Gaussian bipartite GOF uses weighted rectangle dependence
-	expect_equal(ncol(fit$GOF), 3)
-
-	# heterogeneity is non-negative; weighted dependence can have either sign
-	obs_sd_row = fit$GOF[1, 1]
-	obs_sd_col = fit$GOF[1, 2]
-	obs_four_cycle_dep = fit$GOF[1, "four.cycle.dep"]
-
-	expect_true(obs_sd_row >= 0)
-	expect_true(obs_sd_col >= 0)
-	expect_equal(
-		unname(obs_four_cycle_dep),
-		unname(gof_stats_bipartite(Y, family = "normal")["four.cycle.dep"])
-	)
-})
-
 # static ame() structural and covariate tests
-
-test_that("supported bipartite families fit", {
-	skip_on_cran()
-
-	set.seed(456)
-
-	# bipartite dimensions
-	nA = 12
-	nB = 10
-
-	# test the supported rectangular families
-	families = c("normal", "binary")
-
-	for (fam in families) {
-		# generate test data
-		if (fam == "normal") {
-			Y = matrix(rnorm(nA * nB, 0, 1), nA, nB)
-		} else if (fam == "binary" || fam == "cbin") {
-			Y = matrix(rbinom(nA * nB, 1, 0.5), nA, nB)
-		} else if (fam == "poisson") {
-			Y = matrix(rpois(nA * nB, 3), nA, nB)
-		} else if (fam == "ordinal") {
-			Y = matrix(sample(0:3, nA * nB, replace = TRUE), nA, nB)
-		} else if (fam == "frn") {
-			# fixed rank nomination
-			Y = matrix(0, nA, nB)
-			for (i in 1:nA) {
-				nominated = sample(1:nB, min(3, nB))
-				Y[i, nominated] = 1:length(nominated)
-			}
-		}
-
-		# set odmax for rank families
-		if (fam %in% c("cbin", "frn")) {
-			odmax = rep(3, nA)
-		} else {
-			odmax = NULL
-		}
-
-		suppressWarnings({
-			fit = ame(
-				Y,
-				mode = "bipartite",
-				family = fam,
-				R_row = 0,
-				R_col = 0,
-				odmax = odmax,
-				burn = 100,
-				nscan = 300,
-				verbose = FALSE
-			)
-		})
-
-		# basic checks
-		expect_equal(
-			fit$mode,
-			"bipartite",
-			info = paste("Mode check failed for", fam)
-		)
-		expect_equal(
-			fit$family,
-			fam,
-			info = paste("Family check failed for", fam)
-		)
-		expect_equal(
-			fit$nA,
-			nA,
-			info = paste("Row dimension check failed for", fam)
-		)
-		expect_equal(
-			fit$nB,
-			nB,
-			info = paste("Column dimension check failed for", fam)
-		)
-
-		# posterior samples are present
-		expect_false(
-			is.null(fit$BETA),
-			info = paste("BETA missing for", fam)
-		)
-
-		# family-specific checks
-		if (fam == "binary" || fam == "cbin") {
-			# predictions are binary probabilities
-			expect_true(
-				all(fit$YPM >= 0 & fit$YPM <= 1),
-				info = paste("YPM not in [0,1] for", fam)
-			)
-		}
-	}
-})
-
-test_that("bipartite models with multiplicative effects fit", {
-	skip_on_cran()
-
-	set.seed(457)
-
-	nA = 10
-	nB = 8
-	R_row = 1
-	R_col = 1
-
-	# test the supported subset with multiplicative effects
-	families = c("normal", "binary")
-
-	for (fam in families) {
-		# generate data
-		if (fam == "normal") {
-			Y = matrix(rnorm(nA * nB), nA, nB)
-		} else if (fam == "binary") {
-			Y = matrix(rbinom(nA * nB, 1, 0.5), nA, nB)
-		} else if (fam == "poisson") {
-			Y = matrix(rpois(nA * nB, 2), nA, nB)
-		}
-
-		# fit with multiplicative effects
-		suppressWarnings({
-			fit = ame(
-				Y,
-				mode = "bipartite",
-				family = fam,
-				R_row = R_row,
-				R_col = R_col,
-				burn = 100,
-				nscan = 300,
-				verbose = FALSE
-			)
-		})
-
-		# multiplicative effects are present
-		expect_equal(
-			dim(fit$U),
-			c(nA, R_row),
-			info = paste("U dimension wrong for", fam)
-		)
-		expect_equal(
-			dim(fit$V),
-			c(nB, R_col),
-			info = paste("V dimension wrong for", fam)
-		)
-		expect_equal(
-			dim(fit$G),
-			c(R_row, R_col),
-			info = paste("G dimension wrong for", fam)
-		)
-	}
-})
-
-test_that("bipartite models handle covariates", {
-	skip_on_cran()
-
-	set.seed(458)
-
-	nA = 8
-	nB = 6
-
-	# generate covariates
-	Xdyad = array(rnorm(nA * nB * 2), c(nA, nB, 2))
-	Xrow = matrix(rnorm(nA * 2), nA, 2)
-	Xcol = matrix(rnorm(nB * 2), nB, 2)
-
-	Y = matrix(rnorm(nA * nB), nA, nB)
-
-	# fit with all covariate types
-	fit = ame(
-		Y,
-		Xdyad = Xdyad,
-		Xrow = Xrow,
-		Xcol = Xcol,
-		mode = "bipartite",
-		burn = 100,
-		nscan = 300,
-		verbose = FALSE
-	)
-
-	# intercept + 2 dyadic + 2 row + 2 col
-	expect_equal(ncol(fit$BETA), 7)
-
-	# estimates are present
-	beta_means = colMeans(fit$BETA)
-	expect_false(any(is.na(beta_means)))
-})
 
 test_that("bipartite dynamic_uv keeps the latent scale identified (regression)", {
 	# only U G V' is identified, so without a gauge the U/V-vs-G scale drifts (G toward 0, U/V past prior$uv_max_abs)

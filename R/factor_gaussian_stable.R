@@ -109,8 +109,9 @@
 	draw
 }
 
-# precision of the stacked factor prior covariance: equilibrated Cholesky inverse, with an
-# eigenvalue-floored inverse when the covariance is not numerically positive definite
+# precision of the stacked factor prior covariance: equilibrated Cholesky inverse, with the exact
+# eigenvalue inverse when the correlation is too close to singular for the Cholesky factor. a
+# covariance that is not numerically positive definite stops: flooring its eigenvalues would change the prior
 .lame_factor_prior_precision <- function(covariance) {
 	d <- nrow(covariance)
 	if (!is.matrix(covariance) || d < 1L || ncol(covariance) != d ||
@@ -122,8 +123,9 @@
 	root <- tryCatch(chol(balanced), error = function(e) NULL)
 	precision <- if (!is.null(root)) chol2inv(root) else {
 		e <- eigen(balanced, symmetric = TRUE)
-		ev <- pmax(e$values, max(e$values, 1) * sqrt(.Machine$double.eps))
-		e$vectors %*% (t(e$vectors) / ev)
+		if (!all(is.finite(e$values)) || min(e$values) <= 0)
+			cli::cli_abort("Factor prior covariance is not numerically positive definite.")
+		e$vectors %*% (t(e$vectors) / e$values)
 	}
 	precision <- (precision + t(precision)) / 2 / outer(scales, scales)
 	if (any(!is.finite(precision)))

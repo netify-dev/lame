@@ -13,99 +13,11 @@
 # does not change as ve settles
 .lde_pln_kin <- function(ve) .ae_pln_kin(1.5 * ve)
 
-# R reference for pln_node() of src/ae_pln.h with the fourth cumulant, in chunks to bound memory
-.lde_pln_node_block <- function(y, eta, ve, K) {
-	n <- length(y)
-	eta <- pmin(pmax(eta, -700), 700)
-	ve <- pmin(pmax(ve, 1e-8), 1e6)
-	iv <- 1 / ve
-	ly <- ifelse(y > 0, log(y), -Inf)
-	zeta <- pmax(eta, ly)
-	u <- y + eta / ve
-	act <- seq_len(n)
-	for (it in seq_len(100L)) {
-		if (!length(act)) break
-		zt <- zeta[act]
-		ez <- exp(zt)
-		step <- (ez + zt / ve[act] - u[act]) / (ez + iv[act])
-		zt <- zt - step
-		zeta[act] <- zt
-		act <- act[!(abs(step) <= 1e-13 * pmax(1, abs(zt)))]
-	}
-	Xs <- exp(zeta)
-	s <- 1 / sqrt(Xs + iv)
-	estar <- zeta - eta
-	rule <- .ae_pln_rule(K)
-	Z <- matrix(rule$z, n, K, byrow = TRUE)
-	tt <- s * Z
-	r <- expm1(tt) - tt - 0.5 * tt * tt
-	sm <- abs(tt) < 0.1
-	if (any(sm)) {
-		t1 <- tt[sm]
-		r[sm] <- t1 * t1 * t1 / 6 * (1 + t1 / 4 * (1 + t1 / 5 * (1 + t1 / 6 * (1 + t1 / 7 * (1 + t1 / 8 *
-				(1 + t1 / 9 * (1 + t1 / 10 * (1 + t1 / 11))))))))
-	}
-	lw <- matrix(rule$lw, n, K, byrow = TRUE) - Xs * r
-	ex <- expm1(tt)
-	mx <- lw[cbind(seq_len(n), max.col(lw, ties.method = "first"))]
-	p <- exp(lw - mx)
-	tot <- rowSums(p)
-	p <- p / tot
-	ex[p == 0] <- 0
-	ez1 <- rowSums(p * Z)
-	d <- Z - ez1
-	vz <- rowSums(p * d * d)
-	k3 <- rowSums(p * d * d * d)
-	k4 <- rowSums(p * d * d * d * d) - 3 * vz * vz
-	eex <- rowSums(p * ex)
-	cze <- rowSums(p * d * (ex - eex))
-	me <- estar + s * ez1
-	gs <- y * estar - Xs - estar * estar / (2 * ve)
-	list(
-		l = y * eta - lgamma(y + 1) - 0.5 * log(2 * pi * ve) + gs + log(s) + 0.918938533204672741780329736406 +
-			mx + log(tot),
-		s = me / ve,
-		w = Xs * s * cze / ve,
-		hp = -(s * s * s) * k3 / (ve * ve * ve),
-		hpp = -(s * s * s * s) * k4 / (ve * ve * ve * ve),
-		ee = s * s * vz + me * me,
-		me = me
-	)
-}
-
-.lde_pln_node_r <- function(y, eta, ve, K = .lde_pln_kin(max(ve)), chunk = 20000L) {
-	n <- length(y)
-	ve <- rep_len(ve, n)
-	out <- vector("list", ceiling(n / chunk))
-	for (k in seq_along(out)) {
-		ix <- ((k - 1L) * chunk + 1L):min(k * chunk, n)
-		out[[k]] <- .lde_pln_node_block(y[ix], eta[ix], ve[ix], K)
-	}
-	if (!length(out)) return(list(
-		l = numeric(),
-		s = numeric(),
-		w = numeric(),
-		hp = numeric(),
-		hpp = numeric(),
-		ee = numeric(),
-		me = numeric()
-	))
-	if (length(out) == 1L) return(out[[1L]])
-	nm <- names(out[[1L]])
-	setNames(lapply(nm, function(a) unlist(lapply(out, `[[`, a), use.names = FALSE)), nm)
-}
-
 # cell terms on the observed entries of (y, eta): log likelihood, score, information,
 # its two derivatives, and the noise's second moment and mean; `lgy` is lgamma(y + 1).
-# compiled kernel, or the R reference with options(lame.als_engine = "r")
+# compiled kernel (lde_pln_cells_cpp)
 .lde_pln_terms <- function(y, eta, ve, lgy = NULL, K = .lde_pln_kin(ve)) {
 	d <- .ae_dims(y)
-	if (identical(.ae_engine(), "r")) {
-		ix <- which(is.finite(y) & is.finite(eta))
-		nd <- .lde_pln_node_r(y[ix], eta[ix], ve, K)
-		out <- lapply(nd, function(v) { o <- array(0, d); o[ix] <- v; o })
-		return(out)
-	}
 	if (is.null(lgy)) lgy <- lgamma(pmax(as.numeric(y), 0, na.rm = TRUE) + 1)
 	rule <- .ae_pln_rule(K)
 	out <- lde_pln_cells_cpp(
@@ -210,45 +122,13 @@
 	if (!is.finite(vmax) || vmax <= 3) 9L else if (vmax <= 10) 21L else 41L
 )
 
-# R reference of lde_pln_expect_cpp(): the cell terms averaged over the predictor
-# m + sqrt(v) z by an outer Gauss-Hermite rule; `lm` is the log expected probability of the count
-.lde_pln_expect_r <- function(y, m, v, ve, Kin, K2) {
-	d <- .ae_dims(y)
-	ix <- which(is.finite(y) & is.finite(m))
-	mm <- m[ix]
-	vv <- pmax(rep_len(v, length(y))[ix], 0)
-	yy <- y[ix]
-	rules <- .lde_pln_outer_rule(suppressWarnings(max(vv, 0)))
-	rule_of <- findInterval(vv, rules$vcut, left.open = TRUE) + 1L
-	n <- length(ix)
-	acc <- list(es = numeric(n), ew = numeric(n), eh = numeric(n), ehh = numeric(n), el = numeric(n), ee = numeric(n))
-	for (r in seq_along(rules$z)) {
-		sel <- which(rule_of == r)
-		if (!length(sel)) next
-		sdv <- sqrt(vv[sel])
-		for (k in seq_along(rules$z[[r]])) {
-			nd <- .lde_pln_node_r(yy[sel], mm[sel] + sdv * rules$z[[r]][k], ve, Kin)
-			wk <- rules$w[[r]][k]
-			acc$es[sel] <- acc$es[sel] + wk * nd$s
-			acc$ew[sel] <- acc$ew[sel] + wk * nd$w
-			acc$eh[sel] <- acc$eh[sel] + wk * nd$hp
-			acc$ehh[sel] <- acc$ehh[sel] + wk * nd$hpp
-			acc$el[sel] <- acc$el[sel] + wk * nd$l
-			acc$ee[sel] <- acc$ee[sel] + wk * nd$ee
-		}
-	}
-	acc$lm <- .lde_pln_node_r(yy, mm, ve + vv, K2)$l
-	lapply(acc, function(a) { o <- array(0, d); o[ix] <- a; o })
-}
-
-# expected cells by the compiled kernel (or the R reference with options(lame.als_engine = "r"))
+# expected cells by the compiled kernel (lde_pln_expect_cpp)
 .lde_pln_expect <- function(y, m, v, ve, lgy = NULL) {
 	d <- .ae_dims(y)
 	v <- array(pmax(rep_len(as.numeric(v), length(y)), 0), d)
 	Kin <- .lde_pln_kin(ve)
 	vmax <- suppressWarnings(max(v[is.finite(y) & is.finite(m)], 0))
 	K2 <- .ae_pln_kin(1.5 * (ve + vmax))
-	if (identical(.ae_engine(), "r")) return(.lde_pln_expect_r(y, m, v, ve, Kin, K2))
 	if (is.null(lgy)) lgy <- lgamma(pmax(as.numeric(y), 0, na.rm = TRUE) + 1)
 	outer <- .lde_pln_outer_rule(vmax)
 	rule <- .ae_pln_rule(Kin)

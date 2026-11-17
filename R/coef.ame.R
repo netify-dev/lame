@@ -13,6 +13,9 @@
 #' matrix of per-period posterior means. Rownames are the coefficient names;
 #' colnames are the period labels (from \code{names(Y)} or \code{t1, t2, ...}).
 #' Static coefficients in a dynamic fit are constant across the columns.
+#' A coefficient whose path is AR(1) reverts to its own long-run mean; its
+#' posterior mean is in \code{fit$mu_beta}, its draws in \code{fit$MU_BETA},
+#' and \code{confint(fit, parm = "mu_beta")} gives its intervals.
 #'
 #' For binary models, these are on the probit (latent) scale. Use
 #' \code{\link{predict.ame}} with \code{type = "response"} to get predicted
@@ -133,7 +136,9 @@ vcov.lame <- function(object, ...) {
 #' @param object fitted AME / LAME model.
 #' @param parm character vector of parameter names, or numeric indices. When
 #'   \code{parm} is character, both BETA names (e.g. \code{"intercept"},
-#'   \code{"x1_dyad"}) and variance-component names (\code{"va"}, \code{"vb"},
+#'   \code{"x1_dyad"}; on a fit with coefficient paths a name selects that
+#'   coefficient in every period, \code{"x1_dyad[t2]"} one period) and
+#'   variance-component names (\code{"va"}, \code{"vb"},
 #'   \code{"cab"}, \code{"rho"}, \code{"ve"}) are accepted; on a unipartite
 #'   binary, cbin or frn panel carrying fewer than one event per actor-period
 #'   the
@@ -145,7 +150,10 @@ vcov.lame <- function(object, ...) {
 #'   intervals are \code{NA} with or without a supplied prior. \code{NULL}
 #'   (default) returns intervals for the regression coefficients only, the
 #'   parameters \code{coef()} reports; name variance components in
-#'   \code{parm} to include them. Numeric indices select coefficient rows.
+#'   \code{parm} to include them. In a \code{dynamic_beta} fit with AR(1)
+#'   coefficient paths, \code{"mu_beta"} selects the long-run mean of every
+#'   such path and \code{"mu_beta[x1_dyad]"} that of one coefficient.
+#'   Numeric indices select coefficient rows.
 #' @param level credible level (default 0.95).
 #' @param ... additional arguments (ignored).
 #'
@@ -219,8 +227,22 @@ confint.ame <- function(object, parm = NULL, level = 0.95, ...) {
 		} else {
 			matrix(numeric(0), 0, 2, dimnames = list(NULL, pct))
 		}
-		all_ci <- rbind(beta_ci, vc_ci)
+		# long-run means of the ar1 coefficient paths, as mu_beta[coefficient]
+		mu_ci <- if (is.matrix(object$MU_BETA) && ncol(object$MU_BETA) > 0L) {
+			m <- t(apply(object$MU_BETA, 2, quantile, probs = probs, na.rm = TRUE))
+			colnames(m) <- pct
+			rownames(m) <- paste0("mu_beta[", colnames(object$MU_BETA), "]")
+			m
+		} else matrix(numeric(0), 0, 2, dimnames = list(NULL, pct))
+		all_ci <- rbind(beta_ci, vc_ci, mu_ci)
 		if (is.character(parm)) {
+			if ("mu_beta" %in% parm) parm <- unique(c(setdiff(parm, "mu_beta"), rownames(mu_ci)))
+			# a coefficient of a 3-d BETA named alone selects its rows in every period
+			if (length(dim(object$BETA)) == 3L) {
+				parm <- unlist(lapply(parm, function(nm) {
+					if (nm %in% rownames(all_ci) || !(nm %in% coef_base)) nm else rownames(beta_ci)[coef_base == nm]
+				}), use.names = FALSE)
+			}
 			bad <- setdiff(parm, rownames(all_ci))
 			if (length(bad) > 0L) {
 				cli::cli_abort(c(

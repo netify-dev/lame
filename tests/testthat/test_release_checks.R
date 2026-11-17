@@ -261,8 +261,7 @@ test_that("the settling check leaves out the quantities a fit reports as not est
 		lame:::.lame_chain_moving(sparse)$parameter,
 		c("rho_ab", "sigma_ab")
 	)
-	# the snap and t kinds withhold rho_uv and sigma_uv (and snap pi_snap) at
-	# rank two or more
+	# the snap kind reports rho_uv, sigma_uv and pi_snap at every rank, and they are checked
 	snap = list(
 		dynamic_uv = TRUE,
 		dynamic_uv_kind = "snap",
@@ -271,15 +270,26 @@ test_that("the settling check leaves out the quantities a fit reports as not est
 		sigma_uv = trend,
 		pi_snap = trend
 	)
-	expect_equal(nrow(lame:::.lame_chain_moving(snap)), 0L)
-	snap$R = 2
-	expect_equal(nrow(lame:::.lame_chain_moving(snap)), 0L)
-	# at rank one they are reported, and checked
-	snap$R = 1
 	expect_setequal(
 		lame:::.lame_chain_moving(snap)$parameter,
 		c("rho_uv", "sigma_uv", "pi_snap")
 	)
+	for (rk in 1:2) {
+		snap$R = rk
+		expect_setequal(
+			lame:::.lame_chain_moving(snap)$parameter,
+			c("rho_uv", "sigma_uv", "pi_snap")
+		)
+	}
+	# the t kind reports and checks rho_uv and sigma_uv at every rank, with or without an ALS start
+	tk = snap
+	tk$pi_snap = NULL
+	tk$dynamic_uv_kind = "t"
+	for (rk in 1:3) for (als in c(TRUE, FALSE)) {
+		tk$R = rk
+		tk$als_start = als
+		expect_setequal(lame:::.lame_chain_moving(tk)$parameter, c("rho_uv", "sigma_uv"))
+	}
 	snap$R = NULL; snap$pi_snap = NULL
 	snap$dynamic_uv_kind = "ar1"
 	expect_setequal(lame:::.lame_chain_moving(snap)$parameter, c("rho_uv", "sigma_uv"))
@@ -287,7 +297,11 @@ test_that("the settling check leaves out the quantities a fit reports as not est
 
 test_that("print() reports a single dynamic component and the symmetric gauge", {
 	Y = bin_panel()
-	fab = quiet(lame(
+	pr = function(f) paste(
+		c(capture.output(print(f)), capture.output(print(f), type = "message")),
+		collapse = "\n"
+	)
+	fab = function(...) quiet(lame(
 		Y,
 		family = "binary",
 		R = 0,
@@ -297,11 +311,34 @@ test_that("print() reports a single dynamic component and the symmetric gauge", 
 		odens = 1,
 		verbose = FALSE,
 		plot = FALSE,
-		gof = FALSE
+		gof = FALSE,
+		...
 	))
-	out = paste(c(capture.output(print(fab)), capture.output(print(fab), type = "message")), collapse = "\n")
+	# without an intercept dynamic_ab is the only dynamic component
+	out = pr(fab(intercept = FALSE))
 	expect_true(grepl("Additive effects AR\\(1\\): rho_ab", out))
 	expect_false(grepl("Dynamic components", out))
+	# with an intercept, the rw1 intercept path is a second component without persistence
+	out = pr(fab())
+	expect_true(grepl("Dynamic components", out))
+	expect_true(grepl("intercept dynamic\\s+under dynamic_ab", out))
+	expect_true(grepl("none \\(rw1\\)", out))
+	# a single rw1 coefficient block prints its innovation sd, not an empty rho_beta
+	out = pr(quiet(lame(
+		Y,
+		family = "binary",
+		R = 0,
+		dynamic_beta = TRUE,
+		dynamic_beta_kind = "rw1",
+		nscan = 20,
+		burn = 5,
+		odens = 1,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	)))
+	expect_true(grepl("Coefficient path \\(rw1\\): innovation sd [0-9]", out))
+	expect_false(grepl("rho_beta ,", out))
 	Ys = lapply(Y, function(m) { m[lower.tri(m)] = t(m)[lower.tri(m)]; m })
 	fs = quiet(lame(
 		Ys,
@@ -516,26 +553,7 @@ test_that("bipartite G is a posterior mean and V positions carry a posterior sd"
 	lp = latent_positions(fd)
 	expect_true(all(is.finite(lp$posterior_sd)))
 	expect_true(all(c("U", "V") %in% lp$type))
-	# a per-period interaction matrix is refused, and nothing in the reporting
-	# offers one
-	expect_error(
-		lame(
-			Yb,
-			family = "binary",
-			mode = "bipartite",
-			R_row = 2,
-			R_col = 2,
-			dynamic_uv = TRUE,
-			dynamic_G = TRUE,
-			nscan = 40,
-			burn = 10,
-			odens = 2,
-			verbose = FALSE,
-			plot = FALSE,
-			gof = FALSE
-		),
-		"not supported"
-	)
+	# nothing in the reporting offers a per-period interaction matrix
 	out = paste(c(capture.output(print(fd)), capture.output(print(fd), type = "message")), collapse = "\n")
 	expect_false(grepl("G_t|rho_G", out))
 })

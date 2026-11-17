@@ -13,25 +13,12 @@
 	if (!is.finite(va)) va <- 0
 	if (!is.finite(vb)) vb <- 0
 	if (!is.finite(cab)) cab <- 0
-	# draws are centred to the fit's sum-to-zero gauge, so the refit intercept does not absorb
-	# identification noise; empirical-Bayes fits keep uncentred effects (mu is the population intercept)
-	eb_fit <- identical(object$bias_correct$method, "eb")
-	ctr <- function(x) if (length(x) > 1L && !eb_fit) x - mean(x) else x
-	# intercept the drawn effects induce through the node covariates ("intercept_shift"); the replicate
-	# intercept of a fixed-effects fit is measured against it
-	shift <- function(a, b) {
-		if (eb_fit) return(0)
-		if (object$symmetric) {
-			W <- cbind(object$W_row, object$W_col)
-			return(2 * .ae_decompose(a, W)$intercept)
-		}
-		.ae_decompose(a, object$W_row)$intercept + .ae_decompose(b, object$W_col)$intercept
-	}
-	finish <- function(a, b) {
-		out <- outer(a, b, "+")
-		attr(out, "intercept_shift") <- as.numeric(shift(a, b))
-		out
-	}
+	# a cross-sectional fit keeps uncentred effects (its intercept is the population intercept); a
+	# longitudinal one centres the draws to its sum-to-zero gauge, so the refit intercept does not
+	# absorb identification noise
+	centred <- inherits(object, "lame_als")
+	ctr <- function(x) if (length(x) > 1L && centred) x - mean(x) else x
+	finish <- function(a, b) outer(a, b, "+")
 	if (object$symmetric) {
 		a <- ctr(stats::rnorm(nr, 0, sqrt(max(va, 0))))
 		return(finish(a, a))
@@ -105,9 +92,13 @@
 
 # orthogonal Procrustes rotation R minimizing || M_src R - M_tgt ||
 .ae_procrustes <- function(M_src, M_tgt) {
-	sv <- tryCatch(svd(crossprod(M_src, M_tgt)), error = function(e) NULL)
-	if (is.null(sv)) return(diag(ncol(M_src)))
-	sv$u %*% t(sv$v)
+	M <- crossprod(M_src, M_tgt)
+	sv <- tryCatch(svd(M), error = function(e) NULL)
+	if (!is.null(sv)) return(sv$u %*% t(sv$v))
+	# the same rotation as the polar factor M (M'M)^(-1/2)
+	eg <- eigen(crossprod(M), symmetric = TRUE)
+	keep <- eg$values > max(eg$values) * 1e-12
+	M %*% eg$vectors[, keep, drop = FALSE] %*% (t(eg$vectors[, keep, drop = FALSE]) / sqrt(eg$values[keep]))
 }
 
 # minimal "prep" list (as .ae_assemble() consumes) from canonical arrays, for ame_als_refit()
@@ -152,6 +143,36 @@
 	inherits(object, "lame_dynamic_als")
 }
 
+# whether a fast fit is the empirical-Bayes fit: every fit this release returns carries no
+# estimator record; fits of earlier releases record it in fit$bias_correct ("eb" by default), and
+# the internal penalised and transform fits record "none"
+.ae_fit_eb <- function(object) {
+	bc <- object$bias_correct
+	is.null(bc) || identical(bc$method, "eb")
+}
+
+# the estimator of a fast fit, read where a method needs it: the empirical-Bayes fit of this
+# release, and of the releases before it with their default settings. a fit an earlier release
+# made with a fast-route setting removed in 1.4.2 stops here, with the advice to refit it
+.ae_fit_estimator <- function(object) {
+	requested <- object$als_refit$args$bias_correct
+	eb <- .ae_fit_eb(object) && (is.null(requested) || identical(requested, "eb")) &&
+		(.ae_is_dynamic_als(object) || identical(object$eb$estimator, "variational"))
+	if (!eb) .ae_abort_removed_setting()
+	"eb"
+}
+
+.ae_abort_removed_setting <- function() {
+	cli::cli_abort(
+		c(
+			"This fit was made with a fast-route estimator setting that lame 1.4.2 removed.",
+			"i" = "Refit the model with this release ({.fn ame_als}, {.fn lame_als} or {.code method = \"als\"}); the fit reports a standard error for every estimate."
+		),
+		class = "lame_als_removed_setting",
+		call = NULL
+	)
+}
+
 # static seed for a dynamic refit: each trajectory collapsed to its time mean (the shape the dynamic
 # initialiser expands back into paths); symmetric fits keep their eigenvalue sign pattern
 .ae_static_seed <- function(object) {
@@ -178,19 +199,6 @@
 	mu <- object$mu
 	coefficients <- object$coefficients
 	coef_path <- path(object$coef_path)
-	if (identical(object$family, "poisson") && identical(object$link, "log") &&
-			!identical(object$bias_correct$method, "eb")) {
-		# IRLS works on the count log mean while reported Poisson predictors subtract half the latent
-		# variance, so the warm start adds it back (empirical-Bayes count fits report the latent predictor)
-		shift <- .ae_default(object$pois_latent_var, 0) / 2
-		mu <- mu + shift
-		if ("intercept" %in% names(coefficients)) {
-			coefficients["intercept"] <- coefficients["intercept"] + shift
-		}
-		if (!is.null(coef_path) && "intercept" %in% rownames(coef_path)) {
-			coef_path["intercept", ] <- coef_path["intercept", ] + shift
-		}
-	}
 	list(
 		mu = mu,
 		beta = object$beta,
@@ -264,8 +272,7 @@
 	X_new = NULL,
 	max_iter = NULL,
 	tol = NULL,
-	verbose = FALSE,
-	bias_correct = NULL
+	verbose = FALSE
 ) {
 	# restore a withheld product (.ae_withhold_product) to its variational means
 	object <- .ae_product_restore(object)
@@ -285,17 +292,14 @@
 	Xarr <- if (is.null(X_new)) object[["X"]] else X_new
 	dat <- .ae_dynamic_refit_data(object, Yarr, Xarr)
 	args <- cfg$args
-	if (!is.null(bias_correct)) args$bias_correct <- bias_correct
+	# a fit asked for the default estimator by name (bias_correct = "eb") is refit with the default
+	if (identical(args$bias_correct, "eb")) args["bias_correct"] <- list(NULL)
 	args$Y <- dat$Y
 	args$Xdyad <- dat$Xdyad
 	args$verbose <- isTRUE(verbose)
 	args$stability <- "none"
 	args$seed <- cfg$seed
-	# an empirical-Bayes count fit refit with another estimator starts cold: its posterior-mean paths
-	# and latent predictor are not a valid start for the penalised estimators
-	if (!(identical(object$family, "poisson") && identical(object$bias_correct$method, "eb") &&
-			!is.null(bias_correct) && !identical(bias_correct, "eb"))) args$start <- .ae_static_seed(object)
-	else args$start <- NULL
+	args$start <- .ae_static_seed(object)
 	if ("bootstrap" %in% names(formals(fitter))) args$bootstrap <- 0L
 	if (!is.null(max_iter)) args$max_iter <- max_iter
 	if (!is.null(tol)) args$tol <- tol
@@ -327,14 +331,12 @@
 #' trajectories rather than a single
 #' value per parameter. Such a fit is refit through the dynamic fitter that
 #' produced it, seeded from the stored trajectories, and the result is again a
-#' dynamic fit of the same class. \code{Z_new} is not available on that route,
-#' which runs its own working-response loop.
+#' dynamic fit of the same class.
 #'
-#' A static fit carrying the split-sample jackknife (see \code{\link{ame_als}})
-#' is refit with it: the refit on the new data is followed by its own two
-#' half-sample refits, warm-started from it with the same \code{max_iter} and
-#' \code{tol}, and the corrected values are returned, with the refit's
-#' uncorrected values in \code{$raw}.
+#' A fit saved by an earlier release with a fast-route estimator setting that
+#' this release no longer has stops with an error of class
+#' \code{"lame_als_removed_setting"}; refit the model with \code{\link{ame_als}},
+#' \code{\link{lame_als}} or \code{lame(..., method = "als")}.
 #'
 #' @param object an \code{ame_als} object supplying the warm-start values
 #'   (\code{mu}, \code{beta}, \code{a}, \code{b}, \code{U}, \code{V}) and the
@@ -344,40 +346,12 @@
 #'   refit on. Defaults to \code{object$Y}.
 #' @param X_new optional canonical design array \code{[n_row, n_col, p, T]}.
 #'   Defaults to \code{object$X}.
-#' @param Z_new optional canonical \emph{working-response} array
-#'   \code{[n_row, n_col, T]}. When supplied, the model is refit by a Gaussian
-#'   block coordinate descent directly on \code{Z_new}, bypassing the
-#'   family transform / IRLS reweighting. This is used by the parametric
-#'   bootstrap of a non-normal \code{transform} fit, whose estimator is a
-#'   Gaussian fit to a fixed transformed response. \code{Y_new} is still used
-#'   for the observed-cell pattern.
 #' @param max_iter maximum block coordinate descent iterations (default 30;
 #'   fewer are needed than for a cold start). On the dynamic route, left
 #'   unset it keeps the original fit's iteration budget.
 #' @param tol convergence tolerance (default \code{1e-5}). On the dynamic
 #'   route, left unset it keeps the original fit's tolerance.
 #' @param verbose logical; print progress (default \code{FALSE}).
-#' @param bias_correct \code{NULL} (default) applies the bias correction
-#'   \code{object} was fit with (\code{object$bias_correct$method}), so a
-#'   refit of a jackknife-corrected fit is corrected the same way, a refit
-#'   of a fit corrected by the parametric bootstrap has the bias that fit
-#'   estimated removed (\code{fit$bias_correct$stored} is \code{TRUE}) and a
-#'   refit of an empirical-Bayes fit (\code{"eb"}) is an empirical-Bayes fit,
-#'   which re-estimates the covariance of the actor effects starting from the
-#'   fit's; \code{"jackknife"}, \code{"bootstrap"} (re-estimating the bias),
-#'   \code{"none"} or \code{"eb"} override it. On a refit the
-#'   jackknife is computed or refused: a panel the correction cannot carry
-#'   (a single cross-section at \code{R > 0} or below 25 rarer-outcome cells
-#'   per actor, fewer than five periods at \code{R > 0}, fewer than 25
-#'   rarer-outcome cells per actor at \code{R = 0}, or an actor without both
-#'   outcome values in the panel or, under every split, in a half sample;
-#'   see \code{\link{ame_als}}) raises an error of class
-#'   \code{"lame_jk_split"}. A refit of an uncorrected fit keeps its
-#'   \code{bias_correct} record. Dynamic Poisson fits preserve their estimator
-#'   (the empirical-Bayes estimator, or the penalised fit with the
-#'   variance/covariance correction of directed panels) and override it in the
-#'   same way (see \code{bias_correct} in \code{\link{lame}}); an override of
-#'   the empirical-Bayes estimator by a penalised one starts cold.
 #'
 #' @return An object of class \code{"ame_als"}; see \code{\link{ame_als}}.
 #'
@@ -401,49 +375,26 @@ ame_als_refit <- function(
 	object,
 	Y_new = NULL,
 	X_new = NULL,
-	Z_new = NULL,
 	max_iter = 30,
 	tol = 1e-5,
-	verbose = FALSE,
-	bias_correct = NULL
+	verbose = FALSE
 ) {
 	if (!inherits(object, "ame_als")) {
 		cli::cli_abort("{.arg object} must be an {.cls ame_als} object.")
 	}
+	.ae_fit_estimator(object)
 	# restore a withheld product to its variational means, where the refit starts
 	object <- .ae_product_restore(object)
-	bias_correct <- .ae_check_bias_correct(bias_correct)
-	# a dynamic fit is refit by the fitter that produced it, which decides what
-	# it supports; a static fit needs the binary irls estimator
-	if (identical(bias_correct, "eb") && !.ae_is_dynamic_als(object) &&
-			!((object$family %in% c("binary", "poisson") &&
-					identical(.ae_default(object$non_normal_method, "transform"), "irls")) ||
-					identical(object$family, "normal"))) {
-		cli::cli_abort(
-			c(
-				"{.code bias_correct = \"eb\"} is available for binary, Poisson and normal fits only.",
-				"i" = "This fit's family is {.val {object$family}}."
-			),
-			class = "lame_als_eb"
-		)
-	}
 	if (.ae_is_dynamic_als(object)) {
 		# a dynamic fit is refit dynamically: the static block coordinate
 		# descent has no time dimension to put the trajectories in
-		if (!is.null(Z_new)) {
-			cli::cli_abort(c(
-				"{.arg Z_new} is not available for a dynamic ALS fit.",
-				"i" = "The dynamic estimator runs its own working-response loop; refit on {.arg Y_new}."
-			))
-		}
 		out <- .ae_dynamic_refit(
 			object,
 			Y_new = Y_new,
 			X_new = X_new,
 			max_iter = if (missing(max_iter)) NULL else max_iter,
 			tol = if (missing(tol)) NULL else tol,
-			verbose = verbose,
-			bias_correct = bias_correct
+			verbose = verbose
 		)
 		if (verbose) {
 			cli::cli_text("Warm-start refit (dynamic): converged = {.val {out$converged}} ({out$iterations} iter)")
@@ -458,9 +409,6 @@ ame_als_refit <- function(
 	}
 	if (is.matrix(X)) {
 		X <- array(X, dim = c(nrow(X), ncol(X), 1L, 1L))
-	}
-	if (!is.null(Z_new) && is.matrix(Z_new)) {
-		Z_new <- array(Z_new, dim = c(nrow(Z_new), ncol(Z_new), 1L))
 	}
 
 	prep <- .ae_prep_from_canonical(
@@ -490,226 +438,71 @@ ame_als_refit <- function(
 	if (identical(object$family, "poisson") && !is.null(object$eb$ve)) init$ve <- object$eb$ve
 
 	lrm <- .ae_default(object$lowrank_method, "mm")
-	nnm <- .ae_default(object$non_normal_method, "transform")
 	lsv <- .ae_default(object$linear_solver, "eigen")
-	# a normal fit carrying the empirical-Bayes record (or asked for it) is refit with the estimator
-	# of ame_als_gauss.R
-	norm_eb <- identical(object$family, "normal") && is.null(Z_new) &&
-		(identical(bias_correct, "eb") || (is.null(bias_correct) && identical(object$bias_correct$method, "eb")))
-	if (norm_eb) {
-		nnm <- "irls"
-		if (is.null(object$link)) object$link <- "identity"
-	}
+	# a normal fit is refit with the estimator of ame_als_gauss.R
+	if (identical(object$family, "normal") && is.null(object$link)) object$link <- "identity"
 
-	if (!is.null(Z_new)) {
-		# working-scale refit: Z_new is the Gaussian working response, so one Gaussian
-		# BCD pass stands in for the family transform
-		Z <- Z_new
-		if (object$symmetric) for (t in seq_len(prep$Tt)) {
-			Z[, , t] <- .ae_symmetrize(Z[, , t])
-		}
-		fit <- .ae_bcd_fit(
-			Z,
-			X,
-			object$R,
-			object$symmetric,
-			max_iter,
-			tol,
-			init = init,
-			lowrank_method = lrm,
-			linear_solver = lsv,
-			certify = TRUE,
-			unit_rules = identical(object$family, "normal")
-		)
-		out <- .ae_assemble(
-			fit,
-			prep,
-			object$family,
-			object$mode,
-			object$symmetric,
-			object$R,
-			object$longitudinal,
-			call = match.call(),
-			Zwork = Z
-		)
-		out$gaussian_diagnostics <- fit$gaussian_diagnostics
-		out$lowrank_method <- lrm
-		out$meta$lowrank_method <- lrm
-		out$non_normal_method <- nnm
-		out$link <- object$link
-		out$linear_solver <- lsv
-		out$obs_weights <- NULL
-		out <- .ae_refit_correct(
-			out,
-			object,
-			bias_correct,
-			max_iter,
-			tol,
-			Z = Z_new
-		)
-		if (verbose) {
-			cli::cli_text("Warm-start refit (working scale): converged = {.val {out$converged}} ({fit$iterations} iter)")
-		}
-		# withhold a product the data do not determine, as the fit does (.ae_withhold_product)
-		return(.ae_withhold_product(out, function(r) NA_real_))
-	}
-
-	.ae_check_als_response(prep$Yarr, object$family)
+	prep$Yarr <- .ae_check_als_response(prep$Yarr, object$family)
 	# an empirical-Bayes fit is refit with its own estimator: every actor stays in (the penalty keeps
 	# effects finite) and the actor-effect covariance starts from the fit's
-	eb_refit <- identical(nnm, "irls") && (object$family %in% c("binary", "poisson") || norm_eb) &&
-		(identical(bias_correct, "eb") ||
-				(is.null(bias_correct) && identical(object$bias_correct$method, "eb")))
-	ab_prior <- NULL
-	if (eb_refit) {
-		ab_prior <- .ae_eb_prior(prep, isTRUE(object$symmetric), object$family, s20 = object$eb$ve_prior[["s20"]])
-		if (is.matrix(object$eb$sab) && all(dim(object$eb$sab) == dim(ab_prior$sab))) {
-			ab_prior$sab <- object$eb$sab
-		}
+	ab_prior <- .ae_eb_prior(
+		prep,
+		isTRUE(object$symmetric),
+		object$family,
+		s20 = object$eb$ve_prior[["s20"]],
+		nu0 = object$eb$ve_prior[["nu0"]]
+	)
+	if (is.matrix(object$eb$sab) && all(dim(object$eb$sab) == dim(ab_prior$sab))) {
+		ab_prior$sab <- object$eb$sab
 	}
-	db <- NULL
-	if (identical(nnm, "irls") && identical(object$family, "binary") && !eb_refit) {
-		# an actor at the boundary of this data is left out on that side, as
-		# in the original fit
-		db <- .ae_drop_boundary(prep$Yarr, isTRUE(object$symmetric))
-		if (length(db$row) || length(db$col)) prep$Yarr <- db$Y else db <- NULL
-	}
-	if (identical(nnm, "irls")) {
-		if (eb_refit && identical(object$eb$estimator, "variational")) {
-			# a variational fit is refit with its own estimator from its own variational state; the Laplace
-			# evidence is formed unless lame.refit_evidence is FALSE (bootstrap replicates), and a converged
-			# fit refit on its own data keeps its noise variance
-			same_data <- isTRUE(object$converged) && identical(dim(Yarr), dim(object$Y)) &&
-				identical(as.vector(Yarr), as.vector(object$Y)) &&
-				identical(as.vector(X), as.vector(object[["X"]]))
-			vb <- .ae_mf_refit(
-				prep,
-				object,
-				ab_prior,
-				object$link,
-				max_iter,
-				tol,
-				mode_args = if (isTRUE(getOption("lame.refit_evidence", TRUE)))
-					list(lowrank_method = lrm, linear_solver = lsv),
-				ve_hold = same_data
-			)
-			ir <- list(
-				fit = vb$fit,
-				W = vb$W,
-				Z = vb$Z,
-				eta = vb$eta,
-				irls_iters = vb$irls_iters,
-				best_obj = vb$objective,
-				stationarity = list(
-					pass = vb$converged,
-					stage = "variational",
-					termination = vb$record$termination
-				)
-			)
-			if (!isTRUE(vb$converged)) .ae_mf_refuse(vb$record, object$R)
-		} else {
-			# refit an irls fit by re-running the reweighting loop, warm-started
-			ir <- .ae_irls_run(
-				prep,
-				object$family,
-				object$link,
-				object$R,
-				object$symmetric,
-				max_iter,
-				tol,
-				lowrank_method = lrm,
-				init = init,
-				linear_solver = lsv,
-				ab_prior = ab_prior
-			)
-			if (norm_eb && eb_refit) {
-				# a normal fit without the empirical-Bayes estimator gets all of it: the variational stage (with
-				# the dyadic correlation of a directed network) and the evidence
-				gp <- if (!isTRUE(object$symmetric) && identical(object$mode, "unipartite")) list(gauss = TRUE)
-				ir <- .ae_mf_stage(
-					prep,
-					ir,
-					ab_prior,
-					object$R,
-					isTRUE(object$symmetric),
-					object$link,
-					max_iter,
-					tol,
-					pair = gp
-				)
-				if (!isTRUE(ir$selection_converged)) .ae_mf_refuse(ir$fit$eb_mf$record, object$R)
-				ir <- .ae_gauss_evidence(
-					prep,
-					ir,
-					ab_prior,
-					object$R,
-					isTRUE(object$symmetric),
-					object$link,
-					max_iter,
-					tol,
-					lrm,
-					lsv
-				)
-			}
-		}
-		fit <- ir$fit
-		out <- .ae_assemble(
-			fit,
-			prep,
-			object$family,
-			object$mode,
-			object$symmetric,
-			object$R,
-			object$longitudinal,
-			call = match.call(),
-			Zwork = ir$Z,
-			link = object$link,
-			Wobs = ir$W
-		)
-		out$objective <- ir$best_obj
-		out$irls_iterations <- ir$irls_iters
-		out$irls_diagnostics <- ir$stationarity
-		if (eb_refit) out$iterations <- ir$irls_iters
-	} else {
-		Z <- .ae_working_response(Yarr, object$family)
-		if (object$symmetric) for (t in seq_len(prep$Tt)) {
-			Z[, , t] <- .ae_symmetrize(Z[, , t])
-		}
-		fit <- .ae_bcd_fit(
-			Z,
-			X,
-			object$R,
-			object$symmetric,
-			max_iter,
-			tol,
-			init = init,
-			lowrank_method = lrm,
-			linear_solver = lsv,
-			certify = TRUE,
-			unit_rules = identical(object$family, "normal")
-		)
-		out <- .ae_assemble(
-			fit,
-			prep,
-			object$family,
-			object$mode,
-			object$symmetric,
-			object$R,
-			object$longitudinal,
-			call = match.call()
-		)
-	}
-
-	out$gaussian_diagnostics <- fit$gaussian_diagnostics
+	# a variational fit is refit with its own estimator from its own variational state; the Laplace
+	# evidence is formed unless lame.refit_evidence is FALSE (bootstrap replicates), and a converged
+	# fit refit on its own data keeps its noise variance
+	same_data <- isTRUE(object$converged) && identical(dim(Yarr), dim(object$Y)) &&
+		identical(as.vector(Yarr), as.vector(object$Y)) &&
+		identical(as.vector(X), as.vector(object[["X"]]))
+	vb <- .ae_mf_refit(
+		prep,
+		object,
+		ab_prior,
+		object$link,
+		max_iter,
+		tol,
+		mode_args = if (isTRUE(getOption("lame.refit_evidence", TRUE)))
+			list(lowrank_method = lrm, linear_solver = lsv),
+		ve_hold = same_data
+	)
+	if (!isTRUE(vb$converged)) .ae_mf_refuse(vb$record, object$R)
+	out <- .ae_assemble(
+		vb$fit,
+		prep,
+		object$family,
+		object$mode,
+		object$symmetric,
+		object$R,
+		object$longitudinal,
+		call = match.call(),
+		Zwork = vb$Z,
+		link = object$link,
+		Wobs = vb$W
+	)
+	out$objective <- vb$objective
+	out$irls_iterations <- vb$irls_iters
+	out$irls_diagnostics <- list(
+		pass = vb$converged,
+		stage = "variational",
+		termination = vb$record$termination
+	)
+	out$iterations <- vb$irls_iters
+	out$gaussian_diagnostics <- vb$fit$gaussian_diagnostics
 	out$lowrank_method <- lrm
 	out$meta$lowrank_method <- lrm
-	out$non_normal_method <- nnm
+	out$non_normal_method <- "irls"
 	out$link <- object$link
 	out$linear_solver <- lsv
-	out$obs_weights <- if (identical(nnm, "irls")) ir$W else NULL
-	out <- .ae_refit_correct(out, object, bias_correct, max_iter, tol)
+	out$obs_weights <- vb$W
 	db <- .ae_refit_boundary(
-		db,
+		NULL,
 		object$not_estimated,
 		out$row_names,
 		out$col_names,
@@ -718,62 +511,9 @@ ame_als_refit <- function(
 	out <- .ae_mark_not_estimated(out, db)
 
 	if (verbose) {
-		cli::cli_text("Warm-start refit: converged = {.val {out$converged}} ({fit$iterations} iter)")
+		cli::cli_text("Warm-start refit: converged = {.val {out$converged}} ({vb$fit$iterations} iter)")
 	}
-	# withhold a product the data do not determine, as the fit does (.ae_withhold_product); the
-	# evidence of the smaller ranks is not refit here
-	.ae_withhold_product(out, function(r) NA_real_)
-}
-
-# bias correction of a static refit: the one `object` carries unless the caller names one; a
-# requested jackknife that cannot be refit errors, so a bootstrap replicate is dropped and counted
-.ae_refit_correct <- function(
-	out,
-	object,
-	bias_correct,
-	max_iter,
-	tol,
-	Z = NULL
-) {
-	correction <- if (is.null(bias_correct)) {
-		.ae_default(object$bias_correct$method, "none")
-	} else {
-		bias_correct
-	}
-	if (identical(correction, "eb")) {
-		# the empirical-bayes refit is an estimator, not a correction
-		out$bias_correct <- list(
-			method = "eb",
-			applied = FALSE,
-			requested = if (identical(bias_correct, "eb")) "eb",
-			default = is.null(bias_correct) &&
-				isTRUE(object$bias_correct$default)
-		)
-		out
-	} else if (identical(correction, "jackknife")) {
-		.ae_jackknife(out, max_iter, tol, Z = Z, explicit = TRUE)
-	} else if (identical(correction, "bootstrap")) {
-		# a refit asked for the correction runs it; refits of a corrected fit (warm-start refits,
-		# bootstrap replicates) drop its stored correction
-		if (identical(bias_correct, "bootstrap") ||
-				is.null(object$bias_correct$correction)) {
-			.ae_boot_bias(out, max_iter, tol)
-		} else {
-			.ae_bb_apply_stored(out, object$bias_correct)
-		}
-	} else {
-		# a refit of an uncorrected fit keeps its record (size basis or opt-out); one asked to drop the
-		# correction records the request
-		out$bias_correct <- if (is.null(bias_correct) &&
-				identical(object$bias_correct$method, "none")) {
-			object$bias_correct
-		} else if (identical(bias_correct, "none")) {
-			list(method = "none", applied = FALSE, requested = "none")
-		} else {
-			list(method = "none", applied = FALSE)
-		}
-		out
-	}
+	out
 }
 
 # bootstrap
@@ -824,7 +564,7 @@ ame_als_refit <- function(
 			c(
 				"{.arg bootstrap} = {n} is below the minimum of {.val {min_req}} replicates.",
 				"x" = "A 95% percentile interval from fewer replicates is not returned: its end points are the smallest and largest replicate.",
-				"i" = "Use {.code bootstrap = 200}, any value of at least {.val {min_req}}, or {.code bootstrap = 0} for the point fit."
+				"i" = "Use {.code bootstrap = 200}, any value of at least {.val {min_req}}, or {.code bootstrap = 0} for the fit with its analytic standard errors."
 			),
 			class = "lame_als_bootstrap_replicates"
 		)
@@ -833,7 +573,7 @@ ame_als_refit <- function(
 }
 
 # objective that compares two refits of one replicate: the penalised IRLS deviance, or the Gaussian
-# residual sum of squares (uncorrected when a split-sample correction rebuilt the fit)
+# residual sum of squares
 .ae_boot_objective <- function(fit) {
 	obj <- fit$objective
 	if (is.null(obj) || !is.finite(obj)) obj <- fit$raw$deviance
@@ -854,63 +594,28 @@ ame_als_refit <- function(
 }
 
 # what the refit of a replicate checks the point estimate's optimum against
-.ae_boot_optimum_check <- function(object, dyn) {
-	if (isTRUE(dyn)) return("none: a dynamic fit is refit by its own fitter")
-	if (identical(object$bias_correct$method, "eb")) {
-		return("none: an empirical-Bayes refit starts from the variational state of the fit")
-	}
-	if (object$R < 1L) return("none: without a multiplicative term the optimum is unique")
-	k <- switch(
-		as.character(.ae_default(object$multistart, "none")),
-		cheap = 4L,
-		full = 8L,
-		1L
-	)
-	if (k > 1L) {
-		sprintf("warm start against the cold start and %d random starts of the original multistart", k - 1L)
-	} else "warm start against the cold start of the original fit"
-}
+.ae_boot_optimum_check <- "none: an empirical-Bayes refit starts from the variational state of the fit"
 
 # refit one replicate: warm from the point estimate (the budget, then four times it), checked against
 # the original fit's cold and multistart starts; a check start wins only with a lower objective and a
 # fit more than a deviance unit away. returns list(fit, attempts, iterations, start, error, last_fit)
-.ae_boot_refit <- function(object, Y_b, X_b, Z_b, dyn, max_iter, tol) {
+.ae_boot_refit <- function(object, Y_b, X_b, max_iter, tol) {
 	family <- object$family
 	Rlat <- object$R
-	gaussian <- identical(family, "normal") || !is.null(Z_b)
-	eb <- identical(object$bias_correct$method, "eb")
-	check <- !dyn && Rlat > 0L && !eb
-	# replicates are summarised, not reported, so a withheld product is restored to its variational means
-	refit_with <- function(seed_object, budget) .ae_product_restore(refit_raw(seed_object, budget))
+	gaussian <- identical(family, "normal")
+	# replicates are summarised, not reported, so a withheld product is restored to its variational means;
+	# they stay in the reported form the point estimate is compared in
+	refit_with <- function(seed_object, budget) .ae_product_restore(refit_raw(seed_object, budget), state = FALSE)
 	refit_raw <- function(seed_object, budget) {
-		suppressWarnings(if (dyn) {
-			.ae_dynamic_refit(
-				seed_object,
-				Y_new = Y_b,
-				X_new = X_b,
-				max_iter = budget,
-				tol = tol,
-				verbose = FALSE
-			)
-		} else if (!is.null(Z_b)) {
-			ame_als_refit(
-				seed_object,
-				Y_new = object$Y,
-				Z_new = Z_b,
-				max_iter = budget,
-				tol = tol,
-				verbose = FALSE
-			)
-		} else {
-			ame_als_refit(
-				seed_object,
-				Y_new = Y_b,
-				X_new = X_b,
-				max_iter = budget,
-				tol = tol,
-				verbose = FALSE
-			)
-		})
+		# a replicate keeps the estimator of the fit it resamples
+		suppressWarnings(ame_als_refit(
+			seed_object,
+			Y_new = Y_b,
+			X_new = X_b,
+			max_iter = budget,
+			tol = tol,
+			verbose = FALSE
+		))
 	}
 	attempts <- 0L
 	last_budget <- as.integer(max_iter)
@@ -921,12 +626,10 @@ ame_als_refit <- function(
 		for (budget in if (escalate) c(max_iter, 4L * max_iter) else max_iter) {
 			attempts <<- attempts + 1L
 			last_budget <<- as.integer(budget)
-			fit <- tryCatch(refit_with(seed_object, budget), error = function(e) e)
+			fit <- tryCatch(.ae_notes_isolated(refit_with(seed_object, budget)), error = function(e) e)
 			if (inherits(fit, "error")) {
 				if (is.null(first_error)) first_error <<- fit
-				# an unconverged split-sample half may finish with more budget
-				if (!inherits(fit, "lame_jk_nonconvergence")) return(NULL)
-				next
+				return(NULL)
 			}
 			last_fit <<- fit
 			if (isTRUE(fit$converged)) {
@@ -939,7 +642,7 @@ ame_als_refit <- function(
 	found <- list()
 	warm <- run_start(object)
 	if (!is.null(warm)) found$warm <- warm
-	if (!dyn && (check || (is.null(warm) && gaussian))) {
+	if (is.null(warm) && gaussian) {
 		cold <- object
 		cold$mu <- 0
 		cold$beta[] <- 0
@@ -948,18 +651,10 @@ ame_als_refit <- function(
 		cold$U <- cold$V <- cold$L <- NULL
 		f <- run_start(cold, escalate = is.null(warm))
 		if (!is.null(f)) found$cold <- f
-		# random starts of the original multistart, or seven for retrying an unfinished Gaussian refit
-		k_orig <- switch(
-			as.character(.ae_default(object$multistart, "none")),
-			cheap = 4L,
-			full = 8L,
-			1L
-		)
-		n_random <- if (check && k_orig > 1L) {
-			k_orig - 1L
-		} else if (!length(found) && Rlat > 0L && gaussian) 7L else 0L
+		# seven random starts for retrying an unfinished Gaussian refit
+		n_random <- if (!length(found) && Rlat > 0L) 7L else 0L
 		if (n_random > 0L) {
-			Zsize <- if (!is.null(Z_b)) Z_b else .ae_working_response(Y_b, family)
+			Zsize <- .ae_working_response(Y_b, family)
 			starts <- .ae_multistart_starts(
 				Zsize,
 				Rlat,
@@ -1025,14 +720,13 @@ ame_als_refit <- function(
 ) {
 	n_fail <- sum(nzchar(fail_reason))
 	n_nc <- sum(fail_reason == "nonconverged")
-	n_sp <- sum(fail_reason == "split")
 	n_er <- sum(fail_reason %in% c("error", "nonfinite"))
 	share <- round(100 * .ae_boot_max_fail)
 	budget <- 4L * as.integer(max_iter)
 	cli::cli_abort(
 		c(
 			"More than {share}% of the bootstrap replicates could not be refit: {n_fail} of the first {b} (of {R}) were dropped, and at most {max_fail} may be.",
-			"x" = "{n_nc} did not converge within {.arg max_iter} = {max_iter} iterations nor within {budget}; {n_sp} could not carry the split-sample correction; {n_er} failed to refit or returned non-finite values.",
+			"x" = "{n_nc} did not converge within {.arg max_iter} = {max_iter} iterations nor within {budget}; {n_er} failed to refit or returned non-finite values.",
 			"i" = "Increase {.arg max_iter}, or simplify the model. No interval is returned from the remaining replicates: dropping many replicates keeps the ones that are easiest to fit."
 		),
 		class = "lame_als_bootstrap_convergence",
@@ -1041,7 +735,7 @@ ame_als_refit <- function(
 		n_failed = n_fail,
 		n_total = R,
 		max_failed = max_fail,
-		reasons = c(nonconverged = n_nc, split = n_sp, error = n_er)
+		reasons = c(nonconverged = n_nc, error = n_er)
 	)
 }
 
@@ -1130,25 +824,20 @@ ame_als_refit <- function(
 		which(is.finite(est) & is.finite(lo) & is.finite(hi) &
 				(est < lo - slack(est) | est > hi + slack(est)))
 	}
+	# a coefficient outside the interval of its own replicates (a replicate refit at another local
+	# optimum) takes the analytic error of the fit (.ae_boot_fill)
 	ib <- outside(out$point_est, out$ci_lo, out$ci_hi)
 	if (length(ib)) {
-		items <- sprintf(
-			"%s (estimate %s, replicate 2.5%% to 97.5%%: %s to %s)",
-			out$param_names[ib],
-			format(signif(out$point_est[ib], 4)),
-			format(signif(out$ci_lo[ib], 4)),
-			format(signif(out$ci_hi[ib], 4))
+		out$coef_uncentred <- data.frame(
+			parameter = out$param_names[ib],
+			estimate = unname(out$point_est[ib]),
+			lo = unname(out$ci_lo[ib]),
+			hi = unname(out$ci_hi[ib]),
+			stringsAsFactors = FALSE
 		)
-		cli::cli_abort(
-			c(
-				"The point estimate lies outside the 95% interval of its own bootstrap replicates for {length(items)} coefficient{?s}.",
-				stats::setNames(items, rep("x", length(items))),
-				"i" = "The replicates are not distributed around the fitted optimum: a replicate refit landed at another local optimum, or the estimator is biased here by more than about two standard errors.",
-				"i" = "Refit the point estimate with {.code multistart = \"full\"} so that it is the best of several starts. The bootstrap is attached to this error as {.code boot}."
-			),
-			class = "lame_als_bootstrap_optimum",
-			boot = out
-		)
+		out$se[ib] <- NA_real_
+		out$ci_lo[ib] <- NA_real_
+		out$ci_hi[ib] <- NA_real_
 	}
 	iv <- outside(out$vc_point_est, out$vc_ci_lo, out$vc_ci_hi)
 	if (length(iv)) {
@@ -1184,58 +873,13 @@ ame_als_refit <- function(
 	.ae_level_probs(level, x$type, x$n_blocks)
 }
 
-# parameters with no standard error or interval
+# parameters the bootstrap gives no standard error or interval for
 
-# additive paths of a fit with time-varying effects and a sampler of replicate paths (actor level
-# plus a stationary AR(1) deviation), so replicates carry the variability of the effects
-.ae_boot_ab_paths <- function(object) {
-	Tt <- object$n_time
-	nr <- object$dims$n_row
-	nc <- object$dims$n_col
-	orig <- lapply(seq_len(Tt), function(t) {
-		outer(as.numeric(object$a_dynamic[, t]), as.numeric(object$b_dynamic[, t]), "+")
-	})
-	prof <- list(a = .ae_path_lag_profile(object$a_dynamic))
-	if (!object$symmetric) prof$b <- .ae_path_lag_profile(object$b_dynamic)
-	rho_w <- .ae_path_decay_rho(prof)
-	if (!is.finite(rho_w)) rho_w <- .ae_default(object$rho_ab, 0.8)
-	lev <- lapply(prof, function(pf) .ae_path_level_var(pf, rho_w))
-	dev_pars <- list(
-		rho = rho_w,
-		tau2_a = max(.ae_default(lev$a$tau2, 0), 0, na.rm = TRUE),
-		tau2_b = if (object$symmetric) 0 else max(.ae_default(lev$b$tau2, 0), 0, na.rm = TRUE)
-	)
-	# one replicate's additive paths: level plus stationary AR(1) deviation
-	draw <- function() {
-		ar_path <- function(n, tau2) {
-			out <- matrix(0, n, Tt)
-			if (tau2 <= 0) return(out)
-			sd_stat <- sqrt(tau2)
-			out[, 1L] <- stats::rnorm(n, 0, sd_stat)
-			if (Tt > 1L) for (t in 2:Tt) {
-				out[, t] <- dev_pars$rho * out[, t - 1L] +
-					stats::rnorm(n, 0, sd_stat * sqrt(1 - dev_pars$rho^2))
-			}
-			out
-		}
-		va_l <- max(.ae_default(as.numeric(object$VC["va"]), 0), 0, na.rm = TRUE)
-		vb_l <- max(.ae_default(as.numeric(object$VC["vb"]), 0), 0, na.rm = TRUE)
-		a_new <- stats::rnorm(nr, 0, sqrt(va_l)) + ar_path(nr, dev_pars$tau2_a)
-		b_new <- if (object$symmetric) a_new else {
-			stats::rnorm(nc, 0, sqrt(vb_l)) + ar_path(nc, dev_pars$tau2_b)
-		}
-		lapply(seq_len(Tt), function(t) outer(a_new[, t], b_new[, t], "+"))
-	}
-	list(orig = orig, draw = draw)
-}
-
-# interval of a variance (va, vb) from replicate quantiles q: the basic interval on the log scale
-# (est^2 / q) for fixed effects, 2 est - q for empirical Bayes; percentile ends when a quantile is <= 0
-.ae_vc_interval <- function(q, est, eb = FALSE) {
+# basic interval (2 est - q) of a variance (va, vb) from replicate quantiles q, floored at zero;
+# the quantiles themselves when the estimate is not positive
+.ae_vc_interval <- function(q, est) {
 	if (!is.finite(est) || est <= 0 || length(q) != 2L || any(!is.finite(q))) return(q)
-	if (eb) return(pmax(c(2 * est - q[2L], 2 * est - q[1L]), 0))
-	if (any(q <= 0)) return(q)
-	c(est^2 / q[2L], est^2 / q[1L])
+	pmax(c(2 * est - q[2L], 2 * est - q[1L]), 0)
 }
 
 # kind of each entry of fit$coefficients: intercept, dyadic, then node-covariate (sender, receiver)
@@ -1251,7 +895,6 @@ ame_als_refit <- function(
 .ae_boot_withheld <- function(object, type) {
 	nm <- names(object$coefficients)
 	kinds <- .ae_coef_kinds(object)
-	eb <- identical(object$bias_correct$method, "eb")
 	rows <- list()
 	add <- function(parameter, kind, reason) {
 		if (length(parameter)) {
@@ -1284,37 +927,34 @@ ame_als_refit <- function(
 				"the refit to resampled slices, which repeat some and omit others, absorbs more of the noise than the original fit, so the replicate residual variances sit below the estimate"
 			)
 		}
-		if (eb) {
+		if (!inherits(object, "lame_als") || any(kinds == "node")) {
 			add(
 				"intercept", "coefficient",
-				"the intercept of this estimator is the population intercept, whose sampling variability includes that over actors, which slice resampling holds fixed"
-			)
-			# empirical-Bayes effects (and factors) are shrunk toward their prior mean, and the replicates
-			# vary around the shrunk estimates
-			shrunk <- c(
-				"a",
-				if (!isTRUE(object$symmetric)) "b",
-				if (object$R > 0L && is.matrix(object$U)) c("U", if (!isTRUE(object$symmetric)) "V")
-			)
-			add(
-				shrunk,
-				"effects",
-				"the effects of this estimator are shrunk toward their prior mean, and the replicates of a resample vary around the shrunk estimates, not around the effects"
+				if (inherits(object, "lame_als")) {
+					"the intercept refers to the uncentred node covariates, so it carries the node-covariate coefficients, whose sampling variability is that over actors"
+				} else {
+					"the sampling variability of this estimator's intercept includes that over actors, which slice resampling holds fixed"
+				}
 			)
 		}
+		# empirical-Bayes effects (and factors) are shrunk toward their prior mean, and the replicates
+		# vary around the shrunk estimates
+		shrunk <- c(
+			"a",
+			if (!isTRUE(object$symmetric)) "b",
+			if (object$R > 0L && is.matrix(object$U)) c("U", if (!isTRUE(object$symmetric)) "V")
+		)
+		add(
+			shrunk,
+			"effects",
+			"the effects of this estimator are shrunk toward their prior mean, and the replicates of a resample vary around the shrunk estimates, not around the effects"
+		)
 	}
 	if (.ae_product_is_withheld(object)) {
 		add(
 			c("U", if (!isTRUE(object$symmetric)) "V"),
 			"effects",
 			"the latent product is not identified by the data at this rank and is withheld (fit$eb$product_withheld)"
-		)
-	}
-	if (identical(object$family, "poisson") && identical(object$non_normal_method, "irls") &&
-			!eb) {
-		add(
-			"intercept", "coefficient",
-			"the fixed-effects Poisson intercept carries a finite-sample bias that every replicate reproduces, so the interval is displaced from the truth by about twice the bias"
 		)
 	}
 	if (!length(rows)) return(NULL)
@@ -1354,41 +994,120 @@ ame_als_refit <- function(
 
 # one sentence per reason on the parameters without an interval, for print() and summary()
 .ae_boot_withheld_lines <- function(x) {
-	w <- x$withheld
+	w <- x$se_source
+	filled <- !is.null(w) && nrow(w) > 0L
+	if (!filled) w <- x$withheld
 	if (is.null(w) || !nrow(w)) return(character(0))
 	by <- split(w$parameter, w$reason)
 	vapply(names(by), function(r) {
 		paste0(
-			"No standard error or interval for ",
-			paste(by[[r]], collapse = ", "),
-			": ",
+			if (filled) "Analytic standard errors and intervals for " else "No standard error or interval for ",
+			paste(unique(by[[r]]), collapse = ", "),
+			if (filled) ", where the bootstrap gives none: " else ": ",
 			r,
 			"."
 		)
 	}, character(1L), USE.NAMES = FALSE)
 }
 
-# refuse the bootstrap of an uncorrected binary fixed-effects fit: its replicates reproduce the
-# incidental-parameter bias of the dyadic coefficient
-.ae_boot_refuse_uncorrected <- function() {
-	cli::cli_abort(
-		c(
-			"A bootstrap is not available for an uncorrected binary fixed-effects fit.",
-			"x" = "The fit is biased by the incidental-parameters problem and every replicate reproduces the bias, so the interval is centred away from the truth.",
-			"i" = "Bootstrap the default empirical-Bayes fit (omit {.arg bias_correct}), or a fit corrected with {.code bias_correct = \"jackknife\"} or {.code \"bootstrap\"}, or use MCMC with {.fn ame} / {.fn lame}."
-		),
-		class = c("lame_als_bootstrap_bias", "lame_als_bootstrap_unsupported")
+# the analytic standard errors of a fit (the reported quantities), kept on its bootstrap for the
+# quantities the bootstrap gives none
+.ae_boot_analytic <- function(object) {
+	if (is.null(object$eb$se) && is.null(object$VC_se) && is.null(object$a_sd)) return(NULL)
+	list(
+		coef_se = object$eb$se,
+		coef_vcov = object$eb$vcov,
+		vc_se = object$VC_se,
+		vc_ci = object$VC_ci,
+		a = object$a_sd,
+		b = object$b_sd,
+		U = object$U_sd,
+		V = object$V_sd,
+		L = object$L_sd
 	)
 }
 
-# the same refusal from the ame_als() / lame_als() arguments, before anything is fitted
-.ae_check_bootstrap_bias <- function(bootstrap, family, non_normal_method, bias_correct) {
-	if (bootstrap > 0L && is.character(family) && length(family) == 1L &&
-			family %in% c("binary", "bin") && identical(non_normal_method, "irls") &&
-			identical(bias_correct, "none")) {
-		.ae_boot_refuse_uncorrected()
+# fill the standard errors and 95% intervals the bootstrap gives none with the analytic ones, and
+# record which (se_source: parameter, kind, source and the reason the bootstrap gives none)
+.ae_boot_fill <- function(out, an = out$analytic) {
+	if (is.null(an)) return(out)
+	zq <- stats::qnorm(0.975)
+	src <- list()
+	put <- function(parameter, kind, reason) {
+		if (length(parameter)) {
+			src[[length(src) + 1L]] <<- data.frame(parameter = parameter, kind = kind,
+				source = "analytic", reason = reason, stringsAsFactors = FALSE)
+		}
 	}
-	invisible(bootstrap)
+	why <- function(parameter, kind, default) {
+		w <- out$withheld
+		r <- if (!is.null(w) && nrow(w)) w$reason[match(parameter, w$parameter)] else rep(NA_character_, length(parameter))
+		r[is.na(r)] <- default
+		r
+	}
+	good <- function(x) is.finite(x) & x > 0
+	se_an <- unname(an$coef_se[out$param_names])
+	f <- which(!good(out$se) & good(se_an))
+	if (length(f)) {
+		out$se[f] <- se_an[f]
+		out$ci_lo[f] <- out$point_est[f] - zq * se_an[f]
+		out$ci_hi[f] <- out$point_est[f] + zq * se_an[f]
+		put(out$param_names[f], "coefficient", why(out$param_names[f], "coefficient",
+			"the point estimate lies outside the interval of its replicates"))
+	}
+	if (!is.null(out$vc_se) && !is.null(an$vc_se) && !is.null(an$vc_ci)) {
+		k <- names(out$vc_se)
+		sv <- unname(an$vc_se[k])
+		f <- which(!good(out$vc_se) & good(sv) & k %in% rownames(an$vc_ci))
+		if (length(f)) {
+			out$vc_se[f] <- sv[f]
+			out$vc_ci_lo[f] <- an$vc_ci[k[f], 1L]
+			out$vc_ci_hi[f] <- an$vc_ci[k[f], 2L]
+			put(k[f], "vc", why(k[f], "vc", "the estimate lies outside the interval of its replicates"))
+		}
+	}
+	for (e in c("a", "b", "U", "V", "L")) {
+		nm <- paste0("se_", e)
+		s <- as.vector(an[[e]])
+		if (!length(s)) next
+		if (e %in% c("U", "V", "L") && is.null(out[[nm]])) out[[nm]] <- rep(NA_real_, length(s))
+		if (length(out[[nm]]) != length(s)) next
+		f <- !good(out[[nm]]) & good(s)
+		if (any(f)) {
+			out[[nm]][f] <- s[f]
+			if (e %in% c("U", "V") && length(out[[paste0(nm, "_raw")]]) == length(s)) out[[paste0(nm, "_raw")]][f] <- s[f]
+			put(e, "effects", why(e, "effects", "the columns of the replicate positions are not separated, or too few replicates resolve them"))
+		}
+	}
+	out$se_source <- if (length(src)) do.call(rbind, src)
+	out
+}
+
+# analytic Wald interval at `level` for parameters of `kind` whose bootstrap interval is missing
+.ae_boot_fill_ci <- function(ci, object, kind, est, se, level) {
+	if (is.null(ci) || !nrow(ci) || is.null(object$se_source)) return(ci)
+	miss <- which(!is.finite(ci[, 1L]) | !is.finite(ci[, 2L]))
+	ok <- miss[is.finite(se[miss]) & se[miss] > 0]
+	if (!length(ok)) return(ci)
+	z <- stats::qnorm(1 - (1 - level) / 2)
+	if (identical(kind, "vc")) {
+		k <- names(est)[ok]
+		an <- object$analytic
+		for (i in seq_along(ok)) {
+			e <- est[[ok[i]]]; s <- se[[ok[i]]]
+			ci[ok[i], ] <- if (isTRUE(all.equal(level, 0.95)) && k[i] %in% rownames(an$vc_ci)) {
+				an$vc_ci[k[i], ]
+			} else if (k[i] %in% c("va", "vb", "ve") && e > 0) {
+				e * exp(c(-1, 1) * z * s / e)
+			} else if (identical(k[i], "rho") && abs(e) < 1) {
+				tanh(atanh(e) + c(-1, 1) * z * s / (1 - e^2))
+			} else e + c(-1, 1) * z * s
+		}
+		return(ci)
+	}
+	ci[ok, 1L] <- est[ok] - z * se[ok]
+	ci[ok, 2L] <- est[ok] + z * se[ok]
+	ci
 }
 
 #' Bootstrap uncertainty for the fast AME estimator
@@ -1399,13 +1118,7 @@ ame_als_refit <- function(
 #' \code{\link{lame_als}}. Two strategies are available:
 #' \describe{
 #'   \item{\code{parametric}}{(default) Simulates fresh outcomes from the
-#'     fitted model and refits. For \code{normal} and IRLS (\code{binary},
-#'     \code{poisson}) fits the simulation is on the calibrated response scale;
-#'     for a non-normal \code{transform} fit -- whose estimator is a Gaussian
-#'     fit to a fixed transformed response -- it is on the Gaussian working
-#'     scale. The fitted residual variance is df-corrected (mean-model degrees
-#'     of freedom) at fit time, so simulating with it keeps the replicates
-#'     centred on the point estimate.
+#'     fitted model on the response scale and refits.
 #'     Available for both cross-sectional and longitudinal fits.}
 #'   \item{\code{block}}{Resamples time slices with replacement. With
 #'     \code{block_length = 1} slices are resampled independently;
@@ -1415,59 +1128,34 @@ ame_als_refit <- function(
 #'     \code{ceiling(T / block_length) >= 10} resampling blocks: below that the
 #'     ends of the interval are the extreme replicates (a plain percentile
 #'     interval covered the dyadic coefficient in 0.83 of the panels at five
-#'     blocks), so the call warns and
+#'     blocks), so the call says so and
 #'     uses \code{parametric} instead. The returned object records the
 #'     scheme actually used in \code{type} and the one asked for in
 #'     \code{requested_type}. The interval end points are read at expanded
-#'     percentile levels, and the scheme returns no standard error or interval
-#'     for the parameters that vary over actors and not over time; see
+#'     percentile levels, and the parameters that vary over actors and not over
+#'     time keep the analytic standard errors of the fit; see
 #'     \emph{Block bootstrap} below.}
 #' }
 #'
 #' Every replicate is refit by \code{\link{ame_als_refit}}, warm-started
 #' from the original point estimate so that replicates do not drift to
-#' different local optima. An empirical-Bayes fit
-#' (\code{fit$bias_correct$method == "eb"}, the default for normal, binary and Poisson
-#' fits; see \code{\link{ame_als}}) has every replicate refit with the same estimator,
-#' re-estimating the covariance of the actor effects from the fitted one, and
-#' draws the replicate effects uncentred, since the fitted intercept is the
-#' population intercept; the intervals then describe the empirical-Bayes
-#' estimator, and agree with the Laplace standard errors of
-#' \code{\link{vcov.ame_als}} where those are calibrated. A fit carrying the
-#' split-sample jackknife
-#' (\code{fit$bias_correct$method == "jackknife"}) has every replicate
-#' corrected the same
-#' way, so the intervals describe the corrected estimator; a replicate whose
-#' split cannot be refit is dropped and counted like any failed replicate. A
-#' fit carrying the parametric-bootstrap correction
-#' (\code{fit$bias_correct$method == "bootstrap"}) has the bias it estimated
-#' removed from every replicate rather than re-estimated, so a replicate costs
-#' one refit; the bias moves slowly with the parameters, and the replicate
-#' spread is that of the corrected estimator to first order. A binary
-#' replicate in which an actor has a single outcome value on a side records
-#' that actor's effect there as \code{-Inf} (no tie) or \code{Inf} (only
-#' ties), its maximum-likelihood value, so the actor's interval is open on
-#' that side and its standard error is \code{Inf}; an actor the original fit
-#' leaves out is \code{NA} throughout. A dynamic ALS fit is refit dynamically, on the
-#' parametric route only: a block resample reorders the time axis the
-#' temporal penalties are defined along. Only a penalised normal-family dynamic
-#' fit (\code{bias_correct = "none"}) has a bootstrap, and its time-varying
-#' factors are not summarised. Every replicate redraws the additive paths (an
-#' actor level with the fitted level variance plus an AR(1) deviation), so the
-#' standard errors carry the variability of the actors: the intercept's
-#' interval is for the population intercept (it covered 0.90 and 0.82 of 100
-#' panels of 20 actors and 8 periods and 40 of 30 and 12, against 0.08 and
-#' 0.07 when the fitted paths were held fixed, which covers the realized
-#' intercept only) and the dyadic coefficient's covered 0.91 and 0.95. The
-#' bootstrap of \code{\link{lame}} (\code{bootstrap = N}) draws its replicates
-#' the same way. The
-#' default dynamic empirical-Bayes fit of every family refuses a bootstrap, with
-#' an error of class \code{"lame_dynamic_eb_unsupported"}, and carries standard
-#' errors in \code{vcov()} and \code{confint()} instead (Laplace ones for a
-#' binary or Poisson fit, the exact Gaussian marginal ones for a normal fit). A
-#' penalised binary or Poisson dynamic fit refuses it with an error of class
-#' \code{"lame_als_bootstrap_unsupported"}. These refusals come before the
-#' replicate count is checked.
+#' different local optima. Every replicate is refit with the empirical-Bayes
+#' estimator of the fit (see \code{\link{ame_als}}), re-estimating the
+#' covariance of the actor effects from the fitted one; the replicate effects
+#' are drawn in the fitted coordinates (uncentred for \code{ame_als()},
+#' centred for \code{lame_als()}) and every refit is summarised as the fit
+#' reports it. The intervals then describe the empirical-Bayes estimator, and
+#' agree with the Laplace standard errors of \code{\link{vcov.ame_als}} where
+#' those are calibrated. A dynamic fit (\code{lame(..., method = "als")} with
+#' \code{dynamic_ab}, \code{dynamic_beta} or \code{dynamic_uv}) carries its own
+#' standard errors in \code{vcov()}, \code{confint()} and \code{summary()}
+#' (Laplace ones for a binary or Poisson fit, the exact Gaussian marginal ones
+#' for a normal fit) and has no bootstrap: \code{bootstrap = N} on such a fit
+#' leaves it with them and a message, and \code{ame_als_bootstrap()} refuses it
+#' with an error of class \code{"lame_dynamic_eb_unsupported"} before the
+#' replicate count is checked. A fit saved by an earlier release with a
+#' fast-route estimator setting that this release no longer has stops with an
+#' error of class \code{"lame_als_removed_setting"}; refit the model first.
 #' Standard errors are replicate column standard deviations; confidence
 #' intervals use the percentile method.
 #'
@@ -1477,42 +1165,41 @@ ame_als_refit <- function(
 #' \code{\link{ame_als}} and \code{\link{lame_als}} needs 30, and a 95 percent
 #' percentile interval is best read from 200 or more). A replicate whose refit has
 #' not converged is retried on the same data with four times the budget and,
-#' failing that, dropped: it never enters an interval. A replicate that errors,
-#' returns non-finite values or cannot carry the split-sample correction is
-#' dropped too, and every dropped replicate is counted
+#' failing that, dropped: it never enters an interval. A replicate that errors
+#' or returns non-finite values is dropped too, and every dropped replicate is counted
 #' (\code{n_failed}, with the reason in \code{fail_reason}). A dropped replicate
 #' is usually an extreme one, so the nominal level of a percentile interval can
 #' move by at most the share dropped; more than 5 percent of the \code{R}
 #' replicates dropped is an error of class
 #' \code{"lame_als_bootstrap_convergence"}, raised at the replicate that crosses
-#' the cap, with no interval from the rest.
+#' the cap, with no interval from the rest. Through \code{bootstrap = N} in
+#' \code{\link{ame_als}}, \code{\link{lame_als}}, \code{\link{ame}} and
+#' \code{\link{lame}} a bootstrap that stops with an error leaves the fit with its
+#' analytic standard errors and a message of class
+#' \code{"lame_als_bootstrap_not_run"}.
 #'
-#' \strong{One optimum per replicate.} The replicates of a fit with a
-#' multiplicative term (\code{R > 0}) are refit from the point estimate and
-#' also from the start the original fit used (the cold spectral start and, for a
-#' fit with \code{multistart}, its random starts); the converged refit with the
-#' lowest objective is kept, so a replicate cannot sit at a worse local optimum
-#' than the original procedure finds on its data. The start each replicate kept
-#' is in \code{boot_refit_start}, and \code{optimum_check} says what was
-#' compared. Without a multiplicative term the optimum is unique and a replicate
-#' is refit once. (An empirical-Bayes refit starts from the variational state of
-#' the fit and is not compared with other starts.) The point estimate of every
-#' coefficient must lie inside the central 95 percent of its own replicates: if
-#' it does not, the replicates are distributed around another optimum, or the
-#' estimator is biased by more than two standard errors, and the call is an
-#' error of class \code{"lame_als_bootstrap_optimum"} that carries the
-#' bootstrap as its \code{boot} field. A variance component whose estimate lies
-#' outside its replicate interval is the bias of its estimator in a regime a
-#' percentile interval cannot describe (the variance of the lognormal layer of a
-#' count network without extra-Poisson noise is the usual case): its standard
-#' error and interval are \code{NA}, it is named in \code{vc_uncentred} with the
-#' estimate and the replicate range, and the rest of the bootstrap stands.
+#' \strong{One optimum per replicate.} Every replicate is refit from the
+#' variational state of the fit. A normal-family replicate whose warm refit
+#' does not converge is also refit from a cold spectral start and, with a
+#' multiplicative term, from seven random starts, and the converged refit with
+#' the lowest objective is kept. The start each replicate kept is in
+#' \code{boot_refit_start}, and \code{optimum_check} says what was compared.
+#' The point estimate of every
+#' coefficient should lie inside the central 95 percent of its own replicates:
+#' if it does not, the replicates are distributed around another optimum, or
+#' the estimator is biased by more than two standard errors, and the
+#' coefficient takes the analytic standard error and Wald interval of the fit
+#' instead, named in \code{coef_uncentred} with the estimate and the replicate
+#' range. A variance component whose estimate lies outside its replicate
+#' interval is the bias of its estimator in a regime a percentile interval
+#' cannot describe (the variance of the lognormal layer of a count network
+#' without extra-Poisson noise is the usual case): it takes the analytic
+#' standard error and interval of the fit, it is named in \code{vc_uncentred},
+#' and the rest of the bootstrap stands.
 #'
 #' \strong{Block bootstrap.} A statistic that varies over \eqn{B} resampling
-#' blocks has a percentile interval that falls short of its level: in the
-#' simulations below a 95 percent interval covered the dyadic coefficient
-#' in 0.90 of the panels over ten to thirty blocks. The end points of a
-#' block interval are therefore read at the expanded percentile levels
+#' blocks has a percentile interval that falls short of its level. The end
+#' points of a block interval are therefore read at the expanded percentile levels
 #' \eqn{\Phi(\sqrt{B / (B - 1)}\, t_{B - 1, \alpha / 2})}{Phi(sqrt(B / (B - 1)) * qt(alpha / 2, B - 1))}
 #' (Hesterberg, 2015): 0.9 and 99.1 percent for a 95 percent interval at ten
 #' blocks, 1.6 and 98.4 percent at twenty. \code{n_blocks} records \eqn{B}, and
@@ -1524,117 +1211,43 @@ ame_als_refit <- function(
 #' A block resample redraws the time slices and holds the actors fixed, so it
 #' carries the variability of the data over time and none of the variability
 #' over actors. The parameters whose sampling variability is that over actors
-#' have no standard error and no interval under \code{type = "block"}: they
-#' are \code{NA}, named in \code{withheld} with the reason, and \code{print()}
-#' and \code{summary()} say so. \code{type = "parametric"} gives them. They are
-#' the node-covariate coefficients, \code{va}, \code{vb} and \code{cab}, and,
-#' for an empirical-Bayes fit, the intercept (the population intercept) and the
-#' additive effects and factors, which are shrunk toward their prior mean: the
+#' have no replicate standard error under \code{type = "block"}: they take the
+#' analytic standard errors and intervals of the fit, are named in
+#' \code{withheld} and \code{se_source} with the reason, and \code{print()} and
+#' \code{summary()} say so. \code{type = "parametric"} gives replicate ones. They are
+#' the node-covariate coefficients, \code{va}, \code{vb} and \code{cab},
+#' the intercept when the model has node covariates
+#' (it refers to the uncentred covariates, so it carries their coefficients)
+#' and the additive effects and factors, which are shrunk toward their prior
+#' mean: the
 #' replicates vary around the shrunk estimates, not around the effects. The
 #' residual variance \code{ve} has none either: a refit to a resample, which
 #' repeats some slices and omits others, absorbs more of the noise than the
-#' original fit, so its replicates sit below the estimate. The intercept of a
-#' fixed-effects fit is the mean of its linear predictor over the observed
-#' actors (the additive effects sum to zero), and its interval is for that
-#' quantity and not for a population intercept.
+#' original fit, so its replicates sit below the estimate. The intercept is
+#' the mean of the linear predictor over the observed actors (the additive
+#' effects sum to zero), and its interval is for that quantity and not for a
+#' population intercept.
 #'
-#' Coverage of the 95 percent interval was measured on directed normal-family
-#' panels of 15 to 40 actors and 10 to 30 periods with a time-varying dyadic
-#' covariate, static node covariates, random actor effects (standard
-#' deviation 0.6) and reciprocal errors (correlation 0.3), at block lengths 1
-#' to 3, with 100 to 200 replicates a bootstrap and 80 to 150 panels a cell
-#' (1720 bootstraps of simulated panels in all, 530 of them with 200 replicates).
-#' Coverage of the 95 percent interval, over all panels with ten or more blocks
-#' (plain percentile), at the levels above with 200 replicates (expanded), and
-#' for the parametric scheme on the same panels:
-#' \tabular{lccc}{
-#'   \strong{parameter} \tab \strong{plain} \tab \strong{expanded} \tab \strong{parametric} \cr
-#'   dyadic coefficients \tab 0.90 \tab 0.95 \tab 0.93 \cr
-#'   intercept, fixed-effects fit \tab 0.89 \tab 0.93 \tab 0.92 \cr
-#'   \code{rho} \tab 0.90 \tab 0.94 \tab 0.94 \cr
-#'   additive effects \tab 0.90 \tab 0.94 \tab 0.93 \cr
-#'   multiplicative term (\code{R = 1}) \tab 0.91 to 0.92 \tab 0.94 \tab 0.93 \cr
-#'   \code{ve} \tab 0.87 \tab 0.89 \tab 0.94 \cr
-#'   node-covariate coefficients \tab 0.07 to 0.11 \tab 0.11 to 0.13 \tab 0.90 \cr
-#'   \code{va}, \code{vb}, \code{cab} \tab 0.12 to 0.14 \tab 0.15 to 0.17 \tab 0.92 to 0.98
-#' }
-#' The first five rows keep their intervals (for a fit by the fixed-effects
-#' estimator, \code{bias_correct = "none"}). The parametric column is the
-#' interval of the parametric scheme with its own corrections. The intercept of a
-#' fixed-effects fit is the mean of its linear predictor, so a replicate's
-#' intercept carries the projection of the redrawn actor effects on the node
-#' covariates, which the realized intercept does not: the replicate intercept
-#' is taken relative to it (the interval was 2.6 times the sampling standard
-#' deviation, coverage 1.00, before; now 0.92 of 500 panels, standard error 0.94
-#' of the sampling standard deviation), and the node-covariate coefficients keep
-#' that variation (0.90). The variances \code{va} and \code{vb} are biased and
-#' their replicates reproduce the bias (a percentile interval covered 0.82 to
-#' 0.89 of the fixed-effects panels and 0.65 to 0.75 of the empirical-Bayes
-#' ones), so their parametric intervals are bias-corrected: the basic interval on
-#' the log scale for a fixed-effects fit (0.92 to 0.98 at 15, 20 and 40 actors)
-#' and the basic interval for an empirical-Bayes fit, whose estimate is biased
-#' upward by an amount that does not scale with it (0.91 to 0.97 at 20 and 30
-#' actors).
-#' On binary empirical-Bayes panels of 20
-#' actors and 12 periods (80 panels) the block intervals covered the dyadic
-#' coefficient in 0.91 of the panels and \code{rho} in 0.94, and the intercept in
-#' 0.19, the node-covariate coefficients in 0.25 and 0.26, \code{va},
-#' \code{vb} and \code{cab} in 0.43, 0.28 and 0.33 and the additive effects in
-#' 0.67 and 0.63 (0.93 for the parametric scheme). The same holds for the
-#' empirical-Bayes normal fit, the default for the normal family (20 actors, 12
-#' to 20 periods, 160 panels, 200 replicates): the block intervals covered the
-#' dyadic coefficient in 0.96 to 1.00 of the panels and \code{rho} in 0.93 to
-#' 0.98, and the intercept in 0.03 to 0.13, the node-covariate coefficients in
-#' 0.05 to 0.10, \code{va}, \code{vb} and \code{cab} in 0.02 to 0.18 and the
-#' additive effects in 0.27 to 0.39; \code{ve} covered 0.91 to 0.95 and has no
-#' interval. The fixed-effects rows above are the fits made with
-#' \code{bias_correct = "none"}.
-#'
-#' \strong{Fixed-effects fits.} A binary fit by the fixed-effects estimator
-#' (\code{bias_correct = "none"}) has no bootstrap: an error of class
-#' \code{"lame_als_bootstrap_bias"}, raised before anything is fitted by
-#' \code{\link{ame_als}} and \code{\link{lame_als}}. The dyadic coefficient of
-#' such a fit carries the incidental-parameters bias, every replicate is
-#' refit at the biased estimate and reproduces it, and the percentile
-#' interval sits about twice the bias from the truth. A 95 percent
-#' interval covered the dyadic coefficient in 0.54, 0.72, 0.76 and 0.84 of 100
-#' simulated panels of 30 actors and one period, 60 and two, 100 and two, and 30
-#' and four; the bias relative to the standard error falls slowly with the number
-#' of actors (0.85, 0.71, 0.57, 0.40) and the fit passes the size rule of
-#' \code{\link{ame_als}} at 100 actors and two periods. The default
-#' empirical-Bayes estimator, or the split-sample or parametric-bootstrap
-#' correction, is the fit to bootstrap. The 95 percent interval of a corrected fit
-#' covered the dyadic coefficient in 0.940 (jackknife) and 0.940 (bootstrap
-#' correction) of 150 simulated panels of 30 actors and four periods, and in
-#' 0.945 and 0.953 of 145 and 150 panels of 60 actors and two (200 replicates; Monte
-#' Carlo standard error 0.019). Over those four cells the intervals for the dyadic
-#' coefficient, \code{va} and \code{vb} covered 0.944, 0.940 and 0.943 of 595
-#' panels (standard error 0.010), and the standard error of the dyadic
-#' coefficient was 0.99 to 1.04 times its sampling standard deviation; 5 of
-#' the 600 panels were refused by the refit rule or the size rule. A replicate of a
-#' jackknife-corrected fit repeats the split-sample correction, and a replicate of
-#' a bootstrap-corrected fit has the stored bias removed. Scaling that
-#' stored bias by each replicate's own estimate changed the coverage of 60 panels
-#' in each of two cells by at most 0.02 and is not used; repeating the
-#' bootstrap correction in every replicate costs about 60 refits a replicate. A fixed-effects Poisson fit
-#' has no incidental-parameters bias in its dyadic coefficient (0.93 to 0.94)
-#' or its variance components, but its intercept does: it has no interval
-#' under either scheme (0.61, 0.85 and 0.73 of panels of 30 actors and one
-#' period, 60 and two, and 100 and two).
+#' On simulated directed normal panels (20 actors, 12 to 20 periods, 160
+#' panels, 200 replicates; a time-varying dyadic covariate, static node
+#' covariates, random actor effects and reciprocal errors) the block intervals
+#' covered the dyadic coefficient in 0.96 to 1.00 of the panels and \code{rho}
+#' in 0.93 to 0.98, and the intercept in 0.03 to 0.13, the node-covariate
+#' coefficients in 0.05 to 0.10, \code{va}, \code{vb} and \code{cab} in 0.02
+#' to 0.18 and the additive effects in 0.27 to 0.39, which is why those take the
+#' analytic errors of the fit; \code{ve} covered 0.91 to 0.95 and has no
+#' interval. The variances \code{va} and \code{vb} are biased upward by an
+#' amount that does not scale with them, and their replicates reproduce the
+#' bias (a percentile interval covered 0.65 to 0.75 of the panels), so their
+#' parametric intervals are the basic (bias-corrected) interval (0.91 to 0.97
+#' at 20 and 30 actors).
 #'
 #' @details
-#' \strong{Choice of inference.} The Social Influence Regression paper of
-#' Hoff & Minhas (2025) derives its primary standard errors from the observed
-#' Hessian (classical \eqn{-H^{-1}} and the sandwich/robust estimator
-#' \eqn{H^{-1} S H^{-1}}). Two features of the AME model make a Hessian-based
-#' variance awkward here. First, without an explicit gauge fix the rank-\code{R}
-#' multiplicative term is identified only up to a full \eqn{R\times R}
-#' rotation/reflection (\eqn{U \to U R}, \eqn{V \to V R^{-\top}}), leaving the
-#' joint Hessian rank-deficient. Second, even with a gauge fixed, the non-normal
-#' families are fit on a Gaussian working response, so a Hessian computed from
-#' that working objective is not calibrated to the family likelihood. The
-#' bootstrap side-steps both issues and is the recommended uncertainty tool
-#' here, mirroring \code{sir::boot_sir()}.
+#' \strong{Choice of inference.} Every fit already carries Laplace standard
+#' errors (\code{\link{vcov.ame_als}}). The bootstrap, which mirrors
+#' \code{sir::boot_sir()}, gives the replicate distribution of the estimator
+#' instead; its intervals agree with the Laplace ones where those are
+#' calibrated.
 #'
 #' \strong{Alignment-sensitive quantities.} The regression coefficients
 #' \code{beta}, the additive effects \code{a}, \code{b} and the variance
@@ -1649,9 +1262,10 @@ ame_als_refit <- function(
 #' that gap (\code{sv_separation$threshold}; the rotation the alignment applies to
 #' the pair is then under 4 degrees at the median and under 10 at the 90th
 #' percentile, against 9 and 25 when the two are equal). The \code{U} and \code{V}
-#' columns that are not separated from a neighbour have \code{NA} for the
+#' columns that are not separated from a neighbour take the analytic posterior
+#' standard deviations of the fit (\code{fit$U_sd}, \code{fit$V_sd}) for the
 #' column-wise standard errors (\code{se_U}, \code{se_V}, and their unaligned
-#' \code{_raw} versions) and \code{NA} intervals in \code{confint()}. What is
+#' \code{_raw} versions) and Wald intervals in \code{confint()}. What is
 #' reported for every fit with a multiplicative term, separated or not, is the
 #' uncertainty of the subspaces the factors span, which a rotation of the columns
 #' does not change: the principal angles, in degrees, between each replicate's
@@ -1673,13 +1287,7 @@ ame_als_refit <- function(
 #' dynamic \code{\link{lame}} there). The block bootstrap needs at least ten
 #' resampling blocks, so \code{parametric} (the default) is
 #' substituted, with a warning, on a panel that supplies fewer than ten
-#' blocks. The finite-sample
-#' (incidental-parameters) stretch of a binary IRLS fit is removed from the
-#' point estimate and from every replicate by the empirical-Bayes estimator
-#' (\code{bias_correct}, on by default for binary, Poisson and normal fits) or, when
-#' requested, the split-sample jackknife or the parametric-bootstrap
-#' correction; a binary fit that carries none of them has no bootstrap
-#' (\emph{Fixed-effects fits} above). The MCMC
+#' blocks. The MCMC
 #' \code{\link{ame}} / \code{\link{lame}} path gives posterior summaries when
 #' that is the target.
 #'
@@ -1698,11 +1306,10 @@ ame_als_refit <- function(
 #' @param verbose logical; print progress (default \code{TRUE}).
 #' @param max_iter positive integer iteration budget for each refit (default
 #'   200). A replicate that does not converge is retried on the same data
-#'   with four times this budget. A static Gaussian or working-scale refit
-#'   that still fails also tries a fresh spectral start and retains it only
-#'   if it converges with a lower objective. An unfinished low-rank Gaussian
-#'   refit also tries seven starts from the fixed internal seed 6886, retaining
-#'   only converged fits with no worse objective. A replicate that still has not
+#'   with four times this budget. A normal-family refit that still fails also
+#'   tries a fresh spectral start and, with a multiplicative term, seven
+#'   starts from the fixed internal seed 6886, keeping the converged refit with
+#'   the lowest objective. A replicate that still has not
 #'   converged is dropped, and more than 5 percent dropped is an error.
 #' @param tol positive convergence tolerance for each refit (default
 #'   \code{1e-6}).
@@ -1714,26 +1321,27 @@ ame_als_refit <- function(
 #'   \code{vc_*} for the variance components; \code{a_coefs}, \code{b_coefs},
 #'   \code{se_a}, \code{se_b}; \code{U_aligned}, \code{V_aligned},
 #'   \code{U_raw}, \code{V_raw}, \code{se_U}, \code{se_V} (when \code{R > 0}
-#'   and the factors are static; \code{NA} for the columns whose singular values
-#'   are not separated), \code{sv_separation} (the singular values of the point
+#'   and the factors are static; the analytic ones of the fit for the columns
+#'   whose singular values are not separated), \code{sv_separation} (the singular values of the point
 #'   estimate, the gaps and their z-scores in bootstrap standard deviations, the
 #'   threshold, and which columns are \code{resolved}) and \code{subspace} (the
 #'   principal angles, in degrees, of the replicate factor spaces to the point
 #'   estimate's, and their \code{largest} angle by side);
 #'   \code{n_valid}, \code{n_total}, \code{n_failed}, \code{fail_reason}
-#'   (per replicate: \code{""}, \code{"nonconverged"}, \code{"split"},
+#'   (per replicate: \code{""}, \code{"nonconverged"},
 #'   \code{"error"} or \code{"nonfinite"}), \code{max_fail_share},
 #'   \code{boot_refit_start} (the start each replicate kept),
 #'   \code{optimum_check}, \code{n_other_start} (replicates that kept a start
-#'   other than the warm one), \code{vc_uncentred} (the variance components with
-#'   no interval because their replicates are not centred on the estimate, when
-#'   there are any), \code{withheld} (a data frame of the parameters with no
-#'   standard error or interval, their \code{kind} --- \code{"coefficient"} or
-#'   \code{"vc"} or \code{"effects"} --- and the \code{reason}; \code{NULL}
-#'   when every parameter has one), \code{n_blocks} (the number of resampling blocks of a block
-#'   bootstrap, \code{NA} otherwise), \code{estimator_eb} (whether the fit is
-#'   empirical Bayes, which sets the interval of \code{va} and \code{vb}),
-#'   \code{type}, \code{family}.
+#'   other than the warm one), \code{coef_uncentred} and \code{vc_uncentred}
+#'   (the coefficients and variance components whose replicates are not
+#'   centred on the estimate, when there are any), \code{withheld} (a data
+#'   frame of the parameters the scheme gives no replicate standard error, their
+#'   \code{kind} --- \code{"coefficient"} or \code{"vc"} or \code{"effects"} ---
+#'   and the \code{reason}; \code{NULL} when the replicates cover every
+#'   parameter), \code{se_source} (the parameters whose standard error and
+#'   interval are the analytic ones of the fit, with the reason; \code{NULL}
+#'   when there are none), \code{analytic} (those analytic errors), \code{n_blocks} (the number of resampling blocks of a block
+#'   bootstrap, \code{NA} otherwise), \code{type}, \code{family}.
 #'
 #' @references
 #' Minhas, S. and Hoff, P. D. (2025). Decomposing Network Dynamics: Social
@@ -1784,7 +1392,11 @@ ame_als_bootstrap <- function(
 ) {
 	# a withheld product: replicates are drawn from its variational means and positions get no interval
 	product_withheld <- .ae_product_is_withheld(object)
+	# the fit's analytic errors, for the quantities the replicates give none
+	analytic <- if (inherits(object, "ame_als")) .ae_boot_analytic(object)
 	object <- .ae_product_restore(object)
+	# the replicates are drawn from the fitted state and summarised against the reported values
+	reported <- .ae_report_view(object)
 
 	if (!inherits(object, "ame_als")) {
 		cli::cli_abort("{.arg object} must be an {.cls ame_als} object from {.fn ame_als} or {.fn lame_als}.")
@@ -1800,35 +1412,17 @@ ame_als_bootstrap <- function(
 	R <- as.integer(R)
 	# estimators without a bootstrap are refused before the replicate count is checked; a dynamic
 	# empirical-Bayes fit carries its own standard errors
-	dyn <- .ae_is_dynamic_als(object)
-	if (dyn && identical(object$bias_correct$method, "eb")) {
+	.ae_fit_estimator(object)
+	if (.ae_is_dynamic_als(object)) {
 		se_kind <- if (identical(object$family, "normal")) "the exact Gaussian standard errors given the hyperparameters" else "Laplace standard errors"
 		cli::cli_abort(
 			c(
 				"A bootstrap is not offered for the dynamic empirical-Bayes estimator.",
 				"i" = "It carries {se_kind}: {.code vcov(fit)}, {.code confint(fit)}, {.code summary(fit)} and {.code fit$eb$se}.",
-				"i" = "The parametric bootstrap of the penalised normal fit is {.code bias_correct = \"none\"}; for posterior summaries use {.fn lame} with {.code method = \"mcmc\"}, optionally warm-started with {.code start_vals = als_start_vals(fit)}."
+				"i" = "For posterior summaries use {.fn lame} with {.code method = \"mcmc\"}, optionally warm-started with {.code start_vals = als_start_vals(fit)}."
 			),
 			class = c("lame_dynamic_eb_unsupported", "lame_als_eb")
 		)
-	}
-	# dynamic non-normal fits are refused: their replicates are not calibrated
-	if (dyn && !identical(object$family, "normal")) {
-		fam <- object$family
-		cli::cli_abort(
-			c(
-				"A bootstrap is not available for a {.val {fam}} dynamic ALS fit.",
-				"i" = "Each replicate refits through the IRLS reweighting loop and lands at a different local optimum: on a 60-actor binary {.arg dynamic_uv} panel the replicate standard deviations came out 8 to 11 times the MCMC posterior standard deviation, with 14% of replicates not converging.",
-				"i" = "For uncertainty on this fit use MCMC warm-started from it: {.code lame(..., start_vals = als_start_vals(fit))}.",
-				"i" = "The parametric bootstrap is available for normal-family dynamic fits and for every static ALS fit."
-			),
-			class = "lame_als_bootstrap_unsupported"
-		)
-	}
-	# as is the uncorrected fixed-effects fit of a binary network
-	if (identical(object$family, "binary") && identical(object$non_normal_method, "irls") &&
-			!identical(object$bias_correct$method, "eb") && !isTRUE(object$bias_correct$applied)) {
-		.ae_boot_refuse_uncorrected()
 	}
 	min_valid <- .ae_boot_min_valid
 	min_req <- .ae_boot_min_requested
@@ -1879,14 +1473,6 @@ ame_als_bootstrap <- function(
 		}
 		set.seed(seed)
 	}
-	if (dyn && identical(type, "block")) {
-		# a block resample reorders the time axis that the smoothness penalties and per-slice actor sets follow
-		cli::cli_warn(c(
-			"{.arg type} = {.val block} is not available for a dynamic ALS fit.",
-			"i" = "Resampling time slices breaks the temporal structure the dynamic estimator smooths along; using {.val parametric}."
-		))
-		type <- "parametric"
-	}
 	# block_length capped at T, the length the moving-block resampler uses
 	blk <- min(block_length, object$n_time)
 
@@ -1898,51 +1484,25 @@ ame_als_bootstrap <- function(
 	rho_hat <- as.numeric(object$VC["rho"])
 	if (!is.finite(rho_hat)) rho_hat <- 0
 	s2_hat <- object$s2
-	nnm <- .ae_default(object$non_normal_method, "transform")
-	# a non-normal `transform` fit is a Gaussian fit to a fixed transformed response, so it is
-	# resampled on that working scale (z = ez + noise); IRLS and normal fits use the response scale
-	working_boot <- identical(type, "parametric") &&
-		family %in% c("binary", "poisson", "ordinal") &&
-		!identical(nnm, "irls")
 
 	# object$s2 is already df-corrected in .ae_assemble(), so simulating with it centres the refits
 	# on the point estimate
 	s2_sim <- s2_hat
 
 	# fitted additive contribution, swapped per replicate for a fresh draw
-	swap_ab <- !isTRUE(object$dynamic_ab)
-	ab_orig <- if (swap_ab) {
-		outer(as.numeric(object$a), as.numeric(object$b), "+")
-	} else {
-		matrix(0, nr, nc)
-	}
-	# time-varying additive effects are redrawn as whole paths (.ae_boot_ab_paths)
-	dyn_ab <- isTRUE(object$dynamic_ab) && !is.null(object$a_dynamic) &&
-		is.matrix(object$a_dynamic) && ncol(object$a_dynamic) == Tt
-	ab_paths <- if (dyn_ab) .ae_boot_ab_paths(object)
-	ab_path_orig <- ab_paths$orig
-	draw_ab_path <- ab_paths$draw
+	ab_orig <- outer(as.numeric(object$a), as.numeric(object$b), "+")
 
-	if (type == "block" && Tt < 2L) {
-		cli::cli_abort(c(
-			"Block bootstrap resamples time slices and needs {.arg T} > 1.",
-			"i" = "This fit has a single time slice; use {.code type = \"parametric\"}.",
-			"i" = "(A nodal/dyadic resample is not offered: it would duplicate actors and not yield a valid network.)"
-		))
-	}
+	# a single time slice has no slices to resample: the short-panel rule below runs the parametric scheme
 	# the block scheme needs at least ten blocks; with fewer, the parametric one is used
 	min_blocks <- .ae_min_boot_blocks
 	n_blocks <- if (identical(type, "block")) as.integer(ceiling(Tt / blk)) else NA_integer_
 	if (identical(type, "block") && n_blocks < min_blocks) {
-		cli::cli_warn(c(
+		cli::cli_inform(c(
 			"A block bootstrap needs at least {.val {min_blocks}} resampling blocks; this fit gives {n_blocks}.",
-			"i" = "{Tt} time slice{?s} at {.arg block_length} = {blk} {?is/are} too few: the ends of the interval would be the extreme replicates.",
+			"i" = "{Tt} time slice{?s} at {.arg block_length} = {blk} {cli::qty(Tt)}{?is/are} too few: the ends of the interval would be the extreme replicates.",
 			"i" = "Using {.code type = \"parametric\"}; {.code fit$requested_type} records what was asked for."
-		))
+		), class = "lame_als_bootstrap_block_short")
 		type <- "parametric"
-		working_boot <- identical(type, "parametric") &&
-			family %in% c("binary", "poisson", "ordinal") &&
-			!identical(nnm, "irls")
 	}
 
 	if (identical(type, "parametric") && .ae_rho_required(object)) {
@@ -1956,7 +1516,7 @@ ame_als_bootstrap <- function(
 	}
 
 	# headline parameters: intercept and regression coefficients
-	point_coef <- object$coefficients
+	point_coef <- reported$coefficients
 	param_names <- names(point_coef)
 	n_par <- length(point_coef)
 
@@ -1974,10 +1534,8 @@ ame_als_bootstrap <- function(
 	boot_refit_attempts <- integer(R)
 	boot_refit_start <- rep("warm", R)
 	fail_reason <- character(R) # why a replicate was dropped ("" = kept)
-	n_split_dropped <- 0L # replicates the jackknife refused
 	max_fail <- floor(.ae_boot_max_fail * R + 1e-9) # replicates that may be dropped
 	first_failed <- NULL
-	# a dynamic fit's factors are trajectories, with no single point estimate to align replicates to
 	uv_track <- Rlat > 0 && is.matrix(object$U) && is.matrix(object[["V"]]) && !product_withheld
 	U_raw <- V_raw <- U_aln <- V_aln <- L_coefs <- uv_ok <- sv_boot <- NULL
 	if (uv_track) {
@@ -1999,8 +1557,7 @@ ame_als_bootstrap <- function(
 	for (b in seq_len(R)) {
 		if (verbose && b %% 25 == 0) cli::cli_inform("Bootstrap {.val {b}}/{.val {R}}")
 
-		Y_b <- NULL; X_b <- object[["X"]]; Z_b <- NULL
-		intercept_shift <- 0
+		Y_b <- NULL; X_b <- object[["X"]]
 
 		if (type == "block") {
 			if (blk <= 1L) {
@@ -2017,38 +1574,13 @@ ame_als_bootstrap <- function(
 			}
 			Y_b <- object$Y[, , t_idx, drop = FALSE]
 			X_b <- object[["X"]][, , , t_idx, drop = FALSE]
-		} else if (working_boot) {
-			# non-normal transform: resample on the Gaussian working scale, swapping in fresh additive
-			# effects and adding residual noise with the fit's variance and reciprocity
-			Z_b <- array(NA_real_, dim = c(nr, nc, Tt))
-			ab_new <- if (swap_ab) .ae_boot_draw_ab(object) else ab_orig
-			intercept_shift <- .ae_default(attr(ab_new, "intercept_shift"), 0)
-			ab_path_new <- if (dyn_ab) draw_ab_path() else NULL
-			for (t in seq_len(Tt)) {
-				ez <- if (dyn_ab) {
-					object$EZ[[t]] - ab_path_orig[[t]] + ab_path_new[[t]]
-				} else object$EZ[[t]] - ab_orig + ab_new
-				ez[!is.finite(ez)] <- 0
-				zt <- .ae_boot_draw_response(object, ez, rho_hat, s2_sim, working = TRUE)
-				storage.mode(zt) <- "double"
-				if (object$symmetric) {
-					zt[lower.tri(zt)] <- 0
-					zt <- zt + t(zt)
-				}
-				zt[is.na(object$Y[, , t])] <- NA_real_
-				Z_b[, , t] <- zt
-			}
 		} else {
 			# parametric, response scale: simulate outcomes from the fitted model with fresh additive
 			# effects; mu, beta and the multiplicative term stay fixed
 			Y_b <- array(NA_real_, dim = c(nr, nc, Tt))
-			ab_new <- if (swap_ab) .ae_boot_draw_ab(object) else ab_orig
-			intercept_shift <- .ae_default(attr(ab_new, "intercept_shift"), 0)
-			ab_path_new <- if (dyn_ab) draw_ab_path() else NULL
+			ab_new <- .ae_boot_draw_ab(object)
 			for (t in seq_len(Tt)) {
-				ez <- if (dyn_ab) {
-					object$EZ[[t]] - ab_path_orig[[t]] + ab_path_new[[t]]
-				} else object$EZ[[t]] - ab_orig + ab_new
+				ez <- object$EZ[[t]] - ab_orig + ab_new
 				ez[!is.finite(ez)] <- 0 # the unipartite diagonal of EZ is NA
 				yt <- .ae_boot_draw_response(object, ez, rho_hat, s2_sim)
 				yt <- as.matrix(yt)
@@ -2068,7 +1600,7 @@ ame_als_bootstrap <- function(
 		# refit from the warm start (and the original fit's start, see .ae_boot_refit); per-replicate
 		# warnings are suppressed since the original fit already raised them
 		res <- tryCatch(
-			.ae_boot_refit(object, Y_b, X_b, Z_b, dyn, max_iter, tol),
+			.ae_boot_refit(object, Y_b, X_b, max_iter, tol),
 			error = function(e) list(
 				fit = NULL,
 				attempts = 0L,
@@ -2083,19 +1615,13 @@ ame_als_bootstrap <- function(
 		fit_b <- res$fit
 		reason <- ""
 		if (is.null(fit_b)) {
-			reason <- if (inherits(res$error, "lame_jk_split")) {
-				n_split_dropped <- n_split_dropped + 1L
-				"split"
-			} else if (!is.null(res$error) && !inherits(res$error, "lame_jk_nonconvergence")) {
-				"error"
-			} else "nonconverged"
+			reason <- if (!is.null(res$error)) "error" else "nonconverged"
 		} else {
 			boot_refit_start[b] <- res$start
 			cf <- fit_b$coefficients
 			eff_b <- .ae_boot_effects(fit_b, object)
 			if (all(is.finite(cf)) && eff_b$ok) {
 				boot_coefs[b, ] <- cf
-				boot_coefs[b, 1L] <- cf[[1L]] - intercept_shift
 				vc_coefs[b, ] <- fit_b$VC
 				a_coefs[b, ] <- eff_b$a
 				b_coefs[b, ] <- eff_b$b
@@ -2106,7 +1632,7 @@ ame_als_bootstrap <- function(
 					V_raw[b, ] <- c(fit_b[["V"]])
 					# Procrustes-align the replicate U, V to the original fit
 					src <- rbind(fit_b$U, fit_b[["V"]])
-					tgt <- rbind(object$U, object[["V"]])
+					tgt <- rbind(reported$U, reported[["V"]])
 					Rrot <- .ae_procrustes(src, tgt)
 					U_aln[b, ] <- c(fit_b$U %*% Rrot)
 					V_aln[b, ] <- c(fit_b[["V"]] %*% Rrot)
@@ -2156,7 +1682,7 @@ ame_als_bootstrap <- function(
 		)
 	}
 	if (n_failed > 0L && verbose) {
-		cli::cli_alert_info("{n_failed} of {R} replicate{?s} could not be refit and {?was/were} dropped ({.val {sum(fail_reason == 'nonconverged')}} not converged, {.val {sum(fail_reason == 'split')}} split-sample correction not carried, {.val {sum(fail_reason %in% c('error', 'nonfinite'))}} refit error or non-finite).")
+		cli::cli_alert_info("{n_failed} of {R} replicate{?s} could not be refit and {?was/were} dropped ({.val {sum(fail_reason == 'nonconverged')}} not converged, {.val {sum(fail_reason %in% c('error', 'nonfinite'))}} refit error or non-finite).")
 	}
 
 	col_sd <- function(M, v) apply(M[v, , drop = FALSE], 2, stats::sd, na.rm = TRUE)
@@ -2178,11 +1704,7 @@ ame_als_bootstrap <- function(
 	vc_ci <- col_q(vc_coefs, valid, pr95)
 	if (identical(type, "parametric")) {
 		for (v in intersect(c("va", "vb"), colnames(vc_coefs))) {
-			vc_ci[, v] <- .ae_vc_interval(
-				vc_ci[, v],
-				as.numeric(object$VC[v]),
-				identical(object$bias_correct$method, "eb")
-			)
+			vc_ci[, v] <- .ae_vc_interval(vc_ci[, v], as.numeric(object$VC[v]))
 		}
 	}
 	out <- list(
@@ -2201,8 +1723,8 @@ ame_als_bootstrap <- function(
 		b_coefs = b_coefs,
 		se_a = .ae_boot_col_sd(a_coefs, valid),
 		se_b = .ae_boot_col_sd(b_coefs, valid),
-		point_a = object$a,
-		point_b = object$b,
+		point_a = reported$a,
+		point_b = reported$b,
 		n_valid = n_valid,
 		n_total = R,
 		n_nonconverged = n_nonconverged,
@@ -2214,15 +1736,13 @@ ame_als_bootstrap <- function(
 		boot_refit_start = boot_refit_start,
 		boot_refit_iterations = boot_refit_iterations,
 		refit_tol = tol,
-		n_split_dropped = n_split_dropped,
-		optimum_check = .ae_boot_optimum_check(object, dyn),
+		optimum_check = .ae_boot_optimum_check,
 		n_other_start = sum(valid & boot_refit_start != "warm"),
 		uv_summary = uv_track,
 		type = type,
 		requested_type = requested_type,
 		block_length = if (type == "block") blk else NA_integer_,
 		n_blocks = n_blocks_used,
-		estimator_eb = identical(object$bias_correct$method, "eb"),
 		family = family,
 		mode = object$mode,
 		symmetric = object$symmetric,
@@ -2245,12 +1765,12 @@ ame_als_bootstrap <- function(
 		if (out$n_valid_uv > 0) {
 			out$U_raw <- U_raw; out$V_raw <- V_raw
 			out$U_aligned <- U_aln; out$V_aligned <- V_aln
-			out$point_U <- object$U; out$point_V <- object[["V"]]
+			out$point_U <- reported$U; out$point_V <- reported[["V"]]
 			# columns whose singular values are not separated from a neighbour's have no column-wise standard error
-			sep <- .ae_boot_separation(object, sv_boot[vuv, , drop = FALSE])
+			sep <- .ae_boot_separation(reported, sv_boot[vuv, , drop = FALSE])
 			out$sv_separation <- sep
 			out$subspace <- .ae_boot_subspace(
-				object,
+				reported,
 				U_raw[vuv, , drop = FALSE],
 				V_raw[vuv, , drop = FALSE]
 			)
@@ -2267,7 +1787,7 @@ ame_als_bootstrap <- function(
 				out$se_L <- col_sd(L_coefs, vuv)
 				out$ci_L_lo <- col_q(L_coefs, vuv, pr95[1])
 				out$ci_L_hi <- col_q(L_coefs, vuv, pr95[2])
-				out$point_L <- object$L
+				out$point_L <- reported$L
 			}
 		}
 	}
@@ -2275,33 +1795,11 @@ ame_als_bootstrap <- function(
 	out <- .ae_boot_apply_withheld(out, .ae_boot_withheld(object, type))
 	class(out) <- "boot_ame"
 
-	# a coefficient outside the 95% interval of its replicates is an error; a variance component
-	# outside its interval has none (NA, named in vc_uncentred)
-	.ae_boot_check_centred(out)
-}
-
-#' @rdname ame_als_bootstrap
-#' @export
-boot_ame <- function(
-	object,
-	R = 200,
-	type = c("parametric", "block"),
-	block_length = 1,
-	seed = NULL,
-	verbose = TRUE,
-	max_iter = 200L,
-	tol = 1e-6
-) {
-	ame_als_bootstrap(
-		object,
-		R = R,
-		type = type,
-		block_length = block_length,
-		seed = seed,
-		verbose = verbose,
-		max_iter = max_iter,
-		tol = tol
-	)
+	# a coefficient or variance component outside the 95% interval of its replicates (named in
+	# coef_uncentred, vc_uncentred) and every quantity the scheme withholds take the analytic error
+	out <- .ae_boot_check_centred(out)
+	out$analytic <- analytic
+	.ae_boot_fill(out)
 }
 
 # S3 methods for boot_ame objects
@@ -2317,7 +1815,7 @@ boot_ame <- function(
 print.boot_ame <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
 	.lame_cli_stdout({
 		drop_note <- if (isTRUE(x$n_failed > 0)) {
-			paste0(" (", x$n_failed, " dropped: not converged, refit error or split correction not carried)")
+			paste0(" (", x$n_failed, " dropped: not converged or refit error)")
 		} else {
 			""
 		}
@@ -2434,7 +1932,8 @@ print.summary.boot_ame <- function(x, ...) {
 				signif(un$hi, 4),
 				")"
 			)
-			cli::cli_text("No interval for {paste(items, collapse = '; ')}: the replicates are not centred on the estimate, which a percentile interval cannot describe.")
+			lead <- if (any(un$component %in% object$se_source$parameter)) "Analytic standard error and interval for" else "No interval for"
+			cli::cli_text("{lead} {paste(items, collapse = '; ')}: the replicates are not centred on the estimate, which a percentile interval cannot describe.")
 		}
 
 		.ae_print_withheld(object)
@@ -2469,7 +1968,7 @@ print.summary.boot_ame <- function(x, ...) {
 
 		if (object$R > 0) {
 			if (isFALSE(object$uv_summary)) {
-				cli::cli_text("{.strong Multiplicative factors}: time-varying, so replicates carry no common point estimate to align to.")
+				cli::cli_text("{.strong Multiplicative factors}: the latent product is withheld, so replicates carry no common point estimate to align to.")
 			} else if (is.null(object$se_U)) {
 				cli::cli_text("{.strong Multiplicative factors}: no replicate produced finite U/V.")
 			} else if (object$symmetric) {
@@ -2519,8 +2018,7 @@ print.summary.boot_ame <- function(x, ...) {
 #'   \code{summary()} and \code{tidy()} on the same fit; \code{"basic"}
 #'   reflects the replicate quantiles about the point estimate
 #'   (\eqn{2\hat\theta - q}), which corrects first-order bias and can be
-#'   preferable for the IRLS binary/Poisson point estimators on small
-#'   samples.
+#'   preferable for binary and Poisson fits on small samples.
 #' @param which which uncertainty channel to return: \code{"all"} (default,
 #'   intercept + regression coefficients + variance components + sender effects
 #'   + receiver effects + multiplicative U/V), or a single channel:
@@ -2529,10 +2027,11 @@ print.summary.boot_ame <- function(x, ...) {
 #' @param ... ignored.
 #' @return A matrix with one row per parameter and lower/upper bound columns.
 #'   The rows of the \code{U} and \code{V} columns whose singular values are
-#'   not separated from a neighbour's, of a variance component with no
-#'   interval (\code{vc_uncentred}), and of a parameter the bootstrap returns
-#'   no interval for (\code{withheld}), are \code{NA}; see
-#'   \code{\link{ame_als_bootstrap}}.
+#'   not separated from a neighbour's, of a coefficient or variance component
+#'   whose replicates are not centred on it (\code{coef_uncentred},
+#'   \code{vc_uncentred}), and of a parameter the bootstrap returns no
+#'   interval for (\code{withheld}), are the analytic Wald intervals of the fit
+#'   (\code{se_source}); see \code{\link{ame_als_bootstrap}}.
 #' @method confint boot_ame
 #' @export
 confint.boot_ame <- function(
@@ -2588,6 +2087,8 @@ confint.boot_ame <- function(
 			.ae_boot_withheld_names(object, "coefficient"),
 			rownames(parts$beta)
 		), ] <- NA_real_
+		parts$beta[intersect(object$coef_uncentred$parameter, rownames(parts$beta)), ] <- NA_real_
+		parts$beta <- .ae_boot_fill_ci(parts$beta, object, "coefficient", object$point_est, object$se, level)
 	}
 	if (which %in% c("all", "vc") && !is.null(object$vc_coefs)) {
 		vc <- .boot_ci(
@@ -2595,10 +2096,12 @@ confint.boot_ame <- function(
 			object$vc_point_est,
 			colnames(object$vc_coefs)
 		)
-		# va and vb of a parametric bootstrap get a bias-corrected interval (.ae_vc_interval)
+		# va and vb of a parametric bootstrap get the basic interval (.ae_vc_interval)
 		if (ci_type == "percentile" && identical(object$type, "parametric")) {
+			# a bootstrap of an earlier release's fit made with a removed estimator setting
+			if (isFALSE(object$estimator_eb)) .ae_abort_removed_setting()
 			for (v in intersect(c("va", "vb"), rownames(vc))) {
-				vc[v, ] <- .ae_vc_interval(vc[v, ], as.numeric(object$vc_point_est[v]), isTRUE(object$estimator_eb))
+				vc[v, ] <- .ae_vc_interval(vc[v, ], as.numeric(object$vc_point_est[v]))
 			}
 		}
 		# variance components are non-negative, but the basic interval can cross zero near the
@@ -2614,7 +2117,7 @@ confint.boot_ame <- function(
 			c(object$vc_uncentred$component, .ae_boot_withheld_names(object, "vc")),
 			rownames(vc)
 		), ] <- NA_real_
-		parts$vc <- vc
+		parts$vc <- .ae_boot_fill_ci(vc, object, "vc", object$vc_point_est[rownames(vc)], object$vc_se[rownames(vc)], level)
 	}
 	if (which %in% c("all", "a") && !is.null(object$a_coefs)) {
 		nm_a <- if (!is.null(object$dims$row_names)) object$dims$row_names
@@ -2626,6 +2129,7 @@ confint.boot_ame <- function(
 			prefix = "a_"
 		)
 		if ("a" %in% .ae_boot_withheld_names(object, "effects")) parts$a[] <- NA_real_
+		parts$a <- .ae_boot_fill_ci(parts$a, object, "effects", as.vector(object$point_a), object$se_a, level)
 	}
 	if (which %in% c("all", "b") && !is.null(object$b_coefs) &&
 			nrow(object$b_coefs) > 0L && ncol(object$b_coefs) > 0L) {
@@ -2638,6 +2142,7 @@ confint.boot_ame <- function(
 			prefix = "b_"
 		)
 		if ("b" %in% .ae_boot_withheld_names(object, "effects")) parts$b[] <- NA_real_
+		parts$b <- .ae_boot_fill_ci(parts$b, object, "effects", as.vector(object$point_b), object$se_b, level)
 	}
 	# U and V are stored flat: u_aligned is [r_boot, n_row * r_lat], each row c(point_u) of one
 	# replicate (column-major)
@@ -2672,6 +2177,7 @@ confint.boot_ame <- function(
 			Rlat
 		)
 		if ("U" %in% .ae_boot_withheld_names(object, "effects")) parts$U[] <- NA_real_
+		parts$U <- .ae_boot_fill_ci(parts$U, object, "effects", as.vector(object$point_U), object$se_U, level)
 	}
 	if (which %in% c("all", "V") && !is.null(object$V_aligned) &&
 			is.matrix(object$V_aligned) && nrow(object$V_aligned) > 0L &&
@@ -2690,6 +2196,7 @@ confint.boot_ame <- function(
 			Rlat
 		)
 		if ("V" %in% .ae_boot_withheld_names(object, "effects")) parts[["V"]][] <- NA_real_
+		parts[["V"]] <- .ae_boot_fill_ci(parts[["V"]], object, "effects", as.vector(object$point_V), object$se_V, level)
 	}
 
 	ci <- do.call(rbind, parts)
@@ -2732,10 +2239,16 @@ vcov.boot_ame <- function(object, ...) {
 	valid <- stats::complete.cases(object$coefs)
 	V <- stats::cov(object$coefs[valid, , drop = FALSE])
 	dimnames(V) <- list(object$param_names, object$param_names)
-	# parameters without a bootstrap standard error get no covariance
-	w <- intersect(.ae_boot_withheld_names(object, "coefficient"), object$param_names)
+	# parameters without a bootstrap standard error take the block of the analytic covariance
+	w <- intersect(c(.ae_boot_withheld_names(object, "coefficient"), object$coef_uncentred$parameter), object$param_names)
 	V[w, ] <- NA_real_
 	V[, w] <- NA_real_
+	Va <- object$analytic$coef_vcov
+	if (length(w) && is.matrix(Va) && all(w %in% rownames(Va))) {
+		V[w, ] <- 0
+		V[, w] <- 0
+		V[w, w] <- Va[w, w]
+	}
 	V
 }
 
@@ -2825,8 +2338,11 @@ sampler_describe.ame_als <- function(object, verbose = TRUE) {
 			cli::cli_h3("Estimator")
 			cli::cli_text("Method: {.field iterative block coordinate descent} (fast, MCMC-free)")
 			cli::cli_text("Origin: Hoff & Minhas Social Influence Regression estimator (sir::sir_alsfit())")
-			cli::cli_text("Uncertainty available: no (point estimate only)")
-			cli::cli_text("For standard errors, run {.fn ame_als_bootstrap}.")
+			if (isTRUE(object$meta$uncertainty_available)) {
+				cli::cli_text("Uncertainty available: yes (bootstrap, with analytic errors where it gives none)")
+			} else {
+				cli::cli_text("Uncertainty available: yes (Laplace standard errors of the empirical-Bayes fit: {.fn vcov}, {.fn confint}, {.fn summary})")
+			}
 			cli::cli_text(cli::col_grey(object$meta$approximation_note))
 		})
 	}
@@ -2921,12 +2437,12 @@ sampler_describe.lame <- function(object, verbose = TRUE) {
 #' with modified arguments. Two routes:
 #' \itemize{
 #'   \item if \code{...} contains only the warm-start refit knobs
-#'     (\code{Y_new}, \code{X_new}, \code{Z_new}, \code{max_iter},
-#'     \code{tol}, \code{verbose}, \code{bias_correct}), it delegates to
+#'     (\code{Y_new}, \code{X_new}, \code{max_iter}, \code{tol},
+#'     \code{verbose}), it delegates to
 #'     \code{\link{ame_als_refit}} for a fast warm-started refit (a
 #'     dynamic fit is refit through its own fitter and comes back dynamic);
 #'   \item otherwise (e.g. changing \code{R}, \code{family},
-#'     \code{lambda}, \code{bootstrap}) it re-evaluates the original
+#'     \code{bootstrap}) it re-evaluates the original
 #'     \code{object$call} with the overrides, matching the
 #'     \code{\link{update.ame}} semantics on the MCMC side.
 #' }
@@ -2966,8 +2482,7 @@ update.ame_als <- function(object, ..., evaluate = TRUE) {
 	dots <- list(...)
 	# warm-start arguments of ame_als_refit() (excluding `object`)
 	warm_args <- c(
-		"Y_new", "X_new", "Z_new", "max_iter", "tol", "verbose",
-		"bias_correct"
+		"Y_new", "X_new", "max_iter", "tol", "verbose"
 	)
 	is_warm <- length(dots) > 0L && all(names(dots) %in% warm_args)
 	if (is_warm || length(dots) == 0L) {

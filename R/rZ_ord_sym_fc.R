@@ -25,7 +25,7 @@
 #'   with unconstrained normal draws around \code{diag(EZ)} so downstream
 #'   samplers never see missing values.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
-#' @keywords internal
+#' @noRd
 rZ_ord_sym_fc <- function(Z, EZ, Y, rho = 0) {
 	n <- nrow(Y)
 	uY <- sort(unique(c(Y)))

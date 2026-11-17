@@ -32,7 +32,7 @@ rbeta_ab_bip_gibbs_cpp(
 
 \item{s2}{Dyadic variance}
 
-\item{g_prior}{G-prior parameter}
+\item{g_prior}{G-prior scale, one value or one per coefficient}
 
 \item{va}{Row effect variance (diagonal element of Sab)}
 

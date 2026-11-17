@@ -25,7 +25,7 @@ Returns response-scale fitted values: a single matrix for a cross-sectional
 (\code{lame_als}) fit.
 }
 \details{
-For a binary empirical-Bayes fit (the default) the fitted values are
+For a binary fit the fitted values are
 predictive probabilities: the expectation of the response over the posterior
 of the linear predictor, \eqn{\Phi(m / \sqrt{1 + v})} for a probit link, with
 \eqn{m} the posterior mean and \eqn{v} the posterior variance of the predictor
@@ -56,8 +56,7 @@ product of the positions, and the coefficients' part at the design asked
 for; \code{plug_in = TRUE} returns \eqn{\Phi(m)}, which \code{fit$fitted}
 keeps. A fit stored without the variance record is an error of class
 \code{"lame_predictive_missing"}. The empirical-Bayes count fit returns the
-plug-in mean \eqn{e^{\eta + v_e / 2}}{exp(eta + ve / 2)}, the normal fit the
-predictor, and a penalised fit (\code{bias_correct = "none"}) the response
-mean at its predictor (\eqn{\Phi(\eta)}, \eqn{e^{\eta}}). The dynamic route
+plug-in mean \eqn{e^{\eta + v_e / 2}}{exp(eta + ve / 2)} and the normal fit the
+predictor. The dynamic route
 has no exposure and no forecasts (\code{predict(h > 0)} is an error).
 }

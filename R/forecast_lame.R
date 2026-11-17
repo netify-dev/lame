@@ -95,8 +95,7 @@
 	if (!is.null(seed)) set.seed(seed)
 	if (h < 1L) cli::cli_abort("`h` must be at least 1.")
 
-	if (!is.null(object$dynamic_beta_per_actor) ||
-			(isTRUE(object$dynamic_beta) && object$dynamic_beta_kind %in% c("rw2", "matern32"))) {
+	if (!is.null(object$dynamic_beta_per_actor)) {
 		cli::cli_abort(
 			"Forecasting is not implemented for this coefficient transition model.",
 			class = "lame_forecast_model"
@@ -141,9 +140,10 @@
 	state_idx <- sample.int(length(available), n_draws)
 	idx <- available[state_idx]
 
-	# warn once per fit when rho_beta is near the unit root
-	if (!is.null(object$RHO_BETA)) {
-		q <- stats::quantile(object$RHO_BETA, probs = c(0.025, 0.975), na.rm = TRUE)
+	# warn once per fit when the rho_beta of an ar1 block is near the unit root
+	rho_ar1 <- .lame_rho_beta_ar1(object)
+	if (!is.null(rho_ar1) && length(rho_ar1) > 0L) {
+		q <- stats::quantile(rho_ar1, probs = c(0.025, 0.975), na.rm = TRUE)
 		if (q[2L] >= 0.99) {
 			warned <- .lame_state$forecast_unit_root_warned %||% character()
 			fit_key <- if (requireNamespace("digest", quietly = TRUE)) {
@@ -156,24 +156,11 @@
 				)
 			}
 			if (!fit_key %in% warned) {
-				kind <- object$dynamic_beta_kind %||% "ar1"
-				var_msg <- switch(
-					kind,
-					rw1 = "Under RW1 the {.arg h}-step forecast variance grows linearly in {.arg h}, so intervals widen at every step.",
-					rw2 = "Under RW2 the {.arg h}-step forecast propagation uses the AR(1) recursion at {.code rho = 1} so the variance grows linearly in {.arg h} and intervals widen at every step.",
-					matern32 = "Under Matern 3/2 the {.arg h}-step forecast propagation falls back to the AR(1) recursion at {.code rho = 1} so the variance grows linearly in {.arg h} and intervals widen at every step.",
-					"Under AR(1) the {.arg h}-step forecast variance saturates at the stationary level {.code sigma_beta^2 / (1 - rho_beta^2)}, which itself explodes as {.code rho_beta -> 1}; horizons beyond {.val 3} become uninformative in this regime."
-				)
 				msgs <- c(
 					"!" = "Posterior 95% interval for {.code rho_beta} reaches {.val {round(q[2], 3)}}.",
-					"i" = var_msg
+					"i" = "Under AR(1) the {.arg h}-step forecast variance saturates at the stationary level {.code sigma_beta^2 / (1 - rho_beta^2)}, which itself explodes as {.code rho_beta -> 1}; horizons beyond {.val 3} become uninformative in this regime.",
+					"i" = "Consider refitting with {.code dynamic_beta_kind = \"rw1\"} if the underlying process is genuinely unit-root."
 				)
-				if (identical(kind, "ar1")) {
-					msgs <- c(
-						msgs,
-						"i" = "Consider refitting with {.code dynamic_beta_kind = \"rw1\"} if the underlying process is genuinely unit-root."
-					)
-				}
 				cli::cli_warn(msgs)
 				.lame_state$forecast_unit_root_warned <- c(warned, fit_key)
 			}
@@ -182,7 +169,9 @@
 
 	# last-period state for each draw
 	beta_is_dyn <- length(dim(object$BETA)) == 3L
-	beta_transition <- if (beta_is_dyn) .lame_beta_transition_scale(object) else NULL
+	beta_transition <- if (beta_is_dyn) .lame_beta_transition_scale(object, c("ar1", "rw1", "rw2", "matern32")) else NULL
+	# rw2 and matern32 paths forecast by the conditional of their prior over the fitted and future periods
+	beta_smooth <- if (beta_is_dyn) .lame_beta_smooth_forecast_map(object, h) else NULL
 	# n x n x h x n_draws array, actor-named on the first two dimensions
 	out <- array(
 		NA_real_,
@@ -334,7 +323,20 @@
 			sig_by_coef[static_mask] <- 0
 			sig_by_coef <- sig_by_coef * beta_transition$sd
 
-			beta_path <- .propagate_per_coef(beta_T, rho_by_coef, sig_by_coef, h)
+			# an ar1 coefficient reverts to its long-run mean and an rw1 path keeps its last level
+			if (is.null(object$MU_BETA)) {
+				beta_path <- .propagate_per_coef(beta_T, rho_by_coef, sig_by_coef, h)
+			} else {
+				mu_by_coef <- .lame_beta_mean_row(object, i, names(beta_T) %||% beta_names)
+				beta_path <- .lame_beta_add_mean(
+					.propagate_per_coef(beta_T - mu_by_coef, rho_by_coef, sig_by_coef, h),
+					mu_by_coef
+				)
+			}
+			if (!is.null(beta_smooth)) {
+				path_i <- matrix(object$BETA[i, , ], dim(object$BETA)[2L], dim(object$BETA)[3L])
+				beta_path <- .lame_beta_smooth_forecast_draw(beta_path, path_i, sig_by_coef, beta_smooth)
+			}
 		} else {
 			# static beta repeated across the h periods
 			beta_T <- object$BETA[i, ]

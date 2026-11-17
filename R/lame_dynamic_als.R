@@ -1,14 +1,13 @@
-# dynamic ALS/MAP point estimator for longitudinal AME models
+# dynamic fast route for longitudinal AME models: the dispatcher to the
+# empirical-Bayes fits and the penalised fit of the sampler's warm start
 #
 # covers normal, binary and Poisson panels with optional changing composition,
 # dynamic additive effects, selected dynamic regression coefficients, static
-# low-rank UV when R > 0, smooth dynamic UV, bipartite dynamic G, and
+# low-rank UV when R > 0, smooth dynamic UV, a bipartite G, and
 # node-covariate coefficients identified by the ALS orthogonality
 # decomposition. dynamic node coefficients use period-specific node values;
 # static ones use the actor-level summaries of static ALS. snap-shift UV has no
 # ALS route (see .lame_snap_als_refuse in lame_snap_als.R).
-
-.lda_default <- function(x, y) if (is.null(x) || length(x) == 0L) y else x
 
 .lda_max_abs <- function(x) {
 	if (is.null(x) || length(x) == 0L) return(0)
@@ -109,6 +108,27 @@
 		D[t, t + 1L] <- 1
 	}
 	lambda * crossprod(D)
+}
+
+# penalty of a coefficient path: an ar1 path is stationary around its own long-run mean mu, a free
+# parameter profiled out, so the penalty is b' (K - K 1 1' K / 1' K 1) b with K the stationary AR(1)
+# precision; rw1, rw2 and a persistence of one keep .lda_path_penalty
+.lda_beta_path_penalty <- function(Tt, lambda, kind = "rw1", rho = 1) {
+	if (!identical(kind, "ar1") || rho >= 1 || lambda <= 0 || Tt < 2L) return(.lda_path_penalty(Tt, lambda, kind, rho))
+	K <- .lda_path_penalty(Tt, lambda, kind, rho)
+	K[1L, 1L] <- K[1L, 1L] + lambda * (1 - rho^2)
+	k1 <- rowSums(K)
+	K - tcrossprod(k1) / sum(k1)
+}
+
+# long-run mean of an ar1 path that minimises its penalty (zero for the other kinds)
+.lda_beta_path_mean <- function(path, kind = "rw1", rho = 1) {
+	Tt <- length(path)
+	if (!identical(kind, "ar1") || rho >= 1 || Tt < 2L) return(0)
+	K <- .lda_path_penalty(Tt, 1, kind, rho)
+	K[1L, 1L] <- K[1L, 1L] + 1 - rho^2
+	k1 <- rowSums(K)
+	sum(k1 * path) / sum(k1)
 }
 
 .lda_path_penalty_weighted <- function(Tt, lambda, weights = NULL, rho = 1) {
@@ -303,9 +323,13 @@
 # sub-problem with an unobserved period is handled the same alone or inside the
 # constrained block
 .lda_safe_pinv <- function(A) {
+	if (!nrow(A)) return(matrix(0, 0L, 0L))
 	A <- (A + t(A)) / 2
-	eg <- tryCatch(eigen(A, symmetric = TRUE), error = function(e) NULL)
-	if (is.null(eg)) return(matrix(0, nrow(A), ncol(A)))
+	eg <- tryCatch(eigen(A, symmetric = TRUE), error = function(e) cli::cli_abort(
+		c('A path system of the dynamic ALS fit could not be decomposed.', 'x' = '{conditionMessage(e)}'),
+		class = 'lame_als_numerical',
+		call = NULL
+	))
 	lam <- eg$values
 	thr <- max(lam, 0) * sqrt(.Machine$double.eps)
 	keep <- is.finite(lam) & lam > thr
@@ -521,7 +545,7 @@
 		if (length(du) == 3L) du[3L] else 1L,
 		if (length(dv) == 3L) dv[3L] else 1L,
 		if (length(dg) == 3L) dg[3L] else 1L,
-		.lda_default(Tt, 1L)
+		.ae_default(Tt, 1L)
 	)
 	out <- array(0, dim = c(du[1L], dv[1L], Tt))
 	for (t in seq_len(Tt)) {
@@ -536,7 +560,7 @@
 		} else G
 		out[, , t] <- Ut %*% Gt %*% t(Vt)
 	}
-	time_names <- .lda_default(time_names, if (length(du) == 3L) {
+	time_names <- .ae_default(time_names, if (length(du) == 3L) {
 		dimnames(U)[[3L]]
 	} else if (length(dv) == 3L) {
 		dimnames(V)[[3L]]
@@ -635,6 +659,8 @@
 
 # the covariate-unit multiplier of the smoothness weight of coefficient k
 .lda_beta_ms <- function(beta_dyn, k) if (is.null(beta_dyn$ms)) 1 else beta_dyn$ms[[k]]
+# persistence of the path penalty of coefficient k, per coefficient when the blocks differ in kind
+.lda_beta_rho <- function(beta_dyn, k, rho) if (is.null(beta_dyn$rho_k)) rho else beta_dyn$rho_k[[k]]
 
 .lda_beta_dyn_from_mask <- function(mask, coef_names, coef_block) {
 	mask <- as.logical(mask)
@@ -809,7 +835,12 @@
 		for (k in idx$dynamic_idx) {
 			idk <- idx$dynamic_map[k, ]
 			H[idk, idk] <- H[idk, idk] +
-				.lda_path_penalty(Tt, lambda_beta * .lda_beta_ms(beta_dyn, k), kind, rho_beta)
+				.lda_beta_path_penalty(
+					Tt,
+					lambda_beta * .lda_beta_ms(beta_dyn, k),
+					kind,
+					.lda_beta_rho(beta_dyn, k, rho_beta)
+				)
 		}
 	}
 	H <- H + diag(1e-8, idx$n)
@@ -1738,8 +1769,12 @@
 		args$start_jitter <- 0.05
 		args$call <- NULL
 		refits[[s]] <- tryCatch(
-			do.call(lame_dynamic_als, args),
-			error = function(e) e
+			# a restart keeps the estimator of the fit it restarts
+			.ae_notes_isolated(do.call(lame_dynamic_als, args)),
+			error = function(e) {
+				.ae_note_fallback("stability_restart")
+				e
+			}
 		)
 	}
 	ok <- vapply(refits, function(x) inherits(x, "lame_dynamic_als"), logical(1))
@@ -1764,70 +1799,6 @@
 		refits = valid,
 		failures = refits[!ok]
 	)
-}
-
-.lda_dynamic_bootstrap <- function(
-	fit,
-	R_boot,
-	type,
-	block_length,
-	seed,
-	call_args = list(),
-	verbose = FALSE
-) {
-	if (R_boot <= 0L) return(NULL)
-	.ae_check_bootstrap_n(R_boot)
-	if (!isTRUE(fit$converged)) {
-		cli::cli_abort(
-			c(
-				"Bootstrap intervals require a converged original fit.",
-				"i" = "Refit with a larger iteration budget and inspect the convergence diagnostics."
-			),
-			class = "lame_als_bootstrap_convergence"
-		)
-	}
-	if (!identical(type, "parametric")) {
-		cli::cli_warn(c(
-			"{.arg bootstrap_type = \"block\"} is not yet available for dynamic ALS.",
-			"i" = "Using parametric dynamic refits instead."
-		))
-		type <- "parametric"
-	}
-	sims <- .lda_boot_sims(fit, R_boot, seed)
-	obs_mask <- is.finite(fit$Y)
-	mask_sim <- function(Ysim) {
-		if (is.list(Ysim) && !is.data.frame(Ysim)) {
-			out <- Ysim
-			for (t in seq_along(out)) {
-				out[[t]][!obs_mask[, , t]] <- NA_real_
-				dimnames(out[[t]]) <- dimnames(fit$Y)[1:2]
-				if (isTRUE(fit$changing_composition)) {
-					row_keep <- (fit$row_presence %||% fit$actor_presence)[, t]
-					col_keep <- (fit$col_presence %||% fit$actor_presence)[, t]
-					out[[t]] <- out[[t]][row_keep, col_keep, drop = FALSE]
-				}
-			}
-			names(out) <- dimnames(fit$Y)[[3L]]
-			return(out)
-		}
-		if (is.array(Ysim) && length(dim(Ysim)) == 3L) {
-			Ysim[!obs_mask] <- NA_real_
-			dimnames(Ysim) <- dimnames(fit$Y)
-			if (isTRUE(fit$changing_composition)) {
-				out <- lapply(seq_len(dim(Ysim)[3L]), function(t) {
-					row_keep <- (fit$row_presence %||% fit$actor_presence)[, t]
-					col_keep <- (fit$col_presence %||% fit$actor_presence)[, t]
-					Ysim[row_keep, col_keep, t, drop = FALSE][, , 1L]
-				})
-				names(out) <- dimnames(fit$Y)[[3L]]
-				return(out)
-			}
-			return(Ysim)
-		}
-		Ysim
-	}
-	# the replicate loop and its accounting are in ame_als_bootstrap_dynamic.R
-	.lda_boot_run(fit, sims, mask_sim, call_args, seed, R_boot, verbose)
 }
 
 .lda_eta <- function(
@@ -1920,7 +1891,12 @@
 	pen_beta <- 0
 	if (isTRUE(beta_dyn$any) && lambda_beta > 0) {
 		for (k in which(beta_dyn$mask)) {
-			P <- .lda_path_penalty(prep$Tt, lambda_beta * .lda_beta_ms(beta_dyn, k), beta_kind, rho_beta)
+			P <- .lda_beta_path_penalty(
+				prep$Tt,
+				lambda_beta * .lda_beta_ms(beta_dyn, k),
+				beta_kind,
+				.lda_beta_rho(beta_dyn, k, rho_beta)
+			)
 			pen_beta <- pen_beta + as.numeric(t(coef_path[k, ]) %*% P %*% coef_path[k, ])
 		}
 	}
@@ -2668,7 +2644,7 @@
 	# reported va / vb are variances of the actor levels, as in the MCMC VC: under
 	# dynamic_ab they come from the cross-period covariance profile of the paths,
 	# otherwise from the empirical variance minus the first-order sampling
-	# variance. uncorrected values are kept as vc_raw and vc_period
+	# variance. the empirical values are kept as vc_raw and vc_period
 	va_period <- if (nr > 1L) mean(.lda_presence_col_vars(a_mat, prep$row_presence), na.rm = TRUE) else NA_real_
 	vb_period <- if (symmetric) NA_real_ else
 	if (nc > 1L) mean(.lda_presence_col_vars(b_mat, prep$col_presence), na.rm = TRUE) else NA_real_
@@ -2854,7 +2830,25 @@
 		# (1 - rho) times its level to the scale
 		sigma_beta = if (isTRUE(beta_dyn$any) && any(beta_mask) &&
 				nrow(coef_path) == length(beta_mask)) {
-			.lda_innov_sd(coef_path[beta_mask, , drop = FALSE], rho_beta, Tt)
+			# difference each row at its own persistence (1 for an rw1 intercept among ar1 blocks), an ar1
+			# row about its long-run mean
+			rho_rows <- if (is.null(beta_dyn$rho_k)) rho_beta else
+				c(beta_dyn$rho_k, rep(rho_beta, length(beta_mask)))[seq_along(beta_mask)][beta_mask]
+			rho_rows <- rep_len(rho_rows, sum(beta_mask))
+			rows <- coef_path[beta_mask, , drop = FALSE]
+			mu_rows <- vapply(seq_len(nrow(rows)), function(j) .lda_beta_path_mean(rows[j, ], dynamic_beta_kind, rho_rows[j]), 0)
+			.lda_innov_sd(rows - mu_rows, rho_rows, Tt)
+		} else NULL,
+		# long-run means of the ar1 coefficient paths
+		mu_beta = if (isTRUE(beta_dyn$any) && any(beta_mask) && identical(dynamic_beta_kind, "ar1") &&
+				nrow(coef_path) == length(beta_mask)) {
+			rho_all <- if (is.null(beta_dyn$rho_k)) rep(rho_beta, length(beta_mask)) else
+				c(beta_dyn$rho_k, rep(rho_beta, length(beta_mask)))[seq_along(beta_mask)]
+			k_ar1 <- which(beta_mask & rho_all < 1)
+			if (length(k_ar1)) stats::setNames(
+				vapply(k_ar1, function(k) .lda_beta_path_mean(coef_path[k, ], "ar1", rho_all[k]), 0),
+				rownames(coef_path)[k_ar1]
+			)
 		} else NULL,
 		lambda_u = if (isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "t")) transition_u else NULL,
 		lambda_v = if (isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "t")) transition_v else NULL,
@@ -2949,7 +2943,6 @@ lame_dynamic_als <- function(
 	dynamic_uv_kind = c("ar1", "snap", "t"),
 	dynamic_beta = FALSE,
 	dynamic_beta_kind = c("ar1", "rw1", "rw2", "matern32"),
-	dynamic_G = FALSE,
 	prior = list(),
 	lambda_ab = NULL,
 	lambda_beta = NULL,
@@ -2964,7 +2957,6 @@ lame_dynamic_als <- function(
 	bootstrap = 0L,
 	bootstrap_type = c("parametric", "block"),
 	bootstrap_block_length = 1L,
-	bootstrap_seed = NULL,
 	call = NULL,
 	start = NULL,
 	start_jitter = 0,
@@ -2974,9 +2966,11 @@ lame_dynamic_als <- function(
 	nvar = NULL,
 	dcor = NULL,
 	dynamic_beta_pool = NULL,
+	beta_kind_intercept = NULL,
 	...
 ) {
-	bias_correct <- .ae_check_bias_correct(bias_correct)
+	notes_top <- .ae_notes_open()
+	if (notes_top) on.exit(.ae_notes_close(), add = TRUE)
 	lowrank_user <- !missing(lowrank_method)
 	mode <- match.arg(mode)
 	dynamic_uv_kind <- match.arg(dynamic_uv_kind)
@@ -3015,8 +3009,7 @@ lame_dynamic_als <- function(
 		static_only <- intersect(
 			dot_names,
 			c(
-				"linear_solver", "multistart",
-				"non_normal_method"
+				"linear_solver", "multistart"
 			)
 		)
 		hint <- if (length(static_only) > 0L) {
@@ -3060,49 +3053,17 @@ lame_dynamic_als <- function(
 	# Poisson responses must be non-negative integer counts, as in ame()/lame()
 	if (identical(family, "poisson")) .lame_check_poisson_counts(Y)
 	.lame_als_check_covariate_scale(Xdyad, Xrow, Xcol)
-	if (identical(bias_correct, "eb") && !family %in% c("binary", "poisson", "normal")) {
-		cli::cli_abort(
-			c(
-				"The empirical-Bayes estimator ({.code bias_correct = \"eb\"}) is defined for the normal, binary and Poisson likelihoods; {.arg family} is {.val {family}}.",
-				"i" = "Dynamic {.val {family}} ALS fits take {.code bias_correct = NULL} or {.val none}."
-			),
-			class = "lame_als_eb"
-		)
-	}
-	if (identical(bias_correct, "bootstrap")) {
-		cli::cli_abort(
-			c(
-				"The parametric-bootstrap bias correction is available for static binary ALS fits only.",
-				"i" = "Dynamic binary ALS fits take {.code bias_correct = NULL} (the empirical-Bayes estimator) or {.val none}; dynamic Poisson fits take {.code bias_correct = NULL} (the empirical-Bayes estimator), {.val jackknife} (directed panels) or {.val none}."
-			),
-			class = "lame_jk_split"
-		)
-	}
-	if (identical(bias_correct, "jackknife") &&
-			(!identical(family, "poisson") || !identical(mode, "unipartite") ||
-					isTRUE(symmetric) || (isTRUE(dynamic_uv) && dynamic_uv_kind != "ar1"))) {
-		cli::cli_abort(
-			c(
-				"The split-sample jackknife is not available for this dynamic ALS specification.",
-				"i" = "The dynamic correction estimates directed Poisson variance and reciprocal covariance."
-			),
-			class = "lame_jk_split"
-		)
-	}
 	if (identical(family, "poisson")) link <- "log"
 	if (isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "snap")) {
 		cli::cli_abort(c(
 			"{.fn lame_dynamic_als} supports smooth {.arg dynamic_uv_kind} values {.val ar1} and {.val t}.",
-			"i" = "The snap kind has no ALS route; use {.code dynamic_uv_kind = \"snap\"} with {.code method = \"mcmc\"} for directed panels, or {.val ar1} here."
+			"i" = "The snap kind has no ALS route; use {.code dynamic_uv_kind = \"snap\"} with {.code method = \"mcmc\"}, or {.val ar1} here."
 		))
 	}
 	if (isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "t") &&
 			identical(mode, "bipartite")) {
 		.lda_refuse_bipartite_t(caller = "lame_dynamic_als")
 	}
-	# as in the MCMC route: a time-varying interaction matrix is not identified
-	# apart from the latent positions
-	.lame_refuse_dynamic_G(dynamic_G)
 	if (identical(dynamic_beta_kind, "matern32")) {
 		cli::cli_abort(c(
 			"{.arg dynamic_beta_kind = \"matern32\"} is not yet supported by {.fn lame_dynamic_als}.",
@@ -3114,34 +3075,14 @@ lame_dynamic_als <- function(
 		cli::cli_abort("{.arg bootstrap} must be a non-negative integer.")
 	}
 	bootstrap <- as.integer(bootstrap)
-	# bootstrap replicates of a dynamic non-normal fit are not calibrated, so
-	# the route refuses them
-	if (bootstrap > 0L && family %in% c("binary", "poisson") &&
-			(is.null(bias_correct) || identical(bias_correct, "eb"))) {
-		cli::cli_abort(
-			c(
-				"A bootstrap is not offered for the dynamic empirical-Bayes estimator.",
-				"i" = "It carries Laplace standard errors: {.code vcov(fit)}, {.code confint(fit)}, {.code summary(fit)} and {.code fit$eb$se}.",
-				"i" = "For posterior summaries of the paths and variance components use {.fn lame} with {.code method = \"mcmc\"}, optionally warm-started from this fit with {.code start_vals = als_start_vals(fit)}."
-			),
-			class = "lame_dynamic_eb_unsupported"
-		)
+	# a dynamic empirical-Bayes fit carries its own standard errors, so a requested
+	# bootstrap is not run and the fit reports those
+	if (bootstrap > 0L && is.null(bias_correct)) {
+		# a count below the minimum is an error before anything is fitted, as on the static route
+		.ae_check_bootstrap_n(bootstrap)
+		.ae_note_boot_not_run("A bootstrap is not offered for a dynamic fit; its standard errors are the Laplace (or, for a normal panel, the exact Gaussian) errors of the empirical-Bayes estimator.")
+		bootstrap <- 0L
 	}
-	if (bootstrap > 0L && !identical(family, "normal")) {
-		fam <- family
-		cli::cli_abort(
-			c(
-				"A bootstrap is not available for a {.val {fam}} dynamic ALS fit.",
-				"i" = "Each replicate refits through the IRLS reweighting loop and lands at a different local optimum: on a 60-actor binary {.arg dynamic_uv} panel the replicate standard deviations came out 8 to 11 times the MCMC posterior standard deviation, with 14% of replicates not converging.",
-				"i" = "For uncertainty on this fit use MCMC warm-started from it: {.code lame(..., start_vals = als_start_vals(fit))}.",
-				"i" = "The parametric bootstrap is available for normal-family dynamic fits and for every static ALS fit."
-			),
-			class = "lame_als_bootstrap_unsupported"
-		)
-	}
-	# the penalised normal fit runs the bootstrap: refuse a count below the
-	# minimum before fitting
-	if (bootstrap > 0L && identical(bias_correct, "none")) .ae_check_bootstrap_n(bootstrap)
 	if (!is.numeric(start_jitter) || length(start_jitter) != 1L ||
 			!is.finite(start_jitter) || start_jitter < 0) {
 		cli::cli_abort("{.arg start_jitter} must be a non-negative finite number.")
@@ -3183,6 +3124,9 @@ lame_dynamic_als <- function(
 		bootstrap_block_length = bootstrap_block_length,
 		call = call
 	)
+	# kind of the intercept that the dynamic_ab rule adds to ar1 blocks
+	if (!is.null(beta_kind_intercept)) call_args$beta_kind_intercept <- beta_kind_intercept
+	Y <- .ae_binary_input(Y, family)
 	prep <- .ae_prepare(
 		Y,
 		Xdyad,
@@ -3193,6 +3137,8 @@ lame_dynamic_als <- function(
 		node_time_policy = "quiet",
 		symmetric = isTRUE(symmetric)
 	)
+	# family and data checks
+	prep$Yarr <- .ae_check_als_response(prep$Yarr, family)
 	if (mode == "unipartite" && prep$nr != prep$nc) {
 		cli::cli_abort("Unipartite dynamic ALS requires square network slices.")
 	}
@@ -3231,8 +3177,8 @@ lame_dynamic_als <- function(
 		as.integer(x)
 	}
 	if (prep$bip) {
-		R_row_eff <- .validate_rank(.lda_default(R_row, R), "R_row")
-		R_col_eff <- .validate_rank(.lda_default(R_col, R), "R_col")
+		R_row_eff <- .validate_rank(.ae_default(R_row, R), "R_row")
+		R_col_eff <- .validate_rank(.ae_default(R_col, R), "R_col")
 	} else {
 		if (!is.null(R_row) || !is.null(R_col)) {
 			cli::cli_warn("{.arg R_row} and {.arg R_col} are ignored for unipartite dynamic ALS.")
@@ -3334,28 +3280,18 @@ lame_dynamic_als <- function(
 	.lda_check_design_rank(prep, full_layout$names, symmetric = isTRUE(symmetric))
 	# the smoothness weight of a moving coefficient is per unit of its covariate: lambda_beta times its mean square
 	if (beta_dyn$any) beta_dyn$ms <- .lda_design_ms(prep, coef_names, isTRUE(symmetric))
-	# binary, Poisson and normal dynamic fits are empirical-Bayes fits by default
-	# (lame_dynamic_als_eb.R), treating the paths as random to remove the
-	# incidental-parameter bias; bias_correct = "none" fits the penalised model
-	# below, and unsupported specifications are refused by name
+	# binary, Poisson and normal dynamic fits are empirical-Bayes fits (lame_dynamic_als_eb.R),
+	# treating the paths as random to remove the incidental-parameter bias; bias_correct = "none"
+	# (the sampler's warm start, lame()) fits the penalised model below, and unsupported
+	# specifications are refused by name
 	pln_eb <- identical(family, "poisson")
 	nrm_eb <- identical(family, "normal")
 	if ((identical(family, "binary") || pln_eb || nrm_eb) &&
-			(is.null(bias_correct) || identical(bias_correct, "eb")) &&
+			is.null(bias_correct) &&
 			(isTRUE(dynamic_ab) || isTRUE(beta_dyn$any) || isTRUE(dynamic_uv))) {
 		if (nrm_eb) {
 			# the Gaussian cell: identity link (the penalised fit's link argument is unused)
 			link <- "identity"
-			if (bootstrap > 0L) {
-				cli::cli_abort(
-					c(
-						"A bootstrap is not offered for the dynamic empirical-Bayes estimator.",
-						"i" = "It carries the exact Gaussian standard errors given the hyperparameters: {.code vcov(fit)}, {.code confint(fit)}, {.code summary(fit)} and {.code fit$eb$se}.",
-						"i" = "The parametric bootstrap of the penalised normal fit is {.code bias_correct = \"none\"}; for posterior summaries of the paths and variance components use {.fn lame} with {.code method = \"mcmc\"}, optionally warm-started from this fit with {.code start_vals = als_start_vals(fit)}."
-					),
-					class = "lame_dynamic_eb_unsupported"
-				)
-			}
 		}
 		# the paths use period-specific node values, so the static-mean warnings
 		# below do not apply
@@ -3371,16 +3307,13 @@ lame_dynamic_als <- function(
 			dynamic_uv_kind,
 			beta_dyn,
 			dynamic_beta_kind,
-			lambda_ab,
-			lambda_beta,
-			lambda_uv,
 			prior,
 			link
 		)
 		if (isTRUE(lowrank_user) && R_eff > 0L) {
 			cli::cli_warn(c(
-				"{.arg lowrank_method} = {.val {lowrank_method}} does not apply to the empirical-Bayes estimator.",
-				"i" = "It solves the latent factors jointly with the other effects by Gauss-Newton; {.code bias_correct = \"none\"} uses the alternating low-rank solvers."
+				"{.arg als_lowrank_method} = {.val {lowrank_method}} does not apply to the empirical-Bayes estimator.",
+				"i" = "It solves the latent factors jointly with the other effects by Gauss-Newton."
 			))
 		}
 		# a bipartite interaction U G V' has rank min(R_row, R_col); the sampler
@@ -3420,8 +3353,8 @@ lame_dynamic_als <- function(
 		}
 		# an undirected network has one effect per actor, switched by nvar (the
 		# sampler overrides rvar and cvar with it)
-		rvar_eff <- if (symmetric) isTRUE(.lda_default(nvar, TRUE)) else isTRUE(.lda_default(rvar, TRUE))
-		cvar_eff <- if (symmetric) rvar_eff else isTRUE(.lda_default(cvar, TRUE))
+		rvar_eff <- if (symmetric) isTRUE(.ae_default(nvar, TRUE)) else isTRUE(.ae_default(rvar, TRUE))
+		cvar_eff <- if (symmetric) rvar_eff else isTRUE(.ae_default(cvar, TRUE))
 		# the moving coefficients over the whole design, node covariates included
 		beta_mask <- if (isTRUE(beta_dyn$any)) {
 			parse_dynamic_beta(
@@ -3441,7 +3374,7 @@ lame_dynamic_als <- function(
 		# keep the budget the fit used
 		eb_budget <- if (missing(max_iter)) 1000L else max_iter
 		call_args$max_iter <- eb_budget
-		return(.lde_dynamic_fit(
+		return(.ae_notes_attach(.lde_dynamic_fit(
 			prep,
 			family,
 			mode,
@@ -3454,7 +3387,6 @@ lame_dynamic_als <- function(
 			seed,
 			call,
 			call_args,
-			bias_requested = bias_correct,
 			start = start,
 			start_jitter = start_jitter,
 			stability = stability,
@@ -3466,11 +3398,12 @@ lame_dynamic_als <- function(
 			cvar = cvar_eff,
 			R_row = if (isTRUE(prep$bip)) R_row_eff,
 			R_col = if (isTRUE(prep$bip)) R_col_eff,
-			beta_pool = .lda_default(dynamic_beta_pool, "none"),
+			beta_pool = .ae_default(dynamic_beta_pool, "none"),
 			dynamic_uv = isTRUE(dynamic_uv),
 			dynamic_uv_kind = dynamic_uv_kind,
-			dcor = dcor_eb
-		))
+			dcor = dcor_eb,
+			beta_kind_by_block = if (!is.null(beta_kind_intercept)) c(intercept = beta_kind_intercept)
+		), notes_top))
 	}
 	# the penalised routes honour none of these switches
 	.lda_warn_ignored_switches(names(Filter(
@@ -3509,18 +3442,23 @@ lame_dynamic_als <- function(
 	}
 	if (!isTRUE(dynamic_ab) && !isTRUE(beta_dyn$any) &&
 			!isTRUE(dynamic_uv)) {
-		return(lame_als(
-			Y,
-			Xdyad = Xdyad,
-			Xrow = Xrow,
-			Xcol = Xcol,
-			R = R_eff,
-			family = family,
-			mode = mode,
-			symmetric = symmetric,
-			verbose = verbose,
-			seed = seed
-		))
+		# the static fit keeps the order this call was given; the user-facing call gives the density warning
+		fit <- withCallingHandlers(
+			lame_als(
+				Y,
+				Xdyad = Xdyad,
+				Xrow = Xrow,
+				Xcol = Xcol,
+				R = R_eff,
+				family = family,
+				mode = mode,
+				symmetric = symmetric,
+				verbose = verbose,
+				seed = seed
+			),
+			lame_fast_binary_density = function(w) invokeRestart("muffleWarning")
+		)
+		return(.ae_notes_attach(.ae_actor_order_kept(fit), notes_top))
 	}
 	# a static fit informs from its own preparation, a dynamic one here
 	.lame_inform_cov_na(prep$cov_na$n)
@@ -3531,12 +3469,12 @@ lame_dynamic_als <- function(
 	# convergence tests are relative to the unit
 	unit_sd <- .lame_unit_sd(prep$Yarr, family)
 	uv_unit <- if (!identical(family, "normal")) 1 else if (prep$bip) unit_sd^2 else unit_sd
-	lambda_uv_default <- is.null(.lda_default(lambda_uv, prior$lambda_uv_als))
+	lambda_uv_default <- is.null(lambda_uv)
 	lams <- .lda_default_lambdas(
 		prep,
-		lambda_ab = .lda_default(lambda_ab, prior$lambda_ab_als),
-		lambda_beta = .lda_default(lambda_beta, prior$lambda_beta_als),
-		lambda_uv = .lda_default(lambda_uv, prior$lambda_uv_als)
+		lambda_ab = lambda_ab,
+		lambda_beta = lambda_beta,
+		lambda_uv = lambda_uv
 	)
 	lambda_ab <- as.numeric(lams$ab)
 	lambda_beta <- as.numeric(lams$beta)
@@ -3546,6 +3484,10 @@ lame_dynamic_als <- function(
 	# prior mean the MCMC uses, so an ALS warm start hands the chain its usual start
 	rho_ab <- .lda_clip_rho(prior$rho_ab_mean, 0.8)
 	rho_beta <- .lda_clip_rho(prior$rho_beta_mean, 0.8)
+	# an rw1 intercept among ar1 blocks takes the ar1 path penalty at rho = 1
+	if (isTRUE(beta_dyn$any) && identical(beta_kind_intercept, "rw1") && identical(dynamic_beta_kind, "ar1")) {
+		beta_dyn$rho_k <- ifelse(names(beta_dyn$mask) == "intercept", 1, rho_beta)
+	}
 	rho_uv <- .lda_clip_rho(prior$rho_uv_mean, 0.9)
 
 	if (verbose) {
@@ -3600,12 +3542,11 @@ lame_dynamic_als <- function(
 				longitudinal = TRUE,
 				call = call,
 				lowrank_method = lowrank_method,
-				non_normal_method = "transform",
+				estimator = "transform",
 				link = "probit",
 				linear_solver = "eigen",
 				multistart = "none",
 				node_time_policy = "quiet",
-				certify_gaussian = FALSE,
 				report_cov_na = FALSE
 			),
 			lame_als_convergence = function(w) {
@@ -4188,7 +4129,7 @@ lame_dynamic_als <- function(
 	# also keep their cold seed and damp overshooting IRLS proposals
 	count_damping <- identical(family, "poisson") && !prep$bip && !symmetric &&
 		isTRUE(dynamic_uv) &&
-		identical(dynamic_uv_kind, "ar1") && !isTRUE(beta_dyn$any)
+		identical(dynamic_uv_kind, "ar1")
 	line_search_trace <- list()
 	if (isTRUE(use_irls) && (isTRUE(warm_start_used) || count_damping)) {
 		rw0 <- irls_reweight()
@@ -4687,7 +4628,6 @@ lame_dynamic_als <- function(
 
 	refinement <- NULL
 	if (!converged && !use_irls && prep$bip && isTRUE(dynamic_uv) &&
-			!isTRUE(beta_dyn$any) &&
 			identical(dynamic_uv_kind, "ar1") && length(U) > 0L && length(V) > 0L) {
 		refined <- .lda_refine_bip_normal(
 			prep,
@@ -4752,7 +4692,6 @@ lame_dynamic_als <- function(
 
 	if (!converged && use_irls && identical(family, "poisson") &&
 			!prep$bip && !symmetric && isTRUE(dynamic_uv) &&
-			!isTRUE(beta_dyn$any) &&
 			identical(dynamic_uv_kind, "ar1") && length(U) > 0L && length(V) > 0L) {
 		refined <- .lda_refine_directed_count(
 			prep,
@@ -4890,7 +4829,7 @@ lame_dynamic_als <- function(
 				"i" = if (limit) {
 					"Increase {.arg max_iter}; for {.code R > 0} the objective is non-convex and a flat one converges slowly, so a lower {.arg R} may also finish it."
 				} else {
-					"The reweighted solve could not lower the penalized deviance, so a larger {.arg max_iter} does not help: lower {.arg R}, or use the default empirical-Bayes estimator ({.code bias_correct = NULL})."
+					"The reweighted solve could not lower the penalized deviance, so a larger {.arg max_iter} does not help: lower {.arg R}."
 				},
 				"i" = "The last iterate is in the {.field fit} field of the condition."
 			),
@@ -4902,31 +4841,12 @@ lame_dynamic_als <- function(
 			fit = fit_out
 		)
 	}
-	count_correction <- identical(family, "poisson") && !prep$bip &&
-		!symmetric && !isTRUE(beta_dyn$any) && prep$nr >= 4L &&
-		(R_eff == 0L || (isTRUE(dynamic_uv) && identical(dynamic_uv_kind, "ar1")))
-	if (identical(bias_correct, "jackknife") && !count_correction) {
-		cli::cli_abort(
-			c(
-				"The split-sample jackknife is not available for this dynamic ALS specification.",
-				"i" = "It requires a directed Poisson panel with at least four actors, static coefficients, and rank zero or AR(1) positions."
-			),
-			class = "lame_jk_split"
-		)
-	}
-	if (count_correction && !identical(bias_correct, "none") && converged) {
-		fit_out <- .lda_count_jackknife(fit_out, call_args, max_iter, tol)
-		fit_out$bias_correct$requested <- bias_correct
-	} else {
-		fit_out$bias_correct <- list(
-			method = "none",
-			applied = FALSE,
-			requested = bias_correct,
-			reason = if (!converged) "the full fit has not converged" else
-			if (identical(bias_correct, "none")) "explicitly disabled" else
-				"no automatic correction for this specification"
-		)
-	}
+	fit_out$bias_correct <- list(
+		method = "none",
+		applied = FALSE,
+		requested = bias_correct,
+		reason = if (!converged) "the full fit has not converged" else "explicitly disabled"
+	)
 	# everything a refit needs except the data, which the fit already carries
 	fit_out$als_refit <- list(
 		fitter = "lame_dynamic_als",
@@ -4944,20 +4864,7 @@ lame_dynamic_als <- function(
 			call_args = call_args
 		)
 	}
-	if (bootstrap > 0L) {
-		fit_out$bootstrap_dynamic <- .lda_dynamic_bootstrap(
-			fit_out,
-			R_boot = bootstrap,
-			type = bootstrap_type,
-			block_length = bootstrap_block_length,
-			seed = if (is.null(bootstrap_seed)) seed else bootstrap_seed,
-			call_args = call_args,
-			verbose = verbose
-		)
-		fit_out$meta$uncertainty_available <- TRUE
-		fit_out$meta$uncertainty_source <- "dynamic_bootstrap"
-	}
-	fit_out
+	.ae_notes_attach(fit_out, notes_top)
 }
 
 #' @export
@@ -4993,7 +4900,7 @@ predict.lame_dynamic_als <- function(
 	mcmc_args <- intersect(c("interval", "by_draw", "newexposure"), names(dots))
 	if (length(mcmc_args)) cli::cli_warn(c(
 		"Argument{?s} {.arg {mcmc_args}} only apply to MCMC fits and are ignored here.",
-		"i" = "For uncertainty on an ALS fit, use {.fn ame_als_bootstrap} or the {.arg bootstrap} fitting argument."
+		"i" = "The standard errors of a dynamic ALS fit are in {.fn vcov}, {.fn confint} and {.fn summary}."
 	))
 	EZ <- object$EZ
 	if (!is.null(newdata)) {
@@ -5055,7 +4962,7 @@ predict.lame_dynamic_als <- function(
 #' @export
 print.lame_dynamic_als <- function(x, digits = 4, ...) {
 	.lame_cli_stdout({
-		if (identical(x$bias_correct$method, "eb") && isTRUE(x$bias_correct$dynamic)) {
+		if (.ae_fit_eb(x)) {
 			cli::cli_text("{.strong Dynamic AME fit via empirical-Bayes ALS} (fast, MCMC-free)")
 		} else {
 			cli::cli_text("{.strong Dynamic AME fit via penalized ALS/MAP} (fast, MCMC-free)")
@@ -5078,9 +4985,8 @@ print.lame_dynamic_als <- function(x, digits = 4, ...) {
 		cli::cli_text("")
 		rho_note <- .ae_rho_not_estimated_text(x)
 		if (!is.null(rho_note)) cli::cli_text("{rho_note}")
-		.ae_print_bias_correct(x$bias_correct, x$family)
+		.ae_print_estimator(x, x$family)
 		.lde_print_eb(x, digits)
-		cli::cli_text(cli::col_grey("Point estimate only; no posterior draws."))
 	})
 	invisible(x)
 }
@@ -5095,9 +5001,11 @@ summary.lame_dynamic_als <- function(object, ...) {
 		R = object$R,
 		n_time = object$n_time,
 		dims = object$dims,
-		coefficients = if (isTRUE(object$dynamic_beta)) object$coef_path else
-			cbind(Estimate = object$coefficients),
+		coefficients = .lde_coef_table(object$coefficients, object$eb$se),
+		coef_path = if (isTRUE(object$dynamic_beta)) .lde_path_table(object$coef_path, object$eb$se_path),
 		VC = object$VC,
+		vc_table = .lde_vc_table(object),
+		hyper_table = .lde_hyper_table(object),
 		rho_note = .ae_rho_not_estimated_text(object),
 		bias_correct = object$bias_correct,
 		eb = object$eb,
@@ -5145,13 +5053,31 @@ print.summary.lame_dynamic_als <- function(x, digits = 4, ...) {
 		cli::cli_rule()
 		cli::cli_text("{.strong Coefficients}")
 		cli::cli_verbatim(utils::capture.output(print(round(x$coefficients, digits))))
+		if (!is.null(x$coef_path)) {
+			cli::cli_text("")
+			cli::cli_text("{.strong Coefficient paths}")
+			cli::cli_verbatim(utils::capture.output(print(round(x$coef_path, digits))))
+		}
 		cli::cli_text("")
 		cli::cli_text("{.strong Variance summaries}")
-		cli::cli_verbatim(utils::capture.output(print(round(x$VC, digits))))
+		if (is.null(x$vc_table)) {
+			cli::cli_verbatim(utils::capture.output(print(round(x$VC, digits))))
+		} else {
+			cli::cli_verbatim(utils::capture.output(print(round(x$vc_table, digits))))
+		}
+		if (!is.null(x$hyper_table)) {
+			cli::cli_text("")
+			cli::cli_text("{.strong Innovation scales of the coefficient paths}")
+			cli::cli_verbatim(utils::capture.output(print(round(x$hyper_table, digits))))
+		}
 		if (!is.null(x$rho_note)) cli::cli_text("{x$rho_note}")
-		.ae_print_bias_correct(x$bias_correct, x$family)
-		.lde_print_eb(x, digits)
-		cli::cli_text(cli::col_grey("Point estimate only; no posterior draws or credible intervals."))
+		.ae_print_estimator(x, x$family)
+		.lde_print_eb(x, digits, se_block = FALSE)
+		if (!is.null(x$eb$se) && !is.null(x$hyper_table)) {
+			cli::cli_text(cli::col_grey("Standard errors and 95% intervals from the Laplace posterior given the empirical-Bayes hyperparameters; those of the variance components and of the innovation scales of the coefficient paths by Louis' identity ({.code fit$eb$vc_se}, {.code fit$eb$hyper_se}); effects in {.code fit$a_sd}, {.code fit$b_sd} and their paths, product cells in {.code fit$UVPM_sd}."))
+		} else if (!is.null(x$eb$se)) {
+			cli::cli_text(cli::col_grey("Standard errors and 95% intervals from the Laplace posterior given the empirical-Bayes hyperparameters; those of the variance components by Louis' identity ({.code fit$eb$vc_se}); effects in {.code fit$a_sd}, {.code fit$b_sd} and their paths, product cells in {.code fit$UVPM_sd}."))
+		}
 	})
 	invisible(x)
 }

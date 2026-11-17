@@ -15,12 +15,9 @@ ame_als(
   symmetric = FALSE,
   max_iter = 200,
   tol = 1e-06,
-  lowrank_method = c("mm", "als", "hybrid"),
-  non_normal_method = c("irls", "transform"),
   link = c("probit", "logit"),
   linear_solver = c("eigen", "qr", "auto"),
   multistart = c("none", "cheap", "full"),
-  bias_correct = NULL,
   bootstrap = 0L,
   bootstrap_type = c("parametric", "block"),
   bootstrap_block_length = 1L,
@@ -67,15 +64,11 @@ panel, its first period), as in \code{\link{ame}} and \code{\link{lame}}.}
 
 \item{max_iter}{maximum number of block coordinate descent iterations
 (default 200), and maximum number of outer reweighting steps for IRLS. A
-fixed-effects fit that has not converged within it is
-refitted once with four times the limit, and is an error (class
-\code{"lame_als_convergence"}) if that run has not converged either, as is
-an empirical-Bayes fit that does not settle (without the second run); the
-limit also bounds each round of the joint refinement of a Gaussian fit. An
-empirical-Bayes reweighting step runs at most five sweeps (it refreshes
-the weights, the Laplace correction and the variance updates after them).
-The variational stage of an empirical-Bayes fit runs at most
-\code{2 * max_iter} iterations. An empirical-Bayes fit whose iteration does
+fit that does not settle within it is an error (class
+\code{"lame_als_convergence"}). A reweighting step runs at most five
+sweeps (it refreshes the weights, the Laplace correction and the variance
+updates after them). The variational stage runs at most
+\code{2 * max_iter} iterations. A fit whose iteration does
 not settle retires its weakest latent column and fits the next rank down
 (see \strong{A rank the data do not support}); a \code{max_iter} below 200
 disables that for an iteration that merely ran out of it.}
@@ -87,30 +80,7 @@ information plus penalty curvature, and the largest absolute log variance
 update to be at most
 \code{sqrt(tol)}.}
 
-\item{lowrank_method}{inner solver for the multiplicative (low-rank) block:
-\code{"mm"} (default) weighted majorise-minimise; \code{"als"} alternating
-least squares; \code{"hybrid"} runs both and keeps the lower-objective
-result. \code{"als"}/\code{"hybrid"} converge faster than \code{"mm"} on
-strongly unbalanced longitudinal panels and are available for directed and
-bipartite models (symmetric fits always use \code{"mm"}). All three
-minimise the same objective, so the point estimate is unchanged for
-balanced data.}
-
-\item{non_normal_method}{for the non-normal ALS families (it does not apply to
-a normal fit), \code{"irls"}
-(default for \code{binary}/\code{poisson}) runs iteratively reweighted
-least squares, giving a fast GLM AME fit with coefficients on
-the requested link scale (Poisson log, binary logit/probit).
-\code{"transform"} fits one fixed Gaussian working response
-(\code{log(y+1)} for Poisson, rank-normal scores for binary); its
-coefficients are on an uncalibrated working scale and are mainly useful
-for direction/ranking checks. A directed \code{R > 0} IRLS fit uses the
-hybrid low-rank solver internally because the IRLS weights are unbalanced.
-Uncertainty for either path comes from the bootstrap or sandwich
-covariance.}
-
-\item{link}{link for \code{non_normal_method = "irls"} with a \code{binary}
-family: \code{"probit"} (default; matches \code{\link{ame}}/\code{\link{lame}})
+\item{link}{link of a \code{binary} fit: \code{"probit"} (default; matches \code{\link{ame}}/\code{\link{lame}})
 or \code{"logit"}. \code{poisson} always uses the log link;
 ignored otherwise.}
 
@@ -125,34 +95,28 @@ well-conditioned designs.}
 (default) fits from a single deterministic start; \code{"cheap"} (4 starts)
 and \code{"full"} (8 starts) also try random low-rank starts and keep the
 converged start with the lowest value of the criterion, evaluated at that
-start's own scales: for an IRLS fit the penalised deviance, which carries
-the factor penalty with its scale parameters (\code{"penalised
-  deviance"}), and for an empirical-Bayes fit with a latent rank the
-Laplace marginal likelihood of the start, minus twice its logarithm
-(\code{"Laplace marginal likelihood"}; see \strong{Choosing the rank}),
-which integrates the effects and the factors and does not move with the
-scale of a factor column the data do not use (with the default variational
-stage every start is refined, and starts of different modes end at the same
-variational fit, so they neither differ in \code{multistart_distance} nor
-warn). An empirical-Bayes start
-without it is rated by the penalised deviance plus the penalty of the
-actor effects, the log determinant of their information and the
-hyperprior of their covariance (\code{"empirical-Bayes objective"}). The
-raw deviance is not compared: it always favours the least-shrunk optimum,
-the one with the largest
-scales. Other fits keep the lowest working SSE. The criterion
-(\code{multistart_criterion}), its value for each start
-(\code{multistart_sse}; for an empirical-Bayes fit it includes the
-hyperprior, which \code{objective} leaves out, or is the marginal
-likelihood), each start's
-observed-data deviance (\code{multistart_deviance}, IRLS fits), its
-distance from the kept start (\code{multistart_distance}, IRLS fits) and
-its convergence are recorded. The distance is the squared difference of
-the two fitted linear predictors, weighted by the mean of the two IRLS
-weights and summed over the observed cells: an approximation of the
-change in the deviance between the two fits. An IRLS fit warns of
-materially different local optima when a converged start is more than one
-deviance unit away from the kept one. Starts that end at the same fitted
+start's own scales: the Laplace marginal likelihood of the start, minus
+twice its logarithm (\code{"Laplace marginal likelihood"}; see
+\strong{Choosing the rank}), which integrates the effects and the factors
+and does not move with the scale of a factor column the data do not use
+(with the default variational stage every start is refined, and starts of
+different modes end at the same variational fit, so they neither differ in
+\code{multistart_distance} nor warn). When a converged start has no
+marginal likelihood the starts are rated by the empirical-Bayes objective,
+the penalised deviance plus the penalty of the actor effects, the log
+determinant of their information and the hyperprior of their covariance
+(\code{"empirical-Bayes objective"}). The raw deviance is not compared: it
+always favours the least-shrunk optimum, the one with the largest scales.
+The criterion (\code{multistart_criterion}), its value for each start
+(\code{multistart_sse}; the objective includes the hyperprior, which
+\code{objective} leaves out), each start's observed-data deviance
+(\code{multistart_deviance}), its distance from the kept start
+(\code{multistart_distance}) and its convergence are recorded. The
+distance is the squared difference of the two fitted linear predictors,
+weighted by the mean of the two IRLS weights and summed over the observed
+cells: an approximation of the change in the deviance between the two
+fits. The fit warns of materially different local optima when a converged
+start is more than one deviance unit away from the kept one. Starts that end at the same fitted
 values can still differ in the penalised objective, which depends on the
 scales of the factors, and those settle more slowly than the fitted values
 (the Laplace marginal likelihood differs far less); that difference does
@@ -163,59 +127,29 @@ distance of each start's multiplicative surface from the kept start's
 across the starts can be read from the fit. Reproducible given
 \code{seed}; the global RNG stream is left unchanged.}
 
-\item{bias_correct}{how an ALS fit deals with the finite-sample
-(incidental-parameter) bias of a fixed-effects fit.
-\code{NULL} (default) fits \code{normal} models, and \code{binary} and
-\code{poisson} models on the IRLS path, by the empirical-Bayes estimator
-(\code{"eb"}), for directed, bipartite and undirected networks, with or
-without a latent rank: a Gaussian prior on the additive effects with its
-covariance estimated from the data, coefficients that solve the
-Laplace-marginal equations, and Laplace standard errors from \code{vcov()}
-for every coefficient (see \strong{Empirical-Bayes estimator}, \strong{Normal data}
-and \strong{Counts} in Details). A normal response is fitted as the model that
-\code{\link{ame}} and \code{\link{lame}} sample, with an exact Gaussian cell, and a count
-network as the Poisson-lognormal model that \code{\link{ame}}
-and \code{\link{lame}} sample. Other families are not corrected.
-\code{"eb"} asks for the empirical-Bayes estimator explicitly; it is an
-error (class \code{"lame_als_eb"}) for another family and for a binary or count fit with
-\code{non_normal_method = "transform"}. (The dynamic routes of
-\code{lame(method = "als")} have their own empirical-Bayes estimator for
-normal, binary and Poisson panels; see \code{bias_correct} in \code{\link{lame}}.)
-\code{"none"} returns the fixed-effects fit at any size and records the
-request (for a normal response, the least-squares fit of the earlier releases
-with the conditional sandwich covariance of the dyadic coefficients; for counts, the fit of the earlier releases, in which the effect
-of an actor without a count on a side runs to minus infinity); \code{"jackknife"} requires the split-sample correction of that
-fit, for any family, and is an error where it cannot be computed;
-\code{"bootstrap"} requires the parametric-bootstrap correction of a
-binary IRLS fit at any size. See \strong{Split-sample bias correction},
-\strong{Parametric-bootstrap bias correction} and \strong{Size boundary}
-in Details. A corrected fit keeps the uncorrected values in
-\code{fit$raw} and records the correction in \code{fit$bias_correct}; an
-empirical-Bayes fit records \code{method = "eb"} (\code{default = TRUE}
-when it was the default) and refits nothing.}
-
 \item{bootstrap}{integer: if > 0, additionally run \code{bootstrap} replicates
 of the parametric or block bootstrap (via \code{\link{ame_als_bootstrap}})
-after the point fit and attach the result as \code{fit$bootstrap}. The
-downstream accessors (\code{\link{confint.ame_als}}, \code{summary},
-\code{print}) then surface bootstrap intervals instead of the
-anti-conservative sandwich Wald intervals. At least 30 replicates are
-needed: a smaller positive number is an error of class
-\code{"lame_als_bootstrap_replicates"} raised before anything is fitted.
-A binary network fitted with \code{bias_correct = "none"} has no
-bootstrap (an error of class \code{"lame_als_bootstrap_bias"}, also
-raised before anything is fitted): see \code{\link{ame_als_bootstrap}}.
-Default \code{0} (no
-bootstrap) -- bootstrap is expensive, so it is not imposed on a user
-who just wants a quick fit.}
+after the fit and attach the result as \code{fit$bootstrap}. The
+downstream accessors (\code{\link{vcov.ame_als}},
+\code{\link{confint.ame_als}}, \code{summary}, \code{print}) then report the
+bootstrap standard errors and intervals of the coefficients; a quantity the
+bootstrap gives none for keeps its analytic error, and
+\code{fit$bootstrap$se_source} names it with the reason. At least 30
+replicates are needed: a smaller positive number is an error of class
+\code{"lame_als_bootstrap_replicates"} raised before anything is fitted. A
+bootstrap that cannot run on the fitted model (too few valid replicates,
+for example) leaves the fit with its analytic standard errors and a message
+(class \code{"lame_als_bootstrap_not_run"}); \code{fit$meta$bootstrap_not_run}
+records the reason. Default \code{0} (no bootstrap): every fit already
+carries analytic standard errors.}
 
 \item{bootstrap_type}{character: \code{"parametric"} (default) or
 \code{"block"} -- the bootstrap scheme to use when \code{bootstrap > 0}.
-The block scheme returns no standard error or interval for the
-parameters that resampling time slices cannot vary (the node-covariate
-coefficients and the variance components of the actor effects, among
-others; \code{fit$bootstrap$withheld} lists them with the reason), and
-the parametric scheme gives them; see \code{\link{ame_als_bootstrap}}.}
+The block scheme gives no replicate standard error for the parameters that
+resampling time slices cannot vary (the node-covariate coefficients and the
+variance components of the actor effects, among others), which keep their
+analytic errors; on a panel too short for ten blocks it runs the parametric
+scheme, with a message. See \code{\link{ame_als_bootstrap}}.}
 
 \item{bootstrap_block_length}{integer: block length for the block
 bootstrap; only used when \code{bootstrap_type = "block"}.}
@@ -234,21 +168,20 @@ not depend on it.}
 \item{dcor}{logical; whether a directed binary probit, Poisson or normal fit models the
 dyadic correlation of the latent errors of the two cells of a dyad, as
 \code{\link{ame}} and \code{\link{lame}} do with their \code{dcor = TRUE}.
-The default is \code{!symmetric}, the default of the samplers. With the
-empirical-Bayes estimator (the default of a binary fit) the correlation is
+The default is \code{!symmetric}, the default of the samplers. For a binary
+fit the correlation is
 part of the model that is fitted: the two cells of a dyad are one bivariate
 probit observation, \code{fit$VC["rho"]} is the correlation of that model, and the
 factors, the standard errors and the predictions are those of the model
 (see \strong{Dyadic correlation} in Details). \code{dcor = FALSE} fits
-independent cells, the model of the earlier release, and reports the
-correlation of the pairs of cells at the fitted predictor as before. A
+independent cells and reports the correlation of the pairs of cells at the
+fitted predictor. A
 directed count fit takes the pairs at its fitted state (see
 \strong{Dyadic correlation of counts} in Details), and a directed normal
 fit takes the two cells of a dyad as one bivariate normal observation, in
 closed form (see \strong{Dyadic correlation of normal data} in Details; it
 costs 1.3 to 1.6 times the independent-cell fit). A fit
-that has no pair likelihood (undirected and bipartite networks, the other
-estimators of a binary fit, and the fixed-effects normal fit) keeps its own estimate of
+that has no pair likelihood (undirected and bipartite networks) keeps its own estimate of
 \code{rho}; an explicit \code{dcor = TRUE} with the logit link is an error,
 because the latent correlation is that of normal errors. The pair
 likelihood of a binary or count fit costs 1 to 2.5 times the independent-cell fit for one period and
@@ -263,8 +196,9 @@ or with \code{dcor = FALSE}.}
 
 \item{prior}{\code{NULL} or a named list of priors. The estimators read one key, \code{s20}, the scale of the
 inverse-gamma prior of the variance of the noise of a Poisson or a normal fit (one degree of freedom on \code{s20};
-the default is 1 for counts and the variance of the observed responses for a normal response, the priors \code{\link{ame}} and
-\code{\link{lame}} draw it under). The other keys of the
+by default a normal response has the variance of the observed responses, the prior \code{\link{ame}} and
+\code{\link{lame}} draw it under, and a count has no scale on the variance (zero degrees of freedom,
+so no value pulls it). The other keys of the
 samplers' prior list have no counterpart in the estimators; they are reported and ignored. The prior of the
 multiplicative effects of a directed network is the samplers' default (\code{\link{ame}}, \code{Suv0}
 and \code{kappa0}).}
@@ -279,26 +213,44 @@ estimates \code{mu}, \code{beta}, \code{a}, \code{b}, \code{U}, \code{V}
 (\code{L} for symmetric models), the linear predictor \code{EZ},
 response-scale \code{fitted} values, working-scale \code{residuals},
 convergence information, and the variance-component vector \code{VC}.
+Every fit also carries the uncertainty of
+every reported estimate: \code{a_sd} and \code{b_sd}, the posterior sds
+of the reported actor effects; \code{U_sd} and \code{V_sd}, of the
+reported positions, with the directions that leave the product unchanged
+left out (and \code{L_sd} of the eigenvalues of a symmetric fit);
+\code{UVPM_sd} (and \code{ULUPM_sd}), of each cell of the reported
+product, all by the delta method under the joint Laplace covariance of the
+coefficients, effects and factors carried through the identified report;
+and \code{VC_se} with the 95\\% intervals \code{VC_ci} of the variance
+components (the inverse Fisher information of the marginal likelihood of
+the effect covariance, the inverse-gamma posterior of a normal noise
+variance less the effective number of mean parameters, the
+marginal-likelihood profile of a count noise variance and the pair
+likelihood of rho; intervals on the log scale for variances (centred
+at the median for the effect variances, whose values are posterior
+means), the Fisher z scale for rho and score-type, inside its bound,
+for cab;
+\code{NA} where a component is fixed by the model or not identified).
 \code{R} is the rank of the fit; where the data did not support the rank
 asked for and columns were retired, \code{R_requested} (present only
 then) is the rank that was asked for (see \strong{A rank the data do not
 support}).
 For IRLS, \code{irls_iterations} counts accepted outer reweighting steps;
-\code{iterations} counts the final inner solve (the reweighting steps, for
-an empirical-Bayes fit). \code{irls_diagnostics}
+\code{iterations} counts the reweighting steps of the final solve. \code{irls_diagnostics}
 records the score and variance checks, their threshold, the stopping
 reason, and each accepted step's improvement under a common factor
-penalty. These checks concern the uncorrected fit; a split-sample
-correction also records each half's checks in
-\code{bias_correct$irls_diagnostics}. A changing empirical factor
+penalty. A changing empirical factor
 variance means successive penalized objective values need not decrease;
-an empirical-Bayes step is also accepted when it lowers the residual of
-the estimating equations that the checks evaluate. A fixed-effects fit
-that does not pass the checks within \code{max_iter}, nor within four times
-it, is an error of class \code{"lame_als_convergence"}: no fit is returned.
-(An empirical-Bayes fit that does not pass them warns with that class and
-has \code{converged = FALSE}.)
-For an empirical-Bayes fit (\code{bias_correct = "eb"}) \code{eb} is a
+a step is also accepted when it lowers the residual of
+the estimating equations that the checks evaluate. A fit
+that does not pass the checks within \code{max_iter} is an error of class
+\code{"lame_als_convergence"}: no fit is returned.
+A part of the fit that could not be computed (an evidence, a covariance
+term) is named, with its first error, in \code{numerical_failures} and in a
+warning of class \code{"lame_als_numerical_fallback"}; a step that took an
+exact alternative or a valid default is counted in \code{exact_fallbacks}.
+Neither field is present when nothing happened.
+\code{eb} is a
 list: \code{sab}, the fitted covariance of the actor effects (a
 \eqn{2 \times 2} matrix; an undirected fit has one variance and repeats
 it on the diagonal), \code{Sab0} and \code{eta0}, the scale and degrees
@@ -318,7 +270,12 @@ coefficients (intercept, dyadic and node-covariate) jointly with the
 effects and the latent factors and conditional on the factors, \code{se},
 the square roots of the diagonal of \code{vcov}, \code{se_method} and
 \code{vcov_error}, the reason when the covariance could not be computed
-(\code{vcov()} then falls back to the sandwich), \code{estimator},
+(the fit is then an error of class \code{"lame_als_vcov"}),
+\code{population}, the population intercept and its covariance beside the
+reported intercept, for a fit with a latent product \code{report_fold},
+the fitted state of the intercept, effects and positions (\code{state})
+beside the reported values (\code{report}) and the means of the product
+that moved (\code{const}, \code{a_row}, \code{b_col}), \code{estimator},
 which estimator produced the reported values (\code{"variational"}, the
 default, or \code{"laplace"}, the posterior mode alone),
 \code{variational}, the record of the variational iteration
@@ -330,7 +287,7 @@ the plug-in scales, with \code{ell}, \code{kl_actors} and
 \code{kl_factors}; \code{information}, the training events, the loadings
 and the events per loading of a binary or count fit with a latent rank, with \code{signal}, the double-centred
 fitted product squared and weighted by the fisher weight of each observed cell, \code{signal_per_loading} and
-\code{threshold}, 2.1, below which the product is withheld (a normal fit: \code{signal}, the
+\code{threshold}, 2.1, below which the data barely determine the product (a normal fit: \code{signal}, the
 squared norm of the double-centred fitted product summed over the periods, \code{loadings}, \code{per_loading},
 the signal in noise variances per loading, and \code{threshold}); \code{scale}, the rule that set
 the scale of the prior of the factors (\code{"cavity"} or
@@ -372,17 +329,15 @@ A fit with \code{multistart = "cheap"} or
 \code{"full"} (and \code{R > 0}) also records, for each start,
 \code{multistart_converged}, \code{multistart_criterion} and
 \code{multistart_sse} (the value of that criterion), the kept start
-\code{multistart_selected} and, for IRLS fits, \code{multistart_deviance}
+\code{multistart_selected}, \code{multistart_deviance}
 and \code{multistart_distance} (the distance of the fitted predictor from
-the kept start's, in deviance units); and for every multistart fit
+the kept start's, in deviance units),
 \code{multistart_coefficients}, a starts by coefficients matrix of what
 each start reports (intercept, dyadic and node-covariate coefficients, with
 the names and on the scale of \code{coef(fit)}) whose row for the kept
-start is \code{coef(fit)} (the uncorrected \code{fit$raw$coefficients} of
-a bias-corrected fit, since the correction is made on the kept start
-only), and \code{multistart_product_distance}, the Frobenius norm of the
-difference between the \code{UVPM} each start reports (before any bias
-correction) and the kept start's, over the norm of the kept start's: zero
+start is \code{coef(fit)}, and \code{multistart_product_distance}, the Frobenius norm of the
+difference between the \code{UVPM} each start reports
+and the kept start's, over the norm of the kept start's: zero
 for the kept start. A kept \code{UVPM} of no size, when the factors of the
 starts shrink to nothing, is measured against
 \code{sqrt(.Machine$double.eps)}, so that starts that agree there are at
@@ -390,85 +345,62 @@ distance zero. The surfaces themselves are not stored.
 The variance-component vector has five descriptive entries:
 \describe{
 \item{\code{va}, \code{vb}}{variances of the sender and receiver
-additive effects. The empirical variance of the \emph{estimated}
-effects carries their estimation error as well, so the first-order
-sampling variance of the additive block --- \code{ve} times the
-centred trace of the inverse two-way weighted normal equations --- is
-subtracted, floored at zero, and \code{va}/\code{vb} estimate the
-variance of the effects themselves, the quantity \code{\link{ame}} /
-\code{\link{lame}} report. The uncorrected empirical variances are
-kept as \code{vc_raw} and the correction as \code{vc_noise}; it is
-computed conditional on the fitted multiplicative term. For an
-empirical-Bayes fit they are the fitted variances of the effects
-themselves (\code{fit$eb$sab}).}
-\item{\code{cab}}{covariance of the \emph{estimated} sender and
-receiver effects, uncorrected (\code{NA} for symmetric or bipartite
-models); for an empirical-Bayes fit, their fitted covariance.}
+additive effects: the fitted variances of the effects themselves
+(\code{fit$eb$sab}), the quantity \code{\link{ame}} /
+\code{\link{lame}} report. The empirical variances of the reported
+effects are kept as \code{vc_raw}.}
+\item{\code{cab}}{fitted covariance of the sender and receiver effects
+(\code{NA} for symmetric or bipartite models).}
 \item{\code{rho}}{dyadic reciprocity, distinct from the sender/receiver
-correlation \code{cor(a, b)}. For a directed binary probit fit with the
-empirical-Bayes estimator and \code{dcor = TRUE} it is the correlation of
+correlation \code{cor(a, b)}. For a directed binary probit fit with
+\code{dcor = TRUE} it is the correlation of
 the fitted model (\strong{Dyadic correlation}), and
 \code{rho_estimation} holds its posterior standard deviation and
-\code{method = "variational pair likelihood"}. For other directed binary
-IRLS fits, this is
+\code{method = "variational pair likelihood"}. For a directed binary
+fit with \code{dcor = FALSE}, this is
 the Gaussian copula correlation estimated from the paired binary
 likelihood at the reported marginal probabilities. With a probit
 link it is the latent error correlation. The working-residual
 correlation is retained as \code{rho_working}; \code{rho_estimation}
 records the number of reciprocal pairs, likelihood, and boundary or
 unidentified state. Without informative reciprocal pairs \code{rho}
-is \code{NA} and conditional network simulation is refused. Poisson
-IRLS fits estimate latent correlation from the weighted count covariance
-identity \eqn{\mathrm{cov}(Y_{ij}/\mu_{ij}-1,Y_{ji}/\mu_{ji}-1) = e^{\rho v_e}-1}.
-Independent Poisson noise contributes to the marginal variances but
-not this covariance. (This is the estimate of a fit without the pair
-stage, \code{bias_correct = "none"} or \code{dcor = FALSE}; a
-directed empirical-Bayes count fit estimates the correlation from the
-pairs, see \strong{Dyadic correlation of counts}.) With zero latent
-variance, correlation is
-unidentified and independent count simulation remains valid. Normal
-and transformed-response fits use reciprocal residual correlation.}
-\item{\code{ve}}{residual variance, on the model's own scale and
-degrees-of-freedom-corrected (\eqn{\mathrm{SSE}/(n_{obs} -
-      \mathrm{df})}) so it matches the MCMC posterior-mean \code{s2}. For a
-\code{binary} IRLS fit the probit/logit model fixes the latent error
+is \code{NA} and conditional network simulation is refused. A directed
+count fit with \code{dcor = FALSE} estimates the latent correlation from the weighted count covariance
+identity \eqn{\mathrm{cov}(Y_{ij}/\mu_{ij}-1,Y_{ji}/\mu_{ji}-1) = e^{\rho v_e}-1}
+(independent Poisson noise contributes to the marginal variances but
+not this covariance); with \code{dcor = TRUE} it estimates the
+correlation from the pairs, see \strong{Dyadic correlation of counts}.
+With zero latent variance, correlation is
+unidentified and independent count simulation remains valid. A normal
+fit with \code{dcor = FALSE} uses the reciprocal residual correlation.}
+\item{\code{ve}}{residual variance on the model's own scale, the
+quantity of the MCMC posterior-mean \code{s2}. For a normal fit it is
+the fitted variance of the noise (see \strong{Normal data}). For a
+\code{binary} fit the probit/logit model fixes the latent error
 variance at 1 by identification, so \code{ve} is reported as
 \code{1}; the working-scale GLM dispersion (about 1 under correct
 specification) is kept separately as \code{ve_working}. For a
-\code{poisson} IRLS fit \code{ve} is the variance of the lognormal
+\code{poisson} fit \code{ve} is the variance of the lognormal
 latent layer of the model \code{\link{ame}} / \code{\link{lame}} fit
-(\eqn{y \sim \mathrm{Pois}(e^{z})}, \eqn{z \sim N(\eta, v_e)}); an
-empirical-Bayes fit estimates it by maximising the Laplace marginal
-likelihood (see \strong{Counts}), and the fixed-effects fit
-(\code{bias_correct = "none"}) from the count overdispersion
-\eqn{\mathrm{var}[y] = \mathrm{E}[y] + (e^{v_e} - 1)\mathrm{E}[y]^2}
-and \code{0} for equidispersed counts; the working-response mean
-square is again \code{ve_working}.}
+(\eqn{y \sim \mathrm{Pois}(e^{z})}, \eqn{z \sim N(\eta, v_e)}),
+estimated by maximising the Laplace marginal likelihood (see
+\strong{Counts}).}
 }
-\strong{Poisson level scale.} The fixed-effects IRLS fit
-(\code{bias_correct = "none"}) solves the marginal log-mean
-\eqn{\mathrm{E}[y] = e^{\eta}}, which is the latent predictor plus
-\eqn{v_e/2}. The reported intercept and \code{EZ} subtract that Jensen
-term, so they are on the same latent scale as \code{\link{ame}} /
-\code{\link{lame}}; the shift is stored as \code{pois_latent_var} and
-added back by \code{fitted}, \code{predict(type = "response")} and
-\code{simulate}, which therefore do not change. The dyadic slopes are
-unaffected: the term is constant across dyads. The empirical-Bayes fit
-works on the latent scale throughout and needs no shift.
 
-These are summaries of the point estimates, not draws from a posterior.
-See \code{\link{ame_als_bootstrap}} for
-uncertainty and \code{\link{vcov.ame_als}} for a fast analytic
-covariance of the regression coefficients.
+These are estimates, not summaries of posterior draws. Their standard
+errors and 95\\% intervals are \code{fit$VC_se} and \code{fit$VC_ci};
+\code{\link{vcov.ame_als}} gives the covariance of the regression
+coefficients and \code{\link{ame_als_bootstrap}} bootstrap uncertainty.
 }
 \description{
 Fits an additive and multiplicative effects (AME) model to a single
 cross-sectional network by \strong{iterative block coordinate descent},
-producing a fast point estimate with no MCMC and no credible intervals. For
-normal, binary and Poisson data the default is an empirical-Bayes / variational
+producing fast estimates with standard errors and no MCMC. For
+normal, binary and Poisson data the estimator is an empirical-Bayes / variational
 estimator of the model that \code{\link{ame}} samples (see
-\code{bias_correct}); its \code{vcov()} and \code{confint()} are Laplace
-approximations.
+\strong{Empirical-Bayes estimator} in Details); its \code{vcov()} and \code{confint()} are Laplace
+approximations, and every reported variance component, actor effect, latent
+position and product cell carries a standard error.
 
 The estimation algorithm adapts the \emph{iterative block coordinate
 descent} estimator of the Social Influence Regression (SIR) model of
@@ -477,6 +409,12 @@ nicknamed "ALS" in that package) to the AME model. It is a port and
 adaptation, not original \pkg{lame} methodology.
 }
 \details{
+\strong{Sparse and dense binary networks.} A binary network whose observed density \eqn{d} (the share of
+observed cells that are ties, the diagonal of a one-mode network left out, pooled over the periods of a panel)
+has \eqn{\min(d, 1 - d) < 0.20} is fitted by the fast route with a warning (class
+\code{"lame_fast_binary_density"}): there its slopes are pulled toward zero, its intercept is biased and its
+intervals cover less often than stated, and the sampler (\code{\link{ame}}) is the better choice.
+
 The AME decomposition
 \deqn{z_{ij} = \mu + \beta' x_{ij} + a_i + b_j + u_i' v_j + \epsilon_{ij}}
 is conditionally linear: it is a linear regression in \eqn{(\mu, \beta, a, b)}
@@ -498,38 +436,17 @@ and a weighted low-rank update for the multiplicative factors \eqn{(U, V)}
 via SVD (eigen-decomposition when \code{symmetric = TRUE}). The weighting
 makes the multiplicative step correct for unbalanced longitudinal panels
 (dyads observed at unequal numbers of time points); severely unbalanced
-panels converge in more iterations. A fixed-effects fit that
-has not reached its criterion at \code{max_iter} is refitted once with four
-times that limit, and refused with an error of class
-\code{"lame_als_convergence"} if it still has not: the message gives the
-stop (iteration limit, or no step that lowers the objective), the score
-against its threshold, and the remedy. The last iterate is not returned. An
-empirical-Bayes fit that does not settle is refused with the same class at once, with the
-state it stopped in and the remedy.
+panels converge in more iterations. A fit that does not settle is refused
+with an error of class \code{"lame_als_convergence"}: the message gives the
+state it stopped in (iteration limit, or no step that lowers the objective),
+the score against its threshold, and the remedy. The last iterate is not
+returned.
 
-For fixed-effects Gaussian fits (\code{bias_correct = "none"}) and fixed-transform fits, convergence additionally requires a
-centered first-order SSE score no larger than \code{sqrt(tol)}. A premature
-plateau or exhausted outer budget receives up to five joint refinements,
-each bounded by \code{max_iter} optimization iterations. These
-preserve the same objective and observation mask; a requested single sweep
-remains unfinished. \code{gaussian_diagnostics} records the initial and final
-scores, objective values and refinement counts. Multi-start fits retain these
-checks for every start in \code{multistart_gaussian_diagnostics}; warm refits
-and the Gaussian bootstrap use the same certificate. A first-order certificate
-attests a stationary point, a local optimum of the non-convex factor model
-when \code{R > 0}.
-
-With \code{bias_correct = "none"} a \code{family = "normal"} fit is a
-least-squares (Gaussian maximum-likelihood) fit --- the exact global solution
-when \code{R = 0}, and a local optimum of the non-convex low-rank objective
-when \code{R > 0}; the default for a normal response is the empirical-Bayes
-estimator of \strong{Normal data (the Gaussian empirical-Bayes estimator)}
-below.
+A normal response is fitted by the empirical-Bayes estimator of
+\strong{Normal data (the Gaussian empirical-Bayes estimator)} below.
 For \code{"binary"} and \code{"poisson"}, the estimator uses an IRLS
-working-response path by default, so coefficients are on the requested
-link scale (binary probit/logit, Poisson log). The fixed-transform path is
-still available as a faster exploratory score, but its coefficients are not
-calibrated effect sizes. For \code{R > 0} the multiplicative factor block
+working-response path, so coefficients are on the requested
+link scale (binary probit/logit, Poisson log). For \code{R > 0} the multiplicative factor block
 of the IRLS families solves a penalized (MAP) sub-problem: each factor row
 carries the ridge implied by the AME prior \eqn{[u_i, v_i] \sim N(0,
 \Sigma_{uv})}, with the per-column prior scale estimated by an EM step (the
@@ -539,9 +456,7 @@ under quasi-separation, and fitting it directly inflates every
 coefficient (a runaway that grows with \code{R}, with the latent variance
 diverging). With the penalty the latent variance does not run away.
 
-\strong{Empirical-Bayes estimator (the default of binary, Poisson and normal
-fits).} A binary or Poisson IRLS fit, or a normal fit,
-with \code{bias_correct = NULL} (or \code{"eb"}) treats the sender and
+\strong{Empirical-Bayes estimator.} A binary, Poisson or normal fit treats the sender and
 receiver effects as the MCMC \code{\link{ame}} / \code{\link{lame}} do, as
 draws from a Gaussian prior \eqn{(a_i, b_i) \sim N(0, \Sigma_{ab})}{(a_i, b_i) ~ N(0, Sigma_ab)}
 (an undirected fit has one effect per actor and a scalar variance, a
@@ -560,13 +475,13 @@ solved jointly and exactly from dyad-level sums, in one dense system with no
 centring step. (2) \eqn{\Sigma_{ab}}{Sigma_ab} is updated by an EM step from the
 effects and their Laplace covariance, under the inverse-Wishart prior that
 \code{lame()} puts on it for binary data, so that the penalty is the MCMC
-prior; without that prior the update drives the variance to zero on sparse
-networks and with a latent term. (3) The coefficients solve the
+prior, except that a directed network gives it the weight of one actor (the
+sampler's weight, with its diagonal scale, pulls the covariance of the sender
+and receiver effects toward zero); without a prior the update drives the
+variance to zero on sparse networks and with a latent term. (3) The coefficients solve the
 Laplace-marginal estimating equations instead of the penalised-fit ones: the
 score of every cell loses half the derivative of the log determinant of the
-effects' information (the integral over the effects). The penalised fit
-alone had a slope too small by up to 4.3 percent with 24 percent ties and 6.8 percent with 7 percent
-ties (30 networks a cell). The latent factors
+effects' information (the integral over the effects). The latent factors
 get the same cell correction, so one objective, the penalised deviance plus
 that log determinant, is descended. This stage is what
 \code{fit$irls_diagnostics} certifies and what the marginal likelihood
@@ -647,7 +562,11 @@ likelihood have covariance \eqn{G'G}, a Wishart matrix with \eqn{R} degrees of
 freedom, and the scales of the columns are its ordered eigenvalues, which
 repel each other (the density of the eigenvalues carries the product of their
 differences), so a column the data say nothing about falls to the small
-eigenvalues of that matrix rather than staying at the scale of the prior; and an undirected fit the
+eigenvalues of that matrix rather than staying at the scale of the prior (a
+binary bipartite fit reads the sender scales at the covariance of a row given
+drawn receivers, \eqn{(\Lambda + \sum_j \nu_{ij} (\hat v_j \hat v_j' + \Omega_j))^{-1}}{(Lam + sum_j nu_ij (v_j v_j' + Om_j))^-1}:
+at the cavity covariances such a column kept the variance of its prior, which
+the probit latent scale takes as noise, and the coefficients grew with it); and an undirected fit the
 prior of its sampler on each column (\eqn{U L U'} with \eqn{L_r \sim N(0, 1)} and
 column precision \eqn{\psi_r} (gamma, shape 1, rate 1/2), so that a column of
 the factor seen by the likelihood has variance \eqn{|L_r| / \psi_r}). The scale
@@ -655,7 +574,7 @@ is recorded in \code{fit$eb$variational$scale} (the rule, the scale, the
 correlation of a directed fit, and the standard deviation of its logarithm).
 \code{options(lame.eb_scale = "plugin")} selects the update at the mean-field
 covariances with a full \eqn{2R \times 2R} covariance and the closed-form
-rescaling of the factors that it needs, the fit of the earlier release. The
+rescaling of the factors that it needs. The
 option, and \code{options(lame.eb_scale_uncertainty)} below, also govern the
 static factors of a normal, binary or Poisson dynamic fit
 (\code{lame(method = "als")}), not the persistence of its moving positions.
@@ -697,19 +616,14 @@ which the pair model attributes to \eqn{\rho}. The cost is the pair quadrature, 
 proportion to the number of dyads and periods: 1 to 2.5 times the independent-cell
 fit for one period (60 to 150 actors, ranks 0 and 2) and 2 to 4.5 times for four.
 
-\strong{Counts (Poisson).} A Poisson fit with the default \code{bias_correct}
-(or \code{"eb"}) is the same estimator for the model that \code{\link{ame}} and
+\strong{Counts (Poisson).} A Poisson fit is the same estimator for the model that \code{\link{ame}} and
 \code{\link{lame}} sample: a count is
 \eqn{y_{ij} \sim \mathrm{Poisson}(e^{z_{ij}})}{y_ij ~ Poisson(exp(z_ij))} with
 \eqn{z_{ij} = \eta_{ij} + e_{ij}}{z_ij = eta_ij + e_ij} and
 \eqn{e_{ij} \sim N(0, v_e)}{e_ij ~ N(0, ve)}, where \eqn{\eta} is the predictor of the
-sections above (coefficients, sender and receiver effects, latent product). The
-fixed-effects Poisson fit (\code{bias_correct = "none"}, the default of the earlier
-releases) has no finite estimate for the effect of an actor without a count on a side,
-which runs to minus infinity (-17.5 after 71 reweighting steps on a network of 30 actors
-with one empty row and one empty column), and it fits the marginal mean with a post hoc
-overdispersion. The empirical-Bayes fit gives such an actor a finite effect, shrunk
-towards the prior mean as in the sampler. The effects have the Gaussian prior of the
+sections above (coefficients, sender and receiver effects, latent product). An actor
+without a count on a side keeps a finite effect, shrunk towards the prior mean as in
+the sampler. The effects have the Gaussian prior of the
 binary fit, with the scale and the degrees of freedom that \code{ame()} and
 \code{lame()} give counts: the variance across actors of the centred log row and column
 rates (a half-count pseudo-observation keeps an empty actor finite) and
@@ -718,12 +632,19 @@ the factors have the priors of the binary fit. The variance of the noise \eqn{v_
 hyperparameter, estimated as the covariance of the effects is, by type-II maximum
 likelihood: it is the value that maximises the Laplace marginal likelihood of the model
 (\code{fit$eb$log_marginal}, the mode of the effects and the factors solved at that
-value) plus the log density of the prior that \code{ame()} and \code{lame()} give it
-(the inverse-gamma of one degree of freedom on the scale one). It is
+value) plus the log density of its prior: none by default, since the likelihood of a count
+network barely informs \eqn{v_e} and a scale would pull it, or, when \code{prior$s20} is
+given, the inverse-gamma of one degree of freedom on that scale that \code{ame()} and
+\code{lame()} give it. It is
 \code{fit$VC["ve"]} and \code{fit$eb$ve}, and the objective it was found on is
-\code{fit$eb$ve_search$curve}. The stationarity condition of the maximum is the EM step
-that \code{ame()} and \code{lame()} draw \eqn{v_e} from,
-\eqn{(1 + \sum E[e^2]) / (N - 1)}{(1 + sum E[e^2]) / (N - 1)} (the sum running over the
+\code{fit$eb$ve_search$curve}. The objective also charges the cells for the part of the posterior
+variance of the latent product that the Laplace approximation omits (the products of the
+covariances of the factors, which are the whole of that variance where the data inform the product
+weakly), held at its value at the maximum; without it the factors take up part of the noise and
+\eqn{v_e}{ve} falls short by about that variance. The stationarity condition of the maximum is the EM step
+of the full conditional of \eqn{v_e},
+\eqn{\sum E[e^2] / (N - 2)}{sum E[e^2] / (N - 2)} by default and
+\eqn{(s_{20} + \sum E[e^2]) / (N - 1)}{(s20 + sum E[e^2]) / (N - 1)} under \code{prior$s20} (the sum running over the
 observed cells, the dyads once for an undirected network, of the second moment of the
 noise given the count), with the second moment taken, to the order of the Laplace
 approximation, under the posterior of the predictor of the cell given all the
@@ -731,9 +652,9 @@ parameters; the step at the mode alone, or under the mean-field posterior of the
 predictor, which is shrunk where the data inform the latent product weakly, is too
 large (a count network with fewer than three nonzero counts per loading: 1.3 to 4.6 posterior
 standard deviations above the sampler's, where the maximum of the marginal likelihood
-is within 1). A count network without noise beyond the Poisson has a positive estimate, as the sampler's posterior
-does: the inverse-gamma prior holds \eqn{v_e}{ve} off zero (on four plain Poisson panels of 22 actors and five periods the
-estimate was 0.034 to 0.046, within 0.0015 of the sampler's posterior mean; 0.040 on average over 60 panels). The maximum is found by continuation
+is within 1). A count network without noise beyond the Poisson has a small positive estimate: the log density
+of the default prior, \eqn{\log v_e}{log ve}, holds the maximum off zero (on ten plain Poisson networks of 30 actors
+the estimate was 0.006 to 0.045), and the search does not go below \eqn{10^{-6}}. The maximum is found by continuation
 on \eqn{\log v_e}: the mode is solved at 0.05, where every column of the latent product
 is alive, and then at larger values until the objective falls, then at the vertex of the
 parabola through the three points about its maximum, each warm from the nearest solved
@@ -788,13 +709,12 @@ and bipartite networks have no pair of cells.
 50 actors, one and four periods; directed, bipartite and undirected, ranks 0 to 3, mean counts
 0.3 to 31, noise variances 0.05 to 2, empty actors, node covariates and reciprocity 0 to 0.8;
 \code{ame()} / \code{lame()}, 30,000 scans after the burn-in) the slopes are within
-0.35 posterior standard deviations of the posterior means (median 0.05; the fixed-effects fit
-2.8 and 0.6) and the intercepts within 0.38, the standard errors are 0.99 to 1.09 times the
+0.35 posterior standard deviations of the posterior means (median 0.05) and the intercepts within 0.38, the standard errors are 0.99 to 1.09 times the
 posterior standard deviations of the slopes (mean 1.04) and 0.97 to 1.02 times those of the
 intercept of a cross-section, \code{va} and \code{vb} are within 0.3 posterior standard
-deviations and \code{ve} within 0.5 (median 0.07; the fixed-effects fit 6.9 and 1.7), the actor
-effects differ from the posterior means by a median 0.029 of their standard deviation (the
-fixed-effects fit 0.17, and 2.3 with empty actors), and the correlation of a directed network is
+deviations and \code{ve} within 0.5 (median 0.07), the actor
+effects differ from the posterior means by a median 0.029 of their standard deviation,
+and the correlation of a directed network is
 within 0.027 of the sampler's (median 0.010 and at most 1.2 of its posterior standard
 deviations). Without the pair stage the
 standard error of a slope was 0.77 to 0.87 of the sampler's for dense counts with a covariate
@@ -802,12 +722,10 @@ that is the same in both cells of a dyad and a reciprocity of 0.6 to 0.8. On 1,5
 networks (25 designs of 60: 30 to 60 actors, mean counts 0.1 to 20, noise variances 0.1 to 1.5,
 ranks 0 to 3, directed, bipartite and undirected, one and four periods, reciprocal designs
 with a symmetric covariate, and ranks above the generating one) the fit converged in every
-network (the fixed-effects fit in 94.9 percent, 67 percent at worst), the slope had a bias of
-0.6 percent on average (4.7 at most, with 30 actors, mean count 0.1 and noise variance 1.5; the
-fixed-effects fit -1.8, and -12.1 at worst, at rank 3) and its 95 percent interval covered the
-truth in 95.5 percent of the networks (88 to 100 by design); its sampling standard deviation was
-0.76 times the fixed-effects fit's (median) and the root mean squared error of the actor effects
-0.79 times (0.18 at the sparsest). The central 50 and 90 percent predictive intervals of 17,150
+network, the slope had a bias of
+0.6 percent on average (4.7 at most, with 30 actors, mean count 0.1 and noise variance 1.5)
+and its 95 percent interval covered the
+truth in 95.5 percent of the networks (88 to 100 by design). The central 50 and 90 percent predictive intervals of 17,150
 held-out cells (10 percent of the cells of 70 networks of seven designs) covered 51 to 54 and 90
 to 91 percent of the observed counts, with no departure of the randomised probability integral
 transform from uniformity except at rank 3 with 3.0 nonzero counts per loading (Kolmogorov-Smirnov
@@ -818,8 +736,8 @@ compared at the noise variance that maximises its own marginal likelihood).
 \strong{Counts with little information about the latent product.} With fewer than about
 three nonzero counts per factor loading (\code{fit$eb$variational$information["per_loading"]}) the
 variational posterior shrinks the product. Below 2.1 units of the information-weighted signal per loading
-(\code{fit$eb$variational$information["signal_per_loading"]}) the fit withholds the product: \code{fit$U},
-\code{fit$V} and \code{fit$UVPM} are \code{NA}, and \code{print()} states the statistic and the threshold (see
+(\code{fit$eb$variational$information["signal_per_loading"]}) the data barely determine the product; the fit reports it with
+its standard errors, and \code{print()} states the statistic and the threshold (see
 \strong{Choosing the rank of a normal fit}). The noise variance does not
 take up what the shrunk product leaves: on 22 networks of 40 and 50 actors at ranks 2 and 3
 (1.1 to 6.6 nonzero counts per loading) \code{ve} is within 0.41 posterior standard deviations of
@@ -839,10 +757,9 @@ to 1.03). With about one nonzero count per loading or fewer the iteration still 
 ranks 1 to 3 with 0.3 to 3.6 nonzero counts per loading every fit converges, none collapses a column of its product, and one, at rank 3
 with 0.6 nonzero counts per loading, retires a column (see \strong{A rank the data do not support}); \code{ve} averages
 0.39, 0.35 and 0.39 at ranks 1, 2 and 3 for a truth of 0.40. The product correlates with the truth at 0.83 on average at
-rank 3 and 2.8 nonzero counts per loading (the fixed-effects fit 0.71).
+rank 3 and 2.8 nonzero counts per loading.
 
-\strong{Normal data (the Gaussian empirical-Bayes estimator).} A normal fit with the default \code{bias_correct}
-(or \code{"eb"}) is the same estimator for the model that \code{\link{ame}} and \code{\link{lame}} sample,
+\strong{Normal data (the Gaussian empirical-Bayes estimator).} A normal fit is the same estimator for the model that \code{\link{ame}} and \code{\link{lame}} sample,
 \eqn{y_{ij} = \mu + \beta' x_{ij} + a_i + b_j + u_i' v_j + e_{ij}}{y_ij = mu + beta' x_ij + a_i + b_j + u_i' v_j + e_ij} with
 \eqn{e_{ij} \sim N(0, s^2)}{e_ij ~ N(0, s2)}, and it is the estimator of the binary and count fits with the one cell in
 which everything is exact. The cell of a normal response has the working response \eqn{y} itself, the weight
@@ -901,15 +818,19 @@ the noise held at its fitted value and to a scaled score of 0.01 (the log margin
 or count fit, \code{signal_per_loading}: the product weighted by the information of each cell, which is the same quantity
 with the fisher weight of the cell in place of \code{1 / ve}). Below 2.1, in every family,
 the data do not determine a product of that rank: the sampler's posterior mean product is shrunk towards zero and the
-variational mean is not, so its size is not the posterior's. Such a fit withholds the product: \code{fit$U}, \code{fit$V}
-(and \code{fit$L}), \code{fit$UVPM} and the positions of \code{\link{latent_positions}} are \code{NA}, \code{\link{uv_plot}}
-stops with an error of class \code{"lame_product_withheld"}, and \code{fit$eb$product_withheld} records the reason, the
-statistic, the threshold and the log marginal likelihood of every rank from 0 to the fitted one with the rank it chooses,
-which \code{print()} and \code{summary()} state. \code{fitted()}, \code{predict()} and \code{residuals()} are those of
-the fit (the predictor of the variational posterior), and so are the coefficients, their standard errors and the variance
-components. The parametric bootstrap draws its replicates from the fit and reports no interval for the positions.
+variational mean is not, so its size is not the posterior's. A static fit reports such a product with the standard
+errors of its cells and positions (\code{fit$UVPM_sd}, \code{fit$U_sd}; below the threshold the position sds of a
+directed or bipartite fit are at least the variational sd of each row with the spread the row takes from the
+uncertainty of the other side added, and an undirected fit, whose eigenvalue signs and eigenvector directions the data
+then do not determine, reports the interval \code{fit$L_ci} of each eigenvalue whose share of the statistic (split over
+the columns by squared eigenvalue) is below the threshold on both signs and its position sds of at least the
+error of a direction uniform over the centred unit vectors and product cell sds that carry that direction and the
+undetermined sign, whichever side of the threshold the fit as a whole is), which \code{print()} and \code{summary()} note. Their 95\\% intervals covered
+the centred product in 94 to 98\\% of the cells of weak rank-2 products (column scale 0.35; normal, binary and count
+networks of 25 to 60 actors, 100 to 200 networks each).
 The dynamic estimator of a normal panel (\code{lame(method = "als")} with \code{dynamic_ab}, \code{dynamic_beta} or
-\code{dynamic_uv}) records the same statistic in \code{fit$eb$information} and withholds in the same way, with the same
+\code{dynamic_uv}) records the same statistic in \code{fit$eb$information} and withholds the product: \code{fit$U},
+\code{fit$V}, \code{fit$UVPM} and the positions are \code{NA} and \code{fit$eb$product_withheld} records why, with the same
 threshold for static factors and 1.3 per loading of a period for moving positions (the products of every period:
 \code{fit$UVPM}, \code{fit$Omat}, \code{fit$Oarr} and the positions with their standard deviations); it has no rank
 evidence, so its record has none.
@@ -927,17 +848,14 @@ of the scale of the factors, to 1e-3. A response
 without variation, or with a standard deviation outside 1e-6 to 1e8, is refused with the remedy (classes \code{"lame_als_data"} and
 \code{"lame_als_scale"}).
 
-\strong{The earlier normal fit.} \code{bias_correct = "none"} returns the fixed-effects fit of the earlier releases
-unchanged: the least-squares fit by block coordinate descent (the global solution at \code{R = 0}, a local optimum of the
-non-convex low-rank objective otherwise), with the conditional sandwich covariance of the intercept and the
-dyadic coefficients, which holds the additive and multiplicative effects fixed.
-
 \strong{Validation of normal fits.} Against the samplers' posterior means (55 simulated networks of 30 to 50 actors a side,
 directed, undirected and bipartite, ranks 0 to 3, 38 against \code{\link{ame}} and 17 against \code{\link{lame}} fits, 12 of one
 period and 5 of four periods, of 20,000 scans after 3,000 of burn-in), the 245 coefficients lie within 0.28 posterior standard
 deviations (mean 0.04), the Laplace standard errors are 0.91 to 1.05 times the posterior standard deviations (mean 1.00;
-the posterior standard deviation of the intercept of a \code{lame()} fit is that of the level of the centred effects, 2.4 to
-5.7 times smaller than the standard error of the population intercept, and is left out of this comparison), the
+the intercept of a fit with a latent product is reported as the samplers report it, see Details: on 44 further networks of
+this design, 36 against \code{ame} and 8 against \code{lame} fits of four periods, it lies within 0.07 posterior standard
+deviations of the sampler's with a standard error 0.99 to 1.05 times the posterior standard deviation, and on 12 networks
+whose positions have means of 0.5 and -0.5 within 0.05 with a standard error 0.99 to 1.14 times it), the
 variance of the noise is within 0.95 posterior standard deviations, the variances of the sender and receiver effects within 0.16 and
 the dyadic correlation within 0.45. On 103 simulated networks of 40 actors a side (the 55 above with 48 more of weak and
 moderate signal; 89 with a latent rank, 1 to 3, directed, undirected and bipartite; against \code{\link{ame}} and
@@ -946,21 +864,17 @@ mean product where the fit has at least 2.1 noise variances of signal per loadin
 0.984 to 1.000). Below (50 networks) the undirected fits are 1.37 to 6.9 times the sampler's (0.31 to 1.73 per loading),
 the directed and bipartite ones 1.08 to 5.0 below 0.7 per loading and 1.01 to 1.25 from 0.7: the sampler's posterior mean is
 shrunk towards zero and the mean field is not. Every network from 1.99 per loading has a norm within 0.9 to 1.15 of the
-sampler's, and the largest that does not is at 1.73 (pooled with the binary and count networks below, the threshold is 2.1).
+sampler's, and the largest that does not is at 1.73 (pooled with binary and count networks, the threshold is 2.1).
 Evaluating the update of
 the scale of the prior at the posterior mean of the inverse-Wishart (\code{options(lame.eb_scale_stat = "mean")}) or at the
 mean-field second moments does not close the gap (median 2.25 and 1.74 times the sampler's below one per loading, against
 2.14). The coefficients of the fits below 2.1 lie within 0.30 posterior standard deviations of the sampler's, with standard
-errors 0.93 to 1.05 times its posterior standard deviations. On 118 binary and count networks of 40 actors a side with a
-latent product (directed, undirected and bipartite, ranks 1 and 2, against \code{\link{ame}} fits of 20,000 scans; 71
-binary networks of 8 and 25 percent ties and 47 Poisson-lognormal ones) the training events per loading do not measure
-the information about the product: a bipartite binary fit with 5.6 events per loading had 4.4 to 5.7 times the norm of the
-sampler's product, and a count fit with 13 nonzero counts per loading 7.5 times it. The information-weighted signal does:
-below 2.1 (79 networks) the binary products are up to 6.2 times the sampler's (median 1.47; undirected up to 6.2,
-bipartite 5.7, directed 2.9) and the count products up to 7.5 (median 1.87), and these are withheld; from 2.1 the norm is
-0.83 to 1.00 times the sampler's for a binary fit (19 networks: the variational posterior shrinks the product somewhat
-more than the sampler does) and 0.94 to 1.12 for counts (20 networks). The largest network outside the rule is at 2.03
-per loading and the next at 2.17. In repeated sampling (21 designs of 100 to 200 networks,
+errors 0.93 to 1.05 times its posterior standard deviations. On 47 Poisson-lognormal networks of 40 actors a side with a
+latent product (directed, undirected and bipartite, ranks 1 and 2, against \code{\link{ame}} fits of 20,000 scans) the
+nonzero counts per loading do not measure the information about the product: a fit with 13 nonzero counts per loading had
+7.5 times the norm of the sampler's product. The information-weighted signal does: below 2.1 the count products are up to
+7.5 times the sampler's (median 1.87), and these fall below the threshold; from 2.1 the norm is 0.94 to 1.12 times the
+sampler's (20 networks). In repeated sampling (21 designs of 100 to 200 networks,
 4,100 networks and 19,700 coefficient fits: every kind, ranks 0 to 3, 20 to 80 actors, one and four periods, 20 percent
 missing cells, a rank above the generating one and a weak product) the 95 percent Laplace intervals cover 95.2 percent
 (dyadic coefficients 95.1, node covariates 95.9, intercept 94.3; designs from 94.1 to 96.7). The rank with the largest
@@ -1003,7 +917,7 @@ scale (the sampler's covariance of the rows is a full matrix, with 10 free
 parameters at \eqn{R = 2}); \code{options(lame.eb_scale_uncertainty = FALSE)}
 leaves it out.
 
-\strong{A rank the data do not support.} A sparse binary or count network at a rank above
+\strong{A rank the data do not support.} A sparse count network at a rank above
 what it supports (or a network with no signal at all) leaves the iteration at that rank
 with no stationary point the data determine: a column the data barely inform keeps a
 live scale, its rows are fitted at the scale of the prior and their second moments are the
@@ -1026,12 +940,8 @@ the fit says so with a message of class \code{"lame_als_retirement"} when it is 
 with no column left is refused with an error of class \code{"lame_als_convergence"} that
 names the rank asked for, and so is one that ran out of a \code{max_iter} below the default
 of 200 (a bound the caller chose: the iteration may only need more steps, so it is not
-reduced in rank). Three sparse binary networks of 50 actors at ranks 2 and 3,
-\code{YX_bin} at rank 4 and a network without a product at rank 2 settle at the
-rank asked for with the five-node rule, and a count network of 40 actors at
-rank 3 settles by retiring a column (rank 2). The data determine none of the
-six products (0.00 to 0.39 units of signal per loading), and every one is
-withheld.
+reduced in rank). A count network of 40 actors at rank 3 settles by retiring a
+column (rank 2).
 
 \strong{Predictions.} The response of a normal fit is its linear predictor plus
 Gaussian noise, so \code{fitted()} and \code{predict()} return the posterior mean of the
@@ -1049,24 +959,7 @@ integrated mean \eqn{e^{m + (v + v_e) / 2}}{exp(m + (v + ve) / 2)} would be a
 property of the quadrature and of the prior; it stays available as
 \code{plug_in = FALSE}, and the predictive law of a held-out count (its
 quantiles and event probabilities, which are finite) is what the held-out
-scores below use.
-On the 170-state panel of Chapter 11 (10 periods, 15 percent of the cells
-held out, 39 and 45 events on the two masks) the log loss of the held-out
-cells at \code{R = 1} to 3 was 0.00427, 0.00440 and 0.00450 (first mask)
-and 0.00506 at each rank (second mask, where every fit at \code{R = 1} to 3
-retires its columns and returns the rank-0 fit) under the plug-in values,
-and 0.003930, 0.003934 and 0.003972, and 0.004568, under the predictive ones
-(sampler, one chain, from its draws: 0.003902, 0.003886 and 0.003897, and
-0.004480, 0.004448 and 0.004449); the smallest probability of a held-out
-event was 7e-7 to 3e-6 (first mask) and 7e-9 under the plug-in values and
-4.5e-5 to 5.9e-5 and 5e-6 under the predictive ones. At \code{R = 0} the
-predictive log loss, 0.004054 and 0.004568 on the two masks, is the
-sampler's (0.004049 and 0.004585). The sampler's own predictor, replaced by
-a Gaussian with its mean and variance, loses 0.003963, 0.003942 and 0.003947
-on the first mask against 0.003902, 0.003886 and 0.003897 from the draws, so
-at ranks 1 and 2 the gap of the fast fit to the sampler is in the shape of
-the sampler's posterior of the predictor, not in its moments (at rank 3 the
-fast fit is 0.00003 above the Gaussian replacement).
+scores use.
 The predictor is \eqn{N(m, v)}: \eqn{m} is the fitted predictor, the
 posterior mean; \eqn{v} is the variance \eqn{g' S g} of the cell's additive
 predictor (the coefficients and the two effects, with \eqn{g} its gradient
@@ -1090,384 +983,47 @@ network counts each dyad once; the hyperpriors of the scales are left out).
 The deviance falls with the rank; this does not, so the difference between
 two ranks fitted to the same data is an approximate log Bayes factor. The
 sign and label multiplicity of the factors is not counted, which favours the
-lower rank. On 1,040 simulated binary networks (directed, bipartite and
-undirected; generating rank 0 to 3, fitted ranks 0 to 3; 60 and 100 actors,
-one and four periods, 7 to 25 percent ties and two sparser designs) 17 of the
-4,160 fits
-were refused as not converged (class \code{"lame_als_convergence"}), all in
-the two sparsest designs without a latent term; of the 1,033 networks fitted
-at all four ranks, the rank with the largest value was the generating rank in
-all of the 309 with at least 10 training events per factor loading, in 96
-percent of the 386 with 3 to 10, in 59 percent of the 234 with 1 to 3 (35
-percent were too low) and in 38 percent of the 104 with fewer than 1 (27
-percent were too high, 36 percent too low); the lowest rank within one unit
-of the largest value was right in 100, 96, 62 and 43 percent. With little
-information per loading the data do not determine the rank. Take the lowest
-rank whose value is within one unit of the largest: it named the generating
-rank more often than the largest value below 3 events per loading (62
-against 59 and 43 against 38 percent) and as often from 3 to 10 (96
-percent). The variational lower bound,
-\code{fit$eb$variational$elbo}, is not the value to use for this. A Gaussian
-posterior cannot hold the broad posterior of positions that the data barely
-identify, and the bound's slack grows with the rank: on the 1,033 networks its
-largest value was the generating rank in 35, 56, 96, 100 and 100 percent
-(fewer than 1, 1 to 3, 3 to 10, 10 to 30 and more than 30 events per
-loading), never too high but too low for 96 percent of the networks with a
-latent term and fewer than 1 event per loading, where the Laplace value found
-the rank in 38 percent (and was too high for 64 percent of the networks without
-a latent term and fewer than 1 event per loading). On the 170-state panel of
-Chapter 11 the Laplace value was -1137.8, -1119.3, -1117.2 and -1121.1 at
-\code{R = 0} to 3 on the first mask, so ranks 1 to 3 are preferred to 0 (by
-17 to 21 units, most at rank 2), as the sampler's held-out log loss prefers
-them, while the lower bound falls with the rank (-1144.7, -1152.9, -1170.6
-and -1195.9). On the second mask every fit at \code{R = 1} to 3 retires its
-columns and returns the rank-0 fit (Laplace value -1117.3, lower bound
--1125.1), so neither value can prefer a latent term there, although the
-sampler's held-out log loss does. The value is the evidence of the independent-cell
-model at the posterior mode: a fit with a dyadic correlation (\strong{Dyadic
-correlation}) reports the same \code{log_marginal} as the fit with
-\code{dcor = FALSE}. On 15 simulated networks of 60 actors with a latent
-correlation of 0.6 (generating ranks 0 to 2) the rule above picked the
-generating rank in 10 and a higher one in none.
+lower rank. The variational lower bound, \code{fit$eb$variational$elbo}, is not the value
+to use for this: a Gaussian posterior cannot hold the broad posterior of positions that the
+data barely identify, and the bound's slack grows with the rank. The value is the evidence of
+the independent-cell model at the posterior mode: a fit with a dyadic correlation
+(\strong{Dyadic correlation}) reports the same \code{log_marginal} as the fit with
+\code{dcor = FALSE}.
 
-What picks the rank where the Laplace value cannot is the held-out predictive
-log score: mask a share of the observed cells (15 percent), refit at each
+Where the Laplace value cannot pick the rank, the held-out predictive log
+score can: mask a share of the observed cells (15 percent), refit at each
 rank, and score the masked cells with \code{fitted()} (the integrated
 predictive; a variational fit's predictive is not shrunk to the plug-in
 probability, and its surplus columns are not shrunk away, so the score falls
-above the generating rank). On the 1,033 networks it found the generating rank
-in 51, 72, 85, 91 and 92 percent (the Laplace value in 38, 59, 96, 100 and
-100), and where there are fewer than 3 events per loading it was right for 64
-percent of the networks without a latent term (the Laplace value 72, with the
-one-unit rule 87; the lower bound 100) and 66 percent of those with one
-(Laplace 45, the lower bound 32): no other criterion that needs no refit was
-right for both. The rule that uses the held-out score below 3 events per
-loading (\code{fit$eb$variational$information["per_loading"]} of the fit at the
-rank the one-unit rule names, rank 1 where it names 0) and the Laplace value
-with the one-unit rule above found the generating rank in 85 percent of the
-1,033 networks (the Laplace value alone 83 and 84, the lower bound 82, the
-held-out score alone 81). On the 170-state panel the held-out log loss at
-\code{R = 0} to 3 was 0.004054, 0.003930, 0.003934 and 0.003972 on the first
-mask and 0.004568 at every rank on the second, whose fits at \code{R = 1} to 3
-retire to rank 0 (the sampler's, one chain: 0.004049, 0.003902, 0.003886 and
-0.003897, and 0.004585, 0.004480, 0.004448 and 0.004449; the sampler's loss is
-lowest at rank 2 on both masks, with rank 3 within 0.00001 of it).
+above the generating rank).
 
-The variational stage needs a median of 46 iterations (87 with fewer than 1
-event per loading), and 9 in 10 fits finish within 130. The
-170-state panel of Chapter 11 takes 29 seconds at \code{R = 0} and 1.5 to 3
-minutes at \code{R = 1} to 3 (one start, one thread; 8 minutes at \code{R = 2}
-with \code{multistart = "full"}). The
-joint solve is dense, so the cost grows with the
-cube of the number of actors.
+The joint solve is dense, so the cost grows with the cube of the number of
+actors.
 An actor without a tie (or without a
 non-tie) on a side keeps a finite, shrunken effect and stays in the fit, so
-there is no \code{fit$not_estimated}. The effects \code{a} and \code{b} are
-not re-centred: the intercept is the population intercept (the level of a
-dyad between two actors with zero effects, at the means of the node
-covariates) and the effects have mean zero a priori; without node covariates
-the posterior-mean effects of the variational fit sum to zero, because the
-intercept is stationary. \code{va}, \code{cab}
+there is no \code{fit$not_estimated}. A fit with a latent product reports
+its intercept, effects and positions in the identified form the samplers
+store: \code{U} and \code{V} are centred over the actors, and the row,
+column and grand means the product loses go to \code{a}, \code{b} and the
+intercept, which leaves the linear predictor unchanged. The standard error
+of the intercept is that of this functional of the joint posterior, and
+\code{fit$eb$population} keeps the population intercept (the level of a
+dyad between two actors with zero effects and positions, at the means of
+the node covariates) with its covariance. The effects \code{a} and
+\code{b} of \code{ame_als()} are not re-centred otherwise, as in
+\code{ame()}, and have mean zero a
+priori. \code{lame_als()} reports them at mean zero over the observed actors,
+as \code{lame()} does, and its intercept takes their means as well. \code{va}, \code{cab}
 and \code{vb} are the fitted covariance of the effects, the EM estimate of
 \eqn{\Sigma_{ab}}{Sigma_ab}, not descriptive summaries of the estimated effects.
 
-\strong{Accuracy.} Against the truth, on the 1,040 simulated networks above
-(dyadic slope 0.7; sender and receiver sd 0.6, correlation 0.3; variance 0.6 a
-latent dimension), fitted at the generating rank (above zero), the relative
-bias of the slope was, by training events per loading (fewer than 1, 1 to 3,
-3 to 10, 10 to 30, more than 30), -3.9, -2.4, -0.8, -0.1 and 0.4 percent, with
-root mean square error 10.4, 7.1, 4.8, 2.8 and 1.8 percent (the posterior
-mode: -0.7, 0.8, 1.1, 0.7 and 0.8; 9.8, 7.2, 4.9, 2.9 and 1.9). One rank above
-the generating one the bias was -0.5, 1.4, 2.2, 1.3 and 1.0 percent (mode 0.5,
-5.1, 5.2, 2.6 and 1.8), and with no latent term in the data and a latent rank
-fitted, with fewer than 3, 3 to 10, 10 to 30 and more than 30 events per
-actor, it was 17.5, 5.7, 4.0 and 1.1 percent (mode 12.4, 8.5, 6.7 and 2.1). At
-the generating rank the fit withheld the product in 85, 70 and 16 percent of
-the fits with fewer than 1, 1 to 3 and 3 to 10 events per loading and in none
-above; the products it kept correlated 0.57, 0.78, 0.87, 0.93 and 0.96 with
-the generating one and had norm 43, 54, 57, 58 and 52 against the truth's 81,
-72, 67, 63 and 54 (the mode, every fit: correlation 0.48, 0.68, 0.85, 0.93 and
-0.96, norm 49, 60, 61, 62 and 54 against 69, 62, 63, 63 and 54), and the
-held-out log loss was no higher than the mode's in any band. Against the
-sampler's posterior mean, on 101 fits with fewer than 1 training event per
-loading and 96 with 1 to 3 (directed, bipartite and undirected networks of 60
-and 100 actors, ranks 1 to 3, one \code{lame()} run of two chains each), the
-slope of the fit lay on average 0.09 (95 percent interval -0.001 to 0.18) and
-0.10 (0.05 to 0.16) sampler standard deviations from it (relative to the
-slope 1.1 and 1.2 percent), and the standard error was 1.05 and 1.03 times the
-sampler's standard deviation. The fit withheld the product in 90 and 88 of
-these fits; of the 135 directed fits, 132 withheld it, two with fewer than 1
-event per loading retired every column and one kept it. The 9 and 8 products
-it kept (bipartite and undirected, and the one directed) had 0.74 to 1.08 and
-0.92 to 1.07 times the norm of the sampler's posterior mean product. For
-undirected networks the slope lay 0.40 and 0.34 standard deviations above the
-sampler's.
-Where the sampler finds no structure the variational mean keeps a sign pattern
-from the mode: in 4 of 24 networks of 60 actors its norm is 2.3 to 7.8 times
-the sampler's posterior-mean norm, which is the small remainder (0.11 to 0.37)
-of a cloud of mutually near-orthogonal, sign-symmetric draws of about the size
-of the fitted product (mean cosine between draws 0.004 to 0.11); a unimodal
-Gaussian posterior cannot report that mean, and the fit withholds these four
-products (0.30 to 1.18 units of signal per loading). The slope on those four
-(\eqn{|z| \le 0.83}{|z| <= 0.83}), its standard error (1.08 to 1.10 times the
-sampler's standard deviation) and the held-out log loss (0.011 below to 0.002
-above the sampler's) are within the usual bands. For bipartite
-networks of 60 actors fitted at \code{R = 3} (5 networks, 0.65 to 1.22 events
-per loading) the slope lies within 1.52 sampler standard deviations of the
-sampler's (\eqn{|z| \le 0.41}{|z| <= 0.41} on four) and the fit withholds the
-product, whose variational mean has 0.76 to 1.21 times the norm of the
-sampler's posterior mean product. The
-scales of the sender columns are the eigenvalues of a Wishart matrix, as in
-the sampler, so that a column the data do not inform falls to the small
-eigenvalues: on these 5 networks the variance of the predictor of the held-out
-cells is 0.57 to 1.02 times the sampler's, and the held-out log loss 0.003
-below to 0.014 above its. In
-cells of 40 networks (directed 30 to 100 actors, bipartite and undirected 60
-actors, one and four periods, ranks 0 to 2, 14 cells) the slope bias was -2.2
-to 1.2 percent (mode -0.5 to 3.4), the 95 percent interval from
-\code{vcov()} covered the slope in 80 to 100 percent of the networks (mean 95)
-and the intercept in 88 to 98 (mean 92), and the standard error was 0.78 to
-1.43 times the standard deviation of the slope. On the 170-state panel the
-coefficients of the full-system fit (\code{R = 2}) lay within 0.31 standard
-deviations of the sampler's posterior mean, with standard errors 0.86 to 1.23
-times the sampler's; the fit withholds the product (0.26 units of signal per
-loading, below 2.1), whose variational mean has norm 14.4 against the 15.9 of
-the sampler's posterior mean product (correlation 0.93). On the
-collinear-covariate design (40 actors, 8 periods, \code{R = 2}, truth 0.5, 24
-networks) the covariate that follows the latent product was 28.0 percent too
-large (sampler 26.2, mode 13.5, no latent rank 93): the prior shrinks the
-product and the covariate absorbs what it shrinks.
-The independent-cell fit (\code{dcor = FALSE}) has no dyadic correlation. On a
-strongly reciprocal panel (the school network of Chapter 9, 32 actors,
-\code{R = 2}; \code{ame()} with the book's specification, two chains of 50,000
-scans, puts \code{rho} at 0.67, posterior standard deviation 0.16) its
-coefficients lie within 0.72 sampler standard deviations of the sampler's,
-with standard errors 1.07 to 1.14 times the sampler's, and its post hoc
-correlation is 0.98, 2.0 posterior standard deviations above the sampler's.
-The pair model (\strong{Dyadic correlation}), the default for a directed
-network, estimates \code{rho} at 0.74 (0.43 posterior standard deviations
-from the sampler's), and its coefficients lie within 0.74 sampler standard
-deviations, with standard errors 0.76 to 0.97 times the sampler's. Both fits
-withhold the product of this panel. Choose the rank as described above.
-
-Without the empirical-Bayes prior (\code{bias_correct = "none"} and the two
-explicit corrections below) a binary fit is the maximum-likelihood fixed-effects probit
-(or logit)
-fit, penalised at \code{R > 0}: each reweighting step caps the
-working-response increment at 30 and gives a capped cell the weight at
-which it still contributes its score, and the loop runs to its fixed
-point (on 32 simulated networks of 60 and 120 actors the coefficient and
-deviance matched \code{glm()} to 5e-6 and 3e-8). In a fixed-effects fit an
-actor with a single
-outcome value on a side (a sender without a tie, a receiver with only
-ties, and so on) has its effect there at the boundary of the likelihood
-and its cells on that side carry no information about the other
-parameters: those cells are left out of the fit (and of \code{fit$Y}),
-the effect is \code{NA} in \code{a} / \code{b} with its linear predictor
-and fitted values, the actors are listed in \code{fit$not_estimated} with
-a message, and \code{va} / \code{vb} describe the estimated effects. On
-simulated 250-actor networks with 1 to 50 such senders the coefficient,
-\code{va} and \code{vb} stayed where they were without them.
-
-\strong{Split-sample bias correction.} A binary IRLS fit is a
-fixed-effects probit (or logit) fit: every additive effect and every
-latent position is estimated from the cells of its own actor, and
-maximising over all of them stretches the latent scale outward in finite
-samples (the incidental-parameters problem), while the factor penalty
-pulls the product term in. On simulated 30 x 20 bipartite panels with five
-periods and \code{R = 2} (20 seeds), the uncorrected dyadic coefficient
-was 3.3\\% too large, the sender effects 5.8\\% too spread, \code{va}
-15\\% and \code{vb} 11\\% too large, and the fitted product surface 13\\%
-too flat; at 60 x 40 the stretch was 2 to 5\\%, and on directed 30-actor
-panels 2 to 6\\%. \code{bias_correct = "jackknife"} removes it by a
-split-sample jackknife wherever the jackknife holds (see the size boundary
-below; the empirical-Bayes default needs no such correction). The
-observed cells are split into two interleaved halves, the model is refit
-on each half, warm-started from the full fit with the same settings, and
-every identified quantity is reported as \eqn{2 \times} full minus the
-mean of the two halves: a half carries twice the stretch of the full
-panel, so the combination cancels it to first order. A half that has not
-converged within \code{max_iter} is continued from its last iterate with
-five times that limit; if it still has not converged the call is an error of
-class \code{"lame_jk_nonconvergence"} (the class of the dynamic count
-jackknife), since the correction never combines a last iterate. The split is the
-checkerboard of the cells with \eqn{i + j + t} even and odd (every dyad
-keeps the periods of one parity in each half, every actor about half of
-its cells); when it leaves some actor without a tie or without a non-tie
-in a half, a random split of the dyad-periods (drawn from a fixed internal
-seed; the caller's random number stream is left unchanged) and then the
-split into odd and even periods are tried, the latter with weights for
-its unequal halves. Corrected are the intercept and regression
-coefficients, the additive effects \code{a} and \code{b}, the
-double-centred product surface (\code{U}, \code{V}, \code{L} are the
-rank-\code{R} factorisation of the corrected surface) and \code{va},
-\code{vb}, \code{cab}; \code{EZ}, the fitted values and the residuals are
-rebuilt from them; \code{ve} and the IRLS weights are those of the full
-fit, and \code{rho} is re-estimated from the paired binary likelihood at
-the corrected marginal probabilities. On the panels above the corrected coefficient ratio
-was 0.990 (Monte Carlo standard error 0.010) at 30 x 20 and 1.002 at
-60 x 40, the effect spreads within 1.5\\%, \code{va} and \code{vb} within
-2\\% at 30 x 20 and 60 x 40 and within 3\\% on directed panels, and the
-product slope 0.97 to 1.04. The correction costs two half-data refits,
-1.6 to 3.4 times the time of the uncorrected fit, and widens the spread
-across samples slightly (standard deviation of the coefficient 0.043 to
-0.047 at 30 x 20). \code{fit$raw} keeps the uncorrected coefficients,
-\code{a}, \code{b}, \code{VC}, product surface \code{O} and deviance
-(\code{fit$deviance} is that of the corrected \code{EZ});
-\code{fit$bias_correct} records whether the correction was applied, the
-split used and the splits tried, the half fits' convergence flags and
-iteration counts, and the shrink factors of the effects and the product.
-\code{bias_correct = "none"} returns the uncorrected fit and
-\code{bias_correct = "jackknife"} requests the correction for another
-family.
-
-A single cross-section at \code{R = 0} (\code{ame_als()}) is split by the
-checkerboard of its cells (\eqn{i + j} even and odd, each actor keeping
-half of its cells in each half). Each half's observed graph then falls
-into two sender-receiver components whose relative level is not
-identified, so every cell's half value is taken from the half that
-observes that cell's block. On simulated directed networks (20 to 40
-seeds) the corrected slope, \code{va} and \code{vb} were 0.990, 0.982 and
-0.954 of the truth at 75 actors with 36\\% ties, 0.990, 0.989 and 0.965 at
-100 and 0.999, 0.979 and 0.996 at 150 actors with 24\\% ties (uncorrected
-1.017 to 1.029 and up to 1.09). At \code{R > 0} a single cross-section is
-not corrected: the checkerboard over-corrected wherever the uncorrected
-estimate needs it (100 actors, \code{R = 2}: slope 1.024 to 0.971,
-\code{vb} 1.090 to 0.950; 50 actors: \code{va} 1.209 to 0.791), and so did
-a random split. Such a cross-section is corrected by the parametric
-bootstrap instead (see \strong{Parametric-bootstrap bias correction}).
-
-\strong{Parametric-bootstrap bias correction.} \code{bias_correct =
-"bootstrap"} simulates the bias instead of splitting the sample, which
-reaches the panels the split-sample correction does not (a single
-cross-section with \code{R > 0} or below 25 rarer-outcome cells per actor,
-a panel of fewer than five periods at \code{R > 0}, an actor without both
-outcomes in a half). Networks are drawn from the fitted model with fresh
-additive effects from the fitted \code{va}, \code{vb}, \code{cab} and the
-intercept, coefficients, node-covariate parts, product surface and
-reciprocity held at their fitted values, and are fitted by the same
-uncorrected estimator, warm-started from the fit. The bias of each
-coefficient, of \code{va}, \code{vb}, \code{cab} and of each cell of the
-product surface is the mean of its replicate values less the value it was
-generated with (the variance and covariance of the drawn effects for
-\code{va}, \code{vb}, \code{cab}); the additive effects are divided by the
-mean slope of the replicate effects on the drawn ones. The bias grows with
-the spread of the effects, so it is larger at the stretched estimate than
-at the truth, and one subtraction over-corrects small networks (30 actors,
-\code{R = 0}, 150 networks: slope -2.4\\%, \code{vb} 0.91 of the truth;
-subtracting the bias at the fitted effects themselves gave 0.85); a second
-round of replicates at the once-corrected parameters, drawn with the same
-random numbers, gives the slope \eqn{s} of the bias, and the estimate is
-corrected by \eqn{b_0 / (1 + s)}, the secant step toward the parameters
-whose simulated estimate equals the fitted one. Each round has 30
-replicates from a fixed internal seed (the fit is reproducible and the
-caller's random number stream is left unchanged), so the correction costs
-about 60 refits. On simulated directed probit networks (mean -1, about 27\\%
-ties, dyadic slope 0.7, sender and receiver sd 0.6, factor variance 0.6 at
-\code{R = 1}; 100 to 150 networks a cell) the relative bias of the slope
-went from 12.2\\% to -0.4\\% at 30 actors and \code{R = 0}, 17.4\\% to 0.0\\%
-at 30 and \code{R = 1}, 6.8\\% to 0.6\\% at 50 and \code{R = 0}, 8.4\\% to
-0.2\\% at 50 and \code{R = 1}, 4.0\\% to 0.3\\% at 100 and \code{R = 1},
-1.9\\% to 0.1\\% at 200 and \code{R = 1}, 3.4\\% to 0.5\\% on 30-actor
-panels of four periods at \code{R = 1}, and on 40 x 30 bipartite
-cross-sections (60 networks) 9.3\\% to 0.1\\% at \code{R = 0} and 15.8\\% to
-2.4\\% (Monte Carlo standard error 1.4\\%) at \code{R = 1};
-\code{va} and \code{vb} went from 1.10 to 1.51 of the truth to 0.94 to
-1.08 (Monte Carlo standard error 0.02 to 0.05), the intercept bias from
--0.03 to -0.11 to within 0.02, and the slope of the product surface on the
-generating one from 0.71 to 0.79 (30 actors), 0.86 to 0.93 (50) and 0.94
-to 0.98 (100); the rest of its flattening is the factor penalty. The 95\\%
-interval estimate plus or minus 1.96 replicate standard deviations of the
-first round (\code{fit$bias_correct$replicate_sd}) covered the slope in
-93 to 99\\% of the networks in these seven cells (88\\% in the 69
-bootstrap-corrected fits among 100-actor cross-sections at \code{R = 0}),
-against 72 to 92\\% with the same standard deviation around the
-uncorrected estimate and 49 to 82\\% with the conditional sandwich
-(\code{vcov()}). The correction took 4 to 8 seconds at \code{R = 0}
-and 40 seconds (30 actors) to 9 minutes (200 actors) at \code{R = 1}
-with twelve such fits running at once, against 0.2 to 9 seconds
-uncorrected. \code{fit$bias_correct} records \code{method = "bootstrap"},
-the replicates of each round that refit and converged, the first-round
-biases, the secant factors and the corrections applied; \code{fit$raw}
-keeps the uncorrected values. A refit of the corrected fit
-(\code{\link{ame_als_refit}}, and every replicate of
-\code{\link{ame_als_bootstrap}}) removes these stored corrections rather
-than simulating again. Fewer than 80\\% of a round's replicates refitting
-and converging is an error of class \code{"lame_als_size"} (1 of 100
-networks at 30 actors and \code{R = 1}), and so is an undirected fit with
-\code{R > 0}, whose fitted product is flattened beyond what the replicates
-reproduce: on undirected 50-actor networks with a rank-1 term of variance
-1 (60 networks) the product slope was 0.68 and the correction moved the
-dyadic slope from 1.0\\% above to 5.8\\% below the truth, and with a term of
-variance 0.36 (50 networks) the factor penalty removed the product in
-every fit and the slope went from 6.5\\% to 12.6\\% below the truth.
-Undirected fits at \code{R = 0} are corrected (50 actors: slope 6.6\\% to
--0.8\\%, \code{va} 1.12 to 0.98 of the truth).
-
-\strong{Size boundary.} A fixed-effects binary fit is supported where the
-bias of what it reports is within a tolerance, 2\\% on the dyadic coefficients and 5\\% on
-\code{va} and \code{vb} (the internal constant \code{.ae_bias_tol}; the
-floors below follow from it). The size that governs the bias is the
-number of observed cells per actor (over all periods, on the side with
-fewer: senders or receivers, rows or columns) times the share of the
-rarer outcome (ties in a sparse network), called rarer-outcome cells per
-actor below, and the bias also grows with the spread of the additive
-effects, measured on the fit as the larger of the sd of the estimated
-sender and receiver effects over the latent noise sd (1 for probit,
-\eqn{\pi / \sqrt{3}}{pi / sqrt(3)} for logit). On simulated networks (single
-cross-sections of 60 to 500 actors at 7 to 40\\% ties, panels of two to
-four periods, directed, bipartite and undirected, probit and logit,
-additive-effect sd 0.5 to 2, 3 to 10 seeds a cell) the uncorrected bias
-fell as \eqn{c /} size, with \eqn{c} growing with the rank and the
-spread. The split-sample correction is used where it can be computed:
-panels with two or more periods at \code{R = 0} and five or more at
-\code{R > 0}, and single cross-sections at \code{R = 0}, in each case
-with every actor keeping a tie and a non-tie in both halves and, at
-\code{R = 0}, from 25 rarer-outcome cells per actor (below that it
-over-corrected \code{va} and \code{vb} to 0.75 and 0.87 of the truth at
-14, and to 0.86 and 0.89 at 18). The empirical-Bayes default does not use
-this rule, which governs the fixed-effects fits of the families and settings
-the estimator does not cover: a fit the split-sample correction does not
-reach is reported uncorrected when its size is at or above the floor for
-its rank and spread, and refused below it (the parametric bootstrap does not
-reach an undirected fit with a multiplicative term); a
-fit whose spread is above 2.25, or whose rank is above 8, is refused,
-corrected or not, since neither the uncorrected nor the corrected estimate
-was measured there. The floors (rarer-outcome cells per actor; in
-brackets those at 3\\% / 8\\%), where every measured cell was within the
-tolerance up to one Monte Carlo standard error:
-\tabular{llll}{
-rank \tab spread up to 0.7 \tab 0.7 to 1.25 \tab 1.25 to 2.25 \cr
-\code{R = 0} \tab 73 (46) \tab 73 (46) \tab 95 (60) \cr
-\code{R = 1, 2} \tab 78 (50) \tab 94 (63) \tab 155 (98) \cr
-\code{R = 3, 4} \tab 117 (74) \tab 124 (83) \tab refused (155) \cr
-\code{R = 5} to \code{8} \tab 117 (74) \tab 145 (97) \tab refused (refused)
-}
-"Refused" marks a band where no measured size (up to about 175 cells per
-actor) met the tolerance; ranks above 8 are not measured and refused. For
-a directed cross-section with 36\\% ties and spread up to 0.7 the floors
-are about 204, 218 and 326 actors at \code{R = 0}, \code{1-2} and
-\code{3-8}, and half that with two periods. A fit above the floor
-records in \code{fit$bias_correct} \code{method = "none"} with the
-\code{size}, the \code{floor}, the \code{spread} and a \code{basis}
-giving the measured bias band there, and \code{print()} /
-\code{summary()} say that no correction is needed; there is no warning.
-Above the measured spread or rank, binary ALS stops with an error of class
-\code{"lame_als_size"} that names the spread or rank and the measured
-band; the MCMC \code{ame()} / \code{lame()} integrate the effects and
-positions out and are the calibrated route there. The parametric bootstrap
-also stops with that class when fewer than 80\\% of its simulated
-replicates refit and converge (networks simulated from the fit too sparse
-for the fixed-effects estimator). \code{bias_correct = "none"} returns the
-uncorrected fit at any size, recorded as requested
-(\code{fit$bias_correct$requested}); \code{bias_correct = "jackknife"}
-requires the correction and is an error (class \code{"lame_jk_split"})
-where it cannot be computed. A bootstrap of a binary fit that carries no
-correction is an error (class \code{"lame_als_bootstrap_bias"}), whatever its
-size: each replicate is refit at the biased estimate and reproduces the
-bias, which falls more slowly than the standard error
-(\code{\link{ame_als_bootstrap}}). The default empirical-Bayes fit and the fits
-corrected by the jackknife or the parametric bootstrap have one.
+\strong{Accuracy.} On seven designs of binary networks the fast route fits (mean
+densities 0.41 to 0.44; directed and undirected, 25 to 60 actors, one and four periods,
+ranks 0 to 2, a weak product and correlated sender and receiver effects; 200 to 400
+networks each) the 95 percent Laplace intervals covered the dyadic coefficient in 0.905
+to 0.975 of the networks and the intercept in 0.940 to 0.975. The independent-cell fit
+(\code{dcor = FALSE}) has no dyadic correlation; the pair model (\strong{Dyadic
+correlation}) is the default for a directed network.
 
 Rank and ordinal families
 (\code{"ordinal"}, \code{"cbin"},
@@ -1501,11 +1057,9 @@ triangle of a dyadic covariate is filled from the other triangle, and a
 dyad missing in both is unobserved. The per-actor mean of a node covariate
 runs over the periods in which it is observed. An actor missing a node
 covariate in every period has no
-observed cell on that side: the empirical-Bayes fit leaves its effect there
-to the prior (zero when the actor has no cell on either side), and a
-fixed-effects fit reports it as not estimated (\code{NA} in \code{a} /
-\code{b}, listed in \code{fit$not_estimated} as \code{"no observed
-cell"}). A covariate that is missing everywhere stops the fit, as it does
+observed cell on that side: the fit leaves its effect there to the prior
+(zero when the actor has no cell on either side). A covariate that is
+missing everywhere stops the fit, as it does
 in \code{\link{ame}} and \code{\link{lame}}.
 
 \strong{Identifiability of the additive and multiplicative terms.} For
@@ -1529,19 +1083,9 @@ the multiplicative term, so keep \code{R} modest relative to the covariate
 structure. This residual aliasing is intrinsic to the AME model --- the MCMC
 estimator resolves it only through its priors.
 
-\strong{Choosing R.} An empirical-Bayes fit (the default for normal, binary and
-Poisson responses) has a rank criterion, \code{fit$eb$log_marginal} (see \strong{Choosing the
-rank}). For the fixed-effects fits there is no
-automatic order-selection criterion (the
-working-response objective has no likelihood, so AIC/BIC do not apply). Fit a
-few values --- e.g. \code{lapply(0:4, function(r) ame_als(Y, R = r,
-...))} --- and inspect \code{deviance} (the residual sum of squares for the
-\code{normal} family and the transform route, the binomial or Poisson
-deviance of the fitted values for an IRLS fit, in each case of the
-reported \code{EZ}; the optimiser's final objective, which adds the
-factor penalty of an IRLS fit, is \code{objective}): it
-falls steeply while real multiplicative signal is being captured and then
-flattens, so the \dQuote{elbow} of that curve is a reasonable choice. With
+\strong{Choosing R.} Every fit has a rank criterion, \code{fit$eb$log_marginal}
+(see \strong{Choosing the rank}): fit a few values, e.g.
+\code{lapply(0:4, function(r) ame_als(Y, R = r, ...))}, and compare them. With
 \code{R > 0} the objective is non-convex; use \code{multistart} to guard
 against local optima.
 
@@ -1549,22 +1093,21 @@ A completely separating unpenalized linear predictor has no finite estimate;
 the IRLS route refuses it with class \code{lame_als_separation}. Use
 \code{ame()} or \code{lame()} with proper priors for such data.
 
-\strong{Uncertainty.} An empirical-Bayes fit (the default for normal, binary
-and Poisson responses) reports Laplace standard errors for every coefficient
-(\code{vcov()}, \code{confint()}, \code{fit$eb$se}). For a fixed-effects fit
-(\code{bias_correct = "none"}) uncertainty is obtained separately, by the
-bootstrap; see \code{\link{ame_als_bootstrap}}. (The SIR paper's own primary standard
-errors are Hessian-based, classical and sandwich/robust. For AME a
-Hessian-based variance is awkward on two counts: without an explicit gauge
-fix the rotational invariance of the multiplicative factors leaves the joint
-Hessian rank-deficient, and even with a gauge fixed the Gaussian
-working-response approximation used for the non-normal families leaves a
-Hessian-based variance miscalibrated. The bootstrap side-steps both, so it is
-preferred here.)
+\strong{Uncertainty.} Every fit reports Laplace standard errors for every coefficient
+(\code{vcov()}, \code{confint()}, \code{fit$eb$se}), and standard errors for the
+variance components (\code{fit$VC_se}, \code{fit$VC_ci}), the sender and receiver
+effects (\code{fit$a_sd}, \code{fit$b_sd}) and the latent positions and product
+cells (\code{fit$U_sd}, \code{fit$V_sd}, \code{fit$UVPM_sd}; \code{posterior_sd} in
+\code{\link{latent_positions}}). A product the data barely determine is reported
+shrunken, with its larger standard errors. A latent position whose eigenvalue is zero is
+reported at the zero the fit estimates, with standard error \eqn{1/\sqrt{n}}, that of an
+entry of a direction uniform over the centred unit vectors; its product cells and the
+eigenvalue keep their errors. \code{bootstrap = N} adds bootstrap errors for the
+coefficients (see \code{\link{ame_als_bootstrap}}).
 }
 \section{Coverage relative to \code{\link{ame}} / \code{\link{lame}}}{
 
-The ALS estimator is a fast, frequentist point estimator. It covers most
+The ALS estimator is a fast empirical-Bayes estimator. It covers most
 static AME workflows, and the top-level \code{lame(..., method = "als")}
 dispatcher covers several dynamic workflows, but posterior-specific features
 still require the MCMC estimator:
@@ -1577,8 +1120,7 @@ and \code{frn}, fall back to \code{\link{ame}} /
 static model pooled across time slices. The top-level dispatcher
 \code{lame(..., method = "als")} routes supported dynamic requests to a
 dynamic estimator for normal, binary, and Poisson panels (an
-empirical-Bayes fit by default; see
-\code{bias_correct} in \code{\link{lame}}),
+empirical-Bayes fit; see \code{\link{lame}}),
 including named panels where actors enter or exit: \code{dynamic_ab},
 selected intercept/dyadic/node
 \code{dynamic_beta}, AR(1) \code{dynamic_uv} for directed, symmetric,
@@ -1588,14 +1130,11 @@ symmetric panels (bipartite t requests are refused).
 Node-covariate coefficients use the same orthogonal additive-effect
 decomposition as \code{\link{lame_als}}; dynamic node coefficients use
 period-specific node values when selected by \code{dynamic_beta}, while
-static node coefficients use per-actor means. A time-varying bipartite
-interaction matrix (\code{dynamic_G = TRUE}) is refused on every route:
-use \code{dynamic_uv = TRUE} and read \code{fit$UVPM}. A dynamic normal fit whose latent product the
+static node coefficients use per-actor means. A dynamic normal fit whose latent product the
 data do not determine withholds it (\code{fit$eb$product_withheld}; see \strong{Choosing the rank of a
 normal fit} in \code{\link{ame_als}}). Changing actor
 composition requires row and column names on every slice so actors can
-be aligned; smoothing penalties are broken across actor-entry gaps (the
-empirical-Bayes fit treats an absent actor-period as a free AR state).
+be aligned; the fit treats an absent actor-period as a free AR state.
 Rank/censored dynamic families remain on the MCMC path. Static
 \code{ame_als()} / \code{lame_als()} fits still use a
 single latent rank \code{R}; the dynamic bipartite ALS dispatcher
@@ -1613,13 +1152,13 @@ empirical-Bayes fits apply the default additive-effect prior of
 \item \strong{Posterior quantities.} No \code{$BETA} / \code{$VC} posterior
 draws on the point fit. Use \code{bootstrap = N} for a sampling
 distribution analogue; the draws are bootstrap, not Bayesian.
-\item \strong{Multi-chain.} Not applicable: an ALS fit is one point fit, \code{chains} has no effect, and \code{n_chains} is ignored with a warning.
+\item \strong{Multi-chain.} Not applicable: an ALS fit is one fit, and \code{chains} has no effect on \code{ame(..., method = "als")} or \code{lame(..., method = "als")}.
 \item \strong{Convergence diagnostics.} No Rhat / ESS / \code{\link{trace_plot}}.
 }
 
 Features that work the same on ALS fits: \code{coef},
-\code{vcov} (Laplace covariance of an empirical-Bayes fit, sandwich on the
-regression block of a fixed-effects fit), \code{confint} (auto-routes
+\code{vcov} (Laplace covariance of the empirical-Bayes fit, or the bootstrap
+covariance when one is attached), \code{confint} (auto-routes
 bootstrap intervals when present, Wald intervals otherwise), \code{predict},
 \code{fitted}, \code{residuals}, \code{summary}, \code{print},
 \code{nobs}, \code{\link{simulate.ame_als}},

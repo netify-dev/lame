@@ -78,7 +78,11 @@
 			reg_v = -cov_v %*% P[iv, iu, drop = FALSE]
 		)
 	}, error = function(e) NULL)
-	if (is.null(pri) || any(!is.finite(unlist(pri)))) return(NULL)
+	if (is.null(pri) || any(!is.finite(unlist(pri)))) {
+		# the positions are left to the host update, given an auxiliary covariance this visit does not move
+		.lame_fallback_note('sparse_position')
+		return(NULL)
+	}
 	pri
 }
 

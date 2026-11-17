@@ -1,7 +1,7 @@
 // Compiled kernels of the binary probit empirical-bayes estimator (ame_als(), lame_als()) and of the
 // dynamic estimator that shares them (lame_als()): the cell quadrature, the cavity weights, the
 // bivariate normal probability and the pair quadrature. The R references are the functions with the
-// suffix _r in R/ame_als_meanfield.R and R/ame_als_pair.R, which these agree with to rounding (typically
+// suffix _r in tests/testthat/helper-reference-engines-als.R, which these agree with to rounding (typically
 // 1e-12 and 1e-9 at worst on realistic predictors; the tests compare the two engines). The scalar
 // functions are in ae_kernels.h.
 //
@@ -110,30 +110,10 @@ struct IVec {
 
 }  // namespace
 
-// --- small exports for the tests ------------------------------------------------------------------
-
-// log Phi(x) (the scalar kernel the others use)
-// [[Rcpp::export(rng = false)]]
-NumericVector ae_log_pnorm_cpp(const NumericVector& x) {
-	const std::size_t n = x.size();
-	NumericVector out(n);
-	for (std::size_t i = 0; i < n; ++i) out[i] = log_pnorm(x[i]);
-	return out;
-}
-
-// the Gauss Hermite rule of K nodes for the standard normal: nodes z and weights summing to one
-// [[Rcpp::export(rng = false)]]
-List ae_gh_rule_cpp(int K) {
-	if (K < 1 || K > 200) stop("The number of quadrature nodes must be between 1 and 200.");
-	const GhRule& r = gh_rule(K);
-	return List::create(Named("z") = NumericVector(r.z.begin(), r.z.end()),
-	                    Named("w") = NumericVector(r.w.begin(), r.w.end()));
-}
-
 // --- the terms of the probit working response ---------------------------------------------------------
 
 // The standard normal log density and the two log tail probabilities at a probit linear predictor
-// (.ae_probit_terms_r in R/ame_als_irls.R): everything the working response, the deviance and the
+// (.ae_probit_terms_r in tests/testthat/helper-reference-engines-als.R): everything the working response, the deviance and the
 // likelihood-equation certificate need of it
 // [[Rcpp::export(rng = false)]]
 List ae_probit_terms_cpp(const NumericVector& eta, int threads = 1) {
@@ -184,7 +164,7 @@ NumericVector ae_probit_hprime_cpp(const NumericVector& eta, const NumericVector
 // --- the cell quadrature ----------------------------------------------------------------------
 
 // The expected working problem of the cells whose linear predictor is N(m, v), K nodes of the Gauss
-// Hermite rule (.ae_mf_cells_r in R/ame_als_meanfield.R): the working response z = m + E psi / w,
+// Hermite rule (.ae_mf_cells_r in tests/testthat/helper-reference-engines-als.R): the working response z = m + E psi / w,
 // the weight w = -E psi' and the expected log likelihood ell of every observed cell (y finite);
 // zero off the observed cells. The increment of the response is capped at 30.
 // [[Rcpp::export(rng = false)]]
@@ -346,7 +326,7 @@ NumericVector ae_pbivnorm_cpp(const NumericVector& a, const NumericVector& b, co
 }
 
 // log Phi2(a, b; r): the log of the probability above 1e-6, the log-domain integral below it
-// (.ae_pair_logphi2_r in R/ame_als_pair.R)
+// (.ae_pair_logphi2_r in tests/testthat/helper-reference-engines-als.R)
 // [[Rcpp::export(rng = false)]]
 NumericVector ae_pair_logphi2_cpp(const NumericVector& a, const NumericVector& b, const NumericVector& r,
                                   int threads = 1) {
@@ -676,7 +656,7 @@ List ae_pair_quad_cpp(const NumericVector& m1, const NumericVector& m2, const Nu
 // --- the cross terms of the additive block ----------------------------------------------------------------
 
 // The sums over time that the cross weights of the pairs add to the normal equations of the additive block
-// (.ae_pair_cross_r in R/ame_als_pair.R): with x_1 = 1 and x_{k+1} the dyadic covariates (a non-finite entry counts
+// (.ae_pair_cross_r in tests/testthat/helper-reference-engines-als.R): with x_1 = 1 and x_{k+1} the dyadic covariates (a non-finite entry counts
 // as zero), cw_t the cross weights of period t (symmetric in the two actors of a dyad, zero where there is no pair),
 //   Mk[[k]]   = sum_t x_k * cw_t                    (n x n)
 //   xx[k, l]  = sum_t sum_ij x_k,ij cw_t,ij x_l,ji   (pa x pa)
@@ -727,7 +707,7 @@ List ae_pair_cross_cpp(const NumericVector& cw, const NumericVector& X, int n, i
 
 // Solve n small systems (G_i + L) x_i = rhs_i, G_i given as the rows of `Gflat` (n x R^2, column-major within a
 // row) and L a common R x R prior precision: the solutions x (n x R), the inverses Sig (R x R x n), by the
-// cholesky factor of each symmetrised system (.ae_mf_row_solve_r in R/ame_als_meanfield.R). `bad` lists the rows
+// cholesky factor of each symmetrised system (.ae_mf_row_solve_r in tests/testthat/helper-reference-engines-als.R). `bad` lists the rows
 // whose system is not positive definite, which the caller solves by the eigen route of .ae_safe_inverse()
 // [[Rcpp::export(rng = false)]]
 List ae_row_solve_cpp(const NumericMatrix& Gflat, const NumericMatrix& L, const NumericMatrix& rhs, int threads = 1) {

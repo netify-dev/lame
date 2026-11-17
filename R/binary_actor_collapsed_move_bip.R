@@ -170,6 +170,7 @@
 			P <- P[act, act, drop = FALSE]
 			h <- h[act]
 			ch <- tryCatch(chol(P), error = function(e) NULL)
+			if (is.null(ch) || !all(is.finite(h))) .lame_fallback_note('actor_move')
 			if (!is.null(ch) && all(is.finite(h))) {
 				cc <- solve(P, h) + backsolve(ch, rnorm(length(h)))
 				stats["ridge_calls"] <- stats["ridge_calls"] + 1
@@ -184,6 +185,7 @@
 		# has prior N(0, Sigma / 2), Sigma the AR(1) covariance, and moves only their cells
 		Sig <- dev$sigma^2 / (1 - dev$rho^2) * dev$rho^abs(outer(seq_len(N), seq_len(N), "-"))
 		root <- tryCatch(t(chol(Sig / 2)), error = function(e) NULL)
+		if (is.null(root)) .lame_fallback_note('actor_move')
 		for (row in c(TRUE, FALSE)) {
 			if (is.null(root)) break
 			n_side <- if (row) nA else nB

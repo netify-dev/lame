@@ -40,7 +40,11 @@ behaves the same in both cases.}
 position, or \code{NA} if posterior draws are not available. To enable,
 fit the model with \code{posterior_opts = posterior_options(save_UV = TRUE)}
 (static positions) or \code{posterior_opts = list(save_UV_draws = TRUE)}
-(dynamic positions).}
+(dynamic positions). An \code{ame_als} fit, or a \code{lame(method =
+    "als")} fit with static factors, reports the sd of each
+reported coordinate under its Laplace posterior (\code{fit$U_sd},
+\code{fit$V_sd}), with the directions that leave the product unchanged
+left out.}
 \item{type}{Character. \code{"U"} for sender/row positions,
 \code{"V"} for receiver/column positions. Symmetric models have
 only \code{"U"}.}

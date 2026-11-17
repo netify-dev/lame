@@ -2,8 +2,7 @@ skip_on_cran()
 
 library(lame)
 
-# empirical-Bayes estimator of the binary ALS fit (bias_correct = "eb", the
-# default of a binary IRLS fit)
+# empirical-Bayes estimator of the binary ALS fit
 
 # a small directed binary panel with known effects
 eb_panel = function(
@@ -40,36 +39,6 @@ eb_panel = function(
 	list(Y = Y, X = X, a = a, b = b, beta = beta, mu = mu, n = n, Tt = Tt, O = O)
 }
 
-# the posterior mode with the Laplace correction, the stage a variational fit starts from
-mode_fit = function(d, ..., R = 0, symmetric = FALSE, link = "probit") {
-	Y = if (d$Tt == 1L) d$Y[[1]] else d$Y
-	X = if (d$Tt == 1L) d$X[[1]] else d$X
-	suppressWarnings(suppressMessages(lame:::.ae_run(
-		Y,
-		X,
-		NULL,
-		NULL,
-		R,
-		"binary",
-		"unipartite",
-		symmetric,
-		200,
-		1e-6,
-		FALSE,
-		6886,
-		longitudinal = d$Tt > 1L,
-		call = quote(mode_fit()),
-		lowrank_method = "mm",
-		non_normal_method = "irls",
-		link = link,
-		linear_solver = "eigen",
-		multistart = "none",
-		bias_correct = NULL,
-		eb_posterior = "mode",
-		...
-	)))
-}
-
 eb_fit = function(d, ..., R = 0, symmetric = FALSE) {
 	args = list(R = R, family = "binary", verbose = FALSE, symmetric = symmetric, ...)
 	suppressWarnings(suppressMessages(
@@ -78,11 +47,11 @@ eb_fit = function(d, ..., R = 0, symmetric = FALSE) {
 	))
 }
 
-test_that("a binary irls fit is empirical Bayes by default and on request", {
+test_that("a binary irls fit is empirical Bayes by default", {
 	d = eb_panel()
 	fit = eb_fit(d)
-	expect_identical(fit$bias_correct$method, "eb")
-	expect_true(fit$bias_correct$default)
+	expect_null(fit$bias_correct)
+	expect_null(fit$bias_correct)
 	expect_true(isTRUE(fit$converged))
 	expect_true(all(is.finite(fit$coefficients)))
 	expect_identical(
@@ -91,33 +60,21 @@ test_that("a binary irls fit is empirical Bayes by default and on request", {
 			"sab", "Sab0", "eta0", "gamma", "sab_change",
 			"sig2_u", "sig2_v", "mu_int", "a_raw", "b_raw",
 			"log_marginal", "vcov", "vcov_cond", "se",
-			"se_method", "vcov_error", "estimator", "variational", "laplace", "pair"
+			"se_method", "vcov_error", "vcov_singular", "estimator", "population", "variational", "laplace", "pair",
+			"vc_information", "df_effective", "df_linear"
 		)
 	)
 	expect_true(is.finite(fit$eb$log_marginal))
 	# the estimator that produced the values is on the record
 	expect_identical(fit$eb$estimator, "variational")
 	expect_true(fit$eb$variational$converged)
-	expect_identical(mode_fit(d)$eb$estimator, "laplace")
-
-	asked = eb_fit(d, bias_correct = "eb")
-	expect_false(asked$bias_correct$default)
-	expect_identical(asked$bias_correct$requested, "eb")
-	expect_identical(coef(asked), coef(fit))
-
-	# the options that are not the default keep the fixed-effects fit
-	none = eb_fit(d, bias_correct = "none")
-	expect_identical(none$bias_correct$method, "none")
-	expect_null(none$eb)
-	expect_false(isTRUE(all.equal(coef(none), coef(fit), tolerance = 1e-3)))
-	expect_error(eb_fit(d, bias_correct = "jackknife"), class = "lame_jk_split")
 })
 
 test_that("longitudinal and bipartite binary fits are empirical Bayes by default", {
 	d = eb_panel(n = 10, Tt = 3, seed = 2)
 	fit = eb_fit(d)
 	expect_s3_class(fit, "lame_als")
-	expect_identical(fit$bias_correct$method, "eb")
+	expect_null(fit$bias_correct)
 
 	set.seed(3)
 	nr = 10; nc = 7
@@ -130,7 +87,7 @@ test_that("longitudinal and bipartite binary fits are empirical Bayes by default
 	bf = suppressWarnings(suppressMessages(
 		ame_als(y, Xdyad = xa, family = "binary", mode = "bipartite", verbose = FALSE)
 	))
-	expect_identical(bf$bias_correct$method, "eb")
+	expect_null(bf$bias_correct)
 	expect_length(bf$a, nr)
 	expect_length(bf$b, nc)
 	expect_equal(dim(bf$eb$vcov), c(2L, 2L))
@@ -139,18 +96,8 @@ test_that("longitudinal and bipartite binary fits are empirical Bayes by default
 })
 
 test_that("the empirical-Bayes estimator is refused where it is not defined", {
-	set.seed(4)
 	# (a normal response has the estimator, test_als_normal_eb.R)
-	Yp = matrix(rpois(144, 2), 12, 12); diag(Yp) = NA
-	expect_error(
-		ame_als(Yp, family = "poisson", non_normal_method = "transform", bias_correct = "eb", verbose = FALSE),
-		class = "lame_als_eb"
-	)
 	d = eb_panel()
-	expect_error(
-		eb_fit(d, bias_correct = "eb", non_normal_method = "transform"),
-		class = "lame_als_eb"
-	)
 	# the moving positions of a logit link have no empirical-Bayes estimator on the dynamic route (the
 	# sampler's model is probit)
 	dd = eb_panel(n = 10, Tt = 3, seed = 5)
@@ -164,24 +111,13 @@ test_that("the empirical-Bayes estimator is refused where it is not defined", {
 				dynamic_uv = TRUE,
 				dynamic_ab = TRUE,
 				link = "logit",
-				bias_correct = "eb",
 				verbose = FALSE
 			)
 		)),
 		class = "lame_als_eb"
 	)
 	fit = eb_fit(d)
-	# a transformed count fit has no empirical-Bayes refit either
-	expect_error(
-		ame_als_refit(
-			suppressWarnings(
-				ame_als(Yp, family = "poisson", non_normal_method = "transform", verbose = FALSE)
-			),
-			bias_correct = "eb"
-		),
-		class = "lame_als_eb"
-	)
-	expect_identical(ame_als_refit(fit)$bias_correct$method, "eb")
+	expect_null(ame_als_refit(fit)$bias_correct)
 })
 
 test_that("an actor without a tie has a finite effect", {
@@ -192,11 +128,6 @@ test_that("an actor without a tie has a finite effect", {
 	expect_lt(fit$a[3], 0)
 	expect_true(all(is.finite(fit$a)) && all(is.finite(fit$b)))
 	expect_true(all(is.finite(sqrt(diag(vcov(fit))))))
-
-	# the fixed-effects fit has no finite value for that sender
-	none = eb_fit(d, bias_correct = "none")
-	expect_true(is.na(none$a[3]))
-	expect_true("a03" %in% none$not_estimated$actor)
 })
 
 test_that("the covariance of a variational fit is the inverse penalised information at its expected weights", {
@@ -224,30 +155,6 @@ test_that("the covariance of a variational fit is the inverse penalised informat
 	plug = plogis(fit$EZ[[1]][cells])
 	expect_true(all(is.finite(w) & w > 0))
 	expect_gt(max(abs(w - plug * (1 - plug))), 1e-4)
-})
-
-test_that("the Laplace covariance of the mode is the inverse penalised information", {
-	# a logit link makes the expected and observed information equal, so the
-	# covariance is the inverse numerical Hessian of the penalised negative
-	# log-likelihood at the fitted point
-	d = eb_panel(n = 8, seed = 7)
-	fit = mode_fit(d, link = "logit")
-	n = d$n
-	y = d$Y[[1]]; x = d$X[[1]][, , 1]
-	obs = !is.na(y)
-	P = solve(fit$eb$sab)
-	neg_log_post = function(par) {
-		eta = par[1] + par[2] * x + outer(par[2 + seq_len(n)], par[2 + n + seq_len(n)], "+")
-		al = cbind(par[2 + seq_len(n)], par[2 + n + seq_len(n)])
-		0.5 * sum((al %*% P) * al) - sum(dbinom(y[obs], 1, plogis(eta[obs]), log = TRUE))
-	}
-	par = c(fit$mu, fit$beta, fit$a, fit$b)
-	H = stats::optimHess(par, neg_log_post, control = list(ndeps = rep(1e-5, length(par))))
-	V = solve(H)[1:2, 1:2]
-	expect_equal(unname(vcov(fit)), unname(V), tolerance = 2e-3)
-	expect_equal(dimnames(vcov(fit)), list(c("intercept", "x_dyad"), c("intercept", "x_dyad")))
-	# conditional on the factors there are none, so the two covariances agree
-	expect_equal(unname(fit$eb$vcov), unname(fit$eb$vcov_cond), tolerance = 1e-10)
 })
 
 test_that("print, summary, vcov, confint and tidy report the Laplace standard errors", {
@@ -287,45 +194,14 @@ test_that("the effects are not re-centred and the intercept is the population in
 	expect_equal(unname(fit$EZ[[1]]), unname(eta), tolerance = 1e-10)
 	# at the fixed point of the variational equations the intercept is stationary,
 	# so the posterior-mean effects of a prior with mean zero sum to zero (the
-	# sum of the effect equations is the intercept equation); the posterior mode
-	# with the Laplace correction is not forced to
+	# sum of the effect equations is the intercept equation)
 	expect_lt(abs(sum(fit$a)) + abs(sum(fit$b)), 1e-8)
-	md = mode_fit(d)
-	expect_gt(abs(sum(md$a)) + abs(sum(md$b)), 1e-6)
-	# the fixed-effects fit centres them
-	none = eb_fit(d, bias_correct = "none")
-	expect_lt(abs(mean(none$a)), 1e-8)
-})
-
-test_that("a refit and the parametric bootstrap use the empirical-Bayes estimator", {
-	skip_on_cran()
-	d = eb_panel(n = 14, seed = 10)
-	fit = eb_fit(d)
-	re = ame_als_refit(fit, verbose = FALSE)
-	expect_identical(re$bias_correct$method, "eb")
-	expect_equal(coef(re), coef(fit), tolerance = 1e-3)
-	expect_equal(re$eb$sab, fit$eb$sab, tolerance = 1e-3)
-	bt = suppressWarnings(suppressMessages(
-		ame_als_bootstrap(fit, R = 10, seed = 1, verbose = FALSE)
-	))
-	expect_s3_class(bt, "boot_ame")
-	expect_gte(bt$n_valid, 10L)
-	expect_true(all(is.finite(bt$se)))
-})
-
-test_that("multistart keeps the empirical-Bayes estimator", {
-	skip_on_cran()
-	d = eb_panel(n = 14, seed = 11, R = 1)
-	fit = eb_fit(d, R = 1, multistart = "cheap")
-	expect_identical(fit$bias_correct$method, "eb")
-	expect_length(fit$multistart_sse, 4L)
-	expect_true(any(fit$multistart_converged))
 })
 
 test_that("a symmetric binary fit is empirical Bayes with one effect per actor", {
 	d = eb_panel(n = 14, seed = 12, sym = TRUE)
 	fit = eb_fit(d, symmetric = TRUE)
-	expect_identical(fit$bias_correct$method, "eb")
+	expect_null(fit$bias_correct)
 	expect_true(isTRUE(fit$converged))
 	expect_equal(fit$a, fit$b)
 	# a scalar variance: the covariance is diagonal with equal entries
@@ -334,16 +210,13 @@ test_that("a symmetric binary fit is empirical Bayes with one effect per actor",
 	expect_true(all(is.finite(sqrt(diag(vcov(fit))))))
 })
 
-test_that("an undirected fit with a latent rank is empirical Bayes by default and on request", {
+test_that("an undirected fit with a latent rank is empirical Bayes by default", {
 	skip_on_cran()
 	d = eb_panel(n = 14, seed = 13, sym = TRUE, R = 1)
 	fit = eb_fit(d, R = 1, symmetric = TRUE)
-	expect_identical(fit$bias_correct$method, "eb")
-	expect_true(fit$bias_correct$default)
+	expect_null(fit$bias_correct)
+	expect_null(fit$bias_correct)
 	expect_true(isTRUE(fit$converged))
-	asked = eb_fit(d, R = 1, symmetric = TRUE, bias_correct = "eb")
-	expect_identical(asked$bias_correct$requested, "eb")
-	expect_identical(coef(asked), coef(fit))
 	expect_equal(dim(fit$U), c(14L, 1L))
 	# one scale for the whole factor, stored once per column
 	expect_length(fit$eb$sig2_u, 1L)
@@ -351,15 +224,11 @@ test_that("an undirected fit with a latent rank is empirical Bayes by default an
 	expect_true(all(is.finite(sqrt(diag(vcov(fit))))))
 	# a refit keeps the estimator
 	re = ame_als_refit(fit, verbose = FALSE)
-	expect_identical(re$bias_correct$method, "eb")
+	expect_null(re$bias_correct)
 	expect_equal(coef(re), coef(fit), tolerance = 1e-2)
-	# the fixed-effects rule is available on request
-	none = eb_fit(d, R = 1, symmetric = TRUE, bias_correct = "none")
-	expect_identical(none$bias_correct$method, "none")
-	expect_null(none$eb)
 	# the starts of a multistart fit are empirical-Bayes fits too
 	ms = eb_fit(d, R = 1, symmetric = TRUE, multistart = "cheap")
-	expect_identical(ms$bias_correct$method, "eb")
+	expect_null(ms$bias_correct)
 	expect_length(ms$multistart_sse, 4L)
 	expect_true(any(ms$multistart_converged))
 })
@@ -530,7 +399,8 @@ test_that("the displacement of the integrated parameters is the gradient of half
 	for (sym in c(FALSE, TRUE)) {
 		d = eb_panel(n = 10, seed = 51, mu = -0.6, R = 1, sym = sym, sd_uv = 1.3)
 		# the gradient is that of the information of independent cells: a fit with a dyadic correlation adds the cross weights of its pairs
-		fit = prepare(eb_fit(d, R = 1, symmetric = sym, dcor = FALSE))
+		# the fitted state, which the bumps below move, and not the centred report
+		fit = lame:::.ae_product_restore(prepare(eb_fit(d, R = 1, symmetric = sym, dcor = FALSE)))
 		expect_true(!sym || abs(fit$L[1]) > 0.5)
 		lp = lame:::.ae_eb_laplace_state(fit)
 		jp = lp$jp; ctx = jp$ctx; lay = jp$lay
@@ -581,45 +451,6 @@ test_that("the displacement of the integrated parameters is the gradient of half
 	}
 })
 
-test_that("the displacement of the effects agrees with the importance-sampled posterior mean", {
-	skip_on_cran()
-	# a logit link makes the observed and the Fisher information equal: the
-	# first-order Laplace displacement of the mean can be compared with the
-	# mean of the posterior of the effects, drawn by importance sampling from
-	# the Laplace Gaussian
-	d = eb_panel(n = 8, seed = 61, mu = -1.6, sd_ab = 0.8)
-	fit = mode_fit(d, link = "logit")
-	n = 8; y = d$Y[[1]]; x = d$X[[1]][, , 1]; obs = !is.na(y)
-	lp = lame:::.ae_eb_laplace_state(fit); jp = lp$jp; ctx = jp$ctx; lay = jp$lay
-	iz = setdiff(seq_len(nrow(jp$Hf)), c(ctx$i_th, ctx$i_g))
-	posz = integer(nrow(jp$Hf)); posz[iz] = seq_along(iz)
-	it = c(ctx$i_th, ctx$i_g)
-	Sf = jp$S
-	Sz = Sf[iz, iz] - Sf[iz, it] %*% solve(Sf[it, it], Sf[it, iz])
-	q = lame:::.ae_eb_logdet_grad(lp, lame:::.ae_eb_slots(lp), Sz, posz)
-	shift = -as.vector(Sz %*% q)
-	mu = fit$eb$mu_int; beta = unname(coef(fit)["x_dyad"])
-	P = solve(fit$eb$sab)
-	logpost = function(zz) {
-		a = zz[1:n]; b = zz[n + 1:n]
-		eta = mu + beta * x + outer(a, b, "+")
-		al = cbind(a, b)
-		sum(dbinom(y[obs], 1, plogis(eta[obs]), log = TRUE)) - 0.5 * sum((al %*% P) * al)
-	}
-	zhat = c(fit$eb$a_raw, fit$eb$b_raw)
-	ord = c(posz[lay$ia], posz[lay$ib])
-	ch = chol(Sz[ord, ord])
-	set.seed(1)
-	ns = 20000
-	draws = matrix(rnorm(ns * 2 * n), ns) %*% ch + rep(zhat, each = ns)
-	lw = apply(draws, 1, logpost) - (-0.5 * rowSums(((draws - rep(zhat, each = ns)) %*% solve(ch))^2))
-	w = exp(lw - max(lw)); w = w / sum(w)
-	is_shift = colSums(draws * w) - zhat
-	expect_gt(cor(shift[ord], is_shift), 0.95)
-	expect_gt(sum(shift[ord] * is_shift) / sum(is_shift^2), 0.8)
-	expect_lt(sum(shift[ord] * is_shift) / sum(is_shift^2), 1.25)
-})
-
 test_that("an empirical-Bayes fit predicts with the posterior of its predictor", {
 	d = eb_panel(n = 16, seed = 33, mu = -1.2)
 	fit = eb_fit(d)
@@ -640,19 +471,10 @@ test_that("an empirical-Bayes fit predicts with the posterior of its predictor",
 	# the residuals follow the fitted values
 	expect_equal(unname(residuals(fit)), unname(d$Y[[1]] - pred), tolerance = 1e-12)
 	expect_equal(unname(residuals(fit, plug_in = TRUE)), unname(d$Y[[1]] - plug), tolerance = 1e-12)
-	expect_equal(
-		unname(residuals(eb_fit(d, bias_correct = "none"))),
-		unname(d$Y[[1]] - fitted(eb_fit(d, bias_correct = "none"))),
-		tolerance = 1e-12
-	)
 	# the link scale is the posterior mean of the predictor: for a variational fit
-	# the fitted predictor itself, for the posterior mode with the Laplace
-	# correction it sits below the mode on average (the effects of rare cells
-	# are skewed)
+	# the fitted predictor itself
 	lk = predict(fit, type = "link")
 	expect_equal(unname(lk[off]), unname(fit$EZ[[1]][off]), tolerance = 1e-10)
-	md = mode_fit(d)
-	expect_lt(mean(predict(md, type = "link")[off]), mean(md$EZ[[1]][off]))
 	expect_equal(unname(predict(fit, type = "link", plug_in = TRUE)), unname(fit$EZ[[1]]), tolerance = 1e-12)
 	# the mean is linear in the covariates: shifting the design shifts it by
 	# the coefficient
@@ -716,30 +538,6 @@ test_that("the held-out cells of an empirical-Bayes fit are scored by the predic
 	expect_lt(mean(scores["pred", ]), mean(scores["plug", ]))
 })
 
-# the evidence
-
-test_that("the Laplace evidence prefers the rank the data carry", {
-	skip_on_cran()
-	rank_by_evidence = function(d, sym = FALSE) {
-		ev = vapply(0:2, function(r) eb_fit(d, R = r, symmetric = sym)$eb$log_marginal, 0)
-		which.max(ev) - 1L
-	}
-	with_rank = vapply(
-		1:3,
-		function(s) rank_by_evidence(eb_panel(n = 40, seed = 500 + s, mu = -0.8, R = 1, sd_uv = 1)),
-		0L
-	)
-	without = vapply(1:3, function(s) rank_by_evidence(eb_panel(n = 40, seed = 600 + s, mu = -0.8)), 0L)
-	expect_true(all(with_rank >= 1L))
-	expect_true(all(without == 0L))
-	# the stored value is the one rebuilt from the fitted object
-	for (sym in c(FALSE, TRUE)) {
-		fit = eb_fit(eb_panel(n = 14, seed = 36, R = 1, sym = sym), R = 1, symmetric = sym)
-		expect_equal(fit$eb$log_marginal, lame:::.ae_eb_evidence(fit)$log_marginal)
-		expect_true(is.finite(fit$eb$log_marginal))
-	}
-})
-
 test_that("an undirected term with a negative eigenvalue is recovered with its sign", {
 	skip_on_cran()
 	n = 30; nm = sprintf("a%02d", seq_len(n))
@@ -764,17 +562,13 @@ test_that("an undirected term with a negative eigenvalue is recovered with its s
 
 # slower checks
 
-test_that("the empirical-Bayes fit removes the fixed-effects bias of the slope", {
+test_that("the empirical-Bayes slope is centred on the truth", {
 	skip_on_cran()
 	slopes = vapply(1:16, function(s) {
 		d = eb_panel(n = 30, seed = 100 + s, mu = -1)
-		c(
-			none = unname(coef(eb_fit(d, bias_correct = "none"))["x_dyad"]),
-			eb = unname(coef(eb_fit(d))["x_dyad"])
-		)
-	}, numeric(2))
-	expect_gt(mean(slopes["none", ]) - 0.7, 0.03)
-	expect_lt(abs(mean(slopes["eb", ]) - 0.7), 0.03)
+		unname(coef(eb_fit(d))["x_dyad"])
+	}, numeric(1))
+	expect_lt(abs(mean(slopes) - 0.7), 0.03)
 })
 
 test_that("the Laplace standard errors agree with the parametric bootstrap", {
@@ -798,7 +592,7 @@ test_that("node covariates are fixed effects of the prior mean", {
 	fit = suppressWarnings(suppressMessages(
 		ame_als(d$Y[[1]], Xdyad = d$X[[1]], Xrow = xr, Xcol = xc, family = "binary", verbose = FALSE)
 	))
-	expect_identical(fit$bias_correct$method, "eb")
+	expect_null(fit$bias_correct)
 	expect_identical(names(coef(fit)), c("intercept", "x_dyad", "xr_row", "xc_col"))
 	expect_equal(dim(vcov(fit)), c(4L, 4L))
 	eta = fit$coefficients["intercept"] + fit$coefficients["x_dyad"] * d$X[[1]][, , 1] +
@@ -806,18 +600,6 @@ test_that("node covariates are fixed effects of the prior mean", {
 		fit$coefficients["xc_col"] * outer(rep(1, 30), xc[, 1]) + outer(fit$a, fit$b, "+")
 	diag(eta) = NA
 	expect_equal(unname(fit$EZ[[1]]), unname(eta), tolerance = 1e-10)
-})
-
-test_that("the explicit bootstrap and jackknife corrections are unchanged", {
-	skip_on_cran()
-	d = eb_panel(n = 60, seed = 31, mu = 0)
-	bt = eb_fit(d, bias_correct = "bootstrap")
-	expect_identical(bt$bias_correct$method, "bootstrap")
-	expect_false(is.null(bt$raw))
-	expect_null(bt$eb)
-	jk = eb_fit(d, bias_correct = "jackknife")
-	expect_identical(jk$bias_correct$method, "jackknife")
-	expect_false(is.null(jk$raw))
 })
 
 test_that("the longitudinal empirical-Bayes fit with a latent factor converges", {
@@ -855,32 +637,21 @@ test_that("sparse panels with a latent factor reach the full certificate", {
 		c(50, -2.2, 7019064)
 	)) {
 		d = sim(case[1], case[2], case[3])
-		fit = suppressMessages(ame_als(
-			d$Y,
-			Xdyad = d$X,
-			R = 1,
-			family = "binary",
-			verbose = FALSE
-		))
+		# the sparse panels give the fast route's density warning
+		fit = suppressWarnings(
+			suppressMessages(ame_als(
+				d$Y,
+				Xdyad = d$X,
+				R = 1,
+				family = "binary",
+				verbose = FALSE
+			)),
+			classes = "lame_fast_binary_density"
+		)
 		expect_true(fit$converged)
 		expect_identical(fit$irls_diagnostics$termination, "converged")
 		expect_lte(fit$irls_diagnostics$max_score, fit$irls_diagnostics$threshold)
 	}
-})
-
-test_that("a panel whose mode does not converge is refused with the convergence class", {
-	skip_on_cran()
-	d = eb_panel(n = 30, Tt = 2, seed = 51, mu = -1, R = 1)
-	err = tryCatch(
-		suppressMessages(lame_als(d$Y, Xdyad = d$X, R = 1, family = "binary", max_iter = 3, verbose = FALSE)),
-		error = function(e) e
-	)
-	expect_s3_class(err, "lame_als_convergence")
-	msg = conditionMessage(err)
-	# the state and the remedy
-	expect_match(msg, "max_iter")
-	expect_match(msg, "smaller rank")
-	expect_match(msg, "rank 1")
 })
 
 test_that("the warm-start seed of an empirical-Bayes fit carries its variance components", {
@@ -903,13 +674,17 @@ test_that("a dynamic empirical-Bayes fit is refit from its own seed without iter
 		verbose = FALSE
 	)))
 	# the dynamic empirical-Bayes estimator is a separate piece of the package; skip where it is absent
-	skip_if(!inherits(fit, "lame_dynamic_als") || !identical(fit$bias_correct$method, "eb"))
+	skip_if(!inherits(fit, "lame_dynamic_als") || !is.null(fit$bias_correct))
 	seed = lame:::.ae_static_seed(fit)
 	expect_true(is.numeric(seed$a_level) && is.numeric(seed$b_level) && is.list(seed$eb))
-	for (bc in list(NULL, "eb")) {
-		g = suppressWarnings(suppressMessages(ame_als_refit(fit, bias_correct = bc)))
-		expect_identical(g$bias_correct$method, "eb")
-		expect_equal(g$iterations, 0)
-		expect_equal(unname(coef(g)), unname(coef(fit)))
-	}
+	g = suppressWarnings(suppressMessages(ame_als_refit(fit)))
+	expect_null(g$bias_correct)
+	expect_equal(g$iterations, 0)
+	expect_equal(unname(coef(g)), unname(coef(fit)))
+})
+
+test_that("a directed binary fit gives the effect covariance one actor of prior weight; small and undirected fits keep the sampler's", {
+	expect_equal(eb_fit(eb_panel(n = 30, seed = 21))$eb$eta0, 1)
+	expect_gt(eb_fit(eb_panel(n = 8, seed = 7))$eb$eta0, 1)
+	expect_gt(eb_fit(eb_panel(n = 30, seed = 21, sym = TRUE), symmetric = TRUE)$eb$eta0, 1)
 })

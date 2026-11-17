@@ -27,15 +27,15 @@ test_that('the inner product is the metric of the dyadic covariance: dyads with 
 		for (i in 1:(n - 1)) for (j in (i + 1):n) s = s + drop(c(x[i, j], x[j, i]) %*% solve(S) %*% c(y[i, j], y[j, i]))
 		s + sum(diag(x) * diag(y)) / ((1 + rho) * s2)
 	}
-	expect_equal(ns$.lame_osm_dot(x, y, rho, s2, 'dir'), dot_ref(x, y), tolerance = 1e-12)
-	expect_equal(ns$.lame_osm_dot(x, x, rho, s2, 'dir'), dot_ref(x, x), tolerance = 1e-12)
+	expect_equal(.lame_osm_dot(x, y, rho, s2, 'dir'), dot_ref(x, y), tolerance = 1e-12)
+	expect_equal(.lame_osm_dot(x, x, rho, s2, 'dir'), dot_ref(x, x), tolerance = 1e-12)
 	up = upper.tri(x)
 	# a symmetric network has one latent value per pair, around the mean of the two directed predictors
 	xs = (x + t(x)) / 2; ys = (y + t(y)) / 2
-	expect_equal(ns$.lame_osm_dot(x, y, 0, s2, 'sym'), sum(xs[up] * ys[up]) / s2, tolerance = 1e-12)
-	expect_equal(ns$.lame_osm_dot(xs, ys, 0, s2, 'sym'), sum(xs[up] * ys[up]) / s2, tolerance = 1e-12)
+	expect_equal(.lame_osm_dot(x, y, 0, s2, 'sym'), sum(xs[up] * ys[up]) / s2, tolerance = 1e-12)
+	expect_equal(.lame_osm_dot(xs, ys, 0, s2, 'sym'), sum(xs[up] * ys[up]) / s2, tolerance = 1e-12)
 	xb = matrix(rnorm(12), 3); yb = matrix(rnorm(12), 3)
-	expect_equal(ns$.lame_osm_dot(xb, yb, 0, s2, 'bip'), sum(xb * yb) / s2, tolerance = 1e-12)
+	expect_equal(.lame_osm_dot(xb, yb, 0, s2, 'bip'), sum(xb * yb) / s2, tolerance = 1e-12)
 	expect_equal(ns$.lame_osm_ncell(5, 5, 'dir'), 25)
 	expect_equal(ns$.lame_osm_ncell(5, 5, 'sym'), 10)
 	expect_equal(ns$.lame_osm_ncell(3, 4, 'bip'), 12)
@@ -191,9 +191,8 @@ test_that('one step of the scale of the whole state and of each period leaves th
 })
 
 test_that('the visit written out in terms of the latent array is exact too, and the one-pass visit reproduces it with the same random numbers', {
-	ns = asNamespace('lame')
 	skip_on_cran()
-	r = osm_geweke('dir', 'both', 6000, 37, visit = ns$.lame_osm_visit_ref)
+	r = osm_geweke('dir', 'both', 6000, 37, visit = .lame_osm_visit_ref)
 	expect_lt(r$maxz, 4.5)
 	expect_gt(r$p, 1e-3)
 })
@@ -211,7 +210,7 @@ test_that('the one-pass visit equals the definition (the same random numbers giv
 		E = array(rnorm(nr * nc * nt, 0, 0.8), c(nr, nc, nt)) + if (withm) m else 0
 		rho = if (mode == 'dir') c(0.5, -0.3, 0.1) else rep(0, nt)
 		for (orbit in c(TRUE, FALSE)) for (affine in c(TRUE, FALSE)) for (B_pri in c(0, 1.5)) {
-			set.seed(11); ref = ns$.lame_osm_visit_ref(
+			set.seed(11); ref = .lame_osm_visit_ref(
 				Z,
 				E,
 				m,
@@ -256,17 +255,17 @@ test_that('the one-pass visit equals the definition (the same random numbers giv
 		for (t in seq_len(nt)) {
 			expect_equal(
 				sum(G[t, 1:3] * kf[t, ]),
-				ns$.lame_osm_dot(Z[, , t], Z[, , t], rho[t], 1.4, mode),
+				.lame_osm_dot(Z[, , t], Z[, , t], rho[t], 1.4, mode),
 				tolerance = 1e-10
 			)
 			expect_equal(
 				sum(G[t, 4:6] * kf[t, ]),
-				ns$.lame_osm_dot(Z[, , t], E[, , t], rho[t], 1.4, mode),
+				.lame_osm_dot(Z[, , t], E[, , t], rho[t], 1.4, mode),
 				tolerance = 1e-10
 			)
 			expect_equal(
 				sum(G[t, 10:12] * kf[t, ]),
-				ns$.lame_osm_dot(E[, , t], E[, , t], rho[t], 1.4, mode),
+				.lame_osm_dot(E[, , t], E[, , t], rho[t], 1.4, mode),
 				tolerance = 1e-10
 			)
 		}

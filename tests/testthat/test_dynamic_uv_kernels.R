@@ -64,7 +64,7 @@ kern_prior = function(i, t, X, lam = NULL, fwd = TRUE) {
 	lw = function(tt) if (is.null(lam)) 1 else lam[i, tt]
 	P = matrix(0, R, R); h = numeric(R)
 	if (t == 1) {
-		P = P + diag((1 - ru^2) / s2u, R)
+		P = P + diag(lw(1) * (1 - ru^2) / s2u, R)
 	} else {
 		P = P + diag(lw(t) / s2u, R)
 		h = h + lw(t) * ru * X[i, , t - 1] / s2u
@@ -190,6 +190,7 @@ test_that("t kernel weights the transitions by the local precisions", {
 	st = kern_state(6, 2, 3, seed = 14)
 	lu = matrix(1, 6, 3); lv = matrix(1, 6, 3)
 	lu[1, 2] = 3
+	lu[1, 1] = 0.4
 	rho = 0.4
 	cg = kern_cond(kern_data_u(1, 1, st$U, st$V, st$E, kern_pars$s2, rho), kern_prior(1, 1, st$U, lam = lu))
 	kern_check_first(
@@ -328,14 +329,50 @@ test_that("symmetric ar1 kernel is a gibbs sweep of the product u_t l u_t'", {
 	expect_lt(max(abs((apply(Z, 2, var) - 1) / sqrt(2 / N))), 4.5)
 })
 
-test_that("the snap and t kernels refuse a symmetric network", {
-	st = kern_state(6, 2, 3, seed = 18, sym = TRUE)
-	expect_error(
-		rUV_dynamic_snap_fc(st$U, st$V, st$E, 0.7, 0.5, 1.3, 2, 0.2, symmetric = TRUE),
-		class = "lame_symmetric_kind"
-	)
-	expect_error(
-		rUV_dynamic_t_fc(st$U, st$V, st$E, 0.7, 0.5, 1.3, 4, symmetric = TRUE),
-		class = "lame_symmetric_kind"
-	)
+# the dynamic_uv kernel starts the AR(1) at its stationary law and adds no ridge at any slice, so sigma_uv and
+# the latent-factor magnitude are not shrunk below truth
+test_that("dynamic_uv kernel does not double-shrink sigma_uv or |UV|", {
+	skip_on_cran()
+
+	set.seed(42)
+	n = 20; R = 2; Tt = 8; rho_t = 0.9; sig_t = 0.4
+	U = array(0, c(n, R, Tt)); V = array(0, c(n, R, Tt))
+	U[, , 1] = matrix(rnorm(n * R, 0, sig_t / sqrt(1 - rho_t^2)), n, R)
+	V[, , 1] = matrix(rnorm(n * R, 0, sig_t / sqrt(1 - rho_t^2)), n, R)
+	for (t in 2:Tt) {
+		U[, , t] = rho_t * U[, , t - 1] + matrix(rnorm(n * R, 0, sig_t), n, R)
+		V[, , t] = rho_t * V[, , t - 1] + matrix(rnorm(n * R, 0, sig_t), n, R)
+	}
+	E = array(0, c(n, n, Tt))
+	for (t in 1:Tt) E[, , t] = U[, , t] %*% t(V[, , t]) + matrix(rnorm(n * n), n, n)
+	truth_uv2 = mean(sapply(1:Tt, function(t) c(U[, , t] %*% t(V[, , t]))^2))
+
+	set.seed(7)
+	Uc = array(rnorm(n * R * Tt, 0, 0.5), c(n, R, Tt))
+	Vc = array(rnorm(n * R * Tt, 0, 0.5), c(n, R, Tt))
+	ru = 0.9; su = 0.5; keep = NULL
+	for (it in 1:600) {
+		o = rUV_dynamic_fc_cpp(Uc, Vc, E, ru, su, 1, FALSE, FALSE)
+		Uc = o$U; Vc = o$V
+		hy = lame:::.lame_uv_rho_w_step(Uc, Vc, ru, su, 0.9, 0.1, 2, 1)
+		ru = hy$rho; su = hy$sigma
+		if (it > 300) {
+			keep = rbind(
+				keep,
+				c(
+					ru,
+					su,
+					mean(sapply(1:Tt, function(t) c(Uc[, , t] %*% t(Vc[, , t]))^2))
+				)
+			)
+		}
+	}
+	est = colMeans(keep)
+	# rho_uv and sigma_uv recover near truth (0.9 / 0.4)
+	expect_gt(est[1], 0.8)
+	expect_gt(est[2], 0.32)
+	expect_lt(est[2], 0.5)
+	# latent-factor magnitude tracks truth
+	expect_gt(est[3] / truth_uv2, 0.85)
+	expect_lt(est[3] / truth_uv2, 1.2)
 })

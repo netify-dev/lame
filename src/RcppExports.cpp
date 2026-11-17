@@ -178,26 +178,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// ae_log_pnorm_cpp
-NumericVector ae_log_pnorm_cpp(const NumericVector& x);
-RcppExport SEXP _lame_ae_log_pnorm_cpp(SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::traits::input_parameter< const NumericVector& >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(ae_log_pnorm_cpp(x));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ae_gh_rule_cpp
-List ae_gh_rule_cpp(int K);
-RcppExport SEXP _lame_ae_gh_rule_cpp(SEXP KSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::traits::input_parameter< int >::type K(KSEXP);
-    rcpp_result_gen = Rcpp::wrap(ae_gh_rule_cpp(K));
-    return rcpp_result_gen;
-END_RCPP
-}
 // ae_probit_terms_cpp
 List ae_probit_terms_cpp(const NumericVector& eta, int threads);
 RcppExport SEXP _lame_ae_probit_terms_cpp(SEXP etaSEXP, SEXP threadsSEXP) {
@@ -529,7 +509,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // beta_dynamic_stats_cpp
-List beta_dynamic_stats_cpp(List Xdyn_list, List Xstat_list, List Z_list, List offset_list, arma::vec beta_static, double s2, double dyad_rho, bool bipartite, bool symmetric, bool use_dyad_rho);
+List beta_dynamic_stats_cpp(List Xdyn_list, List Xstat_list, List Z_list, List offset_list, arma::vec beta_static, double s2, arma::vec dyad_rho, bool bipartite, bool symmetric, bool use_dyad_rho);
 RcppExport SEXP _lame_beta_dynamic_stats_cpp(SEXP Xdyn_listSEXP, SEXP Xstat_listSEXP, SEXP Z_listSEXP, SEXP offset_listSEXP, SEXP beta_staticSEXP, SEXP s2SEXP, SEXP dyad_rhoSEXP, SEXP bipartiteSEXP, SEXP symmetricSEXP, SEXP use_dyad_rhoSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -540,7 +520,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< List >::type offset_list(offset_listSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type beta_static(beta_staticSEXP);
     Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< double >::type dyad_rho(dyad_rhoSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type dyad_rho(dyad_rhoSEXP);
     Rcpp::traits::input_parameter< bool >::type bipartite(bipartiteSEXP);
     Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
     Rcpp::traits::input_parameter< bool >::type use_dyad_rho(use_dyad_rhoSEXP);
@@ -549,7 +529,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_beta_dynamic_cpp
-List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list, List Z_list, List offset_list, arma::vec beta_static, arma::vec rho_by_coef, arma::vec sigma_by_coef, arma::mat Lambda, arma::vec beta0_mean, arma::mat beta0_cov, double s2, double dyad_rho, bool bipartite, bool symmetric, bool use_dyad_rho, Rcpp::Nullable<arma::cube> Omega_in, Rcpp::Nullable<arma::mat> h_in);
+List sample_beta_dynamic_cpp(List Xdyn_list, List Xstat_list, List Z_list, List offset_list, arma::vec beta_static, arma::vec rho_by_coef, arma::vec sigma_by_coef, arma::mat Lambda, arma::vec beta0_mean, arma::mat beta0_cov, double s2, arma::vec dyad_rho, bool bipartite, bool symmetric, bool use_dyad_rho, Rcpp::Nullable<arma::cube> Omega_in, Rcpp::Nullable<arma::mat> h_in);
 RcppExport SEXP _lame_sample_beta_dynamic_cpp(SEXP Xdyn_listSEXP, SEXP Xstat_listSEXP, SEXP Z_listSEXP, SEXP offset_listSEXP, SEXP beta_staticSEXP, SEXP rho_by_coefSEXP, SEXP sigma_by_coefSEXP, SEXP LambdaSEXP, SEXP beta0_meanSEXP, SEXP beta0_covSEXP, SEXP s2SEXP, SEXP dyad_rhoSEXP, SEXP bipartiteSEXP, SEXP symmetricSEXP, SEXP use_dyad_rhoSEXP, SEXP Omega_inSEXP, SEXP h_inSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -565,7 +545,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::vec >::type beta0_mean(beta0_meanSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type beta0_cov(beta0_covSEXP);
     Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< double >::type dyad_rho(dyad_rhoSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type dyad_rho(dyad_rhoSEXP);
     Rcpp::traits::input_parameter< bool >::type bipartite(bipartiteSEXP);
     Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
     Rcpp::traits::input_parameter< bool >::type use_dyad_rho(use_dyad_rhoSEXP);
@@ -576,7 +556,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_beta_static_cpp
-List sample_beta_static_cpp(List Xdyn_list, List Xstat_list, List Z_list, List offset_list, arma::mat beta_dyn_path, arma::vec prior_mean, arma::mat prior_prec, double s2, double dyad_rho, bool bipartite, bool symmetric, bool use_dyad_rho);
+List sample_beta_static_cpp(List Xdyn_list, List Xstat_list, List Z_list, List offset_list, arma::mat beta_dyn_path, arma::vec prior_mean, arma::mat prior_prec, double s2, arma::vec dyad_rho, bool bipartite, bool symmetric, bool use_dyad_rho);
 RcppExport SEXP _lame_sample_beta_static_cpp(SEXP Xdyn_listSEXP, SEXP Xstat_listSEXP, SEXP Z_listSEXP, SEXP offset_listSEXP, SEXP beta_dyn_pathSEXP, SEXP prior_meanSEXP, SEXP prior_precSEXP, SEXP s2SEXP, SEXP dyad_rhoSEXP, SEXP bipartiteSEXP, SEXP symmetricSEXP, SEXP use_dyad_rhoSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -589,7 +569,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::vec >::type prior_mean(prior_meanSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type prior_prec(prior_precSEXP);
     Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< double >::type dyad_rho(dyad_rhoSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type dyad_rho(dyad_rhoSEXP);
     Rcpp::traits::input_parameter< bool >::type bipartite(bipartiteSEXP);
     Rcpp::traits::input_parameter< bool >::type symmetric(symmetricSEXP);
     Rcpp::traits::input_parameter< bool >::type use_dyad_rho(use_dyad_rhoSEXP);
@@ -957,24 +937,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// ess_pois_uv_cpp
-List ess_pois_uv_cpp(NumericVector cur, NumericVector mu, NumericMatrix root, NumericMatrix opp, NumericVector w, NumericVector ys, NumericVector s, int skip);
-RcppExport SEXP _lame_ess_pois_uv_cpp(SEXP curSEXP, SEXP muSEXP, SEXP rootSEXP, SEXP oppSEXP, SEXP wSEXP, SEXP ysSEXP, SEXP sSEXP, SEXP skipSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type cur(curSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type mu(muSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type root(rootSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type opp(oppSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type w(wSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type ys(ysSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type s(sSEXP);
-    Rcpp::traits::input_parameter< int >::type skip(skipSEXP);
-    rcpp_result_gen = Rcpp::wrap(ess_pois_uv_cpp(cur, mu, root, opp, w, ys, s, skip));
-    return rcpp_result_gen;
-END_RCPP
-}
 // ltm_level_phase_cpp
 List ltm_level_phase_cpp(NumericVector S, NumericVector ys, NumericVector E, IntegerVector dimE, NumericVector x, NumericVector o, NumericMatrix iS, double v, int mode, bool row, IntegerVector perm);
 RcppExport SEXP _lame_ltm_level_phase_cpp(SEXP SSEXP, SEXP ysSEXP, SEXP ESEXP, SEXP dimESEXP, SEXP xSEXP, SEXP oSEXP, SEXP iSSEXP, SEXP vSEXP, SEXP modeSEXP, SEXP rowSEXP, SEXP permSEXP) {
@@ -1188,21 +1150,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// ldZgbme_cpp
-arma::mat ldZgbme_cpp(const arma::mat& Z, const arma::mat& Y, const arma::mat& EZ, double rho, double s2);
-RcppExport SEXP _lame_ldZgbme_cpp(SEXP ZSEXP, SEXP YSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP s2SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Z(ZSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
-    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    rcpp_result_gen = Rcpp::wrap(ldZgbme_cpp(Z, Y, EZ, rho, s2));
-    return rcpp_result_gen;
-END_RCPP
-}
 // rZ_pois_fc_cpp
 arma::mat rZ_pois_fc_cpp(const arma::mat& Z, const arma::mat& EZ, double rho, double s2, const arma::mat& Y);
 RcppExport SEXP _lame_rZ_pois_fc_cpp(SEXP ZSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP YSEXP) {
@@ -1215,22 +1162,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
     rcpp_result_gen = Rcpp::wrap(rZ_pois_fc_cpp(Z, EZ, rho, s2, Y));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ldZgbme_pois_exposure_cpp
-arma::mat ldZgbme_pois_exposure_cpp(const arma::mat& Z, const arma::mat& Y, const arma::mat& EZ, double rho, double s2, double log_exposure);
-RcppExport SEXP _lame_ldZgbme_pois_exposure_cpp(SEXP ZSEXP, SEXP YSEXP, SEXP EZSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP log_exposureSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Z(ZSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type EZ(EZSEXP);
-    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< double >::type log_exposure(log_exposureSEXP);
-    rcpp_result_gen = Rcpp::wrap(ldZgbme_pois_exposure_cpp(Z, Y, EZ, rho, s2, log_exposure));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1358,18 +1289,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rwish_cpp
-arma::mat rwish_cpp(const arma::mat& S0, int nu);
-RcppExport SEXP _lame_rwish_cpp(SEXP S0SEXP, SEXP nuSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type S0(S0SEXP);
-    Rcpp::traits::input_parameter< int >::type nu(nuSEXP);
-    rcpp_result_gen = Rcpp::wrap(rwish_cpp(S0, nu));
-    return rcpp_result_gen;
-END_RCPP
-}
 // rUV_rep_fc_cpp
 List rUV_rep_fc_cpp(const arma::cube& ET, const arma::mat& U_state, const arma::mat& V_state, double rho, double s2, const arma::mat& iSe2, double maxmargin, bool shrink, const NumericVector& rLoopIDs, double prior_df, double prior_psi);
 RcppExport SEXP _lame_rUV_rep_fc_cpp(SEXP ETSEXP, SEXP U_stateSEXP, SEXP V_stateSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP iSe2SEXP, SEXP maxmarginSEXP, SEXP shrinkSEXP, SEXP rLoopIDsSEXP, SEXP prior_dfSEXP, SEXP prior_psiSEXP) {
@@ -1451,7 +1370,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // rbeta_ab_bip_gibbs_cpp
-List rbeta_ab_bip_gibbs_cpp(const arma::cube& Z, Rcpp::List Xlist, const arma::mat& UV_eff, const arma::vec& a_current, const arma::vec& b_current, double s2, double g_prior, double va, double vb, bool rvar, bool cvar, bool center);
+List rbeta_ab_bip_gibbs_cpp(const arma::cube& Z, Rcpp::List Xlist, const arma::mat& UV_eff, const arma::vec& a_current, const arma::vec& b_current, double s2, const arma::vec& g_prior, double va, double vb, bool rvar, bool cvar, bool center);
 RcppExport SEXP _lame_rbeta_ab_bip_gibbs_cpp(SEXP ZSEXP, SEXP XlistSEXP, SEXP UV_effSEXP, SEXP a_currentSEXP, SEXP b_currentSEXP, SEXP s2SEXP, SEXP g_priorSEXP, SEXP vaSEXP, SEXP vbSEXP, SEXP rvarSEXP, SEXP cvarSEXP, SEXP centerSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -1462,7 +1381,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type a_current(a_currentSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type b_current(b_currentSEXP);
     Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< double >::type g_prior(g_priorSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type g_prior(g_priorSEXP);
     Rcpp::traits::input_parameter< double >::type va(vaSEXP);
     Rcpp::traits::input_parameter< double >::type vb(vbSEXP);
     Rcpp::traits::input_parameter< bool >::type rvar(rvarSEXP);
@@ -1498,23 +1417,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type m0(m0SEXP);
     Rcpp::traits::input_parameter< bool >::type center(centerSEXP);
     rcpp_result_gen = Rcpp::wrap(replicated_gaussian_draw_cpp(design, ZT, Sab, rho, s2, P0, m0, center));
-    return rcpp_result_gen;
-END_RCPP
-}
-// replicated_gaussian_moments_cpp
-List replicated_gaussian_moments_cpp(const List& design, const arma::cube& ZT, const arma::mat& Sab, const arma::vec& rho, double s2, const arma::mat& P0, const arma::vec& m0, bool center);
-RcppExport SEXP _lame_replicated_gaussian_moments_cpp(SEXP designSEXP, SEXP ZTSEXP, SEXP SabSEXP, SEXP rhoSEXP, SEXP s2SEXP, SEXP P0SEXP, SEXP m0SEXP, SEXP centerSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::traits::input_parameter< const List& >::type design(designSEXP);
-    Rcpp::traits::input_parameter< const arma::cube& >::type ZT(ZTSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Sab(SabSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type rho(rhoSEXP);
-    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type P0(P0SEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type m0(m0SEXP);
-    Rcpp::traits::input_parameter< bool >::type center(centerSEXP);
-    rcpp_result_gen = Rcpp::wrap(replicated_gaussian_moments_cpp(design, ZT, Sab, rho, s2, P0, m0, center));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1614,6 +1516,109 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rUV_dynamic_snap_bip_fc_cpp
+List rUV_dynamic_snap_bip_fc_cpp(const arma::cube& U_state, const arma::cube& V_state, const arma::cube& E, const arma::mat& G, double rho_uv, double sigma_uv, double s2, double kappa, double pi_snap, const arma::mat& delta_u_current, const arma::mat& delta_v_current, double max_abs);
+RcppExport SEXP _lame_rUV_dynamic_snap_bip_fc_cpp(SEXP U_stateSEXP, SEXP V_stateSEXP, SEXP ESEXP, SEXP GSEXP, SEXP rho_uvSEXP, SEXP sigma_uvSEXP, SEXP s2SEXP, SEXP kappaSEXP, SEXP pi_snapSEXP, SEXP delta_u_currentSEXP, SEXP delta_v_currentSEXP, SEXP max_absSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type U_state(U_stateSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type V_state(V_stateSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type E(ESEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type G(GSEXP);
+    Rcpp::traits::input_parameter< double >::type rho_uv(rho_uvSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma_uv(sigma_uvSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< double >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< double >::type pi_snap(pi_snapSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type delta_u_current(delta_u_currentSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type delta_v_current(delta_v_currentSEXP);
+    Rcpp::traits::input_parameter< double >::type max_abs(max_absSEXP);
+    rcpp_result_gen = Rcpp::wrap(rUV_dynamic_snap_bip_fc_cpp(U_state, V_state, E, G, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_u_current, delta_v_current, max_abs));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rUV_dynamic_snap_sym_fc_cpp
+List rUV_dynamic_snap_sym_fc_cpp(const arma::cube& U_state, const arma::vec& Ld, const arma::cube& E, double rho_uv, double sigma_uv, double s2, double kappa, double pi_snap, const arma::mat& delta_current, double max_abs);
+RcppExport SEXP _lame_rUV_dynamic_snap_sym_fc_cpp(SEXP U_stateSEXP, SEXP LdSEXP, SEXP ESEXP, SEXP rho_uvSEXP, SEXP sigma_uvSEXP, SEXP s2SEXP, SEXP kappaSEXP, SEXP pi_snapSEXP, SEXP delta_currentSEXP, SEXP max_absSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type U_state(U_stateSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type Ld(LdSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type E(ESEXP);
+    Rcpp::traits::input_parameter< double >::type rho_uv(rho_uvSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma_uv(sigma_uvSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< double >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< double >::type pi_snap(pi_snapSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type delta_current(delta_currentSEXP);
+    Rcpp::traits::input_parameter< double >::type max_abs(max_absSEXP);
+    rcpp_result_gen = Rcpp::wrap(rUV_dynamic_snap_sym_fc_cpp(U_state, Ld, E, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_current, max_abs));
+    return rcpp_result_gen;
+END_RCPP
+}
+// snap_path_visit_cpp
+List snap_path_visit_cpp(NumericVector EZ, NumericVector Z, NumericVector off, NumericVector mask, NumericVector Y, NumericVector offset, NumericVector U, NumericVector V, double rho, double sigma, double kappa, double pi, NumericMatrix delta_u, NumericMatrix delta_v, double sd_cell, double max_abs, double s2, NumericVector rho_t, int kind);
+RcppExport SEXP _lame_snap_path_visit_cpp(SEXP EZSEXP, SEXP ZSEXP, SEXP offSEXP, SEXP maskSEXP, SEXP YSEXP, SEXP offsetSEXP, SEXP USEXP, SEXP VSEXP, SEXP rhoSEXP, SEXP sigmaSEXP, SEXP kappaSEXP, SEXP piSEXP, SEXP delta_uSEXP, SEXP delta_vSEXP, SEXP sd_cellSEXP, SEXP max_absSEXP, SEXP s2SEXP, SEXP rho_tSEXP, SEXP kindSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type off(offSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type mask(maskSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type U(USEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type V(VSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< double >::type pi(piSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type delta_u(delta_uSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type delta_v(delta_vSEXP);
+    Rcpp::traits::input_parameter< double >::type sd_cell(sd_cellSEXP);
+    Rcpp::traits::input_parameter< double >::type max_abs(max_absSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type rho_t(rho_tSEXP);
+    Rcpp::traits::input_parameter< int >::type kind(kindSEXP);
+    rcpp_result_gen = Rcpp::wrap(snap_path_visit_cpp(EZ, Z, off, mask, Y, offset, U, V, rho, sigma, kappa, pi, delta_u, delta_v, sd_cell, max_abs, s2, rho_t, kind));
+    return rcpp_result_gen;
+END_RCPP
+}
+// snap_path_visit_mode_cpp
+List snap_path_visit_mode_cpp(NumericVector EZ, NumericVector Z, NumericVector off, NumericVector mask, NumericVector Y, NumericVector offset, NumericVector U, NumericVector V, NumericMatrix G, NumericVector Ld, double rho, double sigma, double kappa, double pi, NumericMatrix delta_u, NumericMatrix delta_v, double sd_cell, double max_abs, double s2, NumericVector rho_t, int kind, int mode);
+RcppExport SEXP _lame_snap_path_visit_mode_cpp(SEXP EZSEXP, SEXP ZSEXP, SEXP offSEXP, SEXP maskSEXP, SEXP YSEXP, SEXP offsetSEXP, SEXP USEXP, SEXP VSEXP, SEXP GSEXP, SEXP LdSEXP, SEXP rhoSEXP, SEXP sigmaSEXP, SEXP kappaSEXP, SEXP piSEXP, SEXP delta_uSEXP, SEXP delta_vSEXP, SEXP sd_cellSEXP, SEXP max_absSEXP, SEXP s2SEXP, SEXP rho_tSEXP, SEXP kindSEXP, SEXP modeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type EZ(EZSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type off(offSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type mask(maskSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type U(USEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type V(VSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type G(GSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Ld(LdSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< double >::type pi(piSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type delta_u(delta_uSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type delta_v(delta_vSEXP);
+    Rcpp::traits::input_parameter< double >::type sd_cell(sd_cellSEXP);
+    Rcpp::traits::input_parameter< double >::type max_abs(max_absSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type rho_t(rho_tSEXP);
+    Rcpp::traits::input_parameter< int >::type kind(kindSEXP);
+    Rcpp::traits::input_parameter< int >::type mode(modeSEXP);
+    rcpp_result_gen = Rcpp::wrap(snap_path_visit_mode_cpp(EZ, Z, off, mask, Y, offset, U, V, G, Ld, rho, sigma, kappa, pi, delta_u, delta_v, sd_cell, max_abs, s2, rho_t, kind, mode));
+    return rcpp_result_gen;
+END_RCPP
+}
 // spm_ord_ok_cpp
 bool spm_ord_ok_cpp(NumericMatrix ZM, IntegerMatrix WM, NumericMatrix omax, NumericMatrix omin, NumericVector af);
 RcppExport SEXP _lame_spm_ord_ok_cpp(SEXP ZMSEXP, SEXP WMSEXP, SEXP omaxSEXP, SEXP ominSEXP, SEXP afSEXP) {
@@ -1645,50 +1650,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// tempered_binary_evaluate
-List tempered_binary_evaluate(arma::vec q, List context, double temperature);
-RcppExport SEXP _lame_tempered_binary_evaluate(SEXP qSEXP, SEXP contextSEXP, SEXP temperatureSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type q(qSEXP);
-    Rcpp::traits::input_parameter< List >::type context(contextSEXP);
-    Rcpp::traits::input_parameter< double >::type temperature(temperatureSEXP);
-    rcpp_result_gen = Rcpp::wrap(tempered_binary_evaluate(q, context, temperature));
-    return rcpp_result_gen;
-END_RCPP
-}
-// tempered_binary_transition
-List tempered_binary_transition(arma::vec q, List context, double temperature, double stepsize);
-RcppExport SEXP _lame_tempered_binary_transition(SEXP qSEXP, SEXP contextSEXP, SEXP temperatureSEXP, SEXP stepsizeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type q(qSEXP);
-    Rcpp::traits::input_parameter< List >::type context(contextSEXP);
-    Rcpp::traits::input_parameter< double >::type temperature(temperatureSEXP);
-    Rcpp::traits::input_parameter< double >::type stepsize(stepsizeSEXP);
-    rcpp_result_gen = Rcpp::wrap(tempered_binary_transition(q, context, temperature, stepsize));
-    return rcpp_result_gen;
-END_RCPP
-}
-// tempered_binary_reflection
-List tempered_binary_reflection(arma::vec q, List context, double temperature, int column);
-RcppExport SEXP _lame_tempered_binary_reflection(SEXP qSEXP, SEXP contextSEXP, SEXP temperatureSEXP, SEXP columnSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type q(qSEXP);
-    Rcpp::traits::input_parameter< List >::type context(contextSEXP);
-    Rcpp::traits::input_parameter< double >::type temperature(temperatureSEXP);
-    Rcpp::traits::input_parameter< int >::type column(columnSEXP);
-    rcpp_result_gen = Rcpp::wrap(tempered_binary_reflection(q, context, temperature, column));
-    return rcpp_result_gen;
-END_RCPP
-}
 // tempered_binary_block
-List tempered_binary_block(arma::mat q, List context, arma::vec temperatures, arma::vec stepsizes, int start, int count, int burn, int thin);
-RcppExport SEXP _lame_tempered_binary_block(SEXP qSEXP, SEXP contextSEXP, SEXP temperaturesSEXP, SEXP stepsizesSEXP, SEXP startSEXP, SEXP countSEXP, SEXP burnSEXP, SEXP thinSEXP) {
+List tempered_binary_block(arma::mat q, List context, arma::vec temperatures, arma::vec stepsizes, int start, int count, int burn, int thin, int cold_steps);
+RcppExport SEXP _lame_tempered_binary_block(SEXP qSEXP, SEXP contextSEXP, SEXP temperaturesSEXP, SEXP stepsizesSEXP, SEXP startSEXP, SEXP countSEXP, SEXP burnSEXP, SEXP thinSEXP, SEXP cold_stepsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -1700,7 +1664,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type count(countSEXP);
     Rcpp::traits::input_parameter< int >::type burn(burnSEXP);
     Rcpp::traits::input_parameter< int >::type thin(thinSEXP);
-    rcpp_result_gen = Rcpp::wrap(tempered_binary_block(q, context, temperatures, stepsizes, start, count, burn, thin));
+    Rcpp::traits::input_parameter< int >::type cold_steps(cold_stepsSEXP);
+    rcpp_result_gen = Rcpp::wrap(tempered_binary_block(q, context, temperatures, stepsizes, start, count, burn, thin, cold_steps));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1754,8 +1719,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_ae_additive_cpp", (DL_FUNC) &_lame_ae_additive_cpp, 9},
     {"_lame_ae_additive_resid_cpp", (DL_FUNC) &_lame_ae_additive_resid_cpp, 7},
     {"_lame_ae_bcd_sse_exact_cpp", (DL_FUNC) &_lame_ae_bcd_sse_exact_cpp, 10},
-    {"_lame_ae_log_pnorm_cpp", (DL_FUNC) &_lame_ae_log_pnorm_cpp, 1},
-    {"_lame_ae_gh_rule_cpp", (DL_FUNC) &_lame_ae_gh_rule_cpp, 1},
     {"_lame_ae_probit_terms_cpp", (DL_FUNC) &_lame_ae_probit_terms_cpp, 2},
     {"_lame_ae_probit_hprime_cpp", (DL_FUNC) &_lame_ae_probit_hprime_cpp, 5},
     {"_lame_ae_cells_cpp", (DL_FUNC) &_lame_ae_cells_cpp, 6},
@@ -1799,7 +1762,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_joint_levels_context_cpp", (DL_FUNC) &_lame_joint_levels_context_cpp, 6},
     {"_lame_joint_levels_parameters_cpp", (DL_FUNC) &_lame_joint_levels_parameters_cpp, 4},
     {"_lame_ess_pois_scalar_cpp", (DL_FUNC) &_lame_ess_pois_scalar_cpp, 4},
-    {"_lame_ess_pois_uv_cpp", (DL_FUNC) &_lame_ess_pois_uv_cpp, 8},
     {"_lame_ltm_level_phase_cpp", (DL_FUNC) &_lame_ltm_level_phase_cpp, 11},
     {"_lame_ltm_uv_phase_cpp", (DL_FUNC) &_lame_ltm_uv_phase_cpp, 11},
     {"_lame_ess_pois_cells_cpp", (DL_FUNC) &_lame_ess_pois_cells_cpp, 5},
@@ -1811,9 +1773,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_npm_nom_phase_cpp", (DL_FUNC) &_lame_npm_nom_phase_cpp, 17},
     {"_lame_osm_gram_cpp", (DL_FUNC) &_lame_osm_gram_cpp, 5},
     {"_lame_pab_sym_period_cpp", (DL_FUNC) &_lame_pab_sym_period_cpp, 9},
-    {"_lame_ldZgbme_cpp", (DL_FUNC) &_lame_ldZgbme_cpp, 5},
     {"_lame_rZ_pois_fc_cpp", (DL_FUNC) &_lame_rZ_pois_fc_cpp, 5},
-    {"_lame_ldZgbme_pois_exposure_cpp", (DL_FUNC) &_lame_ldZgbme_pois_exposure_cpp, 6},
     {"_lame_rZ_pois_fc_exposure_cpp", (DL_FUNC) &_lame_rZ_pois_fc_exposure_cpp, 6},
     {"_lame_simY_pois_exposure", (DL_FUNC) &_lame_simY_pois_exposure, 3},
     {"_lame_simY_pois", (DL_FUNC) &_lame_simY_pois, 2},
@@ -1822,7 +1782,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_ppm_dyad_carry_cpp", (DL_FUNC) &_lame_ppm_dyad_carry_cpp, 12},
     {"_lame_ppm_cell_state_cpp", (DL_FUNC) &_lame_ppm_cell_state_cpp, 4},
     {"_lame_ppm_cell_carry_cpp", (DL_FUNC) &_lame_ppm_cell_carry_cpp, 6},
-    {"_lame_rwish_cpp", (DL_FUNC) &_lame_rwish_cpp, 2},
     {"_lame_rUV_rep_fc_cpp", (DL_FUNC) &_lame_rUV_rep_fc_cpp, 11},
     {"_lame_rUV_sym_fc_cpp", (DL_FUNC) &_lame_rUV_sym_fc_cpp, 7},
     {"_lame_rZ_nrm_batch_cpp", (DL_FUNC) &_lame_rZ_nrm_batch_cpp, 5},
@@ -1831,19 +1790,19 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_rbeta_ab_bip_gibbs_cpp", (DL_FUNC) &_lame_rbeta_ab_bip_gibbs_cpp, 12},
     {"_lame_replicated_gaussian_design_cpp", (DL_FUNC) &_lame_replicated_gaussian_design_cpp, 2},
     {"_lame_replicated_gaussian_draw_cpp", (DL_FUNC) &_lame_replicated_gaussian_draw_cpp, 8},
-    {"_lame_replicated_gaussian_moments_cpp", (DL_FUNC) &_lame_replicated_gaussian_moments_cpp, 8},
     {"_lame_robust_weighted_beta", (DL_FUNC) &_lame_robust_weighted_beta, 5},
     {"_lame_robust_weighted_mu", (DL_FUNC) &_lame_robust_weighted_mu, 5},
     {"_lame_robust_weighted_actor", (DL_FUNC) &_lame_robust_weighted_actor, 9},
     {"_lame_robust_weighted_uv", (DL_FUNC) &_lame_robust_weighted_uv, 7},
     {"_lame_rrho_mh_rep_cpp", (DL_FUNC) &_lame_rrho_mh_rep_cpp, 5},
     {"_lame_rs2_rep_fc_cpp", (DL_FUNC) &_lame_rs2_rep_fc_cpp, 5},
+    {"_lame_rUV_dynamic_snap_bip_fc_cpp", (DL_FUNC) &_lame_rUV_dynamic_snap_bip_fc_cpp, 12},
+    {"_lame_rUV_dynamic_snap_sym_fc_cpp", (DL_FUNC) &_lame_rUV_dynamic_snap_sym_fc_cpp, 10},
+    {"_lame_snap_path_visit_cpp", (DL_FUNC) &_lame_snap_path_visit_cpp, 19},
+    {"_lame_snap_path_visit_mode_cpp", (DL_FUNC) &_lame_snap_path_visit_mode_cpp, 22},
     {"_lame_spm_ord_ok_cpp", (DL_FUNC) &_lame_spm_ord_ok_cpp, 5},
     {"_lame_spm_ord_line_cpp", (DL_FUNC) &_lame_spm_ord_line_cpp, 6},
-    {"_lame_tempered_binary_evaluate", (DL_FUNC) &_lame_tempered_binary_evaluate, 3},
-    {"_lame_tempered_binary_transition", (DL_FUNC) &_lame_tempered_binary_transition, 4},
-    {"_lame_tempered_binary_reflection", (DL_FUNC) &_lame_tempered_binary_reflection, 4},
-    {"_lame_tempered_binary_block", (DL_FUNC) &_lame_tempered_binary_block, 8},
+    {"_lame_tempered_binary_block", (DL_FUNC) &_lame_tempered_binary_block, 9},
     {"_lame_uv_temper_transition_cpp", (DL_FUNC) &_lame_uv_temper_transition_cpp, 12},
     {"_lame_sample_G_bip_cpp", (DL_FUNC) &_lame_sample_G_bip_cpp, 5},
     {NULL, NULL, 0}

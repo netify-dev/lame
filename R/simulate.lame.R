@@ -1,8 +1,8 @@
 #' Simulate longitudinal networks from a fitted LAME model
 #'
 #' Generates network replicates at fitted periods from aligned posterior
-#' trajectories. A fit that did not save them, and the legacy trajectory
-#' scenarios (\code{start_from}, extended \code{n_time}), use the conditional
+#' trajectories. A fit that did not save them, and the trajectory
+#' scenarios of \code{start_from} and an extended \code{n_time}, use the conditional
 #' approximation by asking for it with \code{type = "approximate"}; see Details.
 #'
 #' @param object fitted model object of class "lame"
@@ -29,8 +29,7 @@
 #'   }
 #' @param type simulation route: \code{"posterior"} (default) replicates the
 #'   network from aligned saved posterior trajectories; \code{"approximate"} is
-#'   the conditional approximation. \code{"auto"} is accepted as an alias of
-#'   \code{"posterior"}. See Details.
+#'   the conditional approximation. See Details.
 #' @param ... additional arguments (not currently used)
 #'
 #' @return A list with components:
@@ -56,13 +55,11 @@
 #'
 #' \code{type = "approximate"} is the conditional approximation: it substitutes
 #' posterior summaries for the latent trajectories and does not propagate their
-#' joint posterior uncertainty. It runs only when requested. The former default
-#' \code{type = "auto"} chose between the two routes; it is now an alias of
-#' \code{"posterior"}. The returned \code{method} identifies the route.
+#' joint posterior uncertainty. It runs only when requested. The returned \code{method} identifies the route.
 #'
 #' Joint longitudinal replication uses saved trajectories at fitted periods;
 #' it does not evolve the final state through the historical covariates. Use
-#' \code{predict(fit, h = ...)} for future periods. The legacy \code{start_from}
+#' \code{predict(fit, h = ...)} for future periods. The \code{start_from}
 #' and extended \code{n_time} options apply to the conditional approximation
 #' only; with \code{type = "posterior"} they are an error (class
 #' \code{lame_simulate_periods}). The approximation extends \code{n_time} past
@@ -87,7 +84,7 @@
 #' )
 #' diag(Y_list[[1]]) <- diag(Y_list[[2]]) <- NA
 #' # chains = 1 keeps the example short; the default runs two chains and compares them
-#' fit <- lame(Y_list, family = "normal",
+#' fit <- lame(Y_list, family = "normal", R = 1,
 #'             nscan = 50, burn = 10, odens = 1, verbose = FALSE, plot = FALSE,
 #'             posterior_opts = posterior_options(save_ab = TRUE, save_UV = TRUE), chains = 1)
 #'
@@ -108,7 +105,7 @@ simulate.lame <- function(
 	thin = 1,
 	return_latent = FALSE,
 	start_from = "posterior",
-	type = c("posterior", "approximate", "auto"),
+	type = c("posterior", "approximate"),
 	...
 ) {
 	.lame_require_draws(object, "simulate")
@@ -127,8 +124,6 @@ simulate.lame <- function(
 	}
 
 	type <- match.arg(type)
-	# "auto" is the posterior route
-	if (identical(type, "auto")) type <- "posterior"
 	if (identical(type, "posterior")) {
 		T_fit <- object$n_time %||% length(object$Xlist)
 		nt <- n_time %||% T_fit
@@ -136,7 +131,7 @@ simulate.lame <- function(
 		if (!compatible) cli::cli_abort(
 			c(
 				"Posterior replication uses the fitted periods and {.code start_from = \"posterior\"}.",
-				"i" = "Use {.code predict(h = ...)} for future trajectories, or {.code type = \"approximate\"} for the legacy {.arg start_from} and {.arg n_time} options."
+				"i" = "Use {.code predict(h = ...)} for future trajectories, or {.code type = \"approximate\"} for the {.arg start_from} and {.arg n_time} options."
 			),
 			class = "lame_simulate_periods"
 		)

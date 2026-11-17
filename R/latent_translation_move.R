@@ -201,25 +201,12 @@
 	mover <- sym || row
 	ZM <- matrix(if (mover) Z[i, , ] else Z[, i, ], ncol = N)
 	WM <- matrix(if (mover) cx$W[i, , ] else cx$W[, i, ], ncol = N)
-	cols_n <- seq_len(N)
-	mmax <- mmin <- matrix(NA_real_, K, N)
-	lm <- lmn <- matrix(NA_integer_, K, N)
-	obs <- !is.na(WM)
-	for (k in seq_len(K)) {
-		mk <- obs & WM == k
-		has <- colSums(mk) > 0
-		if (!any(has)) next
-		A <- ZM
-		A[!mk] <- -Inf
-		a <- max.col(t(A), ties.method = "first")
-		B <- ZM
-		B[!mk] <- Inf
-		b <- max.col(t(-B), ties.method = "first")
-		mmax[k, has] <- A[cbind(a, cols_n)][has]
-		mmin[k, has] <- B[cbind(b, cols_n)][has]
-		lm[k, has] <- as.integer(if (mover) i + (a - 1L) * nr else a + (i - 1L) * nr)[has]
-		lmn[k, has] <- as.integer(if (mover) i + (b - 1L) * nr else b + (i - 1L) * nr)[has]
-	}
+	# the extremes of the actor's own cells by category and period, and where they sit
+	ln <- .lame_spm_ord_line(cx, ZM, WM, i, mover)
+	mmax <- ln$mmax
+	mmin <- ln$mmin
+	lm <- ln$lm
+	lmn <- ln$lmn
 	inside <- function(loc) {
 		r <- ((loc - 1L) %% nr) + 1L
 		cc <- ((loc - 1L) %/% nr) + 1L
@@ -353,7 +340,10 @@
 		vb <- Sab[2L, 2L]
 	} else {
 		iS <- if (any(lev)) tryCatch(solve(Sab), error = function(e) NULL) else diag(2L)
-		if (is.null(iS) || any(!is.finite(iS))) return(state())
+		if (is.null(iS) || any(!is.finite(iS))) {
+			.lame_fallback_note('translation')
+			return(state())
+		}
 	}
 	for (row in if (sym) TRUE else c(TRUE, FALSE)) {
 		if (!lev[if (row) 1L else 2L]) next
@@ -362,9 +352,8 @@
 		ph <- if (pois) .lame_ltm_pois_phase(cx, Z, row)
 		# latent shifts of a Poisson phase are applied at the end of the phase
 		dsh <- numeric(n_side)
-		# Poisson margin with static, uncentred levels runs as one compiled phase, drawing
-		# random numbers in the same order as the loop below
-		cpp_phase <- pois && !centred && !dyn && !identical(getOption("lame.ltm_engine"), "r")
+		# a Poisson margin with static, uncentred levels runs as one compiled phase (ltm_level_phase_cpp)
+		cpp_phase <- pois && !centred && !dyn
 		if (cpp_phase) {
 			mode_ <- if (sym) 1L else if (bip) 2L else 0L
 			x_ <- if (row) la else lb
@@ -407,10 +396,7 @@
 			if (pois) {
 				ys <- ph$ys[i]
 				s <- ph$S[i]
-				ans <- if (identical(getOption("lame.ltm_engine"), "r")) {
-					ll <- function(dl) ys * dl - s * expm1(dl)
-					.lame_ess_step(0, -pr[["a1"]] / pr[["a2"]], matrix(1 / sqrt(pr[["a2"]])), ll, 0)
-				} else ess_pois_scalar_cpp(ys, s, -pr[["a1"]] / pr[["a2"]], 1 / sqrt(pr[["a2"]]))
+				ans <- ess_pois_scalar_cpp(ys, s, -pr[["a1"]] / pr[["a2"]], 1 / sqrt(pr[["a2"]]))
 				stats["level_calls"] <- stats["level_calls"] + 1
 				stats["level_evals"] <- stats["level_evals"] + ans$evals
 				stats["stuck"] <- stats["stuck"] + ans$stuck
@@ -426,7 +412,11 @@
 							bd[1L],
 							bd[2L]
 						),
-						error = function(e) NULL
+						# the failure set is a union of translation orbits, so skipping the actor is exact
+						error = function(e) {
+							.lame_fallback_note('translation')
+							NULL
+						}
 					)
 				else NULL
 				if (is.null(d)) {
@@ -527,7 +517,10 @@
 	}
 	tn <- function(m, v) {
 		if (!is.finite(bd[1L]) && !is.finite(bd[2L])) return(stats::rnorm(1L, m, sqrt(v)))
-		tryCatch(.lame_checked_truncated_gaussian(m, sqrt(v), bd[1L], bd[2L]), error = function(e) NULL)
+		tryCatch(.lame_checked_truncated_gaussian(m, sqrt(v), bd[1L], bd[2L]), error = function(e) {
+			.lame_fallback_note('translation')
+			NULL
+		})
 	}
 	if (centred) {
 		lq <- .lame_actor_move_icpt(ic, iV0, beta)
@@ -564,18 +557,27 @@
 		w <- rep(1, length(idx))
 	} else {
 		iS <- tryCatch(solve(Sab), error = function(e) NULL)
-		if (is.null(iS) || any(!is.finite(iS))) return(same)
+		if (is.null(iS) || any(!is.finite(iS))) {
+			.lame_fallback_note('translation')
+			return(same)
+		}
 		idx <- which(lev)
 		n <- length(la)
 		P <- n * iS[idx, idx, drop = FALSE]
 		S <- tryCatch(solve(P), error = function(e) NULL)
-		if (is.null(S) || any(!is.finite(S))) return(same)
+		if (is.null(S) || any(!is.finite(S))) {
+			.lame_fallback_note('translation')
+			return(same)
+		}
 		S <- (S + t(S)) / 2
 		m <- -drop(S %*% (n * iS[idx, , drop = FALSE] %*% c(mean(la), mean(lb))))
 		w <- rep(1, length(idx))
 	}
 	ch <- tryCatch(chol(S), error = function(e) NULL)
-	if (is.null(ch)) return(same)
+	if (is.null(ch)) {
+		.lame_fallback_note('translation')
+		return(same)
+	}
 	cc <- m + drop(crossprod(ch, stats::rnorm(length(m))))
 	if (is.finite(bd[1L]) || is.finite(bd[2L])) {
 		Sw <- drop(S %*% w)
@@ -609,33 +611,6 @@
 		ic = ic,
 		shift = shift
 	)
-}
-
-# Poisson coefficient translations: coefficient k and the latent array move by
-# delta x_k together, drawn by an elliptical slice step
-.lame_ltm_coef <- function(cx, Z, EZ, beta, Xk, iV0) {
-	stats <- c(coef_calls = 0, coef_evals = 0, coef_stuck = 0)
-	for (k in sample.int(length(beta))) {
-		x <- Xk[[k]]
-		xo <- x[cx$ok_idx]
-		if (!all(is.finite(xo)) || !any(xo != 0)) next
-		ez <- exp(Z[cx$ok_idx] + cx$off_ok)
-		ysx <- sum(cx$y_ok * xo)
-		ll <- function(dl) dl * ysx - sum(ez * expm1(dl * xo))
-		a1 <- drop(iV0 %*% beta)[k]
-		a2 <- iV0[k, k]
-		if (!is.finite(a1) || !is.finite(a2) || a2 <= 0) next
-		ans <- .lame_ess_step(0, -a1 / a2, matrix(1 / sqrt(a2)), ll, 0)
-		stats["coef_calls"] <- stats["coef_calls"] + 1
-		stats["coef_evals"] <- stats["coef_evals"] + ans$evals
-		stats["coef_stuck"] <- stats["coef_stuck"] + ans$stuck
-		d <- ans$x
-		if (d == 0) next
-		Z <- Z + d * x
-		EZ <- EZ + d * x
-		beta[k] <- beta[k] + d
-	}
-	list(Z = Z, EZ = EZ, beta = beta, stats = stats)
 }
 
 # joint Metropolis scale move of s2 and rho with the latent residuals (Poisson),
@@ -800,136 +775,65 @@
 				reg_v = -cov_v %*% P[iv, iu, drop = FALSE]
 			)
 		}, error = function(e) NULL)
-		if (is.null(pri) || any(!is.finite(unlist(pri)))) return(state())
+		if (is.null(pri) || any(!is.finite(unlist(pri)))) {
+			.lame_fallback_note('translation')
+			return(state())
+		}
 	}
 	# Poisson factor of each line: counts and exp(z + offset) summed over periods,
 	# formed once per phase
 	sides <- if (sym) TRUE else c(TRUE, FALSE)
 	for (row in sides) {
 		sj <- rowSums(.lame_ltm_pois_phase(cx, Z, TRUE)$E, dims = 2L)
-		# latent shifts are applied at the end of the phase
-		Dsh <- matrix(0, nr, nc)
-		# compiled phase of a margin, drawing random numbers in the same order as the loop below
-		if (!identical(getOption("lame.ltm_engine"), "r")) {
-			Rr <- ncol(U)
-			pm <- if (sym) list(
-				mov = U,
-				oth = U,
-				opp = U,
-				reg = matrix(0, 0L, 0L),
-				root = diag(1 / sqrt(tau), Rr),
-				w = Ld,
-				mode = 1L
-			)
-			else if (bip && row) list(
-				mov = U,
-				oth = U,
-				opp = tcrossprod(V, G),
-				reg = matrix(0, 0L, 0L),
-				root = diag(Rr),
-				w = rep(1, Rr),
-				mode = 2L
-			)
-			else if (bip) list(
-				mov = V,
-				oth = V,
-				opp = U %*% G,
-				reg = matrix(0, 0L, 0L),
-				root = diag(ncol(V)),
-				w = rep(1, ncol(V)),
-				mode = 2L
-			)
-			else if (row) list(mov = U, oth = V, opp = V, reg = pri$reg_u, root = pri$root_u, w = rep(1, Rr), mode = 0L)
-			else list(mov = V, oth = U, opp = U, reg = pri$reg_v, root = pri$root_v, w = rep(1, ncol(V)), mode = 0L)
-			res_ <- ltm_uv_phase_cpp(
-				pm$mov,
-				pm$oth,
-				pm$opp,
-				pm$reg,
-				pm$root,
-				as.numeric(pm$w),
-				sj,
-				cx$ysj,
-				pm$mode,
-				row,
-				as.integer(sample.int(if (row) nr else nc))
-			)
-			if (row) U[] <- res_$M else V[] <- res_$M
-			sj <- res_$sj
-			Dsh <- res_$Dsh
-			stats[c("uv_calls", "uv_evals", "uv_stuck")] <- stats[c("uv_calls", "uv_evals", "uv_stuck")] + res_$stats
-			Z <- Z + as.vector(Dsh)
-			EZ <- EZ + as.vector(Dsh)
-			next
-		}
-		for (i in sample.int(if (row) nr else nc)) {
-			if (row && !sym && !bip) {
-				cur <- U[i, ]
-				opp <- V
-				mu <- drop(pri$reg_u %*% V[i, ])
-				root <- pri$root_u
-			} else if (!row && !bip) {
-				cur <- V[i, ]
-				opp <- U
-				mu <- drop(pri$reg_v %*% U[i, ])
-				root <- pri$root_v
-			} else if (sym) {
-				cur <- U[i, ]
-				opp <- U
-				mu <- numeric(R)
-				root <- diag(1 / sqrt(tau), R)
-			} else if (row) {
-				cur <- U[i, ]
-				opp <- tcrossprod(V, G)
-				mu <- numeric(R)
-				root <- diag(R)
-			} else {
-				cur <- V[i, ]
-				opp <- U %*% G
-				mu <- numeric(ncol(V))
-				root <- diag(ncol(V))
-			}
-			w <- if (sym) Ld else rep(1, length(cur))
-			lsum <- if (row || sym) list(ys = cx$ysj[i, ], s = sj[i, ]) else list(ys = cx$ysj[, i], s = sj[, i])
-			ans <- if (identical(getOption("lame.ltm_engine"), "r")) {
-				if (!any(lsum$ys > 0) && !any(lsum$s > 0)) {
-					ll <- function(x) 0
-				} else {
-					ll <- function(x) {
-						d <- drop(opp %*% (w * (x - cur)))
-						if (sym) d[i] <- 0
-						sum(lsum$ys * d - lsum$s * expm1(d))
-					}
-				}
-				.lame_ess_step(cur, mu, root, ll, 0)
-			} else ess_pois_uv_cpp(cur, mu, root, opp, w, lsum$ys, lsum$s, if (sym) i else 0L)
-			stats["uv_calls"] <- stats["uv_calls"] + 1
-			stats["uv_evals"] <- stats["uv_evals"] + ans$evals
-			stats["uv_stuck"] <- stats["uv_stuck"] + ans$stuck
-			dx <- ans$x - cur
-			if (!any(dx != 0)) next
-			shift <- drop(opp %*% (w * dx))
-			if (sym) {
-				dg <- sum(Ld * (ans$x^2 - cur^2))
-				shift[i] <- 0
-				sj[i, ] <- sj[i, ] * exp(shift)
-				sj[, i] <- sj[, i] * exp(shift)
-				Dsh[i, ] <- Dsh[i, ] + shift
-				Dsh[, i] <- Dsh[, i] + shift
-				Dsh[i, i] <- Dsh[i, i] + dg
-				U[i, ] <- ans$x
-			} else if (row) {
-				sj[i, ] <- sj[i, ] * exp(shift)
-				Dsh[i, ] <- shift
-				U[i, ] <- ans$x
-			} else {
-				sj[, i] <- sj[, i] * exp(shift)
-				Dsh[, i] <- shift
-				V[i, ] <- ans$x
-			}
-		}
-		Z <- Z + as.vector(Dsh)
-		EZ <- EZ + as.vector(Dsh)
+		# compiled phase of a margin (ltm_uv_phase_cpp) in a random order of the actors; the latent
+		# shifts are applied at the end of the phase
+		Rr <- ncol(U)
+		pm <- if (sym) list(
+			mov = U,
+			oth = U,
+			opp = U,
+			reg = matrix(0, 0L, 0L),
+			root = diag(1 / sqrt(tau), Rr),
+			w = Ld,
+			mode = 1L
+		)
+		else if (bip && row) list(
+			mov = U,
+			oth = U,
+			opp = tcrossprod(V, G),
+			reg = matrix(0, 0L, 0L),
+			root = diag(Rr),
+			w = rep(1, Rr),
+			mode = 2L
+		)
+		else if (bip) list(
+			mov = V,
+			oth = V,
+			opp = U %*% G,
+			reg = matrix(0, 0L, 0L),
+			root = diag(ncol(V)),
+			w = rep(1, ncol(V)),
+			mode = 2L
+		)
+		else if (row) list(mov = U, oth = V, opp = V, reg = pri$reg_u, root = pri$root_u, w = rep(1, Rr), mode = 0L)
+		else list(mov = V, oth = U, opp = U, reg = pri$reg_v, root = pri$root_v, w = rep(1, ncol(V)), mode = 0L)
+		res_ <- ltm_uv_phase_cpp(
+			pm$mov,
+			pm$oth,
+			pm$opp,
+			pm$reg,
+			pm$root,
+			as.numeric(pm$w),
+			sj,
+			cx$ysj,
+			pm$mode,
+			row,
+			as.integer(sample.int(if (row) nr else nc))
+		)
+		if (row) U[] <- res_$M else V[] <- res_$M
+		stats[c("uv_calls", "uv_evals", "uv_stuck")] <- stats[c("uv_calls", "uv_evals", "uv_stuck")] + res_$stats
+		Z <- Z + as.vector(res_$Dsh)
+		EZ <- EZ + as.vector(res_$Dsh)
 	}
 	state()
 }

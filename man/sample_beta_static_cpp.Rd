@@ -36,7 +36,7 @@ sample_beta_static_cpp(
 
 \item{s2}{Dyadic variance.}
 
-\item{dyad_rho}{Dyadic correlation.}
+\item{dyad_rho}{Dyadic correlation: one value, or one per period.}
 
 \item{bipartite}{TRUE/FALSE.}
 

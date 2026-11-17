@@ -65,3 +65,15 @@
 	}
 	list(c = ctot, sd = sd, att = att, acc = acc)
 }
+
+# coefficient block of the step: static coefficients under their g-prior, or the coefficients of a
+# dynamic_beta fit as a gaussian block (`path_terms`) whose quadratic form and dimension join those of G
+.lame_bpl_coef_args <- function(beta, iV0, q_g, n_g, path_terms = NULL) {
+	if (is.null(path_terms)) return(list(beta = beta, iV0 = iV0, q_g = q_g, n_g = n_g))
+	list(
+		beta = numeric(0),
+		iV0 = matrix(0, 0L, 0L),
+		q_g = q_g + path_terms$q,
+		n_g = n_g + path_terms$dimension
+	)
+}

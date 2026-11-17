@@ -52,7 +52,7 @@ sc_fit = function(d, R = 1, ...) {
 	))
 }
 
-# the mode of a panel and the engine state started from it
+# the empirical-Bayes fit of a panel and the engine state started from it
 sc_engine = function(d, R = 1, ...) {
 	md = if (d$kind == "bipartite") "bipartite" else "unipartite"
 	Y = if (d$Tt == 1L) d$Y[[1]] else d$Y
@@ -73,12 +73,9 @@ sc_engine = function(d, R = 1, ...) {
 		longitudinal = d$Tt > 1L,
 		call = quote(sc_engine()),
 		lowrank_method = "mm",
-		non_normal_method = "irls",
 		link = "probit",
 		linear_solver = "eigen",
-		multistart = "none",
-		bias_correct = NULL,
-		eb_posterior = "mode"
+		multistart = "none"
 	)))
 	st = lame:::.ae_eb_state(f)
 	res = lame:::.ae_mf_fit(st$prep, st$fit, st$ab, st$R, d$kind == "symmetric", "probit", st$w, ...)
@@ -139,7 +136,7 @@ test_that("the cavity covariance of a directed factor row is the inverse of its 
 	}
 })
 
-test_that("the directed scale is the variational update from the cavity second moments and the cavity fit is its fixed point", {
+test_that("the directed scale is the variational update from the rows' second moments and the fit is its fixed point", {
 	d = sc_panel("directed", n = 24, R = 2, seed = 6)
 	res = sc_engine(d, 2, max_iter = 2000L, tol = 1e-8, scale = "cavity")
 	expect_identical(res$termination, "converged")
@@ -148,7 +145,15 @@ test_that("the directed scale is the variational update from the cavity second m
 	tg = lame:::.ae_mf_scale_target(cx, S, C)
 	pr = S$prior
 	cv = lame:::.ae_mf_cavity_cov(cx, S, C)
+	# a normal or count fit reads the cavity second moments
 	S2 = S; S2$Sig = cv$Sig; S2$Om = cv$Om
+	smc = lame:::.ae_mf_second_moments(S2, 2L)
+	cxn = cx; cxn$gauss = TRUE
+	expect_equal(lame:::.ae_mf_scale_target(cxn, S, C)$s, mean(diag((pr$psi + smc$SE) / (smc$nu + pr$kappa0))), tolerance = 1e-12)
+	# a binary fit reads each side at the information of a draw given the other side drawn
+	pb = lame:::.ae_mf_prior_blocks(pr, 2L)
+	S2$Sig = lame:::.ae_mf_row_solve(C %*% (lame:::.ae_mf_outer_rows(S$V) + lame:::.ae_mf_array_to_rows(S$Om)), pb$uu, matrix(0, nrow(S$U), 2))$Sig
+	S2$Om = lame:::.ae_mf_row_solve(crossprod(C, lame:::.ae_mf_outer_rows(S$U) + lame:::.ae_mf_array_to_rows(S$Sig)), pb$vv, matrix(0, nrow(S$V), 2))$Sig
 	sm = lame:::.ae_mf_second_moments(S2, 2L)
 	# (Psi + SE) / (df + n), reduced to the isotropic family
 	M = (pr$psi + sm$SE) / (sm$nu + pr$kappa0)
@@ -192,16 +197,23 @@ test_that("the directed scale is the variational update from the cavity second m
 
 test_that("the cavity rule lifts the scale and the product above the mean-field update where the data are weak", {
 	skip_on_cran()
-	d = sc_panel("directed", n = 40, R = 2, seed = 7, mu = -2.2, sd_uv = 0.8)
-	cav = sc_fit(d, R = 2)
+	# a normal fit: a binary one reads the full second moments (the test above)
+	set.seed(7)
+	n = 40; nm = sprintf("a%02d", seq_len(n))
+	U = matrix(rnorm(2 * n, 0, 0.35), n); V = matrix(rnorm(2 * n, 0, 0.35), n)
+	x = matrix(rnorm(n * n), n)
+	y = 0.7 * x + outer(rnorm(n, 0, 0.6), rnorm(n, 0, 0.6), "+") + tcrossprod(U, V) + matrix(rnorm(n * n), n)
+	diag(y) = NA; dimnames(y) = list(nm, nm)
+	X = array(x, c(n, n, 1), dimnames = list(nm, nm, "x_dyad"))
+	fit_n = function() suppressWarnings(suppressMessages(ame_als(y, Xdyad = X, R = 2, family = "normal", verbose = FALSE)))
+	cav = fit_n()
 	old = options(lame.eb_scale = "plugin")
 	on.exit(options(old), add = TRUE)
-	plug = sc_fit(d, R = 2)
+	plug = fit_n()
 	options(old)
 	expect_identical(cav$eb$variational$scale$rule, "cavity")
 	expect_identical(plug$eb$variational$scale$rule, "plugin")
 	expect_gt(cav$eb$variational$scale$s, mean(diag(plug$eb$suv)))
-	# the variational means (the product of this weak network is withheld from the report)
 	expect_gt(sum(lame:::.ae_product_restore(cav)$UVPM^2), sum(lame:::.ae_product_restore(plug)$UVPM^2))
 	expect_true(cav$eb$variational$converged)
 	# the reported covariances are the cavity ones, the state of the updates is kept beside them
@@ -247,9 +259,12 @@ test_that("the posterior-mean update of the scale settles on a pure-noise panel 
 		expect_lt(v$scale$s, 1.5)
 	}
 	# at rank 3 the fit settles at the fixed point of the fit without the pair stage (stalled rules are tested in
-	# test_als_retirement.R and test_als_multistart_selection.R)
+	# test_als_retirement.R)
 	expect_equal(fit$eb$variational$scale$s, sc_fit(d, R = 3, dcor = FALSE)$eb$variational$scale$s, tolerance = 0.01)
-	expect_gt(fit$eb$variational$scale$s, 1.2 * pl$eb$variational$scale$s)
+	# and that is the fixed point of the posterior-mean update at the binary read of the rows' moments
+	res = sc_engine(d, 3, max_iter = 2000L, tol = 1e-8, scale = "cavity")
+	C = lame:::.ae_mf_info_sum(res$cx, res$ev)
+	expect_equal(res$scale$s, lame:::.ae_mf_scale_target(res$cx, res$S, C)$s, tolerance = 2e-3)
 	# where the steps do stall (forced here) the fit is repeated with the plug-in update, from the same start
 	real = lame:::.ae_mf_fit
 	calls = character(0)
@@ -333,7 +348,8 @@ test_that("a variational fit of every kind records its scale rule and a finite u
 test_that("the scale adds its uncertainty to the covariance of the coefficients", {
 	skip_on_cran()
 	# at mu = -1.5 the data-scaled factor prior (R/uv_prior.R) leaves the variational factors of this panel away from zero
-	d = sc_panel("directed", n = 36, R = 2, seed = 10, mu = -1.5)
+	# (on seed 10 the binary read of the rows' moments holds the product at zero, and a held column does not move with the scale)
+	d = sc_panel("directed", n = 36, R = 2, seed = 11, mu = -1.5)
 	with = sc_fit(d, R = 2)
 	old = options(lame.eb_scale_uncertainty = FALSE)
 	on.exit(options(old), add = TRUE)

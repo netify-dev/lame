@@ -21,7 +21,7 @@ test_that("netify cross-sectional inputs work with ame and ame_als", {
 		missing_to_zero = FALSE
 	)
 
-	fit_als = suppressWarnings(ame_als(net, R = 0, max_iter = 20, bias_correct = "none", verbose = FALSE))
+	fit_als = suppressWarnings(ame_als(net, R = 0, max_iter = 20, verbose = FALSE))
 	expect_s3_class(fit_als, "ame_als")
 	expect_equal(fit_als$family, "binary")
 	expect_equal(fit_als$mode, "unipartite")

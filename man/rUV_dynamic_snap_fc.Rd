@@ -16,7 +16,6 @@ rUV_dynamic_snap_fc(
   delta_u_current = NULL,
   delta_v_current = NULL,
   shrink = TRUE,
-  symmetric = FALSE,
   rho = 0
 )
 }
@@ -45,8 +44,6 @@ a zero matrix is used.}
 
 \item{shrink}{whether to apply shrinkage (default TRUE)}
 
-\item{symmetric}{whether the network is symmetric (default FALSE)}
-
 \item{rho}{dyadic correlation between the (i, j) and (j, i) residuals
 (default 0)}
 }
@@ -57,6 +54,10 @@ list with updated U, V arrays and delta_u, delta_v snap indicators
 Like \code{rUV_dynamic_fc} but lets each actor's latent position either drift
 under the AR(1) prior or jump under a diffuse N(0, kappa^2) snap prior, chosen
 per actor-period by a Gaussian log-marginal model selection.
+}
+\details{
+The snap kernel draws the rows of a product in parallel, so it is for
+directed and bipartite networks.
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

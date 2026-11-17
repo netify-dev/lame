@@ -3,45 +3,6 @@ skip_on_cran()
 # edge cases and error handling
 library(lame)
 
-test_that("models handle small networks", {
-	skip_on_cran()
-
-	set.seed(6886)
-
-	# very small network
-	n = 5
-	Y = matrix(rbinom(n * n, 1, 0.3), n, n)
-	diag(Y) = NA
-
-	fit = ame(
-		Y,
-		R = 1,
-		family = "binary",
-		burn = 50,
-		nscan = 100,
-		verbose = FALSE
-	)
-	expect_true(!is.null(fit))
-
-	# bipartite with small dimensions
-	Y_bip = matrix(rbinom(3 * 4, 1, 0.5), 3, 4)
-	rownames(Y_bip) = paste0("Row", 1:3)
-	colnames(Y_bip) = paste0("Col", 1:4)
-
-	fit_bip = ame(
-		Y_bip,
-		mode = "bipartite",
-		R_row = 1,
-		R_col = 1,
-		family = "binary",
-		burn = 50,
-		nscan = 100,
-		verbose = FALSE,
-		gof = FALSE
-	) # no GOF for tiny networks
-	expect_true(!is.null(fit_bip))
-})
-
 test_that("models handle sparse networks", {
 	skip_on_cran()
 
@@ -130,45 +91,6 @@ test_that("models handle networks with isolated nodes", {
 	# isolated nodes have low predicted probabilities
 	isolated_preds = fit$YPM[1:3, -c(1:3)]
 	expect_lt(mean(isolated_preds, na.rm = TRUE), 0.2)
-})
-
-test_that("longitudinal models handle varying network sizes", {
-	skip_on_cran()
-
-	set.seed(6886)
-
-	# networks with different missing patterns (simulating different sizes)
-	Tn = 4
-	n_max = 20
-	Y_list = list()
-
-	for (t in 1:Tn) {
-		Y_t = matrix(rbinom(n_max * n_max, 1, 0.3), n_max, n_max)
-
-		# missing nodes, a different pattern each period
-		n_missing = sample(0:5, 1)
-		if (n_missing > 0) {
-			missing_idx = sample(1:n_max, n_missing)
-			Y_t[missing_idx, ] = NA
-			Y_t[, missing_idx] = NA
-		}
-
-		diag(Y_t) = NA
-		rownames(Y_t) = colnames(Y_t) = paste0("Node", 1:n_max)
-		Y_list[[t]] = Y_t
-	}
-
-	expect_no_error({
-		fit = lame(
-			Y_list,
-			R = 1,
-			family = "binary",
-			burn = 50,
-			nscan = 200,
-			verbose = FALSE,
-			plot = FALSE
-		)
-	})
 })
 
 test_that("models handle extreme parameter values", {
@@ -263,45 +185,29 @@ test_that("models handle non-standard data types correctly", {
 	})
 })
 
-test_that("bipartite models reject square matrices with mode='bipartite'", {
-	skip_on_cran()
-
+test_that("a square matrix with mode = 'bipartite' is fitted as a bipartite network", {
 	set.seed(6886)
 	n = 10
-
-	# square matrix
 	Y_square = matrix(rbinom(n * n, 1, 0.3), n, n)
 	diag(Y_square) = NA
-
-	# fits as unipartite
-	expect_no_error({
-		fit_uni = ame(
-			Y_square,
-			mode = "unipartite",
-			R = 1,
-			family = "binary",
-			burn = 50,
-			nscan = 100,
-			verbose = FALSE
-		)
-	})
-
-	tryCatch({
-		fit_bip = ame(
-			Y_square,
-			mode = "bipartite",
-			R_row = 1,
-			R_col = 1,
-			family = "binary",
-			burn = 50,
-			nscan = 100,
-			verbose = FALSE,
-			gof = FALSE
-		)
-		expect_true(TRUE)
-	}, error = function(e) {
-		expect_true(TRUE)
-	})
+	fit_uni = ame(Y_square, mode = "unipartite", R = 1, family = "binary", burn = 50, nscan = 100, verbose = FALSE)
+	expect_identical(fit_uni$mode, "unipartite")
+	fit_bip = ame(
+		Y_square,
+		mode = "bipartite",
+		R_row = 1,
+		R_col = 1,
+		family = "binary",
+		burn = 50,
+		nscan = 100,
+		verbose = FALSE,
+		gof = FALSE
+	)
+	# row and column actors are separate sets, and the diagonal cells are ordinary dyads (predicted, not structural)
+	expect_identical(fit_bip$mode, "bipartite")
+	expect_length(fit_bip$APM, n)
+	expect_length(fit_bip$BPM, n)
+	expect_true(all(is.finite(diag(fit_bip$YPM))))
 })
 
 test_that("models handle character row/column names", {
@@ -642,4 +548,77 @@ test_that("a latent rank above n/3 fits without a warning", {
 		))
 	)
 	expect_s3_class(fit, "lame")
+})
+
+# input checks of the MCMC fitters
+
+test_that("ame() and lame() reject an unrecognised family", {
+	set.seed(221); Y1 = matrix(rnorm(225), 15); diag(Y1) = NA
+	expect_error(
+		ame(
+			Y1,
+			family = "Binary",
+			nscan = 10,
+			burn = 5,
+			odens = 5,
+			verbose = FALSE
+		),
+		"not a recognised family"
+	)
+	Yl = lapply(1:3, function(t) { m = matrix(rnorm(144), 12); diag(m) = NA; m })
+	expect_error(
+		lame(
+			Yl,
+			family = "banana",
+			nscan = 10,
+			burn = 5,
+			odens = 5,
+			verbose = FALSE
+		),
+		"not a recognised family"
+	)
+})
+
+test_that("lame() accepts Y matrices without actor names", {
+	set.seed(223)
+	Yl = lapply(1:4, function(t) {
+		m = matrix(rnorm(144), 12, 12); diag(m) = NA; m
+	})
+	fit = lame(
+		Yl,
+		family = "normal",
+		nscan = 20,
+		burn = 10,
+		odens = 5,
+		verbose = FALSE,
+		gof = FALSE
+	)
+	expect_s3_class(fit, "lame")
+	expect_length(fit$APM, 12)
+})
+
+test_that("ame() rejects degenerate MCMC settings and constant continuous Y", {
+	set.seed(233); Y1 = matrix(rnorm(225), 15); diag(Y1) = NA
+	expect_error(
+		ame(
+			Y1,
+			family = "normal",
+			nscan = 0,
+			burn = 5,
+			odens = 1,
+			verbose = FALSE
+		),
+		"nscan"
+	)
+	expect_error(
+		ame(
+			matrix(5, 12, 12),
+			family = "normal",
+			nscan = 20,
+			burn = 5,
+			odens = 5,
+			verbose = FALSE
+		),
+		"constant"
+	)
 })

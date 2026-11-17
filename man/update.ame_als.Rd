@@ -30,12 +30,12 @@ S3 method for \code{\link[stats]{update}} that re-fits an ALS fit
 with modified arguments. Two routes:
 \itemize{
 \item if \code{...} contains only the warm-start refit knobs
-(\code{Y_new}, \code{X_new}, \code{Z_new}, \code{max_iter},
-\code{tol}, \code{verbose}, \code{bias_correct}), it delegates to
+(\code{Y_new}, \code{X_new}, \code{max_iter}, \code{tol},
+\code{verbose}), it delegates to
 \code{\link{ame_als_refit}} for a fast warm-started refit (a
 dynamic fit is refit through its own fitter and comes back dynamic);
 \item otherwise (e.g. changing \code{R}, \code{family},
-\code{lambda}, \code{bootstrap}) it re-evaluates the original
+\code{bootstrap}) it re-evaluates the original
 \code{object$call} with the overrides, matching the
 \code{\link{update.ame}} semantics on the MCMC side.
 }

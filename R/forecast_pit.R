@@ -238,7 +238,7 @@ if (getRversion() >= "2.15.1") {
 #' # chains = 1 keeps the example short; the default runs two chains and compares them
 #' fit <- lame(Y_train, Xdyad = X_train,
 #'             family = "binary", R = 0,
-#'             dynamic_beta = "dyad",
+#'             dynamic_ab = TRUE,
 #'             nscan = 60, burn = 15, odens = 5, verbose = FALSE, chains = 1)
 #' pit <- forecast_pit(fit, y_future = Y_test)
 #' pit$ks_stat

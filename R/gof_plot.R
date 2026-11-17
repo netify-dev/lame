@@ -172,7 +172,6 @@ if (getRversion() >= "2.15.1") {
 #' gof_plot(fit_ame, statistics = c("sd.row", "sd.col"))
 #' }
 #' @export
-#' @import ggplot2
 gof_plot <- function(
 	fit,
 	type = c("auto", "static", "longitudinal"),
@@ -330,15 +329,15 @@ gof_label <- function(x) {
 
 # standard theme for GOF plots
 gof_theme <- function() {
-	theme_bw() +
-		theme(
-			panel.border = element_blank(),
-			plot.caption = element_text(hjust = 0),
-			axis.ticks = element_blank(),
+	ggplot2::theme_bw() +
+		ggplot2::theme(
+			panel.border = ggplot2::element_blank(),
+			plot.caption = ggplot2::element_text(hjust = 0),
+			axis.ticks = ggplot2::element_blank(),
 			legend.position = "top",
-			strip.background = element_rect(fill = "black", color = "black"),
-			strip.text = element_text(color = "white", hjust = 0, size = 9),
-			panel.spacing = unit(0.5, "lines")
+			strip.background = ggplot2::element_rect(fill = "black", color = "black"),
+			strip.text = ggplot2::element_text(color = "white", hjust = 0, size = 9),
+			panel.spacing = ggplot2::unit(0.5, "lines")
 		)
 }
 
@@ -404,33 +403,33 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 
 		# observed value as a dashed vline with its own legend entry
 		obs_df <- data.frame(value = obs_vals[stat_col], lab = "Observed")
-		p_stat <- ggplot(df, aes(x = value)) +
-			geom_histogram(
-				aes(y = after_stat(density), fill = "Posterior predictive"),
+		p_stat <- ggplot2::ggplot(df, ggplot2::aes(x = value)) +
+			ggplot2::geom_histogram(
+				ggplot2::aes(y = ggplot2::after_stat(density), fill = "Posterior predictive"),
 				bins = 30
 			) +
-			geom_vline(
+			ggplot2::geom_vline(
 				data = obs_df,
-				aes(xintercept = value, colour = lab, linetype = lab),
+				ggplot2::aes(xintercept = value, colour = lab, linetype = lab),
 				linewidth = line.size
 			) +
-			scale_fill_manual(NULL, values = c("Posterior predictive" = "grey60")) +
-			scale_colour_manual(NULL, values = c("Observed" = "black")) +
-			scale_linetype_manual(NULL, values = c("Observed" = "dashed")) +
-			labs(
+			ggplot2::scale_fill_manual(NULL, values = c("Posterior predictive" = "grey60")) +
+			ggplot2::scale_colour_manual(NULL, values = c("Observed" = "black")) +
+			ggplot2::scale_linetype_manual(NULL, values = c("Observed" = "dashed")) +
+			ggplot2::labs(
 				x = "Statistic value",
 				y = "Density",
 				title = gof_label(stat)
 			) +
 			gof_theme() +
-			theme(
-				plot.title = element_text(size = 10, hjust = 0),
-				legend.title = element_blank()
+			ggplot2::theme(
+				plot.title = ggplot2::element_text(size = 10, hjust = 0),
+				legend.title = ggplot2::element_blank()
 			) +
-			guides(
-				fill = guide_legend(order = 1),
-				colour = guide_legend(order = 2),
-				linetype = guide_legend(order = 2)
+			ggplot2::guides(
+				fill = ggplot2::guide_legend(order = 1),
+				colour = ggplot2::guide_legend(order = 2),
+				linetype = ggplot2::guide_legend(order = 2)
 			)
 
 		plot_list[[stat]] <- p_stat
@@ -575,69 +574,69 @@ gof_plot_longitudinal <- function(
 	# observed series as a solid line with points, predictive median dashed grey,
 	# interval as a grey band
 	band_label <- paste0("Posterior predictive ", signif(100 * credible.level, 3), "%")
-	p <- ggplot(plot_data, aes(x = time)) +
-		geom_ribbon(
-			aes(
+	p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = time)) +
+		ggplot2::geom_ribbon(
+			ggplot2::aes(
 				ymin = lower,
 				ymax = upper,
 				fill = band_label
 			),
 			alpha = 0.3
 		) +
-		geom_line(
-			aes(
+		ggplot2::geom_line(
+			ggplot2::aes(
 				y = median,
 				colour = "Predictive median",
 				linetype = "Predictive median"
 			),
 			linewidth = line.size
 		) +
-		geom_line(
-			aes(
+		ggplot2::geom_line(
+			ggplot2::aes(
 				y = observed,
 				colour = "Observed",
 				linetype = "Observed"
 			),
 			linewidth = line.size
 		) +
-		geom_point(
-			aes(y = observed, colour = "Observed"),
+		ggplot2::geom_point(
+			ggplot2::aes(y = observed, colour = "Observed"),
 			size = point.size
 		) +
-		scale_fill_manual(NULL, values = stats::setNames("grey60", band_label)) +
-		scale_colour_manual(
+		ggplot2::scale_fill_manual(NULL, values = stats::setNames("grey60", band_label)) +
+		ggplot2::scale_colour_manual(
 			NULL,
 			values = c(
 				"Observed" = "black",
 				"Predictive median" = "grey25"
 			)
 		) +
-		scale_linetype_manual(
+		ggplot2::scale_linetype_manual(
 			NULL,
 			values = c(
 				"Observed" = "solid",
 				"Predictive median" = "dashed"
 			)
 		) +
-		facet_wrap(~statistic, scales = "free_y", ncol = ncol) +
-		labs(
+		ggplot2::facet_wrap(~statistic, scales = "free_y", ncol = ncol) +
+		ggplot2::labs(
 			x = "Period",
 			y = "Value"
 		) +
 		gof_theme() +
-		theme(
-			panel.spacing = unit(1, "lines")
+		ggplot2::theme(
+			panel.spacing = ggplot2::unit(1, "lines")
 		) +
-		guides(
-			fill = guide_legend(order = 1),
-			colour = guide_legend(order = 2),
-			linetype = guide_legend(order = 2)
+		ggplot2::guides(
+			fill = ggplot2::guide_legend(order = 1),
+			colour = ggplot2::guide_legend(order = 2),
+			linetype = ggplot2::guide_legend(order = 2)
 		)
 
 	if (!is.null(title)) {
-		p <- p + ggtitle(title)
+		p <- p + ggplot2::ggtitle(title)
 	} else {
-		p <- p + ggtitle(sprintf(
+		p <- p + ggplot2::ggtitle(sprintf(
 			"Goodness of fit over time: observed vs %d%% credible intervals",
 			round(credible.level * 100)
 		))

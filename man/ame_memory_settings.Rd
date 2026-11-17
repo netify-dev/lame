@@ -15,8 +15,8 @@ ame_memory_settings(n_nodes, R = 2)
 Invisibly returns memory estimates
 }
 \description{
-Shows estimated memory usage for networks of given size.
-Memory optimization is automatic, so this is informational only.
+Shows estimated memory usage for networks of given size, with the levers
+that reduce the memory of a fit.
 }
 \details{
 Memory levers available in the package:

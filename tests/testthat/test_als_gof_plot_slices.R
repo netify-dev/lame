@@ -45,7 +45,7 @@ test_that("a binary and a bipartite longitudinal fit are plotted over every peri
 		diag(m) = NA
 		m
 	})
-	fb = lame_als(yb, R = 0, family = "binary", bias_correct = "none", verbose = FALSE)
+	fb = lame_als(yb, R = 0, family = "binary", verbose = FALSE)
 	p = gof_plot(fb, nsim = 10, seed = 1)
 	expect_setequal(unique(p$data$time), 1:3)
 	yr = lapply(1:3, function(t) matrix(rnorm(15 * 9), 15, 9))

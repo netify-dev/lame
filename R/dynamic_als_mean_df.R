@@ -202,7 +202,12 @@
 		for (k in index$dynamic_idx) {
 			add_block(
 				index$dynamic_map[k, ],
-				.lda_path_penalty(nt, lambda_beta * .lda_beta_ms(beta_dyn, k), beta_kind, rho_beta),
+				.lda_beta_path_penalty(
+					nt,
+					lambda_beta * .lda_beta_ms(beta_dyn, k),
+					beta_kind,
+					.lda_beta_rho(beta_dyn, k, rho_beta)
+				),
 				TRUE
 			)
 		}

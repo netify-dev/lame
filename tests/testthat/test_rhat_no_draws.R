@@ -25,7 +25,7 @@ rhat_pooled = function(draws, chain) lame:::.lame_rhat(do.call(cbind, split(draw
 
 test_that("summary's Rhat is fit$rhat for every monitored quantity of a two-chain fit", {
 	d = rnd_section()
-	f = quiet_rh(ame(d$Y, Xdyad = d$X, R = 1, burn = 20, nscan = 300, odens = 5, seed = 7, verbose = FALSE, chains = 2))
+	f = quiet_rh(ame(d$Y, Xdyad = d$X, R = 1, burn = 100, nscan = 2000, odens = 10, seed = 7, verbose = FALSE, chains = 2))
 	expect_identical(f$chains, 2L)
 	expect_gt(nrow(f$rhat), 0L)
 	s = summary(f)
@@ -53,20 +53,11 @@ test_that("after an extension the gate, summary() and the returned draws are the
 		)
 		else data.frame(parameter = character(0), text = character(0))
 	}, .package = "lame")
-	f = quiet_rh(ame(d$Y, R = 0, burn = 20, nscan = 300, odens = 5, seed = 7, verbose = FALSE, chains = 2))
+	f = quiet_rh(ame(d$Y, R = 0, burn = 100, nscan = 2000, odens = 10, seed = 7, verbose = FALSE, chains = 2))
 	expect_identical(f$auto_extend$extensions, 1L)
-	expect_equal(nrow(f$BETA), 2L * 60L)
+	expect_equal(nrow(f$BETA), 2L * 200L)
 	expect_equal(f$rhat$rhat[f$rhat$parameter == "intercept"], rhat_pooled(f$BETA[, "intercept"], f$chain_indicator))
 	expect_identical(unname(summary(f)$beta["intercept", "Rhat"]), f$rhat$rhat[f$rhat$parameter == "intercept"])
-})
-
-test_that("the two-chain lame() fit reports the gate's R-hat in its diagnostics", {
-	skip_on_cran()
-	p = rnd_panel()
-	f = quiet_rh(lame(p$Y, p$X, R = 0, burn = 20, nscan = 300, odens = 5, seed = 7, verbose = FALSE, chains = 2))
-	hit = intersect(names(f$diagnostics$rhat), f$rhat$parameter)
-	expect_true(length(hit) >= 3L)
-	expect_identical(unname(f$diagnostics$rhat[hit]), f$rhat$rhat[match(hit, f$rhat$parameter)])
 })
 
 test_that("a one-chain fit reports no R-hat, as before", {

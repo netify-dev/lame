@@ -7,14 +7,15 @@
 read_log_lik(x)
 }
 \arguments{
-\item{x}{A fitted \code{ame}/\code{lame} object with
-\code{$log_lik_chunks} (i.e. fit with \code{save_log_lik = "chunked"}).}
+\item{x}{A fitted \code{ame}/\code{lame} object with \code{$log_lik}
+(fit with \code{save_log_lik = TRUE}) or, for a \code{lame} fit,
+\code{$log_lik_chunks} (fit with \code{save_log_lik = "chunked"}).}
 }
 \value{
 The full \code{[n_stored, n_obs]} double matrix.
 }
 \description{
-For fits run with \code{save_log_lik = "chunked"}, the per-iteration
+For \code{lame} fits run with \code{save_log_lik = "chunked"}, the per-iteration
 pointwise log-likelihood lives in per-column-chunk binary files instead
 of \code{fit$log_lik}. This helper reconstitutes the
 \code{[n_stored, n_obs]} matrix in memory by issuing one \code{readBin}

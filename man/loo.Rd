@@ -28,13 +28,13 @@ fallback only fires for bare-namespace use.
 set.seed(1)
 n <- 12
 Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
-# chains = 1 keeps the example short; the default runs two chains and compares them
-fit <- ame(Y, R = 1, dcor = FALSE, nscan = 100, burn = 5, odens = 1,
+# a model without actor effects; chains = 1 keeps the example short
+fit <- ame(Y, R = 0, rvar = FALSE, cvar = FALSE, dcor = FALSE,
+           nscan = 200, burn = 20, odens = 1,
            save_log_lik = TRUE, verbose = FALSE, chains = 1)
 if (requireNamespace("loo", quietly = TRUE)) {
-  # a fit this small can trip loo's own low-sample Pareto-k diagnostic;
-  # that diagnostic warning is expected here and not specific to lame
-  print(suppressWarnings(loo(fit)))
+  print(loo(fit))
+  print(waic(fit))
 }
 }
 }

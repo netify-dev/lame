@@ -23,7 +23,7 @@
 #'   see \code{.lame_nom_room}). A row whose count falls short of \code{odmax} has unused
 #'   nomination slots, so its non-nominated cells are held below zero.
 #' @return the updated latent matrix, same shape and dimnames as \code{Z}.
-#' @keywords internal
+#' @noRd
 #' @author lame authors
 rZ_cbin_fc <- function(Z, EZ, rho, Y, odmax, odobs) {
 	Z <- .lame_nom_feasible(Z, Y, NULL, odmax, odobs, FALSE)

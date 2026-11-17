@@ -1,4 +1,5 @@
 test_that("centered static actor solves agree with independent constrained equations", {
+	skip_on_cran()
 	for (sym in c(FALSE, TRUE)) for (replication in 1:3) {
 		set.seed(2693000 + 100 * sym + replication);n = 7L;nc = if (sym) n else 5L;nt = 4L
 		Z = array(
@@ -31,6 +32,7 @@ test_that("penalized changing intercepts and static actors reach the joint Gauss
 				if (mode == 'bipartite') paste0('c', 1:nc) else paste0('r', 1:nc)
 			);Y[[t]] = y;X[[t]] = array(x, c(nr, nc, 1), dimnames = c(dimnames(y), list('x')))
 		}
+		# the penalised fit, as the sampler's warm start asks for it
 		fit = lame(
 			Y,
 			Xdyad = X,
@@ -43,7 +45,7 @@ test_that("penalized changing intercepts and static actors reach the joint Gauss
 			als_max_iter = 200,
 			als_tol = 1e-10,
 			verbose = FALSE,
-			bias_correct = 'none'
+			prior = structure(list(), lame_als_estimator = 'none')
 		)
 		nbeta = 2 * nt;q = nbeta + nr + if (sym) 0L else nc;rows = list();values = numeric()
 		for (t in seq_len(nt)) {
@@ -56,7 +58,10 @@ test_that("penalized changing intercepts and static actors reach the joint Gauss
 		for (t in 2:nt) {transition[t - 1, t] = 1;transition[t - 1, t - 1] = -fit$rho_beta}
 		# smoothness weight of a moving coefficient: lambda_beta times the column's mean square (one for the intercept)
 		ms = c(1, mean(unlist(lapply(seq_len(nt), function(t) {ok = is.finite(Y[[t]]);matrix(X[[t]], nr, nc)[ok]^2}))))
-		for (k in 0:1) {jj = k * nt + seq_len(nt);P[jj, jj] = fit$lambda_beta_als * ms[k + 1] * crossprod(transition)}
+		# an ar1 path is stationary around its own long-run mean, which is profiled out of the penalty
+		Kp = crossprod(transition)
+		if (fit$rho_beta < 1) {Kp[1, 1] = Kp[1, 1] + 1 - fit$rho_beta^2;k1 = rowSums(Kp);Kp = Kp - tcrossprod(k1) / sum(k1)}
+		for (k in 0:1) {jj = k * nt + seq_len(nt);P[jj, jj] = fit$lambda_beta_als * ms[k + 1] * Kp}
 		C = matrix(0, if (sym) 1L else 2L, q);C[1, nbeta + seq_len(nr)] = 1;if (!sym) C[2, nbeta + nr + seq_len(nc)] = 1
 		K = rbind(cbind(crossprod(D) + P, t(C)), cbind(C, matrix(0, nrow(C), nrow(C))))
 		ref = solve(K, c(crossprod(D, values), rep(0, nrow(C))))[seq_len(q)]
@@ -65,4 +70,24 @@ test_that("penalized changing intercepts and static actors reach the joint Gauss
 		expect_lt(fit$iterations, 200)
 		expect_equal(unname(unlist(fit$EZ)[is.finite(unlist(Y))]), as.vector(D %*% ref), tolerance = 2e-5, info = mode)
 	}
+})
+
+test_that("a normal bipartite panel with static factors scales with the response", {
+	skip_on_cran()
+	set.seed(4)
+	n = 14; m = 11; tt = 3
+	u = matrix(rnorm(n * 2), n); v = matrix(rnorm(m * 2), m)
+	y = x = vector("list", tt)
+	for (t in seq_len(tt)) {
+		x[[t]] = array(rnorm(n * m), c(n, m, 1), dimnames = list(paste0("r", 1:n), paste0("c", 1:m), "x"))
+		y[[t]] = 0.5 * x[[t]][, , 1] + tcrossprod(u, v) + matrix(rnorm(n * m), n, m)
+	}
+	names(y) = names(x) = paste0("t", 1:tt)
+	fit = function(k) suppressWarnings(suppressMessages(lame(
+		lapply(y, "*", k), Xdyad = x, R = 2, family = "normal", mode = "bipartite",
+		method = "als", dynamic_ab = TRUE, verbose = FALSE
+	)))
+	f1 = fit(1); f2 = fit(1000)
+	expect_equal(unname(f2$coefficients) / 1000, unname(f1$coefficients), tolerance = 5e-3)
+	expect_equal(unname(sqrt(diag(vcov(f2)))) / 1000, unname(sqrt(diag(vcov(f1)))), tolerance = 5e-3)
 })

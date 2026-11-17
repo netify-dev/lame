@@ -15,12 +15,9 @@ lame_als(
   symmetric = FALSE,
   max_iter = 200,
   tol = 1e-06,
-  lowrank_method = c("mm", "als", "hybrid"),
-  non_normal_method = c("irls", "transform"),
   link = c("probit", "logit"),
   linear_solver = c("eigen", "qr", "auto"),
   multistart = c("none", "cheap", "full"),
-  bias_correct = NULL,
   bootstrap = 0L,
   bootstrap_type = c("parametric", "block"),
   bootstrap_block_length = 1L,
@@ -66,15 +63,11 @@ panel, its first period), as in \code{\link{ame}} and \code{\link{lame}}.}
 
 \item{max_iter}{maximum number of block coordinate descent iterations
 (default 200), and maximum number of outer reweighting steps for IRLS. A
-fixed-effects fit that has not converged within it is
-refitted once with four times the limit, and is an error (class
-\code{"lame_als_convergence"}) if that run has not converged either, as is
-an empirical-Bayes fit that does not settle (without the second run); the
-limit also bounds each round of the joint refinement of a Gaussian fit. An
-empirical-Bayes reweighting step runs at most five sweeps (it refreshes
-the weights, the Laplace correction and the variance updates after them).
-The variational stage of an empirical-Bayes fit runs at most
-\code{2 * max_iter} iterations. An empirical-Bayes fit whose iteration does
+fit that does not settle within it is an error (class
+\code{"lame_als_convergence"}). A reweighting step runs at most five
+sweeps (it refreshes the weights, the Laplace correction and the variance
+updates after them). The variational stage runs at most
+\code{2 * max_iter} iterations. A fit whose iteration does
 not settle retires its weakest latent column and fits the next rank down
 (see \strong{A rank the data do not support}); a \code{max_iter} below 200
 disables that for an iteration that merely ran out of it.}
@@ -86,30 +79,7 @@ information plus penalty curvature, and the largest absolute log variance
 update to be at most
 \code{sqrt(tol)}.}
 
-\item{lowrank_method}{inner solver for the multiplicative (low-rank) block:
-\code{"mm"} (default) weighted majorise-minimise; \code{"als"} alternating
-least squares; \code{"hybrid"} runs both and keeps the lower-objective
-result. \code{"als"}/\code{"hybrid"} converge faster than \code{"mm"} on
-strongly unbalanced longitudinal panels and are available for directed and
-bipartite models (symmetric fits always use \code{"mm"}). All three
-minimise the same objective, so the point estimate is unchanged for
-balanced data.}
-
-\item{non_normal_method}{for the non-normal ALS families (it does not apply to
-a normal fit), \code{"irls"}
-(default for \code{binary}/\code{poisson}) runs iteratively reweighted
-least squares, giving a fast GLM AME fit with coefficients on
-the requested link scale (Poisson log, binary logit/probit).
-\code{"transform"} fits one fixed Gaussian working response
-(\code{log(y+1)} for Poisson, rank-normal scores for binary); its
-coefficients are on an uncalibrated working scale and are mainly useful
-for direction/ranking checks. A directed \code{R > 0} IRLS fit uses the
-hybrid low-rank solver internally because the IRLS weights are unbalanced.
-Uncertainty for either path comes from the bootstrap or sandwich
-covariance.}
-
-\item{link}{link for \code{non_normal_method = "irls"} with a \code{binary}
-family: \code{"probit"} (default; matches \code{\link{ame}}/\code{\link{lame}})
+\item{link}{link of a \code{binary} fit: \code{"probit"} (default; matches \code{\link{ame}}/\code{\link{lame}})
 or \code{"logit"}. \code{poisson} always uses the log link;
 ignored otherwise.}
 
@@ -124,34 +94,28 @@ well-conditioned designs.}
 (default) fits from a single deterministic start; \code{"cheap"} (4 starts)
 and \code{"full"} (8 starts) also try random low-rank starts and keep the
 converged start with the lowest value of the criterion, evaluated at that
-start's own scales: for an IRLS fit the penalised deviance, which carries
-the factor penalty with its scale parameters (\code{"penalised
-  deviance"}), and for an empirical-Bayes fit with a latent rank the
-Laplace marginal likelihood of the start, minus twice its logarithm
-(\code{"Laplace marginal likelihood"}; see \strong{Choosing the rank}),
-which integrates the effects and the factors and does not move with the
-scale of a factor column the data do not use (with the default variational
-stage every start is refined, and starts of different modes end at the same
-variational fit, so they neither differ in \code{multistart_distance} nor
-warn). An empirical-Bayes start
-without it is rated by the penalised deviance plus the penalty of the
-actor effects, the log determinant of their information and the
-hyperprior of their covariance (\code{"empirical-Bayes objective"}). The
-raw deviance is not compared: it always favours the least-shrunk optimum,
-the one with the largest
-scales. Other fits keep the lowest working SSE. The criterion
-(\code{multistart_criterion}), its value for each start
-(\code{multistart_sse}; for an empirical-Bayes fit it includes the
-hyperprior, which \code{objective} leaves out, or is the marginal
-likelihood), each start's
-observed-data deviance (\code{multistart_deviance}, IRLS fits), its
-distance from the kept start (\code{multistart_distance}, IRLS fits) and
-its convergence are recorded. The distance is the squared difference of
-the two fitted linear predictors, weighted by the mean of the two IRLS
-weights and summed over the observed cells: an approximation of the
-change in the deviance between the two fits. An IRLS fit warns of
-materially different local optima when a converged start is more than one
-deviance unit away from the kept one. Starts that end at the same fitted
+start's own scales: the Laplace marginal likelihood of the start, minus
+twice its logarithm (\code{"Laplace marginal likelihood"}; see
+\strong{Choosing the rank}), which integrates the effects and the factors
+and does not move with the scale of a factor column the data do not use
+(with the default variational stage every start is refined, and starts of
+different modes end at the same variational fit, so they neither differ in
+\code{multistart_distance} nor warn). When a converged start has no
+marginal likelihood the starts are rated by the empirical-Bayes objective,
+the penalised deviance plus the penalty of the actor effects, the log
+determinant of their information and the hyperprior of their covariance
+(\code{"empirical-Bayes objective"}). The raw deviance is not compared: it
+always favours the least-shrunk optimum, the one with the largest scales.
+The criterion (\code{multistart_criterion}), its value for each start
+(\code{multistart_sse}; the objective includes the hyperprior, which
+\code{objective} leaves out), each start's observed-data deviance
+(\code{multistart_deviance}), its distance from the kept start
+(\code{multistart_distance}) and its convergence are recorded. The
+distance is the squared difference of the two fitted linear predictors,
+weighted by the mean of the two IRLS weights and summed over the observed
+cells: an approximation of the change in the deviance between the two
+fits. The fit warns of materially different local optima when a converged
+start is more than one deviance unit away from the kept one. Starts that end at the same fitted
 values can still differ in the penalised objective, which depends on the
 scales of the factors, and those settle more slowly than the fitted values
 (the Laplace marginal likelihood differs far less); that difference does
@@ -162,59 +126,29 @@ distance of each start's multiplicative surface from the kept start's
 across the starts can be read from the fit. Reproducible given
 \code{seed}; the global RNG stream is left unchanged.}
 
-\item{bias_correct}{how an ALS fit deals with the finite-sample
-(incidental-parameter) bias of a fixed-effects fit.
-\code{NULL} (default) fits \code{normal} models, and \code{binary} and
-\code{poisson} models on the IRLS path, by the empirical-Bayes estimator
-(\code{"eb"}), for directed, bipartite and undirected networks, with or
-without a latent rank: a Gaussian prior on the additive effects with its
-covariance estimated from the data, coefficients that solve the
-Laplace-marginal equations, and Laplace standard errors from \code{vcov()}
-for every coefficient (see \strong{Empirical-Bayes estimator}, \strong{Normal data}
-and \strong{Counts} in Details). A normal response is fitted as the model that
-\code{\link{ame}} and \code{\link{lame}} sample, with an exact Gaussian cell, and a count
-network as the Poisson-lognormal model that \code{\link{ame}}
-and \code{\link{lame}} sample. Other families are not corrected.
-\code{"eb"} asks for the empirical-Bayes estimator explicitly; it is an
-error (class \code{"lame_als_eb"}) for another family and for a binary or count fit with
-\code{non_normal_method = "transform"}. (The dynamic routes of
-\code{lame(method = "als")} have their own empirical-Bayes estimator for
-normal, binary and Poisson panels; see \code{bias_correct} in \code{\link{lame}}.)
-\code{"none"} returns the fixed-effects fit at any size and records the
-request (for a normal response, the least-squares fit of the earlier releases
-with the conditional sandwich covariance of the dyadic coefficients; for counts, the fit of the earlier releases, in which the effect
-of an actor without a count on a side runs to minus infinity); \code{"jackknife"} requires the split-sample correction of that
-fit, for any family, and is an error where it cannot be computed;
-\code{"bootstrap"} requires the parametric-bootstrap correction of a
-binary IRLS fit at any size. See \strong{Split-sample bias correction},
-\strong{Parametric-bootstrap bias correction} and \strong{Size boundary}
-in Details. A corrected fit keeps the uncorrected values in
-\code{fit$raw} and records the correction in \code{fit$bias_correct}; an
-empirical-Bayes fit records \code{method = "eb"} (\code{default = TRUE}
-when it was the default) and refits nothing.}
-
 \item{bootstrap}{integer: if > 0, additionally run \code{bootstrap} replicates
 of the parametric or block bootstrap (via \code{\link{ame_als_bootstrap}})
-after the point fit and attach the result as \code{fit$bootstrap}. The
-downstream accessors (\code{\link{confint.ame_als}}, \code{summary},
-\code{print}) then surface bootstrap intervals instead of the
-anti-conservative sandwich Wald intervals. At least 30 replicates are
-needed: a smaller positive number is an error of class
-\code{"lame_als_bootstrap_replicates"} raised before anything is fitted.
-A binary network fitted with \code{bias_correct = "none"} has no
-bootstrap (an error of class \code{"lame_als_bootstrap_bias"}, also
-raised before anything is fitted): see \code{\link{ame_als_bootstrap}}.
-Default \code{0} (no
-bootstrap) -- bootstrap is expensive, so it is not imposed on a user
-who just wants a quick fit.}
+after the fit and attach the result as \code{fit$bootstrap}. The
+downstream accessors (\code{\link{vcov.ame_als}},
+\code{\link{confint.ame_als}}, \code{summary}, \code{print}) then report the
+bootstrap standard errors and intervals of the coefficients; a quantity the
+bootstrap gives none for keeps its analytic error, and
+\code{fit$bootstrap$se_source} names it with the reason. At least 30
+replicates are needed: a smaller positive number is an error of class
+\code{"lame_als_bootstrap_replicates"} raised before anything is fitted. A
+bootstrap that cannot run on the fitted model (too few valid replicates,
+for example) leaves the fit with its analytic standard errors and a message
+(class \code{"lame_als_bootstrap_not_run"}); \code{fit$meta$bootstrap_not_run}
+records the reason. Default \code{0} (no bootstrap): every fit already
+carries analytic standard errors.}
 
 \item{bootstrap_type}{character: \code{"parametric"} (default) or
 \code{"block"} -- the bootstrap scheme to use when \code{bootstrap > 0}.
-The block scheme returns no standard error or interval for the
-parameters that resampling time slices cannot vary (the node-covariate
-coefficients and the variance components of the actor effects, among
-others; \code{fit$bootstrap$withheld} lists them with the reason), and
-the parametric scheme gives them; see \code{\link{ame_als_bootstrap}}.}
+The block scheme gives no replicate standard error for the parameters that
+resampling time slices cannot vary (the node-covariate coefficients and the
+variance components of the actor effects, among others), which keep their
+analytic errors; on a panel too short for ten blocks it runs the parametric
+scheme, with a message. See \code{\link{ame_als_bootstrap}}.}
 
 \item{bootstrap_block_length}{integer: block length for the block
 bootstrap; only used when \code{bootstrap_type = "block"}.}
@@ -233,21 +167,20 @@ not depend on it.}
 \item{dcor}{logical; whether a directed binary probit, Poisson or normal fit models the
 dyadic correlation of the latent errors of the two cells of a dyad, as
 \code{\link{ame}} and \code{\link{lame}} do with their \code{dcor = TRUE}.
-The default is \code{!symmetric}, the default of the samplers. With the
-empirical-Bayes estimator (the default of a binary fit) the correlation is
+The default is \code{!symmetric}, the default of the samplers. For a binary
+fit the correlation is
 part of the model that is fitted: the two cells of a dyad are one bivariate
 probit observation, \code{fit$VC["rho"]} is the correlation of that model, and the
 factors, the standard errors and the predictions are those of the model
 (see \strong{Dyadic correlation} in Details). \code{dcor = FALSE} fits
-independent cells, the model of the earlier release, and reports the
-correlation of the pairs of cells at the fitted predictor as before. A
+independent cells and reports the correlation of the pairs of cells at the
+fitted predictor. A
 directed count fit takes the pairs at its fitted state (see
 \strong{Dyadic correlation of counts} in Details), and a directed normal
 fit takes the two cells of a dyad as one bivariate normal observation, in
 closed form (see \strong{Dyadic correlation of normal data} in Details; it
 costs 1.3 to 1.6 times the independent-cell fit). A fit
-that has no pair likelihood (undirected and bipartite networks, the other
-estimators of a binary fit, and the fixed-effects normal fit) keeps its own estimate of
+that has no pair likelihood (undirected and bipartite networks) keeps its own estimate of
 \code{rho}; an explicit \code{dcor = TRUE} with the logit link is an error,
 because the latent correlation is that of normal errors. The pair
 likelihood of a binary or count fit costs 1 to 2.5 times the independent-cell fit for one period and
@@ -262,8 +195,9 @@ or with \code{dcor = FALSE}.}
 
 \item{prior}{\code{NULL} or a named list of priors. The estimators read one key, \code{s20}, the scale of the
 inverse-gamma prior of the variance of the noise of a Poisson or a normal fit (one degree of freedom on \code{s20};
-the default is 1 for counts and the variance of the observed responses for a normal response, the priors \code{\link{ame}} and
-\code{\link{lame}} draw it under). The other keys of the
+by default a normal response has the variance of the observed responses, the prior \code{\link{ame}} and
+\code{\link{lame}} draw it under, and a count has no scale on the variance (zero degrees of freedom,
+so no value pulls it). The other keys of the
 samplers' prior list have no counterpart in the estimators; they are reported and ignored. The prior of the
 multiplicative effects of a directed network is the samplers' default (\code{\link{ame}}, \code{Suv0}
 and \code{kappa0}).}
@@ -272,15 +206,18 @@ and \code{kappa0}).}
 An object of class \code{"ame_als"}; see \code{\link{ame_als}},
 including the per-start fields (\code{multistart_coefficients},
 \code{multistart_product_distance} and the others) that a fit with
-\code{multistart} records.
+\code{multistart} records. Named actors are returned sorted by name, as
+\code{\link{lame}} returns them; covariates named with the same actors
+are matched to them by name.
 }
 \description{
 Fits an additive and multiplicative effects (AME) model to a longitudinal
 (replicated) network by \strong{iterative block coordinate descent},
-producing a fast point estimate with no MCMC and no credible intervals. For
-normal, binary and Poisson data the default is an empirical-Bayes / variational
+producing a fast fit without MCMC that reports a standard error for every
+estimate. For
+normal, binary and Poisson data it is an empirical-Bayes / variational
 estimator of the model that \code{\link{lame}} samples (see
-\code{bias_correct}); its \code{vcov()} and \code{confint()} are Laplace
+\code{\link{ame_als}}); its \code{vcov()} and \code{confint()} are Laplace
 approximations.
 This is the longitudinal counterpart of \code{\link{ame_als}}; the
 estimated effects (\code{mu}, \code{beta}, \code{a}, \code{b}, \code{U},
@@ -293,6 +230,15 @@ estimator of the Social Influence Regression model of Hoff & Minhas
 not original \pkg{lame} methodology. See \code{\link{ame_als}} for the
 algorithm details.
 }
+\section{Sparse and dense binary networks}{
+
+A binary panel whose observed density \eqn{d} (the share of
+observed cells that are ties, the diagonal of a one-mode network left out, pooled over the periods)
+has \eqn{\min(d, 1 - d) < 0.20} is fitted by the fast route with a warning (class
+\code{"lame_fast_binary_density"}): there its slopes are pulled toward zero, its intercept is biased and its
+intervals cover less often than stated, and the sampler (\code{\link{lame}}) is the better choice.
+}
+
 \examples{
 Y <- replicate(4, { m <- matrix(rnorm(400), 20, 20); diag(m) <- NA; m },
                simplify = FALSE)

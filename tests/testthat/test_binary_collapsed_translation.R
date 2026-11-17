@@ -131,3 +131,136 @@ test_that('collapsed actor translation preserves the full prior including coordi
 		expect_true(all(is.finite(mcse))); expect_lt(max(abs(mcse)), 6)
 	}
 })
+
+# fixture with the rw1 intercept path of dynamic_ab: the step sees its first state and shifts the whole path
+.collapsed_translation_path_fixture = function() {
+	f = .collapsed_translation_fixture()
+	n = 5L; nt = 3L; v0 = 1.7; sb = .45
+	draw = function(bound = Inf) {
+		x = f$draw(bound)
+		x$path = cumsum(c(rnorm(1, 0, sqrt(v0)), rnorm(nt - 1L, 0, sb)))
+		x$beta = NULL
+		x
+	}
+	step = function(x, bound = Inf) {
+		arg = .lame_translation_path_prior(x$path, v0)
+		y = .lame_binary_dynamic_translation_collapsed_step(
+			x$U,
+			x$V,
+			x$margin,
+			x$level,
+			x$other_level,
+			arg$beta,
+			arg$iV0,
+			f$ru,
+			f$su,
+			f$ra,
+			f$sa,
+			f$Sab,
+			2L,
+			bound
+		)
+		y$path = x$path + (y$beta[1L] - arg$beta[1L])
+		y$beta = NULL
+		y$V = x$V
+		y$other_level = x$other_level
+		y
+	}
+	predictor = function(x) sapply(seq_len(nt), function(t) {
+		c(tcrossprod(x$U[, , t], x$V[, , t]) + matrix(x$margin[, t], n, n, byrow = TRUE) + x$path[t])
+	})
+	statistic = function(x) c(
+		x$path,
+		x$path[1]^2,
+		diff(x$path)^2,
+		mean(x$U),
+		mean(x$U^2),
+		x$margin[1, 1],
+		mean(x$margin^2),
+		mean(x$U) * x$path[2],
+		x$level[1],
+		mean(x$level^2),
+		mean((x$margin - x$level)^2)
+	)
+	path_density = function(x) -.5 * (x$path[1]^2 / v0 + sum(diff(x$path)^2) / sb^2)
+	list(
+		f = f,
+		draw = draw,
+		step = step,
+		predictor = predictor,
+		statistic = statistic,
+		path_density = path_density,
+		v0 = v0
+	)
+}
+
+test_that('collapsed actor translation of an rw1 intercept path agrees with the dense marginal Gaussian target', {
+	p = .collapsed_translation_path_fixture(); f = p$f
+	x = p$draw()
+	arg = .lame_translation_path_prior(x$path, p$v0)
+	z = .lame_binary_dynamic_translation_collapsed_system(
+		x$U,
+		x$V,
+		x$margin,
+		x$other_level,
+		arg$beta,
+		arg$iV0,
+		f$ru,
+		f$su,
+		f$ra,
+		f$sa,
+		f$Sab,
+		2L
+	)
+	q = rnorm(ncol(z$basis))
+	y = .lame_binary_dynamic_translation_apply(x$U, x$V, x$margin, arg$beta, z$basis, q)
+	y$path = x$path + (y$beta[1L] - arg$beta[1L])
+	y$V = x$V
+	y$other_level = x$other_level
+	expect_equal(p$predictor(x), p$predictor(y), tolerance = 1e-10)
+	# gaussian part without the static intercept term, plus the full path prior
+	dens = function(s) {
+		s$beta = c(0, 0)
+		f$density(s) + p$path_density(s)
+	}
+	expect_equal(
+		dens(y) - dens(x),
+		-sum(q * z$score) - drop(q %*% z$precision %*% q) / 2,
+		tolerance = 1e-10
+	)
+})
+
+test_that('collapsed actor translation preserves the prior of an rw1 intercept path and the full prior', {
+	skip_on_cran()
+	p = .collapsed_translation_path_fixture()
+	N = 3000L
+	d = replicate(N, { x = p$draw(); y = p$step(x); p$statistic(y) - p$statistic(x) })
+	mcse = rowMeans(d) / (apply(d, 1, sd) / sqrt(N))
+	expect_true(all(is.finite(mcse))); expect_lt(max(abs(mcse)), 6)
+	# a step that mis-states the prior of the first state moves the path off its law
+	bad = replicate(N, {
+		x = p$draw()
+		arg = .lame_translation_path_prior(x$path, p$v0 / 1e3)
+		y = .lame_binary_dynamic_translation_collapsed_step(
+			x$U,
+			x$V,
+			x$margin,
+			x$level,
+			x$other_level,
+			arg$beta,
+			arg$iV0,
+			p$f$ru,
+			p$f$su,
+			p$f$ra,
+			p$f$sa,
+			p$f$Sab,
+			2L,
+			Inf
+		)
+		y$path = x$path + (y$beta[1L] - arg$beta[1L])
+		y$V = x$V
+		y$other_level = x$other_level
+		p$statistic(y) - p$statistic(x)
+	})
+	expect_gt(max(abs(rowMeans(bad) / (apply(bad, 1, sd) / sqrt(N)))), 6)
+})

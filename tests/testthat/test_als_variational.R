@@ -53,41 +53,33 @@ vb_fit = function(d, R = 1, ...) {
 	))
 }
 
-# the posterior mode with the Laplace correction, the stage the variational fit starts from
-vb_mode = function(d, R = 1) {
+# the posterior mode the variational fit starts from: its state, prior and weights
+vb_start = function(d, R = 1) {
 	md = if (d$kind == "bipartite") "bipartite" else "unipartite"
+	sym = d$kind == "symmetric"
 	Y = if (d$Tt == 1L) d$Y[[1]] else d$Y
 	X = if (d$Tt == 1L) d$X[[1]] else d$X
-	suppressWarnings(suppressMessages(lame:::.ae_run(
-		Y,
-		X,
-		NULL,
-		NULL,
-		R,
+	prep = suppressMessages(lame:::.ae_prepare(Y, X, NULL, NULL, md, d$Tt > 1L, symmetric = sym))
+	ab = lame:::.ae_eb_prior(prep, sym, "binary")
+	ir = suppressWarnings(lame:::.ae_irls_run(
+		prep,
 		"binary",
-		md,
-		d$kind == "symmetric",
+		"probit",
+		R,
+		sym,
 		200,
 		1e-6,
-		FALSE,
-		6886,
-		longitudinal = d$Tt > 1L,
-		call = quote(vb_mode()),
-		lowrank_method = "mm",
-		non_normal_method = "irls",
-		link = "probit",
-		linear_solver = "eigen",
-		multistart = "none",
-		bias_correct = NULL,
-		eb_posterior = "mode"
-	)))
+		lowrank_method = if (sym || R == 0L) "mm" else "als",
+		ab_prior = ab,
+		vcov_mode = "coef"
+	))
+	list(prep = prep, ab = ab, ir = ir, fit = ir$fit, w = ir$W)
 }
 
-# the engine on a mode fit: the state, the context and the iteration record
+# the engine on the mode: the state, the context and the iteration record
 vb_engine = function(d, R = 1, ...) {
-	f = vb_mode(d, R)
-	st = lame:::.ae_eb_state(f)
-	lame:::.ae_mf_fit(st$prep, st$fit, st$ab, st$R, d$kind == "symmetric", "probit", st$w, ...)
+	st = vb_start(d, R)
+	lame:::.ae_mf_fit(st$prep, st$fit, st$ab, R, d$kind == "symmetric", "probit", st$w, ...)
 }
 
 test_that("a variational fit records its estimator, its iteration and its lower bound", {
@@ -105,19 +97,14 @@ test_that("a variational fit records its estimator, its iteration and its lower 
 		)
 		expect_identical(v$start, "posterior mode")
 		# rank evidence is the Laplace marginal likelihood of the mode; the variational lower bound is kept beside it
-		md = vb_mode(d)
-		expect_equal(fit$eb$log_marginal, md$eb$log_marginal, tolerance = 1e-10, info = kind)
 		expect_equal(fit$eb$log_marginal, v$mode_log_marginal, info = kind)
-		expect_equal(lame:::.ae_eb_evidence(fit)$log_marginal, fit$eb$log_marginal, info = kind)
-		expect_equal(lame:::.ae_mf_elbo_object(fit)$elbo, v$elbo, tolerance = 1e-6, info = kind)
+		expect_equal(.ae_eb_evidence(fit)$log_marginal, fit$eb$log_marginal, info = kind)
+		expect_equal(.ae_mf_elbo_object(fit)$elbo, v$elbo, tolerance = 1e-6, info = kind)
 		expect_lt(v$elbo, v$ell)
 		expect_true(fit$converged, info = kind)
 		fp = fit$eb$factor_posterior
 		expect_identical(dim(fp$Sig), c(1L, 1L, as.integer(d$n)), info = kind)
 		expect_true(all(fp$Sig > 0), info = kind)
-		# the mode it starts from is the Laplace estimator
-		expect_identical(vb_mode(d)$eb$estimator, "laplace", info = kind)
-		expect_null(vb_mode(d)$eb$variational, info = kind)
 	}
 	# a fit without a latent rank is variational too, without factors
 	fit0 = vb_fit(vb_panel("directed", seed = 4), R = 0)
@@ -201,7 +188,7 @@ test_that("a variational fit is a stationary point of its objective and the mode
 	res = vb_engine(d, 1, tol = 1e-9, max_iter = 3000L)
 	expect_true(res$converged)
 	cx = res$cx
-	st = lame:::.ae_eb_state(vb_mode(d, 1))
+	st = vb_start(d, 1)
 	S0 = lame:::.ae_mf_init(cx, st$fit, st$w)
 	val = function(S) {
 		ev = lame:::.ae_mf_evaluate(cx, S)
@@ -368,7 +355,7 @@ test_that("an undirected variational fit keeps the sign pattern of the mode and 
 	skip_on_cran()
 	d = vb_panel("symmetric", n = 24, R = 2, seed = 9)
 	fit = vb_fit(d, R = 2)
-	md = vb_mode(d, 2)
+	md = vb_start(d, 2)$fit
 	expect_identical(fit$eb$estimator, "variational")
 	expect_identical(sign(fit$L), sign(md$L))
 	expect_true(isSymmetric(unname(fit$UVPM), tol = 1e-8))
@@ -376,7 +363,8 @@ test_that("an undirected variational fit keeps the sign pattern of the mode and 
 	expect_equal(crossprod(fit$U), diag(2), tolerance = 1e-8, ignore_attr = TRUE)
 	fp = fit$eb$factor_posterior
 	expect_identical(fp$prior$kind, "columns")
-	expect_equal(unname(fit$UVPM), unname(tcrossprod(sweep(fp$F, 2L, fp$sg, "*"), fp$F)), tolerance = 1e-8)
+	# the factor posterior is that of the fitted state, which the report centres
+	expect_equal(unname(lame:::.ae_product_restore(fit)$UVPM), unname(tcrossprod(sweep(fp$F, 2L, fp$sg, "*"), fp$F)), tolerance = 1e-8)
 	# a rank with a negative eigenvalue
 	set.seed(10)
 	n = 24; nm = sprintf("a%02d", 1:n)
@@ -395,16 +383,7 @@ test_that("an undirected variational fit keeps the sign pattern of the mode and 
 	)
 	fn = vb_fit(dn, R = 2)
 	expect_identical(sort(sign(fn$L)), c(-1, 1))
-	expect_identical(sign(fn$L), sign(vb_mode(dn, 2)$L))
-})
-
-test_that("the variational and the Laplace fit agree without a latent rank", {
-	for (kind in c("directed", "bipartite", "symmetric")) {
-		d = vb_panel(kind, n = 30, R = 0, seed = 11)
-		vb = vb_fit(d, R = 0); md = vb_mode(d, 0)
-		expect_equal(unname(coef(vb)), unname(coef(md)), tolerance = 0.06, info = kind)
-		expect_equal(unname(vb$eb$sab), unname(md$eb$sab), tolerance = 0.15, info = kind)
-	}
+	expect_identical(sign(fn$L), sign(vb_start(dn, 2)$fit$L))
 })
 
 test_that("a refit of a variational fit starts from the fit and agrees with it", {
@@ -448,8 +427,8 @@ test_that("the lower bound prefers the rank the data carry", {
 test_that("a rank above the generating one does not inflate the slope as the mode does", {
 	skip_on_cran()
 	d = vb_panel("directed", n = 40, R = 0, seed = 16, mu = -1)
-	vb = vb_fit(d, R = 2); md = vb_mode(d, 2); r0 = vb_fit(d, R = 0)
-	expect_lt(abs(coef(vb)["x_dyad"] - coef(r0)["x_dyad"]), 0.75 * abs(coef(md)["x_dyad"] - coef(r0)["x_dyad"]))
+	vb = vb_fit(d, R = 2); md = vb_start(d, 2)$fit; r0 = vb_fit(d, R = 0)
+	expect_lt(abs(coef(vb)["x_dyad"] - coef(r0)["x_dyad"]), 0.75 * abs(md$beta[1] - coef(r0)["x_dyad"]))
 })
 
 test_that("a longitudinal and a bipartite variational fit predict and summarise", {
@@ -468,15 +447,13 @@ test_that("a longitudinal and a bipartite variational fit predict and summarise"
 	}
 })
 
-test_that("the mode is available as the estimator and is unchanged by the refinement code", {
+test_that("the certificate of a variational fit is the one of the mode it starts from", {
 	d = vb_panel("directed", n = 14, R = 1, seed = 18)
-	md = vb_mode(d, 1)
-	expect_identical(md$eb$estimator, "laplace")
-	expect_true(isTRUE(md$irls_diagnostics$pass))
+	md = vb_start(d, 1)$ir
+	expect_true(isTRUE(md$stationarity$pass))
 	vb = vb_fit(d, R = 1)
-	# the certificate of the variational fit is the one of the mode it started from
 	expect_true(isTRUE(vb$irls_diagnostics$pass))
-	expect_equal(vb$irls_diagnostics$max_score, md$irls_diagnostics$max_score)
-	# the mode and the variational fit differ in the product they report
-	expect_gt(max(abs(lame:::.ae_product_restore(vb)$UVPM - md$UVPM), na.rm = TRUE), 1e-4)
+	expect_equal(vb$irls_diagnostics$max_score, md$stationarity$max_score)
+	# the mode and the variational fit differ in the product
+	expect_gt(max(abs(lame:::.ae_product_restore(vb)$UVPM - md$fit$Omat), na.rm = TRUE), 1e-4)
 })

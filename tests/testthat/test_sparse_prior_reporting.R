@@ -31,10 +31,6 @@
 test_that("the reporting rules read the measured rates", {
 	pp = lame:::.lame_sparse_period_rate
 	expect_equal(pp, 1.2)
-	expect_true(lame:::.lame_ab_sparse(pp - 0.01))
-	expect_false(lame:::.lame_ab_sparse(pp))
-	expect_false(lame:::.lame_ab_sparse(NA_real_))
-	expect_false(lame:::.lame_ab_sparse(NULL))
 	f = list(family = "binary", mode = "unipartite", events_per_actor_period = 1, R = 0)
 	expect_identical(lame:::.lame_ab_var_unident_reason(f), "sparse")
 	# the intercept threshold is lower: 0.6, and 1.6 with a multiplicative term

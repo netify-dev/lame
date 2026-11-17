@@ -13,6 +13,7 @@
 # prior roots of the paths: stationary start N(0, sigma^2 / (1 - rho^2)), innovation sd sigma
 .lame_npm_root <- function(N, rho, sigma) {
 	ch <- tryCatch(chol(.lame_dpm_cov(N, rho, sigma)), error = function(e) NULL)
+	if (is.null(ch)) .lame_fallback_note('nomination_path')
 	if (is.null(ch)) NULL else t(ch)
 }
 

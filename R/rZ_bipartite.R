@@ -18,7 +18,7 @@
 #' @param ub upper bounds (recycled to \code{length(ez)}).
 #' @return vector of truncated-normal draws, same length as \code{ez}.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
-#' @keywords internal
+#' @noRd
 rtnorm_interval_logp <- function(ez, lb, ub) {
 	m <- length(ez)
 	lb <- rep_len(lb, m)
@@ -78,7 +78,7 @@ rtnorm_interval_logp <- function(ez, lb, ub) {
 #'   or matrix conformable with Y). Default \code{0}.
 #' @return updated \code{nA x nB} latent matrix.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
-#' @keywords internal
+#' @noRd
 rZ_pois_bip_fc <- function(Z, EZ, s2, Y, log_exposure = 0) {
 	nA <- nrow(Z); nB <- ncol(Z)
 	# random-walk proposal
@@ -121,7 +121,7 @@ rZ_pois_bip_fc <- function(Z, EZ, s2, Y, log_exposure = 0) {
 #' @param Y observed ordinal matrix (nA x nB).
 #' @return updated nA x nB latent matrix.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
-#' @keywords internal
+#' @noRd
 rZ_ord_bip_fc <- function(Z, EZ, Y) {
 	uY <- sort(unique(c(Y)))
 	nA <- nrow(Y); nB <- ncol(Y)
@@ -161,7 +161,7 @@ rZ_ord_bip_fc <- function(Z, EZ, Y) {
 #'   nomination slots, so its non-nominated cells are held below zero.
 #' @return updated nA x nB latent matrix.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
-#' @keywords internal
+#' @noRd
 rZ_cbin_bip_fc <- function(Z, EZ, Y, odmax, odobs) {
 	Z <- .lame_nom_feasible(Z, Y, NULL, odmax, odobs, TRUE)
 	# rows with hidden cells: as in rZ_cbin_fc (see R/rZ_nomination_hidden.R)
@@ -248,7 +248,7 @@ rZ_cbin_bip_fc <- function(Z, EZ, Y, odmax, odobs) {
 #'   nomination slots, so its non-nominated cells are held below zero.
 #' @return updated nA x nB latent matrix.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
-#' @keywords internal
+#' @noRd
 rZ_frn_bip_fc <- function(Z, EZ, Y, YL, odmax, odobs) {
 	Z <- .lame_nom_feasible(Z, Y, YL, odmax, odobs, TRUE)
 	# rows with hidden cells: as in rZ_frn_fc (see R/rZ_nomination_hidden.R)

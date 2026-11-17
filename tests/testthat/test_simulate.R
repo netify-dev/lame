@@ -5,47 +5,6 @@ skip_on_cran()
 library(testthat)
 library(lame)
 
-test_that("simulate.ame works for binary networks", {
-	# data and a fit
-	data(YX_bin)
-	set.seed(6886)
-
-	# a simple binary ame model
-	fit = ame(
-		YX_bin$Y,
-		YX_bin$X[, , 1:2],
-		burn = 20,
-		nscan = 30,
-		odens = 10,
-		family = "binary",
-		verbose = FALSE
-	)
-
-	# basic simulation
-	sims = simulate(
-		fit,
-		nsim = 5,
-		seed = 456,
-		newdata = list(Xdyad = YX_bin$X[, , 1:2])
-	)
-
-	expect_s3_class(sims, "ame.sim")
-	expect_equal(length(sims$Y), 5)
-	expect_equal(sims$family, "binary")
-	expect_equal(sims$mode, "unipartite")
-
-	# dimensions of the simulated networks
-	expect_equal(dim(sims$Y[[1]]), dim(YX_bin$Y))
-
-	# binary networks hold only 0, 1 and NA
-	vals = unique(as.vector(sims$Y[[1]]))
-	vals = vals[!is.na(vals)]
-	expect_true(all(vals %in% c(0, 1)))
-
-	# the diagonal is NA (unipartite)
-	expect_true(all(is.na(diag(sims$Y[[1]]))))
-})
-
 test_that("simulate.ame captures uncertainty", {
 	# data and a fit
 	data(YX_bin)
@@ -308,17 +267,15 @@ test_that("simulate() on a fit without saved draws stops unless the approximatio
 		gof = FALSE,
 		posterior_opts = posterior_options()
 	))
-	for (ty in c("posterior", "auto")) {
-		e = expect_error(simulate(fit, nsim = 2, type = ty), class = "lame_simulate_draws")
-		expect_match(conditionMessage(e), "approximate")
-		expect_match(conditionMessage(e), "posterior_options")
-	}
+	e = expect_error(simulate(fit, nsim = 2, type = "posterior"), class = "lame_simulate_draws")
+	expect_match(conditionMessage(e), "approximate")
+	expect_match(conditionMessage(e), "posterior_options")
 	expect_error(simulate(fit, nsim = 2), class = "lame_simulate_draws")
 	expect_error(simulate(fit, nsim = 2), class = "lame_predictive_draws")
 	sims = simulate(fit, nsim = 2, type = "approximate", seed = 1)
 	expect_identical(sims$method, "conditional approximation")
 	expect_length(sims$Y, 2L)
-	# a fit that kept its draws is simulated from them by default, and "auto" is the same route
+	# a fit that kept its draws is simulated from them by default
 	fit2 = suppressWarnings(ame(
 		Y,
 		family = "normal",
@@ -331,7 +288,6 @@ test_that("simulate() on a fit without saved draws stops unless the approximatio
 	))
 	a = simulate(fit2, nsim = 3, seed = 4)
 	expect_identical(a$method, "joint posterior")
-	expect_identical(simulate(fit2, nsim = 3, seed = 4, type = "auto")$Y, a$Y)
 	# a panel: an extended n_time and start_from belong to the approximation
 	Yl = list(Y, Y + rnorm(n * n, 0, .1)); Yl = lapply(Yl, function(y) { diag(y) = NA; y })
 	fl = suppressWarnings(lame(
@@ -481,4 +437,46 @@ test_that("approximate simulation builds newdata designs with the intercept and 
 	expect_gt(cor(as.vector(s_new$Y[[1]][[1]]), as.vector(X[[1]][, , 1]), use = "complete.obs"), 0.8)
 	# with the covariate at zero the intercept is still in the predictor
 	expect_gt(sim_mean(s_zero), 0.5)
+})
+
+test_that("simulate() function uses stored X correctly", {
+	set.seed(6886)
+	n = 10
+
+	X = matrix(rnorm(n * n, 0, 0.5), n, n)
+	diag(X) = NA
+	Y = 2 + 1.5 * X + matrix(rnorm(n * n, 0, 0.3), n, n)
+	diag(Y) = NA
+
+	fit = ame(
+		Y,
+		Xdyad = X,
+		R = 0,
+		family = "normal",
+		burn = 200,
+		nscan = 400,
+		verbose = FALSE
+	)
+
+	# simulate with stored covariates
+	warnings_seen = new.env(parent = emptyenv())
+	warnings_seen$value = character()
+	withCallingHandlers({
+		sims = simulate(fit, nsim = 10, seed = 123)
+	}, warning = function(w) {
+		warnings_seen$value = c(warnings_seen$value, conditionMessage(w))
+		invokeRestart("muffleWarning")
+	})
+
+	expect_false(
+		any(grepl("covariates not stored", warnings_seen$value)),
+		label = "Should not warn about missing X when X is stored"
+	)
+
+	sim_mean = Reduce(`+`, sims$Y) / length(sims$Y)
+
+	expect_true(
+		abs(mean(sim_mean, na.rm = TRUE) - mean(Y, na.rm = TRUE)) < 1,
+		info = "Simulated mean should be close to original"
+	)
 })

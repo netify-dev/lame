@@ -1,41 +1,5 @@
 # guards for silent wrong answers and crashes in predict, fit storage, plotting and the bipartite samplers
 
-# predict.ame(newdata=) applies each covariate's own coefficient: the training Xdyad reproduces the in-sample
-# linear predictor, and a covariate shift moves it by that covariate's coefficient alone
-test_that("predict.ame newdata reproduces in-sample EZ with nodal covariates", {
-	skip_on_cran()
-	set.seed(1); n = 15
-	Y = matrix(rbinom(n * n, 1, 0.3), n, n); diag(Y) = NA
-	rownames(Y) = colnames(Y) = paste0("a", seq_len(n))
-	Xd = array(rnorm(n * n * 2), c(n, n, 2), dimnames = list(NULL, NULL, c("d1", "d2")))
-	Xr = matrix(rnorm(n * 2), n, 2, dimnames = list(NULL, c("r1", "r2")))
-	Xc = matrix(rnorm(n * 2), n, 2, dimnames = list(NULL, c("c1", "c2")))
-	fit = ame(
-		Y,
-		Xdyad = Xd,
-		Xrow = Xr,
-		Xcol = Xc,
-		family = "binary",
-		R = 1,
-		burn = 50,
-		nscan = 300,
-		odens = 5,
-		verbose = FALSE
-	)
-	ez_in = predict(fit, type = "link")
-	ez_new = predict(fit, type = "link", newdata = Xd)
-	expect_lt(max(abs(ez_in - ez_new), na.rm = TRUE), 1e-8)
-	# counterfactual: +2 on d1 moves the link by exactly 2 * beta_d1_dyad
-	bm = colMeans(fit$BETA)
-	Xd_up = Xd; Xd_up[, , 1] = Xd_up[, , 1] + 2
-	ez_up = predict(fit, type = "link", newdata = Xd_up)
-	expect_equal(
-		mean(ez_up - ez_new, na.rm = TRUE),
-		unname(2 * bm["d1_dyad"]),
-		tolerance = 1e-6
-	)
-})
-
 # a symmetric fit stores one merged <v>_node coefficient per nodal covariate while the design keeps the <v>_row and
 # <v>_col slices, so the rebuilt design pairs the coefficient with both slices by name
 test_that("predict.ame newdata reproduces in-sample EZ on a symmetric fit with nodal covariates", {

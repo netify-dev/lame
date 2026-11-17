@@ -1,7 +1,8 @@
 # chain policy of ame() and lame(): continue a chain that is still moving at the end of the
 # post-burn run, and refuse with a classed error if it still moves after the extensions
 
-# thresholds of the check (see .lame_chain_moving)
+# thresholds of the check (see .lame_chain_moving): the smallest standardised difference flagged
+# (raised to the Sidak bound of the series tested, see .lame_chain_z_bound) and the smallest shift
 .lame_chain_z_max <- 3
 .lame_chain_sd_min <- 0.5
 .lame_chain_n_batch <- 10L
@@ -14,8 +15,6 @@
 	hidden <- character(0)
 	if (!is.na(reason)) hidden <- .lame_ab_var_hidden_rows(reason)
 	coef_reason <- .lame_ab_coef_reason(fit)
-	if (.lame_uv_hyper_unidentified(fit)) hidden <- c(hidden, "rho_uv", "sigma_uv")
-	if (.lame_snap_rate_unidentified(fit)) hidden <- c(hidden, "pi_snap")
 	series <- list()
 	B <- fit$BETA
 	if (!is.null(B) && length(B) > 0L) {
@@ -35,27 +34,32 @@
 	for (v in setdiff(c("rho_ab", "sigma_ab", "rho_uv", "sigma_uv", "pi_snap"), hidden)) {
 		if (is.numeric(fit[[v]]) && length(fit[[v]]) > 1L) series[[v]] <- as.numeric(fit[[v]])
 	}
+	# long-run means of the ar1 coefficient paths
+	M <- fit$MU_BETA
+	if (is.matrix(M) && nrow(M) > 1L) for (j in seq_len(ncol(M))) series[[paste0("mu_beta[", colnames(M)[j], "]")]] <- M[, j]
 	series
 }
 
 # first third against last third of each series with batch-means standard errors (n_batch batches
-# per third): both means, the standardised difference z and the shift in posterior sds
+# per third): both means, the standardised difference z, its Welch degrees of freedom and the shift
+# in posterior sds
 .lame_chain_stats <- function(series, n_batch = .lame_chain_n_batch) {
 	empty <- data.frame(
 		parameter = character(0),
 		mean_first = numeric(0),
 		mean_last = numeric(0),
 		z = numeric(0),
+		df = numeric(0),
 		shift = numeric(0),
 		stringsAsFactors = FALSE
 	)
 	if (length(series) == 0L) return(empty)
 	n <- min(lengths(series))
 	if (n < 6L * n_batch) return(empty)
-	batch_se <- function(s) {
+	batch_var <- function(s) {
 		id <- rep(seq_len(n_batch), each = ceiling(length(s) / n_batch))[seq_along(s)]
 		bm <- tapply(s, id, mean)
-		stats::sd(bm) / sqrt(length(bm))
+		c(v = stats::var(bm) / length(bm), df = length(bm) - 1)
 	}
 	third <- n %/% 3L
 	rows <- lapply(names(series), function(v) {
@@ -65,12 +69,16 @@
 		if (!all(is.finite(s)) || stats::sd(s) <= 1e-10 * max(abs(s))) return(NULL)
 		a <- s[seq_len(third)]
 		b <- s[(n - third + 1L):n]
-		z <- (mean(b) - mean(a)) / sqrt(batch_se(a)^2 + batch_se(b)^2)
+		va <- batch_var(a)
+		vb <- batch_var(b)
+		z <- (mean(b) - mean(a)) / sqrt(va[["v"]] + vb[["v"]])
+		df <- (va[["v"]] + vb[["v"]])^2 / (va[["v"]]^2 / va[["df"]] + vb[["v"]]^2 / vb[["df"]])
 		data.frame(
 			parameter = v,
 			mean_first = mean(a),
 			mean_last = mean(b),
 			z = z,
+			df = df,
 			shift = (mean(b) - mean(a)) / stats::sd(s),
 			stringsAsFactors = FALSE
 		)
@@ -81,18 +89,30 @@
 }
 
 # series whose first and last thirds differ by more than z_max standard errors and sd_min posterior
-# sds; zero rows when the chain has settled, with a `text` column "name (a to b)"
+# sds; zero rows when the chain has settled, with a `text` column "name (a to b)". Without z_max the
+# threshold is the bound for the series of `n_chains` chains (see .lame_chain_z_bound)
 .lame_chain_moving <- function(
 	fit,
-	z_max = .lame_chain_z_max,
+	z_max = NULL,
 	sd_min = .lame_chain_sd_min,
-	n_batch = .lame_chain_n_batch
+	n_batch = .lame_chain_n_batch,
+	n_chains = 1L
 ) {
 	st <- .lame_chain_stats(.lame_chain_series(fit), n_batch)
+	if (is.null(z_max)) z_max <- .lame_chain_z_bound(n_chains * nrow(st), st$df)
 	flag <- is.finite(st$z) & abs(st$z) > z_max & abs(st$shift) > sd_min
 	st <- st[flag, , drop = FALSE]
 	st$text <- sprintf("%s (%.3g to %.3g)", st$parameter, st$mean_first, st$mean_last)
 	st
+}
+
+# z threshold for m tested series: the two-sided Sidak quantile of t on `df` degrees of freedom
+# (the batch-means standard error is itself estimated) at the family-wise level `alpha`, never
+# below .lame_chain_z_max
+.lame_chain_z_bound <- function(m, df = Inf, alpha = .lame_chain_alpha) {
+	a <- 1 - (1 - alpha)^(1 / max(1, m))
+	df[!is.finite(df) | df < 1] <- Inf
+	pmax(.lame_chain_z_max, stats::qt(1 - a / 2, df))
 }
 
 # prior$chain_extensions: continuations of a flagged chain before refusal (0 refuses at the first flag)
@@ -125,6 +145,7 @@
 		discarded_sweeps = as.integer(extensions) * as.integer(nscan),
 		triggers = triggers,
 		z_max = .lame_chain_z_max,
+		alpha = .lame_chain_alpha,
 		sd_min = .lame_chain_sd_min,
 		next_seed = next_seed
 	)
@@ -142,7 +163,7 @@
 	if (!is.null(blk)) return(
 		list(block = TRUE, mc = blk$mc, record = isTRUE(blk$record), nopolicy = isTRUE(blk$nopolicy))
 	)
-	supplied <- setdiff(names(mc)[-1L], c("print", "resume_from"))
+	supplied <- setdiff(names(mc)[-1L], "resume_from")
 	nin <- get0("netify_input", envir = env, inherits = FALSE)
 	if (is.list(nin) && isTRUE(nin$converted)) {
 		supplied <- union(supplied, c("Y", "Xdyad", "Xrow", "Xcol", "mode", "family", "symmetric"))
@@ -322,7 +343,7 @@
 	call_args <- mget(nm, envir = env)
 	mc <- get("mc", envir = env, inherits = FALSE)
 	resume_args <- function() {
-		nm <- setdiff(intersect(names(formals(ame)), ls(env, all.names = TRUE)), c("print", "..."))
+		nm <- setdiff(intersect(names(formals(ame)), ls(env, all.names = TRUE)), "...")
 		mget(nm, envir = env)
 	}
 	spec <- list(
@@ -357,18 +378,26 @@
 	out <- character(0)
 	if (!is.null(fit) && isTRUE(fit$is_combined) && !is.null(fit$chains)) {
 		rh <- fit$rhat
-		top <- if (is.data.frame(rh) && any(is.finite(rh$rhat))) max(rh$rhat, na.rm = TRUE) else NA_real_
-		out <- paste0(
-			fit$chains,
-			" chains (seeds ",
-			paste(fit$chain_seeds, collapse = ", "),
-			")",
-			if (is.finite(top)) paste0(
-				"; largest R-hat of the monitored set ",
-				formatC(top, digits = 3, format = "f")
-			) else "",
-			"."
-		)
+		top <- if (is.data.frame(rh) && any(!is.na(rh$rhat))) which.max(rh$rhat) else integer(0)
+		thr <- if (length(top) && !is.null(rh$threshold)) rh$threshold[top] else NA_real_
+		verdict <- if (length(top)) paste0(
+			"; largest R-hat of the monitored set ",
+			formatC(rh$rhat[top], digits = 3, format = "f"),
+			" (",
+			rh$parameter[top],
+			if (is.finite(thr)) paste0(", threshold ", formatC(thr, digits = 3, format = "f")) else "",
+			")"
+		) else if (is.data.frame(rh)) {
+			n_per <- length(fit$chain_indicator) / fit$chains
+			paste0(
+				"; the chains were not compared",
+				if (isTRUE(fit$terminated_early)) " (the run stopped early)"
+				else if (n_per > 0 && n_per < .lame_chain_gate_min_draws) {
+					paste0(" (fewer than ", .lame_chain_gate_min_draws, " stored draws per chain)")
+				} else ""
+			)
+		} else ""
+		out <- paste0(fit$chains, " chains (seeds ", paste(fit$chain_seeds, collapse = ", "), ")", verdict, ".")
 	}
 	if (is.list(rec) && isTRUE(rec$extensions > 0L)) {
 		out <- c(
@@ -385,7 +414,7 @@
 			)
 		)
 	}
-	if (length(out) == 0L) NULL else out
+	if (length(out) == 0L) NULL else paste(out, collapse = " ")
 }
 
 # chain policy for sampler = "tempered"
@@ -434,7 +463,7 @@
 }
 
 # global summaries recorded at every stored draw for the between-chain gate: rms of a and b (per
-# period when dynamic), rms of U G V', norm of G (bipartite), log U/V scale split (directed) and the
+# period when dynamic), rms of U G V', norm of G (bipartite), log U/V scale split and the
 # largest absolute actor effect; fit$chain_summary holds the draws-by-summaries matrix
 
 .lame_chain_draw <- function(a, b, U = NULL, V = NULL, G = NULL, symmetric = FALSE) {
@@ -470,7 +499,8 @@
 			split[t] <- log(sqrt(sum(Ut^2)) / sqrt(sum(Vt^2)))
 		}
 		out <- c(out, stats::setNames(uv, nm("uv_rms", Tu)))
-		if (!isTRUE(symmetric)) out <- c(out, stats::setNames(split, nm("uv_split", Tu)))
+		# a symmetric fit has V = U L, so the split follows its gauge U_r -> c U_r, L_r -> L_r / c^2
+		out <- c(out, stats::setNames(split, nm("uv_split", Tu)))
 	}
 	if (!is.null(G)) out <- c(out, g_norm = sqrt(sum(G^2)))
 	out

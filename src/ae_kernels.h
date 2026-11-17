@@ -4,7 +4,7 @@
 // log probability of a pair of cells. Header only, no R API, no allocation
 // after the first call and no state that a call changes, so every function is
 // safe inside an OpenMP loop. The R references are .ae_pair_logphi2_r() and
-// .ae_pair_logp_r() (R/ame_als_pair.R); the engines agree to rounding.
+// .ae_pair_logp_r() (tests/testthat/helper-reference-engines-als.R); the engines agree to rounding.
 //
 // The bivariate normal probability is the scheme of Drezner and Wesolowsky
 // (1989) with the modifications of Genz (2004) for a correlation near one
@@ -144,7 +144,7 @@ inline const GlTables& gl_tables() {
 // --- the bivariate normal probability ---------------------------------------------------------
 
 // the normal cdf of the reference scheme for the bivariate probability: the Chebyshev expansion of
-// Schonfelder (Math. Comp. 32, 1978), accurate to 1e-15. Inside bvu() it is used in place of pnorm()
+// Schonfelder (Math. Comp. 32, 1978), accurate to 1e-15. Inside bvu_plan() it is used in place of pnorm()
 // so that the bivariate probability agrees with pbivnorm::pbivnorm() to the last digits, including
 // where the probability is the small difference of terms of order one (a negative correlation)
 inline double phid_ref(double z) {
@@ -285,18 +285,6 @@ inline double bvu_plan(double h, double k, const BvuPlan& p, double pmh, double 
 	return bvn;
 }
 
-// P(X > h, Y > k) for the standard bivariate normal with correlation r
-inline double bvu(double h, double k, double r) {
-	BvuPlan p;
-	bvu_make_plan(r, p);
-	const double pmh = p.kind == 0 ? phid_ref(-h) : 0.0;
-	const double pmk = p.kind == 0 ? phid_ref(-k) : 0.0;
-	return bvu_plan(h, k, p, pmh, pmk);
-}
-
-// Phi2(a, b; r) = P(X <= a, Y <= b)
-inline double phi2_prob(double a, double b, double r) { return bvu(-a, -b, r); }
-
 // log Phi2(a, b; r) of a probability below 1e-6, where the series is not accurate relative to
 // the value: the log of int_{a - 14}^{a} phi(x) Phi((b - r x) / sqrt(1 - r^2)) dx by the 64-point rule.
 // The terms are positive and the cdf is at most one, so log phi(x_i) + log w_i bounds the log of the
@@ -391,12 +379,6 @@ inline double log_phi2_plan(double a, double b, const PairPlan& pp) {
 	return log_phi2_pre(a, b, pp, pp.bv.kind == 0 ? phid_ref(a) : 0.0);
 }
 
-inline double log_phi2(double a, double b, double r) {
-	PairPlan pp;
-	pair_make_plan(r, pp);
-	return log_phi2_plan(a, b, pp);
-}
-
 // --- the log probability of a pair and its derivatives --------------------------------------------
 
 struct PairTerms {
@@ -428,12 +410,6 @@ inline void pair_logp_pre(double a, double b, const PairPlan& pp, double pa_ref,
 	o.Lab = hab - ga * gb;
 	o.Lr = hab;
 	o.Lrr = hab * dl2 - hab * hab;
-}
-
-inline void pair_logp(double a, double b, double r, PairTerms& o) {
-	PairPlan pp;
-	pair_make_plan(r, pp);
-	pair_logp_pre(a, b, pp, pp.bv.kind == 0 ? phid_ref(a) : 0.0, o);
 }
 
 }  // namespace lame_ae

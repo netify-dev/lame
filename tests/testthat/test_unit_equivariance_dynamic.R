@@ -41,6 +41,8 @@ ueq_fit = function(d, sc = 1, kx = 1, ...) {
 	suppressWarnings(suppressMessages(do.call(lame, args)))
 }
 ueq_rel = function(got, ref) max(abs(got - ref)) / max(abs(ref))
+# the penalised dynamic fit, as the sampler's warm start asks for it
+pen = structure(list(), lame_als_estimator = "none")
 
 test_that("the empirical-Bayes dynamic fit of c * y is c times the fit of y, in every kind of network", {
 	skip_on_cran()
@@ -66,9 +68,9 @@ test_that("the empirical-Bayes dynamic fit of c * y is c times the fit of y, in 
 test_that("the penalised dynamic fit of c * y is c times the fit of y, and the sampler started from it scales the same way", {
 	skip_on_cran()
 	d = ueq_net("dir", R = 2)
-	f1 = ueq_fit(d, bias_correct = "none", dynamic_uv = TRUE, dynamic_ab = TRUE)
+	f1 = ueq_fit(d, prior = pen, dynamic_uv = TRUE, dynamic_ab = TRUE)
 	for (cc in c(1e-6, 1e3)) {
-		fc = ueq_fit(d, cc, bias_correct = "none", dynamic_uv = TRUE, dynamic_ab = TRUE)
+		fc = ueq_fit(d, cc, prior = pen, dynamic_uv = TRUE, dynamic_ab = TRUE)
 		expect_identical(fc$iterations, f1$iterations)
 		expect_lt(ueq_rel(unname(fc$coefficients), cc * unname(f1$coefficients)), 1e-8)
 		expect_lt(ueq_rel(unlist(fc$UVPM), cc * unlist(f1$UVPM)), 1e-8)
@@ -104,7 +106,7 @@ test_that("the coefficient priors follow the unit of the covariate: the g-prior 
 	for (spec in list(
 		list(dynamic_ab = TRUE),
 		list(dynamic_beta = TRUE),
-		list(dynamic_beta = TRUE, bias_correct = "none")
+		list(dynamic_beta = TRUE, prior = pen)
 	)) {
 		f1 = do.call(ueq_fit, c(list(d), spec))
 		fk = do.call(ueq_fit, c(list(d, 1, 1e3), spec))
@@ -191,9 +193,9 @@ test_that("the penalised fit of bipartite and undirected positions and static fa
 	)) {
 		d = ueq_net(spec$mode, R = spec$R)
 		extra = spec[setdiff(names(spec), c("mode", "R"))]
-		f1 = do.call(ueq_fit, c(list(d, bias_correct = "none"), extra))
+		f1 = do.call(ueq_fit, c(list(d, prior = pen), extra))
 		for (cc in c(1e-3, 1e3)) {
-			fc = do.call(ueq_fit, c(list(d, cc, bias_correct = "none"), extra))
+			fc = do.call(ueq_fit, c(list(d, cc, prior = pen), extra))
 			info = paste(spec$mode, spec$R, names(extra), cc)
 			expect_lt(ueq_rel(unname(fc$coefficients), cc * unname(f1$coefficients)), 1e-6, label = info)
 			expect_lt(ueq_rel(unlist(fc$UVPM), cc * unlist(f1$UVPM)), 1e-6, label = info)
@@ -223,10 +225,81 @@ test_that("the sampler with dynamic additive effects scales exactly in the unit 
 	for (kx in c(1e-3, 1e3)) {
 		mk = mc(1, kx)
 		slope = grepl("dyad", colnames(m1$BETA))
-		expect_lt(ueq_rel(mk$BETA[, slope], m1$BETA[, slope] / kx), 1e-8, label = kx)
-		expect_lt(ueq_rel(mk$BETA[, !slope], m1$BETA[, !slope]), 1e-8, label = kx)
+		# BETA is draws x coefficients x periods under dynamic_ab
+		expect_lt(ueq_rel(mk$BETA[, slope, ], m1$BETA[, slope, ] / kx), 1e-8, label = kx)
+		expect_lt(ueq_rel(mk$BETA[, !slope, ], m1$BETA[, !slope, ]), 1e-8, label = kx)
 		expect_lt(ueq_rel(mk$VC[, "ve"], m1$VC[, "ve"]), 1e-8, label = kx)
 	}
 	mc3 = mc(1e3)
 	expect_lt(ueq_rel(mc3$BETA, 1e3 * m1$BETA), 1e-8)
+	# a static slope next to a path has the default prior per unit of its covariate
+	mb = function(kx) suppressWarnings(suppressMessages(lame(
+		d$Y,
+		Xdyad = lapply(d$X, function(x) x * kx),
+		family = "normal",
+		R = 0,
+		dynamic_beta = "intercept",
+		nscan = 20,
+		burn = 0,
+		odens = 1,
+		seed = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	)))
+	b1 = mb(1)
+	bk = mb(1e-3)
+	expect_lt(ueq_rel(bk$BETA[, "xd_dyad", ], b1$BETA[, "xd_dyad", ] / 1e-3), 1e-8)
+	expect_lt(ueq_rel(bk$BETA[, "intercept", ], b1$BETA[, "intercept", ]), 1e-8)
+	expect_equal(bk$g[[1L]], b1$g[[1L]])
 })
+
+test_that("bipartite static fits scale exactly in the unit of a covariate", {
+	skip_on_cran()
+	# the slopes have the default prior per unit of their covariate
+	set.seed(4)
+	nA = 10; nB = 8; Tt = 3
+	rn = sprintf("r%02d", 1:nA)
+	cn = sprintf("c%02d", 1:nB)
+	xr = matrix(rnorm(nA * Tt), nA)
+	xc = matrix(rnorm(nB * Tt), nB)
+	Xd = Xr = Xc = Yn = vector("list", Tt)
+	for (t in 1:Tt) {
+		xd = matrix(rnorm(nA * nB), nA)
+		eta = 0.3 + 0.6 * xd + 0.4 * xr[, t] - outer(rep(.5, nA), xc[, t])
+		Yn[[t]] = matrix(eta + rnorm(nA * nB), nA, dimnames = list(rn, cn))
+		Xd[[t]] = array(xd, c(nA, nB, 1), dimnames = list(rn, cn, "xd"))
+		Xr[[t]] = matrix(xr[, t], nA, 1, dimnames = list(rn, "xr"))
+		Xc[[t]] = matrix(xc[, t], nB, 1, dimnames = list(cn, "xc"))
+	}
+	Yb = lapply(Yn, function(y) 1 * (y > 0))
+	run = function(Y, family, kx, f) suppressWarnings(suppressMessages(f(
+		Y,
+		Xdyad = if (identical(f, ame)) Xd[[1]] * kx else lapply(Xd, `*`, kx),
+		Xrow = if (identical(f, ame)) Xr[[1]] * kx else lapply(Xr, `*`, kx),
+		Xcol = if (identical(f, ame)) Xc[[1]] * kx else lapply(Xc, `*`, kx),
+		family = family,
+		mode = "bipartite",
+		R_row = 0,
+		R_col = 0,
+		nscan = 20,
+		burn = 0,
+		odens = 1,
+		seed = 5,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE
+	)))
+	for (family in c("normal", "binary")) for (fn in c("lame", "ame")) {
+		f = get(fn)
+		Y = if (family == "binary") Yb else Yn
+		if (fn == "ame") Y = Y[[1]]
+		m1 = run(Y, family, 1, f)
+		mk = run(Y, family, 1e-3, f)
+		slope = colnames(m1$BETA) != "intercept"
+		info = paste(fn, family)
+		expect_lt(ueq_rel(mk$BETA[, slope], m1$BETA[, slope] / 1e-3), 1e-8, label = info)
+		expect_lt(ueq_rel(mk$BETA[, !slope], m1$BETA[, !slope]), 1e-8, label = info)
+	}
+})
+

@@ -150,3 +150,77 @@ test_that("deterministic joint moments and validation preserve an absent RNG sta
 	expect_error(lame:::.lame_joint_levels_draw(Z, zero, zero, diag(2), 1, cx), "Invalid")
 	expect_false(exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE))
 })
+
+# static columns under their prior, coefficient paths as an offset, against the dense gaussian conditional
+test_that("joint levels with the coefficient paths as an offset match the dense Gaussian conditional", {
+	set.seed(58317)
+	n = 4L; nt = 2L; k = n - 1L; rho = .35
+	Sab = matrix(c(.6, .12, .12, .45), 2)
+	H = qr.Q(qr(contr.helmert(n)))
+	X = lapply(1:nt, function(t) {
+		x = array(1, c(n, n, 3L))
+		x[, , 2] = rnorm(n * n)
+		x[, , 3] = rnorm(n * n)
+		x
+	})
+	path = cbind(cumsum(c(rnorm(1, 0, 1.2), rnorm(1, 0, .5))), c(.4, -.2))
+	Z = array(rnorm(n * n * nt), c(n, n, nt))
+	for (case in c("rw1", "mixed", "empty")) {
+		dyn = switch(case, rw1 = 1L, mixed = c(1L, 3L), empty = c(1L, 2L, 3L))
+		st = setdiff(1:3, dyn)
+		vs = c(2.2, 1.4)[seq_along(st)]
+		offset = array(0, c(n, n, nt))
+		for (t in 1:nt) for (j in seq_along(dyn)) {
+			coef_t = if (j == 1) path[t, 1] else path[t, 2]
+			offset[, , t] = offset[, , t] + coef_t * X[[t]][, , dyn[j]]
+		}
+		cx = lame:::.lame_joint_levels_static_context(X, st, vs)
+		m = lame:::.lame_joint_levels_parameters(Z, matrix(0, n, nt), matrix(0, n, nt), Sab, rho, cx, offset)
+		# dense reference over (static coefficients, sender contrasts, receiver contrasts)
+		ps = length(st)
+		q = ps + 2L * k
+		cells = which(row(diag(n)) != col(diag(n)))
+		D = NULL; y = NULL
+		for (t in 1:nt) {
+			ij = arrayInd(cells, c(n, n))
+			Xt = if (ps) matrix(X[[t]][, , st], n * n, ps)[cells, , drop = FALSE] else NULL
+			Dt = cbind(Xt, H[ij[, 1], , drop = FALSE], H[ij[, 2], , drop = FALSE])
+			D = rbind(D, Dt)
+			y = c(y, (Z[, , t] - offset[, , t])[cells])
+		}
+		cellid = unlist(lapply(1:nt, function(t) cells + (t - 1) * n * n))
+		Sig = diag(length(y))
+		for (a in seq_along(y)) {
+			ij = arrayInd(cellid[a] - n * n * ((cellid[a] - 1) %/% (n * n)), c(n, n))
+			t = (cellid[a] - 1) %/% (n * n)
+			b = which(cellid == ij[2] + (ij[1] - 1) * n + t * n * n)
+			Sig[a, b] = rho
+		}
+		P0 = matrix(0, q, q)
+		if (ps) P0[1:ps, 1:ps] = diag(1 / vs, ps)
+		iS = solve(Sab)
+		for (h in 1:k) {
+			ix = ps + c(h, k + h)
+			P0[ix, ix] = iS
+		}
+		Pq = crossprod(D, solve(Sig, D)) + P0
+		Vq = solve(Pq)
+		mq = Vq %*% crossprod(D, solve(Sig, y))
+		got_m = as.numeric(m$mean)
+		got_V = tcrossprod(m$noise_root)
+		if (case == "empty") {
+			# the stand-in coefficient keeps its prior, independent of the levels
+			expect_equal(got_m[1], 0, tolerance = 1e-10)
+			expect_equal(got_V[1, 1], 1, tolerance = 1e-10)
+			expect_lt(max(abs(got_V[1, -1])), 1e-10)
+			got_m = got_m[-1]
+			got_V = got_V[-1, -1]
+		}
+		expect_equal(got_m, as.numeric(mq), tolerance = 1e-8)
+		expect_equal(got_V, Vq, tolerance = 1e-8)
+		zero = matrix(0, n, nt)
+		dr = lame:::.lame_joint_levels_draw(Z, zero, zero, Sab, rho, cx, offset)
+		expect_length(dr$beta, ps)
+		expect_lt(abs(sum(dr$a)), 1e-10)
+	}
+})

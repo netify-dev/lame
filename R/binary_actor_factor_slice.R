@@ -265,6 +265,7 @@
 		cli::cli_abort(
 			c(
 				"Joint actor-factor slice rounds failed numerically on {z[['numerical_rejections']]} of {z[['rounds']]} rounds.",
+				.lame_failure_lines("actor_factor_slice"),
 				"i" = "A round that fails is rejected and the chain keeps its state, so it is not a draw from the posterior and no fit is returned."
 			),
 			class = "lame_sampler_failure"

@@ -1,6 +1,6 @@
 Package: lame
 Title: Longitudinal Additive and Multiplicative Effects Models for Networks
-Version: 1.4.1
+Version: 1.4.2
 Authors@R: c(
     person("Cassy", "Dorff", role = "aut"),
     person("Shahryar", "Minhas", , "minhassh@msu.edu", role = c("aut", "cre")),
@@ -11,7 +11,7 @@ Maintainer: Shahryar Minhas <minhassh@msu.edu>
 License: MIT + file LICENSE
 URL: https://netify-dev.github.io/lame/, https://github.com/netify-dev/lame
 BugReports: https://github.com/netify-dev/lame/issues
-Depends: R (>= 3.5.0)
+Depends: R (>= 3.6.0)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
@@ -61,3 +61,4 @@ Suggests:
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 SystemRequirements: C++17
+RoxygenNote: 7.3.3

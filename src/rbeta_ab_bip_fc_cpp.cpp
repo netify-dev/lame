@@ -70,7 +70,7 @@ List compute_XtX_Xty_bip_cpp(Rcpp::List Xlist, const arma::cube& resid, int p) {
 //' @param a_current Current row effects (length nA)
 //' @param b_current Current column effects (length nB)
 //' @param s2 Dyadic variance
-//' @param g_prior G-prior parameter
+//' @param g_prior G-prior scale, one value or one per coefficient
 //' @param va Row effect variance (diagonal element of Sab)
 //' @param vb Column effect variance (diagonal element of Sab)
 //' @param rvar Whether to update row effects
@@ -83,15 +83,17 @@ List rbeta_ab_bip_gibbs_cpp(const arma::cube& Z,
                              const arma::mat& UV_eff,
                              const arma::vec& a_current,
                              const arma::vec& b_current,
-                             double s2, double g_prior,
+                             double s2, const arma::vec& g_prior,
                              double va, double vb,
                              bool rvar, bool cvar, bool center = false) {
   const int nA = Z.n_rows;
   const int nB = Z.n_cols;
   const int T = Z.n_slices;
   const int p = (Xlist.size() > 0) ? ((arma::cube)Xlist[0]).n_slices : 0;
+  // per-coefficient prior scales; a single value applies to every coefficient
+  arma::vec gp = (g_prior.n_elem == 1) ? arma::vec(p, fill::value(g_prior(0))) : g_prior;
   if (!std::isfinite(s2) || s2 <= 0.0 ||
-      (p > 0 && (!std::isfinite(g_prior) || g_prior <= 0.0)) ||
+      (p > 0 && ((int)gp.n_elem != p || !gp.is_finite() || arma::any(gp <= 0.0))) ||
       (rvar && (!std::isfinite(va) || va <= 0.0)) ||
       (cvar && (!std::isfinite(vb) || vb <= 0.0)))
     Rcpp::stop("Bipartite conditional variances and coefficient scale must be finite and positive.");
@@ -116,7 +118,7 @@ List rbeta_ab_bip_gibbs_cpp(const arma::cube& Z,
     arma::mat XtX = xtx_xty["XtX"];
     arma::vec Xty = xtx_xty["Xty"];
 
-    arma::mat V_post_inv = XtX / s2 + arma::eye(p, p) / (g_prior * s2);
+    arma::mat V_post_inv = XtX / s2 + arma::diagmat(1.0 / (gp * s2));
     arma::mat V_post;
     // Forming a Gram matrix can lose the prior even if Cholesky succeeds.
     // Below sqrt(machine epsilon), use the augmented root before squaring
@@ -146,8 +148,8 @@ List rbeta_ab_bip_gibbs_cpp(const arma::cube& Z,
       const arma::uword cells = static_cast<arma::uword>(nA) * nB * T;
       arma::mat augmented(cells + p, p, fill::zeros);
       arma::vec response(cells + p, fill::zeros);
-      const double prior_scale = 1.0 / std::sqrt(g_prior);
-      if (!std::isfinite(prior_scale) || prior_scale <= 0.0)
+      const arma::vec prior_scale = 1.0 / arma::sqrt(gp);
+      if (!prior_scale.is_finite() || arma::any(prior_scale <= 0.0))
         Rcpp::stop("Unable to represent the bipartite coefficient prior precision.");
       arma::uword row = 0;
       for (int t = 0; t < T; ++t) {
@@ -158,7 +160,7 @@ List rbeta_ab_bip_gibbs_cpp(const arma::cube& Z,
             if (std::isfinite(Xt(i,j,k))) augmented(row,k) = Xt(i,j,k);
         }
       }
-      for (int k = 0; k < p; ++k) augmented(cells+k,k) = prior_scale;
+      for (int k = 0; k < p; ++k) augmented(cells+k,k) = prior_scale(k);
       arma::mat q_factor, precision_root;
       if (!augmented.is_finite() || !response.is_finite() ||
           !arma::qr_econ(q_factor, precision_root, augmented) ||

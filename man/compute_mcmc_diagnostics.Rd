@@ -13,8 +13,8 @@ either \code{ame}/\code{lame} objects carrying \code{BETA}, or
 }
 \value{
 A list with \code{rhat}, \code{rhat_classic}, \code{ess},
-\code{param_names} (over \code{BETA} and \code{VC}), \code{n_chains} and
-\code{n_samples}. For robust fits, additionally returns \code{ess_bulk},
+\code{rhat_threshold}, \code{informative}, \code{param_names} (over
+\code{BETA} and \code{VC}), \code{n_chains} and \code{n_samples}. For robust fits, additionally returns \code{ess_bulk},
 \code{ess_tail}, a full \code{diagnostics} data frame, and \code{pass}.
 }
 \description{
@@ -34,8 +34,12 @@ monitored coefficient and variance component, and it is the Rhat column of
 \code{summary()}. It is \code{NA} for a quantity that is constant in every
 chain and for chains with fewer than 8 draws. \code{rhat_classic} is the
 Gelman-Rubin statistic of the whole chains, without splitting or rank
-normalisation. The printed verdict compares \code{rhat} with the gate's
-threshold, 1.05.
+normalisation. \code{rhat_threshold} and \code{informative} are the gate's
+rule applied to these quantities (the threshold of each, at the family-wise
+level over all of them, and whether the chains hold enough effective draws to
+be compared on it; see \emph{Gate thresholds} in \code{\link{lame}}), and the
+printed verdict names every quantity above its threshold or short of effective
+draws.
 
 For \code{lame_robust} fits, the \pkg{posterior} package is required.
 Diagnostics include static coefficients, time intercepts, actor paths and
@@ -43,22 +47,26 @@ levels, estimated hyperparameters, every off-diagonal latent product, and
 persistent pair precisions. Unused rank-zero factor hyperparameters and
 fixed Gaussian precisions are excluded. Chains must have identical inputs
 and priors, different seeds, and equal lengths of at least four retained
-draws. Robust \code{pass} requires both \code{rhat} and \code{rhat_classic}
-below 1.05 and finite positive ESS, bulk ESS and tail ESS for every
-included parameter. The individual R-hat and effective sample size values
+draws. Robust \code{pass} applies the gate's rule to every included parameter
+(split rank-normalised R-hat at most its threshold, at the family-wise level
+over all of them, and enough effective draws to compare the chains) and
+requires finite positive ESS, bulk ESS and tail ESS; \code{rhat_threshold},
+\code{informative} and \code{parameter_pass} hold it per parameter. The individual R-hat and effective sample size values
 are reported for every included parameter.
 The existing \code{ame}/\code{lame} diagnostic scope remains coefficients
 and variance components.
 }
 \examples{
+\donttest{
 set.seed(1)
 n <- 12
 Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
 # each fit is one chain (chains = 1); compute_mcmc_diagnostics() compares them
-fit1 <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, seed = 1, verbose = FALSE, chains = 1)
-fit2 <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, seed = 2, verbose = FALSE, chains = 1)
+fit1 <- ame(Y, R = 1, nscan = 200, burn = 50, odens = 1, seed = 1, verbose = FALSE, chains = 1)
+fit2 <- ame(Y, R = 1, nscan = 200, burn = 50, odens = 1, seed = 2, verbose = FALSE, chains = 1)
 diag_out <- compute_mcmc_diagnostics(list(fit1, fit2))
 diag_out$rhat
+}
 
 }
 \author{

@@ -131,15 +131,11 @@ test_that("the compiled count kernels agree with their R references", {
 	m = array(rnorm(32, 0, 1), c(4, 8))
 	v = array(runif(32, 0, 0.5), c(4, 8))
 	lgy = lgamma(pmax(y, 0, na.rm = TRUE) + 1)
-	on.exit(options(lame.als_engine = NULL))
 	a = ns$.lde_pln_terms(y, m, ve, lgy)
-	options(lame.als_engine = "r")
-	b = ns$.lde_pln_terms(y, m, ve, lgy)
+	b = .lde_pln_terms_r(y, m, ve, lgy)
 	for (f in names(a)) expect_equal(a[[f]], b[[f]], tolerance = 1e-9, info = f)
-	options(lame.als_engine = NULL)
 	e1 = ns$.lde_pln_expect(y, m, v, ve, lgy)
-	options(lame.als_engine = "r")
-	e2 = ns$.lde_pln_expect(y, m, v, ve, lgy)
+	e2 = .lde_pln_expect_ref(y, m, v, ve, lgy)
 	for (f in names(e1)) expect_equal(e1[[f]], e2[[f]], tolerance = 1e-9, info = f)
 })
 
@@ -227,8 +223,10 @@ test_that("a dynamic count fit is an empirical-Bayes fit of the Poisson-lognorma
 	expect_s3_class(f, "lame_dynamic_als")
 	expect_identical(f$family, "poisson")
 	expect_true(f$converged)
-	expect_identical(f$bias_correct$method, "eb")
-	expect_true(f$bias_correct$default)
+	expect_true(f$diagnostics$stationarity$pass)
+	expect_equal(tail(f$dev_history, 1), f$objective, tolerance = 1e-10)
+	expect_null(f$bias_correct)
+	expect_null(f$bias_correct)
 	# the noise variance is a fitted hyperparameter, the path persistence is estimated, and the predictor is on the latent scale
 	ve = unname(f$VC["ve"])
 	expect_gt(ve, 0.1)
@@ -250,41 +248,39 @@ test_that("a dynamic count fit is an empirical-Bayes fit of the Poisson-lognorma
 		ok = is.finite(d$Y[[t]])
 		sum(stats::dpois(d$Y[[t]][ok], f$fitted[[t]][ok], log = TRUE))
 	}, 0)), tolerance = 0.01)
-	# the public route is the same fit
+	# the public route is the fit with an rw1 intercept path
 	fp = suppressWarnings(
 		lame(d$Y, Xdyad = d$X, family = "poisson", dynamic_ab = TRUE, method = "als", verbose = FALSE)
 	)
+	fr = pln_fit(d, dynamic_beta = "intercept", dynamic_beta_kind = "rw1")
 	expect_s3_class(fp, "lame_dynamic_als")
-	expect_identical(fp$bias_correct$method, "eb")
-	expect_identical(fp$coefficients, f$coefficients)
-	expect_identical(fp$eb$se, f$eb$se)
+	expect_null(fp$bias_correct)
+	expect_identical(fp$coefficients, fr$coefficients)
+	expect_identical(fp$eb$se, fr$eb$se)
 })
 
-test_that("the explicit estimators of the earlier releases are still available and the request for empirical Bayes is honoured", {
+test_that("the penalised fit stays available to package code and the empirical-Bayes fit is the default", {
 	skip_on_cran()
 	d = pln_sim(n = 14, Tt = 4, seed = 12)
 	fn = pln_fit(d, bias_correct = "none")
 	expect_identical(fn$bias_correct$method, "none")
 	# the penalised fit fixes the persistence of the paths at the prior mean
 	expect_equal(fn$rho_ab, 0.8)
-	fe = pln_fit(d, bias_correct = "eb")
-	expect_identical(fe$bias_correct$method, "eb")
+	fe = pln_fit(d)
+	expect_null(fe$bias_correct)
 	expect_false(isTRUE(all.equal(fe$rho_ab, 0.8)))
-	fj = pln_fit(d, bias_correct = "jackknife")
-	expect_true(isTRUE(fj$bias_correct$applied))
 	# the empirical-Bayes estimator also serves the normal family
 	fnn = lame:::lame_dynamic_als(
 		lapply(d$Y, function(y) y + 0.5),
 		d$X,
 		family = "normal",
 		dynamic_ab = TRUE,
-		bias_correct = "eb",
 		verbose = FALSE
 	)
-	expect_identical(fnn$bias_correct$method, "eb")
+	expect_null(fnn$bias_correct)
 	expect_error(
 		lame:::lame_dynamic_als(d$Y, d$X, family = "poisson", dynamic_ab = TRUE, bootstrap = 5L, verbose = FALSE),
-		class = "lame_dynamic_eb_unsupported"
+		class = "lame_als_bootstrap_replicates"
 	)
 })
 
@@ -323,7 +319,7 @@ test_that("an actor without a count in any period has finite, shrunk effects", {
 	f = pln_fit(d)
 	expect_true(f$converged)
 	expect_true(all(is.finite(f$a_dynamic)) && all(is.finite(f$b_dynamic)))
-	# the silent actors sit well below the others but are bounded by the prior (the fixed-effects fit runs to minus infinity)
+	# the silent actors sit well below the others but stay bounded by the prior
 	zi = 1:2
 	expect_lt(max(f$a_level[zi]), min(f$a_level[-zi]) + 1)
 	expect_gt(min(c(f$a_level[zi], f$b_level[zi])), -9)
@@ -444,26 +440,13 @@ test_that("the warm seed of a count fit is the latent predictor it fitted", {
 	f = suppressWarnings(
 		lame:::lame_dynamic_als(Y, R = 0, family = "poisson", dynamic_ab = TRUE, mode = "bipartite", verbose = FALSE)
 	)
-	expect_identical(f$bias_correct$method, "eb")
+	expect_null(f$bias_correct)
 	seed = lame:::.ae_static_seed(f)
 	for (t in 1:3) {
 		eta = seed$coef_path["intercept", t] + outer(seed$a_path[, t], seed$b_path[, t], "+")
 		expect_equal(eta, unname(f$EZ[[t]]), tolerance = 1e-10, ignore_attr = TRUE)
 		expect_equal(exp(eta + f$VC[["ve"]] / 2), unname(f$fitted[[t]]), tolerance = 1e-10, ignore_attr = TRUE)
 	}
-	# the penalised fit's seed adds back the half variance its predictor subtracts
-	fn = suppressWarnings(lame:::lame_dynamic_als(
-		Y,
-		R = 0,
-		family = "poisson",
-		dynamic_ab = TRUE,
-		mode = "bipartite",
-		verbose = FALSE,
-		bias_correct = "none"
-	))
-	sn = lame:::.ae_static_seed(fn)
-	eta = sn$coef_path["intercept", 1] + outer(sn$a_path[, 1], sn$b_path[, 1], "+")
-	expect_equal(exp(eta), unname(fn$fitted[[1]]), tolerance = 1e-10, ignore_attr = TRUE)
 })
 
 test_that("the paths are reported at the mode shifted by minus half of the vector of the Laplace correction", {
@@ -629,20 +612,6 @@ test_that("a count fit stops at the limit of the noise variance's iteration and 
 	expect_true(g$converged)
 	expect_equal(f$VC[["ve"]], g$VC[["ve"]], tolerance = 0.01)
 	expect_lt(abs(f$coefficients[["intercept"]] - g$coefficients[["intercept"]]), 0.02 * f$eb$se[["intercept"]])
-})
-
-test_that("an empirical-Bayes count fit can be refit as one of the penalised estimators and replays its switches", {
-	skip_on_cran()
-	d = pln_sim(n = 14, Tt = 4, seed = 72)
-	f = pln_fit(d)
-	for (bc in c("none", "jackknife")) {
-		g = suppressWarnings(ame_als_refit(f, bias_correct = bc, verbose = FALSE))
-		h = pln_fit(d, bias_correct = bc)
-		expect_identical(g$bias_correct$method, bc)
-		expect_true(g$converged)
-		expect_equal(g$coefficients, h$coefficients, tolerance = 1e-4)
-		expect_equal(g$VC[["ve"]], h$VC[["ve"]], tolerance = 1e-3)
-	}
 })
 
 test_that("the prior of the noise variance is the sampler's and the prior of a bipartite panel reads the row actors", {

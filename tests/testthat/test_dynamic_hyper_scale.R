@@ -116,116 +116,34 @@ test_that("a dynamic_beta fit reports the scale it used and a user value overrid
 	expect_equal(fit3$prior$sigma_beta_scale, 1)
 })
 
-test_that("the position hyperparameters are reported for ar1, and for snap or t at rank one", {
-	f = list(dynamic_uv = TRUE, dynamic_uv_kind = "ar1")
-	expect_false(lame:::.lame_uv_hyper_unidentified(f))
-	f$dynamic_uv_kind = "snap"
-	expect_true(lame:::.lame_uv_hyper_unidentified(f))
-	expect_true(lame:::.lame_snap_rate_unidentified(f))
-	f$dynamic_uv_kind = "t"
-	expect_true(lame:::.lame_uv_hyper_unidentified(f))
-	expect_false(lame:::.lame_snap_rate_unidentified(f))
-	# the rank decides: rank one is reported, rank two or more is withheld
-	for (k in c("snap", "t")) {
-		expect_false(lame:::.lame_uv_hyper_unidentified(list(
+test_that("the position hyperparameters are never withheld, for any kind, rank or start", {
+	draws = seq(0.5, 0.9, length.out = 20)
+	for (k in c("ar1", "snap", "t")) for (rk in 1:3) for (als in c(TRUE, FALSE)) {
+		f = list(
 			dynamic_uv = TRUE,
 			dynamic_uv_kind = k,
-			R = 1
-		)))
-		expect_true(lame:::.lame_uv_hyper_unidentified(list(
-			dynamic_uv = TRUE,
-			dynamic_uv_kind = k,
-			R = 2
-		)))
-		expect_true(lame:::.lame_uv_hyper_unidentified(list(
-			dynamic_uv = TRUE,
-			dynamic_uv_kind = k,
-			R = 3
-		)))
+			R = rk,
+			als_start = als,
+			BETA = cbind(intercept = draws),
+			rho_uv = draws,
+			sigma_uv = draws
+		)
+		# the two-chain gate compares them across chains
+		expect_true(all(c("rho_uv", "sigma_uv") %in% colnames(lame:::.lame_gate_series(f))))
 	}
-	expect_false(lame:::.lame_snap_rate_unidentified(list(
+	# a fit that records the kind only in the dynamic list, or no rank at all, is monitored too
+	f = list(
 		dynamic_uv = TRUE,
-		dynamic_uv_kind = "snap", R = 1
-	)))
-	expect_true(lame:::.lame_snap_rate_unidentified(list(
-		dynamic_uv = TRUE,
-		dynamic_uv_kind = "snap", R = 2
-	)))
-	# a fit without R is read from the position array
-	expect_false(lame:::.lame_uv_hyper_unidentified(list(
-		dynamic_uv = TRUE,
-		dynamic_uv_kind = "t",
-		U = array(0, c(5, 1, 3))
-	)))
-	expect_true(lame:::.lame_uv_hyper_unidentified(list(
-		dynamic_uv = TRUE,
-		dynamic_uv_kind = "t",
-		U = array(0, c(5, 2, 3))
-	)))
-	# a static-position fit is never flagged, whatever the kind slot says
-	expect_false(lame:::.lame_uv_hyper_unidentified(list(
-		dynamic_uv = FALSE,
-		dynamic_uv_kind = "snap"
-	)))
-	# a fit that records the kind only in the dynamic list is read too
-	expect_true(lame:::.lame_uv_hyper_unidentified(list(
-		dynamic_uv = TRUE,
-		dynamic = list(uv_kind = "t")
-	)))
-	# and one with no kind at all keeps the default reporting
-	expect_false(lame:::.lame_uv_hyper_unidentified(list(dynamic_uv = TRUE)))
-})
-
-test_that("a rank-two snap fit says why rho_uv, sigma_uv and pi_snap are not reported", {
-	set.seed(6886)
-	n = 16; TT = 4
-	nm = paste0("a", seq_len(n))
-	Y = lapply(seq_len(TT), function(t) {
-		m = matrix(rbinom(n * n, 1, 0.3), n, n)
-		diag(m) = NA; dimnames(m) = list(nm, nm); m
-	})
-	msgs = character()
-	fit = withCallingHandlers(
-		suppressWarnings(lame(
-			Y,
-			family = "binary",
-			R = 2,
-			dynamic_uv = TRUE,
-			dynamic_uv_kind = "snap",
-			nscan = 200,
-			burn = 100,
-			odens = 5,
-			verbose = FALSE,
-			plot = FALSE,
-			gof = FALSE
-		)),
-		message = function(m) { msgs <<- c(msgs, conditionMessage(m)); invokeRestart("muffleMessage") }
+		dynamic = list(uv_kind = "t"),
+		U = array(0, c(5, 2, 3)),
+		BETA = cbind(intercept = draws),
+		rho_uv = draws,
+		sigma_uv = draws
 	)
-	expect_true(lame:::.lame_uv_hyper_unidentified(fit))
-	expect_true(lame:::.lame_snap_rate_unidentified(fit))
-	msg = gsub("\\s+", " ", paste(msgs, collapse = " "))
-	expect_match(msg, "at rank two or more")
-	expect_match(msg, "extra resets stand in for drift")
-	expect_false(grepl("not yet validated", msg))
-	s = summary(fit)
-	expect_null(s$rho_uv)
-	expect_null(s$sigma_uv)
-	expect_null(s$pi_snap)
-	expect_true(isTRUE(s$uv_hyper_unidentified))
-	expect_true(isTRUE(s$pi_snap_unidentified))
-	out_s = gsub("\\s+", " ", paste(capture.output(print(s)), collapse = " "))
-	expect_match(out_s, "rho_uv and sigma_uv are not reported")
-	expect_match(out_s, "pi_snap is not reported")
-	out = gsub("\\s+", " ", paste(capture.output(print(fit)), collapse = " "))
-	expect_match(out, "not reported")
-	# the draws are kept
-	expect_true(all(is.finite(fit$rho_uv)))
-	expect_true(all(is.finite(fit$sigma_uv)))
-	expect_true(all(is.finite(fit$pi_snap)))
+	expect_true(all(c("rho_uv", "sigma_uv") %in% colnames(lame:::.lame_gate_series(f))))
 })
 
-test_that("rank-one snap and t fits report rho_uv, sigma_uv and pi_snap", {
-	skip_on_cran()
+test_that("rank-two snap and cold-start t fits report rho_uv and sigma_uv (and pi_snap for snap)", {
 	set.seed(6886)
 	n = 16; TT = 4
 	nm = paste0("a", seq_len(n))
@@ -239,9 +157,11 @@ test_that("rank-one snap and t fits report rho_uv, sigma_uv and pi_snap", {
 			suppressWarnings(lame(
 				Y,
 				family = "binary",
-				R = 1,
+				R = 2,
 				dynamic_uv = TRUE,
 				dynamic_uv_kind = k,
+				# start the t chain cold
+				prior = if (k == "t") list(als_start = FALSE) else NULL,
 				nscan = 200,
 				burn = 100,
 				odens = 5,
@@ -249,54 +169,33 @@ test_that("rank-one snap and t fits report rho_uv, sigma_uv and pi_snap", {
 				plot = FALSE,
 				gof = FALSE
 			)),
-			message = function(m) { msgs <<- c(msgs, conditionMessage(m)); invokeRestart("muffleMessage") }
+			message = function(m) {
+				msgs <<- c(msgs, conditionMessage(m))
+				invokeRestart("muffleMessage")
+			}
 		)
-		expect_false(lame:::.lame_uv_hyper_unidentified(fit))
-		expect_false(grepl("not report", paste(msgs, collapse = " ")))
+		if (k == "t") expect_false(isTRUE(fit$als_start))
+		msg = gsub("\\s+", " ", paste(msgs, collapse = " "))
+		expect_false(grepl("not report", msg))
+		expect_false(grepl("stand in for drift", msg))
 		s = summary(fit)
 		expect_equal(s$rho_uv, mean(fit$rho_uv))
 		expect_equal(s$sigma_uv, mean(fit$sigma_uv))
-		expect_false(isTRUE(s$uv_hyper_unidentified))
+		expect_null(s$uv_hyper_unidentified)
 		out_s = gsub("\\s+", " ", paste(capture.output(print(s)), collapse = " "))
 		expect_false(grepl("not reported", out_s))
+		expect_match(out_s, "rho_uv =")
 		out = gsub("\\s+", " ", paste(capture.output(print(fit)), collapse = " "))
 		expect_false(grepl("not reported", out))
+		expect_match(out, "rho_uv")
+		# the two-chain gate series include them
+		expect_true(all(c("rho_uv", "sigma_uv") %in% colnames(lame:::.lame_gate_series(fit))))
 		if (k == "snap") {
-			expect_false(isTRUE(s$pi_snap_unidentified))
 			expect_equal(s$pi_snap, mean(fit$pi_snap))
 			expect_match(out_s, "pi_snap =")
+			expect_match(out, "reset rate pi_snap")
 		} else {
 			expect_null(s$pi_snap)
 		}
 	}
-})
-
-test_that("an ar1 dynamic_uv fit keeps reporting rho_uv and sigma_uv", {
-	skip_on_cran()
-	set.seed(6886)
-	n = 16; TT = 4
-	nm = paste0("a", seq_len(n))
-	Y = lapply(seq_len(TT), function(t) {
-		m = matrix(rbinom(n * n, 1, 0.3), n, n)
-		diag(m) = NA; dimnames(m) = list(nm, nm); m
-	})
-	fit = suppressMessages(suppressWarnings(lame(
-		Y,
-		family = "binary",
-		R = 1,
-		dynamic_uv = TRUE,
-		nscan = 200,
-		burn = 100,
-		odens = 5,
-		verbose = FALSE,
-		plot = FALSE,
-		gof = FALSE
-	)))
-	expect_false(lame:::.lame_uv_hyper_unidentified(fit))
-	s = summary(fit)
-	expect_true(is.numeric(s$rho_uv))
-	expect_true(is.numeric(s$sigma_uv))
-	expect_false(isTRUE(s$uv_hyper_unidentified))
-	out = gsub("\\s+", " ", paste(capture.output(print(fit)), collapse = " "))
-	expect_false(grepl("not reported", out))
 })

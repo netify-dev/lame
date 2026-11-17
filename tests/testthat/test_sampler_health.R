@@ -213,6 +213,53 @@ test_that('ordinary binary and non-binary fits do not warn of separation', {
 	expect_length(.capture_sampler_health_messages(.lame_separation_check(f))$warnings, 0L)
 })
 
+# a fit that stores its design and coefficient draws, as lame() does: predictor = 0.1 + slope * x + extra
+.separation_design_fit = function(slope, x_fun, extra = 0, n = 30L, nt = 2L) {
+	set.seed(5)
+	nm = sprintf('a%02d', seq_len(n))
+	Xlist = lapply(seq_len(nt), function(t) {
+		x = array(1, c(n, n, 2L), dimnames = list(nm, nm, c('intercept', 'x_dyad')))
+		x[, , 2] = x_fun(n)
+		x
+	})
+	EZ = lapply(Xlist, function(x) { m = 0.1 + slope * x[, , 2] + extra; diag(m) = NA; m })
+	Y = array(1, c(n, n, nt), dimnames = list(nm, nm, NULL))
+	for (t in seq_len(nt)) diag(Y[, , t]) = NA
+	BETA = matrix(c(0.1, slope), 4L, 2L, byrow = TRUE, dimnames = list(NULL, c('intercept', 'x_dyad')))
+	list(family = 'binary', R = 0L, symmetric = FALSE, EZ = EZ, YPM = EZ, Y = Y, Xlist = Xlist, BETA = BETA)
+}
+
+test_that('a predictor that covariates with determined slopes carry beyond the cut is not separation', {
+	wide = function(n) matrix(rnorm(n * n, 0, 3), n, n)
+	f = .separation_design_fit(1.5, wide)
+	expect_gt(mean(abs(unlist(f$EZ)) > 8, na.rm = TRUE), 0.05)
+	a = .capture_sampler_health_messages(.lame_separation_check(f))
+	expect_equal(a$value, 0); expect_length(a$warnings, 0L)
+	# without the stored design the same predictor is flagged
+	f$Xlist = NULL
+	expect_length(.capture_sampler_health_messages(.lame_separation_check(f))$warnings, 1L)
+	# a saturated block the covariates do not account for is still separation
+	block = matrix(0, 30L, 30L); block[1:12, 1:12] = 12
+	b = .capture_sampler_health_messages(.lame_separation_check(.separation_design_fit(1.5, wide, extra = block)))
+	expect_gte(b$value, 0.05)
+	expect_match(b$warnings, 'beyond what the covariates account for', fixed = TRUE)
+	# an indicator met only on saturated dyads has no determined slope
+	dummy = function(n) { m = matrix(0, n, n); m[1:12, 1:12] = 1; m }
+	d = .capture_sampler_health_messages(.lame_separation_check(.separation_design_fit(12, dummy)))
+	expect_gte(d$value, 0.05); expect_match(d$warnings, 'separated')
+})
+
+test_that('the shipped binary panel fits without a separation warning', {
+	skip_on_cran()
+	data(YX_bin_list, package = 'lame', envir = environment())
+	Yb = lapply(YX_bin_list$Y, function(y) 1 * (y > 0))
+	expect_no_warning(
+		suppressMessages(lame(Yb, Xdyad = YX_bin_list$X, family = 'binary', R = 0, burn = 15, nscan = 60, odens = 5,
+			chains = 1, verbose = FALSE, plot = FALSE, gof = FALSE)),
+		class = 'lame_separation'
+	)
+})
+
 test_that('separation share matches actors by name when the actor set changes', {
 	nm = as.character(1:6)
 	Y = array(1, c(6L, 6L, 2L), dimnames = list(nm, nm, NULL))

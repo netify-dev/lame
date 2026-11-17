@@ -1,18 +1,3 @@
-# the snap and t kernels draw a symmetric product's rows in parallel, which is not
-# a Gibbs sweep of u l u', so they refuse symmetric fits
-.rUV_dynamic_refuse_symmetric <- function(symmetric, kind) {
-	if (isTRUE(symmetric)) {
-		cli::cli_abort(
-			c(
-				"The {.val {kind}} position kernel is not available for symmetric networks.",
-				"i" = "Use {.fn rUV_dynamic_fc}, the ar1 kernel, which draws a symmetric product row by row."
-			),
-			class = "lame_symmetric_kind"
-		)
-	}
-	invisible(TRUE)
-}
-
 .rUV_dynamic_validate <- function(
 	U,
 	V,
@@ -137,9 +122,10 @@ rUV_dynamic_fc <- function(
 #' @param delta_v_current current receiver-side snap indicators. If \code{NULL},
 #'   a zero matrix is used.
 #' @param shrink whether to apply shrinkage (default TRUE)
-#' @param symmetric whether the network is symmetric (default FALSE)
 #' @param rho dyadic correlation between the (i, j) and (j, i) residuals
 #'   (default 0)
+#' @details The snap kernel draws the rows of a product in parallel, so it is for
+#'   directed and bipartite networks.
 #' @return list with updated U, V arrays and delta_u, delta_v snap indicators
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @keywords internal
@@ -156,10 +142,8 @@ rUV_dynamic_snap_fc <- function(
 	delta_u_current = NULL,
 	delta_v_current = NULL,
 	shrink = TRUE,
-	symmetric = FALSE,
 	rho = 0
 ) {
-	.rUV_dynamic_refuse_symmetric(symmetric, "snap")
 	dU <- dim(U)
 	dV <- dim(V)
 	.rUV_dynamic_validate(
@@ -169,7 +153,6 @@ rUV_dynamic_snap_fc <- function(
 		rho_uv,
 		sigma_uv,
 		s2,
-		symmetric = symmetric,
 		rho = rho,
 		extra = list(kappa = kappa, pi_snap = pi_snap)
 	)
@@ -202,7 +185,7 @@ rUV_dynamic_snap_fc <- function(
 		delta_u_current,
 		delta_v_current,
 		shrink,
-		symmetric,
+		FALSE,
 		rho
 	)
 }
@@ -211,6 +194,9 @@ rUV_dynamic_snap_fc <- function(
 #'
 #' Like \code{rUV_dynamic_fc} but the AR(1) innovations are Student-t via a
 #' scale-mixture of normals, a continuous heavy-tailed alternative to snap-shift.
+#' The first period is Student-t of the same degrees of freedom and the
+#' stationary scale \code{sigma_uv / sqrt(1 - rho_uv^2)}, with its own local
+#' scale in the first column of \code{lambda_u} and \code{lambda_v}.
 #'
 #' @param U 3D array of current U positions (n x R x T)
 #' @param V 3D array of current V positions (n x R x T)
@@ -222,9 +208,10 @@ rUV_dynamic_snap_fc <- function(
 #' @param lambda_u current local scales for U (n x T)
 #' @param lambda_v current local scales for V (n x T)
 #' @param shrink whether to apply shrinkage (default TRUE)
-#' @param symmetric whether the network is symmetric (default FALSE)
 #' @param rho dyadic correlation between the (i, j) and (j, i) residuals
 #'   (default 0)
+#' @details The t kernel draws the rows of a product in parallel, so it is for
+#'   directed and bipartite networks.
 #' @return list with updated U, V arrays and lambda_u, lambda_v local scales
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @keywords internal
@@ -240,10 +227,8 @@ rUV_dynamic_t_fc <- function(
 	lambda_u = NULL,
 	lambda_v = NULL,
 	shrink = TRUE,
-	symmetric = FALSE,
 	rho = 0
 ) {
-	.rUV_dynamic_refuse_symmetric(symmetric, "t")
 	dU <- dim(U)
 	dV <- dim(V)
 	.rUV_dynamic_validate(
@@ -253,7 +238,6 @@ rUV_dynamic_t_fc <- function(
 		rho_uv,
 		sigma_uv,
 		s2,
-		symmetric = symmetric,
 		rho = rho,
 		extra = list(nu = nu)
 	)
@@ -283,7 +267,7 @@ rUV_dynamic_t_fc <- function(
 		lambda_u,
 		lambda_v,
 		shrink,
-		symmetric,
+		FALSE,
 		rho
 	)
 }

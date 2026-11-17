@@ -37,7 +37,14 @@ test_that("terminal posterior states preserve uncertainty and reproduce fitted p
 		expect_identical(state$draw_index, 1:30)
 		expect_null(f$a_draws)
 		expect_null(f$U_draws)
-		if (ab) { f$rho_ab[] = 1; f$sigma_ab[] = 0 }
+		if (ab) {
+			f$rho_ab[] = 1
+			f$sigma_ab[] = 0
+			if (!is.null(f$RHO_BETA)) {
+				f$RHO_BETA[] = 1
+				f$SIGMA_BETA[] = 0
+			}
+		}
 		if (uv) { f$rho_uv[] = 1; f$sigma_uv[] = 0 }
 		fc = suppressWarnings(predict(f, h = 1, type = "link", by_draw = TRUE, seed = 31))
 		set.seed(31); ord = sample.int(30, 30)
@@ -45,7 +52,8 @@ test_that("terminal posterior states preserve uncertainty and reproduce fitted p
 			i = ord[j]; U = state$U[, , i, drop = FALSE]; dim(U) = dim(state$U)[1:2]
 			V = state$V[, , i, drop = FALSE]; dim(V) = dim(state$V)[1:2]
 			prod = if (mode == "bipartite") U %*% state$G[, , i] %*% t(V) else U %*% t(V)
-			expected = f$BETA[i, 1] + outer(state$a[, i], state$b[, i], "+") + prod
+			intercept = if (length(dim(f$BETA)) == 3L) f$BETA[i, 1, dim(f$BETA)[3]] else f$BETA[i, 1]
+			expected = intercept + outer(state$a[, i], state$b[, i], "+") + prod
 			expect_equal(unname(fc[, , 1, j]), unname(expected), tolerance = 1e-10)
 		}
 		average = apply(fc[, , 1, , drop = FALSE], c(1, 2), mean)
@@ -137,6 +145,10 @@ test_that("pooled dynamic chains keep joint states and stored product means", {
 	)
 	expect_equal(p$a_dynamic_sd, expected_sd, tolerance = 1e-12)
 	p$rho_ab[] = 1; p$sigma_ab[] = 0; p$rho_uv[] = 1; p$sigma_uv[] = 0
+	if (!is.null(p$RHO_BETA)) {
+		p$RHO_BETA[] = 1
+		p$SIGMA_BETA[] = 0
+	}
 	fc = predict(p, h = 1, type = "link", seed = 6)[[1]]
 	expect_equal(unname(fc), unname(p$EZ[[3]]), tolerance = 1e-10)
 })

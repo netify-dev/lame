@@ -39,20 +39,21 @@ simY_frn <-
 		miss <- if (!is.null(YO)) is.na(YO) else NULL
 		if (!is.null(miss)) z_lat[miss] <- -Inf
 
-		nominations <- matrix(0, n_send, n_recv)
+		if (.frn_rankable(z_lat)) {
+			nominations <- .frn_top_ranks(z_lat, cap)
+		} else {
+			# missing or tied affinities: row by row, ties sharing their average rank
+			nominations <- matrix(0, n_send, n_recv)
+			for (i in seq_len(n_send)) {
+				affinity <- z_lat[i, ]
 
-		for (i in seq_len(n_send)) {
-			affinity <- z_lat[i, ]
+				# ascending ranks: the largest affinity earns the top rank
+				asc_rank <- rank(affinity)
+				eligible <- (asc_rank > n_recv - cap[i]) & (affinity > 0)
 
-			# ascending ranks: the largest affinity earns the top rank
-			asc_rank <- rank(affinity)
-
-			# eligible: among this sender's top `cap[i]` targets and strictly positive
-			eligible <- (asc_rank > n_recv - cap[i]) & (affinity > 0)
-
-			if (any(eligible)) {
-				# renumber the retained targets 1..k by increasing strength
-				nominations[i, eligible] <- rank(affinity[eligible])
+				if (any(eligible)) {
+					nominations[i, eligible] <- rank(affinity[eligible])
+				}
 			}
 		}
 
@@ -62,3 +63,26 @@ simY_frn <-
 
 		nominations
 	}
+
+# whether .frn_top_ranks() reproduces the row-by-row ranking: no missing
+# affinities and no ties among the positive ones
+.frn_rankable <- function(z) {
+	!anyNA(z) && !anyDuplicated(z[z > 0])
+}
+
+# ranked nominations of every row at once: the positive affinities among each
+# sender's top cap[i] are numbered 1..k by increasing strength, all else is 0
+.frn_top_ranks <- function(z, cap) {
+	n_send <- nrow(z)
+	n_recv <- ncol(z)
+	rows <- rep.int(seq_len(n_send), n_recv)
+	# the place of each cell in its row from the strongest down
+	ord <- order(rows, -z)
+	place <- integer(length(z))
+	place[ord] <- seq_along(ord) - (rows[ord] - 1L) * n_recv
+	eligible <- (place <= cap[rows]) & (z > 0)
+	n_kept <- tabulate(rows[eligible], n_send)
+	ranks <- matrix(0, n_send, n_recv)
+	ranks[eligible] <- n_kept[rows[eligible]] - place[eligible] + 1
+	ranks
+}

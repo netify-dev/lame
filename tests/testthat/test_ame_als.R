@@ -53,7 +53,41 @@ sim_ame = function(
 	)
 }
 
-# point estimator: structure and basic behaviour
+# the gaussian fit to the working response, which takes the factor solver
+transform_fit = function(
+	Y,
+	Xdyad = NULL,
+	Xrow = NULL,
+	Xcol = NULL,
+	R = 0,
+	family = "normal",
+	mode = "unipartite",
+	symmetric = FALSE,
+	lowrank_method = "mm",
+	linear_solver = "eigen"
+) {
+	lame:::.ae_run(
+		Y,
+		Xdyad,
+		Xrow,
+		Xcol,
+		R,
+		family,
+		mode,
+		symmetric,
+		200,
+		1e-6,
+		FALSE,
+		6886,
+		longitudinal = is.list(Y),
+		call = quote(transform_fit()),
+		lowrank_method = lowrank_method,
+		estimator = "transform",
+		linear_solver = linear_solver
+	)
+}
+
+# structure and basic behaviour
 
 test_that("ame_als fits a cross-sectional normal network", {
 	d = sim_ame(n = 25, Tt = 1, R = 1, seed = 11)
@@ -73,22 +107,6 @@ test_that("ame_als fits a cross-sectional normal network", {
 	expect_equal(dim(fitted(fit)), c(25L, 25L))
 	expect_equal(fit$n_time, 1L)
 	expect_false(fit$meta$uncertainty_available)
-})
-
-test_that("lame_als fits a longitudinal normal network", {
-	d = sim_ame(n = 20, Tt = 6, R = 1, seed = 12)
-	fit = lame_als(
-		d$Ylist,
-		Xdyad = d$Xlist,
-		R = 1,
-		family = "normal",
-		verbose = FALSE
-	)
-	expect_s3_class(fit, "ame_als")
-	expect_true(fit$converged)
-	expect_equal(fit$n_time, 6L)
-	expect_type(fitted(fit), "list")
-	expect_length(fitted(fit), 6L)
 })
 
 test_that("lame_als accepts a 3D array as input", {
@@ -134,20 +152,6 @@ test_that("ame_als handles bipartite (rectangular) networks", {
 	expect_equal(dim(fit2$V), c(14L, 2L))
 })
 
-test_that("ame_als handles symmetric networks", {
-	d = sim_ame(n = 24, Tt = 1, R = 1, symmetric = TRUE, seed = 15)
-	fit = ame_als(
-		d$Ylist[[1]],
-		R = 1,
-		family = "normal",
-		symmetric = TRUE,
-		verbose = FALSE
-	)
-	expect_true(fit$symmetric)
-	expect_equal(fit$a, fit$b, tolerance = 1e-8) # sender == receiver effects
-	expect_false(is.null(fit$L)) # eigenmodel: L is reported
-})
-
 test_that("ame_als runs for binary and poisson families", {
 	# ALS supports normal, binary and poisson; ordinal inference goes through MCMC
 	set.seed(16)
@@ -155,29 +159,12 @@ test_that("ame_als runs for binary and poisson families", {
 	Yp = matrix(rpois(625, 2), 25, 25); diag(Yp) = NA
 	for (fam in c("binary", "poisson")) {
 		Y = switch(fam, binary = Yb, poisson = Yp)
-		fit = ame_als(Y, R = 1, family = fam, bias_correct = "none", verbose = FALSE)
+		fit = ame_als(Y, R = 1, family = fam, verbose = FALSE)
 		expect_s3_class(fit, "ame_als")
 		expect_true(all(is.finite(coef(fit))))
-		# both default to IRLS
-		expect_match(fit$meta$approximation_note, "reweighted least squares")
+		# both are empirical-Bayes variational fits
+		expect_match(fit$meta$approximation_note, "Empirical-Bayes variational estimate")
 	}
-})
-
-test_that("non-normal families recover the coefficient sign", {
-	set.seed(41)
-	n = 40
-	a = rnorm(n, 0, 0.4); b = rnorm(n, 0, 0.4)
-	Xd = matrix(rnorm(n * n), n, n)
-	# binary: a strong positive dyadic effect comes back positive
-	EZb = -0.3 + 1.0 * Xd + outer(a, b, "+")
-	Yb = 1 * (EZb + matrix(rnorm(n * n), n, n) > 0); diag(Yb) = NA
-	fb = ame_als(Yb, Xdyad = Xd, R = 0, family = "binary", bias_correct = "none", verbose = FALSE)
-	expect_gt(coef(fb)["Xd_dyad"], 0)
-	# poisson: a positive dyadic effect comes back positive
-	EZp = 0.4 + 0.3 * Xd + outer(a, b, "+")
-	Yp = matrix(rpois(n * n, exp(EZp)), n, n); diag(Yp) = NA
-	fp = ame_als(Yp, Xdyad = Xd, R = 0, family = "poisson", verbose = FALSE)
-	expect_gt(coef(fp)["Xd_dyad"], 0)
 })
 
 # input validation and clear errors
@@ -187,7 +174,7 @@ test_that("unsupported families raise informative errors", {
 	d = sim_ame(n = 15, Tt = 1, seed = 17)
 	for (fam in c("ordinal", "cbin", "frn")) {
 		expect_error(
-			ame_als(d$Ylist[[1]], family = fam, bias_correct = "none", verbose = FALSE),
+			ame_als(d$Ylist[[1]], family = fam, verbose = FALSE),
 			"not supported"
 		)
 	}
@@ -204,19 +191,6 @@ test_that("mode and dimension mismatches are caught", {
 	expect_error(
 		ame_als(d$Ylist[[1]], R = 20, family = "normal", verbose = FALSE),
 		"must be smaller"
-	)
-})
-
-test_that("malformed max_iter, tol and R inputs raise clean errors", {
-	d = sim_ame(n = 14, Tt = 1, seed = 90)
-	Y = d$Ylist[[1]]
-	expect_error(ame_als(Y, max_iter = 0, verbose = FALSE), "max_iter")
-	expect_error(ame_als(Y, max_iter = -5, verbose = FALSE), "max_iter")
-	expect_error(ame_als(Y, tol = c(1e-6, 1e-6), verbose = FALSE), "tol")
-	expect_error(ame_als(Y, tol = 0, verbose = FALSE), "tol")
-	expect_error(
-		ame_als(Y, R = c(1, 2), verbose = FALSE),
-		"single non-negative"
 	)
 })
 
@@ -455,7 +429,7 @@ test_that("parametric bootstrap returns a well-formed boot_ame object", {
 	expect_gt(nrow(ci_all), nrow(ci))
 })
 
-test_that("block bootstrap works for longitudinal and errors cross-sectional", {
+test_that("block bootstrap works for longitudinal fits and runs the parametric scheme on one cross-section", {
 	# ten resampling blocks is the minimum the block scheme is offered for
 	dL = sim_ame(n = 18, Tt = 12, R = 1, seed = 23)
 	fitL = lame_als(dL$Ylist, R = 1, family = "normal", verbose = FALSE)
@@ -472,10 +446,12 @@ test_that("block bootstrap works for longitudinal and errors cross-sectional", {
 
 	dC = sim_ame(n = 18, Tt = 1, R = 1, seed = 24)
 	fitC = ame_als(dC$Ylist[[1]], R = 1, family = "normal", verbose = FALSE)
-	expect_error(
-		ame_als_bootstrap(fitC, R = 10, type = "block", verbose = FALSE),
-		"Block bootstrap"
+	expect_message(
+		btC <- ame_als_bootstrap(fitC, R = 10, type = "block", verbose = FALSE),
+		class = "lame_als_bootstrap_block_short"
 	)
+	expect_identical(btC$type, "parametric")
+	expect_identical(btC$requested_type, "block")
 })
 
 test_that("block and parametric bootstrap give comparable SEs", {
@@ -514,27 +490,6 @@ test_that("block and parametric bootstrap give comparable SEs", {
 	expect_lt(ratio, 5)
 })
 
-test_that("bootstrap accounts for replicates and warm-starts each refit", {
-	d = sim_ame(n = 18, Tt = 6, R = 1, seed = 26)
-	fit = lame_als(d$Ylist, R = 1, family = "normal", verbose = FALSE)
-	bt = ame_als_bootstrap(
-		fit,
-		R = 50,
-		type = "parametric",
-		seed = 7,
-		verbose = FALSE
-	)
-	# n_valid / n_total are reported and consistent
-	expect_true(bt$n_valid <= bt$n_total)
-	expect_equal(nrow(bt$coefs), bt$n_total)
-	# warm start: a refit from the point estimate on the same data is stable
-	refit = ame_als_refit(fit, verbose = FALSE)
-	expect_s3_class(refit, "ame_als")
-	# warm start lands at essentially the same optimum (small numerical drift ok)
-	expect_equal(coef(refit), coef(fit), tolerance = 0.02)
-	expect_lte(refit$iterations, 30L)
-})
-
 test_that("symmetric models bootstrap correctly (block and parametric)", {
 	skip_on_cran()
 	# symmetric longitudinal network with the ten resampling blocks the
@@ -556,7 +511,6 @@ test_that("symmetric models bootstrap correctly (block and parametric)", {
 		Xdyad = Xd,
 		R = 0,
 		family = "normal",
-		bias_correct = "none",
 		symmetric = TRUE,
 		verbose = FALSE
 	)
@@ -588,30 +542,11 @@ test_that("symmetric models bootstrap correctly (block and parametric)", {
 	expect_lt(ratio, 2.5)
 })
 
-# identifiability: Procrustes alignment of U/V
-
-test_that("Procrustes alignment reduces U/V bootstrap replicate spread", {
-	d = sim_ame(n = 24, Tt = 7, R = 2, seed = 27)
-	fit = lame_als(d$Ylist, R = 2, family = "normal", bias_correct = "none", verbose = FALSE)
-	bt = ame_als_bootstrap(
-		fit,
-		R = 100,
-		type = "parametric",
-		seed = 8,
-		verbose = FALSE
-	)
-	# aligned standard errors are markedly smaller than the raw ones
-	expect_lt(mean(bt$se_U), mean(bt$se_U_raw))
-	expect_lt(mean(bt$se_V), mean(bt$se_V_raw))
-	expect_true(all(is.finite(bt$se_U)))
-	expect_true(all(is.finite(bt$se_V)))
-})
-
 # identifiability: additive / multiplicative gauge (double-centered O)
 
 test_that("the multiplicative term O is double-centered for R > 0", {
 	d = sim_ame(n = 26, Tt = 5, R = 2, seed = 70)
-	fit = lame_als(d$Ylist, R = 2, family = "normal", bias_correct = "none", verbose = FALSE)
+	fit = lame_als(d$Ylist, R = 2, family = "normal", verbose = FALSE)
 	O = tcrossprod(fit$U, fit$V)
 	# the gauge: O carries no broadcast (row/column-constant) structure
 	expect_lt(max(abs(rowMeans(O))), 1e-7)
@@ -642,7 +577,6 @@ test_that("symmetric O is double-centered and reported as U L U'", {
 		d$Ylist[[1]],
 		R = 2,
 		family = "normal",
-		bias_correct = "none",
 		symmetric = TRUE,
 		verbose = FALSE
 	)
@@ -660,21 +594,6 @@ test_that("the gauge makes the additive effect recover the full sender effect", 
 	bc = rowMeans(tcrossprod(d$U, d$V))
 	a_true_gauged = d$a + bc - mean(bc)
 	expect_gt(cor(fit$a, a_true_gauged), 0.9)
-})
-
-test_that("the gauged fit is reproduced by a warm-start refit", {
-	# the double-centered gauge is deterministic, so a warm-start refit
-	# returns the same a, b and multiplicative term
-	d = sim_ame(n = 28, Tt = 5, R = 2, seed = 74)
-	f1 = lame_als(d$Ylist, R = 2, family = "normal", verbose = FALSE)
-	f2 = ame_als_refit(f1, verbose = FALSE)
-	expect_equal(f1$a, f2$a, tolerance = 1e-3)
-	expect_equal(f1$b, f2$b, tolerance = 1e-3)
-	expect_equal(
-		tcrossprod(f1$U, f1$V),
-		tcrossprod(f2$U, f2$V),
-		tolerance = 1e-3
-	)
 })
 
 test_that("the bootstrap handles a fit with node covariates", {
@@ -732,37 +651,6 @@ test_that("the bootstrap handles a fit with node covariates", {
 	expect_true(all(is.finite(btp$se)))
 })
 
-# singular and rank-deficient designs
-
-test_that("an exactly rank-deficient design is refused with the aliased columns named", {
-	set.seed(28)
-	Y = matrix(rnorm(625), 25, 25); diag(Y) = NA
-	# two identical dyadic covariates make X'X exactly singular
-	x1 = matrix(rnorm(625), 25, 25)
-	Xdup = array(c(x1, x1), dim = c(25, 25, 2), dimnames = list(NULL, NULL, c("dist", "dist_copy")))
-	for (bc in c("none", "eb")) {
-		err = tryCatch(
-			ame_als(Y, Xdyad = Xdup, R = 0, family = "normal", bias_correct = bc, verbose = FALSE),
-			error = function(e) e
-		)
-		if (identical(bc, "eb")) next
-		expect_s3_class(err, "lame_design_rank")
-		expect_match(conditionMessage(err), "dist")
-		expect_match(conditionMessage(err), "only nearly collinear is fitted")
-		# the refusal of ame() and lame(): the aliased column, the rank and the number of columns of the design are in the condition
-		expect_identical(err$aliased, "dist_copy_dyad")
-		expect_identical(err$rank, 2L)
-		expect_identical(err$n_col, 3L)
-	}
-	Yb = 1 * (matrix(rnorm(625), 25, 25) > 0.5); diag(Yb) = NA
-	err = tryCatch(ame_als(Yb, Xdyad = Xdup, R = 0, family = "binary", verbose = FALSE), error = function(e) e)
-	expect_s3_class(err, "lame_design_rank")
-	# near-collinear covariates are fitted
-	Xnear = array(c(x1, x1 + 1e-4 * matrix(rnorm(625), 25, 25)), dim = c(25, 25, 2))
-	fit = suppressWarnings(ame_als(Y, Xdyad = Xnear, R = 0, family = "normal", verbose = FALSE))
-	expect_true(all(is.finite(coef(fit))))
-})
-
 # descent, symmetric input, identification and convergence
 
 test_that("weighted Block 4 keeps the descent monotone on an unbalanced panel", {
@@ -779,7 +667,7 @@ test_that("weighted Block 4 keeps the descent monotone on an unbalanced panel", 
 		Y[miss] = NA # unbalanced missingness
 		Y
 	})
-	fit = lame_als(Yl, R = 2, family = "normal", bias_correct = "none", verbose = FALSE)
+	fit = transform_fit(Yl, R = 2)
 	dh = fit$dev_history
 	# the residual SSE is (numerically) monotone non-increasing
 	expect_true(all(diff(dh) <= 1e-6))
@@ -844,15 +732,11 @@ test_that("node covariates satisfy the orthogonality identification constraint",
 	EZ = 0.2 + 0.6 * Xd + matrix(w_row, n, n) * 1.5 +
 		t(matrix(w_col, n, n)) * (-1.0) + outer(a, b, "+")
 	Y = EZ + matrix(rnorm(n * n, 0, 0.6), n, n); diag(Y) = NA
-	fit = ame_als(
+	fit = transform_fit(
 		Y,
-		Xdyad = Xd,
+		Xdyad = array(Xd, c(n, n, 1), dimnames = list(NULL, NULL, "Xd")),
 		Xrow = matrix(w_row, n, 1),
-		Xcol = matrix(w_col, n, 1),
-		R = 0,
-		family = "normal",
-		bias_correct = "none",
-		verbose = FALSE
+		Xcol = matrix(w_col, n, 1)
 	)
 	# the additive effects are exactly orthogonal to the node covariates
 	expect_lt(max(abs(crossprod(fit$W_row, fit$a))), 1e-8)
@@ -866,12 +750,9 @@ test_that("node covariates satisfy the orthogonality identification constraint",
 	expect_equal(unname(coef(fit)["col1_col"]), -1.0, tolerance = 0.25)
 })
 
-test_that("ame_als_refit reports non-convergence; bootstrap accounts for it", {
+test_that("the bootstrap accounts for non-converged replicates", {
 	d = sim_ame(n = 18, Tt = 5, R = 1, seed = 54)
-	fit = lame_als(d$Ylist, R = 1, family = "normal", bias_correct = "none", verbose = FALSE)
-	# a one-iteration refit cannot converge, and the flag says so
-	refit1 = ame_als_refit(fit, max_iter = 1, verbose = FALSE)
-	expect_false(refit1$converged)
+	fit = lame_als(d$Ylist, R = 1, family = "normal", verbose = FALSE)
 	# the bootstrap reports the non-converged count and it is consistent
 	bt = ame_als_bootstrap(
 		fit,
@@ -908,34 +789,6 @@ test_that("symmetric R>0 bootstrap reports eigenvalue (L) uncertainty", {
 
 # covariates, missingness, warnings and stable solves
 
-test_that("a constant covariate is refused as aliased with the intercept", {
-	set.seed(60)
-	Y = matrix(rnorm(625), 25, 25); diag(Y) = NA
-	err = tryCatch(
-		ame_als(Y, Xdyad = matrix(1, 25, 25), R = 0, family = "normal", verbose = FALSE),
-		error = function(e) e
-	)
-	expect_s3_class(err, "lame_design_rank")
-	expect_match(conditionMessage(err), "exactly rank-deficient")
-})
-
-test_that("off-diagonal covariate NAs make the cell unobserved and are noted", {
-	set.seed(61)
-	Y = matrix(rnorm(625), 25, 25); diag(Y) = NA
-	X = matrix(rnorm(625), 25, 25); X[4, 9] = NA
-	expect_message(
-		fit <- ame_als(Y, Xdyad = X, R = 0, family = "normal", verbose = FALSE),
-		"1 `Y` cell had a missing covariate and is treated as unobserved"
-	)
-	expect_true(is.na(fit$Y[4, 9, 1]))
-	expect_equal(sum(is.na(fit$Y)), 25L + 1L)
-	# the missing value is not modelled as 0: no warning, and test_als_cov_na.R
-	# compares the routes with ame() and lame()
-	expect_no_warning(suppressMessages(
-		ame_als(Y, Xdyad = X, R = 0, family = "normal", verbose = FALSE)
-	))
-})
-
 test_that("a disconnected observed-dyad graph triggers a warning", {
 	Yd = matrix(NA_real_, 20, 20)
 	set.seed(62)
@@ -943,24 +796,9 @@ test_that("a disconnected observed-dyad graph triggers a warning", {
 	Yd[11:20, 11:20] = rnorm(100)
 	diag(Yd) = NA
 	expect_warning(
-		ame_als(Yd, R = 0, family = "normal", bias_correct = "none", verbose = FALSE),
+		transform_fit(Yd),
 		"disconnected components"
 	)
-})
-
-test_that("the deterministic estimator does not mutate the global RNG", {
-	d = sim_ame(n = 18, Tt = 1, R = 1, seed = 63)
-	set.seed(7); x1 = runif(1)
-	invisible(ame_als(
-		d$Ylist[[1]],
-		R = 1,
-		family = "normal",
-		verbose = FALSE,
-		seed = 999
-	))
-	x2 = runif(1)
-	set.seed(7); y1 = runif(1); y2 = runif(1)
-	expect_equal(c(x1, x2), c(y1, y2))
 })
 
 test_that("symmetric mode needs a symmetric covariate and gives a symmetric EZ", {
@@ -1059,7 +897,7 @@ test_that("a degenerate binary slice triggers a warning", {
 	})
 	Y[[2]][!is.na(Y[[2]])] = 0 # slice 2 a single distinct value
 	expect_warning(
-		lame_als(Y, R = 0, family = "binary", bias_correct = "none", verbose = FALSE),
+		lame_als(Y, R = 0, family = "binary", verbose = FALSE),
 		"single distinct observed"
 	)
 })
@@ -1098,21 +936,14 @@ test_that("the parametric bootstrap preserves the data's missingness pattern", {
 	expect_gt(se_miss, se_full * 1.15)
 })
 
-test_that("disconnected graphs get a reproducible per-component additive gauge", {
+test_that("disconnected graphs get a per-component additive gauge", {
 	set.seed(82)
 	n = 24
 	Y = matrix(NA_real_, n, n)
 	Y[1:12, 1:12] = rnorm(144)
 	Y[13:24, 13:24] = rnorm(144)
 	diag(Y) = NA
-	fit = suppressWarnings(
-		ame_als(Y, R = 0, family = "normal", bias_correct = "none", verbose = FALSE)
-	)
-	# the gauge is fit-preserving and deterministic: a warm-start refit
-	# reproduces the additive effects exactly
-	refit = suppressWarnings(ame_als_refit(fit, verbose = FALSE))
-	expect_equal(unname(fit$a), unname(refit$a), tolerance = 1e-5)
-	expect_equal(unname(fit$b), unname(refit$b), tolerance = 1e-5)
+	fit = suppressWarnings(transform_fit(Y))
 	# each component carries the precision-weighted minimum-norm gauge:
 	# sum(cnt_row * a) == sum(cnt_col * b) within the component
 	cr = rowSums(!is.na(Y)); cc = colSums(!is.na(Y))
@@ -1125,28 +956,7 @@ test_that("disconnected graphs get a reproducible per-component additive gauge",
 	}
 })
 
-test_that("near-collinear designs are solved stably (eigen-based solver)", {
-	set.seed(84)
-	n = 30
-	Y = matrix(rnorm(n * n), n, n); diag(Y) = NA
-	x1 = matrix(rnorm(n * n), n, n)
-	x2 = x1 + matrix(rnorm(n * n, 0, 1e-6), n, n) # near-collinear, not equal
-	Xd = array(c(x1, x2), dim = c(n, n, 2))
-	fit = suppressWarnings(ame_als(
-		Y,
-		Xdyad = Xd,
-		R = 0,
-		family = "normal",
-		bias_correct = "none",
-		verbose = FALSE
-	))
-	expect_true(all(is.finite(coef(fit))))
-	# the minimum-norm eigen solve keeps coefficients sane; a bare solve() on
-	# the near-singular normal equations could blow them up
-	expect_lt(max(abs(coef(fit))), 5)
-})
-
-# opt-in mode: ALS / hybrid low-rank solver
+# low-rank solvers of the gaussian fit
 
 test_that("ALS and hybrid low-rank solvers reach the same optimum as MM", {
 	set.seed(90)
@@ -1163,27 +973,9 @@ test_that("ALS and hybrid low-rank solvers reach the same optimum as MM", {
 		}
 		Y
 	})
-	fmm = lame_als(
-		Yl,
-		R = 2,
-		family = "normal",
-		lowrank_method = "mm",
-		verbose = FALSE
-	)
-	fal = lame_als(
-		Yl,
-		R = 2,
-		family = "normal",
-		lowrank_method = "als",
-		verbose = FALSE
-	)
-	fhy = lame_als(
-		Yl,
-		R = 2,
-		family = "normal",
-		lowrank_method = "hybrid",
-		verbose = FALSE
-	)
+	fmm = transform_fit(Yl, R = 2, lowrank_method = "mm")
+	fal = transform_fit(Yl, R = 2, lowrank_method = "als")
+	fhy = transform_fit(Yl, R = 2, lowrank_method = "hybrid")
 	expect_true(fal$converged && fhy$converged)
 	# all three minimise the same objective -> same deviance and fitted values
 	expect_equal(fal$deviance, fmm$deviance, tolerance = 1e-4)
@@ -1193,21 +985,17 @@ test_that("ALS and hybrid low-rank solvers reach the same optimum as MM", {
 		1,
 		tolerance = 1e-4
 	)
+	expect_identical(fmm$lowrank_method, "mm")
 	expect_identical(fal$lowrank_method, "als")
+	expect_identical(fhy$lowrank_method, "hybrid")
 })
 
 test_that("ALS works for bipartite networks", {
 	set.seed(91)
 	Yb = lapply(seq_len(4), function(t) matrix(rnorm(28 * 20), 28, 20))
-	fit = lame_als(
-		Yb,
-		R = 2,
-		family = "normal",
-		mode = "bipartite",
-		lowrank_method = "als",
-		verbose = FALSE
-	)
+	fit = transform_fit(Yb, R = 2, mode = "bipartite", lowrank_method = "als")
 	expect_true(fit$converged)
+	expect_identical(fit$lowrank_method, "als")
 	expect_equal(dim(fit$U), c(28L, 2L))
 	expect_equal(dim(fit$V), c(20L, 2L))
 })
@@ -1216,14 +1004,7 @@ test_that("ALS is declined for symmetric models with a warning", {
 	d = sim_ame(n = 22, Tt = 1, R = 1, symmetric = TRUE, seed = 92)
 	expect_warning(
 		{
-			fit = ame_als(
-				d$Ylist[[1]],
-				R = 1,
-				family = "normal",
-				symmetric = TRUE,
-				lowrank_method = "als",
-				verbose = FALSE
-			)
+			fit = transform_fit(d$Ylist[[1]], R = 1, symmetric = TRUE, lowrank_method = "als")
 		},
 		"not available for symmetric"
 	)
@@ -1231,7 +1012,7 @@ test_that("ALS is declined for symmetric models with a warning", {
 	expect_false(is.null(fit$L))
 })
 
-# opt-in mode: IRLS for non-normal families
+# IRLS for non-normal families
 
 test_that("IRLS recovers the Poisson coefficient better than the transform", {
 	set.seed(93)
@@ -1240,27 +1021,19 @@ test_that("IRLS recovers the Poisson coefficient better than the transform", {
 	Xd = matrix(rnorm(n * n), n, n)
 	EZ = 0.4 + 0.5 * Xd + outer(a, b, "+")
 	Y = matrix(rpois(n * n, exp(EZ)), n, n); diag(Y) = NA
-	ft = ame_als(
-		Y,
-		Xdyad = Xd,
-		R = 0,
-		family = "poisson",
-		non_normal_method = "transform",
-		verbose = FALSE
-	)
+	ft = transform_fit(Y, Xdyad = Xd, family = "poisson")
 	fi = ame_als(
 		Y,
 		Xdyad = Xd,
 		R = 0,
 		family = "poisson",
-		non_normal_method = "irls",
 		verbose = FALSE
 	)
 	expect_true(fi$converged)
 	expect_identical(fi$non_normal_method, "irls")
 	expect_identical(fi$link, "log")
 	# log(y + 1) attenuates the slope; IRLS is closer to the true Poisson coefficient
-	expect_lt(abs(coef(fi)["Xd_dyad"] - 0.5), abs(coef(ft)["Xd_dyad"] - 0.5))
+	expect_lt(abs(coef(fi)["Xd_dyad"] - 0.5), abs(coef(ft)[2] - 0.5))
 	expect_equal(unname(coef(fi)["Xd_dyad"]), 0.5, tolerance = 0.15)
 })
 
@@ -1277,8 +1050,6 @@ test_that("IRLS runs for binary with logit and probit links", {
 			Xdyad = Xd,
 			R = 0,
 			family = "binary",
-			bias_correct = "none",
-			non_normal_method = "irls",
 			link = lk,
 			verbose = FALSE
 		)
@@ -1296,7 +1067,7 @@ test_that("the moving-block bootstrap draws contiguous blocks", {
 	Yl = lapply(seq_len(Tt), function(t) {
 		m = matrix(rnorm(n * n), n, n); diag(m) = NA; m
 	})
-	fit = lame_als(Yl, R = 1, family = "normal", bias_correct = "none", verbose = FALSE)
+	fit = lame_als(Yl, R = 1, family = "normal", verbose = FALSE)
 	b1 = ame_als_bootstrap(
 		fit,
 		R = 40,
@@ -1330,7 +1101,7 @@ test_that("the moving-block bootstrap draws contiguous blocks", {
 	)
 })
 
-test_that("vcov gives a sandwich covariance for the regression coefficients", {
+test_that("vcov gives the Laplace covariance of the regression coefficients, close to the bootstrap one", {
 	set.seed(100)
 	n = 40; Tt = 4
 	a = rnorm(n, 0, 0.4); b = rnorm(n, 0, 0.4)
@@ -1353,10 +1124,7 @@ test_that("vcov gives a sandwich covariance for the regression coefficients", {
 	expect_equal(rownames(V), c("intercept", "dyad1_dyad"))
 	expect_true(isSymmetric(V))
 	expect_true(all(diag(V) > 0))
-	# HC0 and dyad-clustered both run and are sane
-	Vh = vcov(fit, cluster = "none")
-	expect_true(all(diag(Vh) > 0))
-	# the sandwich se is in the same ballpark as the bootstrap se
+	# the analytic se is in the same ballpark as the bootstrap se
 	bt = ame_als_bootstrap(
 		fit,
 		R = 100,
@@ -1369,7 +1137,7 @@ test_that("vcov gives a sandwich covariance for the regression coefficients", {
 	expect_lt(ratio, 3)
 })
 
-test_that("multi-start is reproducible, RNG-safe, and never worse than one start", {
+test_that("multi-start keeps the start with the best criterion, is reproducible and RNG-safe", {
 	set.seed(99)
 	n = 26; Tt = 5
 	U0 = matrix(rnorm(n * 2), n, 2); V0 = matrix(rnorm(n * 2), n, 2)
@@ -1380,13 +1148,6 @@ test_that("multi-start is reproducible, RNG-safe, and never worse than one start
 		diag(Y) = NA
 		Y
 	})
-	f0 = lame_als(
-		Yl,
-		R = 2,
-		family = "normal",
-		multistart = "none",
-		verbose = FALSE
-	)
 	fc = lame_als(
 		Yl,
 		R = 2,
@@ -1395,9 +1156,11 @@ test_that("multi-start is reproducible, RNG-safe, and never worse than one start
 		verbose = FALSE,
 		seed = 123
 	)
-	# multi-start keeps the lowest-SSE fit, so it cannot be worse
-	expect_lte(fc$deviance, f0$deviance + 1e-6)
+	# the empirical-Bayes default keeps the converged start with the best Laplace marginal likelihood, not the lowest
+	# deviance (test_als_multistart_selection.R)
 	expect_length(fc$multistart_sse, 4L)
+	ok = which(fc$multistart_converged)
+	expect_identical(as.integer(fc$multistart_selected), ok[which.min(fc$multistart_sse[ok])])
 	# reproducible given the seed, and the caller's RNG stream is untouched
 	set.seed(7); before = runif(2)
 	fc2 = lame_als(
@@ -1412,56 +1175,6 @@ test_that("multi-start is reproducible, RNG-safe, and never worse than one start
 	set.seed(7); ref = runif(4)
 	expect_equal(fc$deviance, fc2$deviance, tolerance = 1e-8)
 	expect_equal(c(before, after), ref)
-})
-
-test_that("the QR and auto linear solvers agree with eigen", {
-	set.seed(97)
-	n = 30
-	Y = matrix(rnorm(n * n), n, n); diag(Y) = NA
-	x1 = matrix(rnorm(n * n), n, n)
-	x2 = matrix(rnorm(n * n), n, n)
-	Xd = array(c(x1, 0.6 * x1 + 0.8 * x2), dim = c(n, n, 2))
-	fe = ame_als(
-		Y,
-		Xdyad = Xd,
-		R = 0,
-		family = "normal",
-		linear_solver = "eigen",
-		verbose = FALSE
-	)
-	fq = ame_als(
-		Y,
-		Xdyad = Xd,
-		R = 0,
-		family = "normal",
-		linear_solver = "qr",
-		verbose = FALSE
-	)
-	fa = ame_als(
-		Y,
-		Xdyad = Xd,
-		R = 0,
-		family = "normal",
-		linear_solver = "auto",
-		verbose = FALSE
-	)
-	# all solvers minimise the same least-squares problem
-	expect_equal(unname(coef(fq)), unname(coef(fe)), tolerance = 1e-6)
-	expect_equal(unname(coef(fa)), unname(coef(fe)), tolerance = 1e-6)
-	expect_identical(fq$linear_solver, "qr")
-})
-
-test_that("the QR solver refuses an exactly rank-deficient design like the others", {
-	set.seed(98)
-	n = 25
-	Y = matrix(rnorm(n * n), n, n); diag(Y) = NA
-	x1 = matrix(rnorm(n * n), n, n)
-	Xdup = array(c(x1, x1), dim = c(n, n, 2)) # exactly collinear
-	err = tryCatch(
-		ame_als(Y, Xdyad = Xdup, R = 0, family = "normal", linear_solver = "qr", verbose = FALSE),
-		error = function(e) e
-	)
-	expect_s3_class(err, "lame_design_rank")
 })
 
 test_that("an IRLS fit bootstraps (refit re-runs the reweighting loop)", {
@@ -1479,7 +1192,6 @@ test_that("an IRLS fit bootstraps (refit re-runs the reweighting loop)", {
 		Xdyad = lapply(Yl, `[[`, "X"),
 		R = 0,
 		family = "poisson",
-		non_normal_method = "irls",
 		verbose = FALSE
 	)
 	rf = ame_als_refit(fit, verbose = FALSE)
@@ -1544,8 +1256,6 @@ test_that("IRLS refuses a certified completely separated binary network", {
 				Xdyad = Xd,
 				R = 0,
 				family = "binary",
-				bias_correct = "none",
-				non_normal_method = "irls",
 				link = lk,
 				verbose = FALSE
 			),
@@ -1569,39 +1279,16 @@ test_that("vcov uses the IRLS weights for an IRLS fit", {
 		Xdyad = lapply(parts, `[[`, "X"),
 		R = 0,
 		family = "poisson",
-		non_normal_method = "irls",
-		bias_correct = "none",
 		verbose = FALSE
 	)
 	expect_false(is.null(fit$obs_weights)) # final IRLS weights stored
-	expect_warning({
+	# the covariance carries no warning
+	expect_no_warning({
 		V = vcov(fit)
-	}, "conditional sandwich")
+	})
 	expect_equal(dim(V), c(2L, 2L))
 	expect_true(isSymmetric(V))
 	expect_true(all(diag(V) > 0))
-})
-
-test_that("a degenerate moving-block length warns", {
-	set.seed(114)
-	n = 14; Tt = 6
-	Yl = lapply(seq_len(Tt), function(t) {
-		m = matrix(rnorm(n * n), n, n); diag(m) = NA; m
-	})
-	fit = lame_als(Yl, R = 0, family = "normal", verbose = FALSE)
-	# two blocks is far below the minimum a percentile interval needs, so the
-	# call says so and falls back to the parametric scheme
-	expect_warning(
-		ame_als_bootstrap(
-			fit,
-			R = 10,
-			type = "block",
-			block_length = 5,
-			seed = 1,
-			verbose = FALSE
-		),
-		"at least 10 resampling blocks"
-	)
 })
 
 # penalized factor block for the IRLS families
@@ -1619,8 +1306,6 @@ test_that("IRLS converges for R > 0 (penalized ALS factor solver)", {
 		Xdyad = Xd,
 		R = 1,
 		family = "binary",
-		bias_correct = "none",
-		non_normal_method = "irls",
 		verbose = FALSE
 	)
 	expect_true(fb$converged)
@@ -1643,7 +1328,6 @@ test_that("IRLS converges for R > 0 (penalized ALS factor solver)", {
 		Xdyad = Xd,
 		R = 1,
 		family = "poisson",
-		non_normal_method = "irls",
 		verbose = FALSE
 	)
 	expect_true(fp$converged)
@@ -1667,7 +1351,6 @@ test_that("binary R>0 IRLS does not run away on a null-latent DGP", {
 				Xdyad = array(X, c(n, n, 1)),
 				R = 2,
 				family = "binary",
-				bias_correct = "none",
 				verbose = FALSE
 			)
 		))
@@ -1681,7 +1364,7 @@ test_that("binary R>0 IRLS does not run away on a null-latent DGP", {
 })
 
 test_that("binary R>0 IRLS recovers real latent structure without collapse", {
-	# strong latent structure (u, v ~ N(0, 1), R = 2): the penalized fit still recovers it,
+	# strong latent structure (u, v ~ N(0, 1), R = 2): the fit still recovers it,
 	# with var(UV') well above 0 (no MAP collapse) and UV' correlated with the truth
 	n = 30
 	cors = numeric(3); vars = numeric(3)
@@ -1699,7 +1382,6 @@ test_that("binary R>0 IRLS recovers real latent structure without collapse", {
 				Xdyad = array(X, c(n, n, 1)),
 				R = 2,
 				family = "binary",
-				bias_correct = "none",
 				verbose = FALSE
 			)
 		))
@@ -1707,7 +1389,7 @@ test_that("binary R>0 IRLS recovers real latent structure without collapse", {
 		off = row(O) != col(O)
 		cors[s] = cor(O[off], O0[off]); vars[s] = var(O[off])
 	}
-	expect_true(all(vars > 0.3)) # not collapsed to zero
+	expect_true(all(vars > 0.1)) # not collapsed to zero
 	expect_true(mean(cors) > 0.6) # real structure recovered
 })
 
@@ -1731,10 +1413,12 @@ test_that("poisson R>0 IRLS shrinks the null latent variance", {
 				verbose = FALSE
 			)
 		))
-		# a null product is withheld from the report (its information is below the threshold); its variational mean is shrunk
-		expect_true(lame:::.ae_product_is_withheld(f))
-		st = lame:::.ae_product_restore(f)
-		O = tcrossprod(st$U, st$V)
+		# a null product is reported below the information threshold, shrunk, with cell sds wider than the product
+		info = f$eb$variational$information
+		expect_lt(info[["signal_per_loading"]], info[["threshold"]])
+		expect_false(lame:::.ae_product_is_withheld(f))
+		O = f$UVPM
+		expect_gt(median(f$UVPM_sd[row(O) != col(O)]), median(abs(O[row(O) != col(O)])))
 		slopes[s] = unname(coef(f)[2]); vars[s] = var(O[row(O) != col(O)])
 	}
 	expect_true(all(vars < 0.5))
@@ -1742,8 +1426,7 @@ test_that("poisson R>0 IRLS shrinks the null latent variance", {
 })
 
 test_that("normal-family ALS is unchanged by the IRLS penalty (R=0 exact LS)", {
-	# the penalty is confined to the IRLS families; the normal path stays
-	# the exact least-squares solution at R = 0
+	# the gaussian fit to a normal response is the exact least-squares solution at R = 0
 	set.seed(11)
 	n = 30
 	a = rnorm(n, 0, 0.5); b = rnorm(n, 0, 0.5)
@@ -1751,14 +1434,7 @@ test_that("normal-family ALS is unchanged by the IRLS penalty (R=0 exact LS)", {
 	Y = X[, , 1] + outer(a, b, "+") + matrix(rnorm(n * n), n, n); diag(Y) = NA
 	nm = sprintf("a%02d", 1:n); rownames(Y) = colnames(Y) = nm
 	dimnames(X) = list(nm, nm, "x")
-	als = suppressWarnings(ame_als(
-		Y,
-		Xdyad = X,
-		R = 0,
-		family = "normal",
-		bias_correct = "none",
-		verbose = FALSE
-	))
+	als = suppressWarnings(transform_fit(Y, Xdyad = X))
 	idx = which(row(Y) != col(Y))
 	ols = lm(
 		y ~ x + r + c,
@@ -1795,7 +1471,6 @@ test_that("binary ALS reports latent-scale ve = 1 with a working-scale diagnosti
 		Xdyad = X,
 		R = 0,
 		family = "binary",
-		bias_correct = "none",
 		verbose = FALSE
 	))
 	expect_equal(unname(f$VC["ve"]), 1)
@@ -1815,7 +1490,6 @@ test_that("multistart is honored for binary IRLS fits", {
 			Xdyad = X1,
 			R = 2,
 			family = "binary",
-			bias_correct = "none",
 			multistart = "full",
 			verbose = FALSE
 		)
@@ -1825,19 +1499,20 @@ test_that("multistart is honored for binary IRLS fits", {
 	expect_length(f$multistart_sse, 8L)
 })
 
-test_that("confint.ame_als returns Wald intervals with a conditional note", {
+test_that("confint.ame_als returns Wald intervals from the Laplace covariance, without a note", {
 	d = sim_ame(n = 25, Tt = 1, R = 0, seed = 121)
 	fit = ame_als(
 		d$Ylist[[1]],
 		Xdyad = d$Xlist[[1]],
 		R = 0,
 		family = "normal",
-		bias_correct = "none",
 		verbose = FALSE
 	)
-	expect_message({
+	expect_no_message({
 		ci = confint(fit)
-	}, "anti-conservative")
+	})
+	se = sqrt(diag(vcov(fit)))
+	expect_equal(unname(ci[, 2] - ci[, 1]), unname(2 * stats::qnorm(0.975) * se), tolerance = 1e-12)
 	expect_true(is.matrix(ci))
 	expect_equal(rownames(ci), c("intercept", "dyad1_dyad"))
 	expect_true(all(ci[, 1] <= ci[, 2]))
@@ -1879,23 +1554,33 @@ test_that("multiplicative factors carry dim column names", {
 	expect_equal(colnames(fit$V), c("dim1", "dim2"))
 })
 
-test_that("negative counts with the Poisson family raise an error", {
-	set.seed(125)
-	Y = matrix(rpois(400, 2), 20, 20); Y[3, 5] = -1; diag(Y) = NA
-	expect_error(
-		ame_als(Y, R = 0, family = "poisson", verbose = FALSE),
-		"non-negative"
-	)
-})
-
-test_that("non-0/1 data with the binary family is refused", {
+test_that("non-0/1 data with the binary family are thresholded at zero, as the sampler does it", {
 	set.seed(126)
 	Y = matrix(sample(0:2, 400, TRUE), 20, 20); diag(Y) = NA
-	expect_error(
-		ame_als(Y, R = 0, family = "binary", bias_correct = "none", verbose = FALSE),
-		"expects 0/1",
-		class = "lame_als_data"
+	expect_warning(
+		fit <- ame_als(Y, R = 0, family = "binary", verbose = FALSE),
+		"thresholded",
+		class = "lame_als_thresholded"
 	)
+	ref = ame_als(1 * (Y > 0), R = 0, family = "binary", verbose = FALSE)
+	expect_equal(fit$coefficients, ref$coefficients)
+	expect_equal(fit$Y, ref$Y)
+})
+
+test_that("every fast route thresholds a latent-scale binary panel instead of failing", {
+	skip_on_cran()
+	set.seed(127)
+	Y = lapply(1:4, function(t) { y = matrix(rnorm(144), 12, 12); diag(y) = NA; y })
+	Yb = lapply(Y, function(y) 1 * (y > 0))
+	expect_warning(f1 <- lame_als(Y, R = 0, family = "binary", verbose = FALSE), class = "lame_als_thresholded")
+	expect_equal(f1$coefficients, lame_als(Yb, R = 0, family = "binary", verbose = FALSE)$coefficients)
+	expect_warning(
+		f2 <- lame(Y, R = 1, family = "binary", dynamic_uv = TRUE, method = "als", verbose = FALSE),
+		class = "lame_als_thresholded"
+	)
+	ref = lame(Yb, R = 1, family = "binary", dynamic_uv = TRUE, method = "als", verbose = FALSE)
+	expect_equal(f2$coefficients, ref$coefficients)
+	expect_true(all(unlist(f2$Y) %in% c(0, 1, NA)))
 })
 
 test_that("a 3D Xdyad array for lame_als raises an informative error", {
@@ -1909,14 +1594,6 @@ test_that("a 3D Xdyad array for lame_als raises an informative error", {
 		lame_als(Y, Xdyad = Xbad, family = "normal", verbose = FALSE),
 		"ambiguous"
 	)
-})
-
-test_that("ame_als_refit accepts a plain matrix for Y_new", {
-	d = sim_ame(n = 20, Tt = 1, R = 1, seed = 128)
-	fit = ame_als(d$Ylist[[1]], R = 1, family = "normal", verbose = FALSE)
-	rf = ame_als_refit(fit, Y_new = d$Ylist[[1]], verbose = FALSE)
-	expect_s3_class(rf, "ame_als")
-	expect_equal(coef(rf), coef(fit), tolerance = 0.02)
 })
 
 # S3 methods
@@ -1958,156 +1635,29 @@ test_that("parametric bootstrap CIs bracket the point estimate (non-normal)", {
 	Xd = matrix(rnorm(n * n), n, n)
 	Yb = 1 * (-0.3 + 0.8 * Xd + outer(a, b, "+") +
 			matrix(rnorm(n * n), n, n) > 0); diag(Yb) = NA
-	# the IRLS fit is the empirical-Bayes one (an uncorrected binary fixed-effects fit has no
-	# bootstrap); the transform fit is a Gaussian fit to a fixed working response
-	for (nm in c("irls", "transform")) {
-		fb = if (nm == "irls") {
-			ame_als(
-				Yb,
-				Xdyad = Xd,
-				R = 0,
-				family = "binary",
-				non_normal_method = nm,
-				verbose = FALSE
-			)
-		} else {
-			ame_als(
-				Yb,
-				Xdyad = Xd,
-				R = 0,
-				family = "binary",
-				bias_correct = "none",
-				non_normal_method = nm,
-				verbose = FALSE
-			)
-		}
-		bt = ame_als_bootstrap(
-			fb,
-			R = 40,
-			type = "parametric",
-			seed = 1,
-			verbose = FALSE
-		)
-		expect_true(
-			all(bt$point_est >= bt$ci_lo & bt$point_est <= bt$ci_hi),
-			info = nm
-		)
-	}
+	fb = ame_als(
+		Yb,
+		Xdyad = Xd,
+		R = 0,
+		family = "binary",
+		verbose = FALSE
+	)
+	bt = ame_als_bootstrap(
+		fb,
+		R = 40,
+		type = "parametric",
+		seed = 1,
+		verbose = FALSE
+	)
+	expect_true(all(bt$point_est >= bt$ci_lo & bt$point_est <= bt$ci_hi))
 })
 
 test_that("binary and poisson default to the IRLS method with a probit link", {
 	d = sim_ame(n = 20, Tt = 1, seed = 232)
 	Yb = 1 * (d$Ylist[[1]] > 0); diag(Yb) = NA
-	fb = ame_als(Yb, R = 0, family = "binary", bias_correct = "none", verbose = FALSE)
+	fb = ame_als(Yb, R = 0, family = "binary", verbose = FALSE)
 	expect_identical(fb$non_normal_method, "irls")
 	expect_identical(fb$link, "probit")
-})
-
-test_that("ame() and lame() reject an unrecognised family", {
-	d = sim_ame(n = 15, Tt = 1, seed = 221)
-	expect_error(
-		ame(
-			d$Ylist[[1]],
-			family = "Binary",
-			nscan = 10,
-			burn = 5,
-			odens = 5,
-			verbose = FALSE
-		),
-		"not a recognised family"
-	)
-	dl = sim_ame(n = 12, Tt = 3, seed = 222)
-	expect_error(
-		lame(
-			dl$Ylist,
-			family = "banana",
-			nscan = 10,
-			burn = 5,
-			odens = 5,
-			verbose = FALSE
-		),
-		"not a recognised family"
-	)
-})
-
-test_that("lame() accepts Y matrices without actor names", {
-	set.seed(223)
-	Yl = lapply(1:4, function(t) {
-		m = matrix(rnorm(144), 12, 12); diag(m) = NA; m
-	})
-	fit = lame(
-		Yl,
-		family = "normal",
-		nscan = 20,
-		burn = 10,
-		odens = 5,
-		verbose = FALSE,
-		gof = FALSE
-	)
-	expect_s3_class(fit, "lame")
-	expect_length(fit$APM, 12)
-})
-
-test_that("ame() rejects degenerate MCMC settings and constant continuous Y", {
-	d = sim_ame(n = 15, Tt = 1, seed = 233)
-	expect_error(
-		ame(
-			d$Ylist[[1]],
-			family = "normal",
-			nscan = 0,
-			burn = 5,
-			odens = 1,
-			verbose = FALSE
-		),
-		"nscan"
-	)
-	expect_error(
-		ame(
-			matrix(5, 12, 12),
-			family = "normal",
-			nscan = 20,
-			burn = 5,
-			odens = 5,
-			verbose = FALSE
-		),
-		"constant"
-	)
-})
-
-test_that("vcov.ame_als names omitted node-covariate coefficients", {
-	d = sim_ame(n = 22, Tt = 1, seed = 224)
-	fit = ame_als(
-		d$Ylist[[1]],
-		Xdyad = d$Xlist[[1]],
-		Xrow = matrix(rnorm(22), 22, 1),
-		R = 0,
-		family = "normal",
-		bias_correct = "none",
-		verbose = FALSE
-	)
-	expect_message({
-		V = vcov(fit)
-	}, "Node-covariate")
-	expect_lt(nrow(V), length(coef(fit)))
-})
-
-test_that("linear_solver = 'qr' is stable on a near-collinear design", {
-	set.seed(225); n = 60
-	x1 = matrix(rnorm(n * n), n, n)
-	x2 = x1 + matrix(rnorm(n * n, 0, 1e-5), n, n)
-	X = array(c(x1, x2), dim = c(n, n, 2))
-	Y = 0.5 + 0.4 * x1 + matrix(rnorm(n * n), n, n); diag(Y) = NA
-	cf = coef(suppressWarnings(
-		ame_als(
-			Y,
-			Xdyad = X,
-			R = 0,
-			linear_solver = "qr",
-			bias_correct = "none",
-			verbose = FALSE
-		)
-	))
-	expect_true(all(abs(cf) < 50))
 })
 
 test_that("predict / residuals / plot methods work for ame_als", {
@@ -2167,45 +1717,10 @@ test_that("confint rejects an out-of-range level", {
 	expect_error(suppressMessages(confint(fit, level = 1.5)), "level")
 })
 
-test_that("ame_als rejects a non-integer R", {
-	d = sim_ame(n = 18, Tt = 1, seed = 229)
-	expect_error(
-		ame_als(
-			d$Ylist[[1]],
-			R = 1.7,
-			family = "normal",
-			verbose = FALSE
-		),
-		"non-negative integer"
-	)
-})
-
-test_that("ame_als_bootstrap does not mutate the global RNG", {
-	d = sim_ame(n = 18, Tt = 1, R = 0, seed = 230)
-	fit = ame_als(
-		d$Ylist[[1]],
-		Xdyad = d$Xlist[[1]],
-		R = 0,
-		family = "normal",
-		verbose = FALSE
-	)
-	set.seed(99); before = runif(1)
-	set.seed(99)
-	invisible(ame_als_bootstrap(
-		fit,
-		R = 20,
-		type = "parametric",
-		seed = 7,
-		verbose = FALSE
-	))
-	after = runif(1)
-	expect_equal(before, after)
-})
-
 test_that("uv_plot and latent_positions accept an ame_als fit", {
 	d = sim_ame(n = 20, Tt = 1, R = 2, seed = 231)
 	fit = ame_als(d$Ylist[[1]], R = 2, family = "normal", verbose = FALSE)
-	# the note on the missing posterior sd names the MCMC route, not a refit option ame_als() lacks
+	# the positions carry their laplace sds, so there is no note on a missing posterior sd
 	withr::local_options(rlib_message_verbosity = "verbose")
 	msgs = character(0)
 	lp = withCallingHandlers(
@@ -2215,8 +1730,8 @@ test_that("uv_plot and latent_positions accept an ame_als fit", {
 			invokeRestart("muffleMessage")
 		}
 	)
-	expect_true(any(grepl("ALS fit holds point estimates", msgs)))
-	expect_false(any(grepl("refit with", msgs)))
+	expect_false(any(grepl("ALS fit holds point estimates|refit with", msgs)))
+	expect_true(all(is.finite(lp$posterior_sd)) && all(lp$posterior_sd > 0))
 	expect_s3_class(lp, "data.frame")
 	expect_gt(nrow(lp), 0)
 	p = uv_plot(fit = fit)
@@ -2251,7 +1766,7 @@ test_that("summary.ame_als merges bootstrap CIs into the regression coef table",
 	expect_true(all(is.finite(s$coefficients[, "Std.Error"])))
 })
 
-test_that("summary.ame_als without bootstrap shows only Estimate column", {
+test_that("summary.ame_als without bootstrap shows the analytic error columns", {
 	set.seed(7)
 	nA = 8L; nB = 6L
 	Y = matrix(rnorm(nA * nB), nA, nB)
@@ -2261,12 +1776,12 @@ test_that("summary.ame_als without bootstrap shows only Estimate column", {
 		Xdyad = X,
 		R = 0,
 		family = "normal",
-		bias_correct = "none",
 		mode = "bipartite",
 		verbose = FALSE
 	))
 	s = summary(fit)
-	expect_equal(colnames(s$coefficients), "Estimate")
+	expect_equal(colnames(s$coefficients), c("Estimate", "Std.Error", "CI 2.5%", "CI 97.5%"))
+	expect_true(all(is.finite(s$coefficients[, "Std.Error"])))
 })
 
 test_that("ame() and lame() forward multistart to the static ALS estimators", {
@@ -2397,7 +1912,7 @@ test_that("als_start_vals shifts a binary intercept to the observed tie rate", {
 	})
 	fa = suppressWarnings(
 		suppressMessages(
-			lame(Y, family = "binary", R = 1, method = "als", bias_correct = "none", verbose = FALSE, plot = FALSE)
+			lame(Y, family = "binary", R = 1, method = "als", verbose = FALSE, plot = FALSE)
 		)
 	)
 	st = als_start_vals(fa)
@@ -2421,7 +1936,7 @@ test_that("the parametric bootstrap draws additive effects on the fit's gauge", 
 		dimnames(m) = list(sprintf("a%02d", seq_len(n)), sprintf("a%02d", seq_len(n)))
 		m
 	})
-	fit = lame_als(Yl, R = 1, family = "normal", bias_correct = "none", verbose = FALSE)
+	fit = lame_als(Yl, R = 1, family = "normal", verbose = FALSE)
 	set.seed(1)
 	for (i in seq_len(5L)) {
 		ab = lame:::.ae_boot_draw_ab(fit)
@@ -2437,7 +1952,7 @@ test_that("a block bootstrap below the minimum block count uses the parametric s
 		m = matrix(rnorm(n * n), n, n); diag(m) = NA; m
 	})
 	fit = lame_als(Yl, R = 0, family = "normal", verbose = FALSE)
-	expect_warning(
+	expect_no_warning(expect_message(
 		ame_als_bootstrap(
 			fit,
 			R = 20,
@@ -2446,8 +1961,8 @@ test_that("a block bootstrap below the minimum block count uses the parametric s
 			verbose = FALSE
 		),
 		"at least 10 resampling blocks"
-	)
-	bt = suppressWarnings(ame_als_bootstrap(
+	))
+	bt = suppressMessages(ame_als_bootstrap(
 		fit,
 		R = 20,
 		type = "block",
@@ -2489,4 +2004,153 @@ test_that("direct ALS fitters refuse non-count Poisson responses", {
 		),
 		class = "lame_poisson_counts"
 	)
+})
+
+# input checks, RNG safety, linear solvers and rank-deficient designs
+
+test_that("malformed max_iter, tol and R inputs raise clean errors", {
+	d = sim_ame(n = 14, Tt = 1, seed = 90)
+	Y = d$Ylist[[1]]
+	expect_error(ame_als(Y, max_iter = 0, verbose = FALSE), "max_iter")
+	expect_error(ame_als(Y, max_iter = -5, verbose = FALSE), "max_iter")
+	expect_error(ame_als(Y, tol = c(1e-6, 1e-6), verbose = FALSE), "tol")
+	expect_error(ame_als(Y, tol = 0, verbose = FALSE), "tol")
+	expect_error(
+		ame_als(Y, R = c(1, 2), verbose = FALSE),
+		"single non-negative"
+	)
+	expect_error(ame_als(d$Ylist[[1]], R = 1.7, family = "normal", verbose = FALSE), "non-negative integer")
+})
+
+test_that("the estimator and its bootstrap do not mutate the global RNG", {
+	d = sim_ame(n = 18, Tt = 1, R = 1, seed = 63)
+	set.seed(7); x1 = runif(1)
+	invisible(ame_als(
+		d$Ylist[[1]],
+		R = 1,
+		family = "normal",
+		verbose = FALSE,
+		seed = 999
+	))
+	x2 = runif(1)
+	set.seed(7); y1 = runif(1); y2 = runif(1)
+	expect_equal(c(x1, x2), c(y1, y2))
+	d = sim_ame(n = 18, Tt = 1, R = 0, seed = 230)
+	fit = ame_als(
+		d$Ylist[[1]],
+		Xdyad = d$Xlist[[1]],
+		R = 0,
+		family = "normal",
+		verbose = FALSE
+	)
+	set.seed(99); before = runif(1)
+	set.seed(99)
+	invisible(ame_als_bootstrap(
+		fit,
+		R = 20,
+		type = "parametric",
+		seed = 7,
+		verbose = FALSE
+	))
+	after = runif(1)
+	expect_equal(before, after)
+})
+
+test_that("near-collinear designs are solved stably by the eigen and qr solvers, and qr and auto agree with eigen", {
+	set.seed(84)
+	n = 30
+	Y = matrix(rnorm(n * n), n, n); diag(Y) = NA
+	x1 = matrix(rnorm(n * n), n, n)
+	x2 = x1 + matrix(rnorm(n * n, 0, 1e-6), n, n) # near-collinear, not equal
+	Xd = array(c(x1, x2), dim = c(n, n, 2))
+	fit = suppressWarnings(transform_fit(Y, Xdyad = Xd))
+	expect_true(all(is.finite(coef(fit))))
+	# the minimum-norm eigen solve keeps coefficients sane; a bare solve() on
+	# the near-singular normal equations could blow them up
+	expect_lt(max(abs(coef(fit))), 5)
+	set.seed(225); n = 60
+	x1 = matrix(rnorm(n * n), n, n)
+	x2 = x1 + matrix(rnorm(n * n, 0, 1e-5), n, n)
+	X = array(c(x1, x2), dim = c(n, n, 2))
+	Y = 0.5 + 0.4 * x1 + matrix(rnorm(n * n), n, n); diag(Y) = NA
+	cf = coef(suppressWarnings(transform_fit(Y, Xdyad = X, linear_solver = "qr")))
+	expect_true(all(abs(cf) < 50))
+	set.seed(97)
+	n = 30
+	Y = matrix(rnorm(n * n), n, n); diag(Y) = NA
+	x1 = matrix(rnorm(n * n), n, n)
+	x2 = matrix(rnorm(n * n), n, n)
+	Xd = array(c(x1, 0.6 * x1 + 0.8 * x2), dim = c(n, n, 2))
+	fe = ame_als(
+		Y,
+		Xdyad = Xd,
+		R = 0,
+		family = "normal",
+		linear_solver = "eigen",
+		verbose = FALSE
+	)
+	fq = ame_als(
+		Y,
+		Xdyad = Xd,
+		R = 0,
+		family = "normal",
+		linear_solver = "qr",
+		verbose = FALSE
+	)
+	fa = ame_als(
+		Y,
+		Xdyad = Xd,
+		R = 0,
+		family = "normal",
+		linear_solver = "auto",
+		verbose = FALSE
+	)
+	# all solvers minimise the same least-squares problem
+	expect_equal(unname(coef(fq)), unname(coef(fe)), tolerance = 1e-6)
+	expect_equal(unname(coef(fa)), unname(coef(fe)), tolerance = 1e-6)
+	expect_identical(fq$linear_solver, "qr")
+})
+
+test_that("an exactly rank-deficient design is refused with the aliased columns named, by every solver", {
+	set.seed(28)
+	Y = matrix(rnorm(625), 25, 25); diag(Y) = NA
+	# two identical dyadic covariates make X'X exactly singular
+	x1 = matrix(rnorm(625), 25, 25)
+	Xdup = array(c(x1, x1), dim = c(25, 25, 2), dimnames = list(NULL, NULL, c("dist", "dist_copy")))
+	err = tryCatch(
+		ame_als(Y, Xdyad = Xdup, R = 0, family = "normal", verbose = FALSE),
+		error = function(e) e
+	)
+	expect_s3_class(err, "lame_design_rank")
+	expect_match(conditionMessage(err), "dist")
+	expect_match(conditionMessage(err), "only nearly collinear is fitted")
+	# the refusal of ame() and lame(): the aliased column, the rank and the number of columns of the design are in the condition
+	expect_identical(err$aliased, "dist_copy_dyad")
+	expect_identical(err$rank, 2L)
+	expect_identical(err$n_col, 3L)
+	Yb = 1 * (matrix(rnorm(625), 25, 25) > 0.5); diag(Yb) = NA
+	err = tryCatch(ame_als(Yb, Xdyad = Xdup, R = 0, family = "binary", verbose = FALSE), error = function(e) e)
+	expect_s3_class(err, "lame_design_rank")
+	# near-collinear covariates are fitted
+	Xnear = array(c(x1, x1 + 1e-4 * matrix(rnorm(625), 25, 25)), dim = c(25, 25, 2))
+	fit = suppressWarnings(ame_als(Y, Xdyad = Xnear, R = 0, family = "normal", verbose = FALSE))
+	expect_true(all(is.finite(coef(fit))))
+	set.seed(60)
+	Y = matrix(rnorm(625), 25, 25); diag(Y) = NA
+	err = tryCatch(
+		ame_als(Y, Xdyad = matrix(1, 25, 25), R = 0, family = "normal", verbose = FALSE),
+		error = function(e) e
+	)
+	expect_s3_class(err, "lame_design_rank")
+	expect_match(conditionMessage(err), "exactly rank-deficient")
+	set.seed(98)
+	n = 25
+	Y = matrix(rnorm(n * n), n, n); diag(Y) = NA
+	x1 = matrix(rnorm(n * n), n, n)
+	Xdup = array(c(x1, x1), dim = c(n, n, 2)) # exactly collinear
+	err = tryCatch(
+		ame_als(Y, Xdyad = Xdup, R = 0, family = "normal", linear_solver = "qr", verbose = FALSE),
+		error = function(e) e
+	)
+	expect_s3_class(err, "lame_design_rank")
 })

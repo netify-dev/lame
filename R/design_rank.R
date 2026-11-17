@@ -1,8 +1,11 @@
-# refuse a pooled design (observed cells, all periods) with a column that is an
-# exact linear combination of earlier ones, to relative tolerance tol; nearly
-# collinear designs are fitted. each period is reduced to its triangular factor
-# so only one period's design is held in memory
-.lame_check_design_rank <- function(xlist, y, tol = 1e-8) {
+# refuse a pooled design (observed cells, all periods) with a column that is a
+# linear combination of earlier ones to relative tolerance tol. the coefficient
+# updates work with the cross products X'X, whose condition number is the square
+# of that of X, so the default tolerance, sqrt(100 eps), is the collinearity below
+# which X'X keeps fewer than two digits; designs less collinear are fitted. each
+# period is reduced to its triangular factor so only one period's design is held
+# in memory
+.lame_check_design_rank <- function(xlist, y, tol = sqrt(100 * .Machine$double.eps)) {
 	if (is.array(xlist) && length(dim(xlist)) == 3L) xlist <- list(xlist)
 	if (is.null(xlist) || !length(xlist)) return(invisible(NULL))
 	if (length(dim(y)) == 2L) y <- array(y, c(dim(y), 1L))
@@ -28,6 +31,9 @@
 	q <- qr(r, tol = tol)
 	if (q$rank == p) return(invisible(NULL))
 	aliased <- sort(q$pivot[(q$rank + 1L):p])
+	# exact aliasing leaves a remainder at rounding level
+	rd <- abs(diag(qr.R(q)))
+	exact <- all(rd[(q$rank + 1L):p] <= 1e-10 * max(rd, 1e-300))
 	kept <- setdiff(seq_len(p), aliased)
 	# each aliased column as the combination of the others it equals
 	relation <- vapply(aliased, function(a) {
@@ -45,7 +51,9 @@
 	one <- length(aliased) == 1L
 	cols <- paste0("`", nm[aliased], "`", collapse = ", ")
 	header <- paste0(
-		"The regression design is exactly rank-deficient: ",
+		"The regression design is ",
+		if (exact) "exactly" else "numerically",
+		" rank-deficient: ",
 		cols,
 		if (one) " is" else " are",
 		" aliased with the other columns."
@@ -77,6 +85,11 @@
 			esc(header),
 			stats::setNames(esc(relation), rep("x", length(relation))),
 			"i" = esc(detail),
+			if (!exact) c("i" = paste0(
+				"The columns are not exactly aliased, but they differ by less than a relative ",
+				signif(tol, 2L),
+				", below which the cross products the coefficient updates use keep fewer than two digits."
+			)),
 			"i" = "Drop the aliased column or the covariates it duplicates. A design that is only nearly collinear is fitted."
 		),
 		class = "lame_design_rank",

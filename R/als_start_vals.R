@@ -1,7 +1,7 @@
 #' Convert an ALS fit to MCMC starting values
 #'
 #' Builds a \code{start_vals} list for \code{\link{ame}} or \code{\link{lame}}
-#' from an ALS point estimate. This is useful when the ALS fit has already found
+#' from the estimates of an ALS fit. This is useful when the ALS fit has already found
 #' a good latent-space solution and the MCMC chain should start near that
 #' solution rather than from diffuse random values.
 #'
@@ -23,22 +23,12 @@
 #'   not used as covariance-path starting values. A MCMC model requesting
 #'   \code{dynamic_rho = TRUE} expands this scalar initial value; explicit
 #'   MCMC path starts remain available through its \code{start_vals} argument.
-#'   For a penalised dynamic fit (\code{bias_correct = "none"} or
-#'   \code{"jackknife"}) read these as starting values
-#'   rather than estimates:
-#'   the persistences are the values the ALS smoothness penalty used (the
-#'   prior means unless \code{prior} set them), and the innovation scales are
-#'   implied by the fitted paths, which the penalty shrinks, so they run
-#'   below the posterior scale. For a dynamic empirical-Bayes fit (the default
-#'   for normal, binary and Poisson panels) they are estimates under the
+#'   For a dynamic empirical-Bayes fit these are estimates under the
 #'   \code{lame()} hyperpriors. For a binary fit the intercept is shifted so
 #'   that the implied tie rate, \code{mean(pnorm(EZ))}, equals the observed
 #'   one, with everything else held at the ALS values; the shift is stored in
-#'   \code{attr(, "level_shift")}. The ALS intercept is a working-response
-#'   level: under the default IRLS it sits within a few hundredths of the
-#'   level the sampler has to reach, and under \code{non_normal_method =
-#'   "transform"} it can sit a probit unit or more above it, the sampler's
-#'   slowest direction.
+#'   \code{attr(, "level_shift")}. The ALS intercept sits within a few
+#'   hundredths of the level the sampler has to reach.
 #' @examples
 #' set.seed(1)
 #' n <- 12
@@ -52,7 +42,6 @@
 als_start_vals <- function(fit, jitter = 0, seed = NULL) {
 	# restore a withheld product so starts use its variational means
 	fit <- .ae_product_restore(fit)
-	`%||%` <- function(x, y) if (is.null(x)) y else x
 
 	if (!inherits(fit, c("ame_als", "lame_als"))) {
 		cli::cli_abort("{.arg fit} must be an ALS fit from {.fn ame_als}, {.fn lame_als}, or {.code lame(method = \"als\")}.")
@@ -197,7 +186,8 @@ als_start_vals <- function(fit, jitter = 0, seed = NULL) {
 			shift <- tryCatch(
 				stats::uniroot(
 					function(d) mean(stats::pnorm(ez[ok] + d)) - p_obs,
-					c(-20, 20)
+					c(-20, 20),
+					extendInt = "upX"
 				)$root,
 				error = function(e) NA_real_
 			)

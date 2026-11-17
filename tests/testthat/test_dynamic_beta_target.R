@@ -45,14 +45,16 @@ test_that("alternative coefficient paths and shared scales target the declared j
 		h = numeric(nt * p)
 		for (k in 1:p) {
 			idx = 1:nt + (k - 1) * nt
+			# rw2 and matern32: a level (the first period) plus the change since then
 			if (kind == "matern32") {
 				dst = abs(outer(times, times, "-"))
 				a = sqrt(3) * dst / 2
-				K = solve((1 + a) * exp(-a) + diag(1e-8, nt))
+				M = cbind(-1, diag(nt - 1))
+				K = t(M) %*% solve(M %*% ((1 + a) * exp(-a)) %*% t(M)) %*% M
 			}
 			if (kind == "rw2") {
-				D = matrix(c(1, -4 / 3, 1 / 3) / sqrt(2), 1, 3)
-				K = crossprod(D) + diag(1e-6, nt)
+				D = rbind(c(-1, 1, 0), c(1, -4 / 3, 1 / 3) / sqrt(2))
+				K = crossprod(D)
 			}
 			if (kind %in% c("ar1", "rw1")) {
 				ar = if (kind == "rw1") 1 else .6
@@ -67,10 +69,8 @@ test_that("alternative coefficient paths and shared scales target the declared j
 				K = crossprod(D)
 			}
 			Q[idx, idx] = K / (sig[k]^2 * lam[k])
-			if (kind %in% c("ar1", "rw1")) {
-				Q[idx[1], idx[1]] = Q[idx[1], idx[1]] + 1 / 3
-				h[idx[1]] = .7 / 3
-			}
+			Q[idx[1], idx[1]] = Q[idx[1], idx[1]] + 1 / 3
+			h[idx[1]] = .7 / 3
 		}
 		Q = Q + crossprod(A, W %*% A)
 		h = h + crossprod(A, W %*% y)
@@ -112,11 +112,15 @@ test_that("alternative coefficient paths and shared scales target the declared j
 				if (kind == "matern32") {
 					dst = abs(outer(times, times, "-"))
 					a = sqrt(3) * dst / 2
-					path[, k] = drop(t(chol((1 + a) * exp(-a) + diag(1e-8, nt))) %*% rnorm(nt)) * sqrt(v * lam[k])
+					f = drop(t(chol((1 + a) * exp(-a))) %*% rnorm(nt)) * sqrt(v * lam[k])
+					path[, k] = rnorm(1, .7, sqrt(3)) + f - f[1]
 				}
 				if (kind == "rw2") {
-					K = crossprod(matrix(c(1, -4 / 3, 1 / 3) / sqrt(2), 1, 3)) + diag(1e-6, nt)
-					path[, k] = backsolve(chol(K), rnorm(nt)) * sqrt(v * lam[k])
+					gp = diff(times)
+					path[1, k] = rnorm(1, .7, sqrt(3))
+					path[2, k] = path[1, k] + sqrt(v * lam[k] * gp[1]) * rnorm(1)
+					slope = (path[2, k] - path[1, k]) / gp[1] + sqrt(mean(gp)) * sqrt(v * lam[k]) * rnorm(1)
+					path[3, k] = path[2, k] + gp[2] * slope
 				}
 				if (kind %in% c("ar1", "rw1")) {
 					ar = if (kind == "rw1") 1 else .6

@@ -44,27 +44,42 @@
 	}
 }
 
-# paths of the unit-variance gauge with persistence rho and standardised innovations `eps` (n x R x N)
-.lame_uv_unit_paths <- function(eps, rho) {
+# paths of the unit-variance gauge with persistence rho and standardised innovations `eps` (n x R x N);
+# `keep` (n x N) 0 at a snap reset, whose position (held in `eps`) does not involve rho
+.lame_uv_unit_paths <- function(eps, rho, keep = NULL) {
 	N <- dim(eps)[3L]
 	U <- eps
 	s <- sqrt(1 - rho * rho)
-	if (N > 1L) for (t in 2:N) U[, , t] <- rho * U[, , t - 1L] + s * eps[, , t]
+	if (N > 1L) for (t in 2:N) {
+		U[, , t] <- rho * U[, , t - 1L] + s * eps[, , t]
+		if (!is.null(keep)) U[keep[, t] < 0.5, , t] <- eps[keep[, t] < 0.5, , t]
+	}
 	U
+}
+
+# standardised innovations of unit-variance paths; a snap reset (`keep` 0) keeps its position
+.lame_uv_unit_eps <- function(U_cube, rho, keep = NULL) {
+	N <- dim(U_cube)[3L]
+	s <- sqrt(1 - rho * rho)
+	eps <- U_cube
+	for (t in 2:N) {
+		eps[, , t] <- (U_cube[, , t] - rho * U_cube[, , t - 1L]) / s
+		if (!is.null(keep)) eps[keep[, t] < 0.5, , t] <- U_cube[keep[, t] < 0.5, , t]
+	}
+	eps
 }
 
 # non-centred draw of the persistence of a symmetric fit. `U_cube` the paths
 # (n x R x N), `L` the direction weights, `E` the latent residual without the
 # product of the positions, `s2` its variance; normal prior on rho cut at
-# +- bound, `max_abs` the bound on the coordinates
-.lame_uv_sym_nc_rho <- function(U_cube, L, E, s2, rho, prior_mean = 0.9, prior_sd = 0.1, max_abs = Inf, bound = 0.99) {
+# +- bound, `max_abs` the bound on the coordinates; `keep` (n x N) 0 at the resets of a snap fit, whose
+# positions are held (their standardised value is N(0, 1) whatever rho)
+.lame_uv_sym_nc_rho <- function(U_cube, L, E, s2, rho, prior_mean = 0.9, prior_sd = 0.1, max_abs = Inf, bound = 0.99, keep = NULL) {
 	d <- dim(U_cube)
 	n <- d[1L]; R <- d[2L]; N <- d[3L]
 	still <- list(rho = rho, U = U_cube, evals = 0L)
 	if (is.null(N) || N < 2L || !is.finite(rho) || abs(rho) >= bound || !is.finite(s2) || s2 <= 0) return(still)
-	s <- sqrt(1 - rho * rho)
-	eps <- U_cube
-	for (t in 2:N) eps[, , t] <- (U_cube[, , t] - rho * U_cube[, , t - 1L]) / s
+	eps <- .lame_uv_unit_eps(U_cube, rho, keep)
 	ut <- upper.tri(matrix(0, n, n))
 	ok <- array(FALSE, c(n, n, N))
 	for (t in seq_len(N)) ok[, , t] <- ut & is.finite(E[, , t])
@@ -82,18 +97,19 @@
 	}
 	lg <- function(r) {
 		if (!is.finite(r) || abs(r) >= bound) return(-Inf)
-		U <- .lame_uv_unit_paths(eps, r)
+		U <- .lame_uv_unit_paths(eps, r, keep)
 		if (is.finite(max_abs) && max(abs(U)) > max_abs) return(-Inf)
 		-ss(U) / (2 * s2) + stats::dnorm(r, prior_mean, prior_sd, log = TRUE)
 	}
 	sl <- .lame_nc_slice(lg, rho, -bound, bound, w = 0.03)
-	list(rho = sl$x, U = .lame_uv_unit_paths(eps, sl$x), evals = sl$evals)
+	list(rho = sl$x, U = .lame_uv_unit_paths(eps, sl$x, keep), evals = sl$evals)
 }
 
 # scale ridge of a bipartite fit: both sides' paths and sigma times c, G divided
 # by c^2. `shape`, `scale` the inverse-gamma prior of sigma^2, `sigma_max`,
 # `w_cap` (stationary variance), `g_cap` and `max_abs` the support bounds,
-# `g_var` the prior variance of an element of G
+# `g_var` the prior variance of an element of G; `lg_extra(x)` adds the log ratio of path factors that do not
+# scale with sigma (the reset positions of a snap fit under a fixed reset scale)
 .lame_uv_bip_scale_step <- function(
 	U_cube,
 	V_cube,
@@ -106,7 +122,8 @@
 	w_cap = Inf,
 	g_var = 1,
 	g_cap = Inf,
-	max_abs = Inf
+	max_abs = Inf,
+	lg_extra = NULL
 ) {
 	still <- list(U = U_cube, V = V_cube, G = G, sigma = sigma, c = 1, evals = 0L)
 	if (!is.finite(sigma) || sigma <= 0 || !is.finite(rho) || abs(rho) >= 1 || length(G) == 0L || !all(is.finite(G))) return(still)
@@ -120,7 +137,8 @@
 		if (sg > sigma_max || sg * sg / om > w_cap) return(-Inf)
 		if (is.finite(g_cap) && gmax * exp(-2 * x) > g_cap) return(-Inf)
 		if (is.finite(max_abs) && umax * exp(x) > max_abs) return(-Inf)
-		-(2 * shape + 1) * log(sg) - scale / (sg * sg) + (1 - 2 * dG) * x - g2 * exp(-4 * x) / (2 * g_var)
+		out <- -(2 * shape + 1) * log(sg) - scale / (sg * sg) + (1 - 2 * dG) * x - g2 * exp(-4 * x) / (2 * g_var)
+		if (is.null(lg_extra)) out else out + lg_extra(x)
 	}
 	sl <- .lame_nc_slice(lg, 0, -Inf, Inf, w = 0.25)
 	cc <- exp(sl$x)
@@ -142,15 +160,14 @@
 	prior_mean = 0.9,
 	prior_sd = 0.1,
 	max_abs = Inf,
-	bound = 0.99
+	bound = 0.99,
+	keep = NULL
 ) {
 	d <- dim(U_cube)
 	n <- d[1L]; R <- d[2L]; N <- d[3L]
 	still <- list(rho = rho, U = U_cube, Z = Z, evals = 0L)
 	if (is.null(N) || N < 2L || !is.finite(rho) || abs(rho) >= bound || !all(is.finite(Z))) return(still)
-	s <- sqrt(1 - rho * rho)
-	eps <- U_cube
-	for (t in 2:N) eps[, , t] <- (U_cube[, , t] - rho * U_cube[, , t - 1L]) / s
+	eps <- .lame_uv_unit_eps(U_cube, rho, keep)
 	Ld <- diag(L, R)
 	prod_of <- function(U) {
 		P <- array(0, c(n, n, N))
@@ -160,13 +177,13 @@
 	P0 <- prod_of(U_cube)
 	lg <- function(r) {
 		if (!is.finite(r) || abs(r) >= bound) return(-Inf)
-		U <- .lame_uv_unit_paths(eps, r)
+		U <- .lame_uv_unit_paths(eps, r, keep)
 		if (is.finite(max_abs) && max(abs(U)) > max_abs) return(-Inf)
 		z <- Z[cx$ok_idx] + (prod_of(U) - P0)[cx$ok_idx]
 		sum(cx$y_ok * z - exp(z + cx$off_ok)) + stats::dnorm(r, prior_mean, prior_sd, log = TRUE)
 	}
 	sl <- .lame_nc_slice(lg, rho, -bound, bound, w = 0.03)
 	if (sl$x == rho) { still$evals <- sl$evals; return(still) }
-	U <- .lame_uv_unit_paths(eps, sl$x)
+	U <- .lame_uv_unit_paths(eps, sl$x, keep)
 	list(rho = sl$x, U = U, Z = Z + (prod_of(U) - P0), evals = sl$evals)
 }

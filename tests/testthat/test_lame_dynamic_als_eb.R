@@ -167,7 +167,7 @@ test_that("the block-tridiagonal solver reproduces the dense information matrix"
 	C = lapply(seq_len(Tt), function(t) matrix(rnorm(qs * r), qs, r) * 0.15)
 	Hzz = crossprod(matrix(rnorm(r * r), r)) * 0.5 + diag(r) * 12
 	fac = lame:::.lde_factor(A, b, C, Hzz, qx, nl)
-	Hd = lame:::.lde_dense_matrix(A, b, C, Hzz)
+	Hd = .lde_dense_matrix(A, b, C, Hzz)
 	Hi = solve(Hd)
 	blk = function(t) (t - 1L) * qs + seq_len(qs)
 	zi = Tt * qs + seq_len(r)
@@ -294,9 +294,9 @@ test_that("a dynamic binary ALS fit is an empirical-Bayes fit by default", {
 		verbose = FALSE
 	))
 	expect_s3_class(fit, "lame_dynamic_als")
-	expect_identical(fit$bias_correct$method, "eb")
-	expect_true(isTRUE(fit$bias_correct$default))
-	expect_true(isTRUE(fit$bias_correct$dynamic))
+	expect_null(fit$bias_correct)
+	expect_null(fit$bias_correct)
+	expect_null(fit$bias_correct)
 	expect_true(fit$converged)
 	expect_true(all(is.finite(fit$a_dynamic)))
 	expect_true(all(is.finite(fit$eb$se)))
@@ -314,28 +314,16 @@ test_that("a dynamic binary ALS fit is an empirical-Bayes fit by default", {
 	out = capture.output(print(fit))
 	expect_true(any(grepl("empirical", out)))
 	out = capture.output(print(summary(fit)))
-	expect_true(any(grepl("rho_ab", out)))
-	# the explicit request is the same fit, recorded as requested
-	fe = suppressWarnings(lame(
-		d$Y,
-		Xdyad = d$X,
-		family = "binary",
-		dynamic_ab = TRUE,
-		method = "als",
-		bias_correct = "eb",
-		verbose = FALSE
-	))
-	expect_identical(fe$bias_correct$requested, "eb")
-	expect_false(isTRUE(fe$bias_correct$default))
-	expect_equal(fe$coefficients, fit$coefficients)
-	# the uncorrected penalised fit is available by name
+	# the smoothing settings stay on the fit and are not printed
+	expect_false(any(grepl("rho_ab|sigma_ab", out)))
+	# the penalised fit serves package code, as the sampler's warm start asks for it
 	fn = suppressWarnings(lame(
 		d$Y,
 		Xdyad = d$X,
 		family = "binary",
 		dynamic_ab = TRUE,
 		method = "als",
-		bias_correct = "none",
+		prior = structure(list(), lame_als_estimator = "none"),
 		verbose = FALSE
 	))
 	expect_identical(fn$bias_correct$method, "none")
@@ -372,7 +360,7 @@ test_that("undirected, bipartite, factor and moving-coefficient fits are empiric
 				spec[[nm]]$args
 			)
 		))
-		expect_identical(fit$bias_correct$method, "eb", info = nm)
+		expect_null(fit$bias_correct, info = nm)
 		expect_true(all(is.finite(fit$eb$se)), info = nm)
 		expect_true(all(is.finite(fit$a_dynamic)), info = nm)
 		expect_equal(unname(sqrt(diag(vcov(fit)))), unname(fit$eb$se), info = nm)
@@ -478,7 +466,7 @@ test_that("switches a route cannot honour are named, never dropped", {
 	))
 	expect_false(any(grepl("ignored MCMC-only", r$msgs)))
 	expect_false(is.null(r$val$eb$pair))
-	# the penalised route honours none of them
+	# the penalised route (package code only) honours none of them
 	r = catch(lame:::lame_dynamic_als(
 		d$Y,
 		d$X,
@@ -548,7 +536,7 @@ test_that("a second-order random-walk coefficient path is an empirical-Bayes pat
 	d = eb_sim(n = 10, Tt = 5, seed = 17)
 	f = eb_fit(d, dynamic_beta = "x1_dyad", dynamic_beta_kind = "rw2")
 	expect_true(f$converged)
-	expect_identical(f$bias_correct$method, "eb")
+	expect_null(f$bias_correct)
 	expect_equal(dim(f$coef_path), c(3L, 5L))
 	expect_gt(diff(range(f$coef_path["x1_dyad", ])), 0)
 	expect_true(all(is.finite(f$eb$se_path)))
@@ -670,7 +658,7 @@ test_that("the position update reproduces the dense posterior of every actor's p
 		a
 	})
 	s2 = 0.12; rho = 0.8
-	out = lame:::.lde_pos_side(W, Rr, Vh, Om, s2, rho, n, R, Tt)
+	out = .lde_pos_side(W, Rr, Vh, Om, s2, rho, n, R, Tt)
 	P0 = kronecker(lame:::.lde_pos_q(Tt, rho) / s2, diag(R))
 	kl = 0
 	for (i in seq_len(n)) {
@@ -832,8 +820,8 @@ test_that("the position noise enters the cell problem as the expected score, wei
 	# the working response is the incoming predictor plus the expected score over the expected weight
 	expect_equal(wg$z, eta2 + wg$score / wg$w, tolerance = 1e-8)
 	# the blocks in which the reference processes a large panel change no digit, a partial last block included
-	wr = lame:::.lde_work_gh_ref(y2, eta2, v2)
-	wb = lame:::.lde_work_gh_ref(y2, eta2, v2, block = 3L)
+	wr = .lde_work_gh_ref(y2, eta2, v2)
+	wb = .lde_work_gh_ref(y2, eta2, v2, block = 3L)
 	for (nm in c(
 		"z", "w", "score", "hprime", "hpp", "dev", "dev_marg"
 	)) expect_equal(wb[[nm]], wr[[nm]], tolerance = 1e-14)
@@ -869,7 +857,7 @@ test_that("the compiled cell problem equals the R reference, extreme predictors,
 	for (cs in cases) {
 		eta = array(cs$eta, dim(y))
 		v = array(cs$v, dim(y))
-		a = lame:::.lde_work_gh_ref(y, eta, v)
+		a = .lde_work_gh_ref(y, eta, v)
 		b = lame:::.lde_work_gh(y, eta, v)
 		for (nm in c("z", "w", "score", "hprime", "hpp")) expect_equal(b[[nm]], a[[nm]], tolerance = 1e-10)
 		expect_equal(b$dev, a$dev, tolerance = 1e-10)
@@ -910,7 +898,7 @@ test_that("the logit link: the compiled cell problem equals the R reference, is 
 	)) {
 		eta = array(cs$eta, dim(y))
 		v = array(cs$v, dim(y))
-		a = lame:::.lde_work_gh_ref(y, eta, v, link = "logit")
+		a = .lde_work_gh_ref(y, eta, v, link = "logit")
 		b = lame:::.lde_work_gh(y, eta, v, link = "logit")
 		for (nm in c("z", "w", "score", "hprime", "hpp")) expect_equal(b[[nm]], a[[nm]], tolerance = 1e-10)
 		expect_equal(b$dev, a$dev, tolerance = 1e-10)
@@ -1005,7 +993,7 @@ test_that("the compiled position sweep equals the R reference for directed and b
 		eta = array(rnorm(prod(dims), -1, 0.5), dims)
 		pos = list(qu = side(na), qv = side(nb))
 		hp = lame:::.lde_pos_hp(0.7, 0.85)
-		a = lame:::.lde_pos_sweep_ref(ctx, pos, hp, wk, eta)
+		a = .lde_pos_sweep_ref(ctx, pos, hp, wk, eta)
 		b = lame:::.lde_pos_sweep(ctx, pos, hp, wk, eta)
 		for (sd in c("qu", "qv")) {
 			for (f in c(
@@ -1026,7 +1014,7 @@ test_that("the product variance by one matrix product per period equals the sum 
 		list(mean = array(rnorm(m * R * Tt), c(m, R, Tt)), sig = sg)
 	}
 	pos = list(qu = mk(7L), qv = mk(5L))
-	expect_equal(lame:::.lde_pos_prodvar(pos, R, Tt), lame:::.lde_pos_prodvar_ref(pos, R, Tt), tolerance = 1e-12)
+	expect_equal(lame:::.lde_pos_prodvar(pos, R, Tt), .lde_pos_prodvar_ref(pos, R, Tt), tolerance = 1e-12)
 })
 
 test_that("the structured border complement and the triangular quadratic forms equal the dense ones", {
@@ -1042,7 +1030,7 @@ test_that("the structured border complement and the triangular quadratic forms e
 	fb = lame:::.lde_factor(A, b, C, Hzz, qx, qx, cd)
 	expect_equal(fb$Sz, fa$Sz, tolerance = 1e-12)
 	expect_equal(fb$Szi, fa$Szi, tolerance = 1e-10)
-	Hi = solve(lame:::.lde_dense_matrix(A, b, C, Hzz))
+	Hi = solve(.lde_dense_matrix(A, b, C, Hzz))
 	blk = function(t) (t - 1L) * qx + seq_len(qx)
 	zi = Tt * qx + seq_len(r)
 	il = seq_len(qx)
@@ -1050,7 +1038,7 @@ test_that("the structured border complement and the triangular quadratic forms e
 	pf = lame:::.lde_posterior(fb, cond = TRUE)
 	pn = lame:::.lde_posterior(fb, cond = TRUE, moments = FALSE)
 	for (t in seq_len(Tt)) {
-		Hl = lame:::.lde_dense_matrix(A, b, lapply(C, function(Ct) Ct[, il, drop = FALSE]), Hzz[il, il])
+		Hl = .lde_dense_matrix(A, b, lapply(C, function(Ct) Ct[, il, drop = FALSE]), Hzz[il, il])
 		ref = solve(Hl)[blk(t), blk(t)]
 		expect_equal(pf$cond[[t]], ref, tolerance = 1e-10)
 		expect_equal(pn$cond[[t]], ref, tolerance = 1e-10)
@@ -1294,40 +1282,7 @@ test_that("mixing two position posteriors mixes means and covariance blocks, and
 test_that("the balance of the two sides keeps the product, minimises the kl divergence along its valley and is idempotent", {
 	set.seed(3)
 	hp = lame:::.lde_pos_hp(0.6, 0.8)
-	# one side: the precision of every actor is the prior plus a block diagonal, as in the sweeps; the dense
-	# inverses are kept as the reference
-	mkside = function(n, R, Tt, scale) {
-		P0 = kronecker(lame:::.lde_pos_q(Tt, hp$rho) / hp$s2, diag(R))
-		mean_ = array(rnorm(n * R * Tt, 0, scale), c(n, R, Tt))
-		sig = array(0, c(R, R, n, Tt)); cl = array(0, c(R, R, n, max(Tt - 1L, 1L)))
-		sgs = vector("list", n); ldp = 0; trp = 0
-		for (i in seq_len(n)) {
-			P = P0
-			for (t in seq_len(Tt)) {
-				ix = (t - 1L) * R + seq_len(R)
-				P[ix, ix] = P[ix, ix] + crossprod(matrix(rnorm(R * R), R)) * 2 + diag(0.2, R)
-			}
-			Sg = solve(P); sgs[[i]] = Sg
-			ldp = ldp + as.numeric(determinant(P)$modulus); trp = trp + sum(P0 * Sg)
-			for (t in seq_len(Tt)) {
-				ix = (t - 1L) * R + seq_len(R)
-				sig[, , i, t] = Sg[ix, ix]
-				if (t < Tt) cl[, , i, t] = Sg[ix, ix + R]
-			}
-		}
-		list(
-			q = list(
-				mean = mean_,
-				sig = sig,
-				cl = cl,
-				ldp = ldp,
-				trp = trp,
-				ldp0 = n * as.numeric(determinant(P0)$modulus),
-				P0 = P0
-			),
-			sgs = sgs
-		)
-	}
+	mkside = function(n, R, Tt, scale) .lde_pos_side_ref(n, R, Tt, hp, scale)
 	dense_kl2 = function(side, B) {
 		qs = side$q; n = dim(qs$mean)[1L]; R = dim(qs$mean)[2L]; Tt = dim(qs$mean)[3L]
 		D = kronecker(diag(Tt), B); tot = 0
@@ -1382,6 +1337,104 @@ test_that("the balance of the two sides keeps the product, minimises the kl dive
 	expect_equal(G %*% Mu %*% G - 5 * G, Mv, tolerance = 1e-10)
 })
 
+test_that("the rotation of every period keeps the product, minimises the kl divergence over the rotations and is idempotent", {
+	set.seed(5)
+	hp = lame:::.lde_pos_hp(0.6, 0.8)
+	rot = function(R) qr.Q(qr(matrix(rnorm(R * R), R)))
+	# the kl divergence of one side with the coordinates of period t turned by Ws[[t]], by dense algebra
+	dense_kl2 = function(side, Ws) {
+		qs = side$q; n = dim(qs$mean)[1L]; R = dim(qs$mean)[2L]; Tt = dim(qs$mean)[3L]
+		D = matrix(0, R * Tt, R * Tt)
+		for (t in seq_len(Tt)) { ix = (t - 1L) * R + seq_len(R); D[ix, ix] = t(Ws[[t]]) }
+		tot = 0
+		for (i in seq_len(n)) {
+			Sg = D %*% side$sgs[[i]] %*% t(D); m = D %*% as.vector(qs$mean[i, , ])
+			tot = tot + sum(qs$P0 * Sg) + sum(m * (qs$P0 %*% m)) - R * Tt -
+				as.numeric(determinant(qs$P0)$modulus) - as.numeric(determinant(Sg)$modulus)
+		}
+		tot
+	}
+	# the rotation of one period recovered from the means
+	recover = function(q0, q1, t) {
+		n = dim(q0$mean)[1L]; R = dim(q0$mean)[2L]
+		X0 = matrix(q0$mean[, , t], n, R); X1 = matrix(q1$mean[, , t], n, R)
+		solve(crossprod(X0), crossprod(X0, X1))
+	}
+	for (cfg in list(c(8, 8, 2, 4), c(8, 6, 3, 3), c(7, 9, 1, 4))) {
+		nu = cfg[1]; nv = cfg[2]; R = cfg[3]; Tt = cfg[4]
+		su = .lde_pos_side_ref(nu, R, Tt, hp, 1.0); sv = .lde_pos_side_ref(nv, R, Tt, hp, 0.3)
+		pos = list(qu = su$q, qv = sv$q)
+		g = lame:::.lde_pos_turn(pos, hp)
+		expect_equal(lame:::.lde_pos_product(g, Tt), lame:::.lde_pos_product(pos, Tt), tolerance = 1e-12)
+		expect_equal(lame:::.lde_pos_prodvar(g, R, Tt), lame:::.lde_pos_prodvar(pos, R, Tt), tolerance = 1e-12)
+		# one orthogonal matrix for every period, the same on both sides
+		Ws = lapply(seq_len(Tt), function(t) recover(pos$qu, g$qu, t))
+		for (t in seq_len(Tt)) {
+			expect_equal(crossprod(Ws[[t]]), diag(R), tolerance = 1e-10)
+			expect_equal(recover(pos$qv, g$qv, t), Ws[[t]], tolerance = 1e-10)
+		}
+		d1 = dense_kl2(su, Ws) + dense_kl2(sv, Ws)
+		expect_equal(lame:::.lde_pos_kl2(g, R, Tt, hp), d1, tolerance = 1e-10)
+		# one coordinate has only its sign to turn, which may already be the best
+		if (R > 1L) expect_lt(d1, lame:::.lde_pos_kl2(pos, R, Tt, hp)) else expect_lte(d1, lame:::.lde_pos_kl2(pos, R, Tt, hp) + 1e-10)
+		expect_equal(g$qu$trp + g$qv$trp, {
+			tr = 0
+			for (side in list(su, sv)) for (i in seq_along(side$sgs)) {
+				D = matrix(0, R * Tt, R * Tt)
+				for (t in seq_len(Tt)) { ix = (t - 1L) * R + seq_len(R); D[ix, ix] = t(Ws[[t]]) }
+				tr = tr + sum(side$q$P0 * (D %*% side$sgs[[i]] %*% t(D)))
+			}
+			tr
+		}, tolerance = 1e-10)
+		# a minimum over the rotations: no other choice of them is lower
+		for (k in 1:10) {
+			Wp = lapply(seq_len(Tt), function(t) rot(R))
+			expect_gt(dense_kl2(su, Wp) + dense_kl2(sv, Wp), d1 - 1e-10)
+		}
+		# idempotent
+		g2 = lame:::.lde_pos_turn(g, hp)
+		expect_equal(g2$qu$mean, g$qu$mean, tolerance = 1e-10)
+		expect_equal(g2$qv$cl, g$qv$cl, tolerance = 1e-10)
+	}
+	# an undirected network turns only within the coordinates of one sign, so its product is kept
+	sg = c(1, -1, 1); R = 3L; Tt = 4L
+	su = .lde_pos_side_ref(9, R, Tt, hp, 1.0)
+	pos = list(qu = su$q, qv = lame:::.lde_pos_mirror(su$q, sg))
+	g = lame:::.lde_pos_turn(pos, hp, sgn = sg)
+	expect_equal(g$qv, lame:::.lde_pos_mirror(g$qu, sg))
+	expect_equal(lame:::.lde_pos_product(g, Tt), lame:::.lde_pos_product(pos, Tt), tolerance = 1e-12)
+	expect_equal(lame:::.lde_pos_prodvar(g, R, Tt), lame:::.lde_pos_prodvar(pos, R, Tt), tolerance = 1e-12)
+	Ws = lapply(seq_len(Tt), function(t) recover(pos$qu, g$qu, t))
+	for (t in seq_len(Tt)) expect_equal(Ws[[t]][2L, c(1L, 3L)], c(0, 0), tolerance = 1e-10)
+	expect_equal(lame:::.lde_pos_kl2(g, R, Tt, hp, sym = TRUE), dense_kl2(su, Ws), tolerance = 1e-10)
+	expect_lt(lame:::.lde_pos_kl2(g, R, Tt, hp, sym = TRUE), lame:::.lde_pos_kl2(pos, R, Tt, hp, sym = TRUE))
+	# weighted steps (the scale-mixture transition): the weights enter the lag moment
+	R = 2L; Tt = 4L
+	su = .lde_pos_side_ref(8, R, Tt, hp, 1.0); sv = .lde_pos_side_ref(6, R, Tt, hp, 0.5)
+	wts = function(n) {
+		lam = cbind(1, matrix(runif(n * (Tt - 1L), 0.2, 3), n))
+		list(lam = lam, elog = log(lam), b = (4 + R) / (2 * lam))
+	}
+	pos = list(qu = c(su$q, wts(8)), qv = c(sv$q, wts(6)))
+	g = lame:::.lde_pos_turn(pos, hp)
+	expect_equal(lame:::.lde_pos_prodvar(g, R, Tt), lame:::.lde_pos_prodvar(pos, R, Tt), tolerance = 1e-12)
+	k1 = lame:::.lde_pos_kl2(g, R, Tt, hp)
+	expect_lt(k1, lame:::.lde_pos_kl2(pos, R, Tt, hp))
+	for (k in 1:10) {
+		Wp = lapply(seq_len(Tt), function(t) rot(R))
+		alt = pos
+		for (s in c("qu", "qv")) for (t in seq_len(Tt)) {
+			n = dim(alt[[s]]$mean)[1L]
+			alt[[s]]$mean[, , t] = matrix(pos[[s]]$mean[, , t], n, R) %*% Wp[[t]]
+			for (i in seq_len(n)) {
+				alt[[s]]$sig[, , i, t] = t(Wp[[t]]) %*% pos[[s]]$sig[, , i, t] %*% Wp[[t]]
+				if (t < Tt) alt[[s]]$cl[, , i, t] = t(Wp[[t]]) %*% pos[[s]]$cl[, , i, t] %*% Wp[[t + 1L]]
+			}
+		}
+		expect_gt(lame:::.lde_pos_kl2(alt, R, Tt, hp), k1 - 1e-10)
+	}
+})
+
 test_that("the precision of an ar(1) path with weighted steps is the inverse of its covariance, and the sweep with weights is the dense posterior", {
 	set.seed(17)
 	Tt = 5L; rho = 0.7
@@ -1419,7 +1472,7 @@ test_that("the precision of an ar(1) path with weighted steps is the inverse of 
 	})
 	lam = cbind(1, matrix(runif(n * (Tt - 1L), 0.2, 3), n))
 	s2 = 0.12
-	out = lame:::.lde_pos_side(Wl, Rl, Vh, Om, s2, rho, n, R, Tt, lam = lam)
+	out = .lde_pos_side(Wl, Rl, Vh, Om, s2, rho, n, R, Tt, lam = lam)
 	for (i in seq_len(n)) {
 		P = kronecker(lame:::.lde_pos_qw(Tt, rho, lam[i, ]) / s2, diag(R))
 		h = numeric(Tt * R)
@@ -1452,7 +1505,7 @@ test_that("the precision of an ar(1) path with weighted steps is the inverse of 
 	wk = list(w = array(runif(prod(dims), 0.05, 0.4), dims), z = array(rnorm(prod(dims)), dims))
 	eta = array(rnorm(prod(dims), -1, 0.5), dims)
 	hp = lame:::.lde_pos_hp(0.7, 0.85)
-	a = lame:::.lde_pos_sweep_ref(ctx, pos, hp, wk, eta)
+	a = .lde_pos_sweep_ref(ctx, pos, hp, wk, eta)
 	b = lame:::.lde_pos_sweep(ctx, pos, hp, wk, eta)
 	for (sd in c("qu", "qv")) {
 		for (f in c("mean", "sig", "cl", "ldp", "trp", "lam")) expect_equal(
@@ -1706,7 +1759,7 @@ test_that("moving positions: a small directed panel is fitted by the default rou
 	))
 	expect_true(isTRUE(fit$dynamic_uv))
 	expect_identical(fit$dynamic_uv_kind, "ar1")
-	expect_identical(fit$bias_correct$method, "eb")
+	expect_null(fit$bias_correct)
 	expect_true(fit$converged)
 	expect_equal(dim(fit$U), c(10L, 1L, 4L))
 	expect_equal(dim(fit$V), c(10L, 1L, 4L))
@@ -1893,9 +1946,6 @@ test_that("specifications the empirical-Bayes estimator cannot validate are refu
 			"t",
 			list(any = FALSE),
 			"ar1",
-			NULL,
-			NULL,
-			NULL,
 			list(),
 			"probit"
 		),
@@ -1929,47 +1979,29 @@ test_that("specifications the empirical-Bayes estimator cannot validate are refu
 		),
 		"matern32"
 	)
-	# fixed smoothness penalties belong to the uncorrected model
-	expect_error(
-		lame:::lame_dynamic_als(
-			d$Y,
-			d$X,
-			family = "binary",
-			dynamic_ab = TRUE,
-			lambda_ab = 2,
-			verbose = FALSE
-		),
-		class = "lame_dynamic_eb_unsupported"
-	)
-	# a bootstrap is not offered; the estimator carries Laplace standard errors
+	# a bootstrap is not run, the fit keeping its Laplace standard errors; a count below the minimum stays an error
 	expect_error(
 		do.call(lame, c(args, list(dynamic_ab = TRUE, bootstrap = 5L))),
-		class = "lame_dynamic_eb_unsupported"
+		class = "lame_als_bootstrap_replicates"
 	)
-	# the other corrections stay static or Poisson only
-	expect_error(
-		do.call(lame, c(args, list(dynamic_ab = TRUE, bias_correct = "bootstrap"))),
-		class = "lame_jk_split"
+	f_eb = do.call(lame, c(args, list(dynamic_ab = TRUE)))
+	expect_message(
+		f_bt <- do.call(lame, c(args, list(dynamic_ab = TRUE, bootstrap = 30L))),
+		class = "lame_als_bootstrap_not_run"
 	)
-	expect_error(
-		do.call(lame, c(args, list(dynamic_ab = TRUE, bias_correct = "jackknife"))),
-		class = "lame_jk_split"
-	)
-	# the empirical-Bayes estimator is defined for the normal, binary and Poisson likelihoods: a normal panel is a fit, and the
-	# bootstrap and the fixed penalties are refused for it as for the others
+	expect_null(f_bt$bootstrap)
+	expect_equal(vcov(f_bt), vcov(f_eb), tolerance = 1e-12)
+	# the empirical-Bayes estimator is defined for the normal, binary and Poisson likelihoods: a normal panel is a fit, and a
+	# bootstrap count below the minimum is refused for it as for the others
 	dp = d
 	dp$Y = lapply(dp$Y, function(y) y * 2 + 0.5)
-	fn = lame:::lame_dynamic_als(dp$Y, dp$X, family = "normal", dynamic_ab = TRUE, bias_correct = "eb", verbose = FALSE)
+	fn = lame:::lame_dynamic_als(dp$Y, dp$X, family = "normal", dynamic_ab = TRUE, verbose = FALSE)
 	expect_true(fn$converged)
 	expect_identical(fn$family, "normal")
-	expect_true(isTRUE(fn$bias_correct$dynamic))
+	expect_null(fn$bias_correct)
 	expect_error(
 		lame:::lame_dynamic_als(dp$Y, dp$X, family = "normal", dynamic_ab = TRUE, bootstrap = 5L, verbose = FALSE),
-		class = "lame_dynamic_eb_unsupported"
-	)
-	expect_error(
-		lame:::lame_dynamic_als(dp$Y, dp$X, family = "normal", dynamic_ab = TRUE, lambda_ab = 2, verbose = FALSE),
-		class = "lame_dynamic_eb_unsupported"
+		class = "lame_als_bootstrap_replicates"
 	)
 })
 
@@ -2128,7 +2160,7 @@ test_that("the pair node of the shared quadrature: the Fisher information, its d
 	n = 150
 	a = rnorm(n, -1, 1.5); b = rnorm(n, -1, 1.5); r = runif(n, -0.9, 0.9)
 	s1 = sample(c(-1, 1), n, TRUE); s2 = sample(c(-1, 1), n, TRUE)
-	nd = lame:::.ae_pair_node_fisher_r(a, b, r, s1, s2, TRUE)
+	nd = .ae_pair_node_fisher_r(a, b, r, s1, s2, TRUE)
 	ref = lame:::.ae_pair_logp(s1 * a, s2 * b, s1 * s2 * r)
 	expect_equal(nd$lo, ref$L, tolerance = 1e-9)
 	expect_equal(nd$psi1, s1 * ref$La, tolerance = 1e-9)
@@ -2147,16 +2179,16 @@ test_that("the pair node of the shared quadrature: the Fisher information, its d
 	# its derivatives in the two predictors
 	h = 1e-5
 	for (nm in c("I11", "I22", "I12")) {
-		fa = (lame:::.ae_pair_node_fisher_r(a + h, b, r, s1, s2, FALSE)[[nm]] - lame:::.ae_pair_node_fisher_r(a - h, b, r, s1, s2, FALSE)[[nm]]) / (2 * h)
-		fb = (lame:::.ae_pair_node_fisher_r(a, b + h, r, s1, s2, FALSE)[[nm]] - lame:::.ae_pair_node_fisher_r(a, b - h, r, s1, s2, FALSE)[[nm]]) / (2 * h)
+		fa = (.ae_pair_node_fisher_r(a + h, b, r, s1, s2, FALSE)[[nm]] - .ae_pair_node_fisher_r(a - h, b, r, s1, s2, FALSE)[[nm]]) / (2 * h)
+		fb = (.ae_pair_node_fisher_r(a, b + h, r, s1, s2, FALSE)[[nm]] - .ae_pair_node_fisher_r(a, b - h, r, s1, s2, FALSE)[[nm]]) / (2 * h)
 		expect_lt(max(abs(nd[[paste0(nm, "a")]] - fa)), 1e-5 * max(abs(fa)))
 		expect_lt(max(abs(nd[[paste0(nm, "b")]] - fb)), 1e-5 * max(abs(fb)))
 	}
 	# the derivatives in the correlation: the score of the log probability and its curvature, the derivatives of the two
 	# scores and of the Fisher information
-	nr = lame:::.ae_pair_node_fisher_r(a, b, r, s1, s2, TRUE, TRUE)
-	up = lame:::.ae_pair_node_fisher_r(a, b, r + h, s1, s2, FALSE)
-	dn = lame:::.ae_pair_node_fisher_r(a, b, r - h, s1, s2, FALSE)
+	nr = .ae_pair_node_fisher_r(a, b, r, s1, s2, TRUE, TRUE)
+	up = .ae_pair_node_fisher_r(a, b, r + h, s1, s2, FALSE)
+	dn = .ae_pair_node_fisher_r(a, b, r - h, s1, s2, FALSE)
 	for (nm in c("psi1", "psi2", "I11", "I22", "I12")) {
 		fr = (up[[nm]] - dn[[nm]]) / (2 * h)
 		expect_lt(max(abs(nr[[switch(nm, psi1 = "psi1r", psi2 = "psi2r", paste0(nm, "r"))]] - fr)), 1e-5 * max(abs(fr)))
@@ -2164,12 +2196,12 @@ test_that("the pair node of the shared quadrature: the Fisher information, its d
 	expect_lt(max(abs(nr$s0 - (up$lo - dn$lo) / (2 * h))), 1e-5 * max(abs(nr$s0)))
 	expect_lt(max(abs(nr$rc0 - (up$lo - 2 * nd$lo + dn$lo) / h^2)), 1e-4 * max(abs(nr$rc0)))
 	# without a correlation the pair is two independent cells: the cell's Fisher weight and no cross weight
-	n0 = lame:::.ae_pair_node_fisher_r(a, b, rep(0, n), s1, s2, TRUE)
+	n0 = .ae_pair_node_fisher_r(a, b, rep(0, n), s1, s2, TRUE)
 	expect_equal(n0$I11, dnorm(a)^2 / (pnorm(a) * pnorm(-a)), tolerance = 1e-9)
 	expect_equal(n0$I22, dnorm(b)^2 / (pnorm(b) * pnorm(-b)), tolerance = 1e-9)
 	expect_equal(n0$I12, rep(0, n), tolerance = 1e-12)
 	# predictors far in the tails: finite, with a positive weight
-	ex = lame:::.ae_pair_node_fisher_r(
+	ex = .ae_pair_node_fisher_r(
 		c(-14, -9, 7, 12, 0),
 		c(-14, 4, -9, 12, -12),
 		rep(-0.8, 5),
@@ -2324,7 +2356,7 @@ test_that("the laplace correction of the pairs: the direct term differentiates t
 	q = ctx$q; na = ctx$na; Tt = ctx$Tt
 	il = seq_len(q)
 	sm = ev0$sysm
-	Hd = lame:::.lde_dense_matrix(
+	Hd = .lde_dense_matrix(
 		sm$A,
 		sm$b,
 		lapply(sm$C, function(Ct) Ct[, il, drop = FALSE]),
@@ -2688,10 +2720,7 @@ test_that("the pair quadrature of the engine: the node rule per pair, and the co
 	expect_true(all(kk %in% c(1L, 5L, 9L, 15L, 21L, 31L, 41L, 61L)))
 	for (rho in c(-0.45, 0.3)) {
 		k = lame:::.lde_pair_quad(m1, m2, v1, v2, s1, s2, rho, TRUE, rho_deriv = TRUE)
-		r = withr::with_options(
-			list(lame.als_engine = "r"),
-			lame:::.lde_pair_quad(m1, m2, v1, v2, s1, s2, rho, TRUE, rho_deriv = TRUE)
-		)
+		r = local({ local_als_r_engine(); lame:::.lde_pair_quad(m1, m2, v1, v2, s1, s2, rho, TRUE, rho_deriv = TRUE) })
 		expect_setequal(names(k), names(r))
 		expect_identical(as.integer(k$K), as.integer(r$K))
 		for (f in setdiff(names(r), "K")) expect_lt(
@@ -2741,14 +2770,14 @@ test_that("the table of the pair quadrature on the shared grid equals the R refe
 	# the compiled table and contraction against the R reference on a small grid
 	rho = 0.35; cc = 3; du = 0.12; klo = -22L; khi = 22L
 	tb = lame:::lde_pair_table_cpp(rho, cc, du, klo, khi, 15L, 1L)
-	tr = lame:::.lde_pair_table_r(rho, cc, du, klo, khi, 15L)
+	tr = .lde_pair_table_r(rho, cc, du, klo, khi, 15L)
 	expect_lt(max(abs(tb$table - tr$table) / pmax(1, abs(tr$table))), 1e-7)
 	set.seed(5)
 	n = 40
 	m1 = rnorm(n, -1, 3); m2 = rnorm(n, -1, 3); sd1 = runif(n, 0.6, 5); sd2 = runif(n, 0.6, 5); v = sample(0:3, n, TRUE)
 	for (dr in list(c(FALSE, FALSE), c(TRUE, FALSE), c(TRUE, TRUE))) {
 		a = lame:::lde_pair_apply_cpp(tb, m1, m2, sd1, sd2, v, 7.5, dr[1], dr[2], 1L)
-		b = lame:::.lde_pair_apply_r(tr, m1, m2, sd1, sd2, v, 7.5, dr[1], dr[2])
+		b = .lde_pair_apply_r(tr, m1, m2, sd1, sd2, v, 7.5, dr[1], dr[2])
 		expect_setequal(names(a), names(b))
 		expect_identical(a$ok, b$ok)
 		expect_identical(as.integer(a$K), as.integer(b$K))
@@ -2796,7 +2825,7 @@ test_that("the table of the pair quadrature on the shared grid equals the R refe
 			TRUE,
 			1L
 		)
-		rr = lame:::.lde_pair_node_r(A, B, rho, bitwShiftL(1L, v))
+		rr = .lde_pair_node_r(A, B, rho, bitwShiftL(1L, v))
 		obs = rr[, 12 + 7 * v + 1:7]
 		cmp = cbind(cp$ell, cp$psi1, cp$psi2, cp$s0, cp$rc0, cp$psi1r, cp$psi2r)
 		expect_true(all(is.finite(cmp)))
@@ -3137,4 +3166,211 @@ test_that("the pair problem under wide noise (strongly identified positions) is 
 		pnorm(-9, log.p = TRUE) + pnorm(25, log.p = TRUE),
 		tolerance = 1e-4
 	)
+})
+
+# refusals and units of the normal and count families
+
+# the dynamic empirical-Bayes estimator returns a converged fit, with any position scale at an interior minimiser
+# of the profile objective, or refuses with a classed error whose `fit` field holds the last iterate
+
+rf_panel = function(family = "normal", n = 12, Tt = 4, seed = 3) {
+	set.seed(seed)
+	rn = paste0("a", sprintf("%02d", seq_len(n)))
+	a = rnorm(n, 0, 0.7)
+	b = rnorm(n, 0, 0.7)
+	Y = X = vector("list", Tt)
+	for (t in seq_len(Tt)) {
+		x = array(rnorm(n * n), c(n, n, 1), dimnames = list(rn, rn, "x1"))
+		eta = -0.3 + outer(a, b, "+") + 0.4 * x[, , 1]
+		y = switch(
+			family,
+			normal = eta + rnorm(n * n),
+			poisson = matrix(rpois(n * n, exp(eta)), n),
+			binary = 1 * (eta + rnorm(n * n) > 0)
+		)
+		dimnames(y) = list(rn, rn)
+		diag(y) = NA
+		Y[[t]] = y
+		X[[t]] = x
+	}
+	names(Y) = names(X) = paste0("t", seq_len(Tt))
+	list(Y = Y, X = X)
+}
+
+test_that("an exhausted budget is a classed error with the state, for the normal and count families", {
+	# the binary family: "an exhausted iteration budget is refused" above
+	for (fam in c("normal", "poisson")) {
+		d = rf_panel(fam)
+		err = expect_error(
+			lame:::lame_dynamic_als(d$Y, d$X, family = fam, dynamic_ab = TRUE, max_iter = 2, verbose = FALSE),
+			class = "lame_als_convergence"
+		)
+		expect_s3_class(err, "lame_als_eb")
+		msg = gsub("\\s+", " ", conditionMessage(err))
+		expect_match(
+			msg,
+			"did not reach the empirical-Bayes convergence criterion: it stopped after 2 passes (iteration limit)",
+			fixed = TRUE
+		)
+		expect_match(msg, "largest scaled residual of the empirical-Bayes equations is")
+		# the condition is an error, not a warning
+		expect_false(inherits(err, "warning"))
+		fit = err$fit
+		expect_s3_class(fit, "lame_dynamic_als")
+		expect_false(fit$converged)
+		expect_equal(fit$iterations, 2L)
+		expect_equal(fit$family, fam)
+		# the same panel at the defaults converges with no condition
+		ok = expect_no_warning(lame:::lame_dynamic_als(d$Y, d$X, family = fam, dynamic_ab = TRUE, verbose = FALSE))
+		expect_true(ok$converged)
+		expect_lt(ok$iterations, 200L)
+	}
+})
+
+test_that("the budget of the empirical-Bayes iteration is that of lame(method = 'als') unless the caller sets one", {
+	d = rf_panel("normal")
+	seen = NULL
+	testthat::local_mocked_bindings(
+		.lde_dynamic_fit = function(prep, family, mode, symmetric, link, prior, max_iter, ...) {
+			seen <<- c(seen, max_iter)
+			stop("stop here")
+		},
+		.package = "lame"
+	)
+	try(lame:::lame_dynamic_als(d$Y, d$X, family = "normal", dynamic_ab = TRUE, verbose = FALSE), silent = TRUE)
+	try(
+		lame:::lame_dynamic_als(d$Y, d$X, family = "normal", dynamic_ab = TRUE, max_iter = 37, verbose = FALSE),
+		silent = TRUE
+	)
+	try(lame(d$Y, Xdyad = d$X, family = "normal", method = "als", dynamic_ab = TRUE, verbose = FALSE), silent = TRUE)
+	expect_equal(seen, c(1000, 37, 1000))
+})
+
+test_that("a replay of an empirical-Bayes fit has the budget the fit used", {
+	for (fam in c("normal", "poisson", "binary")) {
+		d = rf_panel(fam, n = 8, Tt = 3)
+		f = lame:::lame_dynamic_als(d$Y, d$X, family = fam, dynamic_ab = TRUE, verbose = FALSE)
+		expect_equal(f$als_refit$args$max_iter, 1000, info = fam)
+		g = lame:::lame_dynamic_als(d$Y, d$X, family = fam, dynamic_ab = TRUE, max_iter = 300, verbose = FALSE)
+		expect_equal(g$als_refit$args$max_iter, 300, info = fam)
+	}
+})
+
+test_that("ame_als_bootstrap() refuses a dynamic empirical-Bayes normal fit, and lame_dynamic_als(bootstrap = ) returns it with its own errors", {
+	d = rf_panel("normal", n = 8, Tt = 3)
+	fit = lame:::lame_dynamic_als(d$Y, d$X, family = "normal", dynamic_ab = TRUE, verbose = FALSE)
+	expect_null(fit$bias_correct)
+	err = expect_error(ame_als_bootstrap(fit, R = 3, verbose = FALSE), class = "lame_dynamic_eb_unsupported")
+	expect_match(
+		gsub("\\s+", " ", conditionMessage(err)),
+		"A bootstrap is not offered for the dynamic empirical-Bayes estimator"
+	)
+	expect_error(
+		lame:::lame_dynamic_als(d$Y, d$X, family = "normal", dynamic_ab = TRUE, bootstrap = 3, verbose = FALSE),
+		class = "lame_als_bootstrap_replicates"
+	)
+	expect_message(
+		f30 <- lame:::lame_dynamic_als(d$Y, d$X, family = "normal", dynamic_ab = TRUE, bootstrap = 30, verbose = FALSE),
+		class = "lame_als_bootstrap_not_run"
+	)
+	expect_equal(vcov(f30), vcov(fit), tolerance = 1e-12)
+})
+
+test_that("a position scale search that ends at an edge or unsettled is refused for normal and count panels as for binary", {
+	skip_on_cran()
+	real = lame:::.lde_pos_profile
+	for (fam in c("normal", "poisson")) {
+		d = rf_panel(fam, n = 10, Tt = 3)
+		testthat::local_mocked_bindings(
+			.lde_pos_profile = function(...) { pr = real(...); pr$at_edge = TRUE; pr$S = pr$range[2L]; pr },
+			.package = "lame"
+		)
+		err = expect_error(
+			suppressMessages(
+				lame:::lame_dynamic_als(
+					d$Y,
+					d$X,
+					family = fam,
+					dynamic_ab = TRUE,
+					R = 1,
+					dynamic_uv = TRUE,
+					verbose = FALSE
+				)
+			),
+			class = "lame_dynamic_uv_scale_edge"
+		)
+		expect_s3_class(err$fit, "lame_dynamic_als")
+		expect_equal(err$fit$family, fam)
+		expect_true(is.finite(err$fit$eb$uv_scale))
+		testthat::local_mocked_bindings(
+			.lde_pos_profile = function(...) { pr = real(...); pr$unsettled = TRUE; pr$n_near = 5L; pr$n_unsettled = 2L; pr },
+			.package = "lame"
+		)
+		err = expect_error(
+			suppressMessages(
+				lame:::lame_dynamic_als(
+					d$Y,
+					d$X,
+					family = fam,
+					dynamic_ab = TRUE,
+					R = 1,
+					dynamic_uv = TRUE,
+					verbose = FALSE
+				)
+			),
+			class = "lame_dynamic_uv_scale_unsettled"
+		)
+		expect_s3_class(err, "lame_als_convergence")
+		expect_s3_class(err$fit, "lame_dynamic_als")
+		# the count in the message is the search's own evaluations, not a recount at the refined scale
+		expect_match(
+			gsub("\\s+", " ", conditionMessage(err)),
+			"did not settle at 2 of the 5 position scales nearest the minimum"
+		)
+	}
+})
+
+test_that("a constant normal response is refused: it has no variance to model", {
+	d = rf_panel("normal")
+	Y1 = lapply(d$Y, function(y) { y[!is.na(y)] = 2; y })
+	err = expect_error(
+		lame:::lame_dynamic_als(Y1, d$X, family = "normal", dynamic_ab = TRUE, verbose = FALSE),
+		class = "lame_dynamic_eb_unsupported"
+	)
+	expect_match(gsub("\\s+", " ", conditionMessage(err)), "a constant normal response")
+})
+
+test_that("static factors of a normal panel are found at any unit of the response: the start is relative to the weights", {
+	skip_on_cran()
+	set.seed(7)
+	n = 14
+	u = matrix(rnorm(n), n, 1)
+	v = matrix(rnorm(n), n, 1)
+	rn = paste0("a", sprintf("%02d", seq_len(n)))
+	Y = lapply(1:3, function(t) {
+		y = 0.2 + 1.2 * tcrossprod(u, v) + matrix(rnorm(n * n, 0, 0.5), n)
+		dimnames(y) = list(rn, rn)
+		diag(y) = NA
+		y
+	})
+	fit = function(s) lame:::lame_dynamic_als(
+		lapply(Y, function(y) y * s),
+		NULL,
+		family = "normal",
+		dynamic_ab = TRUE,
+		R = 1,
+		verbose = FALSE
+	)
+	f1 = fit(1)
+	# the product is found, not the null fixed point where the noise absorbs it (a risk for responses in large units,
+	# where the weights 1 / ve are far below one)
+	expect_gt(sqrt(mean(f1$UVPM^2, na.rm = TRUE)), 0.5)
+	for (s in c(1e-6, 1e4, 1e8)) {
+		g = fit(s)
+		expect_true(g$converged)
+		expect_equal(g$VC[["ve"]], s^2 * f1$VC[["ve"]], tolerance = 2e-2)
+		# equal to the scaled product up to the factor prior, whose scale follows the response variance, so a larger
+		# unit shrinks the product slightly less
+		expect_equal(sqrt(mean(g$UVPM^2, na.rm = TRUE)), s * sqrt(mean(f1$UVPM^2, na.rm = TRUE)), tolerance = 6e-2)
+	}
 })

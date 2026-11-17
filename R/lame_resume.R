@@ -25,7 +25,8 @@
 #' \code{nscan = K} on the resume call to request \code{K}
 #' additional post-burn sweeps. Both call shapes evaluate saved data arguments
 #' in the caller's frame, so objects referenced by the original call must
-#' remain available there.
+#' remain available there. A missing one is named in the error; data passed
+#' to \code{lame_resume()} by argument name replace the saved arguments.
 #'
 #' Use \code{nscan_more = K} to override the \code{nscan} value to
 #' \code{K} for the continuation. A fit continued from the object runs with the
@@ -61,21 +62,19 @@
 #' \donttest{
 #' ck <- tempfile(fileext = ".rds")
 #' data(YX_bin_list)
-#' # short run with very-aggressive max_seconds to force early termination
+#' # a run that writes a checkpoint for each chain as it goes
 #' fit1 <- lame(lapply(YX_bin_list$Y, function(y) 1 * (y > 0)), YX_bin_list$X,
-#'              family = "binary", R = 0, nscan = 5000, burn = 50, odens = 5,
-#'              checkpoint_path = ck, checkpoint_every = 50L,
-#'              max_seconds = 0.5, verbose = FALSE)
-#' if (isTRUE(fit1$terminated_early)) {
-#'   # each chain wrote its own checkpoint (ck with _chain1, _chain2 before
-#'   # the extension): continue one chain from its file, or every chain
-#'   # from the returned fit
-#'   fit2 <- lame_resume(sub(".rds", "_chain1.rds", ck, fixed = TRUE), nscan_more = 200)
-#'   dim(fit2$BETA)
-#'   # the time limit of the call applies again unless it is lifted
-#'   fit3 <- lame_resume(fit1, nscan_more = 200, max_seconds = Inf)
-#'   nrow(fit3$BETA)  # 2 chains * 200 / 5 = 80
-#' }
+#'              family = "binary", R = 0, nscan = 100, burn = 20, odens = 5,
+#'              checkpoint_path = ck, checkpoint_every = 50L, verbose = FALSE)
+#' # each chain has its own file (ck with _chain1, _chain2 before the
+#' # extension): continue one chain from its file
+#' fit2 <- lame_resume(sub(".rds", "_chain1.rds", ck, fixed = TRUE), nscan_more = 50)
+#' dim(fit2$BETA)
+#' # or every chain from the returned fit
+#' fit3 <- lame_resume(fit1, nscan_more = 50)
+#' nrow(fit3$BETA)  # 2 chains * 50 / 5 = 20
+#' # a run stopped by max_seconds (fit$terminated_early) continues the same way;
+#' # max_seconds = Inf lifts the time limit of the original call
 #' }
 #'
 #' @details
@@ -127,7 +126,7 @@ lame_resume <- function(path, nscan_more = NULL, ..., .envir = NULL) {
 	usr <- list(...)
 	if (!is.null(nscan_more)) usr$nscan <- as.integer(nscan_more)
 	# drop the checkpoint arguments from the saved call, then apply user overrides
-	cl2 <- cl
+	cl2 <- .lame_resume_legacy(cl, TRUE)
 	cl2$checkpoint_path <- NULL
 	cl2$max_seconds <- NULL
 	cl2$resume_from <- NULL
@@ -185,7 +184,44 @@ lame_resume <- function(path, nscan_more = NULL, ..., .envir = NULL) {
 			))
 		}
 	}
-	eval(cl2, envir = eval_env)
+	.lame_resume_eval(cl2, eval_env)
+}
+
+# names a call saved by an earlier release may carry: print (now verbose), n_chains (now chains,
+# which a resume sets) and an ame() save_log_lik = "chunked" (now TRUE)
+.lame_resume_legacy <- function(args, is_lame) {
+	if (is.null(args$verbose)) args$verbose <- args$print
+	args$print <- NULL
+	args$n_chains <- NULL
+	if (!is_lame && identical(args$save_log_lik, "chunked")) args$save_log_lik <- TRUE
+	args
+}
+
+# evaluate a saved call or argument; an object it names that the session no longer holds is
+# reported by name with the remedy
+.lame_resume_eval <- function(expr, env) {
+	withCallingHandlers(
+		eval(expr, envir = env),
+		error = function(e) {
+			vars <- all.vars(expr)
+			gone <- vars[!vapply(vars, exists, logical(1), envir = env, inherits = TRUE)]
+			named <- function(v) grepl(
+				paste0("(^|[^[:alnum:]._])", v, "($|[^[:alnum:]._])"),
+				conditionMessage(e)
+			)
+			gone <- gone[vapply(gone, named, logical(1))]
+			if (length(gone)) {
+				cli::cli_abort(
+					c(
+						"The saved call refers to {.code {gone}}, which this session does not hold.",
+						"i" = "Recreate the data under {cli::qty(length(gone))}{?that name/those names}, or pass {cli::qty(length(gone))}{?it/them} to {.fn lame_resume} by argument name (as in {.code Y = }): arguments given there replace the saved ones."
+					),
+					class = "lame_resume_missing_object",
+					objects = gone
+				)
+			}
+		}
+	)
 }
 
 # continue a fitted object from its final state; a fit refused by the chain policy carries its
@@ -194,7 +230,7 @@ lame_resume <- function(path, nscan_more = NULL, ..., .envir = NULL) {
 	if (isTRUE(fit$is_combined) && !is.null(fit$chain_start_vals)) return(
 		.lame_resume_chains(fit, nscan_more, usr, env)
 	)
-	if (is.null(fit$start_vals)) {
+	if (is.null(.lame_chain_state(fit))) {
 		cli::cli_abort("The fit carries no sampler state ({.code fit$start_vals}) to continue from.")
 	}
 	rec <- fit$auto_extend
@@ -202,11 +238,14 @@ lame_resume <- function(path, nscan_more = NULL, ..., .envir = NULL) {
 	args <- rec$call_args
 	if (is.null(args)) {
 		if (is.null(fit$call)) cli::cli_abort("The fit carries neither its call nor its arguments.")
+		# arguments given to lame_resume() replace the saved ones and are not evaluated
 		cl <- as.list(fit$call)[-1L]
-		args <- lapply(cl, eval, envir = env)
+		cl <- cl[!names(cl) %in% names(usr)]
+		args <- lapply(cl, .lame_resume_eval, env = env)
 	}
+	args <- .lame_resume_legacy(args, is_lame)
 	args$chains <- 1L
-	args$start_vals <- fit$start_vals
+	args$start_vals <- .lame_chain_state(fit)
 	args$burn <- 0L
 	if (!is.null(nscan_more)) args$nscan <- as.integer(nscan_more)
 	seed0 <- args$seed %||% 6886
@@ -219,7 +258,19 @@ lame_resume <- function(path, nscan_more = NULL, ..., .envir = NULL) {
 	}
 	for (nm in names(usr)) args[nm] <- list(usr[[nm]])
 	if ("max_seconds" %in% names(usr) && is.null(usr$max_seconds)) args$max_seconds <- Inf
+	args$log_lik_path <- .lame_resume_log_lik_path(args, usr)
 	do.call(if (is_lame) lame else ame, args, envir = env)
+}
+
+# a resumed block writes its likelihood chunks beside the directory of the fit it continues
+.lame_resume_log_lik_path <- function(args, usr) {
+	path <- args$log_lik_path
+	if (!identical(args$save_log_lik, "chunked") || is.null(path) || "log_lik_path" %in% names(usr)) return(path)
+	path <- sub("[/\\\\]+$", "", path)
+	taken <- list.files(dirname(path))
+	k <- 1L
+	while (any(startsWith(taken, paste0(basename(path), "_resume", k)))) k <- k + 1L
+	paste0(path, "_resume", k)
 }
 
 # continue every chain of a pooled fit from its own final state, checked and extended together
@@ -229,13 +280,17 @@ lame_resume <- function(path, nscan_more = NULL, ..., .envir = NULL) {
 	args <- rec$call_args
 	if (is.null(args)) {
 		if (is.null(fit$call)) cli::cli_abort("The fit carries neither its call nor its arguments.")
+		# arguments given to lame_resume() replace the saved ones and are not evaluated
 		cl <- as.list(fit$call)[-1L]
-		args <- lapply(cl, eval, envir = env)
+		cl <- cl[!names(cl) %in% names(usr)]
+		args <- lapply(cl, .lame_resume_eval, env = env)
 	}
-	for (nm in c("chains", "n_chains", "cores", "start_vals", "burn", "seed")) args[[nm]] <- NULL
+	args <- .lame_resume_legacy(args, is_lame)
+	for (nm in c("chains", "cores", "start_vals", "burn", "seed")) args[[nm]] <- NULL
 	if (!is.null(nscan_more)) args$nscan <- as.integer(nscan_more)
 	for (nm in names(usr)) args[nm] <- list(usr[[nm]])
 	if ("max_seconds" %in% names(usr) && is.null(usr$max_seconds)) args$max_seconds <- Inf
+	args$log_lik_path <- .lame_resume_log_lik_path(args, usr)
 	chains <- fit$chains
 	seeds <- if (!is.null(rec$next_seeds)) rec$next_seeds else fit$chain_seeds + 1000 * 0
 	resolved <- if (is_lame) fit$prior else NULL

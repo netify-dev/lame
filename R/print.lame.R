@@ -33,16 +33,13 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 	# number of periods, from n_time or else the stored responses
 	n_periods <- x$n_time
 	if (is.null(n_periods)) {
-		n_periods <- if (length(x$Y_T) > 0) length(x$Y_T)
-		else if (is.array(x$Y) && length(dim(x$Y)) == 3L) dim(x$Y)[3]
+		n_periods <- if (is.array(x$Y) && length(dim(x$Y)) == 3L) dim(x$Y)[3]
 		else if (is.list(x$Y)) length(x$Y)
 		else NA_integer_
 	}
 	# row and column counts, so a bipartite fit prints nA x nB
 	n_row <- NULL; n_col <- NULL
-	if (length(x$Y_T) > 0) {
-		n_row <- nrow(x$Y_T[[1]]); n_col <- ncol(x$Y_T[[1]])
-	} else if (is.array(x$Y) && length(dim(x$Y)) == 3L) {
+	if (is.array(x$Y) && length(dim(x$Y)) == 3L) {
 		n_row <- dim(x$Y)[1]; n_col <- dim(x$Y)[2]
 	} else if (is.list(x$Y) && length(x$Y) > 0) {
 		n_row <- nrow(x$Y[[1]]); n_col <- ncol(x$Y[[1]])
@@ -87,6 +84,9 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 		grp_str <- if (!is.null(x$beta_dynamic_groups))
 			paste(unique(x$beta_dynamic_groups[x$beta_dynamic_groups != ""]), collapse = ", ")
 		else ""
+		if (isTRUE(x$dynamic_intercept_from_ab)) grp_str <- paste0(grp_str, "; intercept dynamic under dynamic_ab")
+		kind_txt <- .lame_beta_kind_text(.lame_beta_block_kinds(x))
+		if (!is.null(kind_txt)) grp_str <- paste0(grp_str, "; kind ", kind_txt)
 		param_info <- c(
 			param_info,
 			"*" = "Dynamic regression coefficients: {.val {n_dyn}}{if (nzchar(grp_str)) paste0(' (blocks: ', grp_str, ')') else ''}"
@@ -118,6 +118,7 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 	cli::cli_bullets(param_info)
 
 	if (!is.null(.bound_line <- .lame_bound_share_line(x))) cli::cli_alert_info(.bound_line)
+	if (!is.null(.fallback_line <- .lame_fallback_share_line(x))) cli::cli_alert_info(.fallback_line)
 	if (!is.null(.chain_line <- .lame_chain_print_line(x$auto_extend, x))) cli::cli_alert_info(.chain_line)
 
 	# what the fit does not report: the effect variances and intercept of a
@@ -132,25 +133,21 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 		))
 	}
 
-	# warn when a panel fit keeps U, a and b time-invariant
+	# note when a panel fit keeps U, a and b time-invariant
 	if (!is.null(n_periods) && !is.na(n_periods) && n_periods > 1L &&
 			!is_dynamic_uv && !is_dynamic_ab && !is_dynamic_beta) {
-		cli::cli_alert_warning(c(
-			"This is a {.strong STATIC} fit pooled across {n_periods} time periods: ",
-			"{.code U}, {.code V}, {.code a}, {.code b} do not vary by time."
-		))
 		cli::cli_alert_info(c(
-			"For time-varying latent positions / additive effects, refit with ",
-			"{.code dynamic_uv = TRUE} and/or {.code dynamic_ab = TRUE}."
+			"Static fit: {.code U}, {.code V}, {.code a} and {.code b} are shared across the {n_periods} periods. ",
+			"{.code dynamic_uv = TRUE} and {.code dynamic_ab = TRUE} let them vary over time."
 		))
 	}
 
-	# at rank two or more the snap and t samplers do not recover the position
-	# hyperparameters (see .lame_uv_hyper_unidentified)
-	uv_unident <- .lame_uv_hyper_unidentified(x)
-	# the snap kind's reset rate where it is reported
+	# the snap kind's reset rate
 	pi_snap_shown <- identical(x$dynamic_uv_kind, "snap") && is.numeric(x$pi_snap) &&
-		length(x$pi_snap) > 0L && !.lame_snap_rate_unidentified(x)
+		length(x$pi_snap) > 0L
+	# a bipartite fit trades scale between the paths and G at no cost to the predictor, so the prior
+	# sets its innovation sd
+	uv_sd_note <- if (identical(x$mode, "bipartite")) " (set by the prior; G carries the scale)" else ""
 	# compact table when two or more dynamic components are active
 	if (isTRUE(compact)) {
 		n_dyn <- sum(c(is_dynamic_uv, is_dynamic_ab, is_dynamic_beta))
@@ -166,9 +163,11 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 				rows[[length(rows) + 1L]] <- data.frame(
 					component = "U/V",
 					dim = if (!is.null(x$U)) dim(x$U)[2] else NA_integer_,
-					rho = if (uv_unident) "not reported" else .qfmt(x$rho_uv),
-					sigma_innov = if (uv_unident) "not reported" else
-					if (isTRUE(x$symmetric)) "sqrt(1 - rho^2) (gauge)" else .qfmt(x$sigma_uv),
+					rho = .qfmt(x$rho_uv),
+					sigma_innov = if (isTRUE(x$symmetric)) "sqrt(1 - rho^2) (gauge)" else paste0(
+						.qfmt(x$sigma_uv),
+						uv_sd_note
+					),
 					stringsAsFactors = FALSE
 				)
 			}
@@ -185,8 +184,9 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 				n_dyn_beta <- if (!is.null(x$beta_dynamic_mask))
 					sum(x$beta_dynamic_mask) else NA_integer_
 				rb <- if (!is.null(x$RHO_BETA)) {
-					# per-draw mean across blocks; summary() gives each block
-					apply(x$RHO_BETA, 1, mean)
+					# per-draw mean across the ar1 blocks; summary() gives each block
+					rb_ar1 <- .lame_rho_beta_ar1(x)
+					if (is.matrix(rb_ar1) && ncol(rb_ar1) > 0L) apply(rb_ar1, 1, mean) else NULL
 				} else x$rho_beta
 				sb <- if (!is.null(x$SIGMA_BETA)) {
 					apply(x$SIGMA_BETA, 1, mean)
@@ -194,7 +194,10 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 				rows[[length(rows) + 1L]] <- data.frame(
 					component = "beta",
 					dim = n_dyn_beta,
-					rho = .qfmt(rb),
+					# blocks with no ar1 kind have no persistence to report
+					rho = if (is.null(rb)) {
+						paste0("none (", .lame_beta_kind_text(.lame_beta_block_kinds(x)) %||% "path", ")")
+					} else .qfmt(rb),
 					sigma_innov = .qfmt(sb),
 					stringsAsFactors = FALSE
 				)
@@ -203,12 +206,6 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 				tbl <- do.call(rbind, rows)
 				cli::cli_verbatim(utils::capture.output(print(tbl, row.names = FALSE)))
 				cli::cli_alert_info("{.field sigma_innov} columns are AR(1) innovation SDs (not marginal/stationary SDs).")
-				if (uv_unident) {
-					cli::cli_alert_info("{.code rho_uv} / {.code sigma_uv} are not reported for {.code dynamic_uv_kind = {.val {x$dynamic_uv_kind %||% \"snap\"}}} at rank two or more (draws in {.code fit$rho_uv}, {.code fit$sigma_uv}).")
-				}
-				if (.lame_snap_rate_unidentified(x)) {
-					cli::cli_alert_info("The reset rate {.code pi_snap} is not reported at rank two or more (draws in {.code fit$pi_snap}).")
-				}
 				if (pi_snap_shown) {
 					pi_txt <- .qfmt(x$pi_snap)
 					cli::cli_alert_info("Reset rate {.code pi_snap}: {pi_txt}.")
@@ -220,18 +217,13 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 			if (is_dynamic_uv) {
 				hp <- c(
 					hp,
-					"*" = if (uv_unident) {
-						paste0(
-							"Latent positions AR(1): rho_uv and sigma_uv not reported for this transition kind at rank two or more",
-							if (.lame_snap_rate_unidentified(x)) ", nor the reset rate pi_snap" else "",
-							" (the chains do not recover them)"
-						)
-					} else paste0(
+					"*" = paste0(
 						"Latent positions AR(1): rho_uv ",
 						.qfmt(x$rho_uv),
 						if (isTRUE(x$symmetric)) ", innovation sd sqrt(1 - rho_uv^2) (gauge)" else paste0(
 							", innovation sd ",
-							.qfmt(x$sigma_uv)
+							.qfmt(x$sigma_uv),
+							uv_sd_note
 						),
 						if (pi_snap_shown) paste0(", reset rate pi_snap ", .qfmt(x$pi_snap)) else ""
 					)
@@ -249,14 +241,33 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 				)
 			}
 			if (is_dynamic_beta) {
-				rb <- if (!is.null(x$RHO_BETA)) apply(x$RHO_BETA, 1, mean) else x$rho_beta
+				rb <- if (!is.null(x$RHO_BETA)) {
+					rb_ar1 <- .lame_rho_beta_ar1(x)
+					if (is.matrix(rb_ar1) && ncol(rb_ar1) > 0L) apply(rb_ar1, 1, mean) else NULL
+				} else x$rho_beta
 				sb <- if (!is.null(x$SIGMA_BETA)) apply(x$SIGMA_BETA, 1, mean) else x$sigma_beta
-				hp <- c(hp, "*" = paste0("Coefficient AR(1): rho_beta ", .qfmt(rb), ", innovation sd ", .qfmt(sb)))
+				hp <- c(hp, "*" = if (is.null(rb)) {
+					paste0(
+						"Coefficient path (",
+						.lame_beta_kind_text(.lame_beta_block_kinds(x)) %||% "path",
+						"): innovation sd ",
+						.qfmt(sb)
+					)
+				} else paste0("Coefficient AR(1): rho_beta ", .qfmt(rb), ", innovation sd ", .qfmt(sb)))
 			}
 			if (length(hp) > 0L) {
 				cli::cli_h3("AR(1) hyperparameters")
 				cli::cli_bullets(hp)
 			}
+		}
+		# long-run means of the ar1 coefficient paths, toward which their forecasts revert
+		if (is_dynamic_beta && is.matrix(x$MU_BETA) && ncol(x$MU_BETA) > 0L) {
+			mu_txt <- vapply(
+				colnames(x$MU_BETA),
+				function(k) paste0("Long-run mean mu_beta[", k, "]: ", .qfmt(x$MU_BETA[, k])),
+				character(1)
+			)
+			cli::cli_bullets(stats::setNames(unname(mu_txt), rep("*", length(mu_txt))))
 		}
 	}
 

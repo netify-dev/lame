@@ -52,13 +52,15 @@ $$b_{j,t} = \mu^{b}_{j} + e_{j,t}, \quad e_{j,t} = \rho_{ab} \, e_{j,t-1} + \eta
 
 The level $\mu^{a}_{i}$ is pooled over every period, and its variance across actors is the `va` that `summary()` reports (`vb` for the receiver levels). The deviation carries the dynamics: `fit$rho_ab` is its persistence and `fit$sigma_ab` holds draws of its innovation standard deviation, with the stationary variance $\sigma_{ab}^2 / (1 - \rho_{ab}^2)$ as the prior on the first-period deviation. The marginal variance of a per-period effect is therefore $\sigma^2_a + \sigma_{ab}^2 / (1 - \rho_{ab}^2)$, and because $\rho_{ab}$ describes movement around a level, on short panels it reads lower than the persistence of the raw effect path. Unless you set `prior$sigma_ab_scale`, its scale is fixed before sampling from the prior mean of the active level variances and `prior$rho_ab_mean`, so per-period deviations shrink toward the actor's level unless the data insist; on sparse binary panels this is what keeps the effects from chasing single cells. The stored paths `fit$a_dynamic` and `fit$b_dynamic` are the full effects $a_{i,t}$ and $b_{j,t}$. Substantively, `dynamic_ab` captures changes in how much an actor participates, not in who they connect with (that is `dynamic_uv`'s territory). The two can be used alone or together; `dynamic_ab` is often the place to start, since changes in overall activity are common and relatively easy to estimate.
 
+The effects of every period sum to zero across actors, so a shift common to all actors in one period (the whole network busier in period $t$) cannot sit in them. Under `dynamic_ab = TRUE` the intercept therefore becomes a dynamic coefficient automatically (a `dynamic_beta` block of its own, added to whatever `dynamic_beta` names, and a random walk unless `dynamic_beta_kind` is `"rw2"` or `"matern32"`, so its forecasts hold the last level), and it carries the period means: `fit$BETA` is then a draws x coefficients x periods array and `coef(fit)["intercept", ]` is the intercept path. `fit$dynamic_intercept_from_ab` records that the rule applied.
+
 ### Dynamic Regression Coefficients (`dynamic_beta`)
 
-The third option lets the regression coefficients themselves evolve. With `dynamic_beta = TRUE` (or a subset like `dynamic_beta = "dyad"`), each selected coefficient follows an AR(1):
+The third option lets the regression coefficients themselves evolve. With `dynamic_beta = TRUE` (or a subset like `dynamic_beta = "dyad"`), each selected coefficient follows an AR(1) around its own long-run mean $\mu_k$:
 
-$$\beta_{k,t} = \rho_{\beta,b(k)} \, \beta_{k,t-1} + \epsilon_{k,t}, \quad \epsilon_{k,t} \sim N(0, \sigma_{\beta,b(k)}^2 \Lambda_{kk})$$
+$$\beta_{k,t} - \mu_k = \rho_{\beta,b(k)} \, (\beta_{k,t-1} - \mu_k) + \epsilon_{k,t}, \quad \epsilon_{k,t} \sim N(0, \sigma_{\beta,b(k)}^2 \Lambda_{kk})$$
 
-where $b(k)$ is the block of coefficient $k$ (intercept / dyad / row / col), so coefficients in a block share $\rho$ and $\sigma$, while the design-based scale $\Lambda_{kk}$ (a $g$-prior analogue) keeps each innovation variance commensurate with the data. The whole time path of $\beta$ is drawn jointly via forward-filter / backward-sample (FFBS; Carter & Kohn 1994). One storage difference from `dynamic_uv` / `dynamic_ab`: `fit$sigma_beta` and `fit$rho_beta` hold last-iteration scalars, while the full posterior draws live in `fit$SIGMA_BETA` and `fit$RHO_BETA` -- summarise those (e.g. `colMeans(fit$SIGMA_BETA)`).
+where $b(k)$ is the block of coefficient $k$ (intercept / dyad / row / col), so coefficients in a block share $\rho$ and $\sigma$, while the design-based scale $\Lambda_{kk}$ (a $g$-prior analogue) keeps each innovation variance commensurate with the data. The first period is drawn from the stationary law around $\mu_k$, and $\mu_k$ has the prior of a static coefficient; its posterior is in `fit$mu_beta` and `fit$MU_BETA`, and forecasts of the coefficient revert to it. The whole time path of $\beta$ is drawn jointly via forward-filter / backward-sample (FFBS; Carter & Kohn 1994). One storage difference from `dynamic_uv` / `dynamic_ab`: `fit$sigma_beta` and `fit$rho_beta` hold last-iteration scalars, while the full posterior draws live in `fit$SIGMA_BETA` and `fit$RHO_BETA` -- summarise those (e.g. `colMeans(fit$SIGMA_BETA)`).
 
 `dynamic_beta` accepts `FALSE` (default), `TRUE` (all coefficients), block shortcuts (`"intercept"`, `"dyad"`, `"row"`, `"col"`) or coefficient names, integer column indices, or a length-`p` logical mask; see `?lame`. When the intercept (or a nodal coefficient) is dynamic, an automatic sum-to-zero constraint on `a` (and `b`) keeps everything jointly identified. `dynamic_beta` works for every family, unipartite and bipartite, directed and symmetric, and combines with `dynamic_ab` / `dynamic_uv`.
 
@@ -107,9 +109,9 @@ coef(fit_db)
 head(confint(fit_db), 8)
 ```
 
-**Migration warning for `amen` / static-`lame` users.** With `dynamic_beta` active, `fit$BETA` becomes a 3-D `[n_stored, p, T]` array rather than the 2-D `[n_stored, p]` matrix. The amen-era idiom `apply(fit$BETA, 2, mean)` still returns a length-`p` vector -- but it now silently averages across both iterations **and** time, hiding the time variation you fit the model to recover. Use `coef(fit)` instead: it returns a `[p, T]` matrix for dynamic fits and a length-`p` vector for static ones.
+**Reading the coefficients.** With `dynamic_beta` active, `fit$BETA` is a 3-D `[n_stored, p, T]` array, one slice per period. `coef(fit)` summarises it: a `[p, T]` matrix of posterior means for a dynamic fit and a length-`p` vector for a static one, so the same call works on both. To summarise the draws by hand, keep the period dimension: `apply(fit$BETA, c(2, 3), mean)`.
 
-The per-period posterior mean for `X1_dyad` should track the linear ramp `beta_t_true = c(-0.5, -0.125, 0.25, 0.625, 1.0)`, with the AR(1) prior providing mild shrinkage relative to fitting a separate `ame()` per period.
+The posterior means for `X1_dyad` follow the simulated ramp `beta_t_true = c(-0.5, -0.125, 0.25, 0.625, 1.0)`: the largest gap between the two over the five periods is `r round(max(abs(coef(fit_db)["X1_dyad", ] - beta_t_true)), 3)`.
 
 #### Choosing a prior family: `dynamic_beta_kind`
 
@@ -119,9 +121,9 @@ The per-period posterior mean for `X1_dyad` should track the linear ramp `beta_t
 > **Permanent / unit-root drift** (no mean reversion)? Use `"rw1"`.
 > **Smooth with curvature** (second-order smoothness)? Use `"rw2"`.
 > **Smooth with a known length-scale** of variation? Use `"matern32"` (set the scale via `prior = list(matern32_length_scale = ...)`; defaults to `max(2, T/4)`).
-> If the stationarity warning fires after fitting AR(1) -- the posterior on $\rho_\beta$ concentrated at or above 0.97 -- refit with `"rw1"` (or `"rw2"` if acceleration matters).
+> After an AR(1) fit, `summary(fit)` checks the posterior on $\rho_\beta$ and recommends `"rw1"` when it is concentrated at or above 0.97 (`"rw2"` if acceleration matters).
 
-`"random_walk"` is an alias for `"rw1"`; the `"rw2"` and `"matern32"` samplers use a slower R-level joint Gaussian update rather than the C++ FFBS. Refitting `fit_db` under each kind and comparing the recovered `X1_dyad` path against the truth:
+`"random_walk"` is an alias for `"rw1"`. `"rw2"` and `"matern32"` draw the whole path in one joint Gaussian update; `?lame` gives their cost per iteration. Refitting `fit_db` under each kind and comparing the recovered `X1_dyad` path against the truth:
 
 ```{r dynamic-beta-kinds}
 kinds <- c("rw1", "rw2", "matern32")
@@ -152,7 +154,7 @@ round(
 )
 ```
 
-All four kinds recover essentially the same ramp -- the point to take away, not a tie-breaker: on a smooth, gap-free trend the priors are nearly indistinguishable in-sample, and they diverge only when the data match their assumption. Choose with the decision tree above and the post-fit stationarity warning, not by eyeballing this table.
+All four kinds recover the ramp: the largest gap between any estimate in the table and the truth is `r round(max(abs(rbind(coef(fit_db)["X1_dyad", ], t(paths)) - rep(beta_t_true, each = 4))), 3)`. On a smooth, evenly spaced trend the priors agree in-sample; they separate when the data have the feature each one models (mean reversion, permanent drift, curvature), so choose with the decision list above.
 
 When `time_index` is supplied with unequal gaps, the AR(1) / RW1 conditional variance is scaled by the gap (suppressing $\Lambda_{kk}$ for readability):
 $$q_t = \sigma_\beta^2 \cdot \frac{1 - \rho_\beta^{2\Delta_t}}{1 - \rho_\beta^2}$$
@@ -178,7 +180,7 @@ round(coef(fit_gaps), 3)
 
 #### Hierarchical pooling: `dynamic_beta_pool`
 
-When two or more coefficient blocks are dynamic, each block has its own AR(1) hyperparameters by default, and short panels ($T \le 5$) can leave them badly under-identified. `dynamic_beta_pool` shrinks block-level hyperparameters toward a shared mean: `"rho"` for common persistence, `"sigma"` for a common innovation scale, `"both"` for full pooling -- e.g. `lame(..., dynamic_beta = c("intercept", "dyad"), dynamic_beta_pool = "both")`. With a single dynamic block the hierarchical layer is skipped entirely and the fit is identical to the default `"none"`. See `?lame` for the diagnostic comparison of pooled vs independent hyperparameter posteriors.
+When two or more coefficient blocks are dynamic, each block has its own AR(1) hyperparameters by default. On a short panel ($T \le 5$) a single block carries little information about its own persistence and innovation scale, and `dynamic_beta_pool` lets the blocks share it by shrinking the block-level hyperparameters toward a common mean: `"rho"` for common persistence, `"sigma"` for a common innovation scale, `"both"` for full pooling -- e.g. `lame(..., dynamic_beta = c("intercept", "dyad"), dynamic_beta_pool = "both")`. With a single dynamic block the hierarchical layer is skipped entirely and the fit is identical to the default `"none"`. See `?lame` for the diagnostic comparison of pooled vs independent hyperparameter posteriors.
 
 #### Per-actor time-varying slopes: `dynamic_beta_per_actor`
 
@@ -186,7 +188,7 @@ For questions about whether one actor responds to a covariate differently than a
 
 #### Diagnosing your dynamic fit
 
-`summary(fit)` prints the *Dynamic coefficients per period* block and the per-block posterior-mean `rho_beta`, and warns when a block's posterior on $\rho_\beta$ is concentrated at or above 0.97 -- the signal to refit with `dynamic_beta_kind = "rw1"`.
+`summary(fit)` prints the *Dynamic coefficients per period* block and the per-block posterior-mean `rho_beta`, and recommends `dynamic_beta_kind = "rw1"` when a block's posterior on $\rho_\beta$ is concentrated at or above 0.97.
 
 `detect_change_point(fit)` is a path diagnostic. It scales each coefficient's
 largest one-period change by its fitted innovation standard deviation,
@@ -203,31 +205,31 @@ eight or more periods but in about a fifth of those with four or five
 detect_change_point(fit_db)
 ```
 
-Use large tail ratios to select paths for closer inspection; `t_hat` is the
-most frequent largest-jump period, not a formal break-time estimate. This
-reference supports equally spaced AR(1) and RW1 coefficient paths. Other
-transition laws and irregular periods are refused. For prior elicitation
-*before* fitting, `dynamic_beta_prior_summary(n_periods = 10, kind = "ar1")`
-simulates generic coefficient paths; it does not incorporate a particular fitted
-covariate design's innovation scaling.
+The ramp in `fit_db` is smooth, and the output says so: `warn` is `FALSE`. Use
+large tail ratios to select paths for closer inspection; `t_hat` is the period
+in which the largest jump most often falls. The reference paths are defined for
+equally spaced AR(1) and RW1 coefficients. For prior elicitation *before*
+fitting, `dynamic_beta_prior_summary(n_periods = 10, kind = "ar1")` simulates
+coefficient paths from the prior on $\rho_\beta$ and $\sigma_\beta$, with
+$\Lambda_{kk} = 1$.
 
-`fit$sampler_health` separates numerical failures from valid rejections at a prior bound. A numerical failure aborts the fit with an error of class `lame_sampler_failure`, so a returned fit has none; the compatibility counters `fit$tryErrorChecks` and `fit$mh_counters` contain both kinds. A proposal outside the prior's box (`prior$uv_max_abs`, `prior$G_max`) is a Metropolis rejection of the model, and that conditional keeps its state; `summary()` states the share of sweeps when it is one percent or more. Supported binary configurations also use Hamiltonian joint updates, whose acceptance and rejection records are described in `?lame`; a trajectory that fails numerically aborts the fit in the same way. Between-chain agreement and effective sample sizes come from the multi-chain workflow below.
+`fit$sampler_health` counts, for each sampler step, the proposals that fell outside a prior bound (`prior$uv_max_abs`, `prior$G_max`). These are ordinary Metropolis rejections, and `summary()` states their share of sweeps when it is one percent or more. Its `numerical_failures` column is zero in every returned fit. Between-chain agreement and effective sample sizes are in `fit$rhat`, described below.
 
 #### Temporal-trend posterior-predictive check: `gof_temporal()`
 
-Where `detect_change_point()` targets *coefficients*, `gof_temporal(fit, stat = "density", n_rep = 200)` targets the *network statistic itself*: it fits a linear time trend to a chosen statistic (density / mean / reciprocity / transitivity), computes the same slope on `simulate(fit)` replicates, and returns a two-sided posterior-predictive p-value; small `p_pp` (below 0.05) means the observed trend is incompatible with the fitted model. Reach for it when the substantive statistic drifts across the panel; the informative worked example lives in the [overview vignette](lame-overview.html); see `?gof_temporal`.
+Where `detect_change_point()` targets *coefficients*, `gof_temporal(fit, stat = "density", n_rep = 200)` targets the *network statistic itself*: it fits a linear time trend to a chosen statistic (density / mean / reciprocity / transitivity), computes the same slope on `simulate(fit)` replicates, and returns a two-sided posterior-predictive p-value; small `p_pp` (below 0.05) means the observed trend is incompatible with the fitted model. Reach for it when the substantive statistic drifts across the panel; the [overview vignette](lame-overview.html) has a worked example, and `?gof_temporal` the reference.
 
 #### Inspecting the priors actually in effect: `prior_summary()`
 
-`prior_summary(fit)` prints the hyperparameters actually used, defaults filled in -- for a dynamic fit that includes the per-block AR(1) priors alongside the variance components and the g-prior on `beta`. Run it once per fit to catch typos in a `prior = list(...)` override; see `?prior_summary` and the [cross-sectional vignette](cross_sec_ame.html) for the general tour.
+`prior_summary(fit)` prints the hyperparameters actually used, defaults filled in -- for a dynamic fit that includes the per-block AR(1) priors alongside the variance components and the g-prior on `beta`. Run it once per fit to confirm that a `prior = list(...)` override took effect; see `?prior_summary` and the [cross-sectional vignette](cross_sec_ame.html) for the general tour.
 
 #### Multi-chain $\hat R$ via `lame_parallel()` and `rhat_dynamic_beta()`
 
-A single chain only ever buys you within-chain split-$\hat R$. For a between-chain diagnostic on the per-period coefficient path, fit several chains with `lame_parallel(..., n_chains = 4, combine_method = "list")` and call `rhat_dynamic_beta()` on the resulting list. Require both `rhat_mvt < 1.01` (the multivariate statistic catches chains that agree per period but disagree on the trajectory) and `rhat_max_univariate < 1.01` before quoting a path; short vignette-length chains typically fail this bar, so use production lengths. `combine_ame_chains()` pools chains and routes through `posterior::summarise_draws()` for per-(coefficient, period) ESS. `ame_parallel()` is the cross-sectional twin; see `?rhat_dynamic_beta`, `?lame_parallel`, and the [cross-sectional vignette](cross_sec_ame.html).
+`lame()` runs two chains by default and compares them before it returns: `fit$rhat` lists the $\hat R$ and effective draws of every monitored quantity. For a statistic on the whole per-period coefficient path, fit several chains with `lame_parallel(..., n_chains = 4, combine_method = "list")` and call `rhat_dynamic_beta()` on the resulting list. It returns `rhat_mvt`, a multivariate statistic that catches chains agreeing period by period while disagreeing on the trajectory, and `rhat_max_univariate`; quote a path when both are below 1.01. For the `fit_db` model, four chains of the default length give `rhat_mvt` = 1.003 and `rhat_max_univariate` = 1.001 for `X1_dyad`. `combine_ame_chains()` pools chains and routes through `posterior::summarise_draws()` for per-(coefficient, period) ESS. `ame_parallel()` is the cross-sectional twin; see `?rhat_dynamic_beta`, `?lame_parallel`, and the [cross-sectional vignette](cross_sec_ame.html).
 
 ### Forecasting
 
-For supported transition models, `predict(fit, h = K)` propagates the joint posterior state forward $K$ periods, retaining uncertainty in the paths and their hyperparameters. Coefficient forecasts support AR(1) and RW1; RW2, Matern 3/2 and actor-specific coefficient paths currently raise an explicit unsupported-model error. The [forecasting vignette](forecasting.html) covers forecast scales, per-draw arrays, credible intervals, counterfactual covariates, exposure offsets and the near-unit-root warning.
+`predict(fit, h = K)` propagates the joint posterior state forward $K$ periods, retaining uncertainty in the paths and their hyperparameters. Each coefficient is forecast by its own kind on equally spaced periods: an AR(1) coefficient reverts to its long-run mean, an RW1 coefficient holds its last level, an RW2 coefficient extends its last slope and a Matern 3/2 coefficient returns toward zero over its length scale. Per-actor slopes (`dynamic_beta_per_actor`) describe the fitted periods. The [forecasting vignette](forecasting.html) covers forecast scales, per-draw arrays, credible intervals, counterfactual covariates, exposure offsets and the choice between AR(1) and RW1.
 
 ### Visualising the coefficient path: `autoplot.lame`
 
@@ -245,7 +247,7 @@ autoplot(fit_db, coefs = "X1_dyad", probs = c(0.025, 0.5, 0.975)) +
 
 ### LOO / WAIC via `save_log_lik = TRUE`
 
-Pass `save_log_lik = TRUE` and `lame` attaches a `[n_stored, n_obs]` pointwise log-likelihood matrix to `fit$log_lik`, which registered S3 methods use for `loo::loo(fit)` and `loo::waic(fit)` when the observed likelihood-factor contract passes. The example explicitly uses independent residuals:
+Pass `save_log_lik = TRUE` and `lame` attaches a `[n_stored, n_obs]` pointwise log-likelihood matrix to `fit$log_lik`, which `loo::loo(fit)` and `loo::waic(fit)` read directly. The example fits independent residuals (`dcor = FALSE`), so each observed cell is one likelihood factor:
 
 ```{r save-log-lik-eval, eval = FALSE}
 fit_ll <- lame(
@@ -267,33 +269,29 @@ loo_db <- loo::loo(fit_ll)
 print(loo_db)
 ```
 
-The code is left unevaluated because a useful PSIS-LOO calculation needs more draws than a vignette should generate. Run it with a converged fit before using `elpd_loo`. If the matrix would not fit in RAM, `save_log_lik = "chunked"` streams it to disk (see the [forecasting vignette](forecasting.html)).
+Run as written, the fit passes the chain comparison and `loo()` returns `elpd_loo` = -502.4 (SE 22.7) over the 1050 observed cells, with every Pareto-$k$ below 0.5. If the matrix would not fit in RAM, `save_log_lik = "chunked"` streams it to disk (see the [forecasting vignette](forecasting.html)).
 
-Observed marginal scores are supported for `normal`, `binary`, `poisson`,
-and ordinal models with `ordinal_cutpoints = "explicit"`. Normal and probit
-scores use their observed Gaussian probabilities; Poisson scores use adaptive
-integration with numerical error and tail checks. These scores are conditional
-on the matched saved model state. Inspect `fit$log_lik_contract` for the scale,
-observation unit, numerical method and factorization.
-
-LOO/WAIC additionally require conditional likelihood factors. Directed-cell
-marginals do not factorize when residual dyad correlation is estimated or
-nonzero. The example sets `dcor = FALSE`; symmetric models count each unordered
-dyad once. Capped binary, fixed-rank nomination and data-induced ordinal models
-refuse the `observed_exact` request. Their explicitly selected legacy
-`observed_ghk` diagnostics remain approximate, and `augmented` scores remain
-latent-Z diagnostics; both are refused by LOO/WAIC. Saved diagnostics remain
-readable with `read_log_lik()`.
+`loo()` and `waic()` apply to `normal`, `binary`, `poisson` and
+explicit-cutpoint ordinal (`ordinal_cutpoints = "explicit"`) fits whose observed
+cells are separate likelihood factors: directed fits with `dcor = FALSE`,
+symmetric fits (each unordered dyad counted once) and bipartite fits.
+`fit$log_lik_contract` records the scale, observation unit, numerical method and
+factorization of the saved scores. Capped binary (`cbin`), fixed-rank nomination
+(`frn`) and data-induced ordinal fits, and directed fits with residual dyad
+correlation, are compared with the goodness-of-fit checks in *Comparing Model
+Specifications* below; `log_lik_method` in `?lame` describes the diagnostic
+scores they can save.
 
 ### Prior Specifications
 
-The AR(1) coefficients and innovation variances have sensible default priors:
+The AR(1) coefficients and innovation variances have these default priors:
 
-- For Gaussian bipartite AR(1) fits, $\rho_{uv} \sim \text{TruncNormal}(0.5, 0.2, -0.99, 0.99)$; other dynamic UV routes use mean 0.9 and SD 0.1. Explicit `rho_uv_mean` and `rho_uv_sd` settings override these defaults.
+- $\rho_{uv} \sim \text{TruncNormal}(0.7, 0.3, -0.99, 0.99)$ for every family, kind and mode. The data see $|\rho_{uv}|$ only, so the draws are stored with $\rho_{uv} \ge 0$. Explicit `rho_uv_mean` and `rho_uv_sd` settings override the default.
 - $\rho_{ab} \sim \text{TruncNormal}(0.8, 0.15, -0.99, 0.99)$, slightly less persistent
 - $\rho_{\beta} \sim \text{TruncNormal}(0.8, 0.15, 0, 0.999)$
-- $\sigma_{uv}^2, \sigma_{\beta}^2 \sim \text{InverseGamma}(2, 1)$; for the binary, Poisson, ordinal, cbin and frn families the $\sigma_{uv}^2$ draw is also truncated so that the stationary variance of a coordinate path stays at or below `prior$uv_var_cap` (default 4)
-- $\sigma_{ab}^2 \sim \text{InverseGamma}(2, s)$ with a scale $s$ fixed before sampling. By default it uses the prior mean of the active level variances, $\operatorname{mean}\{\eta_{ab} S_{ab,0}[k,k]/(\eta_{ab}-3)\}$, times $(1-\texttt{rho\_ab\_mean}^2)$, subject to the documented initialization convention. It does not depend on the current covariance or persistence draw. Set `prior$sigma_ab_scale` to supply the scale explicitly, and inspect `fit$sigma_ab_prior_scale` or `prior_summary(fit)` for the value used.
+- $\sigma_{uv}^2 / (1 - \rho_{uv}^2) \sim \text{InverseGamma}(2, 1/2)$, independently of $\rho_{uv}$: the prior is on the stationary variance of a coordinate path, so the innovations shrink as the persistence grows and a persistent path is not pulled toward a lower $\rho_{uv}$ (`prior$uv_var_shape`, `prior$uv_var_scale`; setting `sigma_uv_shape` or `sigma_uv_scale` puts the inverse gamma on $\sigma_{uv}^2$ itself instead, which the `"t"` kind keeps as its default, $\text{InverseGamma}(2, 1)$). For the binary, Poisson, ordinal, cbin and frn families the stationary variance is also bounded by `prior$uv_var_cap` (default 4)
+- $\sigma_{\beta}^2 \sim \text{InverseGamma}(2, 1)$
+- $\sigma_{ab}^2 \sim \text{InverseGamma}(2, s)$ with a scale $s$ fixed before sampling. By default it uses the prior mean of the active level variances, $\operatorname{mean}\{\eta_{ab} S_{ab,0}[k,k]/(\eta_{ab}-3)\}$, times $(1-\texttt{rho\_ab\_mean}^2)$. Set `prior$sigma_ab_scale` to supply the scale explicitly, and inspect `fit$sigma_ab_prior_scale` or `prior_summary(fit)` for the value used.
 
 All can be customized via the `prior` argument (e.g. `prior = list(rho_beta_mean = ..., sigma_beta_scale = ...)`) if you have strong beliefs about the rate of change.
 
@@ -326,7 +324,7 @@ for (t in 1:n_per) {
 	Y_dyn[[t]] <- Y_t
 }
 
-# short run for the vignette; use burn >= 1000 and nscan >= 5000 in practice
+# two chains run by default and are compared before the fit is returned
 fit_dyn_real <- lame(
 	Y_dyn,
 	R = 2,
@@ -343,7 +341,7 @@ fit_dyn_real <- lame(
 summary(fit_dyn_real)
 ```
 
-The trajectory plot shows how actors move through the latent space. With more than eight actors the legend becomes an unreadable rainbow, so pass `highlight =` a few actor names to grey out the rest (ColorBrewer Dark2 colours for the highlighted set). With genuine temporal structure, the highlighted paths trace short, coherent arcs rather than random jumps:
+The trajectory plot shows how actors move through the latent space. With more than eight actors, pass `highlight =` a few actor names to colour those paths (ColorBrewer Dark2) and grey out the rest. With genuine temporal structure, the highlighted paths trace short, coherent arcs rather than random jumps:
 
 ```{r uv-traj-real, fig.width=7, fig.height=5, fig.alt="Trajectory plot of actors' paths through the 2D latent space across five periods under genuine AR(1) dynamics; four named actors (A1, A5, A10, A15) are coloured with the ColorBrewer Dark2 palette while the rest are light grey, and the highlighted paths show coherent, gradual movement."}
 uv_plot(
@@ -353,9 +351,9 @@ uv_plot(
 )
 ```
 
-Always check convergence: dynamic models have more parameters than static ones, so adequate mixing requires longer chains. Under the binary (probit) family the error variance `ve` is fixed at 1 for identification, so exclude it by its display label:
+`lame()` ran two independently seeded chains and compared them before returning the fit: the last line of the summary above reports that they agree on every monitored quantity, and `fit_dyn_real$rhat` holds the R-hat and effective draws of each. `trace_plot()` shows the same chains. Under the binary (probit) family the error variance `ve` is fixed at 1 for identification, so exclude it by its display label:
 
-```{r trace-dyn-real, fig.width=7, fig.height=5, fig.alt="MCMC trace and density plots for the sampled parameters of the dynamic-effects fit on truly correlated data, excluding the identification-fixed error variance; well-mixed traces indicate the sampler ran long enough."}
+```{r trace-dyn-real, fig.width=7, fig.height=10, fig.alt="MCMC trace and density plots for the sampled parameters of the dynamic-effects fit on truly correlated data, excluding the identification-fixed error variance; well-mixed traces indicate the sampler ran long enough."}
 trace_plot(fit_dyn_real, exclude = "Error variance")
 ```
 
@@ -409,7 +407,7 @@ cat("Independent data rho_uv:", round(mean(fit_null$rho_uv), 3), "\n")
 cat("Correlated data rho_uv:", round(mean(fit_dyn_real$rho_uv), 3), "\n")
 ```
 
-Even with a deliberately tight prior centred at 0.95, the two posteriors diverge: the correlated fit lands in the upper AR(1) range (expect small-sample upward bias at $T = 5$, so the posterior can sit above the true 0.85), while the null fit collapses well below the prior centre because the data carry no period-to-period correlation to anchor against. The AR(1) parameter does real work even on a modest panel, but the point estimate of `rho_uv` is no substitute for the trajectory plots (compare the coherent paths above with the erratic paths below).
+The correlated fit used the default prior, centred at 0.7, and the data moved the posterior mean of `rho_uv` up to `r round(mean(fit_dyn_real$rho_uv), 2)`. The independent networks carry no period-to-period correlation, so the posterior of `rho_uv` there (mean `r round(mean(fit_null$rho_uv), 2)`) keeps the spread of the tight prior it was given, and `summary(fit_null)` says so: *the data barely inform it*. Read `rho_uv` together with that line of the summary and with the trajectory plots (compare the coherent paths above with the erratic paths below).
 
 ### Visualizing the Null Case
 
@@ -434,7 +432,7 @@ ab_plot(fit_null, effect = "sender", plot_type = "trajectory")
 A natural workflow is to fit several specifications and compare their goodness-of-fit. We use the independent data from above, where dynamic effects should add nothing.
 
 ```{r}
-# four short fits; use nscan >= 2000 and several chains for a real comparison
+# the four specifications on the same data
 fit_static <- lame(
 	Y_list,
 	R = 2,
@@ -507,7 +505,7 @@ gof_comparison <- rbind(
 round(gof_comparison, 3)
 ```
 
-`sd.rowmean` and `sd.colmean` sit near 1 for *every* specification -- an artifact of fitting a heterogeneity model to homogeneous iid data, not evidence about dynamics -- so compare specifications on the `dyad.dep`, `cycle.dep`, and `trans.dep` columns instead. There, no specification is clearly better, as expected for data generated without temporal structure; with short chains these tail fractions are noisy. The table compares the specifications on noisy tail fractions and ranks none of them.
+`sd.rowmean` and `sd.colmean` sit near 1 for *every* specification: the data were generated without actor heterogeneity, and all four models carry additive effects. The specifications are compared on the `dyad.dep`, `cycle.dep`, and `trans.dep` columns. There every value lies between `r round(min(gof_comparison[, c("dyad.dep", "cycle.dep", "trans.dep")]), 2)` and `r round(max(gof_comparison[, c("dyad.dep", "cycle.dep", "trans.dep")]), 2)`, away from 0 and 1: each specification reproduces the dependence statistics, and the dynamic terms add nothing to the static fit, as expected for data generated without temporal structure. The same four fits at `nscan = 2000`, `burn = 500`, `odens = 25` give values between 0.28 and 0.56 in those three columns.
 
 ## When to Use Dynamic Effects
 
@@ -517,7 +515,7 @@ round(gof_comparison, 3)
 
 **Use `dynamic_beta`** when a covariate's *effect* on tie formation changes over time while actors and community structure are stable: the question is *how strongly X translates into Y*, not who is connecting (`dynamic_uv`) or who is active (`dynamic_ab`).
 
-**Use multiple together** when several types of change happen at once -- the most flexible but most data-hungry specification; with short panels or sparse networks the data inform the dynamic parameters weakly.
+**Use multiple together** when several types of change happen at once. This is the most flexible specification and the one that asks most of the data; `summary()` says so when the data leave a persistence parameter close to its prior.
 
 **Stick with static** when you have few time periods, when the network is genuinely stable, or when you primarily care about *average* covariate effects.
 

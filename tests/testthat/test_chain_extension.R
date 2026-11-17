@@ -132,6 +132,26 @@ test_that("prior$chain_extensions sets the number of extensions, 0 refuses at th
 	expect_error(do.call(lame, lame_args(d, prior = list(chain_extensions = 1.5))), "non-negative whole number")
 })
 
+test_that("a single chain refused at the first flag returns a lame fit that resumes and predicts", {
+	skip_on_cran()
+	d = chain_panel()
+	args = lame_args(d, chains = 1, prior = list(chain_extensions = 0))
+	local_mocked_bindings(.lame_chain_moving = flag_until(Inf), .package = "lame")
+	e = tryCatch(suppressMessages(suppressWarnings(do.call(lame, args))), error = function(e) e)
+	expect_s3_class(e, "lame_chain_unsettled")
+	expect_identical(class(e$fit), c("lame", "ame"))
+	expect_true(e$fit$auto_extend$refused)
+	# its draws are those of the same call that settled
+	local_mocked_bindings(.lame_chain_moving = flag_until(0L), .package = "lame")
+	settled = suppressMessages(suppressWarnings(do.call(lame, args)))
+	expect_identical(e$fit$BETA, settled$BETA)
+	expect_identical(predict(e$fit), predict(settled))
+	r = suppressMessages(suppressWarnings(lame_resume(e$fit, nscan = 60)))
+	expect_s3_class(r, "lame")
+	expect_equal(nrow(r$BETA), 12L)
+	expect_identical(r$auto_extend$extensions, 0L)
+})
+
 test_that("an extended fit leaves the global random stream where it found it", {
 	d = chain_panel()
 	local_mocked_bindings(.lame_chain_moving = flag_until(2L), .package = "lame")
@@ -186,54 +206,8 @@ test_that("ame() extends, refuses and resumes the same way", {
 	}
 })
 
-test_that("the chains of a multi-chain fit extend together", {
-	skip_on_cran()
-	set.seed(4)
-	n = 12; nm = paste0("a", seq_len(n))
-	Y = matrix(rnorm(n * n), n, n, dimnames = list(nm, nm)); diag(Y) = NA
-	local_mocked_bindings(.lame_chain_moving = flag_until(1L), .package = "lame")
-	res = suppressMessages(
-		suppressWarnings(
-			ame_parallel(
-				Y,
-				n_chains = 2,
-				cores = 1,
-				combine_method = "list",
-				burn = 20,
-				nscan = 100,
-				odens = 5,
-				verbose = FALSE
-			)
-		)
-	)
-	expect_identical(vapply(res, function(f) f$auto_extend$extensions, integer(1)), c(1L, 1L))
-	expect_identical(vapply(res, function(f) nrow(f$BETA), integer(1)), c(20L, 20L))
-})
-
 test_that("print() reports an extension", {
 	rec = lame:::.lame_chain_record(3L, 2L, 100L, list("sigma_ab (0.4 to 0.3)", "sigma_ab (0.35 to 0.3)"))
 	expect_match(lame:::.lame_chain_print_line(rec), "extended 2 times .* sigma_ab")
 	expect_null(lame:::.lame_chain_print_line(lame:::.lame_chain_record(3L)))
-})
-
-test_that("a multi-chain call that stays unsettled refuses with every chain attached", {
-	skip_on_cran()
-	set.seed(4)
-	n = 12; nm = paste0("a", seq_len(n))
-	Y = matrix(rnorm(n * n), n, n, dimnames = list(nm, nm)); diag(Y) = NA
-	local_mocked_bindings(.lame_chain_moving = flag_until(Inf), .package = "lame")
-	e = tryCatch(
-		suppressMessages(
-			suppressWarnings(
-				ame_parallel(Y, n_chains = 2, cores = 1, burn = 20, nscan = 100, odens = 5, verbose = FALSE)
-			)
-		),
-		error = function(e) e
-	)
-	expect_s3_class(e, "lame_chain_unsettled")
-	expect_identical(e$extensions, 3L)
-	expect_length(e$fits, 2L)
-	expect_s3_class(e$fits[[1]], "ame")
-	expect_s3_class(e$fit, "ame")
-	expect_identical(e$fit$chains, 2L)
 })

@@ -125,6 +125,175 @@ test_that('joint AR trajectories preserve bounded and unbounded posterior starts
 	}
 })
 
+# fixture with the coefficient paths in cx$offset. 'offset': one static covariate, the rw1 intercept
+# and an ar1 coefficient in the offset; 'empty': no static coefficient, the intercept path alone
+.binary_joint_ar_offset_fixture = function(mode = 'offset') {
+	set.seed(921866)
+	n = 3L; nt = 2L; rank = 2L
+	Y = array(NA_real_, c(n, n, nt))
+	cells = cbind(c(1, 2, 2, 3, 1, 3), c(2, 1, 3, 2, 3, 1), c(1, 1, 1, 1, 2, 2))
+	Y[cells] = c(1, 0, 0, 0, 0, 1)
+	Y[2, 1, 2] = 0
+	Xall = lapply(seq_len(nt), function(t) {
+		x = array(rnorm(n * n * 3), c(n, n, 3))
+		x[, , 1] = 1
+		x
+	})
+	path = cbind(cumsum(c(rnorm(1, 0, 1.1), rnorm(1, 0, .4))), c(.3, -.25))
+	st = if (mode == 'offset') 2L else integer(0)
+	offset = array(0, c(n, n, nt))
+	for (t in 1:nt) {
+		offset[, , t] = path[t, 1]
+		if (mode == 'offset') offset[, , t] = offset[, , t] + path[t, 2] * Xall[[t]][, , 3]
+	}
+	X = lapply(Xall, function(x) x[, , st, drop = FALSE])
+	cx = .lame_binary_dynamic_pair_hmc_context(Y, X, rank)
+	cx$offset = offset
+	P = if (length(st)) matrix(1 / 2.5, 1, 1) else matrix(0, 0, 0)
+	Sab = matrix(c(.2, .03, .03, .15), 2)
+	h = .lame_binary_dynamic_ar_hmc_hyper(cx, P, Sab, .6, .25, -.4, 5, .4, .7, .1)
+	K = function(r, s) s * s / (1 - r * r) * r^abs(outer(seq_len(nt), seq_len(nt), '-'))
+	ia = solve(K(.6, .25))
+	il = solve(Sab)
+	density = function(q, likelihood = TRUE) {
+		z = .lame_binary_dynamic_ar_hmc_decode(q, cx, h)
+		v = z$sigma^2
+		lp = 0
+		if (likelihood) for (t in seq_len(nt)) {
+			xb = if (length(st)) matrix(matrix(X[[t]], n * n, length(st)) %*% z$beta, n, n) else 0
+			eta = offset[, , t] + xb +
+				outer(z$level[, 1] + z$adev[, t], z$level[, 2] + z$bdev[, t], '+') +
+				z$U[, , t] %*% t(z$V[, , t])
+			for (i in 1:(n - 1)) for (j in (i + 1):n) {
+				yy = c(Y[i, j, t], Y[j, i, t])
+				mu = c(eta[i, j], eta[j, i])
+				ok = is.finite(yy)
+				if (all(ok)) {
+					sg = 2 * yy - 1
+					rr = h$rho * prod(sg)
+					aa = sg * mu
+					pair = integrate(
+						function(x) dnorm(x) * pnorm((aa[2] - rr * x) / sqrt(1 - rr^2)),
+						-Inf,
+						aa[1],
+						rel.tol = 1e-11
+					)
+					lp = lp + log(pair$value)
+				} else if (any(ok)) lp = lp + pnorm((2 * yy[ok] - 1) * mu[ok], log.p = TRUE)
+			}
+		}
+		ku = K(z$rho_uv, z$sigma)
+		iu = solve(ku)
+		u = matrix(z$U, ncol = nt)
+		vv = matrix(z$V, ncol = nt)
+		beta_q = if (length(st)) drop(z$beta %*% P %*% z$beta) else 0
+		quad = beta_q + sum(z$level * (z$level %*% il)) +
+			sum(z$adev * (z$adev %*% ia)) + sum(z$bdev * (z$bdev %*% ia)) +
+			sum(u * (u %*% iu)) + sum(vv * (vv %*% iu))
+		log_det_u = n * rank * as.numeric(determinant(ku, logarithm = TRUE)$modulus)
+		gaussian = -.5 * quad - log_det_u
+		jacobian = log_det_u + log(v)
+		lp + gaussian - (h$shape + 1) * log(v) - h$scale / v + jacobian +
+			dnorm(z$rho_uv, h$prior_mean, h$prior_sd, log = TRUE) +
+			log(h$limit * (1 - (z$rho_uv / h$limit)^2))
+	}
+	list(cx = cx, h = h, density = density)
+}
+
+test_that('the joint trajectory with the coefficient paths as an offset matches the original-coordinate density', {
+	for (mode in c('offset', 'empty')) {
+		f = .binary_joint_ar_offset_fixture(mode)
+		cx = f$cx
+		h = f$h
+		density = f$density
+		set.seed(921867)
+		q = c(rnorm(cx$size, sd = .3), log(.3 / sqrt(1 - .7^2)), atanh(.7 / .99))
+		q2 = q + rnorm(length(q), sd = .05)
+		logp = function(x) .lame_binary_dynamic_ar_hmc_evaluate(x, cx, h)$logp
+		expect_equal(logp(q) - logp(q2), density(q) - density(q2), tolerance = 1e-10)
+		ev = .lame_binary_dynamic_ar_hmc_evaluate(q, cx, h)
+		eps = 1e-6
+		grad = vapply(seq_along(q), function(j) {
+			p = z = q
+			p[j] = p[j] + eps
+			z[j] = z[j] - eps
+			(density(p) - density(z)) / (2 * eps)
+		}, numeric(1))
+		expect_lt(max(abs(grad - ev$gradient) / (1 + abs(grad))), 1e-6)
+		z = .lame_binary_dynamic_ar_hmc_decode(q, cx, h)
+		expect_length(z$beta, if (mode == 'offset') 1L else 0L)
+		expect_equal(
+			.lame_binary_dynamic_ar_hmc_encode(
+				z$beta,
+				z$level,
+				z$adev,
+				z$bdev,
+				z$U,
+				z$V,
+				z$sigma,
+				z$rho_uv,
+				cx,
+				h
+			),
+			q,
+			tolerance = 1e-10
+		)
+		mass = .lame_binary_dynamic_ar_hmc_mass(cx, h)
+		p = rnorm(length(q)) * sqrt(mass)
+		a = .lame_binary_dynamic_ar_hmc_integrate(q, p, cx, h, mass, .12, 9)
+		b = .lame_binary_dynamic_ar_hmc_integrate(a$q, -a$p, cx, h, mass, .12, 9)
+		expect_equal(b$q, q, tolerance = 1e-10)
+		expect_equal(b$p, -p, tolerance = 1e-10)
+	}
+})
+
+test_that('joint trajectories with the coefficient paths as an offset preserve posterior starts', {
+	skip_on_cran()
+	for (mode in c('offset', 'empty')) {
+		f = .binary_joint_ar_offset_fixture(mode)
+		cx = f$cx
+		h = f$h
+		density = f$density
+		stat = function(q) {
+			z = .lame_binary_dynamic_ar_hmc_decode(q, cx, h)
+			c(
+				z$beta,
+				z$level[1, 1],
+				z$adev[1, cx$nt],
+				z$U[1, 1, cx$nt],
+				atan(sum(z$U[1, , 2] * z$V[2, , 2])),
+				z$sigma,
+				z$rho_uv,
+				q[cx$size + 1],
+				sum(q[seq_len(cx$size)]^2) / cx$size
+			)
+		}
+		set.seed(283717)
+		N = 5000L
+		weighted = replicate(N, {
+			repeat {
+				lo = pnorm(-h$limit, h$prior_mean, h$prior_sd)
+				hi = pnorm(h$limit, h$prior_mean, h$prior_sd)
+				rr = qnorm(runif(1, lo, hi), h$prior_mean, h$prior_sd)
+				vv = 1 / rgamma(1, h$shape, rate = h$scale)
+				q = c(rnorm(cx$size), .5 * log(vv / (1 - rr^2)), atanh(rr / h$limit))
+				if (is.finite(.lame_binary_dynamic_ar_hmc_evaluate(q, cx, h)$logp)) break
+			}
+			lp = density(q) - density(q, FALSE)
+			z = .lame_binary_dynamic_ar_hmc_step(q, cx, h, .18, L = 7)
+			c(lp, stat(z$q) - stat(q), numerical = z$nonfinite)
+		})
+		ns = nrow(weighted) - 2L
+		wt = exp(weighted[1, ] - max(weighted[1, ]))
+		d = weighted[2:(ns + 1), , drop = FALSE]
+		est = drop(d %*% wt) / sum(wt)
+		se = sqrt(rowSums(sweep(d - est, 2, wt, '*')^2)) / sum(wt)
+		expect_lt(max(abs(est / se)), 6)
+		expect_gt(sum(wt)^2 / sum(wt^2), 100)
+		expect_equal(sum(weighted[ns + 2, ]), 0)
+	}
+})
+
 test_that('exact AR endpoints retain other conditional updates without a Fisher transform', {
 	# the persistence goes through the block draw of persistence and stationary variance
 	set.seed(316825);n = 6L;Y = lapply(
@@ -156,7 +325,8 @@ test_that('exact AR endpoints retain other conditional updates without a Fisher 
 			gof = FALSE,
 			plot = FALSE
 		))
-		expect_true(all(f$rho_uv == endpoint));expect_null(f$dynamic_marginal_move)
-		expect_true(all(f$sampler_health$numerical_failures == 0));expect_gt(stats::sd(f$BETA[, 1]), 0)
+		# the draws are stored in the gauge rho_uv >= 0, so the negative endpoint is stored as its mirror
+		expect_true(all(f$rho_uv == abs(endpoint)));expect_null(f$dynamic_marginal_move)
+		expect_true(all(f$sampler_health$numerical_failures == 0));expect_gt(stats::sd(f$BETA[, 1, ]), 0)
 	}
 })

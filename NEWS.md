@@ -1,3 +1,15 @@
+# lame 1.4.2
+
+* Fast fits (`ame_als()`, `lame_als()`, `method = "als"`) now give a standard
+  error for every estimate.
+* Fast fits on very sparse or very dense binary networks warn that the sampler
+  is more accurate there.
+* Removed options that were no longer supported, including `bias_correct`,
+  `non_normal_method`, `dynamic_G` and the old `print` argument.
+* Dynamic latent positions in `lame()` mix better and a few default priors
+  changed.
+* Smaller fixes to fitted values, bipartite output and messages.
+
 # lame 1.4.1
 
 * Latent positions of `lame()` fits with `dynamic_uv = TRUE` are fixed. They

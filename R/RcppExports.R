@@ -45,14 +45,6 @@ ae_bcd_sse_exact_cpp <- function(warr, zf, xarr, nr, nc, tt, p, mu, beta, cmat) 
     .Call(`_lame_ae_bcd_sse_exact_cpp`, warr, zf, xarr, nr, nc, tt, p, mu, beta, cmat)
 }
 
-ae_log_pnorm_cpp <- function(x) {
-    .Call(`_lame_ae_log_pnorm_cpp`, x)
-}
-
-ae_gh_rule_cpp <- function(K) {
-    .Call(`_lame_ae_gh_rule_cpp`, K)
-}
-
 ae_probit_terms_cpp <- function(eta, threads = 1L) {
     .Call(`_lame_ae_probit_terms_cpp`, eta, threads)
 }
@@ -230,7 +222,7 @@ beta_dynamic_stats_cpp <- function(Xdyn_list, Xstat_list, Z_list, offset_list, b
 #'   fixed matrix that does not depend on the current (rho, sigma) draw so
 #'   the transition-only hyperparameter conditionals remain exact.
 #' @param s2 Dyadic variance.
-#' @param dyad_rho Dyadic correlation (ignored when use_dyad_rho=FALSE).
+#' @param dyad_rho Dyadic correlation: one value, or one per period (ignored when use_dyad_rho=FALSE).
 #' @param bipartite Whether the network is bipartite.
 #' @param symmetric Whether the network is symmetric.
 #' @param use_dyad_rho Whether to use the dyad-corr branch (TRUE only for
@@ -259,7 +251,7 @@ sample_beta_dynamic_cpp <- function(Xdyn_list, Xstat_list, Z_list, offset_list, 
 #' @param prior_mean Length p_static prior mean.
 #' @param prior_prec p_static x p_static prior precision.
 #' @param s2 Dyadic variance.
-#' @param dyad_rho Dyadic correlation.
+#' @param dyad_rho Dyadic correlation: one value, or one per period.
 #' @param bipartite TRUE/FALSE.
 #' @param symmetric TRUE/FALSE.
 #' @param use_dyad_rho TRUE/FALSE.
@@ -395,7 +387,9 @@ rUV_dynamic_snap_fc_cpp <- function(U_current, V_current, ET, rho_uv, sigma_uv, 
 #' Like rUV_dynamic_fc_cpp but each AR(1) innovation is Student-t rather than
 #' Gaussian, via a scale-mixture: the innovation for \code{u[t, i]} has variance
 #' \code{sigma^2 / lambda[t, i]} with \code{lambda[t, i]} distributed as
-#' Gamma(nu/2, nu/2). Provides a
+#' Gamma(nu/2, nu/2). The first period is Student-t of the same degrees of
+#' freedom and scale \code{sigma / sqrt(1 - rho^2)}, with variance
+#' \code{sigma^2 / ((1 - rho^2) lambda[1, i])}. Provides a
 #' continuous heavy-tailed alternative to the discrete snap-shift model.
 #'
 #' @param U_current Current 3D array of U positions (n x R x T)
@@ -460,10 +454,6 @@ ess_pois_scalar_cpp <- function(ys, s, mu, sd) {
     .Call(`_lame_ess_pois_scalar_cpp`, ys, s, mu, sd)
 }
 
-ess_pois_uv_cpp <- function(cur, mu, root, opp, w, ys, s, skip) {
-    .Call(`_lame_ess_pois_uv_cpp`, cur, mu, root, opp, w, ys, s, skip)
-}
-
 ltm_level_phase_cpp <- function(S, ys, E, dimE, x, o, iS, v, mode, row, perm) {
     .Call(`_lame_ltm_level_phase_cpp`, S, ys, E, dimE, x, o, iS, v, mode, row, perm)
 }
@@ -508,16 +498,8 @@ pab_sym_period_cpp <- function(Zt, Et, y, off, eff, m, v, centred, perm) {
     .Call(`_lame_pab_sym_period_cpp`, Zt, Et, y, off, eff, m, v, centred, perm)
 }
 
-ldZgbme_cpp <- function(Z, Y, EZ, rho, s2) {
-    .Call(`_lame_ldZgbme_cpp`, Z, Y, EZ, rho, s2)
-}
-
 rZ_pois_fc_cpp <- function(Z, EZ, rho, s2, Y) {
     .Call(`_lame_rZ_pois_fc_cpp`, Z, EZ, rho, s2, Y)
-}
-
-ldZgbme_pois_exposure_cpp <- function(Z, Y, EZ, rho, s2, log_exposure) {
-    .Call(`_lame_ldZgbme_pois_exposure_cpp`, Z, Y, EZ, rho, s2, log_exposure)
 }
 
 rZ_pois_fc_exposure_cpp <- function(Z, EZ, rho, s2, Y, log_exposure) {
@@ -528,7 +510,7 @@ simY_pois_exposure <- function(EZ, exposure, bipartite = FALSE) {
     .Call(`_lame_simY_pois_exposure`, EZ, exposure, bipartite)
 }
 
-simY_pois <- function(EZ, bipartite = FALSE) {
+simY_pois_cpp <- function(EZ, bipartite = FALSE) {
     .Call(`_lame_simY_pois`, EZ, bipartite)
 }
 
@@ -550,10 +532,6 @@ ppm_cell_state_cpp <- function(e, w, y, s2) {
 
 ppm_cell_carry_cpp <- function(e, w, b, y, s2c, s2n) {
     .Call(`_lame_ppm_cell_carry_cpp`, e, w, b, y, s2c, s2n)
-}
-
-rwish_cpp <- function(S0, nu) {
-    .Call(`_lame_rwish_cpp`, S0, nu)
 }
 
 rUV_rep_fc_cpp <- function(ET, U_state, V_state, rho, s2, iSe2, maxmargin, shrink, rLoopIDs, prior_df, prior_psi) {
@@ -605,7 +583,7 @@ rZ_bin_fused_cpp <- function(Z_state, EZ, rho, Y) {
 #' @param a_current Current row effects (length nA)
 #' @param b_current Current column effects (length nB)
 #' @param s2 Dyadic variance
-#' @param g_prior G-prior parameter
+#' @param g_prior G-prior scale, one value or one per coefficient
 #' @param va Row effect variance (diagonal element of Sab)
 #' @param vb Column effect variance (diagonal element of Sab)
 #' @param rvar Whether to update row effects
@@ -622,10 +600,6 @@ replicated_gaussian_design_cpp <- function(mX, n) {
 
 replicated_gaussian_draw_cpp <- function(design, ZT, Sab, rho, s2, P0, m0, center = FALSE) {
     .Call(`_lame_replicated_gaussian_draw_cpp`, design, ZT, Sab, rho, s2, P0, m0, center)
-}
-
-replicated_gaussian_moments_cpp <- function(design, ZT, Sab, rho, s2, P0, m0, center = FALSE) {
-    .Call(`_lame_replicated_gaussian_moments_cpp`, design, ZT, Sab, rho, s2, P0, m0, center)
 }
 
 robust_weighted_beta <- function(residual, weights, design, variance, prior_precision) {
@@ -675,6 +649,50 @@ rs2_rep_fc_cpp <- function(ET, rhoMat, s20 = 1.0, beta_df = 0.0, beta_ss = 0.0) 
     .Call(`_lame_rs2_rep_fc_cpp`, ET, rhoMat, s20, beta_df, beta_ss)
 }
 
+#' Bipartite snap-shift dynamic UV Gibbs update
+#'
+#' @param U_state 3D array (nA x RA x T)
+#' @param V_state 3D array (nB x RB x T)
+#' @param E 3D array of residuals (nA x nB x T)
+#' @param G Interaction matrix (RA x RB)
+#' @param rho_uv AR(1) persistence of the drift
+#' @param sigma_uv Innovation standard deviation of the drift
+#' @param s2 Dyadic variance
+#' @param kappa Standard deviation of a reset position
+#' @param pi_snap Reset probability
+#' @param delta_u_current Current row resets (nA x T)
+#' @param delta_v_current Current column resets (nB x T)
+#' @param max_abs Optional positive coordinate bound; nonpositive or infinite values disable it
+#' @return List with U, V, delta_u, delta_v and bound_rejections
+rUV_dynamic_snap_bip_fc_cpp <- function(U_state, V_state, E, G, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_u_current, delta_v_current, max_abs = -1.0) {
+    .Call(`_lame_rUV_dynamic_snap_bip_fc_cpp`, U_state, V_state, E, G, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_u_current, delta_v_current, max_abs)
+}
+
+#' Symmetric snap-shift dynamic UV Gibbs update
+#'
+#' @param U_state 3D array of unit-variance paths (n x R x T)
+#' @param Ld Weights of the product U_t diag(Ld) U_t'
+#' @param E 3D array of residuals (n x n x T)
+#' @param rho_uv AR(1) persistence of the drift
+#' @param sigma_uv Innovation standard deviation of the drift
+#' @param s2 Dyadic variance
+#' @param kappa Standard deviation of a reset position
+#' @param pi_snap Reset probability
+#' @param delta_current Current resets (n x T)
+#' @param max_abs Optional positive coordinate bound; nonpositive or infinite values disable it
+#' @return List with U, V (equal to U), delta_u, delta_v (equal to delta_u) and bound_rejections
+rUV_dynamic_snap_sym_fc_cpp <- function(U_state, Ld, E, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_current, max_abs = -1.0) {
+    .Call(`_lame_rUV_dynamic_snap_sym_fc_cpp`, U_state, Ld, E, rho_uv, sigma_uv, s2, kappa, pi_snap, delta_current, max_abs)
+}
+
+snap_path_visit_cpp <- function(EZ, Z, off, mask, Y, offset, U, V, rho, sigma, kappa, pi, delta_u, delta_v, sd_cell, max_abs, s2, rho_t, kind) {
+    .Call(`_lame_snap_path_visit_cpp`, EZ, Z, off, mask, Y, offset, U, V, rho, sigma, kappa, pi, delta_u, delta_v, sd_cell, max_abs, s2, rho_t, kind)
+}
+
+snap_path_visit_mode_cpp <- function(EZ, Z, off, mask, Y, offset, U, V, G, Ld, rho, sigma, kappa, pi, delta_u, delta_v, sd_cell, max_abs, s2, rho_t, kind, mode) {
+    .Call(`_lame_snap_path_visit_mode_cpp`, EZ, Z, off, mask, Y, offset, U, V, G, Ld, rho, sigma, kappa, pi, delta_u, delta_v, sd_cell, max_abs, s2, rho_t, kind, mode)
+}
+
 spm_ord_ok_cpp <- function(ZM, WM, omax, omin, af) {
     .Call(`_lame_spm_ord_ok_cpp`, ZM, WM, omax, omin, af)
 }
@@ -683,20 +701,8 @@ spm_ord_line_cpp <- function(ZM, WM, K, i, row, nr) {
     .Call(`_lame_spm_ord_line_cpp`, ZM, WM, K, i, row, nr)
 }
 
-tempered_binary_evaluate <- function(q, context, temperature = 1) {
-    .Call(`_lame_tempered_binary_evaluate`, q, context, temperature)
-}
-
-tempered_binary_transition <- function(q, context, temperature, stepsize) {
-    .Call(`_lame_tempered_binary_transition`, q, context, temperature, stepsize)
-}
-
-tempered_binary_reflection <- function(q, context, temperature, column) {
-    .Call(`_lame_tempered_binary_reflection`, q, context, temperature, column)
-}
-
-tempered_binary_block <- function(q, context, temperatures, stepsizes, start, count, burn, thin) {
-    .Call(`_lame_tempered_binary_block`, q, context, temperatures, stepsizes, start, count, burn, thin)
+tempered_binary_block <- function(q, context, temperatures, stepsizes, start, count, burn, thin, cold_steps = 1L) {
+    .Call(`_lame_tempered_binary_block`, q, context, temperatures, stepsizes, start, count, burn, thin, cold_steps)
 }
 
 uv_temper_transition_cpp <- function(z, U, L, r, Y, ok, off, root, lvar, bs, cycles, max_abs) {

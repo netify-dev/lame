@@ -33,9 +33,9 @@ object has class
 (where applicable).
 }
 \details{
-ALS is a point estimator. \code{simulate.ame_als} holds
-\code{mu, beta, a, b, U, V} at the point estimate and resamples the noise.
-For uncertainty over the parameters themselves, use
-\code{\link{ame_als_bootstrap}} (whose replicates each carry their own
-resampled \code{Y}) and combine those simulations.
+\code{simulate.ame_als} holds \code{mu, beta, a, b, U, V} at their
+estimates and resamples the noise, so the replicates do not carry the
+uncertainty of the estimates; their standard errors are in
+\code{vcov()}, \code{confint()} and \code{summary()}, and
+\code{\link{ame_als_bootstrap}} gives bootstrap ones.
 }

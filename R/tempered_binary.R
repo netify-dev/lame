@@ -57,12 +57,14 @@
 .lame_tempered_prior <- function(prior, Y) {
 	allowed <- c(
 		"uv_prior", "Sab0", "eta0", "etaab", "rho_ab_mean", "rho_ab_sd",
-		"sigma_ab_shape", "sigma_ab_scale", "ab_min_observed", "ab_var_cap"
+		"sigma_ab_shape", "sigma_ab_scale", "ab_min_observed", "ab_var_cap",
+		"sigma_beta_shape", "sigma_beta_scale", "matern32_length_scale", "chain_extensions"
 	)
 	if (!is.list(prior) || (length(prior) && (is.null(names(prior)) ||
 			anyNA(names(prior)) || anyDuplicated(names(prior)) ||
 			any(!names(prior) %in% allowed) || any(vapply(prior, is.null, logical(1))))))
 		cli::cli_abort("For the tempered sampler, {.arg prior} must be a named list of documented tempered prior settings.")
+	.lame_chain_check_prior(prior)
 	prior$uv_prior <- prior$uv_prior %||% "hierarchical"
 	if (!is.character(prior$uv_prior) || length(prior$uv_prior) != 1L ||
 			is.na(prior$uv_prior) || !prior$uv_prior %in% c("unit", "hierarchical"))
@@ -116,6 +118,19 @@
 		"prior$ab_min_observed",
 		0L
 	)
+	# inverse-gamma prior on the innovation variance of the random-walk intercept
+	prior$sigma_beta_shape <- prior$sigma_beta_shape %||% 2
+	prior$sigma_beta_scale <- prior$sigma_beta_scale %||%
+		.lame_sigma_beta_prior_scale(Y, "binary", prior$sigma_beta_shape)
+	for (nm in c("sigma_beta_shape", "sigma_beta_scale")) {
+		x <- prior[[nm]]
+		if (!is.numeric(x) || is.complex(x) || length(x) != 1L || !is.finite(x) || x <= 0)
+			cli::cli_abort("{.code prior${nm}} must be a finite positive number.")
+	}
+	length_scale <- prior$matern32_length_scale
+	if (!is.null(length_scale) && (!is.numeric(length_scale) || is.complex(length_scale) ||
+			length(length_scale) != 1L || !is.finite(length_scale) || length_scale <= 0))
+		cli::cli_abort("{.code prior$matern32_length_scale} must be a finite positive number.")
 	prior$ab_var_cap <- prior$ab_var_cap %||% Inf
 	if (!identical(as.double(prior$ab_var_cap), Inf))
 		cli::cli_abort("The tempered sampler currently requires {.code prior$ab_var_cap = Inf}.")
@@ -138,13 +153,29 @@
 			(!is.na(g) && (!is.finite(g) || g <= 0)))
 		cli::cli_abort("For the tempered sampler, {.arg g} must be NA or a finite positive scalar.")
 	if (is.na(g)) g <- n^2
-	Q <- apply(design$xxLong, c(1L, 2L), sum) / (nt * g)
+	# the panel prior of lame() on every coefficient, the intercept's first-period level among them
+	Q <- .lame_replicated_prior(NULL, design$xxLong, g, dim(design$xxLong)[1L], nt)
 	if (any(!is.finite(Q)) || inherits(try(chol(Q), silent = TRUE), "try-error"))
 		cli::cli_abort("The tempered sampler requires a full-rank coefficient design for its proper Gaussian prior.")
 	list(Y = y, Xlist = design$Xlist, Q = Q, g = g)
 }
 
-.lame_tempered_context <- function(Y, X, rank, Q, prior) {
+# lower-triangular map from standard normal coordinates to the change of the intercept since the first
+# period: rw1 increments, rw2 increments that themselves walk, or a Matern 3/2 path (length scale as in
+# .matern32_precision())
+.lame_tempered_intercept_basis <- function(kind, nt, length_scale = NULL) {
+	m <- nt - 1L
+	C <- matrix(0, m, m)
+	C[lower.tri(C, diag = TRUE)] <- 1
+	if (identical(kind, "rw1")) return(C)
+	if (identical(kind, "rw2")) return(C %*% C)
+	if (is.null(length_scale)) length_scale <- max(2, nt / 4)
+	a <- sqrt(3) * abs(outer(seq_len(nt), seq_len(nt), "-")) / length_scale
+	D <- cbind(-1, diag(m))
+	t(chol(D %*% ((1 + a) * exp(-a)) %*% t(D)))
+}
+
+.lame_tempered_context <- function(Y, X, rank, Q, prior, kind = "rw1") {
 	n <- dim(Y)[1L]; nt <- dim(Y)[3L]; p <- dim(X[[1L]])[3L]
 	ij <- do.call(rbind, lapply(seq_len(nt), function(t) {
 		a <- which(upper.tri(Y[, , t]) & is.finite(Y[, , t]), arr.ind = TRUE)
@@ -153,6 +184,12 @@
 	x <- do.call(rbind, lapply(seq_len(nt), function(t) {
 		matrix(X[[t]], n * n, p)[which(upper.tri(Y[, , t]) & is.finite(Y[, , t])), , drop = FALSE]
 	}))
+	# innovation scale of the intercept from the design, as in .lame_beta_transition_scale()
+	lam0 <- build_beta_state_scales(
+		list(dynamic_idx = 1L),
+		lapply(X, function(x) crossprod(matrix(x, prod(dim(x)[1:2]), dim(x)[3L]))),
+		lapply(X, function(x) prod(dim(x)[1:2]))
+	)[[1L]][1L, 1L]
 	list(
 		n = n,
 		tt = nt,
@@ -171,14 +208,20 @@
 		bs = prior$sigma_ab_scale,
 		rm = prior$rho_ab_mean,
 		rs = prior$rho_ab_sd,
+		lam0 = lam0,
+		intercept_kind = kind,
+		intercept_basis = .lame_tempered_intercept_basis(kind, nt, prior$matern32_length_scale),
+		asb = prior$sigma_beta_shape,
+		bsb = prior$sigma_beta_scale,
 		hierarchical = FALSE,
 		collapsed = identical(prior$uv_prior, "hierarchical")
 	)
 }
 
 .lame_tempered_decode <- function(q, cx, Q) {
-	d <- cx$n * cx$r + cx$r + cx$p + (cx$n - 1L) * (cx$tt + 1L)
+	d <- .lame_tempered_base(cx)
 	va <- exp(q[d + 1L]); sigma <- exp(q[d + 2L]); rho <- 0.99 * tanh(q[d + 3L])
+	sigma_beta <- exp(q[d + 4L])
 	k <- 0L
 	take <- function(n) { i <- k + seq_len(n); k <<- k + n; q[i] }
 	U <- matrix(take(cx$n * cx$r), cx$n, cx$r)
@@ -186,6 +229,8 @@
 	beta <- drop(backsolve(chol(Q), take(cx$p)))
 	level <- drop(cx$H %*% take(cx$n - 1L)) * sqrt(va)
 	innov <- matrix(take((cx$n - 1L) * cx$tt), cx$n - 1L, cx$tt)
+	# intercept path: zero in the first period, then the scaled change of its kind
+	intercept_path <- c(0, drop(cx$intercept_basis %*% take(cx$tt - 1L))) * sigma_beta * sqrt(cx$lam0)
 	dev <- innov
 	dev[, 1L] <- sigma / sqrt(1 - rho^2) * innov[, 1L]
 	for (t in 2:cx$tt) dev[, t] <- rho * dev[, t - 1L] + sigma * innov[, t]
@@ -198,8 +243,15 @@
 		path = level + cx$H %*% dev,
 		va = va,
 		sigma = sigma,
-		rho = rho
+		rho = rho,
+		intercept_path = intercept_path,
+		sigma_beta = sigma_beta
 	)
+}
+
+# length of the Gaussian block of the replica state; the four log-scale and correlation coordinates follow
+.lame_tempered_base <- function(cx) {
+	cx$n * cx$r + cx$r + cx$p + (cx$n - 1L) * (cx$tt + 1L) + (cx$tt - 1L)
 }
 
 .lame_tempered_conditional_scale <- function(theta) {
@@ -233,7 +285,7 @@
 	options
 }
 
-.lame_tempered_output <- function(a, input, design, options, save_log_lik = FALSE, gof = FALSE) {
+.lame_tempered_output <- function(a, input, design, options, save_log_lik = FALSE, gof = FALSE, n_summary = 0L) {
 	cx <- a$context
 	n <- cx$n; nt <- cx$tt; S <- ncol(a$q)
 	Y <- input$Y; X <- design$Xlist
@@ -245,7 +297,7 @@
 		n_time = nt,
 		dynamic_ab = TRUE,
 		dynamic_uv = FALSE,
-		dynamic_beta = FALSE,
+		dynamic_beta = TRUE,
 		dynamic_rho = FALSE,
 		intercept = TRUE,
 		rvar = TRUE,
@@ -261,7 +313,17 @@
 		likelihood_unit = "unordered_dyad_period",
 		observed_dyads = length(cx$sy)
 	)
-	f$BETA <- matrix(0, S, cx$p, dimnames = list(NULL, dimnames(X[[1L]])[[3L]]))
+	beta_names <- dimnames(X[[1L]])[[3L]]
+	# the intercept moves under dynamic_ab, the other coefficients are static
+	f$BETA <- array(0, c(S, cx$p, nt), dimnames = list(NULL, beta_names, periods))
+	f$beta_dynamic_mask <- stats::setNames(seq_len(cx$p) == 1L, beta_names)
+	f$beta_dynamic_groups <- c("intercept", rep("", cx$p - 1L))
+	f$RHO_BETA <- matrix(1, S, 1L, dimnames = list(NULL, "intercept"))
+	f$SIGMA_BETA <- matrix(0, S, 1L, dimnames = list(NULL, "intercept"))
+	f$dynamic_beta_kind <- cx$intercept_kind
+	f$dynamic_beta_kind_by_block <- c(intercept = cx$intercept_kind)
+	f$dynamic_intercept_from_ab <- TRUE
+	f$sigma_beta_prior_scale <- a$prior$sigma_beta_scale
 	f$VC <- matrix(0, S, 2L, dimnames = list(NULL, c("va", "ve")))
 	f$tempering <- list(
 		temperatures = a$temperatures,
@@ -314,6 +376,7 @@
 		)
 		gof_values[, , 1L] <- observed
 	}
+	chain_acc <- NULL
 	for (s in seq_len(S)) {
 		z <- .lame_tempered_decode(a$q[, s], cx, a$Q)
 		if (isTRUE(cx$collapsed)) {
@@ -330,7 +393,11 @@
 		beta[1L] <- beta[1L] + sum(z$lambda * mu^2)
 		path <- z$path + shift
 		v <- sweep(u, 2L, z$lambda, "*")
-		f$BETA[s, ] <- beta
+		for (t in seq_len(nt)) {
+			f$BETA[s, , t] <- beta
+			f$BETA[s, 1L, t] <- beta[1L] + z$intercept_path[t]
+		}
+		f$SIGMA_BETA[s, 1L] <- z$sigma_beta
 		f$VC[s, "va"] <- z$va
 		f$a_draws[, , s] <- path
 		f$a_level_samples[, s] <- z$level + shift
@@ -340,8 +407,10 @@
 		f$sigma_ab[s] <- z$sigma
 		product <- tcrossprod(u, v)
 		product_mean <- product_mean + product / S
+		# the summaries the between-chain gate compares, as on the other sampler
+		chain_acc <- .lame_chain_acc_update(chain_acc, s, n_summary, path, path, u, v, symmetric = TRUE)
 		for (t in seq_len(nt)) {
-			eta <- matrix(matrix(X[[t]], n * n, cx$p) %*% beta, n, n) +
+			eta <- matrix(matrix(X[[t]], n * n, cx$p) %*% f$BETA[s, , t], n, n) +
 				outer(path[, t], path[, t], "+") + product
 			ez[[t]] <- ez[[t]] + eta / S
 			ypm[[t]] <- ypm[[t]] + pnorm(eta) / S
@@ -361,18 +430,14 @@
 	}
 	f$b_draws <- f$a_draws
 	f$b_level_samples <- f$a_level_samples
+	f$chain_summary <- .lame_chain_acc_finish(chain_acc)
 	f$a_dynamic <- f$b_dynamic <- apply(f$a_draws, c(1L, 2L), mean)
 	f$a_dynamic_sd <- f$b_dynamic_sd <- apply(f$a_draws, c(1L, 2L), stats::sd)
 	f$APM <- f$BPM <- rowMeans(f$a_level_samples)
 	f$a_level <- f$b_level <- f$APM
 	f$ab_draw_index <- f$uv_draw_index <- seq_len(S)
 	f$EZ <- ez; f$YPM <- ypm; f$ULUPM <- product_mean
-	ev <- eigen(product_mean, symmetric = TRUE)
-	take <- order(abs(ev$values), decreasing = TRUE)[seq_len(cx$r)]
-	f$U <- ev$vectors[, take, drop = FALSE]
-	rownames(f$U) <- actors
-	f$L <- ev$values[take]
-	f[["V"]] <- sweep(f$U, 2L, f$L, "*")
+	f <- .lame_tempered_factors(f, cx$r)
 	f$forecast_state <- list(
 		a = matrix(f$a_draws[, nt, ], n, S, dimnames = list(actors, NULL)),
 		b = matrix(f$b_draws[, nt, ], n, S, dimnames = list(actors, NULL)),
@@ -415,7 +480,7 @@
 	f$log_lik_method <- "observed_exact"
 	f$coefficient_prior <- list(
 		kind = "panel_design",
-		description = "Regression coefficients have zero-mean Gaussian prior precision sum_t(X_t'X_t) / (T * g), independent of residual variance."
+		description = "Regression coefficients, the intercept in the first period, have zero-mean Gaussian prior precision sum_t(X_t'X_t) / (T * g), independent of residual variance; the intercept then moves as a random walk with innovation sd sigma_beta (inverse-gamma prior on sigma_beta^2)."
 	)
 	f$static_uv_prior <- list(
 		distribution = a$prior$uv_prior,
@@ -424,9 +489,28 @@
 		} else "Signed weights and raw latent coordinates are independent N(0,1); coordinate variance is fixed at one."
 	)
 	f$sigma_ab_prior_scale <- a$prior$sigma_ab_scale
-	f$dynamic <- list(uv = FALSE, ab = TRUE, beta = FALSE, G = FALSE)
+	f$dynamic <- list(uv = FALSE, ab = TRUE, beta = TRUE, G = FALSE)
 	class(f) <- c("lame", "ame")
 	f
+}
+
+# leading eigenvectors U and eigenvalues L of the posterior mean product, with V = U L
+.lame_tempered_factors <- function(f, rank) {
+	ev <- eigen(f$ULUPM, symmetric = TRUE)
+	take <- order(abs(ev$values), decreasing = TRUE)[seq_len(rank)]
+	f$U <- ev$vectors[, take, drop = FALSE]
+	rownames(f$U) <- rownames(f$ULUPM)
+	f$L <- ev$values[take]
+	f[["V"]] <- sweep(f$U, 2L, f$L, "*")
+	f
+}
+
+# pooled fit of several tempered chains: factors of the pooled product and the tempering record of each chain
+.lame_tempered_pool <- function(pooled, fits) {
+	if (!is.null(pooled$ULUPM)) pooled <- .lame_tempered_factors(pooled, pooled$R)
+	pooled$tempering <- lapply(fits, `[[`, "tempering")
+	pooled$tempered_checkpoint <- NULL
+	pooled
 }
 
 .lame_tempered_temperatures <- function(kind) {
@@ -522,10 +606,12 @@
 }
 
 .lame_tempered_run <- function(args, input, design, cx, call, requested_prior, resume = NULL) {
-	kernel <- "tempered_binary_137_v1"
+	kernel <- "tempered_binary_143_v3"
+	# transitions per sweep of the replica at power one
+	cold_steps <- 4L
 	temperatures <- .lame_tempered_temperatures(args$prior$uv_prior)
 	K <- length(temperatures)
-	base <- cx$n * cx$r + cx$r + cx$p + (cx$n - 1L) * (cx$tt + 1L)
+	base <- .lame_tempered_base(cx)
 	counts <- list(
 		attempts = numeric(K),
 		accepts = numeric(K),
@@ -538,16 +624,17 @@
 	)
 	warmcounts <- counts
 	if (is.null(resume)) {
-		q <- matrix(0, base + 3L, K)
+		q <- matrix(0, base + 4L, K)
 		beta <- numeric(cx$p)
 		beta[1L] <- qnorm(min(.99, max(.01, mean(design$Y, na.rm = TRUE))))
 		for (j in seq_len(K)) {
-			q[, j] <- rnorm(base + 3L, sd = .1)
+			q[, j] <- rnorm(base + 4L, sd = .1)
 			q[cx$n * cx$r + seq_len(cx$r), j] <- rnorm(cx$r)
 			q[cx$n * cx$r + cx$r + seq_len(cx$p), j] <- drop(chol(design$Q) %*% beta)
 			q[base + 1L, j] <- log(args$prior$etaab * args$prior$Sab0[1L, 1L] / (args$prior$etaab + 2))
 			q[base + 2L, j] <- .5 * log(args$prior$sigma_ab_scale / (args$prior$sigma_ab_shape + 1))
 			q[base + 3L, j] <- atanh(args$prior$rho_ab_mean / .99)
+			q[base + 4L, j] <- .5 * log(args$prior$sigma_beta_scale / (args$prior$sigma_beta_shape + 1))
 		}
 		if (!is.null(args$start_vals)) q <- args$start_vals$tempered
 		state <- list(
@@ -578,7 +665,7 @@
 		assign(".Random.seed", state$rng, envir = .GlobalEnv)
 	}
 	if (!is.matrix(state$q) || !is.numeric(state$q) || is.complex(state$q) ||
-			!identical(dim(state$q), c(base + 3L, K)) || any(!is.finite(state$q)) ||
+			!identical(dim(state$q), c(base + 4L, K)) || any(!is.finite(state$q)) ||
 			!is.numeric(state$stepsizes) || length(state$stepsizes) != K ||
 			any(!is.finite(state$stepsizes) | state$stepsizes <= 0))
 		cli::cli_abort("Invalid tempered replica state or step sizes.")
@@ -630,7 +717,8 @@
 			start,
 			count,
 			state$burn,
-			args$odens
+			args$odens,
+			cold_steps
 		)
 		next_state <- state
 		next_state$q <- z$q
@@ -658,7 +746,7 @@
 			cli::cli_inform("Tempered sampling: {state$iteration}/{end} sweeps.")
 	}
 	list(
-		q = if (length(draws)) do.call(cbind, draws) else matrix(numeric(), base + 3L, 0L),
+		q = if (length(draws)) do.call(cbind, draws) else matrix(numeric(), base + 4L, 0L),
 		modes = if (length(modes)) do.call(cbind, modes) else matrix(numeric(), K, 0L),
 		factor_variances = if (length(scales)) do.call(cbind, scales) else NULL,
 		context = cx,
@@ -678,14 +766,16 @@
 }
 
 .lame_tempered_scope <- function(e) {
+	# the dynamic_ab rule makes the intercept a dynamic path of the requested kind, carried in the replica state
+	icpt_dynamic <- identical(e$dynamic_beta, "intercept") && isTRUE(e$dynamic_intercept_from_ab)
 	if (!identical(e$family, "binary") || !identical(e$mode, "unipartite") ||
 			!isTRUE(e$symmetric) || !isTRUE(e$dynamic_ab) || !isFALSE(e$dynamic_uv) ||
-			!isFALSE(e$dynamic_beta) || !isFALSE(e$dynamic_rho) || !isFALSE(e$dcor) ||
+			!icpt_dynamic || !isFALSE(e$dynamic_rho) || !isFALSE(e$dcor) ||
 			!isTRUE(e$intercept) || !isTRUE(e$rvar) || !isTRUE(e$cvar) ||
 			!identical(e$method, "mcmc"))
 		cli::cli_abort(c(
-			"The tempered sampler requires binary symmetric unipartite networks, static factors and coefficients, shared dynamic additive effects, and an intercept.",
-			"i" = "Use {.code family = \"binary\", symmetric = TRUE, dynamic_ab = TRUE, dynamic_uv = FALSE, R > 0}."
+			"The tempered sampler requires binary symmetric unipartite networks, static factors and covariate coefficients, shared dynamic additive effects, and an intercept, which moves as a random walk.",
+			"i" = "Use {.code family = \"binary\", symmetric = TRUE, dynamic_ab = TRUE, dynamic_uv = FALSE, R > 0}, with {.arg dynamic_beta} unset."
 		))
 	for (nm in c(
 		"Xrow", "Xcol", "R_row", "R_col", "odmax", "dynamic_beta_per_actor",
@@ -696,8 +786,8 @@
 	}
 	if (isTRUE(e$periodic_save))
 		cli::cli_abort("Use {.arg checkpoint_path} to save tempered sampler checkpoints.")
-	if (!is.null(e$bias_correct) || !isTRUE(e$bootstrap == 0L))
-		cli::cli_abort("Bias correction and bootstrap settings do not apply to the tempered MCMC sampler.")
+	if (!isTRUE(e$bootstrap == 0L))
+		cli::cli_abort("Bootstrap settings do not apply to the tempered MCMC sampler.")
 	if (!identical(e$log_lik_method[1L], "observed_exact"))
 		cli::cli_abort("The tempered sampler uses {.code log_lik_method = \"observed_exact\"}.")
 	if (!identical(e$keep_snap_draws[1L], "none") || !identical(e$dynamic_beta_pool[1L], "none"))
@@ -710,7 +800,7 @@
 	requested_prior <- e$.lame_input_prior
 	prior <- .lame_tempered_prior(e$prior, input$Y)
 	design <- .lame_tempered_design(input, e$g)
-	cx <- .lame_tempered_context(design$Y, design$Xlist, input$R, design$Q, prior)
+	cx <- .lame_tempered_context(design$Y, design$Xlist, input$R, design$Q, prior, e$dynamic_beta_kind)
 	options <- .lame_tempered_storage(e$posterior_opts)
 	args <- mget(
 		c(
@@ -758,7 +848,8 @@
 	args$Y <- input$Y; args$Xdyad <- input$Xdyad; args$R <- input$R; args$g <- design$g
 	fit <- .lame_tempered_rng(args$seed, function() {
 		a <- .lame_tempered_run(args, input, design, cx, e$mc, requested_prior, resume)
-		f <- .lame_tempered_output(a, input, design, options, args$save_log_lik, args$gof)
+		n_summary <- if (isTRUE(e$.chain_ctx$record)) args$nscan %/% args$odens else 0L
+		f <- .lame_tempered_output(a, input, design, options, args$save_log_lik, args$gof, n_summary)
 		f$terminated_early <- a$terminated_early
 		f$start_vals <- list(tempered = a$terminal_state)
 		f$tempered_checkpoint <- a$checkpoint
@@ -766,6 +857,9 @@
 	})
 	fit$call <- e$mc
 	fit$model.name <- e$model.name
+	if (!identical(e$dynamic_beta_kind_requested, "rw1")) {
+		fit$dynamic_beta_kind_requested <- e$dynamic_beta_kind_requested
+	}
 	fit$prior_supplied <- .lame_ab_prior_given(requested_prior)
 	fit$events_per_actor_period <- mean(vapply(input$Y, function(y) sum(y > 0, na.rm = TRUE) / nrow(y), numeric(1)))
 	fit$events_per_actor_total <- sum(
@@ -812,7 +906,10 @@
 	attr(args$prior, "lame_checkpoint_input_prior") <- checkpoint$requested_prior %||% list()
 	if (!is.null(block)) attr(args$prior, "lame_chain_block") <- block
 	args$family <- "binary"; args$symmetric <- TRUE; args$dynamic_ab <- TRUE
+	args$dynamic_beta_kind <- checkpoint$context$intercept_kind %||% "rw1"
 	args$sampler <- "tempered"
+	# a checkpoint is one chain
+	args$chains <- 1L
 	args[names(overrides)] <- overrides
 	if (!is.null(nscan_more)) args$nscan <- nscan_more
 	# remaining warmup; the kernel keeps the absolute adaptation boundary and

@@ -131,7 +131,7 @@ design_array <- function(Xrow = NULL, Xcol = NULL, Xdyad = NULL, intercept = TRU
 #'   hole in one triangle from the other, so only a dyad missing in both
 #'   triangles reaches this rule.
 #' @return \code{Y} with covariate-missing cells set to \code{NA}.
-#' @keywords internal
+#' @noRd
 .ame_propagate_cov_na <- function(
 	Y,
 	Xrow = NULL,

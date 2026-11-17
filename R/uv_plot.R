@@ -75,8 +75,6 @@
 #' uv_plot(fit, layout = "biplot")
 #' }
 #' @export
-#' @import ggplot2
-#' @import ggrepel
 #' @import cli
 uv_plot <- function(
 	fit = NULL,
@@ -358,7 +356,7 @@ uv_plot <- function(
 	}
 
 
-	p <- ggplot(node_data, aes(x = x, y = y))
+	p <- ggplot2::ggplot(node_data, ggplot2::aes(x = x, y = y))
 
 	if (layout == "circle") {
 		circle_df <- data.frame(
@@ -368,7 +366,7 @@ uv_plot <- function(
 		p <- p +
 			ggforce::geom_circle(
 				data = circle_df,
-				aes(x0 = 0, y0 = 0, r = r),
+				ggplot2::aes(x0 = 0, y0 = 0, r = r),
 				color = "gray80",
 				fill = NA,
 				linetype = "dotted",
@@ -395,9 +393,9 @@ uv_plot <- function(
 			}
 		}
 		if (nrow(edge_data) > 0) {
-			p <- p + geom_segment(
+			p <- p + ggplot2::geom_segment(
 				data = edge_data,
-				aes(x = x, y = y, xend = xend, yend = yend),
+				ggplot2::aes(x = x, y = y, xend = xend, yend = yend),
 				alpha = edge.alpha,
 				color = "gray50"
 			)
@@ -405,18 +403,18 @@ uv_plot <- function(
 	}
 
 	if (!is.null(colors)) {
-		p <- p + geom_point(aes(color = color, shape = type, size = size))
+		p <- p + ggplot2::geom_point(ggplot2::aes(color = color, shape = type, size = size))
 	} else {
 		# one legend name so colour and shape merge into a single legend
-		p <- p + geom_point(aes(color = type, shape = type, size = size)) +
-			scale_color_manual(
+		p <- p + ggplot2::geom_point(ggplot2::aes(color = type, shape = type, size = size)) +
+			ggplot2::scale_color_manual(
 				values = setNames(
 					c(sender.color, receiver.color),
 					c(row_type_label, col_type_label)
 				),
 				name = "Node type"
 			) +
-			scale_shape_discrete(name = "Node type")
+			ggplot2::scale_shape_discrete(name = "Node type")
 	}
 
 	if (label.nodes || !is.null(show.usernames)) {
@@ -460,17 +458,17 @@ uv_plot <- function(
 
 		if (any(node_data$label != "")) {
 			if (is.null(colors)) {
-				p <- p + geom_text_repel(
+				p <- p + ggrepel::geom_text_repel(
 					data = node_data[node_data$label != "", ],
-					aes(x = x, y = y, label = label, color = type),
+					ggplot2::aes(x = x, y = y, label = label, color = type),
 					size = label.size,
 					max.overlaps = Inf,
 					show.legend = FALSE
 				)
 			} else {
-				p <- p + geom_text_repel(
+				p <- p + ggrepel::geom_text_repel(
 					data = node_data[node_data$label != "", ],
-					aes(x = x, y = y, label = label),
+					ggplot2::aes(x = x, y = y, label = label),
 					size = label.size,
 					max.overlaps = Inf
 				)
@@ -479,29 +477,29 @@ uv_plot <- function(
 	}
 
 	p <- p +
-		scale_size_continuous(range = c(2, 6), guide = "none") +
-		theme_bw() +
-		theme(
-			panel.border = element_blank(),
-			plot.caption = element_text(hjust = 0),
-			axis.ticks = element_blank(),
-			axis.text = element_blank(),
+		ggplot2::scale_size_continuous(range = c(2, 6), guide = "none") +
+		ggplot2::theme_bw() +
+		ggplot2::theme(
+			panel.border = ggplot2::element_blank(),
+			plot.caption = ggplot2::element_text(hjust = 0),
+			axis.ticks = ggplot2::element_blank(),
+			axis.text = ggplot2::element_blank(),
 			legend.position = "top"
 		)
 	# axis titles only for the biplot; circle coordinates are arbitrary
 	if (identical(layout, "biplot")) {
-		p <- p + labs(x = "Latent dimension 1", y = "Latent dimension 2")
+		p <- p + ggplot2::labs(x = "Latent dimension 1", y = "Latent dimension 2")
 	} else {
-		p <- p + theme(axis.title = element_blank())
+		p <- p + ggplot2::theme(axis.title = ggplot2::element_blank())
 	}
-	p <- p + coord_fixed(clip = "off")
+	p <- p + ggplot2::coord_fixed(clip = "off")
 
 	if (!is.null(title)) {
-		p <- p + ggtitle(title)
+		p <- p + ggplot2::ggtitle(title)
 	} else if (layout == "circle") {
-		p <- p + ggtitle("Multiplicative effects (circular layout)")
+		p <- p + ggplot2::ggtitle("Multiplicative effects (circular layout)")
 	} else {
-		p <- p + ggtitle("Multiplicative effects (biplot)")
+		p <- p + ggplot2::ggtitle("Multiplicative effects (biplot)")
 	}
 
 	return(p)
@@ -605,34 +603,34 @@ uv_plot_dynamic_internal <- function(
 			)
 		}
 
-		p <- ggplot(positions, aes(x = x, y = y)) +
-			geom_point(aes(color = if (!is.null(colors)) colors else type), size = 3) +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
+		p <- ggplot2::ggplot(positions, ggplot2::aes(x = x, y = y)) +
+			ggplot2::geom_point(ggplot2::aes(color = if (!is.null(colors)) colors else type), size = 3) +
+			ggplot2::theme_bw() +
+			ggplot2::theme(
+				panel.border = ggplot2::element_blank(),
+				plot.caption = ggplot2::element_text(hjust = 0),
+				axis.ticks = ggplot2::element_blank(),
 				legend.position = "top"
 			) +
-			coord_fixed(clip = "off") +
-			labs(
+			ggplot2::coord_fixed(clip = "off") +
+			ggplot2::labs(
 				x = "Dimension 1",
 				y = "Dimension 2",
 				colour = if (is.null(colors)) "Position" else NULL
 			)
 
 		if (label.nodes) {
-			p <- p + geom_text_repel(
-				aes(label = node),
+			p <- p + ggrepel::geom_text_repel(
+				ggplot2::aes(label = node),
 				size = label.size,
 				max.overlaps = Inf
 			)
 		}
 
 		if (!is.null(title)) {
-			p <- p + ggtitle(title)
+			p <- p + ggplot2::ggtitle(title)
 		} else {
-			p <- p + ggtitle(paste("UV positions at", time_labels[time_point]))
+			p <- p + ggplot2::ggtitle(paste("UV positions at", time_labels[time_point]))
 		}
 
 		return(p)
@@ -689,23 +687,23 @@ uv_plot_dynamic_internal <- function(
 			names(h_cols) <- highlight[seq_len(min(n_h, length(dark2)))]
 			h_cols <- c(h_cols, Other = "grey75")
 		}
-		p <- ggplot(traj_data, aes(x = x, y = y, group = interaction(node, type))) +
-			geom_path(
-				aes(
+		p <- ggplot2::ggplot(traj_data, ggplot2::aes(x = x, y = y, group = interaction(node, type))) +
+			ggplot2::geom_path(
+				ggplot2::aes(
 					color = if (!is.null(highlight)) highlight else node,
 					linetype = type
 				),
 				alpha = if (!is.null(highlight)) 0.4 else 0.5
 			) +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
+			ggplot2::theme_bw() +
+			ggplot2::theme(
+				panel.border = ggplot2::element_blank(),
+				plot.caption = ggplot2::element_text(hjust = 0),
+				axis.ticks = ggplot2::element_blank(),
 				legend.position = "top"
 			) +
-			coord_fixed(clip = "off") +
-			labs(
+			ggplot2::coord_fixed(clip = "off") +
+			ggplot2::labs(
 				x = "Dimension 1",
 				y = "Dimension 2",
 				colour = if (!is.null(highlight)) "Actor" else NULL,
@@ -713,9 +711,9 @@ uv_plot_dynamic_internal <- function(
 				shape = "Node type"
 			)
 		if (!is.null(highlight)) {
-			p <- p + scale_colour_manual(values = h_cols)
+			p <- p + ggplot2::scale_colour_manual(values = h_cols)
 		} else if (n_actors <= 8L) {
-			p <- p + scale_colour_manual(values = dark2[seq_len(n_actors)])
+			p <- p + ggplot2::scale_colour_manual(values = dark2[seq_len(n_actors)])
 		}
 
 		if (show_arrows) {
@@ -724,16 +722,16 @@ uv_plot_dynamic_internal <- function(
 			arrow_data$x_prev <- prev_data$x
 			arrow_data$y_prev <- prev_data$y
 
-			p <- p + geom_segment(
+			p <- p + ggplot2::geom_segment(
 				data = arrow_data,
-				aes(
+				ggplot2::aes(
 					x = x_prev,
 					y = y_prev,
 					xend = x,
 					yend = y,
 					color = node
 				),
-				arrow = arrow(length = unit(0.2, "cm")),
+				arrow = ggplot2::arrow(length = ggplot2::unit(0.2, "cm")),
 				linewidth = 1
 			)
 		}
@@ -742,31 +740,31 @@ uv_plot_dynamic_internal <- function(
 		end_data <- traj_data[traj_data$time == n_times, ]
 
 		p <- p +
-			geom_point(
+			ggplot2::geom_point(
 				data = start_data,
-				aes(color = node, shape = type),
+				ggplot2::aes(color = node, shape = type),
 				size = 3,
 				alpha = 0.5
 			) +
-			geom_point(
+			ggplot2::geom_point(
 				data = end_data,
-				aes(color = node, shape = type),
+				ggplot2::aes(color = node, shape = type),
 				size = 4
 			)
 
 		if (label.nodes && n <= 20) {
-			p <- p + geom_text_repel(
+			p <- p + ggrepel::geom_text_repel(
 				data = end_data,
-				aes(label = node, color = node),
+				ggplot2::aes(label = node, color = node),
 				size = label.size,
 				max.overlaps = Inf
 			)
 		}
 
 		if (!is.null(title)) {
-			p <- p + ggtitle(title)
+			p <- p + ggplot2::ggtitle(title)
 		} else {
-			p <- p + ggtitle("UV trajectories over time")
+			p <- p + ggplot2::ggtitle("UV trajectories over time")
 		}
 
 		return(p)
@@ -809,27 +807,27 @@ uv_plot_dynamic_internal <- function(
 			}
 		}
 
-		p <- ggplot(facet_data, aes(x = x, y = y)) +
-			geom_point(
-				aes(
+		p <- ggplot2::ggplot(facet_data, ggplot2::aes(x = x, y = y)) +
+			ggplot2::geom_point(
+				ggplot2::aes(
 					color = if (!is.null(colors)) colors else type,
 					shape = type
 				),
 				size = 2
 			) +
 			# coord_fixed() needs fixed facet scales
-			facet_wrap(~time, scales = "fixed") +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
+			ggplot2::facet_wrap(~time, scales = "fixed") +
+			ggplot2::theme_bw() +
+			ggplot2::theme(
+				panel.border = ggplot2::element_blank(),
+				plot.caption = ggplot2::element_text(hjust = 0),
+				axis.ticks = ggplot2::element_blank(),
 				legend.position = "top",
-				strip.background = element_rect(fill = "black", color = "black"),
-				strip.text = element_text(color = "white", hjust = 0)
+				strip.background = ggplot2::element_rect(fill = "black", color = "black"),
+				strip.text = ggplot2::element_text(color = "white", hjust = 0)
 			) +
-			coord_fixed(clip = "off") +
-			labs(
+			ggplot2::coord_fixed(clip = "off") +
+			ggplot2::labs(
 				x = "Dimension 1",
 				y = "Dimension 2",
 				colour = if (is.null(colors)) "Node type" else NULL,
@@ -837,17 +835,17 @@ uv_plot_dynamic_internal <- function(
 			)
 
 		if (label.nodes && n <= 10) {
-			p <- p + geom_text_repel(
-				aes(label = node),
+			p <- p + ggrepel::geom_text_repel(
+				ggplot2::aes(label = node),
 				size = label.size * 0.8,
 				max.overlaps = Inf
 			)
 		}
 
 		if (!is.null(title)) {
-			p <- p + ggtitle(title)
+			p <- p + ggplot2::ggtitle(title)
 		} else {
-			p <- p + ggtitle("UV positions over time")
+			p <- p + ggplot2::ggtitle("UV positions over time")
 		}
 
 		return(p)

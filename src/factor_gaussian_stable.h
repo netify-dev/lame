@@ -23,7 +23,11 @@ inline arma::vec reflect(const arma::vec& x, const arma::vec& h) {
 // symmetrized and equilibrated before its Cholesky factor; a covariance
 // that is not numerically positive definite is inverted through its
 // eigendecomposition with a relative eigenvalue floor.
-inline arma::mat covariance_precision(const arma::mat& covariance) {
+// precision of a factor prior covariance. a covariance whose correlation is too close to singular for
+// the cholesky factor is inverted exactly from its eigenvalues, or taken from `exact_precision` (the
+// wishart draw the covariance was inverted from) when the caller has it; a covariance that is not
+// numerically positive definite stops, since flooring its eigenvalues would change the prior
+inline arma::mat covariance_precision(const arma::mat& covariance, const arma::mat* exact_precision = nullptr) {
   const arma::uword d = covariance.n_rows;
   if (!d || covariance.n_cols != d || !covariance.is_finite() || arma::any(covariance.diag() <= 0))
     Rcpp::stop("Factor prior covariance must be finite with positive diagonal.");
@@ -35,11 +39,14 @@ inline arma::mat covariance_precision(const arma::mat& covariance) {
   if (arma::chol(root, balanced)) {
     arma::mat inverse = arma::solve(arma::trimatu(root), arma::eye<arma::mat>(d, d));
     precision = inverse * inverse.t();
+  } else if (exact_precision != nullptr && exact_precision->n_rows == d && exact_precision->n_cols == d &&
+             exact_precision->is_finite()) {
+    // back on the scale of the balanced covariance, so the rescaling below restores it
+    precision = (*exact_precision) % outer;
   } else {
     arma::vec ev; arma::mat V;
     if (!arma::eig_sym(ev, V, balanced)) Rcpp::stop("Factor prior covariance eigendecomposition failed.");
-    const double floor = std::max(ev.max(), 1.0) * std::sqrt(std::numeric_limits<double>::epsilon());
-    ev.elem(arma::find(ev < floor)).fill(floor);
+    if (ev.min() <= 0) Rcpp::stop("Factor prior covariance is not numerically positive definite.");
     precision = V * arma::diagmat(1 / ev) * V.t();
   }
   precision = 0.5 * (precision + precision.t()) / outer;

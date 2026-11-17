@@ -1,4 +1,52 @@
 # the moves along the ridges of the bipartite sampler (R/binary_bipartite_scale_moves.R)
+
+# runs on CRAN
+test_that("binary bipartite AR1 fits expose the exact scale move and opt-out", {
+	skip_on_cran()
+	rn = paste0("row", 1:5); cn = paste0("col", 1:6)
+	Y = lapply(1:3, function(t) matrix(as.numeric(sin(seq_len(30) / 4 + t) > .1), 5, 6, dimnames = list(rn, cn)))
+	names(Y) = paste0("year", 1:3)
+	Y[[1]][2, 4] = NA; Y[[3]][4, 1] = NA
+	args = list(
+		Y = Y,
+		mode = "bipartite",
+		family = "binary",
+		R = 1L,
+		dynamic_uv = TRUE,
+		dynamic_uv_kind = "ar1",
+		rvar = FALSE,
+		cvar = FALSE,
+		burn = 20L,
+		nscan = 40L,
+		odens = 5L,
+		seed = 47335623L,
+		verbose = FALSE,
+		plot = FALSE,
+		gof = FALSE,
+		posterior_opts = list(save_UV = TRUE, thin_UV = 1L)
+	)
+	# a tie pattern this regular can be reported as separated on a chain this short
+	fit_quiet = function(a) withCallingHandlers(
+		do.call(lame, a),
+		lame_separation = function(w) invokeRestart("muffleWarning")
+	)
+	set.seed(47335601L); caller = .Random.seed
+	expect_no_warning({ fit = fit_quiet(args) })
+	expect_identical(caller, .Random.seed)
+	expect_equal(unname(fit$bipartite_scale_move["attempts"]), 50)
+	expect_gt(unname(fit$bipartite_scale_move["accepts"]), 0)
+	expect_equal(unname(fit$bipartite_scale_move["numerical_rejections"]), 0)
+	expect_true(all(fit$sampler_health$numerical_failures == 0))
+	expect_equal(nrow(fit$BETA), 8L)
+	args$prior = list(bipartite_scale_move = FALSE)
+	expect_no_warning({ off = fit_quiet(args) })
+	expect_identical(caller, .Random.seed)
+	expect_null(off$bipartite_scale_move)
+	off_prior = off$prior; off_prior[["bipartite_scale_move"]] = NULL
+	expect_identical(off_prior, fit$prior)
+	expect_identical(off$g, fit$g)
+})
+
 skip_on_cran()
 
 test_that('the generalised inverse Gaussian draw matches its density', {
@@ -27,7 +75,8 @@ test_that('the scale ridge step keeps the product and the bound and draws every 
 		U = matrix(rnorm(cf[1] * cf[3]), cf[1]); V = matrix(rnorm(cf[2] * cf[4]), cf[2]); G = matrix(rnorm(cf[3] * cf[4]), cf[3])
 		o = .lame_bip_uv_g_scale_step(U, V, G)
 		expect_equal(o$U %*% o$G %*% t(o$V), U %*% G %*% t(V), tolerance = 1e-10)
-		expect_equal(o$drawn, cf[3] + cf[4])
+		# a column scale per column, a shear per ordered pair of columns on each side
+		expect_equal(o$drawn, cf[3]^2 + cf[4]^2)
 		expect_false(isTRUE(all.equal(o$G, G)))
 	}
 	# the prior bound on G holds for every draw
@@ -57,7 +106,9 @@ test_that('the scale ridge step leaves the prior of the positions and the intera
 				log(sum(G^2)),
 				log(sum(V^2)),
 				M[1, 1],
-				M[2, 3]
+				M[2, 3],
+				if (RA > 1L) c(sum(U[, 1] * U[, 2]), sum(G[1, ] * G[2, ])),
+				if (RB > 1L) sum(V[, 1] * V[, 2])
 			)
 		}
 		old = new = NULL
@@ -72,6 +123,7 @@ test_that('the scale ridge step leaves the prior of the positions and the intera
 	}
 	expect_lt(run(1000L, 8L, 12L, 1L, 1L, seed = 11L), 4.5)
 	expect_lt(run(1000L, 6L, 9L, 2L, 2L, g_max = 1.8, seed = 12L), 4.5)
+	expect_lt(run(1500L, 7L, 5L, 3L, 2L, seed = 13L), 4.5)
 })
 
 test_that('the density of the totals with the levels integrated out is the stated one', {

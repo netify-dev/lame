@@ -62,14 +62,16 @@
 }
 
 # the value an IRLS start is compared by: the objective its reweighting loop minimises,
-# plus the hyperprior of Sab for an empirical-Bayes fit (the raw deviance always
-# favours the least-shrunk optimum)
-.ae_irls_objective <- function(ir, ab_prior = NULL) {
+# plus the hyperprior of Sab (the raw deviance always favours the least-shrunk optimum)
+.ae_irls_objective <- function(ir, ab_prior) {
 	obj <- ir$best_obj
-	if (!is.null(ab_prior) && is.finite(obj)) {
+	if (is.finite(obj)) {
 		obj <- obj + tryCatch(
 			.ae_eb_hyper(ir$fit$sab, ab_prior),
-			error = function(e) NA_real_
+			error = function(e) {
+				.ae_note_fallback("multistart_hyper")
+				NA_real_
+			}
 		)
 	}
 	obj
@@ -95,17 +97,17 @@
 
 # the start an IRLS multistart keeps, the value each start is compared by, each start's
 # distance from the kept one, and which converged starts reached a different optimum
-.ae_irls_select <- function(irs, ab_prior = NULL, tol = .ae_multistart_material) {
+.ae_irls_select <- function(irs, ab_prior, tol = .ae_multistart_material) {
 	value <- vapply(irs, .ae_irls_objective, numeric(1), ab_prior = ab_prior)
 	# a start followed by a variational refinement converged when the refinement did
 	converged <- vapply(irs, function(z) {
 		if (!is.null(z$selection_converged)) isTRUE(z$selection_converged)
 		else isTRUE(z$stationarity$pass)
 	}, logical(1))
-	criterion <- if (is.null(ab_prior)) "penalised deviance" else "empirical-Bayes objective"
+	criterion <- "empirical-Bayes objective"
 	# an empirical-Bayes start with a latent rank is rated by its Laplace marginal
 	# likelihood when every converged start has one
-	if (!is.null(ab_prior) && any(converged) &&
+	if (any(converged) &&
 			all(vapply(irs, function(z) !is.null(z$fit$U), logical(1)))) {
 		ev <- vapply(irs, .ae_irls_evidence, numeric(1))
 		if (all(is.finite(ev[converged]))) {
@@ -140,7 +142,10 @@
 # that cannot be assembled gets a row of NA
 .ae_multistart_summary <- function(assemble, n_starts, best) {
 	grab <- function(j) {
-		a <- tryCatch(suppressWarnings(assemble(j)), error = function(e) NULL)
+		a <- tryCatch(suppressWarnings(assemble(j)), error = function(e) {
+			.ae_note_failure(paste0("multistart_start_", j), paste0("the summary of start ", j, " in fit$multistart_coefficients"), e)
+			NULL
+		})
 		if (is.null(a)) NULL else list(coefficients = a$coefficients, product = a$UVPM)
 	}
 	ref <- grab(best)
@@ -159,61 +164,4 @@
 		}
 	}
 	list(coefficients = coefficients, product_distance = distance)
-}
-
-.ae_multistart_fit <- function(
-	Z,
-	X,
-	R,
-	symmetric,
-	max_iter,
-	tol,
-	lowrank_method,
-	linear_solver,
-	n_starts,
-	seed,
-	certify = TRUE,
-	assemble = NULL,
-	unit_rules = FALSE
-) {
-
-	bcd <- function(init) {
-		.ae_bcd_fit(
-			Z,
-			X,
-			R,
-			symmetric,
-			max_iter,
-			tol,
-			init = init,
-			lowrank_method = lowrank_method,
-			linear_solver = linear_solver,
-			certify = certify,
-			unit_rules = unit_rules
-		)
-	}
-
-	starts <- .ae_multistart_starts(Z, R, symmetric, n_starts, seed)
-	fits <- lapply(starts, bcd)
-
-	sse <- vapply(fits, function(f) f$sse, numeric(1))
-	converged <- vapply(
-		fits,
-		function(f) isTRUE(f$converged) &&
-			!identical(f$add_converged, FALSE),
-		logical(1)
-	)
-	best <- .ae_multistart_choose(sse, converged)
-	out <- fits[[best]]
-	out$multistart_sse <- sse
-	out$multistart_selected <- best
-	out$multistart_converged <- converged
-	out$multistart_criterion <- "working SSE"
-	out$multistart_gaussian_diagnostics <- lapply(fits, `[[`, "gaussian_diagnostics")
-	if (!is.null(assemble)) {
-		summ <- .ae_multistart_summary(function(j) assemble(fits[[j]]), length(fits), best)
-		out$multistart_coefficients <- summ$coefficients
-		out$multistart_product_distance <- summ$product_distance
-	}
-	out
 }

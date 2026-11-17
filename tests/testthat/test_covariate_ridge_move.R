@@ -94,13 +94,193 @@ cr_exact = function(mode, ndraw = 8000L, seed = 21L, mutant = 'none') {
 		(s$Z - s$EZ)[free1]^2,
 		(s$Z - s$EZ)[1, 1, N]^2
 	)
+	# allocate the statistic matrices at the first draw
 	S0 = S1 = NULL
-	for (r in seq_len(ndraw)) { s = draw(); S0 = rbind(S0, stat(s)); S1 = rbind(S1, stat(step(s))) }
+	for (r in seq_len(ndraw)) {
+		s = draw()
+		a0 = stat(s)
+		a1 = stat(step(s))
+		if (is.null(S0)) S0 = S1 = matrix(0, ndraw, length(a0))
+		S0[r, ] = a0
+		S1[r, ] = a1
+	}
 	d = S1 - S0
 	sdv = apply(d, 2L, sd)
 	z = colMeans(d)[sdv > 0] / (sdv[sdv > 0] / sqrt(ndraw))
 	max(abs(z))
 }
+
+# the same check with the rw1 intercept path of dynamic_ab. blocks 'rw1': static row, column and dyadic
+# coefficients; 'mixed': the row coefficient an ar1 path, held
+cr_exact_path = function(
+	blocks = 'rw1',
+	ndraw = 8000L,
+	seed = 31L,
+	bad_v0 = 1,
+	rho_t = NULL,
+	rho_pass = NULL
+) {
+	set.seed(seed)
+	n = 6L; N = 3L; rho_ab = .5; sigma_ab = .7; rho = .4; s2 = 1.3; p = 4L
+	# rho_t: dyadic correlation of each period; rho_pass: the correlation the visit is told
+	if (is.null(rho_t)) rho_t = rep(rho, N)
+	if (is.null(rho_pass)) rho_pass = rho_t
+	Sab = matrix(c(1, .4, .4, 1.5), 2); v0 = 1.6; sb = .5; g = c(NA, 2, 1.5, 3)
+	rho_r = .6; sr = .4; v0r = 1.2
+	dyn_idx = if (blocks == 'rw1') 1L else c(1L, 2L)
+	st_idx = setdiff(1:p, dyn_idx)
+	beta0_cov = diag(if (blocks == 'rw1') v0 else c(v0, v0r), length(dyn_idx))
+	xr = matrix(rnorm(n * N), n, N) + matrix(c(0, 2, -1.5), n, N, byrow = TRUE)
+	xc = matrix(rnorm(n * N), n, N) + matrix(c(1, 0, -1), n, N, byrow = TRUE)
+	xd = array(rnorm(n * n * N), c(n, n, N))
+	Xlist = lapply(seq_len(N), function(t) {
+		X = array(0, c(n, n, p))
+		X[, , 1] = 1
+		X[, , 2] = xr[, t]
+		X[, , 3] = matrix(xc[, t], n, n, byrow = TRUE)
+		X[, , 4] = xd[, , t]
+		X
+	})
+	M = array(runif(n * n * N) < .6, c(n, n, N))
+	for (t in seq_len(N)) diag(M[, , t]) = FALSE
+	Qar = lame:::.lame_cov_ridge_ar_precision(N, rho_ab, sigma_ab)
+	Lq = t(chol(Sab)); Lar = t(chol(solve(Qar)))
+	ctr = function(m) m - rep(colMeans(m), each = nrow(m))
+	draw = function() {
+		path = matrix(0, N, length(dyn_idx))
+		path[, 1] = cumsum(c(rnorm(1, 0, sqrt(v0)), rnorm(N - 1L, 0, sb)))
+		if (blocks == 'mixed') {
+			path[1, 2] = rnorm(1, 0, sqrt(v0r))
+			for (t in 2:N) path[t, 2] = rho_r * path[t - 1, 2] + rnorm(1, 0, sr)
+		}
+		bs = rnorm(length(st_idx), 0, sqrt(g[st_idx] * s2))
+		lev = t(Lq %*% matrix(rnorm(2 * n), 2))
+		al = lev[, 1] - mean(lev[, 1])
+		bl = lev[, 2] - mean(lev[, 2])
+		am = al + ctr(t(Lar %*% matrix(rnorm(N * n), N)))
+		bm = bl + ctr(t(Lar %*% matrix(rnorm(N * n), N)))
+		EZ = Z = array(0, c(n, n, N))
+		for (t in seq_len(N)) {
+			bt = numeric(p)
+			bt[st_idx] = bs
+			bt[dyn_idx] = path[t, ]
+			E = matrix(0, n, n)
+			for (i in 1:(n - 1L)) for (j in (i + 1L):n) {
+				u = rnorm(2)
+				E[i, j] = sqrt(s2) * u[1]
+				E[j, i] = sqrt(s2) * (rho_t[t] * u[1] + sqrt(1 - rho_t[t]^2) * u[2])
+			}
+			diag(E) = rnorm(n)
+			xb = Reduce(`+`, lapply(seq_len(p), function(k) bt[k] * Xlist[[t]][, , k]))
+			eta = xb + outer(am[, t], bm[, t], '+')
+			EZ[, , t] = eta
+			Z[, , t] = eta + E
+		}
+		list(path = path, bs = bs, al = al, bl = bl, am = am, bm = bm, EZ = EZ, Z = Z)
+	}
+	step = function(s) {
+		st = lame:::.lame_cov_ridge_dyn_state(
+			p,
+			st_idx,
+			dyn_idx,
+			s$bs,
+			s$path,
+			g[st_idx],
+			s2,
+			beta0_cov * bad_v0,
+			TRUE
+		)
+		o = lame:::.lame_cov_ridge_visit(
+			Xlist,
+			st$beta,
+			st$P0,
+			s$al,
+			s$bl,
+			s$am,
+			s$bm,
+			Sab,
+			rho_ab,
+			sigma_ab,
+			TRUE,
+			TRUE,
+			center = TRUE,
+			E = s$Z - s$EZ,
+			M = M,
+			rho_t = rho_pass,
+			s2 = s2,
+			skip = st$skip
+		)
+		ap = lame:::.lame_cov_ridge_dyn_apply(st, o$beta, s$path, st_idx)
+		for (t in seq_len(N)) {
+			s$EZ[, , t] = s$EZ[, , t] + o$shift[t]
+			zt = s$Z[, , t]
+			zt[!M[, , t]] = zt[!M[, , t]] + o$shift[t]
+			s$Z[, , t] = zt
+		}
+		s$path = ap$path
+		s$bs = ap$beta_static
+		s$al = o$a_lev
+		s$bl = o$b_lev
+		s$am = o$a_mat
+		s$bm = o$b_mat
+		s
+	}
+	free1 = which(!M[, , 1] & row(M[, , 1]) != col(M[, , 1]))[1]
+	stat = function(s) c(
+		s$path,
+		s$path[1, 1]^2,
+		diff(s$path[, 1])^2,
+		s$bs,
+		s$bs^2,
+		s$al[1:3],
+		s$bl[1:3],
+		s$am[1:2, 2],
+		s$bm[2:3, 3],
+		s$bs[1] * s$al[1],
+		(s$Z - s$EZ)[1, 2, 1],
+		(s$Z - s$EZ)[2, 1, 1]^2,
+		s$Z[2, 3, 1],
+		s$EZ[1, 2, 1],
+		sum(s$al^2),
+		sum(s$bl^2),
+		sum((s$am - s$al)^2),
+		(s$Z - s$EZ)[free1]^2
+	)
+	# allocate the statistic matrices at the first draw
+	S0 = S1 = NULL
+	for (r in seq_len(ndraw)) {
+		s = draw()
+		a0 = stat(s)
+		a1 = stat(step(s))
+		if (is.null(S0)) S0 = S1 = matrix(0, ndraw, length(a0))
+		S0[r, ] = a0
+		S1[r, ] = a1
+	}
+	d = S1 - S0
+	sdv = apply(d, 2L, sd)
+	z = colMeans(d)[sdv > 0] / (sdv[sdv > 0] / sqrt(ndraw))
+	max(abs(z))
+}
+
+test_that('one visit keeps the prior of the state with the rw1 intercept path of dynamic_ab, and with a user ar1 row coefficient', {
+	skip_on_cran()
+	expect_lt(cr_exact_path('rw1'), 4.2)
+	expect_lt(cr_exact_path('mixed', seed = 32L), 4.2)
+	# a mis-stated prior of the first intercept state is caught
+	expect_gt(cr_exact_path('rw1', 2000L, seed = 33L, bad_v0 = 1e-2), 5)
+})
+
+test_that('with a period-varying rho (dynamic_rho with the rw1 intercept path of dynamic_ab) one visit keeps the prior', {
+	skip_on_cran()
+	rt = c(.8, -.3, .5)
+	expect_lt(cr_exact_path('rw1', seed = 34L, rho_t = rt), 4.2)
+	expect_lt(cr_exact_path('mixed', seed = 35L, rho_t = rt), 4.2)
+	# a visit told the sign-flipped correlation of each period is caught
+	expect_gt(
+		cr_exact_path('rw1', 2000L, seed = 36L, rho_t = c(.9, -.8, .6), rho_pass = -c(.9, -.8, .6)),
+		5
+	)
+})
 
 test_that('one visit of the covariate ridge leaves the prior of the state, the latent array included, unchanged (dynamic effects, static effects, ame)', {
 	skip_on_cran()

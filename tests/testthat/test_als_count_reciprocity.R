@@ -92,25 +92,16 @@ test_that("dynamic count and binary dependence use reported predictors", {
 })
 
 test_that("count reciprocity is not estimated when the latent variance is not distinguishable from zero", {
-	# equidispersed counts with no latent noise or reciprocity: ve is a small positive root of
-	# the Pearson identity and the reciprocity moment sits outside [expm1(-ve), expm1(ve)]
+	# equidispersed counts with no latent noise or reciprocity
 	set.seed(6); n = 40
 	a = rnorm(n, 0, .4); b = rnorm(n, 0, .4)
 	Y = matrix(rpois(n * n, exp(0.2 + outer(a, b, "+"))), n, n); diag(Y) = NA
-	# the empirical-Bayes default reports the same: no correlation where the latent variance is not distinguishable from zero
-	fe = suppressMessages(ame_als(Y, family = "poisson", verbose = FALSE))
-	expect_false(fe$overdispersion$overdispersed)
-	expect_true(is.na(fe$VC["rho"]))
-	expect_false(fe$rho_estimation$identified)
-	expect_identical(fe$rho_estimation$reason, "latent variance not distinguishable from zero")
-	f = suppressMessages(ame_als(Y, family = "poisson", bias_correct = "none", verbose = FALSE))
-	expect_gt(unname(f$VC["ve"]), 0)
-	expect_lt(f$rho_estimation$moment, expm1(-unname(f$VC["ve"])))
+	# no correlation where the latent variance is not distinguishable from zero
+	f = suppressMessages(ame_als(Y, family = "poisson", verbose = FALSE))
 	expect_false(f$overdispersion$overdispersed)
 	expect_true(is.na(f$VC["rho"]))
 	expect_false(f$rho_estimation$identified)
 	expect_identical(f$rho_estimation$reason, "latent variance not distinguishable from zero")
-	expect_true(is.finite(f$rho_estimation$covariance))
 	out = paste(
 		utils::capture.output(print(f), type = "message"),
 		utils::capture.output(print(f)),
@@ -131,12 +122,9 @@ test_that("count reciprocity is not estimated when the latent variance is not di
 	E = 0.5 * Z
 	E[upper.tri(E)] = (0.5 * (0.5 * t(Z) + sqrt(0.75) * matrix(rnorm(n * n), n, n)))[upper.tri(E)]
 	Y = matrix(rpois(n * n, exp(0.2 + outer(a, b, "+") + E)), n, n); diag(Y) = NA
-	f = suppressMessages(ame_als(Y, family = "poisson", bias_correct = "none", verbose = FALSE))
-	expect_true(f$overdispersion$overdispersed)
-	expect_true(f$rho_estimation$identified)
-	expect_true(is.finite(f$VC["rho"]))
-	# the empirical-Bayes default estimates it from the pairs
+	# the correlation is estimated from the pairs
 	fe = suppressMessages(ame_als(Y, family = "poisson", verbose = FALSE))
+	expect_true(fe$overdispersion$overdispersed)
 	expect_true(fe$rho_estimation$identified)
 	expect_identical(fe$rho_estimation$method, "integrated pair likelihood")
 	expect_true(is.finite(fe$VC["rho"]))

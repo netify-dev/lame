@@ -166,7 +166,8 @@ test_that("ame_als() and lame_als() have the one prior of the samplers", {
 	a = suppressWarnings(suppressMessages(ame_als(d$Y[[1]], d$X[[1]], R = 0, family = "binary", verbose = FALSE)))
 	l = suppressWarnings(suppressMessages(lame_als(d$Y, d$X, R = 0, family = "binary", verbose = FALSE)))
 	expect_identical(a$eb$pair$rho, l$eb$pair$rho)
-	expect_identical(coef(a), coef(l))
+	# lame_als() centres its effects over the actors, which moves its intercept by their mean, zero here up to rounding
+	expect_equal(coef(a), coef(l), tolerance = 1e-12)
 	# a refit goes back to the same value
 	expect_equal(ame_als_refit(l, verbose = FALSE)$eb$pair$rho, l$eb$pair$rho, tolerance = 1e-3)
 })
@@ -205,10 +206,6 @@ test_that("without reciprocity the fit finds a small correlation and nearly the 
 
 test_that("dcor is a probit, directed, empirical-Bayes feature and asks for nothing else", {
 	d = pr_panel(n = 16, R = 0, rho = 0.5, seed = 7)
-	# the default is on for a directed network and is not an error for the fits that have no pair model
-	expect_silent(
-		suppressMessages(ame_als(d$Y[[1]], d$X[[1]], R = 0, family = "binary", bias_correct = "none", verbose = FALSE))
-	)
 	# the logit link has no dyadic correlation of its own
 	expect_error(
 		ame_als(d$Y[[1]], d$X[[1]], R = 0, family = "binary", link = "logit", dcor = TRUE, verbose = FALSE),
@@ -239,7 +236,7 @@ test_that("the bound of a fit with a dyadic correlation is recomputed from the o
 		fit = pr_fit(d, R = R)
 		expect_false(is.null(fit$eb$pair))
 		expect_equal(
-			lame:::.ae_mf_elbo_object(fit)$elbo,
+			.ae_mf_elbo_object(fit)$elbo,
 			fit$eb$variational$elbo,
 			tolerance = 1e-6,
 			info = paste("R =", R)
@@ -249,38 +246,29 @@ test_that("the bound of a fit with a dyadic correlation is recomputed from the o
 
 test_that("the coarse stage of the quadrature reaches the fixed point of the rule of the fit", {
 	d = pr_panel(n = 30, R = 1, rho = 0.6, seed = 10)
-	mode = suppressWarnings(suppressMessages(lame:::.ae_run(
-		d$Y[[1]],
-		d$X[[1]],
-		NULL,
-		NULL,
-		1L,
+	# the posterior mode the variational fit starts from
+	prep = lame:::.ae_prepare(d$Y[[1]], d$X[[1]], NULL, NULL, "unipartite", FALSE)
+	ab = lame:::.ae_eb_prior(prep, FALSE, "binary")
+	ir = suppressWarnings(lame:::.ae_irls_run(
+		prep,
 		"binary",
-		"unipartite",
+		"probit",
+		1L,
 		FALSE,
 		200,
 		1e-6,
-		FALSE,
-		6886,
-		longitudinal = FALSE,
-		call = quote(pr_mode()),
 		lowrank_method = "als",
-		non_normal_method = "irls",
-		link = "probit",
-		linear_solver = "eigen",
-		multistart = "none",
-		bias_correct = NULL,
-		eb_posterior = "mode"
-	)))
-	st = lame:::.ae_eb_state(mode)
+		ab_prior = ab,
+		vcov_mode = "coef"
+	))
 	go = function(pair) lame:::.ae_mf_fit(
-		st$prep,
-		st$fit,
-		st$ab,
-		st$R,
+		prep,
+		ir$fit,
+		ab,
+		1L,
 		FALSE,
 		"probit",
-		st$w,
+		ir$W,
 		max_iter = 1000L,
 		tol = 1e-6,
 		scale = "cavity",

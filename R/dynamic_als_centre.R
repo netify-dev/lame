@@ -61,35 +61,52 @@
 	}
 	shift_cov0 <- shift_cov
 	if (!is.null(extra)) shift_cov <- function(V) shift_cov0(V) + extra
-	# moving intercept: the same exchange in every period, each period's standard
-	# error from its own combination with the mean of the effects
+	# moving intercept: as in the samplers, the effects are centred within each
+	# period and the intercept path takes each period's mean, mu_t + abar_t + bbar_t;
+	# each period's standard error is that of its own functional
 	d_var_path <- NULL
+	abar_t <- rep(abar, Tt); bbar_t <- rep(bbar, Tt)
 	if (isTRUE(lay$any) && !(1L %in% lay$static_idx)) {
+		if (on_a) abar_t <- colMeans(ab$a[ctx$ia, , drop = FALSE])
+		bbar_t <- if (ctx$sym) abar_t else if (on_b) colMeans(ab$b[ctx$ib, , drop = FALSE]) else rep(0, Tt)
+		cs1 <- numeric(q)
+		if (on_a) cs1[seq_len(na)] <- if (ctx$sym) 2 / na else 1 / na
+		if (on_b) cs1[na + seq_len(nb)] <- 1 / nb
+		zero_rs <- rep(list(numeric(q)), Tt)
 		m <- ctx$mth
 		M <- vapply(seq_len(m), function(k) { e <- numeric(m); e[k] <- 1; .lde_coef_path(ctx, e)[1L, ] }, numeric(Tt))
 		d_var_path <- vapply(seq_len(Tt), function(t) {
 			ctt <- M[t, ]
-			wt <- .lde_solve(ev$fac, rs, c(numeric(q), ctt))
-			vt <- sum(vapply(seq_len(Tt), function(u) sum(cs * wt$s[[u]]), 0)) + sum(c(numeric(q), ctt) * wt$z)
+			rs_t <- zero_rs
+			rs_t[[t]] <- cs1
+			wt <- .lde_solve(ev$fac, rs_t, c(numeric(q), ctt))
+			vt <- sum(cs1 * wt$s[[t]]) + sum(c(numeric(q), ctt) * wt$z)
 			vt - as.numeric(ctt %*% Szt %*% ctt)
 		}, 0)
-		if (!all(is.finite(d_var_path))) d_var_path <- NULL
+		if (!all(is.finite(d_var_path)) || !all(is.finite(c(abar_t, bbar_t)))) {
+			d_var_path <- NULL
+			abar_t <- rep(abar, Tt); bbar_t <- rep(bbar, Tt)
+		}
 	}
-	ab$a[ctx$ia, ] <- ab$a[ctx$ia, , drop = FALSE] - abar
-	ab$b[ctx$ib, ] <- ab$b[ctx$ib, , drop = FALSE] - bbar
+	ab$a[ctx$ia, ] <- sweep(ab$a[ctx$ia, , drop = FALSE], 2L, abar_t)
+	ab$b[ctx$ib, ] <- sweep(ab$b[ctx$ib, , drop = FALSE], 2L, bbar_t)
 	lv$a[ctx$ia] <- lv$a[ctx$ia] - abar
 	lv$b[ctx$ib] <- lv$b[ctx$ib] - bbar
 	# a bipartite interaction with static factors is held at mean zero, as in the
 	# samplers, its mean moving into the intercept
-	if (identical(ctx$fmode, "fac") && isTRUE(ctx$bip) && !is.null(st$O)) o_shift <- o_shift + mean(st$O)
+	# so is a directed or undirected one: the intercept carries the grand mean of the
+	# product, as in the static report (.ae_eb_fold_grad())
+	if (identical(ctx$fmode, "fac") && !is.null(st$O)) o_shift <- o_shift + mean(st$O)
 	th[1L] <- th[1L] + c0 + o_shift
-	cpath[1L, ] <- cpath[1L, ] + c0 + o_shift
+	cpath[1L, ] <- cpath[1L, ] + abar_t + bbar_t + o_shift
 	vc_new <- shift_cov(vc)
 	vcc_new <- shift_cov(vcc)
 	# static factors: the intercept takes its variance conditional on the factors
 	# (the marginal one is too wide), with its covariances rescaled to keep the
 	# correlations
+	icpt_cond <- FALSE
 	if (identical(ctx$fmode, "fac") && isTRUE(ctx$nrm) && vc_new[1L, 1L] > 0 && vcc_new[1L, 1L] > 0) {
+		icpt_cond <- TRUE
 		k <- sqrt(vcc_new[1L, 1L] / vc_new[1L, 1L])
 		vc_new[1L, ] <- vc_new[1L, ] * k
 		vc_new[, 1L] <- vc_new[, 1L] * k
@@ -103,8 +120,10 @@
 		vc = vc_new,
 		vcc = vcc_new,
 		centre = c(a = abar, b = bbar, o = o_shift),
+		centre_path = rbind(a = abar_t - abar, b = bbar_t - bbar),
 		d_var_path = d_var_path,
-		o_shift = o_shift
+		o_shift = o_shift,
+		icpt_cond = icpt_cond
 	)
 }
 
@@ -213,8 +232,15 @@
 	BHB <- matrix(0, K, K)
 	for (k in seq_len(K)) for (l in seq_len(K)) BHB[l, k] <- dot(B_rs[[l]], B_rz[[l]], sols[[k]])
 	S <- (D - BHB + t(D - BHB)) / 2
-	Sinv <- tryCatch(solve(S), error = function(e) NULL)
-	if (is.null(Sinv) || any(!is.finite(Sinv))) return(NULL)
+	Sinv <- tryCatch(solve(S), error = function(e) e)
+	if (inherits(Sinv, "error") || any(!is.finite(Sinv))) {
+		.ae_note_failure(
+			"position_shift_collapse",
+			"the variance of the common shifts of the positions in the coefficient standard errors",
+			if (inherits(Sinv, "error")) Sinv else "the shift information was not finite"
+		)
+		return(NULL)
+	}
 	# the force of the variance of the other side on the means (a Gaussian response), and the profile mode of the shifts
 	gp <- numeric(Kp)
 	if (isTRUE(force) && isTRUE(ctx$nrm)) {

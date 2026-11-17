@@ -2,16 +2,21 @@
 # coordinate paths. in (rho, w) the cap w <= prior$uv_var_cap bounds a rectangle, so the draws do not
 # stall against the curved boundary the cap forms in (rho, sigma). with S1, n1 the sum of squares and
 # count of the first period, Stt, Sxy, Syy the sums of u_t^2, u_t u_{t-1}, u_{t-1}^2 over the ntr
-# transitions, and (a, b) the inverse-gamma prior of sigma^2:
+# transitions (under kind t each term times its precision weight, the first period's included), and
+# (a, b) the inverse-gamma prior of sigma^2:
 #   log f(rho, w) = -((n1 + ntr) / 2 + a + 1) log w - (ntr / 2 + a) log(1 - rho^2) - Q(rho) / (2 w) + log pi(rho)
 #   Q(rho) = S1 + (Stt - 2 rho Sxy + rho^2 Syy + 2 b) / (1 - rho^2)
-# w given rho is an inverse gamma truncated at the cap; rho given w is a slice step (Neal 2003)
+# w given rho is an inverse gamma truncated at the cap; rho given w is a slice step (Neal 2003).
+# with `stationary = TRUE`, (a, b) is the inverse-gamma prior of w itself (R/uv_var_prior.R):
+#   log f(rho, w) = -((n1 + ntr) / 2 + a + 1) log w - (ntr / 2) log(1 - rho^2) - Q(rho) / (2 w) + log pi(rho)
+#   Q(rho) = S1 + (Stt - 2 rho Sxy + rho^2 Syy) / (1 - rho^2) + 2 b
 
 # `U_cube`, `V_cube` the coordinate paths (n x r x N; V_cube is ignored when symmetric); `rho`, `sigma`
 # the current values; `prior_mean`, `prior_sd` the normal prior of rho; `shape`, `scale` the inverse-gamma
-# prior of sigma^2; `sigma_max`, `stat_var_cap` the bounds on sigma and w; `lambda_u`, `lambda_v` (n x N)
-# the Student-t precision weights, where a transition without a positive finite weight is left out.
-# returns the new rho and sigma
+# prior of sigma^2, or of w when `stationary`; `sigma_max`, `stat_var_cap` the bounds on sigma and w;
+# `lambda_u`, `lambda_v` (n x N) the Student-t precision weights of the first period and the transitions,
+# where a period without a positive finite weight is left out.
+# returns the new rho and sigma, and `u`, a uniform for the mirror move (R/uv_rho_flip.R)
 .lame_uv_rho_w_step <- function(
 	U_cube,
 	V_cube,
@@ -26,7 +31,8 @@
 	symmetric = FALSE,
 	bound = 0.99,
 	lambda_u = NULL,
-	lambda_v = NULL
+	lambda_v = NULL,
+	stationary = FALSE
 ) {
 	N <- dim(U_cube)[3L]
 	if (is.null(N) || N < 2L || !is.finite(rho) || !is.finite(sigma) || sigma <= 0) return(
@@ -39,8 +45,16 @@
 	for (k in seq_along(cubes)) {
 		cu <- cubes[[k]]
 		lam <- lams[[k]]
-		S1 <- S1 + sum(cu[, , 1L]^2)
-		n1 <- n1 + prod(dim(cu)[1:2])
+		if (is.null(lam)) {
+			S1 <- S1 + sum(cu[, , 1L]^2)
+			n1 <- n1 + prod(dim(cu)[1:2])
+		} else {
+			w1 <- lam[, 1L]
+			keep <- is.finite(w1) & w1 > 0
+			x1 <- matrix(cu[keep, , 1L], nrow = sum(keep))
+			S1 <- S1 + sum(w1[keep] * rowSums(x1^2))
+			n1 <- n1 + length(x1)
+		}
 		if (is.null(lam)) {
 			cur <- cu[, , -1L, drop = FALSE]
 			prev <- cu[, , -N, drop = FALSE]
@@ -70,10 +84,15 @@
 		if (!is.finite(r) || abs(r) > bound) return(-Inf)
 		om <- 1 - r * r
 		if (is.finite(sigma_max) && w > sigma_max^2 / om) return(-Inf)
+		if (stationary) return(
+			-(ntr / 2) * log(om) - (S1 + (Stt - 2 * r * Sxy + r * r * Syy) / om + 2 * scale) / (2 * w) +
+				dnorm(r, prior_mean, prior_sd, log = TRUE)
+		)
 		-(ntr / 2 + shape) * log(om) - (S1 + (Stt - 2 * r * Sxy + r * r * Syy + 2 * scale) / om) / (2 * w) +
 			dnorm(r, prior_mean, prior_sd, log = TRUE)
 	}
 	lp0 <- lp(rho)
+	u_flip <- NA_real_
 	if (is.finite(lp0)) {
 		# slice step for rho given w: step out from a random start until both ends leave the slice or reach
 		# the support bound, then shrink
@@ -92,14 +111,18 @@
 			if (cand < rho) lo <- cand else hi <- cand
 			if (hi - lo < 1e-12) break
 		}
+		# the slice height over the density at the new rho is uniform given the new state
+		u_flip <- exp(logy - lp(rho))
 	}
 	om <- 1 - rho * rho
-	rate <- (S1 + (Stt - 2 * rho * Sxy + rho * rho * Syy + 2 * scale) / om) / 2
+	rate <- if (stationary) {
+		(S1 + (Stt - 2 * rho * Sxy + rho * rho * Syy) / om + 2 * scale) / 2
+	} else (S1 + (Stt - 2 * rho * Sxy + rho * rho * Syy + 2 * scale) / om) / 2
 	shape_w <- (n1 + ntr) / 2 + shape
 	wmax <- min(stat_var_cap, if (is.finite(sigma_max)) sigma_max^2 / om else Inf)
 	# draw on the sd scale of w: sqrt(1 / g), g ~ Gamma(shape, rate) cut at 1 / bound^2, in log survival space
 	sw <- if (is.finite(wmax)) .lame_rinvgamma_sd_trunc(shape_w, rate, sqrt(wmax), sqrt(w)) else sqrt(
 		1 / rgamma(1, shape = shape_w, rate = rate)
 	)
-	list(rho = rho, sigma = sw * sqrt(om))
+	list(rho = rho, sigma = sw * sqrt(om), u = u_flip)
 }

@@ -58,8 +58,7 @@
 
 # empirical-Bayes binary fit, whose fitted values are predictive probabilities
 .lde_is_binary_eb <- function(object) {
-	identical(object$family, "binary") && identical(object$bias_correct$method, "eb") &&
-		isTRUE(object$bias_correct$dynamic)
+	identical(object$family, "binary") && .ae_fit_eb(object)
 }
 
 # record stored with the fit (R/lame_dynamic_als_eb.R): each cell's predictor variance
@@ -105,7 +104,8 @@
 	}
 	coef_cov <- array(0, c(p, p, Tt), dimnames = list(ctx$names, ctx$names, ctx$time_names))
 	for (t in seq_len(Tt)) {
-		M <- vapply(unit, function(u) u[, t], numeric(p))
+		# keep p x m for a single coefficient
+		M <- matrix(vapply(unit, function(u) u[, t], numeric(p)), p, m)
 		coef_cov[, , t] <- M %*% Vc %*% t(M)
 	}
 	list(var_effects = var_effects, coef_cov = coef_cov)

@@ -14,7 +14,8 @@
 	prior_sd,
 	variance_max = Inf,
 	stationary_max = Inf,
-	max_abs = Inf
+	max_abs = Inf,
+	stationary = FALSE
 ) {
 	if (any(!is.finite(c(shape, scale, prior_mean, prior_sd))) || shape <= 0 || scale <=
 			0 || prior_sd <= 0)
@@ -23,7 +24,8 @@
 			call. = FALSE
 		)
 	ref_rho <- max(-0.98, min(0.98, prior_mean))
-	ref_sigma <- sqrt(scale / (shape + 1))
+	# the prior mode of sigma^2; with `stationary`, (shape, scale) is the prior of w (R/uv_var_prior.R)
+	ref_sigma <- if (stationary) sqrt(scale * (1 - ref_rho * ref_rho) / (shape + 1)) else sqrt(scale / (shape + 1))
 	h <- .lame_binary_dynamic_pair_hmc_hyper(
 		cx,
 		P,
@@ -37,6 +39,7 @@
 	)
 	h$shape <- shape
 	h$scale <- scale
+	h$stationary <- isTRUE(stationary)
 	h$prior_mean <- prior_mean
 	h$prior_sd <- prior_sd
 	h$variance_max <- variance_max
@@ -109,7 +112,8 @@
 	if (!is.finite(z$logp))
 		return(z)
 	uv <- c(cx$indices$U, cx$indices$V)
-	gp <- -2 * h$shape + 2 * h$scale / v
+	# the variance prior in (l, alpha): on w it depends on l only
+	gp <- if (isTRUE(h$stationary)) -2 * h$shape + 2 * h$scale / w else -2 * h$shape + 2 * h$scale / v
 	gl <- sum(x[uv] * (z$gradient[uv] + x[uv])) + gp
 	gr <- 0
 	for (ix in list(cx$indices$U, cx$indices$V)) {
@@ -125,14 +129,13 @@
 		)
 	}
 	dr <- h$limit * (1 - (r / h$limit)^2)
-	ga <- (gr - gp * r / (1 - r * r) - (r - h$prior_mean) / (h$prior_sd^2)) * dr - 2 * r / h$limit
+	gpr <- if (isTRUE(h$stationary)) 0 else gp * r / (1 - r * r)
+	ga <- (gr - gpr - (r - h$prior_mean) / (h$prior_sd^2)) * dr - 2 * r / h$limit
 	# log-scale Jacobian and transformed persistence; whitening cancels the path determinants
-	z$logp <- z$logp - h$shape * log(v) - h$scale / v + dnorm(
-		r,
-		h$prior_mean,
-		h$prior_sd,
-		log = TRUE
-	) + log(dr)
+	lr <- dnorm(r, h$prior_mean, h$prior_sd, log = TRUE)
+	z$logp <- if (isTRUE(h$stationary)) {
+		z$logp - 2 * h$shape * l - h$scale / w + lr + log(dr)
+	} else z$logp - h$shape * log(v) - h$scale / v + lr + log(dr)
 	z$gradient <- c(z$gradient, gl, ga)
 	z
 }
@@ -149,7 +152,8 @@
 	w <- h$uv_variance
 	dr <- h$limit * (1 - (r / h$limit)^2)
 	derivative_variance <- 2 * cx$rank * (w * colSums(dC * dC) + colSums(C * dC)^2)
-	ma <- 1 + (dr / h$prior_sd)^2 + 4 * h$shape * (r * dr / (1 - r * r))^2 + cx$weight * cx$n *
+	shape_r <- if (isTRUE(h$stationary)) 0 else h$shape
+	ma <- 1 + (dr / h$prior_sd)^2 + 4 * shape_r * (r * dr / (1 - r * r))^2 + cx$weight * cx$n *
 		(cx$n - 1) * sum(derivative_variance) * dr^2
 	ml <- 4 * h$shape + 4 * cx$weight * cx$n * (cx$n - 1) * cx$nt * cx$rank * w * w
 	c(.lame_binary_dynamic_pair_hmc_mass(cx, h), ml, ma)
@@ -161,11 +165,12 @@
 	for (k in seq_len(L)) {
 		q <- q + step * p / mass
 		z <- tryCatch(.lame_binary_dynamic_ar_hmc_evaluate(q, cx, h), error = function(e) NULL)
-		# zero density rejects like a bound; NaN or an error is a numerical failure
+		# outside the prior support is a bound rejection; a likelihood that underflows to zero
+		# density is a rejection of its own kind; NaN or an error is a numerical failure
 		if (!is.null(z) && identical(z$logp, -Inf))
-			return(list(failed = TRUE, bound = TRUE))
+			return(list(failed = TRUE, bound = isTRUE(z$bound), underflow = !isTRUE(z$bound)))
 		if (is.null(z) || !is.finite(z$logp) || any(!is.finite(z$gradient)))
-			return(list(failed = TRUE, bound = !is.null(z) && isTRUE(z$bound)))
+			return(list(failed = TRUE, bound = !is.null(z) && isTRUE(z$bound), underflow = FALSE))
 		p <- p + step * (if (k == L)
 				0.5
 			else 1) * z$gradient
@@ -179,13 +184,22 @@
 	old <- tryCatch(.lame_binary_dynamic_ar_hmc_evaluate(q, cx, h), error = function(e) NULL)
 	# the current state should always evaluate, so a failure here is numerical
 	if (is.null(old) || !is.finite(old$logp))
-		return(list(q = q, accepted = FALSE, prob = 0, bound = FALSE, nonfinite = TRUE))
+		return(list(q = q, accepted = FALSE, prob = 0, bound = FALSE, underflow = FALSE, nonfinite = TRUE))
 	new <- .lame_binary_dynamic_ar_hmc_integrate(q, p, cx, h, mass, step, L)
-	if (new$failed)
-		return(list(q = q, accepted = FALSE, prob = 0, bound = isTRUE(new$bound), nonfinite = !isTRUE(new$bound)))
+	if (new$failed) {
+		rejected <- isTRUE(new$bound) || isTRUE(new$underflow)
+		return(list(
+			q = q,
+			accepted = FALSE,
+			prob = 0,
+			bound = isTRUE(new$bound),
+			underflow = isTRUE(new$underflow),
+			nonfinite = !rejected
+		))
+	}
 	lr <- .lame_hmc_log_acceptance(new$evaluation$logp, old$logp, new$p, p, mass)
 	if (!is.finite(lr))
-		return(list(q = q, accepted = FALSE, prob = 0, bound = FALSE, nonfinite = TRUE))
+		return(list(q = q, accepted = FALSE, prob = 0, bound = FALSE, underflow = FALSE, nonfinite = TRUE))
 	prob <- min(1, exp(lr))
 	accept <- is.finite(prob) && runif(1) < prob
 	list(
@@ -193,6 +207,7 @@
 		accepted = accept,
 		prob = if (is.finite(prob)) prob else 0,
 		bound = FALSE,
+		underflow = FALSE,
 		nonfinite = FALSE,
 		eta = if (accept) new$evaluation$eta else NULL
 	)

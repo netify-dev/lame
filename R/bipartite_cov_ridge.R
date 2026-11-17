@@ -1,9 +1,12 @@
 # joint move of a nodal covariate's coefficient and the matching additive effects in a bipartite fit.
 # shifting beta by -delta and the row (or column) effects by delta x leaves the likelihood unchanged,
 # so delta is drawn exactly from its normal conditional under the N(0, gs) and N(0, va or vb) priors
+# (gs one value or one per coefficient)
 .lame_bip_cov_ridge <- function(X, beta, a, b, gs, va, vb, rvar, cvar) {
 	p <- if (length(dim(X)) == 3L) dim(X)[3L] else 0L
+	gs_all <- if (length(gs) == 1L) rep(gs, p) else gs
 	for (k in seq_len(p)) {
+		gs <- gs_all[k]
 		Xk <- X[, , k]
 		if (!all(is.finite(Xk))) next
 		is_row <- rvar && all(Xk == Xk[, 1L])

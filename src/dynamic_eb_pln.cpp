@@ -11,7 +11,7 @@
 // and the pln_node() weights of the nodes carry everything else. Like the kernels of ae_pln_kernels.cpp, each function
 // takes whole vectors, allocates its outputs before the loop, calls no R API inside it and writes each output element
 // once, so the result does not depend on the number of threads. The R reference is .lde_pln_node_r() in
-// R/lame_dynamic_als_eb_pln.R, which these agree with to rounding (the tests compare the two engines).
+// tests/testthat/helper-reference-engines-dynamic-als.R, which these agree with to rounding.
 
 #define USE_FC_LEN_T
 #include <Rcpp.h>

@@ -26,9 +26,16 @@
 	if (is.null(state) || length(state) != 4L + d + d * d) state <- .lame_bip_ab_state_new(th)
 	st <- .lame_bip_ab_state_get(state, d)
 	lp <- logpost(th)
-	if (!is.finite(lp)) return(list(th = th, state = state, ok = FALSE))
+	if (!is.finite(lp)) {
+		.lame_fallback_note('ab_hyper')
+		return(list(th = th, state = state, ok = FALSE))
+	}
 	for (k in seq_len(tries)) {
-		L <- tryCatch(t(chol(st$lambda * (st$S + diag(1e-8, d)))), error = function(e) diag(0.02, d))
+		# the fixed root keeps the proposal symmetric, so the step stays exact; it is counted since it can mix slowly
+		L <- tryCatch(t(chol(st$lambda * (st$S + diag(1e-8, d)))), error = function(e) {
+			.lame_fallback_note('ab_hyper_proposal')
+			diag(0.02, d)
+		})
 		prop <- th + drop(L %*% stats::rnorm(d))
 		lpp <- logpost(prop)
 		st$att <- st$att + 1

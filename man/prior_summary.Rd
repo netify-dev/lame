@@ -30,8 +30,8 @@ prior_summary(object, ...)
 Bayesian-hygiene helper modelled on \code{rstanarm::prior_summary()}.
 Prints recorded prior settings and the coefficient-prior specification
 saved by the fitting build. Older fits without that specification are
-identified explicitly; their prior is not inferred from the current build. For \code{ame_als} fits it just states that the estimator is a
-frequentist point estimator and there are no priors.
+identified explicitly; their prior is not inferred from the current build. For \code{ame_als} fits it describes the empirical-Bayes
+priors of the fast fit, whose variances are estimated from the data.
 }
 \examples{
 set.seed(1)

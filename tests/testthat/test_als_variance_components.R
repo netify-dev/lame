@@ -56,6 +56,13 @@ sim_als_vc_panel = function(
 	)
 }
 
+# the static gaussian fit to the response, which seeds the penalised dynamic fit, and the penalised dynamic fit,
+# as the sampler's warm start asks for it
+vc_gauss = function(Y, X, mode = "unipartite") {
+	lame:::.ae_run(Y, X, NULL, NULL, 0, "normal", mode, FALSE, 200, 1e-6, FALSE, 6886, TRUE, NULL, estimator = "transform")
+}
+pen = structure(list(), lame_als_estimator = "none")
+
 test_that("poisson ALS reports the level and ve on the latent scale", {
 	# the IRLS fit solves the marginal log-mean E[y] = exp(eta + ve / 2) of the lognormal-poisson model; the reported
 	# level subtracts the Jensen term and ve is the latent variance from the count overdispersion
@@ -82,24 +89,13 @@ test_that("poisson ALS reports the level and ve on the latent scale", {
 	expect_lt(abs(mean(slope) - 0.7), 0.035)
 })
 
-test_that("equidispersed counts leave the poisson level unshifted", {
+test_that("equidispersed counts floor ve at its prior mean and report the latent level", {
 	set.seed(7)
 	n = 25
 	x = matrix(rnorm(n * n), n, n)
 	y = matrix(rpois(n * n, exp(0.3 + 0.5 * x)), n, n)
 	diag(x) = NA; diag(y) = NA
-	f = suppressWarnings(ame_als(
-		y,
-		Xdyad = array(x, c(n, n, 1)),
-		R = 0,
-		family = "poisson",
-		bias_correct = "none",
-		verbose = FALSE
-	))
-	# with no latent layer ve sits at or near zero and the level keeps the marginal log-mean
-	expect_lt(as.numeric(f$VC["ve"]), 0.05)
-	expect_lt(abs(as.numeric(f$coefficients["intercept"]) - 0.3), 0.15)
-	# the empirical-Bayes default floors ve at the posterior mean of its inverse gamma prior, as the sampler does,
+	# the empirical-Bayes fit floors ve at the posterior mean of its inverse gamma prior, as the sampler does,
 	# and reports the latent level
 	fe = suppressWarnings(ame_als(y, Xdyad = array(x, c(n, n, 1)), R = 0, family = "poisson", verbose = FALSE))
 	expect_lt(as.numeric(fe$VC["ve"]), 0.15)
@@ -108,14 +104,7 @@ test_that("equidispersed counts leave the poisson level unshifted", {
 
 test_that("static ALS va / vb subtract the additive sampling variance", {
 	d = sim_als_vc_panel(seed = 3)
-	f = suppressWarnings(lame_als(
-		d$Y,
-		Xdyad = d$X,
-		R = 0,
-		family = "normal",
-		bias_correct = "none",
-		verbose = FALSE
-	))
+	f = suppressWarnings(vc_gauss(d$Y, d$X))
 	expect_true(all(is.finite(f$vc_raw)))
 	expect_true(all(is.finite(f$vc_noise)))
 	expect_equal(unname(f$VC["va"]), max(unname(f$vc_raw["va"] - f$vc_noise["va"]), 0))
@@ -143,15 +132,7 @@ test_that("bipartite ALS corrects the short side more than the long side", {
 		Y[[t]] = y
 		X[[t]] = array(x, c(nA, nB, 1), dimnames = list(rn, cn, "x1"))
 	}
-	f = suppressWarnings(lame_als(
-		Y,
-		Xdyad = X,
-		R = 0,
-		family = "normal",
-		bias_correct = "none",
-		mode = "bipartite",
-		verbose = FALSE
-	))
+	f = suppressWarnings(vc_gauss(Y, X, "bipartite"))
 	expect_gt(unname(f$vc_noise["va"]), unname(f$vc_noise["vb"]))
 	expect_lt(abs(unname(f$VC["va"]) - var(a)), abs(unname(f$vc_raw["va"]) - var(a)))
 })
@@ -165,7 +146,7 @@ test_that("dynamic_ab ALS reports the level variance, not the per-period one", {
 		family = "normal",
 		dynamic_ab = TRUE,
 		method = "als",
-		bias_correct = "none",
+		prior = pen,
 		verbose = FALSE,
 		plot = FALSE
 	))
@@ -179,6 +160,7 @@ test_that("dynamic_ab ALS reports the level variance, not the per-period one", {
 	expect_gte(unname(f$VC["va"]), 0)
 })
 
+# the penalised dynamic fit counts the paths by their effective degrees of freedom
 test_that("normal dynamic ALS reports ve on the residual degrees of freedom", {
 	# penalized paths count by their effective df, so ve matches the realised noise variance
 	ratio = numeric(0)
@@ -191,6 +173,7 @@ test_that("normal dynamic ALS reports ve on the residual degrees of freedom", {
 			family = "normal",
 			dynamic_ab = TRUE,
 			method = "als",
+			prior = pen,
 			verbose = FALSE,
 			plot = FALSE
 		))
@@ -214,6 +197,7 @@ test_that("t-kind dynamic ALS counts its position paths in the ve degrees of fre
 			R = 2,
 			family = "normal",
 			method = "als",
+			prior = pen,
 			dynamic_uv = TRUE,
 			dynamic_uv_kind = "t",
 			verbose = FALSE,
@@ -251,6 +235,7 @@ test_that("symmetric dynamic ALS counts its position paths in the ve degrees of 
 				family = "normal",
 				symmetric = TRUE,
 				method = "als",
+				prior = pen,
 				dynamic_uv = TRUE,
 				dynamic_uv_kind = kind,
 				verbose = FALSE,
@@ -287,6 +272,7 @@ test_that("symmetric dynamic_ab and bipartite position paths enter the ve df in 
 			family = "normal",
 			symmetric = TRUE,
 			method = "als",
+			prior = pen,
 			dynamic_ab = TRUE,
 			verbose = FALSE,
 			seed = s + 11L
@@ -310,6 +296,7 @@ test_that("symmetric dynamic_ab and bipartite position paths enter the ve df in 
 			R_row = 2,
 			R_col = 2,
 			method = "als",
+			prior = pen,
 			dynamic_uv = TRUE,
 			verbose = FALSE,
 			seed = s + 11L

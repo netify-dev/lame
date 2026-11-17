@@ -25,7 +25,6 @@ static double poisson_log_mass(double y, double log_rate) {
 }
 
 // Helper function to compute log density for GBME models
-// [[Rcpp::export]]
 arma::mat ldZgbme_cpp(const arma::mat& Z, const arma::mat& Y,
                       const arma::mat& EZ, double rho, double s2) {
   // From log p(z|ez,rho,s2)
@@ -102,7 +101,6 @@ arma::mat rZ_pois_fc_cpp(const arma::mat& Z, const arma::mat& EZ,
 
 // log-density helper that adds the log-exposure offset to the Poisson
 // data term. Mirrors ldZgbme_cpp exactly when log_exposure == 0.
-// [[Rcpp::export]]
 arma::mat ldZgbme_pois_exposure_cpp(const arma::mat& Z, const arma::mat& Y,
                                      const arma::mat& EZ, double rho,
                                      double s2, double log_exposure) {
@@ -182,7 +180,7 @@ arma::mat simY_pois_exposure(const arma::mat& EZ, double exposure, bool bipartit
 }
 
 // draw from the unexposed log rate; square bipartite diagonals are observations.
-// [[Rcpp::export]]
+// [[Rcpp::export(name = "simY_pois_cpp")]]
 arma::mat simY_pois(const arma::mat& EZ, bool bipartite = false) {
   return simY_pois_exposure(EZ, 1.0, bipartite);
 }

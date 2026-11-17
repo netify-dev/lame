@@ -29,18 +29,16 @@
 
 # prior of the path of one coefficient as -x' P x / 2 + b' x: P the precision of
 # the kind over sigma^2 lambda, b the pull of the first state toward its prior
-# mean (ar1 and rw1 only)
+# mean
 .lame_ppm_path_prior <- function(kind, nt, rho, sigma, lam, time_positions, length_scale, m0, v0) {
-	if (kind %in% c("ar1", "rw1")) {
-		K <- .lame_beta_transition_precision(if (identical(kind, "rw1")) 1 else rho, diff(time_positions))
-		P <- K / (sigma^2 * lam)
-		P[1L, 1L] <- P[1L, 1L] + 1 / v0
-		b <- numeric(nt)
-		b[1L] <- m0 / v0
-	} else {
-		P <- .dynamic_beta_kind_to_prec(kind, nt, length_scale, time_positions) / (sigma^2 * lam)
-		b <- numeric(nt)
-	}
+	K <- if (kind %in% c("ar1", "rw1")) {
+		.lame_beta_transition_precision(if (identical(kind, "rw1")) 1 else rho, diff(time_positions))
+	} else .dynamic_beta_kind_to_prec(kind, nt, length_scale, time_positions)
+	P <- K / (sigma^2 * lam)
+	# the first state (the level of an rw2 or matern32 path) has its own prior
+	P[1L, 1L] <- P[1L, 1L] + 1 / v0
+	b <- numeric(nt)
+	b[1L] <- m0 / v0
 	list(P = P, b = b)
 }
 
@@ -99,20 +97,8 @@
 			Q <- pri$P[t, t]
 			lin <- Px[t] - pri$b[t]
 			if (!is.finite(Q) || Q <= 0 || !is.finite(lin)) next
-			ans <- if (!identical(getOption("lame.ltm_engine"), "r")) {
-				if (unit) ess_pois_scalar_cpp(ysx[t], sum(ez[[t]]), -lin / Q, 1 / sqrt(Q))
-				else ess_pois_cells_cpp(ez[[t]], xo[[t]], ysx[t], -lin / Q, 1 / sqrt(Q))
-			} else {
-				ll <- if (unit) {
-					s_t <- sum(ez[[t]])
-					function(d) d * ysx[t] - s_t * expm1(d)
-				} else {
-					e_t <- ez[[t]]
-					x_t <- xo[[t]]
-					function(d) d * ysx[t] - ppm_shift_sum_cpp(e_t, x_t, d)
-				}
-				.lame_ess_step(0, -lin / Q, matrix(1 / sqrt(Q)), ll, 0)
-			}
+			ans <- if (unit) ess_pois_scalar_cpp(ysx[t], sum(ez[[t]]), -lin / Q, 1 / sqrt(Q))
+			else ess_pois_cells_cpp(ez[[t]], xo[[t]], ysx[t], -lin / Q, 1 / sqrt(Q))
 			stats["period_calls"] <- stats["period_calls"] + 1
 			stats["period_evals"] <- stats["period_evals"] + ans$evals
 			stats["stuck"] <- stats["stuck"] + ans$stuck
@@ -316,7 +302,7 @@
 # static coefficients of a dynamic_beta fit with the latent array (Poisson):
 # coefficient j and every latent value by delta x_j rise together, so the
 # conditional of delta is its prior times the log-concave Poisson factor, drawn
-# by an elliptical slice step (the translation of .lame_ltm_coef with a compiled
+# by an elliptical slice step (the coefficient translation of the tests, .lame_ltm_coef, with a compiled
 # factor sum). `Xz` the pair-averaged slices of a symmetric network
 .lame_ppm_static <- function(cx, Z, EZ, beta, Xk, iV0, Xz = Xk) {
 	lx <- cx$ltm
@@ -331,10 +317,7 @@
 		a1 <- drop(iV0 %*% beta)[k]
 		a2 <- iV0[k, k]
 		if (!is.finite(a1) || !is.finite(a2) || a2 <= 0) next
-		ans <- if (identical(getOption("lame.ltm_engine"), "r")) {
-			ll <- function(dl) dl * ysx - ppm_shift_sum_cpp(ez, xo, dl)
-			.lame_ess_step(0, -a1 / a2, matrix(1 / sqrt(a2)), ll, 0)
-		} else ess_pois_cells_cpp(ez, xo, ysx, -a1 / a2, 1 / sqrt(a2))
+		ans <- ess_pois_cells_cpp(ez, xo, ysx, -a1 / a2, 1 / sqrt(a2))
 		stats["coef_calls"] <- stats["coef_calls"] + 1
 		stats["coef_evals"] <- stats["coef_evals"] + ans$evals
 		stats["coef_stuck"] <- stats["coef_stuck"] + ans$stuck

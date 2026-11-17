@@ -26,7 +26,8 @@
 #'   innovation of the actor effects (\code{rho_ab}, \code{sigma_ab}) and of
 #'   the latent positions (\code{rho_uv}, \code{sigma_uv}), the reset rate of
 #'   snap positions (\code{pi_snap}), the per-group persistence and innovation
-#'   of dynamic coefficients (\code{rho_beta}, \code{sigma_beta}) and the
+#'   of dynamic coefficients (\code{rho_beta}, \code{sigma_beta}), the
+#'   long-run mean of each AR(1) coefficient path (\code{mu_beta}) and the
 #'   per-period dyadic correlation of \code{dynamic_rho} fits
 #'
 #' A quantity the model fixes draws no panel: the error variance of the
@@ -40,6 +41,16 @@
 #'
 #' For a fit with several chains, \code{burn.in} and \code{thin} apply within
 #' each chain.
+#'
+#' A quantity with one value per period (a coefficient under
+#' \code{dynamic_beta}, including the intercept path of a \code{dynamic_ab}
+#' fit, and the per-period dyadic correlation of a \code{dynamic_rho} fit)
+#' draws one panel, named \code{"<name> by period"}, holding the traces and
+#' densities of every period, each labelled with its period at the right of
+#' the trace and above the peak of the density. A single period is selected
+#' with \code{include}, e.g. \code{include = "intercept[t3]"}. A coefficient
+#' that a \code{dynamic_beta} fit holds static draws one panel, as in a
+#' static fit.
 #'
 #' @param fit An object of class "ame" or "lame" containing MCMC samples
 #' @param params Character vector specifying which parameters to plot:
@@ -86,7 +97,6 @@
 #' trace_plot(fit_dyn, params = "dynamic")
 #' }
 #' @export
-#' @import ggplot2
 #' @importFrom stats ave
 trace_plot <- function(
 	fit,
@@ -127,7 +137,8 @@ trace_plot <- function(
 		"sigma_uv" = "Position innovation (sigma_uv)",
 		"pi_snap" = "Position reset rate (pi_snap)",
 		"rho_beta" = "Coefficient persistence (rho_beta)",
-		"sigma_beta" = "Coefficient innovation (sigma_beta)"
+		"sigma_beta" = "Coefficient innovation (sigma_beta)",
+		"mu_beta" = "Coefficient long-run mean (mu_beta)"
 	)
 	all_labels <- c(vc_labels, dyn_labels)
 
@@ -146,13 +157,17 @@ trace_plot <- function(
 			iter = ave(seq_along(idx), chain[idx], FUN = seq_along)
 		)
 	}
-	.series_frame <- function(kd, value, param_name, type) {
+	# `series` names the trace (`x[t1]` for one period of a per-period quantity) and
+	# `parameter` the panel, which holds every period of such a quantity
+	.series_frame <- function(kd, value, param_name, type, series = param_name, period = NA_character_) {
 		data.frame(
 			iteration = kd$iter,
 			value = value,
 			parameter = param_name,
 			type = type,
 			chain = kd$chain,
+			series = series,
+			period = period,
 			stringsAsFactors = FALSE
 		)
 	}
@@ -161,8 +176,6 @@ trace_plot <- function(
 	hidden <- character(0)
 	ab_reason <- .lame_ab_var_unident_reason(fit)
 	if (!is.na(ab_reason)) hidden <- .lame_ab_var_hidden_rows(ab_reason)
-	if (.lame_uv_hyper_unidentified(fit)) hidden <- c(hidden, "rho_uv", "sigma_uv")
-	if (.lame_snap_rate_unidentified(fit)) hidden <- c(hidden, "pi_snap")
 	beta_names <- if (!is.null(fit$BETA) && length(dim(fit$BETA)) >= 2L) dimnames(fit$BETA)[[2L]] else NULL
 	coef_hidden <- if (length(beta_names)) .lame_ab_coef_hidden_rows(
 		.lame_ab_coef_reason(fit),
@@ -192,18 +205,28 @@ trace_plot <- function(
 		nms_p <- beta_names %||% paste0("beta[", seq_len(dim(beta_data)[2]), "]")
 		left_out <- c(left_out, intersect(nms_p, coef_hidden))
 		if (beta_is_dyn) {
-			# dynamic beta: one trace per coefficient and period
+			# dynamic beta: one panel per coefficient and one trace per period; a static coefficient is drawn once
 			Tt_ <- dim(beta_data)[3]
 			nms_t <- dimnames(beta_data)[[3]] %||% paste0("t", seq_len(Tt_))
+			mask <- fit$beta_dynamic_mask
 			for (k in which(!nms_p %in% coef_hidden)) {
+				if (length(mask) == length(nms_p) && !isTRUE(mask[k])) {
+					plot_data <- rbind(
+						plot_data,
+						.series_frame(kd, beta_data[kd$idx, k, 1L], nms_p[k], "Regression")
+					)
+					next
+				}
 				for (t in seq_len(Tt_)) {
 					plot_data <- rbind(
 						plot_data,
 						.series_frame(
 							kd,
 							beta_data[kd$idx, k, t],
-							paste0(nms_p[k], "[", nms_t[t], "]"),
-							"Regression"
+							paste0(nms_p[k], " by period"),
+							"Regression",
+							series = paste0(nms_p[k], "[", nms_t[t], "]"),
+							period = nms_t[t]
 						)
 					)
 				}
@@ -244,17 +267,35 @@ trace_plot <- function(
 			kd <- .keep_draws(length(x))
 			plot_data <- rbind(plot_data, .series_frame(kd, as.numeric(x)[kd$idx], v, "Dynamic"))
 		}
-		# per-group coefficient hyperparameters and per-period dyadic correlations
-		for (v in c("RHO_BETA", "SIGMA_BETA", "RHO")) {
-			M <- fit[[v]]
+		# per-group coefficient hyperparameters, long-run means and per-period dyadic correlations
+		for (v in c("RHO_BETA", "SIGMA_BETA", "MU_BETA", "RHO")) {
+			# skip blocks whose persistence is 1 by construction (rw1, rw2, matern32)
+			M <- if (identical(v, "RHO_BETA")) .lame_rho_beta_ar1(fit) else fit[[v]]
 			if (!is.numeric(M) || length(M) < 2L) next
 			M <- as.matrix(M)
 			kd <- .keep_draws(nrow(M))
 			base <- if (v == "RHO") vc_labels[["rho"]] else dyn_labels[[tolower(v)]]
 			grp <- colnames(M) %||% paste0("g", seq_len(ncol(M)))
 			for (j in seq_len(ncol(M))) {
-				param_name <- if (ncol(M) > 1L || v == "RHO") paste0(base, "[", grp[j], "]") else base
-				plot_data <- rbind(plot_data, .series_frame(kd, M[kd$idx, j], param_name, "Dynamic"))
+				param_name <- if (ncol(as.matrix(fit[[v]])) > 1L || v %in% c("RHO", "MU_BETA")) {
+					paste0(base, "[", grp[j], "]")
+				} else base
+				# the per-period dyadic correlations share one panel
+				if (v == "RHO") {
+					plot_data <- rbind(
+						plot_data,
+						.series_frame(
+							kd,
+							M[kd$idx, j],
+							paste0(base, " by period"),
+							"Dynamic",
+							series = param_name,
+							period = grp[j]
+						)
+					)
+				} else {
+					plot_data <- rbind(plot_data, .series_frame(kd, M[kd$idx, j], param_name, "Dynamic"))
+				}
 			}
 		}
 	}
@@ -273,8 +314,8 @@ trace_plot <- function(
 		)
 	}
 
-	# include / exclude match the trace name or its base name without a trailing
-	# '[..]' suffix (so "x_dyad" selects every period), and accept raw names
+	# include / exclude match the panel, the trace name or its base name without a
+	# trailing '[..]' suffix (so "x_dyad" selects every period), and accept raw names
 	# ("ve", "rho_uv") or display labels in any case
 	.map_filter <- function(x) {
 		hit <- x %in% names(all_labels)
@@ -285,14 +326,14 @@ trace_plot <- function(
 	}
 	include <- if (!is.null(include)) .map_filter(include) else include
 	exclude <- if (!is.null(exclude)) .map_filter(exclude) else exclude
-	base_name <- sub("\\[[^]]*\\]$", "", plot_data$parameter)
+	base_name <- sub("\\[[^]]*\\]$", "", plot_data$series)
 	if (!is.null(include)) {
-		keep <- plot_data$parameter %in% include | base_name %in% include
+		keep <- plot_data$parameter %in% include | plot_data$series %in% include | base_name %in% include
 		plot_data <- plot_data[keep, ]
 		base_name <- base_name[keep]
 	}
 	if (!is.null(exclude)) {
-		keep <- !(plot_data$parameter %in% exclude | base_name %in% exclude)
+		keep <- !(plot_data$parameter %in% exclude | plot_data$series %in% exclude | base_name %in% exclude)
 		plot_data <- plot_data[keep, ]
 	}
 
@@ -301,79 +342,71 @@ trace_plot <- function(
 	}
 
 
-	trace_plots <- if (has_chains) {
-		ggplot(plot_data, aes(x = iteration, y = value, color = chain, group = chain)) +
-			geom_line(alpha = 0.7) +
-			facet_wrap(
-				~parameter,
-				scales = "free_y",
-				ncol = ncol,
-				nrow = nrow
-			) +
-			labs(x = "Iteration", y = "Value", color = "Chain") +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
-				legend.position = "top",
-				strip.background = element_rect(fill = "black", color = "black"),
-				strip.text = element_text(color = "white", hjust = 0, size = 9),
-				panel.spacing = unit(0.5, "lines")
-			)
-	} else {
-		ggplot(plot_data, aes(x = iteration, y = value)) +
-			geom_line(alpha = 0.7) +
-			facet_wrap(
-				~parameter,
-				scales = "free_y",
-				ncol = ncol,
-				nrow = nrow
-			) +
-			labs(x = "Iteration", y = "Value") +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
-				legend.position = "top",
-				strip.background = element_rect(fill = "black", color = "black"),
-				strip.text = element_text(color = "white", hjust = 0, size = 9),
-				panel.spacing = unit(0.5, "lines")
-			)
-	}
+	# one line per chain and period; panels keep the order the series were added in
+	plot_data$parameter <- factor(plot_data$parameter, levels = unique(plot_data$parameter))
+	plot_data$line <- interaction(
+		plot_data$chain,
+		ifelse(is.na(plot_data$period), "", plot_data$period),
+		drop = TRUE
+	)
+	labels <- .lame_trace_period_labels(plot_data)
+	trace_aes <- if (has_chains) {
+		ggplot2::aes(x = iteration, y = value, color = chain, group = line)
+	} else ggplot2::aes(x = iteration, y = value, group = line)
+	dens_aes <- if (has_chains) {
+		ggplot2::aes(x = value, color = chain, group = line)
+	} else ggplot2::aes(x = value, group = line)
+	trace_theme <- ggplot2::theme_bw() +
+		ggplot2::theme(
+			panel.border = ggplot2::element_blank(),
+			axis.line = ggplot2::element_blank(),
+			axis.ticks = ggplot2::element_blank(),
+			legend.position = "top",
+			plot.title = ggplot2::element_text(hjust = 0),
+			plot.subtitle = ggplot2::element_text(hjust = 0),
+			plot.caption = ggplot2::element_text(hjust = 0),
+			strip.background = ggplot2::element_rect(fill = "black", color = "black"),
+			strip.text = ggplot2::element_text(color = "white", hjust = 0, size = 9),
+			panel.spacing = ggplot2::unit(0.5, "lines")
+		)
 
+	trace_plots <- ggplot2::ggplot(plot_data, trace_aes) +
+		ggplot2::geom_line(alpha = 0.7) +
+		ggplot2::facet_wrap(
+			~parameter,
+			scales = "free_y",
+			ncol = ncol,
+			nrow = nrow
+		) +
+		ggplot2::labs(x = "Iteration", y = "Value", color = if (has_chains) "Chain") +
+		trace_theme
 
-	density_plots <- if (has_chains) {
-		ggplot(plot_data, aes(x = value, color = chain, group = chain)) +
-			geom_density() +
-			facet_wrap(~parameter, scales = "free", ncol = ncol, nrow = nrow) +
-			labs(x = "Value", y = "Density", color = "Chain") +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
-				legend.position = "top",
-				strip.background = element_rect(fill = "black", color = "black"),
-				strip.text = element_text(color = "white", hjust = 0, size = 9),
-				panel.spacing = unit(0.5, "lines")
-			)
-	} else {
-		ggplot(plot_data, aes(x = value)) +
-			geom_density() +
-			facet_wrap(~parameter, scales = "free", ncol = ncol, nrow = nrow) +
-			labs(x = "Value", y = "Density") +
-			theme_bw() +
-			theme(
-				panel.border = element_blank(),
-				plot.caption = element_text(hjust = 0),
-				axis.ticks = element_blank(),
-				legend.position = "top",
-				strip.background = element_rect(fill = "black", color = "black"),
-				strip.text = element_text(color = "white", hjust = 0, size = 9),
-				panel.spacing = unit(0.5, "lines")
-			)
+	density_plots <- ggplot2::ggplot(plot_data, dens_aes) +
+		ggplot2::geom_density() +
+		ggplot2::facet_wrap(~parameter, scales = "free", ncol = ncol, nrow = nrow) +
+		ggplot2::labs(x = "Value", y = "Density", color = if (has_chains) "Chain") +
+		trace_theme
+
+	# period labels: at the right of each trace, at its median, and above the peak of each density
+	if (!is.null(labels)) {
+		trace_plots <- trace_plots +
+			ggplot2::geom_text(
+				data = labels$trace,
+				ggplot2::aes(x = x, y = y, label = label),
+				inherit.aes = FALSE,
+				hjust = 0,
+				size = 2.6
+			) +
+			ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0.02, 0.1)))
+		density_plots <- density_plots +
+			ggplot2::geom_text(
+				data = labels$density,
+				ggplot2::aes(x = x, y = y, label = label),
+				inherit.aes = FALSE,
+				vjust = -0.4,
+				size = 2.6
+			) +
+			ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0.02, 0.15)))
 	}
 
 
@@ -392,11 +425,73 @@ trace_plot <- function(
 		cli::cli_warn("Install 'patchwork' for combined trace and density plots. Returning trace plots only.")
 		p <- trace_plots
 		if (!is.null(title)) {
-			p <- p + ggtitle(title)
+			p <- p + ggplot2::ggtitle(title)
 		} else {
-			p <- p + ggtitle("MCMC trace plots")
+			p <- p + ggplot2::ggtitle("MCMC trace plots")
 		}
 	}
 
 	return(p)
+}
+
+# spread label positions `y` at least `gap` apart, keeping their order and their mean
+.lame_trace_spread <- function(y, gap) {
+	if (length(y) < 2L || !is.finite(gap) || gap <= 0) return(y)
+	o <- order(y)
+	s <- y[o]
+	for (i in 2:length(s)) s[i] <- max(s[i], s[i - 1L] + gap)
+	s <- s - (mean(s) - mean(y))
+	out <- numeric(length(y))
+	out[o] <- s
+	out
+}
+
+# positions of the period labels of the panels that hold several periods, or NULL
+.lame_trace_period_labels <- function(plot_data) {
+	per <- plot_data[!is.na(plot_data$period), , drop = FALSE]
+	if (nrow(per) == 0L) return(NULL)
+	trace <- list()
+	dens <- list()
+	for (pn in unique(as.character(per$parameter))) {
+		d <- per[as.character(per$parameter) == pn, , drop = FALSE]
+		periods <- unique(d$period)
+		n_p <- length(periods)
+		rng <- diff(range(d$value, na.rm = TRUE))
+		med <- vapply(
+			periods,
+			function(p) stats::median(d$value[d$period == p], na.rm = TRUE),
+			numeric(1)
+		)
+		trace[[pn]] <- data.frame(
+			parameter = pn,
+			x = max(d$iteration) * 1.01,
+			y = .lame_trace_spread(unname(med), rng / max(6, n_p)),
+			label = periods,
+			stringsAsFactors = FALSE
+		)
+		# peak of the density of each period, pooled over chains
+		pk <- vapply(periods, function(p) {
+			v <- d$value[d$period == p]
+			v <- v[is.finite(v)]
+			if (length(v) < 2L || diff(range(v)) == 0) return(c(NA_real_, NA_real_))
+			k <- stats::density(v)
+			c(k$x[which.max(k$y)], max(k$y))
+		}, numeric(2))
+		ok <- is.finite(pk[1L, ])
+		if (any(ok)) {
+			dens[[pn]] <- data.frame(
+				parameter = pn,
+				x = .lame_trace_spread(unname(pk[1L, ok]), rng / max(8, n_p)),
+				y = unname(pk[2L, ok]),
+				label = periods[ok],
+				stringsAsFactors = FALSE
+			)
+		}
+	}
+	lev <- levels(plot_data$parameter)
+	trace <- do.call(rbind, trace)
+	trace$parameter <- factor(trace$parameter, levels = lev)
+	dens <- if (length(dens)) do.call(rbind, dens) else trace[0L, , drop = FALSE]
+	dens$parameter <- factor(dens$parameter, levels = lev)
+	list(trace = trace, density = dens)
 }

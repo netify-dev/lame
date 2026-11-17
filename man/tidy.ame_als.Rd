@@ -17,16 +17,14 @@ columns. Default \code{TRUE}.}
 
 \item{conf.level}{Confidence level. Default \code{0.95}.}
 
-\item{...}{Passed to \code{\link{vcov.ame_als}}
-(e.g. \code{cluster = "dyad"}).}
+\item{...}{Passed to \code{\link{vcov.ame_als}}.}
 }
 \value{
 Data frame with columns \code{term}, \code{estimate},
 \code{std.error}, \code{statistic}, \code{p.value},
 \code{conf.low}, \code{conf.high}, plus a \code{se_source} column
-recording \code{"bootstrap"}, \code{"laplace"} (an empirical-Bayes
-normal, binary or Poisson fit, whose covariance covers every coefficient,
-node-covariate coefficients included) or \code{"sandwich"}.
+recording \code{"bootstrap"} or \code{"laplace"} (the Laplace covariance,
+which covers every coefficient, node-covariate coefficients included).
 }
 \description{
 Returns a data frame with one row per regression coefficient,
@@ -34,22 +32,19 @@ compatible with the \pkg{broom} idiom, so that ALS fits compose with
 \pkg{modelsummary} / \pkg{kableExtra} pipelines next to MCMC fits.
 Standard errors come from the bootstrap object attached to
 \code{x$bootstrap} when present (preferred, fully propagated), and
-otherwise from \code{\link{vcov.ame_als}}: the Laplace covariance of an
-empirical-Bayes fit (the default for normal, binary and Poisson fits) or
-the conditional sandwich covariance of a fixed-effects fit.
+otherwise from \code{\link{vcov.ame_als}}, the Laplace covariance of the
+empirical-Bayes fit.
 \code{statistic} is \code{estimate / std.error};
 \code{p.value} is the Normal-approximation two-sided tail
-\eqn{2(1 - \Phi(|z|))} from the bootstrap or sandwich standard error. It is
-a Wald-style summary for the point estimator, not a posterior probability.
+\eqn{2(1 - \Phi(|z|))} from the bootstrap or Laplace standard error. It is
+a Wald-style summary of the empirical-Bayes fit, not a posterior probability.
 }
 \details{
 One row is returned for every regression coefficient of \code{coef(fit)}:
-the intercept, the dyadic covariates and the node covariates. The
-node-covariate coefficients of a fixed-effects fit have no sandwich
-covariance, so they keep their estimate with \code{NA} uncertainty. Additive
+the intercept, the dyadic covariates and the node covariates. Additive
 (\code{a}, \code{b}) and multiplicative (\code{U}, \code{V}) parameters are
-not included; use \code{\link{ame_als_bootstrap}} and inspect the bootstrap
-object directly if you need them.
+not included; their posterior standard deviations are \code{fit$a_sd},
+\code{fit$b_sd}, \code{fit$U_sd} and \code{fit$V_sd}.
 }
 \examples{
 \donttest{

@@ -54,12 +54,12 @@
 #' \strong{Identifiability.} The latent factor term \eqn{u_i' D v_j}
 #' is invariant to rotation and reflection of \eqn{U, V}; the package
 #' canonicalises with an SVD so successive draws are interpretable.
-#' For unipartite fits with both resolved actor margins enabled, reporting
-#' centers static latent positions and transfers the removed row, column and
-#' grand-mean components to the actor effects and intercept. A symmetric shared
-#' actor absorbs half the grand constant in each margin when no intercept is
-#' fitted. Restricted unipartite models retain sampled coordinates in their
-#' stored factor draws. This reporting map
+#' For fits with both resolved actor margins enabled, one-mode and bipartite,
+#' reporting centers static latent positions and transfers the removed row,
+#' column and grand-mean components to the actor effects and intercept. A
+#' symmetric shared actor absorbs half the grand constant in each margin when
+#' no intercept is fitted. Restricted models retain sampled coordinates in
+#' their stored factor draws. This reporting map
 #' preserves each draw's predictor and leaves the sampler state unchanged.
 #' For visual stability across posterior summaries see
 #' \code{\link{procrustes_align}} and \code{\link{latent_positions}}.
@@ -101,9 +101,14 @@
 #' \code{"normal"} and \code{"poisson"} families the default is
 #' \code{Sab0 = diag(2) * vscale}, where \code{vscale} is an empirical-Bayes
 #' moment estimate of the sender/receiver variance: the mean of the variances of
-#' the centred row means and column means of \code{Y} (of \code{log1p(Y)} for
-#' \code{"poisson"}). The \code{"binary"}, \code{"ordinal"}, \code{"cbin"} and
-#' \code{"frn"} families apply the same idea to a probit-moment residual, but
+#' the centred row means and column means of \code{Y}. For \code{"poisson"} the
+#' default prior has the weight of one actor (\code{eta0 = 1}) and is centred at
+#' the effects covariance (\code{va}, \code{cab}, \code{vb}; \code{va} and
+#' \code{vb} for a bipartite fit) that the fast route (\code{\link{ame_als}})
+#' estimates for the same network, design and rank; where that fit fails, the
+#' centre is the variance of the centred log row and column rates. The
+#' \code{"binary"}, \code{"ordinal"}, \code{"cbin"} and \code{"frn"} families
+#' apply the same idea to a probit-moment residual, but
 #' only when \code{start_vals} is not supplied and the design has at least one
 #' column; otherwise they fall back to \code{Sab0 = diag(2)} with
 #' \code{eta0 = 4}. A bipartite fit scales \code{Sab0} the same way (one scale
@@ -279,8 +284,9 @@
 #'         additive-effects variance scale in Details. Pass \code{diag(2)}
 #'         explicitly for a fixed unit-scale prior.}
 #'   \item{eta0}{Prior degrees of freedom for the additive-effects covariance
-#'         \eqn{\Sigma_{ab}} (default: round(4 + 3 \\* n/100) for a continuous-family
-#'         fit, unipartite or bipartite (n is then the number of row actors,
+#'         \eqn{\Sigma_{ab}} (default: 1 for a \code{"poisson"} fit, centred at
+#'         the fast route's effects covariance (see Details); round(4 + 3 \\* n/100)
+#'         for a normal fit, unipartite or bipartite (n is then the number of row actors,
 #'         as in \code{\link{lame}}), and round(4 \\* vdfmlt) for a
 #'         discrete-family fit, where n is the number of actors and vdfmlt
 #'         is a probit-moment variance multiplier estimated from \code{Y}).
@@ -379,9 +385,15 @@
 #'         non-nominations integrated out (see the Details of
 #'         \code{\link{lame}}). \code{FALSE} omits them; the work is recorded in
 #'         \code{fit$actor_move}.}
-#'   \item{chain_extensions}{Number of times a chain that is still moving at
-#'   the end of the run is continued before the call is refused (default 3;
-#'   0 refuses at the first flag). See the convergence policy.}
+#'   \item{chain_extensions}{Number of times the chains are continued while the
+#'   drift check or the between-chain check flags them (a drifting chain, an R-hat
+#'   above its threshold, or a series with too few effective draws to compare the
+#'   chains; default 3). Chains that still drift or disagree after the last
+#'   extension are refused with an error of class \code{lame_chain_unsettled};
+#'   chains still too short to compare are returned with a warning of class
+#'   \code{lame_chain_not_compared}; 0 decides on the first block. An extension is
+#'   a block of \code{nscan} sweeps, longer when series are short of effective
+#'   draws (see the convergence policy).}
 #'   \item{actor_move_every}{Number of sweeps between visits of that update
 #'         (default 10, and 2 for the Poisson translations; 1 for the translations of \code{"cbin"} and
 #'         \code{"frn"} fits, whose reciprocity update runs on every tenth
@@ -390,7 +402,8 @@
 #'   \item{uv_g_scale_move}{Logical, default \code{TRUE}. For bipartite fits with
 #'         positions: each sweep also draws, exactly, the factors by which the
 #'         columns of the positions and the rows and columns of the interaction
-#'         matrix are rescaled without changing their product, because the unit
+#'         matrix are rescaled, and the shears between columns of a side (each a
+#'         Gaussian draw), without changing their product, because the unit
 #'         priors anchor the split of scale between them weakly and the
 #'         conditional updates cross it slowly. \code{FALSE} omits it; its work is
 #'         recorded in \code{fit$uv_g_scale_move}.}
@@ -400,7 +413,13 @@
 #'         unchanged; with the covariance of the rows integrated out \eqn{\log c} has the
 #'         matrix-t density along the orbit and is drawn by a slice step). The conditional
 #'         draws moved the split by a few percent per sweep against a posterior sd of
-#'         0.2 to 0.5. Recorded in \code{fit$uv_split_move}.}
+#'         0.2 to 0.5. At \code{R >= 2} the rest of the gauge \eqn{U \to UA},
+#'         \eqn{V \to VA^{-T}} is drawn the same way, one slice step for the scale of
+#'         each column and one for each shear \eqn{A = I + h e_k e_l'}; for symmetric fits
+#'         each column of \eqn{U} is split against its eigen-weight. \code{lame()} draws the same split for position paths
+#'         (\code{dynamic_uv = TRUE}, directed and bipartite), and with
+#'         \code{prior$uv_rotation_move} the orientation of each period of directed
+#'         paths at \code{R >= 2}. Recorded in \code{fit$uv_split_move}.}
 #'   \item{sparse_position_move}{Logical, default \code{TRUE}. For directed \code{"cbin"},
 #'         \code{"frn"} and \code{"ordinal"} fits with latent factors (\code{R > 0}): each
 #'         sweep also draws the position of every sender and receiver together with the
@@ -426,6 +445,17 @@
 #'         draws of 1,600 in a nomination panel). Directed unipartite fits of \code{ame()} and
 #'         \code{lame()} (static or dynamic additive effects, static coefficients) take the same
 #'         draw. \code{FALSE} omits it.}
+#'   \item{ab_shift_move}{Logical, default \code{TRUE}. For bipartite fits without an
+#'         intercept (\code{intercept = FALSE}, the default of \code{"ordinal"}) with row and
+#'         column effects (\code{rvar} and \code{cvar}): each sweep also draws, exactly, the
+#'         shift of the row effects against the column effects. Adding \eqn{c} to every
+#'         \eqn{a_i} and subtracting it from every \eqn{b_j} leaves every \eqn{a_i + b_j}, so
+#'         the likelihood, unchanged; only the prior of the effects pins \eqn{c}, and the
+#'         draws of \eqn{a} given \eqn{b} and \eqn{b} given \eqn{a} cross it slowly, so
+#'         \eqn{c} is drawn from its normal conditional. Directed unipartite fits draw the
+#'         coefficients and both effects jointly and need no such draw; \code{lame()} takes it
+#'         for directed and bipartite fits. Recorded in \code{fit$ab_shift_move}.
+#'         \code{FALSE} omits it.}
 #'   \item{ordinal_scale_move}{Logical, default \code{TRUE}. For
 #'         \code{"ordinal"} fits: each sweep also draws, exactly, the scale of the
 #'         whole state (the coefficients, the additive effects and the latent
@@ -467,7 +497,10 @@
 #' If not specified, \code{g = n_observed_cells * var(Y)} for normal data
 #' and \code{g = n_observed_cells} otherwise, where observed cells exclude
 #' the diagonal (before covariate-missingness propagation). Per-coefficient (vector) \code{g} is not supported by the
-#' unipartite path. A finite positive \code{g} is required when regression
+#' unipartite path. A bipartite fit has the prior \code{N(0, g s20)} on each
+#' coefficient, with default \code{g = nA * nB} over the mean square of the
+#' covariate for a slope, so the unit of a covariate only rescales its
+#' coefficient. A finite positive \code{g} is required when regression
 #' coefficients are fitted; invalid scales are not replaced or clipped.
 #' \emph{Note:} \code{g} is a top-level argument to \code{ame()},
 #' \strong{not} an element of \code{prior = list(...)}; passing
@@ -483,11 +516,10 @@
 #' smaller than \code{nscan}; \code{burn > nscan} is allowed but warns.
 #' @param odens output density (thinning interval) for the Markov chain.
 #' \code{nscan / odens} samples are stored.
-#' @param plot accepted for signature parity with \code{\link{lame}};
-#'   ignored. \code{ame()} runs a single-period MCMC and does not draw
-#'   live trace panels. Default \code{FALSE}.
+#' @param plot logical: with \code{chains > 1}, plot the pooled fit
+#'   (\code{\link{plot.ame}}) once the chains have run. A single chain draws
+#'   no live panels. Default \code{FALSE}.
 #' @param verbose logical: print progress while running? Default TRUE.
-#' @param print Deprecated. Use \code{verbose} instead.
 #' @param gof logical: calculate goodness of fit statistics? Setting to TRUE
 #'   adds approximately 2-5% to runtime. For faster sampling without GOF overhead,
 #'   set gof=FALSE and use gof() after model fitting.
@@ -516,7 +548,6 @@
 #'   (a symmetric fit has one effect per actor: the two hold the same draws).
 #'   \code{thin_UV} / \code{thin_ab} thin the stored draws. Default
 #'   \code{NULL}.
-#' @param n_chains integer: the older name of \code{chains}.
 #' @param cores integer or \code{NULL}: workers for the chains. The chains run
 #'   forked on Unix, at most one worker per chain; \code{NULL} uses
 #'   \code{getOption("lame.cores")} if set and otherwise all cores but one.
@@ -529,16 +560,24 @@
 #' @param use_sparse_matrices logical: use sparse matrix storage for large networks? (default: FALSE).
 #'   Recommended only for truly sparse networks (< 10% non-zero entries).
 #' @param method character: \code{"mcmc"} (default, the Bayesian MCMC fit) or
-#'   \code{"als"} (the fast, MCMC-free iterative block coordinate descent point
-#'   estimator). When \code{method = "als"}, MCMC-specific arguments (\code{nscan},
+#'   \code{"als"} (the fast, MCMC-free empirical-Bayes fit, which reports a
+#'   standard error for every estimate). When \code{method = "als"}, MCMC-specific arguments (\code{nscan},
 #'   \code{burn}, \code{odens}, ...) are warned about and ignored; the call
 #'   forwards to \code{\link{ame_als}}, which uses \code{prior$s20}.
+#'   With \code{method = "als"}, a binary network whose observed density \eqn{d} has
+#'   \eqn{\min(d, 1 - d) < 0.20} (ties among the observed cells, the diagonal of a one-mode network left out,
+#'   pooled over periods) is fitted with a warning: there the sampler is the better choice.
 #' @param bootstrap integer (only used when \code{method = "als"}): number of
-#'   bootstrap replicates. \code{0} (default) skips the bootstrap; \code{N >= 30}
-#'   runs \code{N} replicates and attaches the result so that \code{\link{confint}}
-#'   returns bootstrap intervals (a smaller positive \code{N} is an error).
+#'   bootstrap replicates. \code{0} (default) skips the bootstrap: the fit
+#'   already carries analytic standard errors. \code{N >= 30} runs \code{N}
+#'   replicates and attaches the result so that \code{vcov()},
+#'   \code{\link{confint}} and \code{summary()} report bootstrap errors for the
+#'   coefficients, with the analytic error kept where the bootstrap gives none
+#'   (a smaller positive \code{N} is an error); see \code{bootstrap} in
+#'   \code{\link{ame_als}}.
 #' @param bootstrap_type character (only used when \code{method = "als"}):
-#'   \code{"parametric"} (default) or \code{"block"}.
+#'   \code{"parametric"} (default) or \code{"block"}; a single network runs the
+#'   parametric scheme.
 #' @param bootstrap_block_length integer: block length for the block bootstrap.
 #' @param bootstrap_seed optional integer seed for the bootstrap.
 #' @param multistart character (only used when \code{method = "als"} and
@@ -546,16 +585,6 @@
 #'   \code{"full"} (8 starts). Forwarded to \code{\link{ame_als}}, which
 #'   reruns the block-coordinate fit from several starts and keeps the one
 #'   with the lowest objective.
-#' @param bias_correct character or \code{NULL} (only used when
-#'   \code{method = "als"}): how the ALS point estimate
-#'   handles the finite-sample bias of a fixed-effects fit, forwarded to
-#'   \code{\link{ame_als}}. \code{NULL} (default) fits a normal, binary or
-#'   count network by the empirical-Bayes estimator (\code{"eb"}; Laplace standard
-#'   errors from \code{vcov()}), directed, bipartite or undirected, with or
-#'   without a latent rank (see \code{bias_correct} in
-#'   \code{\link{ame_als}}). \code{"none"} returns the
-#'   fixed-effects estimate at any size; \code{"jackknife"} and
-#'   \code{"bootstrap"} require that correction of it.
 #' @param ... reserved for future use. Passing \code{lame()}-only
 #'   arguments (e.g. \code{dynamic_beta}, \code{period_exposure}) here
 #'   triggers a clean abort directing you to \code{\link{lame}}; passing
@@ -680,14 +709,15 @@
 #' and give the same messages.
 #'
 #' @section Collinear covariates:
-#' A regression design whose columns are exactly aliased over the observed
+#' A regression design whose columns are aliased over the observed
 #' cells (a covariate that duplicates another, or one that is a linear
 #' combination of others, counting the intercept and the sender and receiver
 #' covariates) is an error of class \code{lame_design_rank}. It names the
 #' aliased columns and the combination each equals: the data cannot separate
 #' their coefficients, so the posterior along that direction would be the
 #' prior's alone. A column is aliased when it is a combination of the columns
-#' before it to a relative 1e-8 (as \code{lm()} reports them); a design that is
+#' before it to a relative 1.5e-7, the collinearity below which the cross products
+#' the coefficient updates work with keep fewer than two digits; a design that is
 #' only nearly collinear is fitted.
 #'
 #' @section When to use AME vs ERGM:
@@ -746,9 +776,10 @@
 #' call \code{colMeans(fit$BETA)} or \code{apply(fit$BETA, 2, mean)}
 #' continue to work unchanged. \code{lame} additionally accepts
 #' \code{family = "binary"} (which \code{amen} 1.4.5 no longer
-#' accepts; \code{amen} requires \code{"bin"}). The \code{print}
-#' argument is deprecated in favour of \code{verbose}; calls that pass
-#' \code{print = ...} still work but warn.
+#' accepts; \code{amen} requires \code{"bin"}). Progress output is
+#' controlled by \code{verbose}, which takes the place of the \code{print}
+#' argument of \code{amen::ame()}; a call that passes \code{print = ...}
+#' warns that the argument is unrecognised.
 #'
 #' The cross-sectional path has no \code{dynamic_beta} option (an
 #' AR(1) prior on a single-period coefficient is unidentified), so the
@@ -779,8 +810,11 @@
 #' run forked, on at most \code{cores} workers (all cores but one by default); on
 #' Windows they run one after the other. The draws do not depend on the number of
 #' workers. The result is the pooled fit of \code{\link{combine_ame_chains}}, with
-#' \code{fit$chains}, \code{fit$chain_seeds}, \code{fit$rhat} (the R-hat of the
-#' monitored set), the state each chain stopped in, and the \code{chain_indicator}
+#' \code{fit$chains}, \code{fit$chain_seeds}, \code{fit$rhat} (the R-hat of each
+#' monitored series with its effective draws per split chain, pooled \code{ess} and
+#' of the least-mixing chain \code{ess_chain}, its \code{threshold}, whether the
+#' chains hold enough effective draws to be compared on it, \code{informative}, and
+#' how many that takes, \code{ess_needed}), the state each chain stopped in, and the \code{chain_indicator}
 #' that \code{as_draws()} and \code{trace_plot()} use. Two chains cost twice the CPU
 #' time and about the same wall time on a multicore machine.
 #'
@@ -789,39 +823,55 @@
 #' stored draws of the intercept (or first coefficient), \code{va}, \code{vb},
 #' \code{ve} and \code{rho} are compared with batch-means standard errors (ten
 #' batches per third); a quantity is flagged when the two means differ by more than
-#' 3 standard errors and by more than half a posterior standard deviation of the
-#' whole series. Between chains, the split rank-normalised R-hat (Vehtari et al.,
-#' 2021) of the monitored set is compared with 1.05: every regression coefficient,
+#' half a posterior standard deviation of the whole series and by more standard
+#' errors than the drift threshold. Between chains, the split rank-normalised R-hat
+#' (Vehtari et al., 2021) of each series of the monitored set is compared with its
+#' threshold, the larger of 1.05 and the value settled chains of the same length and
+#' autocorrelation stay under. Both thresholds are set so that chance alone flags
+#' settled chains anywhere in the fit with probability about 1 percent per check.
+#' The chains are compared on a series only when they hold enough effective draws
+#' (about 35 to 40 per split chain) for its threshold to catch chains one posterior
+#' standard deviation apart at least 95 percent of the time; a series with fewer is
+#' flagged as having too few effective draws to compare (see \emph{Gate thresholds}
+#' in \code{\link{lame}}). The monitored set is every regression coefficient,
 #' \code{va}, \code{vb}, \code{cab}, \code{ve}, \code{rho}, and summaries of the
 #' additive and latent structure recorded at every stored draw (the rms of
 #' \code{a} and \code{b}, the largest actor effect, the rms of the latent product
 #' \eqn{UV'}, the norm of \code{G} of a bipartite fit and the split of scale between
 #' \code{U} and \code{V} of a directed fit). The dyadic products are not
 #' monitored. Quantities a fit reports as not estimated are left out, and a run
-#' with fewer than 60 stored draws per chain is not checked.
-#' The gate is computed on the draws the returned fit holds (the last block of
+#' with fewer than 60 stored draws per chain is not checked (\code{print()} says
+#' so). The gate is computed on the draws the returned fit holds (the last block of
 #' every chain), and \code{summary()} and \code{\link{compute_mcmc_diagnostics}}
-#' report the same statistic of the same draws: the Rhat column of
-#' \code{summary()} is \code{fit$rhat} for every monitored coefficient and
+#' report the same statistic of the same draws: the Rhat and Threshold columns of
+#' \code{summary()} are \code{fit$rhat} for every monitored coefficient and
 #' variance component.
 #'
-#' When a chain drifts or an R-hat exceeds 1.05, every chain is extended by a block
-#' of \code{nscan} sweeps from its own final state (the seeds advance by the sweeps
-#' already run); the flagged block counts as extra burn-in, its draws are
-#' discarded, and both checks run again. Up to \code{prior$chain_extensions}
-#' extensions are made (default 3, so at most four times \code{nscan} post-burn
-#' sweeps per chain). The returned fit has the same number of stored draws as a fit
-#' that needed no extension, and \code{fit$auto_extend} records the extensions, the
-#' sweeps discarded and the quantities that triggered each. If the last block is
-#' still flagged, \code{ame()} stops with an error of class
-#' \code{lame_chain_unsettled}: its \code{fits} field holds the chains, \code{fit}
-#' the pooled fit of the last block, \code{rhat} the monitored table and
-#' \code{moving} the offending quantities, and \code{lame_resume(e$fit, nscan =
-#' nscan)} continues every chain (\code{lame_resume(e$fits[[k]], nscan = nscan)}
-#' one). \code{prior = list(chain_extensions = 0)} refuses at the first flag;
-#' \code{chains = 1} runs one chain with the drift check only. There is no mode
-#' that returns a flagged fit. The measured false-extension rate and power are in
-#' \code{\link{lame}}.
+#' When a chain drifts, an R-hat exceeds its threshold or a series has too few
+#' effective draws to compare, every chain is extended by a block of sweeps from its
+#' own final state (the seeds advance by the sweeps already run); the flagged block
+#' counts as extra burn-in, its draws are discarded, and both checks run again. The
+#' block is \code{nscan} sweeps or, when series are short of effective draws, long
+#' enough for each to hold a quarter more than it needs at its autocorrelation (at
+#' most four times \code{nscan}; the stored draws grow with the block). Up to
+#' \code{prior$chain_extensions} extensions are made (default 3). The returned fit
+#' holds the draws of the last block, and \code{fit$auto_extend} records the
+#' extensions, the sweeps discarded, the length of the last block
+#' (\code{block_nscan}) and the quantities that triggered each. If a chain of the
+#' last block still drifts or an R-hat is still above its threshold, \code{ame()}
+#' stops with an error of class \code{lame_chain_unsettled}: its \code{fits} field
+#' holds the chains, \code{fit} the pooled fit of the last block, \code{rhat} the
+#' monitored table (R-hat, effective draws, threshold and verdict of every series)
+#' and \code{moving} the offending quantities with the reason, and
+#' \code{lame_resume(e$fit, nscan = nscan)} continues every chain
+#' (\code{lame_resume(e$fits[[k]], nscan = nscan)} one). If the chains of the last
+#' block only hold too few effective draws on some series, the fit is returned with
+#' a warning of class \code{lame_chain_not_compared} that names them and the
+#' \code{nscan} that would be enough, and \code{fit$rhat} marks them
+#' \code{informative = FALSE}. \code{prior = list(chain_extensions = 0)} decides on
+#' the first block; \code{chains = 1} runs one chain with the drift check only. No
+#' fit is returned with a drifting chain or an R-hat above its threshold. The
+#' measured rates are in \code{\link{lame}}.
 #'
 #' @return
 #' \strong{Posterior Samples (full MCMC chains):}
@@ -842,9 +892,13 @@
 #' \item{U}{Multiplicative row/sender factors (n xR matrix)}
 #' \item{V}{Multiplicative column/receiver factors (m xR matrix); NULL for symmetric networks}
 #' \item{L}{Eigenvalue matrix (R xR diagonal); symmetric networks only}
-#' \item{YPM}{Stored response-scale fitted value: the average of the outcomes
-#' replicated at each stored draw, except for Poisson fits, where it is the mean
-#' count \eqn{\exp(\eta + \sigma^2 / 2)} at the posterior means of the linear
+#' \item{YPM}{Stored response-scale fitted value: the average over the stored
+#' draws of the mean response given each draw, which is the tie probability for
+#' binary fits, the linear predictor for normal fits and the expected category
+#' value for ordinal fits with explicit cutpoints. For cbin, frn and
+#' data-induced ordinal fits it is the average of ten outcomes replicated at
+#' each stored draw. For Poisson fits it is the mean count
+#' \eqn{\exp(\eta + \sigma^2 / 2)} at the posterior means of the linear
 #' predictor and of the residual variance; see the Poisson model details.}
 #'
 #' \strong{Metadata:}
@@ -863,6 +917,15 @@
 #' \item{sampler_health_iterations}{Number of burn-in plus production sweeps
 #' included in the MCMC health counts. U and V proposal counts in bipartite
 #' fits can exceed this number because each sweep visits multiple actor rows.}
+#' \item{exact_fallbacks}{Named counts of the times a step kept its state after a
+#' numerical failure where keeping it leaves the posterior invariant; they do
+#' not stop the fit, \code{summary()} states them and a count above a tenth of
+#' the sweeps warns with class \code{lame_exact_fallbacks}. Empty when there was
+#' none.}
+#' \item{ab_shift_move}{For bipartite fits without an intercept, the sweeps the shift
+#' of the row effects against the column effects was drawn (\code{visits}) and the
+#' sweeps at which it moved them (\code{moved}; see \code{ab_shift_move} in
+#' \code{prior}); absent when the draw did not run}
 #' \item{uv_g_scale_move}{For bipartite fits with positions, the number of sweeps
 #' and of rescaled coordinates of the draw along the scale ridge of the positions
 #' and the interaction matrix (see \code{uv_g_scale_move} in \code{prior}); absent
@@ -948,11 +1011,12 @@
 #' \donttest{
 #' data(YX_nrm)
 #' # the default runs two chains and compares them on the regression
-#' # coefficients and variance components
-#' fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, burn = 100, nscan = 600, odens = 10,
+#' # coefficients, variance components and effect summaries; 120 stored draws
+#' # per chain hold enough effective draws to compare them
+#' fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, burn = 100, nscan = 1200, odens = 10,
 #'            verbose = FALSE)
 #' summary(fit)
-#' fit$rhat  # between-chain split R-hat; every value is below 1.05
+#' fit$rhat  # between-chain split R-hat, threshold and verdict of every series
 #' # the defaults (burn = 500, nscan = 10000, odens = 25) are the length of a final run
 #' }
 #'
@@ -989,7 +1053,6 @@ ame <- function(
 	out_file = NULL,
 	save_interval = 0.25,
 	posterior_opts = NULL,
-	n_chains = 1,
 	cores = NULL,
 	chains = .lame_chains_default(),
 	use_sparse_matrices = FALSE,
@@ -1001,12 +1064,10 @@ ame <- function(
 	multistart = c("none", "cheap", "full"),
 	save_log_lik = FALSE,
 	ordinal_cutpoints = c("data_induced", "explicit"),
-	print,
 	...,
 	# after `...` so a typo such as `model = "bin"` cannot partial-match into it
 	log_lik_method = c("observed_exact", "observed_approx"),
-	model.name = NULL,
-	bias_correct = NULL
+	model.name = NULL
 ) {
 	family_missing <- missing(family)
 	mode_missing <- missing(mode)
@@ -1046,15 +1107,13 @@ ame <- function(
 		))
 		ordinal_cutpoints <- "data_induced"
 	}
-	# accepted for signature parity with lame(); ame() has no live plotting
-	invisible(plot)
 
 	# lame()-only arguments have no meaning on a single cross-section
 	dot_names <- names(list(...))
 	lame_only <- c(
 		"dynamic_beta", "dynamic_beta_kind", "dynamic_beta_pool",
 		"dynamic_beta_per_actor", "dynamic_ab", "dynamic_uv",
-		"dynamic_G", "time_index", "period_exposure",
+		"time_index", "period_exposure",
 		"max_seconds", "checkpoint_path", "checkpoint_every",
 		"log_lik_path", "log_lik_chunk_size"
 	)
@@ -1076,18 +1135,7 @@ ame <- function(
 		}
 	}
 
-	# deprecated print argument; warn only when verbose was not also supplied
-	if (!missing(print)) {
-		if (missing(verbose)) {
-			cli::cli_warn(c(
-				"The {.arg print} argument is deprecated.",
-				"i" = "Use {.arg verbose} instead."
-			))
-			verbose <- print
-		}
-	}
-
-	# ALS fits go to the point estimator
+	# ALS fits go to the fast estimator
 	method <- match.arg(method)
 	if (identical(method, "als")) {
 		mode_arg <- match.arg(mode)
@@ -1106,7 +1154,7 @@ ame <- function(
 			"family", "mode", "symmetric",
 			"bootstrap", "bootstrap_type",
 			"bootstrap_block_length", "bootstrap_seed",
-			"multistart", "bias_correct", "dcor",
+			"multistart", "dcor",
 			"verbose", "seed", "method", "intercept", "odmax", "prior",
 			# cosmetic MCMC arguments are absorbed silently
 			"model.name"
@@ -1131,6 +1179,8 @@ ame <- function(
 			}
 			R_als <- max(rr, rc, R)
 		}
+		# a 2-d dyadic covariate keeps the name of the user's argument
+		Xdyad <- .ae_name_dyad_slice(Xdyad, .ae_dyad_expr_name(substitute(Xdyad)))
 		return(ame_als(
 			Y = Y,
 			Xdyad = Xdyad,
@@ -1145,7 +1195,6 @@ ame <- function(
 			bootstrap_block_length = bootstrap_block_length,
 			bootstrap_seed = bootstrap_seed,
 			multistart = match.arg(multistart),
-			bias_correct = bias_correct,
 			verbose = verbose,
 			seed = seed,
 			dcor = dcor,
@@ -1164,16 +1213,12 @@ ame <- function(
 		attr(prior, "lame_chain_block") <- NULL
 		mc <- .blk$mc
 	} else {
-		if (!missing(n_chains) && n_chains > 1) {
-			if (!missing(chains) && !identical(as.integer(chains), as.integer(n_chains))) {
-				cli::cli_abort(
-					"{.arg chains} and {.arg n_chains} disagree; {.arg n_chains} is the older name of {.arg chains}.", class = "lame_chains_arg"
-				)
-			}
-			chains <- n_chains
-		}
 		chains <- .lame_chains_check(chains)
-		if (chains > 1L) return(.lame_chains_from_ame(environment(), mc, chains))
+		if (chains > 1L) {
+			# a 2-d dyadic covariate takes its slice name here, as a single chain names it
+			if (is.matrix(Xdyad)) Xdyad <- .ae_name_dyad_slice(Xdyad, deparse(substitute(Xdyad))[1])
+			return(.lame_chains_from_ame(environment(), mc, chains))
+		}
 	}
 
 	# warn on unknown posterior_opts keys and accept lame()'s save_UV_draws as an alias for save_UV
@@ -1208,15 +1253,11 @@ ame <- function(
 
 	# the log-likelihood is computed after sampling from the saved draws, so it
 	# needs per-iteration U, V, a and b storage
-	want_log_lik <- isTRUE(save_log_lik) ||
-		identical(save_log_lik, "chunked")
+	if (!is.logical(save_log_lik) || length(save_log_lik) != 1L || is.na(save_log_lik)) {
+		cli::cli_abort("{.arg save_log_lik} must be {.code TRUE} or {.code FALSE}.")
+	}
+	want_log_lik <- save_log_lik
 	if (want_log_lik) {
-		if (identical(save_log_lik, "chunked")) {
-			cli::cli_warn(c(
-				"{.arg save_log_lik} = {.val chunked} is not yet supported on the cross-sectional {.fn ame} path.",
-				"i" = "Falling back to in-memory storage."
-			))
-		}
 		if (is.null(posterior_opts)) posterior_opts <- list()
 		posterior_opts$save_UV <- TRUE
 		posterior_opts$save_ab <- TRUE
@@ -1685,6 +1726,7 @@ ame <- function(
 			"rho_ab_mean", "rho_ab_sd",
 			"uv_split_move",
 			"cov_ridge_move",
+			"ab_shift_move",
 			"sparse_position_move",
 			"sparse_position_every",
 			"actor_move", "actor_move_every", "uv_g_scale_move", "ordinal_scale_move",
@@ -1702,7 +1744,7 @@ ame <- function(
 			names(prior)[!vapply(prior, is.numeric, logical(1))],
 			setdiff(known_prior, c("actor_move", "uv_g_scale_move", "ordinal_scale_move", "binary_scale_move"))
 		)
-		non_num <- setdiff(non_num, c("uv_split_move", "sparse_position_move", "cov_ridge_move"))
+		non_num <- setdiff(non_num, c("uv_split_move", "sparse_position_move", "cov_ridge_move", "ab_shift_move"))
 		if (length(non_num) > 0L) {
 			cli::cli_abort(c(
 				"{.arg prior} element{?s} {.val {non_num}} must be numeric.",
@@ -1718,6 +1760,10 @@ ame <- function(
 				(!is.logical(prior[["cov_ridge_move"]]) || length(prior[["cov_ridge_move"]]) != 1L ||
 						is.na(prior[["cov_ridge_move"]])))
 			cli::cli_abort("prior$cov_ridge_move must be TRUE or FALSE.")
+		if (!is.null(prior[["ab_shift_move"]]) &&
+				(!is.logical(prior[["ab_shift_move"]]) || length(prior[["ab_shift_move"]]) != 1L ||
+						is.na(prior[["ab_shift_move"]])))
+			cli::cli_abort("prior$ab_shift_move must be TRUE or FALSE.")
 		if (!is.null(prior[["uv_split_move"]]) &&
 				(!is.logical(prior[["uv_split_move"]]) || length(prior[["uv_split_move"]]) != 1L ||
 						is.na(prior[["uv_split_move"]])))
@@ -1772,6 +1818,12 @@ ame <- function(
 		prior_supplied = .ab_prior_supplied
 	))) {
 		cli::cli_inform(c("i" = "{st_}"))
+	}
+
+	# a count sampler's default effects prior: one actor's weight at the fast route's effects
+	# covariance for this call (.ame_pois_effects_prior)
+	if (identical(family, "poisson") && !.ab_prior_supplied) {
+		prior <- .ame_pois_effects_prior(prior, Y, Xdyad, Xrow, Xcol, R, mode[1L], symmetric, longitudinal = FALSE)
 	}
 
 	# unipartite dispatch

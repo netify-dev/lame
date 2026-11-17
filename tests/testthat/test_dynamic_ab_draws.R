@@ -152,3 +152,28 @@ test_that("summary of a dynamic_ab fit carries one logical dynamic_ab entry", {
 	fit$dynamic_ab = NULL
 	expect_identical(summary(fit)$dynamic_ab, FALSE)
 })
+
+# sample_dynamic_ab_cpp draws the full conditional of each a_i, using the dyadic noise variance, so additive
+# effects are recovered with slope near 1
+test_that("sample_dynamic_ab_cpp recovers additive effects (no ~50% attenuation)", {
+	skip_on_cran()
+
+	set.seed(1)
+	n = 25; Tt = 3
+	a_true = seq(-2, 2, length.out = n)
+	s2 = 0.25
+	Z = array(rnorm(n * n * Tt, 0, sqrt(s2)), c(n, n, Tt))
+	for (t in 1:Tt) Z[, , t] = Z[, , t] + outer(a_true, rep(0, n), "+")
+	EZ0 = array(0, c(n, n, Tt))
+	a = matrix(0, n, Tt); b = matrix(0, n, Tt); acc = matrix(0, n, Tt)
+	nburn = 400; nkeep = 1200
+	for (s in seq_len(nburn + nkeep)) {
+		o = sample_dynamic_ab_cpp(a, b, Z, EZ0, 0.9, 0.5, s2, FALSE)
+		a = o$a; b = o$b
+		if (s > nburn) acc = acc + a
+	}
+	slope = coef(lm((acc / nkeep)[, 1] ~ a_true))[2]
+	# the full conditional gives a slope near 1, not near 0.5
+	expect_gt(slope, 0.8)
+	expect_lt(slope, 1.2)
+})

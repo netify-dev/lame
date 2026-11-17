@@ -42,6 +42,7 @@
 #' }
 #'
 #' @export
+#' @exportS3Method generics::tidy
 tidy.ame <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 	.lame_require_draws(x, "tidy")
 	alpha <- (1 - conf.level) / 2
@@ -136,13 +137,14 @@ tidy.ame <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 
 #' @rdname tidy.ame
 #' @export
+#' @exportS3Method generics::tidy
 tidy.lame <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 	.lame_require_draws(x, "tidy")
 	tidy.ame(x, conf.int = conf.int, conf.level = conf.level, ...)
 }
 
-# fallback generic so `tidy(fit)` works without broom or generics; .onLoad
-# registers the methods with generics::tidy when it is available
+# fallback generic so `tidy(fit)` works without broom or generics; NAMESPACE
+# registers the methods with generics::tidy when generics loads
 
 #' S3 generic for `tidy`
 #'
@@ -164,178 +166,6 @@ tidy.lame <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 #' tidy(fit)
 #' @export
 tidy <- function(x, ...) UseMethod("tidy")
-
-# register the tidy and glance methods with generics and broom when installed,
-# without a hard dependency
-#' @noRd
-.register_tidy_methods <- function() {
-	if (requireNamespace("generics", quietly = TRUE)) {
-		try(
-			registerS3method(
-				"tidy",
-				"ame",
-				tidy.ame,
-				envir = asNamespace("generics")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"tidy",
-				"lame",
-				tidy.lame,
-				envir = asNamespace("generics")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"tidy",
-				"ame_als",
-				tidy.ame_als,
-				envir = asNamespace("generics")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"tidy",
-				"lame_als",
-				tidy.lame_als,
-				envir = asNamespace("generics")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"tidy",
-				"boot_ame",
-				tidy.boot_ame,
-				envir = asNamespace("generics")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"glance",
-				"ame",
-				glance.ame,
-				envir = asNamespace("generics")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"glance",
-				"lame",
-				glance.lame,
-				envir = asNamespace("generics")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"glance",
-				"ame_als",
-				glance.ame_als,
-				envir = asNamespace("generics")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"glance",
-				"lame_als",
-				glance.lame_als,
-				envir = asNamespace("generics")
-			),
-			silent = TRUE
-		)
-	}
-	if (requireNamespace("broom", quietly = TRUE)) {
-		try(
-			registerS3method(
-				"tidy",
-				"ame",
-				tidy.ame,
-				envir = asNamespace("broom")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"tidy",
-				"lame",
-				tidy.lame,
-				envir = asNamespace("broom")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"tidy",
-				"ame_als",
-				tidy.ame_als,
-				envir = asNamespace("broom")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"tidy",
-				"lame_als",
-				tidy.lame_als,
-				envir = asNamespace("broom")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"tidy",
-				"boot_ame",
-				tidy.boot_ame,
-				envir = asNamespace("broom")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"glance",
-				"ame",
-				glance.ame,
-				envir = asNamespace("broom")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"glance",
-				"lame",
-				glance.lame,
-				envir = asNamespace("broom")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"glance",
-				"ame_als",
-				glance.ame_als,
-				envir = asNamespace("broom")
-			),
-			silent = TRUE
-		)
-		try(
-			registerS3method(
-				"glance",
-				"lame_als",
-				glance.lame_als,
-				envir = asNamespace("broom")
-			),
-			silent = TRUE
-		)
-	}
-}
 
 #' Long-format draws of the linear predictor for marginaleffects-style use
 #'
@@ -573,6 +403,7 @@ prediction_draws_long <- function(
 #' glance(fit)
 #' }
 #' @export
+#' @exportS3Method generics::glance
 glance.ame <- function(x, ...) {
 	.lame_require_draws(x, "glance")
 	# exact lookup, since `$Y` partial-matches `$YPM`
@@ -653,6 +484,7 @@ glance.ame <- function(x, ...) {
 
 #' @rdname glance.ame
 #' @export
+#' @exportS3Method generics::glance
 glance.lame <- function(x, ...) glance.ame(x, ...)
 
 # fallback generic so `glance(fit)` works without broom or generics
@@ -682,34 +514,29 @@ glance <- function(x, ...) UseMethod("glance")
 #' \pkg{modelsummary} / \pkg{kableExtra} pipelines next to MCMC fits.
 #' Standard errors come from the bootstrap object attached to
 #' \code{x$bootstrap} when present (preferred, fully propagated), and
-#' otherwise from \code{\link{vcov.ame_als}}: the Laplace covariance of an
-#' empirical-Bayes fit (the default for normal, binary and Poisson fits) or
-#' the conditional sandwich covariance of a fixed-effects fit.
+#' otherwise from \code{\link{vcov.ame_als}}, the Laplace covariance of the
+#' empirical-Bayes fit.
 #' \code{statistic} is \code{estimate / std.error};
 #' \code{p.value} is the Normal-approximation two-sided tail
-#' \eqn{2(1 - \Phi(|z|))} from the bootstrap or sandwich standard error. It is
-#' a Wald-style summary for the point estimator, not a posterior probability.
+#' \eqn{2(1 - \Phi(|z|))} from the bootstrap or Laplace standard error. It is
+#' a Wald-style summary of the empirical-Bayes fit, not a posterior probability.
 #'
 #' One row is returned for every regression coefficient of \code{coef(fit)}:
-#' the intercept, the dyadic covariates and the node covariates. The
-#' node-covariate coefficients of a fixed-effects fit have no sandwich
-#' covariance, so they keep their estimate with \code{NA} uncertainty. Additive
+#' the intercept, the dyadic covariates and the node covariates. Additive
 #' (\code{a}, \code{b}) and multiplicative (\code{U}, \code{V}) parameters are
-#' not included; use \code{\link{ame_als_bootstrap}} and inspect the bootstrap
-#' object directly if you need them.
+#' not included; their posterior standard deviations are \code{fit$a_sd},
+#' \code{fit$b_sd}, \code{fit$U_sd} and \code{fit$V_sd}.
 #'
 #' @param x A fitted \code{ame_als} / \code{lame_als} object.
 #' @param conf.int Logical; include \code{conf.low} / \code{conf.high}
 #'   columns. Default \code{TRUE}.
 #' @param conf.level Confidence level. Default \code{0.95}.
-#' @param ... Passed to \code{\link{vcov.ame_als}}
-#'   (e.g. \code{cluster = "dyad"}).
+#' @param ... Passed to \code{\link{vcov.ame_als}}.
 #' @return Data frame with columns \code{term}, \code{estimate},
 #'   \code{std.error}, \code{statistic}, \code{p.value},
 #'   \code{conf.low}, \code{conf.high}, plus a \code{se_source} column
-#'   recording \code{"bootstrap"}, \code{"laplace"} (an empirical-Bayes
-#'   normal, binary or Poisson fit, whose covariance covers every coefficient,
-#'   node-covariate coefficients included) or \code{"sandwich"}.
+#'   recording \code{"bootstrap"} or \code{"laplace"} (the Laplace covariance,
+#'   which covers every coefficient, node-covariate coefficients included).
 #' @examples
 #' \donttest{
 #' data(YX_nrm)
@@ -718,13 +545,14 @@ glance <- function(x, ...) UseMethod("glance")
 #' tidy(fit)
 #' }
 #' @export
+#' @exportS3Method generics::tidy
 tidy.ame_als <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 	if (length(conf.level) != 1L || !is.finite(conf.level) ||
 			conf.level <= 0 || conf.level >= 1) {
 		cli::cli_abort("{.arg conf.level} must be a single number in (0, 1).")
 	}
 	# regression coefficients only, with bootstrap summaries when available,
-	# else the sandwich or Laplace covariance
+	# else the Laplace covariance
 	if (!is.null(x$bootstrap)) {
 		coef_nms <- names(x$coefficients)
 		boot_coefs <- x$bootstrap$coefs
@@ -785,7 +613,7 @@ tidy.ame_als <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 		zq <- stats::qnorm(c(a, 1 - a))
 		ci <- cbind(est + zq[1] * se, est + zq[2] * se)
 		rownames(ci) <- nms
-		se_source <- if (!is.null(x$eb$vcov)) "laplace" else "sandwich"
+		se_source <- "laplace"
 	}
 	stat <- est / pmax(se, .Machine$double.eps)
 	out <- data.frame(
@@ -810,6 +638,7 @@ tidy.ame_als <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 
 #' @rdname tidy.ame_als
 #' @export
+#' @exportS3Method generics::tidy
 tidy.lame_als <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 	tidy.ame_als(x, conf.int = conf.int, conf.level = conf.level, ...)
 }
@@ -834,6 +663,7 @@ tidy.lame_als <- function(x, conf.int = TRUE, conf.level = 0.95, ...) {
 #' glance(fit)
 #' }
 #' @export
+#' @exportS3Method generics::glance
 glance.ame_als <- function(x, ...) {
 	Y <- x$Y
 	nobs <- if (is.list(Y)) {
@@ -860,7 +690,7 @@ glance.ame_als <- function(x, ...) {
 	} else if (!is.null(x$eb$vcov)) {
 		"laplace"
 	} else {
-		"sandwich"
+		"none"
 	}
 	nnm <- x$non_normal_method %||% NA_character_
 	out <- data.frame(
@@ -886,6 +716,7 @@ glance.ame_als <- function(x, ...) {
 
 #' @rdname glance.ame_als
 #' @export
+#' @exportS3Method generics::glance
 glance.lame_als <- function(x, ...) glance.ame_als(x, ...)
 
 
@@ -903,6 +734,7 @@ glance.lame_als <- function(x, ...) glance.ame_als(x, ...)
 #' @return Data frame with columns \code{term, estimate, std.error,
 #'   statistic, p.value, conf.low, conf.high, se_source}.
 #' @export
+#' @exportS3Method generics::tidy
 tidy.boot_ame <- function(x, conf.level = 0.95, ...) {
 	if (length(conf.level) != 1L || !is.finite(conf.level) ||
 			conf.level <= 0 || conf.level >= 1) {

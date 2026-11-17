@@ -18,7 +18,7 @@
 #' @param beta named numeric coefficient vector.
 #' @param design_names \code{dimnames(X)[[3]]} of the design array.
 #' @return a numeric vector of length \code{length(design_names)}.
-#' @keywords internal
+#' @noRd
 .beta_on_design <- function(beta, design_names) {
 	if (is.null(design_names) || is.null(names(beta))) return(beta)
 	if (length(beta) == length(design_names)) return(beta)
@@ -56,7 +56,7 @@
 #' @return an \code{n x m x length(model_names)} array whose slices are in
 #'   \code{model_names} order: dyadic slices from \code{newdata}, all other
 #'   slices held at their fitted values (intercept = 1).
-#' @keywords internal
+#' @noRd
 .build_full_design <- function(newdata, model_names, fitted_design, n, m) {
 	if (is.null(model_names)) {
 		cli::cli_abort(c(
@@ -139,7 +139,7 @@
 #'   for intercept + nodal slices.
 #' @param n,m output dimensions.
 #' @return an \code{n x m} matrix of the linear predictor.
-#' @keywords internal
+#' @noRd
 .xbeta_newdata <- function(beta, newdata, fitted_design, n, m) {
 	Xfull <- .build_full_design(newdata, names(beta), fitted_design, n, m)
 	XB <- matrix(0, n, m)
@@ -159,7 +159,7 @@
 #' @param object a fitted \code{lame} (or \code{ame}) object.
 #' @return a list with \code{rows} and \code{cols} character vectors (or
 #'   \code{NULL} when the order cannot be recovered).
-#' @keywords internal
+#' @noRd
 .fit_actor_order <- function(object) {
 	# lame fits store the per-period designs as Xlist, ame fits as X
 	fdx <- object[["Xlist", exact = TRUE]] %||% object[["X", exact = TRUE]]
@@ -194,7 +194,7 @@
 #'   \code{\link{.fit_actor_order}}.
 #' @return \code{X} with rows / columns permuted into canonical order, or
 #'   unchanged.
-#' @keywords internal
+#' @noRd
 .reorder_newdata_actors <- function(X, row_order, col_order) {
 	if (is.null(row_order) && is.null(col_order)) return(X)
 	dn <- dimnames(X)

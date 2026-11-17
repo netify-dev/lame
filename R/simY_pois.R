@@ -13,5 +13,5 @@
 #' @keywords internal
 #' @export simY_pois
 simY_pois <- function(EZ, bipartite = FALSE) {
-	suppressWarnings(.Call(`_lame_simY_pois`, EZ, isTRUE(bipartite)))
+	suppressWarnings(simY_pois_cpp(EZ, isTRUE(bipartite)))
 }

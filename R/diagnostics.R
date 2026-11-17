@@ -134,8 +134,13 @@ detect_change_point <- function(
 			class = "lame_beta_transition"
 		)
 	}
-	kind <- fit$dynamic_beta_kind %||% "ar1"
-	if ((kind == "ar1" && any(abs(R) >= 1)) || (kind == "rw1" && any(R != 1))) {
+	# check each block against its own kind (an rw1 block of an ar1 fit holds rho = 1)
+	kinds <- .lame_beta_block_kinds(fit)
+	bad_kind <- vapply(colnames(R), function(b) {
+		k <- if (b %in% names(kinds)) kinds[[b]] else fit$dynamic_beta_kind %||% "ar1"
+		(k == "ar1" && any(abs(R[, b]) >= 1)) || (k == "rw1" && any(R[, b] != 1))
+	}, logical(1))
+	if (any(bad_kind)) {
 		cli::cli_abort(
 			"Persistence draws do not match the fitted coefficient transition model.",
 			class = "lame_beta_transition"
@@ -150,12 +155,16 @@ detect_change_point <- function(
 		M_post <- apply(scaled_diffs, 1L, max)
 		t_jumps <- apply(scaled_diffs, 1L, which.max) + 1L
 		t_hat <- as.integer(names(sort(table(t_jumps), decreasing = TRUE))[1L])
-		# reference paths start at the draw's first state and follow its AR(1) transition
+		# reference paths start at the draw's first state and follow its AR(1) transition, around the
+		# draw's long-run mean for an ar1 coefficient
+		mu <- if (!is.null(fit$MU_BETA) && cf %in% colnames(fit$MU_BETA)) fit$MU_BETA[, cf] else numeric(S)
 		idx <- sample.int(S, n_prior_sims, replace = TRUE)
 		M_prior <- vapply(idx, function(k) {
 			path <- numeric(Tn)
 			path[1L] <- beta_path[k, 1L]
-			for (tt in 2:Tn) path[tt] <- R[k, blk] * path[tt - 1L] + stats::rnorm(1L, 0, sigma[k])
+			for (tt in 2:Tn) {
+				path[tt] <- mu[k] + R[k, blk] * (path[tt - 1L] - mu[k]) + stats::rnorm(1L, 0, sigma[k])
+			}
 			max(abs(diff(path)) / sigma[k])
 		}, numeric(1))
 		m_star <- unname(stats::quantile(M_prior, 0.95))

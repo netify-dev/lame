@@ -74,7 +74,8 @@ test_that("a stalled dynamic Gaussian fit receives a certified joint refinement"
 		c(nr, nc, 1),
 		dimnames = c(dimnames(yy), list('x'))
 	)}
-	f = lame(
+	# the penalized fit, called as lame(method = 'als') calls it
+	f = lame:::lame_dynamic_als(
 		Y,
 		Xdyad = X,
 		R = 2,
@@ -82,12 +83,12 @@ test_that("a stalled dynamic Gaussian fit receives a certified joint refinement"
 		R_col = 2,
 		family = 'normal',
 		mode = 'bipartite',
-		method = 'als',
 		dynamic_uv = TRUE,
 		dynamic_ab = TRUE,
-		dynamic_beta = FALSE,
-		als_max_iter = 100L,
-		als_tol = 1e-6,
+		dynamic_beta = 'intercept',
+		dynamic_beta_kind = 'rw1',
+		max_iter = 100L,
+		tol = 1e-6,
 		verbose = FALSE,
 		bias_correct = 'none'
 	)
@@ -96,4 +97,8 @@ test_that("a stalled dynamic Gaussian fit receives a certified joint refinement"
 	expect_true(refinement$accepted);expect_lte(refinement$objective_after, refinement$objective_before)
 	expect_lt(unname(f$VC['ve']), 1.1);expect_gt(unname(f$VC['ve']), .9)
 	expect_equal(tail(f$objective_history, 1), refinement$objective_after, tolerance = 1e-10)
+	# the refinement moves the whole rw1 intercept path and keeps the static slope
+	expect_identical(f$dynamic$beta_kind, 'rw1')
+	expect_gt(sd(f$coef_path['intercept', ]), 0.01)
+	expect_equal(sd(f$coef_path['x_dyad', ]), 0)
 })

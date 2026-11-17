@@ -4,7 +4,7 @@
 
 # the per-draw fields of a fit, by the position of the draw axis
 .lame_draw_fields_first <- c(
-	"BETA", "VC", "RHO_BETA", "SIGMA_BETA", "RHO", "log_lik",
+	"BETA", "VC", "RHO_BETA", "SIGMA_BETA", "MU_BETA", "RHO", "log_lik",
 	"snap_draws", "snap_draws_v", "THETA_ACTOR", "RHO_ACTOR", "SIGMA_ACTOR", "chain_summary",
 	"rho_ab", "sigma_ab", "rho_uv", "sigma_uv", "pi_snap", "ab_draw_index", "uv_draw_index",
 	"chain_indicator"

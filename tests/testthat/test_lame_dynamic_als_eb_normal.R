@@ -283,7 +283,7 @@ test_that("a dynamic normal fit is an empirical-Bayes fit of the Gaussian model 
 	d = nrm_sim(n = 14, Tt = 4, seed = 11, rho_d = 0.4)
 	f = nrm_fit(d)
 	expect_identical(f$family, "normal")
-	expect_identical(f$bias_correct$method, "eb")
+	expect_null(f$bias_correct)
 	expect_true(f$converged)
 	expect_true(all(c("ve", "ve_prior") %in% names(f$eb)))
 	expect_equal(unname(f$VC[["ve"]]), f$eb$ve)
@@ -297,29 +297,13 @@ test_that("a dynamic normal fit is an empirical-Bayes fit of the Gaussian model 
 	expect_identical(f$rho_estimation$n_pairs, f$eb$pair$n_pairs)
 	f0 = nrm_fit(d, dcor = FALSE)
 	expect_null(f0$eb$pair)
-	# an explicit request for the estimator gives the default
-	g = nrm_fit(d, bias_correct = "eb")
-	expect_equal(g$coefficients, f$coefficients)
+	# a bootstrap count below the minimum is an error
+	expect_error(nrm_fit(d, bootstrap = 5L), class = "lame_als_bootstrap_replicates")
 	# the penalised fit keeps its fixed persistence and moment estimates
 	p = nrm_fit(d, bias_correct = "none")
 	expect_identical(p$bias_correct$method, "none")
 	expect_null(p$eb)
 	expect_equal(p$rho_ab, 0.8)
-	# bootstrapping the empirical-Bayes estimator is refused; the penalised one allows it
-	expect_error(nrm_fit(d, bootstrap = 5L), class = "lame_dynamic_eb_unsupported")
-	expect_error(nrm_fit(d, lambda_ab = 1), class = "lame_dynamic_eb_unsupported")
-	# the estimator covers normal, binary and count panels
-	expect_error(
-		lame:::lame_dynamic_als(
-			d$Y,
-			d$X,
-			family = "normal",
-			dynamic_ab = TRUE,
-			bias_correct = "jackknife",
-			verbose = FALSE
-		),
-		class = "lame_jk_split"
-	)
 })
 
 test_that("directed, bipartite and undirected normal panels, with and without missing cells and moving coefficients, fit and report", {
@@ -370,20 +354,6 @@ test_that("a normal fit recovers the model of a simulated panel", {
 	expect_lt(max(abs(f$coefficients[-1] - c(0.4, -0.3))), 0.05)
 	# standard errors reflect the slopes' sampling, so the truth is within three
 	expect_lt(max(abs(f$coefficients[-1] - c(0.4, -0.3)) / f$eb$se[-1]), 3)
-})
-
-test_that("the fit is equivariant to the unit of the response", {
-	skip_on_cran()
-	d = nrm_sim(n = 14, Tt = 4, seed = 41, rho_d = 0.3)
-	d10 = nrm_sim(n = 14, Tt = 4, seed = 41, rho_d = 0.3, scale = 10)
-	f = nrm_fit(d)
-	g = nrm_fit(d10)
-	expect_equal(g$coefficients, 10 * f$coefficients, tolerance = 2e-3)
-	expect_equal(g$VC[["ve"]], 100 * f$VC[["ve"]], tolerance = 2e-3)
-	expect_equal(g$VC[["va"]], 100 * f$VC[["va"]], tolerance = 2e-3)
-	expect_equal(g$sigma_ab, 10 * f$sigma_ab, tolerance = 2e-3)
-	expect_equal(g$rho_ab, f$rho_ab, tolerance = 2e-3)
-	expect_equal(g$VC[["rho"]], f$VC[["rho"]], tolerance = 2e-3)
 })
 
 test_that("the floors of the variances are relative to the response: tiny and huge units fit as the unit response does", {

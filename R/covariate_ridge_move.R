@@ -108,6 +108,7 @@
 	shift_t <- numeric(N)
 	typ <- .lame_cov_ridge_types(Xlist, skip)
 	Pab <- tryCatch(solve(Sab), error = function(e) NULL)
+	if (is.null(Pab)) .lame_fallback_note('covariate_ridge')
 	if (is.null(Pab)) return(
 		list(beta = beta, a_lev = a_lev, b_lev = b_lev, a_mat = a_mat, b_mat = b_mat, shift = shift_t, stats = stats)
 	)
@@ -176,4 +177,39 @@
 		if (!is.null(E) && !is.null(M)) for (t in seq_len(N)) if (abs(r[t]) > 1e-10) E[, , t][M[, , t]] <- E[, , t][M[, , t]] - delta * r[t]
 	}
 	list(beta = beta, a_lev = a_lev, b_lev = b_lev, a_mat = a_mat, b_mat = b_mat, shift = shift_t, stats = stats)
+}
+
+# coefficient state of a dynamic_beta visit: static coefficients under N(0, g s2) (or the panel precision
+# P_static) and an rw1 intercept path through its first state under N(0, v0); other dynamic coefficients
+# are held and skipped
+.lame_cov_ridge_dyn_state <- function(
+	p,
+	static_idx,
+	dynamic_idx,
+	beta_static,
+	path,
+	g_static,
+	s2,
+	beta0_cov,
+	intercept,
+	P_static = NULL
+) {
+	beta <- numeric(p)
+	prec <- rep(1, p)
+	beta[static_idx] <- beta_static
+	if (is.null(P_static)) prec[static_idx] <- 1 / (g_static * s2)
+	kd <- if (isTRUE(intercept)) match(1L, dynamic_idx) else NA_integer_
+	if (!is.na(kd)) {
+		beta[1L] <- path[1L, kd]
+		prec[1L] <- 1 / beta0_cov[kd, kd]
+	}
+	P0 <- diag(prec, p)
+	if (!is.null(P_static)) P0[static_idx, static_idx] <- P_static
+	list(beta = beta, P0 = P0, kd = kd, skip = sort(unique(c(if (isTRUE(intercept)) 1L, dynamic_idx))))
+}
+
+# static coefficients and intercept path after a visit that returned `beta_new`
+.lame_cov_ridge_dyn_apply <- function(st, beta_new, path, static_idx) {
+	if (!is.na(st$kd)) path[, st$kd] <- path[, st$kd] + (beta_new[1L] - st$beta[1L])
+	list(beta_static = beta_new[static_idx], path = path)
 }

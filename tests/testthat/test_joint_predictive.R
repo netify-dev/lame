@@ -50,9 +50,8 @@ test_that('joint predictive outcomes preserve all parameter-block dependence', {
 		expect_length(a$draw_index, 31)
 		expect_true(all(unlist(a$Y)[is.finite(unlist(a$Y))] == 0))
 		expect_identical(a$Y, a$Z)
-		# the default route is the posterior one, and "auto" is its alias
+		# the default route is the posterior one
 		expect_identical(simulate(f, nsim = 31, seed = 71)$Y, a$Y)
-		expect_identical(simulate(f, nsim = 31, seed = 71, type = 'auto')$Y, a$Y)
 	}
 })
 
@@ -101,8 +100,8 @@ test_that('missing storage is explicit and probability utilities refuse it', {
 	expect_error(simulate_posterior(f, 'Y'), class = 'lame_predictive_draws')
 	expect_error(predict(f, type = 'distribution'), class = 'lame_predictive_draws')
 	# a fit without joint draws is never simulated from a substitute unasked: the
-	# default and the "auto" alias abort and name the approximate route
-	for (ty in c('posterior', 'auto')) {
+	# default aborts and names the approximate route
+	for (ty in 'posterior') {
 		e = expect_error(simulate(f, nsim = 1, type = ty), class = 'lame_simulate_draws')
 		expect_s3_class(e, 'lame_predictive_draws')
 		expect_match(conditionMessage(e), 'type = "approximate"', fixed = TRUE)
@@ -113,9 +112,9 @@ test_that('missing storage is explicit and probability utilities refuse it', {
 	expect_identical(x$method, 'conditional approximation')
 })
 
-test_that('posterior replication refuses legacy period options and names the approximate route', {
+test_that('posterior replication refuses start_from and extended n_time and names the approximate route', {
 	f = joint_fixture(TRUE, FALSE)
-	for (ty in c('posterior', 'auto')) {
+	for (ty in 'posterior') {
 		e = expect_error(simulate(f, nsim = 1, type = ty, n_time = 3), class = 'lame_simulate_periods')
 		expect_match(conditionMessage(e), 'type = "approximate"', fixed = TRUE)
 		expect_error(simulate(f, nsim = 1, type = ty, start_from = 'random'), class = 'lame_simulate_periods')
@@ -277,7 +276,7 @@ test_that('future noise refuses undefined reciprocity and invalid or clipped rat
 	}
 })
 
-test_that('explicit legacy approximation keeps the fitted reciprocity periods', {
+test_that('the explicit conditional approximation keeps the fitted reciprocity periods', {
 	f = joint_fixture(TRUE);f$dynamic_ab = f$dynamic_uv = FALSE;f$BETA[] = 0;f$R = 0L
 	f$VC[, 've'] = 1;f$VC[, 'rho'] = 0;f$dynamic_rho = TRUE;f$RHO = cbind(rep(1, 12), rep(-1, 12))
 	z = simulate(f, nsim = 3, seed = 51, type = 'approximate', burn_in = 2, thin = 3)

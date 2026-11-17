@@ -13,7 +13,12 @@
 #'         divided by the posterior SD, and the p-value is the two-sided
 #'         normal tail probability of that z-value: a posterior summary, not a
 #'         frequentist test. The credible intervals are posterior quantiles of
-#'         the draws, and the full posterior is in the BETA matrix.}
+#'         the draws, and the full posterior is in the BETA matrix. A
+#'         coefficient that follows a path over the periods (\code{dynamic_beta},
+#'         or the intercept under \code{dynamic_ab}) has no z-value or p-value:
+#'         its row gives the posterior of its mean level over the periods, and
+#'         the print method adds its posterior mean, sd and 95% interval in
+#'         each period, as \code{coef()} and \code{confint()} report it.}
 #'   \item{Variance components}{Estimates and standard errors for:
 #'     \describe{
 #'       \item{va}{Variance of additive sender/row effects}
@@ -22,6 +27,15 @@
 #'       \item{rho}{Dyadic correlation (reciprocity)}
 #'       \item{ve}{Residual variance}
 #'     }}
+#'   \item{Rhat, Threshold and ESS}{A fit of two or more chains adds the
+#'     columns \code{Rhat}, \code{Threshold} and \code{ESS} to both tables, as
+#'     \code{\link{summary.ame}} does: the split rank-normalised R-hat and the
+#'     threshold the between-chain gate held the quantity to (from
+#'     \code{fit$rhat}; a coefficient monitored per period shows the period with
+#'     the largest R-hat), and the effective sample size of the pooled draws.
+#'     The print adds the gate's verdict: agreement on every monitored quantity,
+#'     or the quantities on which the chains disagree or hold too few effective
+#'     draws to be compared.}
 #'   \item{Dynamic coefficients per period}{Only printed when the fit was
 #'         produced with \code{dynamic_beta} on at least one coefficient. The
 #'         table has one row per coefficient with columns:
@@ -39,7 +53,9 @@
 #'                 dynamic, \code{"N"} if it was held static}
 #'         }
 #'         The block also prints the per-block AR(1) hyperparameters
-#'         (\code{rho_beta = ...}). For per-period credible intervals use
+#'         (\code{rho_beta = ...}) and the long-run mean of each AR(1)
+#'         coefficient path (\code{mu_beta = ...}), the level its path and its
+#'         forecasts revert to. For per-period credible intervals use
 #'         \code{\link{confint.lame}}.}
 #' }
 #'
@@ -54,11 +70,12 @@
 #' fit used (the normal prior of \code{prior$rho_uv_mean} and
 #' \code{prior$rho_uv_sd}, or of \code{prior$rho_ab_mean} and
 #' \code{prior$rho_ab_sd}, truncated to the support of the sampler,
-#' \eqn{|\rho| < 0.99}; see \code{prior_summary()}) and returns the ratio in
+#' \eqn{|\rho| < 0.99}, and for \code{rho_uv} folded onto \eqn{|\rho|}, the gauge of
+#' its stored draws; see \code{prior_summary()}) and returns the ratio in
 #' \code{persistence_prior_check}. A ratio near one says that the posterior is
 #' as wide as the prior, so the data add little to that persistence. When the
 #' ratio is above 0.6 the printed summary states it, for example
-#' \code{rho_uv: posterior sd 0.073 is 0.92 of the prior sd 0.079: the data
+#' \code{rho_uv: posterior sd 0.212 is 0.92 of the prior sd 0.230: the data
 #' barely inform it}. The cutoff, a posterior sd above 0.6 of the prior sd, is
 #' the one \code{rho_beta_prior_check} applies to the coefficient persistences.
 #'
@@ -67,7 +84,13 @@
 #' @param ... additional parameters (currently not used)
 #' @return A list of class "summary.lame" containing:
 #'   \item{call}{The original function call}
-#'   \item{beta}{Matrix of regression coefficient estimates and statistics}
+#'   \item{beta}{Matrix of regression coefficient estimates and statistics;
+#'     \code{z_value} and \code{p_value} are \code{NA} for a coefficient path}
+#'   \item{beta_path}{for a fit with coefficient paths, a named logical vector
+#'     marking them (\code{NULL} otherwise)}
+#'   \item{beta_dynamic_per_t, beta_dynamic_per_t_sd, beta_dynamic_per_t_lower,
+#'     beta_dynamic_per_t_upper}{for a fit with coefficient paths, the
+#'     coefficient-by-period posterior means, sds and 95% interval bounds}
 #'   \item{variance}{Matrix of variance component estimates. On a directed
 #'     binary panel of two periods or more with fewer than 1.2 events per
 #'     actor-period the \code{va} and \code{vb} rows are \code{NA}: in simulated
@@ -103,6 +126,9 @@
 #'     truncated prior it started from \code{prior_sd}, their ratio
 #'     \code{sd_ratio}, and \code{weak}, \code{TRUE} when the ratio is above
 #'     0.6 (\code{NULL} when no persistence is reported)}
+#'   \item{mu_beta}{for fits with AR(1) coefficient paths, a matrix with one
+#'     row per such coefficient: the posterior mean, standard deviation and 95
+#'     percent interval of its long-run mean (\code{NULL} otherwise)}
 #'   \item{n.periods}{Number of time periods in the longitudinal data}
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #' @seealso \code{\link{lame}}, \code{\link{print.summary.lame}}
@@ -142,6 +168,10 @@ summary.lame <- function(object, ...) {
 		)
 		beta_z <- ifelse(beta_sd_overall > 0, beta_mean_overall / beta_sd_overall, NA_real_)
 		beta_p <- 2 * (1 - pnorm(abs(beta_z)))
+		# a coefficient path has no z or p-value pooled over periods: its row is the mean level
+		beta_path <- .lame_beta_path_rows(fit)
+		beta_z[beta_path] <- NA_real_
+		beta_p[beta_path] <- NA_real_
 		beta_lower <- apply(
 			apply(fit$BETA, c(1, 2), mean),
 			2,
@@ -164,9 +194,11 @@ summary.lame <- function(object, ...) {
 			CI_lower = beta_lower,
 			CI_upper = beta_upper
 		)
-		# per-period posterior means and sds
+		# per-period posterior means, sds and 95% intervals
 		beta_per_t_mean <- apply(fit$BETA, c(2, 3), mean)
 		beta_per_t_sd <- apply(fit$BETA, c(2, 3), sd)
+		beta_per_t_lower <- apply(fit$BETA, c(2, 3), quantile, probs = 0.025, na.rm = TRUE)
+		beta_per_t_upper <- apply(fit$BETA, c(2, 3), quantile, probs = 0.975, na.rm = TRUE)
 	} else {
 		beta_mean <- apply(fit$BETA, 2, mean, na.rm = TRUE)
 		beta_sd <- apply(fit$BETA, 2, sd, na.rm = TRUE)
@@ -185,8 +217,14 @@ summary.lame <- function(object, ...) {
 		)
 		beta_per_t_mean <- NULL
 		beta_per_t_sd <- NULL
+		beta_per_t_lower <- NULL
+		beta_per_t_upper <- NULL
+		beta_path <- NULL
 		beta_min <- NULL; beta_max <- NULL; beta_drift <- NULL; drift_pct <- NULL
 	}
+
+	# R-hat, threshold and ESS of a multi-chain fit
+	beta_table <- .lame_summary_chain_cols(beta_table, fit)
 
 	# a saturated nomination cap leaves row levels unfixed: withhold the
 	# intercept and row-covariate coefficients (draws stay in fit$BETA)
@@ -203,9 +241,7 @@ summary.lame <- function(object, ...) {
 		Estimate = vc_mean,
 		StdError = vc_sd
 	)
-	# position hyperparameters reported only where identified (see .lame_uv_hyper_unidentified)
-	uv_unident <- .lame_uv_hyper_unidentified(fit)
-	pi_unident <- .lame_snap_rate_unidentified(fit)
+	vc_table <- .lame_summary_chain_cols(vc_table, fit)
 	# effect variances of a sparse panel are withheld (draws stay in fit$VC)
 	# unless the effects prior was supplied
 	ab_reason <- .lame_ab_var_unident_reason(fit)
@@ -224,6 +260,7 @@ summary.lame <- function(object, ...) {
 		beta = beta_table,
 		coefficients = beta_table,
 		variance = vc_table,
+		diagnostics = .lame_summary_diag(fit),
 		ab_var_unidentified = ab_unident,
 		ab_var_unidentified_reason = ab_reason,
 		ab_data_reason = .lame_ab_data_reason(fit),
@@ -243,29 +280,45 @@ summary.lame <- function(object, ...) {
 		dynamic_ab = isTRUE(fit$dynamic_ab),
 		dynamic_beta = isTRUE(fit$dynamic_beta),
 		dynamic_beta_kind = fit$dynamic_beta_kind,
+		dynamic_beta_kind_by_block = if (isTRUE(fit$dynamic_beta)) .lame_beta_block_kinds(fit) else NULL,
 		beta_dynamic_mask = fit$beta_dynamic_mask,
 		beta_dynamic_per_t = beta_per_t_mean,
 		beta_dynamic_per_t_sd = beta_per_t_sd,
+		beta_dynamic_per_t_lower = beta_per_t_lower,
+		beta_dynamic_per_t_upper = beta_per_t_upper,
+		beta_path = beta_path,
 		beta_dynamic_min = beta_min,
 		beta_dynamic_max = beta_max,
 		beta_dynamic_drift = beta_drift,
 		beta_dynamic_drift_pct = drift_pct,
-		# posterior mean of the rho_beta draws; fit$rho_beta is the last draw
+		# posterior mean of the rho_beta draws of the ar1 blocks; fit$rho_beta is the last draw
 		rho_beta = if (isTRUE(fit$dynamic_beta)) {
-			RB <- fit$RHO_BETA
+			RB <- .lame_rho_beta_ar1(fit)
 			if (is.matrix(RB) && nrow(RB) > 0L) colMeans(RB, na.rm = TRUE)
 			else if (!is.null(RB)) mean(RB, na.rm = TRUE)
 			else fit$rho_beta
 		} else NULL,
 		sigma_beta = if (isTRUE(fit$dynamic_beta)) fit$sigma_beta else NULL,
+		# long-run means of the ar1 coefficient paths
+		mu_beta = if (is.matrix(fit$MU_BETA) && ncol(fit$MU_BETA) > 0L && nrow(fit$MU_BETA) > 0L) {
+			M <- fit$MU_BETA
+			cbind(
+				mean = colMeans(M),
+				sd = apply(M, 2, stats::sd),
+				`2.5%` = apply(M, 2, stats::quantile, 0.025),
+				`97.5%` = apply(M, 2, stats::quantile, 0.975)
+			)
+		} else NULL,
 		# flag blocks whose rho_beta posterior sd exceeds 0.6 of the prior sd
 		rho_beta_prior_check = if (isTRUE(fit$dynamic_beta) &&
-				is.matrix(fit$RHO_BETA) &&
+				is.matrix(.lame_rho_beta_ar1(fit)) &&
+				ncol(.lame_rho_beta_ar1(fit)) > 0L &&
 				nrow(fit$RHO_BETA) > 1L) {
+			RB <- .lame_rho_beta_ar1(fit)
 			prior_sd <- fit$prior$rho_beta_sd %||% 0.15
-			post_sd <- apply(fit$RHO_BETA, 2, stats::sd, na.rm = TRUE)
+			post_sd <- apply(RB, 2, stats::sd, na.rm = TRUE)
 			data.frame(
-				block = colnames(fit$RHO_BETA) %||%
+				block = colnames(RB) %||%
 					paste0("b", seq_along(post_sd)),
 				post_sd = post_sd,
 				prior_sd = prior_sd,
@@ -276,8 +329,8 @@ summary.lame <- function(object, ...) {
 		} else NULL,
 		# near-unit-root check per block: q05 >= 0.97 and IQR < 0.1
 		rho_beta_stationarity = if (isTRUE(fit$dynamic_beta) && !is.null(fit$RHO_BETA)) {
-			RB <- fit$RHO_BETA
-			if (is.matrix(RB) && nrow(RB) > 0L) {
+			RB <- .lame_rho_beta_ar1(fit)
+			if (is.matrix(RB) && nrow(RB) > 0L && ncol(RB) > 0L) {
 				q05 <- apply(RB, 2, quantile, probs = 0.05, na.rm = TRUE)
 				q25 <- apply(RB, 2, quantile, probs = 0.25, na.rm = TRUE)
 				q75 <- apply(RB, 2, quantile, probs = 0.75, na.rm = TRUE)
@@ -296,24 +349,37 @@ summary.lame <- function(object, ...) {
 		rho_ab = if (isTRUE(fit$dynamic_ab) && !is.null(fit$rho_ab)) mean(fit$rho_ab) else NULL,
 		sigma_ab = if (isTRUE(fit$dynamic_ab) && !is.null(fit$sigma_ab)) mean(fit$sigma_ab) else NULL,
 		# posterior against prior sd of rho_uv and rho_ab
-		persistence_prior_check = .lame_persistence_prior_check(fit, uv_unident),
-		# withheld where not identified (see .lame_uv_hyper_unidentified)
-		rho_uv = if (isTRUE(fit$dynamic_uv) && !is.null(fit$rho_uv) && !uv_unident)
-			mean(fit$rho_uv) else NULL,
-		sigma_uv = if (isTRUE(fit$dynamic_uv) && !is.null(fit$sigma_uv) && !uv_unident)
-			mean(fit$sigma_uv) else NULL,
-		uv_hyper_unidentified = uv_unident,
-		# snap reset rate under the same rule (see .lame_snap_rate_unidentified)
+		persistence_prior_check = .lame_persistence_prior_check(fit),
+		rho_uv = if (isTRUE(fit$dynamic_uv) && !is.null(fit$rho_uv)) mean(fit$rho_uv) else NULL,
+		sigma_uv = if (isTRUE(fit$dynamic_uv) && !is.null(fit$sigma_uv)) mean(fit$sigma_uv) else NULL,
+		# snap reset rate
 		pi_snap = if (isTRUE(fit$dynamic_uv) && is.numeric(fit$pi_snap) &&
-				length(fit$pi_snap) > 0L && !pi_unident) mean(fit$pi_snap) else NULL,
-		pi_snap_unidentified = pi_unident,
+				length(fit$pi_snap) > 0L) mean(fit$pi_snap) else NULL,
 		dynamic_uv_kind = fit$dynamic_uv_kind,
 		refusal_share = fit$refusal_share,
-		bound_line = .lame_bound_share_line(fit)
+		bound_line = .lame_bound_share_line(fit),
+		fallback_line = .lame_fallback_share_line(fit)
 	)
 
 	class(sum_obj) <- "summary.lame"
 	return(sum_obj)
+}
+
+# coefficients of a 3-d BETA that follow a path over the periods: the fit's dynamic mask, or the
+# coefficients whose draws differ between periods when the mask is not stored
+.lame_beta_path_rows <- function(fit) {
+	B <- fit$BETA
+	p <- dim(B)[2L]
+	mask <- fit$beta_dynamic_mask
+	out <- if (is.logical(mask) && length(mask) == p && !anyNA(mask)) {
+		mask
+	} else {
+		vapply(seq_len(p), function(k) {
+			x <- matrix(B[, k, ], nrow = dim(B)[1L])
+			any(abs(x - x[, 1L]) > 0, na.rm = TRUE)
+		}, logical(1))
+	}
+	stats::setNames(out, dimnames(B)[[2L]])
 }
 
 # sd of a normal(mean, sd^2) truncated to (lo, hi)
@@ -327,15 +393,32 @@ summary.lame <- function(object, ...) {
 	sd * sqrt(max(v, 0))
 }
 
+# sd of |x| for x normal truncated to (lo, hi), lo < 0 < hi: the prior of rho_uv as its stored draws
+# see it, each one in the gauge rho_uv >= 0 (R/uv_rho_flip.R)
+.lame_folded_truncnorm_sd <- function(mean, sd, lo, hi) {
+	a <- (lo - mean) / sd
+	b <- (hi - mean) / sd
+	c0 <- -mean / sd
+	z <- stats::pnorm(b) - stats::pnorm(a)
+	if (!is.finite(z) || z <= 0) return(NA_real_)
+	# first moments of x over (0, hi) and (lo, 0)
+	m_pos <- mean * (stats::pnorm(b) - stats::pnorm(c0)) + sd * (stats::dnorm(c0) - stats::dnorm(b))
+	m_neg <- mean * (stats::pnorm(c0) - stats::pnorm(a)) + sd * (stats::dnorm(a) - stats::dnorm(c0))
+	e_abs <- (m_pos - m_neg) / z
+	e_x <- (m_pos + m_neg) / z
+	e_x2 <- .lame_truncnorm_sd(mean, sd, lo, hi)^2 + e_x^2
+	sqrt(max(e_x2 - e_abs^2, 0))
+}
+
 # posterior against prior sd of the persistences rho_uv and rho_ab, the prior
-# truncated to |rho| < 0.99; weak means a ratio above 0.6
-.lame_persistence_prior_check <- function(fit, uv_unident = FALSE) {
+# truncated to |rho| < 0.99 (and folded to |rho| for rho_uv); weak means a ratio above 0.6
+.lame_persistence_prior_check <- function(fit) {
 	# exact lookup, since $prior would partial-match prior_supplied
 	prior <- fit[["prior", exact = TRUE]]
 	if (!is.list(prior)) return(NULL)
 	spec <- list(
 		rho_uv = list(
-			on = isTRUE(fit$dynamic_uv) && !isTRUE(uv_unident),
+			on = isTRUE(fit$dynamic_uv),
 			draws = fit$rho_uv,
 			mean = prior$rho_uv_mean,
 			sd = prior$rho_uv_sd
@@ -353,7 +436,8 @@ summary.lame <- function(object, ...) {
 				length(x$mean) != 1L || length(x$sd) != 1L ||
 				!is.finite(x$mean) || !is.finite(x$sd) || x$sd <= 0) return(NULL)
 		post_sd <- stats::sd(x$draws, na.rm = TRUE)
-		prior_sd <- .lame_truncnorm_sd(x$mean, x$sd, -0.99, 0.99)
+		prior_sd <- if (identical(nm, "rho_uv")) .lame_folded_truncnorm_sd(x$mean, x$sd, -0.99, 0.99) else
+			.lame_truncnorm_sd(x$mean, x$sd, -0.99, 0.99)
 		# a chain that never moved has no posterior sd to compare
 		if (!is.finite(post_sd) || post_sd <= 0 || !is.finite(prior_sd) || prior_sd <= 0)
 			return(NULL)
@@ -419,6 +503,7 @@ print.summary.lame <- function(x, digits = 3, ...) {
 		}
 		cli::cli_bullets(model_info)
 		if (!is.null(x$bound_line)) cli::cli_alert_info("{x$bound_line}", wrap = TRUE)
+		if (!is.null(x$fallback_line)) cli::cli_alert_info("{x$fallback_line}", wrap = TRUE)
 		if (isTRUE(x$dynamic_uv)) {
 			uv_parts <- c(
 				if (!is.null(x$dynamic_uv_kind)) paste0("kind = ", x$dynamic_uv_kind),
@@ -427,22 +512,6 @@ print.summary.lame <- function(x, digits = 3, ...) {
 			)
 			uv_txt <- if (length(uv_parts)) paste0(" (", paste(uv_parts, collapse = ", "), ")") else ""
 			cli::cli_bullets(c("*" = "Dynamic latent positions: enabled{uv_txt}"))
-			if (isTRUE(x$uv_hyper_unidentified)) {
-				cli::cli_bullets(c(
-					" " = paste0(
-						"rho_uv and sigma_uv are not reported for this transition kind at rank two or more ",
-						"(the draws are in {.code fit$rho_uv} and {.code fit$sigma_uv})."
-					)
-				))
-			}
-			if (isTRUE(x$pi_snap_unidentified)) {
-				cli::cli_bullets(c(
-					" " = paste0(
-						"The reset rate pi_snap is not reported at rank two or more ",
-						"(the draws are in {.code fit$pi_snap})."
-					)
-				))
-			}
 			pl_uv <- .lame_persistence_prior_line(x$persistence_prior_check, "rho_uv")
 			if (!is.null(pl_uv)) cli::cli_bullets(c(" " = "{pl_uv}"))
 		}
@@ -454,11 +523,19 @@ print.summary.lame <- function(x, digits = 3, ...) {
 		}
 		if (isTRUE(x$dynamic_beta)) {
 			beta_parts <- c(
-				if (!is.null(x$dynamic_beta_kind)) paste0("kind = ", x$dynamic_beta_kind),
+				if (!is.null(x$dynamic_beta_kind_by_block) && length(x$dynamic_beta_kind_by_block)) {
+					paste0("kind = ", .lame_beta_kind_text(x$dynamic_beta_kind_by_block))
+				} else if (!is.null(x$dynamic_beta_kind)) paste0("kind = ", x$dynamic_beta_kind),
 				if (!is.null(x$rho_beta) && length(x$rho_beta) > 0) {
 					paste0(
 						"rho_beta = ",
 						paste(names(x$rho_beta), ":", round(x$rho_beta, 2), collapse = ", ")
+					)
+				},
+				if (!is.null(x$mu_beta) && nrow(x$mu_beta) > 0) {
+					paste0(
+						"mu_beta = ",
+						paste(rownames(x$mu_beta), ":", round(x$mu_beta[, "mean"], 2), collapse = ", ")
 					)
 				}
 			)
@@ -495,15 +572,12 @@ print.summary.lame <- function(x, digits = 3, ...) {
 		# note a static fit to a longitudinal panel
 		if (!is.null(x$n.periods) && x$n.periods > 1L &&
 				!isTRUE(x$dynamic_uv) && !isTRUE(x$dynamic_ab) && !isTRUE(x$dynamic_beta)) {
-			cli::cli_alert_warning(
-				paste0(
-					"This is a {.strong STATIC} fit pooled across {x$n.periods} time periods: ",
-					"U, V, a, b are time-invariant, and per-period predictions vary only through per-period covariates."
-				),
-				wrap = TRUE
-			)
 			cli::cli_alert_info(
-				"For time-varying effects, refit with {.code dynamic_uv = TRUE} and/or {.code dynamic_ab = TRUE}.",
+				paste0(
+					"Static fit: U, V, a and b are shared across the {x$n.periods} periods, ",
+					"and per-period predictions vary through the per-period covariates. ",
+					"{.code dynamic_uv = TRUE} and {.code dynamic_ab = TRUE} let them vary over time."
+				),
 				wrap = TRUE
 			)
 		}
@@ -527,6 +601,12 @@ print.summary.lame <- function(x, digits = 3, ...) {
 		cli::cli_bullets(c(
 			"i" = "Stars are a visual hint from the posterior mean / SD only; for inference use the credible intervals."
 		))
+		path_nms <- names(x$beta_path)[x$beta_path %in% TRUE]
+		if (length(path_nms)) {
+			cli::cli_bullets(c(
+				"i" = "{.field {path_nms}} {?is a coefficient path/are coefficient paths}: the row gives the mean level over the periods and its interval, with no z or p-value. The periods are below."
+			))
+		}
 
 		# per-period dynamic coefficients
 		if (isTRUE(x$dynamic_beta) && !is.null(x$beta_dynamic_per_t)) {
@@ -546,6 +626,20 @@ print.summary.lame <- function(x, digits = 3, ...) {
 				num_tbl$Dynamic <- ifelse(x$beta_dynamic_mask, "Y", "N")
 			}
 			cli::cli_verbatim(utils::capture.output(print(num_tbl)))
+			# each path by period, with its 95% intervals
+			if (!is.null(x$beta_dynamic_per_t_lower)) {
+				for (k in names(x$beta_path)[x$beta_path %in% TRUE]) {
+					cli::cli_h3("{k} by period")
+					per_tbl <- data.frame(
+						Estimate = x$beta_dynamic_per_t[k, ],
+						StdError = x$beta_dynamic_per_t_sd[k, ],
+						CI_lower = x$beta_dynamic_per_t_lower[k, ],
+						CI_upper = x$beta_dynamic_per_t_upper[k, ],
+						row.names = colnames(x$beta_dynamic_per_t)
+					)
+					cli::cli_verbatim(utils::capture.output(print(round(per_tbl, digits))))
+				}
+			}
 		}
 
 		cli::cli_h3("Variance components")
@@ -569,6 +663,7 @@ print.summary.lame <- function(x, digits = 3, ...) {
 		}
 		# why va, vb and cab are withheld, or the prior they are reported under
 		for (st_ in .lame_ab_statements(x)) cli::cli_alert_info("{st_}", wrap = TRUE)
+		.lame_print_gate_verdict(x$diagnostics)
 	})
 	invisible(x)
 }

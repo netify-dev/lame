@@ -57,7 +57,7 @@ the transition-only hyperparameter conditionals remain exact.}
 
 \item{s2}{Dyadic variance.}
 
-\item{dyad_rho}{Dyadic correlation (ignored when use_dyad_rho=FALSE).}
+\item{dyad_rho}{Dyadic correlation: one value, or one per period (ignored when use_dyad_rho=FALSE).}
 
 \item{bipartite}{Whether the network is bipartite.}
 

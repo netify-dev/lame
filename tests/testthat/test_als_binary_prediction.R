@@ -92,7 +92,7 @@ test_that("the corrected fit estimates reciprocity at its reported predictor", {
 	expect_equal(f$rho_estimation, reference, tolerance = 1e-12)
 	expect_true(is.finite(f$rho_working))
 	bad = f$Y;bad[1, 2, 1] = 2
-	expect_error(ame_als_refit(f, Y_new = bad), class = 'lame_als_data')
+	expect_warning(ame_als_refit(f, Y_new = bad), class = 'lame_als_thresholded')
 	f$VC['rho'] = 1;expect_equal(als_start_vals(f)$rho, .99)
 	f$VC['rho'] = -1;expect_equal(als_start_vals(f)$rho, -.99)
 })

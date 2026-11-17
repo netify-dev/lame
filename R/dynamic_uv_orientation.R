@@ -227,8 +227,9 @@
 }
 
 # signs along the singular directions of G preserve each bipartite product, and the isotropic AR(1)
-# prior is unchanged by the common singular-vector bases
-.lame_uv_svd_sign_ar1 <- function(UV, G, rho_uv, sigma_uv, max_abs = Inf) {
+# prior is unchanged by the common singular-vector bases; `weight_u`, `weight_v` (actors x N) weight the
+# cross products of the transitions as for .lame_uv_sign_ar1
+.lame_uv_svd_sign_ar1 <- function(UV, G, rho_uv, sigma_uv, max_abs = Inf, weight_u = NULL, weight_v = NULL) {
 	U <- UV$U
 	V <- UV$V
 	du <- dim(U)
@@ -252,9 +253,12 @@
 	for (k in seq_len(min(du[2L], dv[2L]))) {
 		a <- matrix(A[, k, ], du[1L], nt)
 		b <- matrix(B[, k, ], dv[1L], nt)
-		kappa <- rho_uv / sigma_uv^2 *
+		kappa <- if (is.null(weight_u)) rho_uv / sigma_uv^2 *
 			(colSums(a[, -nt, drop = FALSE] * a[, -1L, drop = FALSE]) +
 					colSums(b[, -nt, drop = FALSE] * b[, -1L, drop = FALSE]))
+		else rho_uv / sigma_uv^2 *
+			(colSums(weight_u[, -1L, drop = FALSE] * a[, -nt, drop = FALSE] * a[, -1L, drop = FALSE]) +
+					colSums(weight_v[, -1L, drop = FALSE] * b[, -nt, drop = FALSE] * b[, -1L, drop = FALSE]))
 		signs <- c(1, cumprod(ifelse(stats::runif(nt - 1L) < stats::plogis(2 * kappa), 1, -1)))
 		aa <- A
 		bb <- B

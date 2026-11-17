@@ -26,7 +26,8 @@ test_that("trace_plot draws the persistence and innovation of dynamic effects an
 	expect_true(all(dyn %in% d$parameter))
 	expect_equal(d$value[d$parameter == "Position persistence (rho_uv)"], as.numeric(fit$rho_uv))
 	d_dyn = tp_data(trace_plot(fit, params = "dynamic"))
-	expect_setequal(unique(d_dyn$parameter), dyn)
+	# the rw1 intercept path adds its innovation, not its persistence
+	expect_setequal(unique(d_dyn$parameter), c(dyn, "Coefficient innovation (sigma_beta)"))
 	# raw names and labels both filter
 	d_raw = tp_data(trace_plot(fit, include = c("rho_uv", "sigma_ab")))
 	expect_setequal(unique(d_raw$parameter), c("Position persistence (rho_uv)", "Effect innovation (sigma_ab)"))
@@ -127,4 +128,65 @@ test_that("trace_plot leaves out what summary() reports as not estimated, with a
 	expect_message(p <- trace_plot(fit), "not estimated")
 	d = tp_data(p)
 	expect_false(any(c("Sender variance", "Receiver variance", "intercept") %in% d$parameter))
+})
+
+test_that("trace_plot draws a per-period coefficient as one panel of period traces", {
+	dat = simulate_test_network(n = 10, n_time = 5, family = "normal", seed = 17)
+	ctrl = list(R = 0, burn = 10, nscan = 60, odens = 2, verbose = FALSE, seed = 17)
+	fit_dyn = do.call(lame, c(list(dat$Y, dynamic_ab = TRUE), ctrl))
+	fit_static = do.call(lame, c(list(dat$Y), ctrl))
+	panels = function(p) levels(droplevels(factor(tp_data(p)$parameter)))
+	p_dyn = trace_plot(fit_dyn)
+	p_static = trace_plot(fit_static)
+	# the intercept path is one panel, so the dynamic fit adds rho_ab, sigma_ab and sigma_beta
+	expect_length(panels(p_dyn), length(panels(p_static)) + 3L)
+	expect_setequal(
+		setdiff(panels(p_dyn), panels(p_static)),
+		c(
+			"intercept by period",
+			"Effect persistence (rho_ab)",
+			"Effect innovation (sigma_ab)",
+			"Coefficient innovation (sigma_beta)"
+		)
+	)
+	expect_false("intercept" %in% panels(p_dyn))
+	d = tp_data(p_dyn)
+	per = d[d$parameter == "intercept by period", ]
+	expect_setequal(unique(per$period), paste0("t", 1:5))
+	expect_equal(per$value[per$period == "t3"], as.numeric(fit_dyn$BETA[, "intercept", "t3"]))
+	# each period is labelled once beside its trace and once above its density
+	for (k in 1:2) {
+		text_data = function(l) if (inherits(l$geom, "GeomText")) l$data
+		lab = do.call(rbind, lapply(p_dyn[[k]]$layers, text_data))
+		expect_setequal(lab$label, paste0("t", 1:5))
+		expect_equal(nrow(lab), 5L)
+	}
+	# one period is selected by its trace name, every period by the base name
+	one = tp_data(trace_plot(fit_dyn, include = "intercept[t3]"))
+	expect_setequal(unique(one$series), "intercept[t3]")
+	expect_length(unique(tp_data(trace_plot(fit_dyn, include = "intercept"))$series), 5L)
+	expect_false("intercept by period" %in% panels(trace_plot(fit_dyn, exclude = "intercept")))
+	# a static fit draws no period labels
+	is_text = vapply(p_static[[1]]$layers, function(l) inherits(l$geom, "GeomText"), logical(1))
+	expect_false(any(is_text))
+})
+
+test_that("trace_plot draws a coefficient a dynamic_beta fit holds static once", {
+	dat = simulate_test_network(n = 8, n_time = 3, family = "normal", seed = 18)
+	fit = lame(
+		dat$Y,
+		Xdyad = dat$Xdyad,
+		R = 0,
+		dynamic_beta = "intercept",
+		burn = 5,
+		nscan = 40,
+		odens = 2,
+		verbose = FALSE,
+		seed = 18
+	)
+	d = tp_data(trace_plot(fit, params = "beta"))
+	static = setdiff(dimnames(fit$BETA)[[2]], "intercept")
+	expect_true(all(static %in% d$parameter))
+	expect_true("intercept by period" %in% d$parameter)
+	for (v in static) expect_equal(sum(d$parameter == v), nrow(fit$BETA))
 })

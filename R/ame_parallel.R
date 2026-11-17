@@ -146,18 +146,20 @@ lame_parallel <- function(
 #'   health counts are summed when every chain supplies them. The original
 #'   conditional counts and joint-move diagnostics are retained in
 #'   \code{sampler_diagnostics_by_chain}; move diagnostics from a single
-#'   chain are not presented as pooled values. If a legacy chain lacks the
+#'   chain are not presented as pooled values. If a chain from an earlier release lacks the
 #'   numerical/bound decomposition, the combined \code{sampler_health}
 #'   is \code{NULL}; its available per-chain records remain accessible.
 #'
 #' @examples
+#' \donttest{
 #' set.seed(1)
 #' n <- 12
 #' Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
 #' # each fit is one chain (chains = 1); combine_ame_chains() pools them
-#' fit1 <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, seed = 1, verbose = FALSE, chains = 1)
-#' fit2 <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, seed = 2, verbose = FALSE, chains = 1)
+#' fit1 <- ame(Y, R = 1, nscan = 200, burn = 50, odens = 1, seed = 1, verbose = FALSE, chains = 1)
+#' fit2 <- ame(Y, R = 1, nscan = 200, burn = 50, odens = 1, seed = 2, verbose = FALSE, chains = 1)
 #' pooled <- combine_ame_chains(list(fit1, fit2))
+#' }
 #'
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #'
@@ -175,13 +177,9 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 		return(chain_list[[1]])
 	}
 
-	if (any(vapply(chain_list, function(f) !is.null(f$log_lik_chunks), logical(1)))) {
-		cli::cli_abort(c(
-			"Combining chains with chunked likelihood storage is not implemented.",
-			"i" = "Keep the chain objects separate, or refit with in-memory {.code save_log_lik = TRUE}."
-		))
-	}
+	chain_list <- .lame_pool_log_lik_prepare(chain_list)
 	combined <- chain_list[[1]]
+	combined$log_lik_chunks <- .lame_pool_log_lik_chunks(chain_list)
 	combined <- .lame_pool_sampler_diagnostics(combined, chain_list)
 	chain_sizes <- vapply(chain_list, function(f) dim(f$BETA)[1L], integer(1))
 	chain_weights <- chain_sizes / sum(chain_sizes)
@@ -250,7 +248,7 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 			unlist(xs, use.names = FALSE)
 	}
 	for (nm in c(
-		"RHO", "RHO_BETA", "SIGMA_BETA", "RHO_ACTOR", "SIGMA_ACTOR",
+		"RHO", "RHO_BETA", "SIGMA_BETA", "MU_BETA", "RHO_ACTOR", "SIGMA_ACTOR",
 		"snap_draws", "snap_draws_v", "THETA_ACTOR", "ALPHA", "log_lik"
 	)) {
 		xs <- lapply(chain_list, `[[`, nm)
@@ -258,6 +256,8 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 		if (is.null(dim(xs[[1L]]))) unlist(xs, use.names = FALSE) else
 			abind::abind(xs, along = 1L)
 	}
+	# posterior means of the long-run means of the ar1 coefficient paths, over the pooled draws
+	if (is.matrix(combined$MU_BETA) && nrow(combined$MU_BETA) > 0L) combined$mu_beta <- colMeans(combined$MU_BETA)
 	offsets <- c(0L, utils::head(cumsum(chain_sizes), -1L))
 	combined$ab_draw_index <- if (all(vapply(chain_list, function(f) !is.null(f$ab_draw_index), logical(1))))
 		unlist(Map(function(f, o) f$ab_draw_index + o, chain_list, offsets), use.names = FALSE) else NULL
@@ -459,8 +459,8 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 #'   \code{lame_robust} objects. Do not mix fit classes.
 #'
 #' @return A list with \code{rhat}, \code{rhat_classic}, \code{ess},
-#'   \code{param_names} (over \code{BETA} and \code{VC}), \code{n_chains} and
-#'   \code{n_samples}. For robust fits, additionally returns \code{ess_bulk},
+#'   \code{rhat_threshold}, \code{informative}, \code{param_names} (over
+#'   \code{BETA} and \code{VC}), \code{n_chains} and \code{n_samples}. For robust fits, additionally returns \code{ess_bulk},
 #'   \code{ess_tail}, a full \code{diagnostics} data frame, and \code{pass}.
 #'
 #' @details
@@ -473,8 +473,12 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 #' \code{summary()}. It is \code{NA} for a quantity that is constant in every
 #' chain and for chains with fewer than 8 draws. \code{rhat_classic} is the
 #' Gelman-Rubin statistic of the whole chains, without splitting or rank
-#' normalisation. The printed verdict compares \code{rhat} with the gate's
-#' threshold, 1.05.
+#' normalisation. \code{rhat_threshold} and \code{informative} are the gate's
+#' rule applied to these quantities (the threshold of each, at the family-wise
+#' level over all of them, and whether the chains hold enough effective draws to
+#' be compared on it; see \emph{Gate thresholds} in \code{\link{lame}}), and the
+#' printed verdict names every quantity above its threshold or short of effective
+#' draws.
 #'
 #' For \code{lame_robust} fits, the \pkg{posterior} package is required.
 #' Diagnostics include static coefficients, time intercepts, actor paths and
@@ -482,22 +486,26 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 #' persistent pair precisions. Unused rank-zero factor hyperparameters and
 #' fixed Gaussian precisions are excluded. Chains must have identical inputs
 #' and priors, different seeds, and equal lengths of at least four retained
-#' draws. Robust \code{pass} requires both \code{rhat} and \code{rhat_classic}
-#' below 1.05 and finite positive ESS, bulk ESS and tail ESS for every
-#' included parameter. The individual R-hat and effective sample size values
+#' draws. Robust \code{pass} applies the gate's rule to every included parameter
+#' (split rank-normalised R-hat at most its threshold, at the family-wise level
+#' over all of them, and enough effective draws to compare the chains) and
+#' requires finite positive ESS, bulk ESS and tail ESS; \code{rhat_threshold},
+#' \code{informative} and \code{parameter_pass} hold it per parameter. The individual R-hat and effective sample size values
 #' are reported for every included parameter.
 #' The existing \code{ame}/\code{lame} diagnostic scope remains coefficients
 #' and variance components.
 #'
 #' @examples
+#' \donttest{
 #' set.seed(1)
 #' n <- 12
 #' Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
 #' # each fit is one chain (chains = 1); compute_mcmc_diagnostics() compares them
-#' fit1 <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, seed = 1, verbose = FALSE, chains = 1)
-#' fit2 <- ame(Y, R = 1, nscan = 20, burn = 5, odens = 1, seed = 2, verbose = FALSE, chains = 1)
+#' fit1 <- ame(Y, R = 1, nscan = 200, burn = 50, odens = 1, seed = 1, verbose = FALSE, chains = 1)
+#' fit2 <- ame(Y, R = 1, nscan = 200, burn = 50, odens = 1, seed = 2, verbose = FALSE, chains = 1)
 #' diag_out <- compute_mcmc_diagnostics(list(fit1, fit2))
 #' diag_out$rhat
+#' }
 #'
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
 #'
@@ -519,7 +527,7 @@ compute_mcmc_diagnostics <- function(chain_list) {
 			))) {
 		cli::cli_abort(c(
 			"{.arg chain_list} must be a list of fitted {.cls ame}/{.cls lame} objects, one per chain.",
-			"i" = "Pass the per-chain fits (e.g. run {.fn ame} with {.arg n_chains} > 1, or supply a list of fits)."
+			"i" = "Pass the per-chain fits (e.g. run {.fn ame} with {.arg chains} > 1, or supply a list of fits)."
 		))
 	}
 
@@ -554,9 +562,11 @@ compute_mcmc_diagnostics <- function(chain_list) {
 		nm <- colnames(mats[[1]])
 		if (is.null(nm)) nm <- paste0("p", seq_len(p))
 		rh <- rc <- es <- stats::setNames(numeric(p), nm)
+		parts <- matrix(NA_real_, 5L, p, dimnames = list(c("rhat", "ess", "ess_chain", "n", "chains"), nm))
 		for (j in seq_len(p)) {
 			ch <- lapply(mats, function(x) x[, j])
-			rh[j] <- .lame_rhat_chains(vapply(ch, function(x) x[seq_len(min(ns))], numeric(min(ns))))
+			parts[, j] <- .lame_rhat_parts(vapply(ch, function(x) x[seq_len(min(ns))], numeric(min(ns))))
+			rh[j] <- parts["rhat", j]
 			W <- mean(vapply(ch, stats::var, numeric(1)))
 			B <- stats::var(vapply(ch, mean, numeric(1))) * min(ns)
 			vp <- ((min(ns) - 1) * W + B) / min(ns)
@@ -570,7 +580,7 @@ compute_mcmc_diagnostics <- function(chain_list) {
 				)
 			}
 		}
-		list(rhat = rh, rhat_classic = rc, ess = es)
+		list(rhat = rh, rhat_classic = rc, ess = es, parts = parts)
 	}
 
 	# a dynamic_beta BETA [n_stored, p, T] becomes [n_stored, p*T] so R-hat and ESS are per coefficient-period
@@ -590,12 +600,15 @@ compute_mcmc_diagnostics <- function(chain_list) {
 		} else B
 	}
 	bd <- diag_block(lapply(chain_list, function(x) .flatten_beta(x$BETA)))
-	rhat <- bd$rhat; rhat_classic <- bd$rhat_classic; ess <- bd$ess
+	rhat <- bd$rhat; rhat_classic <- bd$rhat_classic; ess <- bd$ess; parts <- bd$parts
 	if (!is.null(chain_list[[1]]$VC)) {
 		vd <- diag_block(lapply(chain_list, function(x) x$VC))
 		rhat <- c(rhat, vd$rhat); rhat_classic <- c(rhat_classic, vd$rhat_classic); ess <- c(ess, vd$ess)
+		parts <- cbind(parts, vd$parts)
 	}
 	param_names <- names(rhat)
+	# the gate's verdict on these quantities, at the family-wise level over all of them
+	gate <- cbind(data.frame(parameter = param_names, stringsAsFactors = FALSE), .lame_gate_verdict(parts))
 	# stored-draw count for both 2-D and 3-D BETA
 	n_samples <- vapply(
 		chain_list,
@@ -607,6 +620,8 @@ compute_mcmc_diagnostics <- function(chain_list) {
 		rhat = rhat,
 		rhat_classic = rhat_classic,
 		ess = ess,
+		rhat_threshold = stats::setNames(gate$threshold, param_names),
+		informative = stats::setNames(gate$informative, param_names),
 		param_names = param_names,
 		n_chains = n_chains,
 		n_samples = n_samples
@@ -617,22 +632,17 @@ compute_mcmc_diagnostics <- function(chain_list) {
 	cli::cli_text("Samples per chain: {.val {paste(n_samples, collapse = ', ')}}")
 	cli::cli_text("Diagnostics cover regression coefficients and variance components.")
 
-	rhat_max <- .lame_chain_rhat_max
-	converged <- all(rhat < rhat_max, na.rm = TRUE)
+	bad <- .lame_gate_flagged(gate)
 	if (chains_identical) {
 		# R-hat carries no information for identical chains (zero between-chain variance)
 		cli::cli_text("Skipping the R-hat convergence verdict for identical chains.")
-	} else if (converged) {
-		cli::cli_alert_success("All parameters converged (R-hat < {rhat_max})")
+	} else if (nrow(bad) == 0L) {
+		cli::cli_alert_success("Every parameter passes the between-chain check (R-hat at most its threshold).")
 	} else {
-		problem_params <- which(rhat >= rhat_max)
-		cli::cli_alert_warning("{.val {length(problem_params)}} parameter{?s} {?has/have} R-hat >= {rhat_max}")
-		for (i in problem_params[1:min(5, length(problem_params))]) {
-			cli::cli_text("  {param_names[i]}: R-hat = {.val {round(rhat[i], 3)}}")
-		}
-		if (length(problem_params) > 5) {
-			cli::cli_text("  ... and {.val {length(problem_params) - 5}} more")
-		}
+		txt <- .lame_gate_text(bad)
+		cli::cli_alert_warning("{.val {nrow(bad)}} parameter{?s} {?fails/fail} the between-chain check:")
+		for (t in utils::head(txt, 5L)) cli::cli_text("  {t}")
+		if (length(txt) > 5L) cli::cli_text("  ... and {.val {length(txt) - 5L}} more")
 	}
 
 	return(diagnostics)
@@ -643,4 +653,29 @@ compute_mcmc_diagnostics <- function(chain_list) {
 #' @noRd
 `%||%` <- function(x, y) {
 	if (is.null(x)) y else x
+}
+
+# chains that mix chunked and in-memory likelihood storage are pooled in memory
+.lame_pool_log_lik_prepare <- function(chain_list) {
+	chunked <- vapply(chain_list, function(f) !is.null(f[["log_lik_chunks"]]), logical(1))
+	in_mem <- vapply(chain_list, function(f) !is.null(f[["log_lik"]]), logical(1))
+	if (!any(chunked) || !any(in_mem)) return(chain_list)
+	for (j in which(chunked & !in_mem)) {
+		chain_list[[j]]$log_lik <- read_log_lik(chain_list[[j]])
+		chain_list[[j]]$log_lik_chunks <- NULL
+	}
+	chain_list
+}
+
+# the chunk records of the chains, one per chain in pooled draw order
+.lame_pool_log_lik_chunks <- function(chain_list) {
+	metas <- lapply(chain_list, function(f) f[["log_lik_chunks"]])
+	if (any(vapply(metas, is.null, logical(1)))) return(NULL)
+	parts <- unlist(lapply(metas, function(m) if (is.null(m$chains)) list(m) else m$chains), recursive = FALSE)
+	list(
+		path = vapply(parts, function(m) m$path, character(1)),
+		n_obs_total = parts[[1L]]$n_obs_total,
+		n_stored = sum(vapply(parts, function(m) m$n_stored, numeric(1))),
+		chains = parts
+	)
 }

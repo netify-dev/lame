@@ -28,8 +28,7 @@ matches the intervals reported by
 \code{summary()} and \code{tidy()} on the same fit; \code{"basic"}
 reflects the replicate quantiles about the point estimate
 (\eqn{2\hat\theta - q}), which corrects first-order bias and can be
-preferable for the IRLS binary/Poisson point estimators on small
-samples.}
+preferable for binary and Poisson fits on small samples.}
 
 \item{which}{which uncertainty channel to return: \code{"all"} (default,
 intercept + regression coefficients + variance components + sender effects
@@ -44,10 +43,11 @@ intercept + regression coefficients + variance components + sender effects
 \value{
 A matrix with one row per parameter and lower/upper bound columns.
 The rows of the \code{U} and \code{V} columns whose singular values are
-not separated from a neighbour's, of a variance component with no
-interval (\code{vc_uncentred}), and of a parameter the bootstrap returns
-no interval for (\code{withheld}), are \code{NA}; see
-\code{\link{ame_als_bootstrap}}.
+not separated from a neighbour's, of a coefficient or variance component
+whose replicates are not centred on it (\code{coef_uncentred},
+\code{vc_uncentred}), and of a parameter the bootstrap returns no
+interval for (\code{withheld}), are the analytic Wald intervals of the fit
+(\code{se_source}); see \code{\link{ame_als_bootstrap}}.
 }
 \description{
 Bootstrap confidence intervals for the intercept and regression

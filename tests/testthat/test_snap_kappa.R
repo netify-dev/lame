@@ -147,10 +147,8 @@ test_that("a snap fit takes the linked scale by default and refuses a bad fixed 
 		)
 	)))
 	expect_true(all(is.finite(f$rho_uv)) && all(is.finite(f$sigma_uv)))
-	# at rank one the reset rate is reported (see test_dynamic_hyper_scale.R
-	# for the rank-two rule)
+	# the reset rate is reported at every rank
 	sm = summary(f)
-	expect_false(isTRUE(sm$pi_snap_unidentified))
 	expect_true(all(is.finite(f$pi_snap)))
 	expect_equal(sm$pi_snap, mean(f$pi_snap))
 	expect_match(paste(capture.output(print(sm)), collapse = " "), "pi_snap =")
@@ -168,7 +166,7 @@ test_that("a snap fit takes the linked scale by default and refuses a bad fixed 
 			ctrl
 		)
 	)))
-	expect_false(isTRUE(summary(f_ar1)$pi_snap_unidentified))
+	expect_null(summary(f_ar1)$pi_snap)
 	expect_error(
 		suppressMessages(do.call(
 			lame,

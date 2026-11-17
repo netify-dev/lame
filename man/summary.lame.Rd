@@ -15,7 +15,13 @@ longitudinal AME model using the \code{lame} function}
 \value{
 A list of class "summary.lame" containing:
 \item{call}{The original function call}
-\item{beta}{Matrix of regression coefficient estimates and statistics}
+\item{beta}{Matrix of regression coefficient estimates and statistics;
+\code{z_value} and \code{p_value} are \code{NA} for a coefficient path}
+\item{beta_path}{for a fit with coefficient paths, a named logical vector
+marking them (\code{NULL} otherwise)}
+\item{beta_dynamic_per_t, beta_dynamic_per_t_sd, beta_dynamic_per_t_lower,
+beta_dynamic_per_t_upper}{for a fit with coefficient paths, the
+coefficient-by-period posterior means, sds and 95\% interval bounds}
 \item{variance}{Matrix of variance component estimates. On a directed
 binary panel of two periods or more with fewer than 1.2 events per
 actor-period the \code{va} and \code{vb} rows are \code{NA}: in simulated
@@ -51,6 +57,9 @@ standard deviation \code{post_sd}, the standard deviation of the
 truncated prior it started from \code{prior_sd}, their ratio
 \code{sd_ratio}, and \code{weak}, \code{TRUE} when the ratio is above
 0.6 (\code{NULL} when no persistence is reported)}
+\item{mu_beta}{for fits with AR(1) coefficient paths, a matrix with one
+row per such coefficient: the posterior mean, standard deviation and 95
+percent interval of its long-run mean (\code{NULL} otherwise)}
 \item{n.periods}{Number of time periods in the longitudinal data}
 }
 \description{
@@ -67,7 +76,12 @@ sender, and receiver covariates. The z-value is the posterior mean
 divided by the posterior SD, and the p-value is the two-sided
 normal tail probability of that z-value: a posterior summary, not a
 frequentist test. The credible intervals are posterior quantiles of
-the draws, and the full posterior is in the BETA matrix.}
+the draws, and the full posterior is in the BETA matrix. A
+coefficient that follows a path over the periods (\code{dynamic_beta},
+or the intercept under \code{dynamic_ab}) has no z-value or p-value:
+its row gives the posterior of its mean level over the periods, and
+the print method adds its posterior mean, sd and 95\% interval in
+each period, as \code{coef()} and \code{confint()} report it.}
 \item{Variance components}{Estimates and standard errors for:
 \describe{
 \item{va}{Variance of additive sender/row effects}
@@ -76,6 +90,15 @@ the draws, and the full posterior is in the BETA matrix.}
 \item{rho}{Dyadic correlation (reciprocity)}
 \item{ve}{Residual variance}
 }}
+\item{Rhat, Threshold and ESS}{A fit of two or more chains adds the
+columns \code{Rhat}, \code{Threshold} and \code{ESS} to both tables, as
+\code{\link{summary.ame}} does: the split rank-normalised R-hat and the
+threshold the between-chain gate held the quantity to (from
+\code{fit$rhat}; a coefficient monitored per period shows the period with
+the largest R-hat), and the effective sample size of the pooled draws.
+The print adds the gate's verdict: agreement on every monitored quantity,
+or the quantities on which the chains disagree or hold too few effective
+draws to be compared.}
 \item{Dynamic coefficients per period}{Only printed when the fit was
 produced with \code{dynamic_beta} on at least one coefficient. The
 table has one row per coefficient with columns:
@@ -93,7 +116,9 @@ percentage explode; read \code{Drift} in that case}
 dynamic, \code{"N"} if it was held static}
 }
 The block also prints the per-block AR(1) hyperparameters
-(\code{rho_beta = ...}). For per-period credible intervals use
+(\code{rho_beta = ...}) and the long-run mean of each AR(1)
+coefficient path (\code{mu_beta = ...}), the level its path and its
+forecasts revert to. For per-period credible intervals use
 \code{\link{confint.lame}}.}
 }
 
@@ -107,11 +132,12 @@ the posterior standard deviation by the standard deviation of the prior the
 fit used (the normal prior of \code{prior$rho_uv_mean} and
 \code{prior$rho_uv_sd}, or of \code{prior$rho_ab_mean} and
 \code{prior$rho_ab_sd}, truncated to the support of the sampler,
-\eqn{|\rho| < 0.99}; see \code{prior_summary()}) and returns the ratio in
+\eqn{|\rho| < 0.99}, and for \code{rho_uv} folded onto \eqn{|\rho|}, the gauge of
+its stored draws; see \code{prior_summary()}) and returns the ratio in
 \code{persistence_prior_check}. A ratio near one says that the posterior is
 as wide as the prior, so the data add little to that persistence. When the
 ratio is above 0.6 the printed summary states it, for example
-\code{rho_uv: posterior sd 0.073 is 0.92 of the prior sd 0.079: the data
+\code{rho_uv: posterior sd 0.212 is 0.92 of the prior sd 0.230: the data
 barely inform it}. The cutoff, a posterior sd above 0.6 of the prior sd, is
 the one \code{rho_beta_prior_check} applies to the coefficient persistences.
 }

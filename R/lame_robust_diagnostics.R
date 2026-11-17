@@ -95,8 +95,10 @@
 		5L,
 		dimnames = list(names, c("rhat", "rhat_classic", "ess", "ess_bulk", "ess_tail"))
 	)
+	parts <- matrix(NA_real_, 5L, length(names), dimnames = list(c("rhat", "ess", "ess_chain", "n", "chains"), names))
 	for (j in seq_along(names)) {
 		x <- vapply(chains, function(z) z[, j], numeric(ns[1L]))
+		parts[, j] <- .lame_rhat_parts(x)
 		W <- mean(apply(x, 2L, stats::var))
 		B <- ns[1L] * stats::var(colMeans(x))
 		if (is.finite(W) && W > 0) {
@@ -107,13 +109,11 @@
 		result[j, "ess_bulk"] <- posterior::ess_bulk(x)
 		result[j, "ess_tail"] <- posterior::ess_tail(x)
 	}
-	pass <- apply(
-		result,
-		1L,
-		function(x) all(is.finite(x)) &&
-			x["rhat"] < 1.05 && x["rhat_classic"] < 1.05 &&
-			all(x[c("ess", "ess_bulk", "ess_tail")] > 0)
-	)
+	# the between-chain gate's rule, at the family-wise level over every included parameter
+	gate <- cbind(data.frame(parameter = names, stringsAsFactors = FALSE), .lame_gate_verdict(parts))
+	gate_pass <- !names %in% .lame_gate_flagged(gate)$parameter & gate$informative %in% TRUE
+	ess_ok <- apply(result[, c("ess", "ess_bulk", "ess_tail"), drop = FALSE], 1L, function(x) all(is.finite(x) & x > 0))
+	pass <- stats::setNames(gate_pass & ess_ok, names)
 	list(
 		rhat = result[, "rhat"],
 		rhat_classic = result[, "rhat_classic"],
@@ -127,7 +127,8 @@
 		diagnostics = as.data.frame(result),
 		parameter_pass = pass,
 		pass = all(pass),
-		rhat_threshold = 1.05,
+		rhat_threshold = stats::setNames(gate$threshold, names),
+		informative = stats::setNames(gate$informative, names),
 		scope = "Coefficients, time intercepts, actor paths and levels, estimated hyperparameters, all off-diagonal latent products, persistent directed-pair precisions, any role-period actor precisions, and temporary precisions at observed cells. The screen reports split R-hat and effective sample sizes for these parameters."
 	)
 }

@@ -43,6 +43,12 @@ test_that("the sd of the truncated normal prior is exact", {
 	# the default rho_uv prior is narrower than its nominal sd: it ends at the bound
 	expect_lt(f(.9, .1, -.99, .99), .09)
 	expect_true(is.na(f(5, .01, -.99, .99)))
+	# rho_uv is stored as |rho_uv|, so its check takes the prior folded onto [0, .99)
+	g = lame:::.lame_folded_truncnorm_sd
+	for (pr in list(c(.7, .3), c(.9, .1), c(0, .5))) {
+		x = rnorm(6e5, pr[1], pr[2]); x = abs(x[abs(x) < .99])
+		expect_equal(g(pr[1], pr[2], -.99, .99), sd(x), tolerance = .01)
+	}
 })
 
 test_that("summary() reports the posterior sd against the prior sd of rho_uv and rho_ab", {
@@ -52,11 +58,12 @@ test_that("summary() reports the posterior sd against the prior sd of rho_uv and
 	expect_s3_class(pc, "data.frame")
 	expect_identical(pc$parameter, c("rho_uv", "rho_ab"))
 	expect_named(pc, c("parameter", "post_sd", "prior_sd", "sd_ratio", "weak"))
-	# the default priors of dynamic fits: rho_uv ~ N(.9, .1^2), rho_ab ~ N(.8, .15^2), both on |rho| < .99
+	# the default priors of dynamic fits: rho_uv ~ N(.7, .3^2) folded onto |rho|, rho_ab ~ N(.8, .15^2),
+	# both on |rho| < .99
 	expect_equal(
 		pc$prior_sd,
 		c(
-			lame:::.lame_truncnorm_sd(.9, .1, -.99, .99),
+			lame:::.lame_folded_truncnorm_sd(.7, .3, -.99, .99),
 			lame:::.lame_truncnorm_sd(.8, .15, -.99, .99)
 		)
 	)
@@ -79,7 +86,7 @@ test_that("a persistence the data leave as wide as its prior is said so, in plai
 	# posterior = prior: the data add nothing
 	fit$rho_ab = prior_draws(.8, .15, k)
 	# a posterior about as wide as 0.7 of the prior
-	fit$rho_uv = rnorm(k, .9, .055)
+	fit$rho_uv = abs(rnorm(k, .6, .16))
 	out = capture.output(print(summary(fit)))
 	# cli wraps long lines, so the sentences are matched on the joined text
 	txt = gsub("\\s+", " ", paste(out, collapse = " "))

@@ -59,7 +59,12 @@
 	}
 	for (k in seq_len(p)) {
 		if (s$beta_dyn$mask[k]) {
-			pen <- .lda_path_penalty(nt, s$lambda_beta * .lda_beta_ms(s$beta_dyn, k), s$dynamic_beta_kind, s$rho_beta)
+			pen <- .lda_beta_path_penalty(
+				nt,
+				s$lambda_beta * .lda_beta_ms(s$beta_dyn, k),
+				s$dynamic_beta_kind,
+				.lda_beta_rho(s$beta_dyn, k, s$rho_beta)
+			)
 			add(paste0("beta", k), bg[k, ] + pen %*% v$coef_path[k, ], bi[k, ] + diag(pen))
 		} else add(paste0("beta", k), sum(bg[k, ]), sum(bi[k, ]))
 	}

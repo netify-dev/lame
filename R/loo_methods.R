@@ -3,14 +3,15 @@
 
 #' Read the per-iteration log-lik matrix back from on-disk chunks
 #'
-#' For fits run with \code{save_log_lik = "chunked"}, the per-iteration
+#' For \code{lame} fits run with \code{save_log_lik = "chunked"}, the per-iteration
 #' pointwise log-likelihood lives in per-column-chunk binary files instead
 #' of \code{fit$log_lik}. This helper reconstitutes the
 #' \code{[n_stored, n_obs]} matrix in memory by issuing one \code{readBin}
 #' per chunk. \code{loo.lame()} / \code{waic.lame()} call this transparently.
 #'
-#' @param x A fitted \code{ame}/\code{lame} object with
-#'   \code{$log_lik_chunks} (i.e. fit with \code{save_log_lik = "chunked"}).
+#' @param x A fitted \code{ame}/\code{lame} object with \code{$log_lik}
+#'   (fit with \code{save_log_lik = TRUE}) or, for a \code{lame} fit,
+#'   \code{$log_lik_chunks} (fit with \code{save_log_lik = "chunked"}).
 #' @return The full \code{[n_stored, n_obs]} double matrix.
 #' @examples
 #' set.seed(1)
@@ -29,9 +30,16 @@ read_log_lik <- function(x) {
 	if (is.null(meta)) {
 		cli::cli_abort(c(
 			"No log-likelihood stored on the fit object.",
-			"i" = "Refit with {.code save_log_lik = TRUE} or {.code save_log_lik = \"chunked\"}."
+			"i" = "Refit with {.code save_log_lik = TRUE} (or, for {.fn lame}, {.code save_log_lik = \"chunked\"})."
 		))
 	}
+	# a pooled fit holds one record per chain, and its rows follow the pooled draws
+	if (!is.null(meta$chains)) return(do.call(rbind, lapply(meta$chains, .lame_read_log_lik_chunks)))
+	.lame_read_log_lik_chunks(meta)
+}
+
+# the [n_stored, n_obs] matrix of one chain's chunk files
+.lame_read_log_lik_chunks <- function(meta) {
 	out <- matrix(NA_real_, nrow = meta$n_stored, ncol = meta$n_obs_total)
 	for (cc in seq_len(meta$n_chunks)) {
 		f <- meta$files[cc]
@@ -39,6 +47,12 @@ read_log_lik <- function(x) {
 			cli::cli_abort("Log-lik chunk file {.file {f}} not found; was {.var tempdir()} cleared?")
 		}
 		w <- meta$chunk_ends[cc] - meta$chunk_starts[cc] + 1L
+		if (file.size(f) < 8 * meta$n_stored * w) {
+			cli::cli_abort(c(
+				"Log-lik chunk file {.file {f}} holds fewer draws than the fit ({meta$n_stored}).",
+				"i" = "A later run wrote to the same {.arg log_lik_path}; give each fit its own directory."
+			))
+		}
 		vals <- readBin(f, what = numeric(), n = meta$n_stored * w, size = 8L)
 		# chunks were written one iteration row at a time, so the on-disk
 		# layout is row-major [n_stored, w]
@@ -68,7 +82,7 @@ read_log_lik <- function(x) {
 #' dyad once. Correct marginal predictive scores remain useful and readable
 #' through \code{read_log_lik()} even when LOO or WAIC is unavailable.
 #'
-#' \strong{Chunked log-lik portability.} When fit with
+#' \strong{Chunked log-lik portability.} When a \code{lame} fit is run with
 #' \code{save_log_lik = "chunked"}, the on-disk chunk files default to
 #' \code{tempdir()}, which is cleared at the end of the R session.
 #' If you intend to \code{saveRDS()} the fit and reload it in a fresh
@@ -86,7 +100,7 @@ read_log_lik <- function(x) {
 #' data(YX_nrm)
 #' # chains = 1 keeps the example short; the default runs two chains and compares them
 #' fit <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 0, dcor = FALSE,
-#'            nscan = 60, burn = 15, odens = 5,
+#'            nscan = 400, burn = 50, odens = 1,
 #'            save_log_lik = TRUE, verbose = FALSE, chains = 1)
 #' if (requireNamespace("loo", quietly = TRUE)) {
 #'   loo_res <- loo::loo(fit)
@@ -96,6 +110,7 @@ read_log_lik <- function(x) {
 #'
 #' @method loo ame
 #' @export
+#' @exportS3Method loo::loo
 loo.ame <- function(x, ...) {
 	.lame_require_draws(x, "loo")
 	# [[ avoids partial matching of $log_lik to $log_lik_method
@@ -119,6 +134,7 @@ loo.ame <- function(x, ...) {
 #' @rdname loo.ame
 #' @method loo lame
 #' @export
+#' @exportS3Method loo::loo
 loo.lame <- function(x, ...) {
 	.lame_require_draws(x, "loo")
 	loo.ame(x, ...)
@@ -135,6 +151,7 @@ loo.lame <- function(x, ...) {
 #'
 #' @method waic ame
 #' @export
+#' @exportS3Method loo::waic
 waic.ame <- function(x, ...) {
 	.lame_require_draws(x, "waic")
 	ll_mat <- x[["log_lik"]]
@@ -156,6 +173,7 @@ waic.ame <- function(x, ...) {
 #' @rdname waic.ame
 #' @method waic lame
 #' @export
+#' @exportS3Method loo::waic
 waic.lame <- function(x, ...) {
 	.lame_require_draws(x, "waic")
 	waic.ame(x, ...)
@@ -167,10 +185,11 @@ waic.lame <- function(x, ...) {
 #' @rdname loo.ame
 #' @method loo ame_als
 #' @export
+#' @exportS3Method loo::loo
 loo.ame_als <- function(x, ...) {
 	cli::cli_abort(c(
 		"{.fn loo::loo} is not available for {.cls ame_als} fits.",
-		"i" = "ALS is a point estimator and has no per-iteration log-likelihood.",
+		"i" = "ALS fits have no per-iteration log-likelihood.",
 		"i" = "For LOO / WAIC, refit with {.code method = \"mcmc\"} and {.code save_log_lik = TRUE}."
 	))
 }
@@ -178,10 +197,11 @@ loo.ame_als <- function(x, ...) {
 #' @rdname waic.ame
 #' @method waic ame_als
 #' @export
+#' @exportS3Method loo::waic
 waic.ame_als <- function(x, ...) {
 	cli::cli_abort(c(
 		"{.fn loo::waic} is not available for {.cls ame_als} fits.",
-		"i" = "ALS is a point estimator and has no per-iteration log-likelihood.",
+		"i" = "ALS fits have no per-iteration log-likelihood.",
 		"i" = "For LOO / WAIC, refit with {.code method = \"mcmc\"} and {.code save_log_lik = TRUE}."
 	))
 }
@@ -201,13 +221,13 @@ waic.ame_als <- function(x, ...) {
 #' set.seed(1)
 #' n <- 12
 #' Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
-#' # chains = 1 keeps the example short; the default runs two chains and compares them
-#' fit <- ame(Y, R = 1, dcor = FALSE, nscan = 100, burn = 5, odens = 1,
+#' # a model without actor effects; chains = 1 keeps the example short
+#' fit <- ame(Y, R = 0, rvar = FALSE, cvar = FALSE, dcor = FALSE,
+#'            nscan = 200, burn = 20, odens = 1,
 #'            save_log_lik = TRUE, verbose = FALSE, chains = 1)
 #' if (requireNamespace("loo", quietly = TRUE)) {
-#'   # a fit this small can trip loo's own low-sample Pareto-k diagnostic;
-#'   # that diagnostic warning is expected here and not specific to lame
-#'   print(suppressWarnings(loo(fit)))
+#'   print(loo(fit))
+#'   print(waic(fit))
 #' }
 #' }
 #' @export
@@ -216,16 +236,3 @@ loo <- function(x, ...) UseMethod("loo")
 #' @rdname loo
 #' @export
 waic <- function(x, ...) UseMethod("waic")
-
-# register the methods on loo's generics at load time so loo::loo(fit) works
-# (same pattern as .register_posterior_methods() in zzz.R)
-.register_loo_methods <- function() {
-	if (requireNamespace("loo", quietly = TRUE)) {
-		registerS3method("loo", "ame", loo.ame, envir = asNamespace("loo"))
-		registerS3method("loo", "lame", loo.lame, envir = asNamespace("loo"))
-		registerS3method("loo", "ame_als", loo.ame_als, envir = asNamespace("loo"))
-		registerS3method("waic", "ame", waic.ame, envir = asNamespace("loo"))
-		registerS3method("waic", "lame", waic.lame, envir = asNamespace("loo"))
-		registerS3method("waic", "ame_als", waic.ame_als, envir = asNamespace("loo"))
-	}
-}

@@ -44,7 +44,6 @@ als_rho_fixture = function(legacy = FALSE, family = "normal") {
 		dynamic_ab = TRUE,
 		dynamic_uv = FALSE,
 		dynamic_beta = FALSE,
-		dynamic_G = FALSE,
 		dynamic_rho = legacy,
 		rho_path = path,
 		rho_ab = .8,
@@ -150,7 +149,7 @@ test_that("unsupported public ALS reciprocity paths fail before fitting and RNG"
 	}
 })
 
-test_that("Poisson latent moment diagnostics and count correction preserve the path alias", {
+test_that("Poisson latent moment diagnostics preserve the path alias", {
 	f = als_rho_fixture(TRUE, "poisson");f$link = "log"
 	set.seed(811906);rng = .Random.seed
 	updated = lame:::.ae_update_response_rho(f, "log")
@@ -159,24 +158,5 @@ test_that("Poisson latent moment diagnostics and count correction preserve the p
 	expect_identical(updated$residual_rho_path, updated$rho_path)
 	expect_identical(updated$rho_path_working, f$rho_path)
 	expect_identical(updated$EZ, f$EZ)
-	expect_identical(.Random.seed, rng)
-	moments = list(
-		variance = .2,
-		rho = .4,
-		rho_path = setNames(c(.1, .2, .3), f$time_names),
-		boundary = FALSE,
-		path_boundary = rep(FALSE, 3L)
-	)
-	updated$mu = unname(updated$coefficients["intercept"])
-	corrected = lame:::.lda_apply_count_moments(updated, moments)
-	expect_false(corrected$dynamic_rho)
-	expect_identical(corrected$residual_rho_path, moments$rho_path)
-	expect_identical(corrected$rho_path, moments$rho_path)
-	expect_identical(corrected$rho_path_role, "residual_diagnostic")
-	expect_identical(corrected$raw$rho_path, updated$rho_path)
-	expect_identical(corrected$raw$residual_rho_path, updated$residual_rho_path)
-	expect_identical(unname(corrected$VC["rho"]), .4)
-	expect_identical(unname(corrected$VC["ve"]), .2)
-	expect_identical(als_start_vals(corrected)$rho, .4)
 	expect_identical(.Random.seed, rng)
 })

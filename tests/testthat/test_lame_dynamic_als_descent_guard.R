@@ -2,7 +2,7 @@ skip_on_cran()
 
 library(lame)
 
-# the penalized dynamic ALS route (bias_correct = "none"): a sweep of exact block
+# the penalized dynamic ALS fit: a sweep of exact block
 # minimizations cannot raise the objective, so a block update that does is a
 # solver fault. the descent guard undoes the sweep and redoes it with every block
 # checked: a block that raises the objective is stepped back along its own
@@ -65,8 +65,22 @@ gd_bipartite = function(nr = 8L, nc = 10L, Tt = 4L, seed = 4) {
 	Y
 }
 
-gd_fit = function(Y, ...) {
-	lame(Y, bias_correct = "none", method = "als", verbose = FALSE, ...)
+# the penalized dynamic fit, called as lame(method = "als") calls it: dynamic_ab makes the
+# intercept a random walk
+gd_fit = function(Y, ..., dynamic_ab = FALSE, als_max_iter = 1000L) {
+	if (!dynamic_ab) {
+		return(lame:::lame_dynamic_als(Y, ..., max_iter = als_max_iter, bias_correct = "none", verbose = FALSE))
+	}
+	lame:::lame_dynamic_als(
+		Y,
+		...,
+		dynamic_ab = TRUE,
+		dynamic_beta = "intercept",
+		dynamic_beta_kind = "rw1",
+		max_iter = als_max_iter,
+		bias_correct = "none",
+		verbose = FALSE
+	)
 }
 
 gd_non_increasing = function(fit) {
@@ -118,7 +132,8 @@ test_that("a panel with actors entering and leaving does not set the guard off: 
 	expect_false(fit$diagnostics$descent_guard$active)
 	expect_identical(fit$diagnostics$descent_guard$sweeps_redone, 0L)
 	tr = fit$diagnostics$objective
-	expect_gt(tr[1L], 21)
+	# first objective of the model with the rw1 intercept path, about 15.06
+	expect_gt(tr[1L], 15)
 	expect_true(all(diff(tr) <= 1e-10 * (abs(utils::head(tr, -1L)) + 1)))
 	expect_identical(fit$diagnostics$objective_increases, 0L)
 	# the score of the additive paths is projected onto the same zero-sum gauge, so a panel with actors entering and leaving converges
@@ -211,7 +226,11 @@ test_that("a block that returns non-finite values is kept at its start", {
 		},
 		.package = "lame"
 	)
-	fit = suppressWarnings(gd_fit(Y, family = "normal", R = 0, dynamic_ab = TRUE))
+	# a beta block held at its start leaves the fit short; the refusal carries the last good state
+	fit = tryCatch(
+		suppressWarnings(gd_fit(Y, family = "normal", R = 0, dynamic_ab = TRUE)),
+		lame_als_convergence = function(e) e$fit
+	)
 	g = fit$diagnostics$descent_guard
 	expect_true(g$active)
 	expect_gt(g$blocks_rolled_back, 0L)

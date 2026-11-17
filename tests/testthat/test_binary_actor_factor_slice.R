@@ -169,6 +169,8 @@ test_that('actor slice numerical failures abort the fit', {
 	)
 	e = expect_error(suppressMessages(do.call(lame, .actor_slice_fit_args())), class = 'lame_sampler_failure')
 	expect_match(gsub('[[:space:]]+', ' ', conditionMessage(e)), 'failed numerically on 5 of 5 rounds')
+	# the abort carries the first error and its sweep
+	expect_match(gsub('[[:space:]]+', ' ', conditionMessage(e)), 'actor_factor_slice, first failure at sweep 40: injected numerical failure')
 	expect_no_error(
 		.lame_report_actor_slice_health(
 			list(actor_factor_slice = c(rounds = 5, numerical_rejections = 0, bound_rejections = 20))

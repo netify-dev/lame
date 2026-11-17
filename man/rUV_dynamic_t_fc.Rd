@@ -15,7 +15,6 @@ rUV_dynamic_t_fc(
   lambda_u = NULL,
   lambda_v = NULL,
   shrink = TRUE,
-  symmetric = FALSE,
   rho = 0
 )
 }
@@ -40,8 +39,6 @@ rUV_dynamic_t_fc(
 
 \item{shrink}{whether to apply shrinkage (default TRUE)}
 
-\item{symmetric}{whether the network is symmetric (default FALSE)}
-
 \item{rho}{dyadic correlation between the (i, j) and (j, i) residuals
 (default 0)}
 }
@@ -51,6 +48,13 @@ list with updated U, V arrays and lambda_u, lambda_v local scales
 \description{
 Like \code{rUV_dynamic_fc} but the AR(1) innovations are Student-t via a
 scale-mixture of normals, a continuous heavy-tailed alternative to snap-shift.
+The first period is Student-t of the same degrees of freedom and the
+stationary scale \code{sigma_uv / sqrt(1 - rho_uv^2)}, with its own local
+scale in the first column of \code{lambda_u} and \code{lambda_v}.
+}
+\details{
+The t kernel draws the rows of a product in parallel, so it is for
+directed and bipartite networks.
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

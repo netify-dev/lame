@@ -15,7 +15,8 @@
 List of fitted value matrices (one per time point)
 }
 \description{
-Returns the stored response-scale summaries. For MCMC Poisson models these
+Returns the stored response-scale summaries, computed per period as in
+\code{\link{fitted.ame}}. For MCMC Poisson models these
 are mean counts, \eqn{e_t \exp(\eta + \sigma^2 / 2)}, at the posterior mean
 \eqn{\eta} of the linear predictor and the posterior mean \eqn{\sigma^2} of
 the residual variance, with \eqn{e_t} the exposure of the period

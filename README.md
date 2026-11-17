@@ -12,13 +12,17 @@ Network ties -- trade flows, friendships, alliances, sanctions -- are not indepe
 
 The package implements the additive and multiplicative effects (AME) framework developed by Peter Hoff (and popularised by his [`amen`](https://CRAN.R-project.org/package=amen) package), and extends it in a few directions: `lame()` fits panel networks with time-varying effects; both `ame()` and `lame()` handle bipartite (rectangular) networks alongside the usual square case; the sampler is written in C++ (Rcpp / RcppArmadillo) to scale; and a fit exposes the usual `coef()`, `vcov()`, `confint()`, `predict()`, `fitted()`, `residuals()`, and `simulate()` methods, so it slots into the R modelling ecosystem like `lm()` or `glm()`.
 
-There is also a fast, **MCMC-free point estimator** -- `ame_als()` / `lame_als()`, adapted from the Social Influence Regression estimator of Minhas & Hoff (2025). Reach for it when exploring, screening models, generating starting values, or fitting large networks; use the MCMC path when you need a full posterior or the rank/censored families.
+There is also a fast, **MCMC-free empirical-Bayes estimator** that reports a standard error for every estimate -- `ame_als()` / `lame_als()`, adapted from the Social Influence Regression estimator of Minhas & Hoff (2025). Reach for it when exploring, screening models, generating starting values, or fitting large networks; use the MCMC path for a full posterior and for the ordinal, censored-binary and fixed-rank families.
 
 New to *probit*, *latent space*, or *AR(1)*? `vignette("lame")` introduces each in context before the first fit.
 
 ## Installation
 
-Needs C++ build tools (Xcode CLI on macOS, Rtools on Windows, `build-essential` on Linux). The first install takes a few minutes while the C++ compiles.
+```r
+install.packages("lame")   # CRAN release
+```
+
+The development version compiles C++, so it needs build tools (Xcode CLI on macOS, Rtools on Windows, `build-essential` on Linux) and takes a few minutes to install:
 
 ```r
 # install.packages("devtools")
@@ -30,28 +34,29 @@ devtools::install_github("netify-dev/lame", dependencies = TRUE, build_vignettes
 ```r
 library(lame)
 
-# YX_bin: a bundled 100-actor binary network (Y) with dyadic covariates (X). ?YX_bin
-data("YX_bin")
-Y     <- YX_bin$Y          # 100 x 100 0/1 sociomatrix, diagonal NA
-Xdyad <- YX_bin$X[, , -1]  # drop the explicit intercept slice; ame() adds its own
+# lazegalaw: 71 lawyers in a law firm; who asks whom for advice. ?lazegalaw
+data("lazegalaw")
+Y     <- lazegalaw$Y[, , "advice"]                 # 71 x 71 0/1 sociomatrix
+Xdyad <- lazegalaw$Y[, , "cowork", drop = FALSE]   # dyadic covariate: do i and j work together
+Xnode <- lazegalaw$X[, c("seniority", "female", "practice")]
 
+# two chains at the default run length, about two minutes
 fit <- ame(
   Y, Xdyad = Xdyad,
+  Xrow    = Xnode,         # sender covariates
+  Xcol    = Xnode,         # receiver covariates
   family  = "binary",
   R       = 2,             # latent-space dimension (see below)
-  burn    = 500,
-  nscan   = 4000,          # ~400 stored draws with odens = 10
-  odens   = 10,
   verbose = FALSE
 )
 
-summary(fit)               # coefficients, variance components, gof
+summary(fit)               # coefficients, variance components, chain agreement
 trace_plot(fit)            # check mixing; gof_plot(fit) for posterior-predictive fit
 ```
 
-**What is `R`?** The dimension of the latent space that captures who-ties-to-whom beyond the covariates and sender/receiver effects. `R = 0` is the additive part only; `R = 2` adds structure like homophily and transitivity. There is no cap on `R` below the network size, but ranks above `floor(n/3)` mix more slowly and lose accuracy gradually past the structure in the data. Start at `R = 2`, then compare `gof_plot()` across `R = 0, 1, 2, 3`.
+**What is `R`?** The dimension of the latent space that captures who-ties-to-whom beyond the covariates and sender/receiver effects. `R = 0` is the additive part only; `R = 2` adds structure like homophily and transitivity. Start at `R = 2`, then compare `gof_plot()` across `R = 0, 1, 2, 3` and keep the smallest rank that reproduces the statistics you care about.
 
-**Naming gotcha.** Actors are aligned across `Y`, `Xdyad`, `Xrow`, `Xcol` by **sorted** dimnames, so every input needs matching dimnames. With names like `paste0("N", 1:25)` the stored output comes back in sorted order (`"N1","N10","N11",...` before `"N2"`), not your input order; the fit is still correct as long as the inputs share the same names. Zero-pad (`sprintf("N%02d", 1:25)`) or use real names to keep the stored order readable.
+**Actor names.** Actors are matched across `Y`, `Xdyad`, `Xrow`, `Xcol` by name, so give every input the same dimnames. Output is stored in sorted name order (`"N1","N10","N11",...` before `"N2"`); zero-padded names (`sprintf("N%02d", 1:25)`) or real names keep that order readable.
 
 ### Longitudinal
 
@@ -97,16 +102,18 @@ fit_dynamic <- lame(
 
 ## Families
 
-Pick the family that matches your tie type. All are supported unipartite, bipartite, and (where the tie type allows) symmetric -- pass `symmetric = TRUE` for undirected networks and `mode = "bipartite"` for two-mode data.
+Pick the family that matches your tie type. Pass `symmetric = TRUE` for undirected networks and `mode = "bipartite"` for two-mode data. This table is the full support map: every family runs in `ame()` and `lame()`, and three also run in the fast estimator.
 
-| family  | tie type            | unipartite | bipartite | symmetric |
-|---------|---------------------|------------|-----------|-----------|
-| normal  | continuous          | yes        | yes       | yes       |
-| binary  | 0/1                 | yes        | yes       | yes       |
-| ordinal | ordered categories  | yes        | yes       | yes       |
-| poisson | counts              | yes        | yes       | yes       |
-| cbin    | censored binary     | yes        | yes       | no (directed row-cone) |
-| frn     | fixed rank nominations | yes     | yes       | no (directed row-cone) |
+| family  | tie type               | networks                       | estimators |
+|---------|------------------------|--------------------------------|------------|
+| normal  | continuous             | directed, symmetric, bipartite | MCMC, ALS  |
+| binary  | 0/1                    | directed, symmetric, bipartite | MCMC, ALS  |
+| poisson | counts                 | directed, symmetric, bipartite | MCMC, ALS  |
+| ordinal | ordered categories     | directed, symmetric, bipartite | MCMC       |
+| cbin    | censored binary        | directed, bipartite            | MCMC       |
+| frn     | fixed rank nominations | directed, bipartite            | MCMC       |
+
+`cbin` and `frn` model each actor's own nominations, so they are directed by construction. The fast estimator warns on a binary network whose density (the share of observed cells that are ties) lies outside 0.2 to 0.8, where the MCMC fit is the better choice.
 
 ## Coming from another package
 
@@ -121,7 +128,7 @@ fit <- lame(net, family = "binary", R = 2, burn = 500, nscan = 4000, odens = 10,
 
 For a lone `igraph` / `network` / adjacency matrix, `as_lame_y(g)` returns a plain `Y`.
 
-**From ERGM:** `lame` is not an `ergm` substitute -- ERGM specifies a joint distribution over the whole graph via change statistics (`gwesp`, `triangle`), while AME assumes dyads are *conditionally independent* given the actor effects, latent positions, and covariates, and captures higher-order structure through those random effects. So AME sidesteps ERGM's degeneracy failure modes but does not give change-statistic interpretations, and it tends to under-predict transitivity. If `gwesp` is your target, stay in ERGM; if you want actor heterogeneity, dynamics, or forecasts, AME is the better fit. `vignette("cross_sec_ame")` scores ERGM-style `triangle` / two-path / clustering statistics through `gof(fit, custom_gof = ...)`. The ERGM-style helpers `nodematch()`, `absdiff()`, and `nodefactor()` build dyadic covariates that drop straight into `Xdyad`.
+**From ERGM:** the two model classes answer different questions. ERGM specifies a joint distribution over the whole graph via change statistics (`gwesp`, `triangle`); AME treats dyads as *conditionally independent* given the actor effects, latent positions, and covariates, and captures higher-order structure through those random effects. Use ERGM when a change statistic such as `gwesp` is the estimand; use AME for actor heterogeneity, dynamics, and forecasts, with estimation that does not degenerate. `vignette("cross_sec_ame")` scores a triangle-over-two-path clustering statistic on a fit through `gof(fit, custom_gof = ...)`. The ERGM-style helpers `nodematch()`, `absdiff()`, and `nodefactor()` build dyadic covariates that drop straight into `Xdyad`.
 
 ## Visualization
 
@@ -134,20 +141,19 @@ trace_plot(fit); gof_plot(fit)                   # mcmc mixing; goodness of fit
 ## Features
 
 - **Modes:** cross-sectional (`ame()`), longitudinal (`lame()`), unipartite and bipartite, six families.
-- **Dynamics:** time-varying latent positions (`dynamic_uv`), sender/receiver effects (`dynamic_ab`), and regression coefficients (`dynamic_beta`, per-block AR(1) / RW1 / RW2 / Matern 3/2), with forecasting via `predict(fit, h = K)` for supported transition models (AR(1) and RW1 for coefficients).
+- **Dynamics:** time-varying latent positions (`dynamic_uv`), sender/receiver effects (`dynamic_ab`), and regression coefficients (`dynamic_beta`, per-block AR(1) / RW1 / RW2 / Matern 3/2), with forecasting via `predict(fit, h = K)` (AR(1) and RW1 coefficient paths).
 - **S3 methods** on both MCMC and ALS fits: `coef()`, `vcov()`, `confint()`, `predict()`, `fitted()`, `residuals()`, `summary()`, `update()`, `simulate()`, plus `autoplot()`.
 - **Ecosystem:** `broom::tidy()` / `glance()`, `modelsummary`, `as_draws()` for `posterior` / `tidybayes`, and `loo::loo()` when `save_log_lik = TRUE` (directed fits need `dcor = FALSE`, so that each cell has its own likelihood).
 - **Fit assessment:** `simulate()` and `gof()` posterior-predictive checks; `gof_temporal()` for panels.
-- **Scale and robustness:** `ame()` and `lame()` run two chains by default (`chains = 2`) and compare them by R-hat before they return; `compute_mcmc_diagnostics()` reports R-hat / ESS; `lame_multi()` for several panels sharing coefficients; checkpoint/resume via `checkpoint_path=` and `lame_resume()`.
+- **Convergence and scale:** `ame()` and `lame()` run two chains by default (`chains = 2`) and compare them by R-hat before they return; `compute_mcmc_diagnostics()` reports R-hat / ESS; `lame_multi()` for several panels sharing coefficients; checkpoint/resume via `checkpoint_path=` and `lame_resume()`.
 
 ## Fast (MCMC-free) estimation
 
-`ame_als()` / `lame_als()` fit the same model by iterative block coordinate descent (alternating least squares / IRLS) -- a port of the Social Influence Regression estimator of Minhas & Hoff (2025), implemented in the [`sir`](https://github.com/netify-dev/sir) package. For normal, binary and Poisson data the default is an empirical-Bayes / variational estimator of the model the samplers fit (see the fast-estimation vignette). They return point estimates rather than a posterior, so they are much faster.
+`ame_als()` / `lame_als()` fit the same model by iterative block coordinate descent (alternating least squares / IRLS) -- a port of the Social Influence Regression estimator of Minhas & Hoff (2025), implemented in the [`sir`](https://github.com/netify-dev/sir) package. They cover the `normal`, `binary` and `poisson` families, and the fit is an empirical-Bayes / variational estimator of the model the samplers fit (see `vignette("fast_estimation")`). They return point estimates with standard errors rather than posterior draws.
 
-- **Scope:** `normal`, `binary`, `poisson`; use the MCMC path for `ordinal`, `cbin`, `frn`.
-- **Dynamic ALS:** `lame(..., method = "als")` fits dynamic additive effects, selected dynamic coefficients, AR(1) latent factors (directed, symmetric, bipartite) and Student-t ones (directed, symmetric). Binary and Poisson panels are fitted by an empirical-Bayes estimator by default (`bias_correct = "none"` gives the penalized point estimate), the normal family by a penalized point estimate. Tune with `als_max_iter`, `als_tol`, `als_stability`.
-- **Snap-shift:** `dynamic_uv_kind = "snap"` is fitted by the MCMC on directed panels; the ALS route and `lame_snap_als()` refuse it and point there or to the `"ar1"` kind.
-- **Uncertainty:** `ame_als_bootstrap()`, or `ame_als(..., bootstrap = N)`, for block/parametric bootstrap intervals; `confint()` uses them when present. Normal, binary and Poisson fits (an empirical-Bayes estimator by default) report Laplace standard errors for every coefficient from `vcov()` / `confint()`, and dynamic ones have no bootstrap; fixed-effects fits (`bias_correct = "none"`) the sandwich `vcov()`.
+- **Binary density:** a binary network or panel whose density is below 0.2 or above 0.8 is fitted with a warning; there the sampler (`ame()` or `lame()`) is the better choice.
+- **Dynamic fits:** `lame(..., method = "als")` fits dynamic additive effects, selected dynamic coefficients, AR(1) latent factors (directed, symmetric, bipartite) and Student-t ones (directed, symmetric). Normal, binary and Poisson panels are fitted by a dynamic empirical-Bayes estimator, with standard errors for the coefficients, the effects and their paths, the variance components and the product cells. Tune with `als_max_iter`, `als_tol`, `als_stability`. The snap-shift kind (`dynamic_uv_kind = "snap"`) is fitted by the MCMC on directed panels.
+- **Uncertainty:** `vcov()` / `confint()` report Laplace standard errors for every coefficient, and every fit carries standard errors for its variance components, sender and receiver effects and latent positions. On static fits, `ame_als_bootstrap()`, or `ame_als(..., bootstrap = N)`, adds block/parametric bootstrap intervals, and `confint()` uses them when present.
 
 ## Documentation
 
@@ -159,11 +165,11 @@ trace_plot(fit); gof_plot(fit)                   # mcmc mixing; goodness of fit
 | [Bipartite article](https://netify-dev.github.io/lame/articles/bipartite.html) | Two-mode networks, cross-sectional and longitudinal |
 | [Dynamic effects article](https://netify-dev.github.io/lame/articles/dynamic_effects.html) | `dynamic_uv` / `dynamic_ab` / `dynamic_beta` and the transition-kind decision tree |
 | `vignette("forecasting")` | `predict(fit, h = K)` forecasts and counterfactuals |
-| `vignette("fast_estimation")` | the `ame_als()` / `lame_als()` point estimator |
+| `vignette("fast_estimation")` | the `ame_als()` / `lame_als()` empirical-Bayes estimator |
 
 ## Reproducibility
 
-MCMC results depend on the RNG seed and package versions. `ame()` and `lame()` seed the chain themselves through their `seed` argument (default 6886), so an external `set.seed()` does not change a fit; pass `seed =` to vary it, and record the environment:
+`ame()` and `lame()` seed their chains from the `seed` argument (default 6886), so the same call returns the same draws whatever `set.seed()` ran before it. Pass another `seed =` for an independent run, and record the environment:
 
 ```r
 fit <- lame(..., seed = 6886)
@@ -177,7 +183,7 @@ sessionInfo()          # or pin the toolchain with an renv.lock / a @<commit-sha
   title  = {lame: Longitudinal Additive and Multiplicative Effects Models for Networks},
   author = {Cassy Dorff and Shahryar Minhas and Tosin Salau},
   year   = {2026},
-  note   = {R package version 1.4.0},
+  note   = {R package version 1.4.2},
   url    = {https://github.com/netify-dev/lame},
 }
 ```

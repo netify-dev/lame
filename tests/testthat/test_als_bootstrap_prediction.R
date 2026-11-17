@@ -29,16 +29,14 @@ test_that("all bootstrap draw routes preserve square bipartite observed cells", 
 	y[[1]][2, 3] = NA_real_
 	f = lame_als(y, R = 0, mode = 'bipartite', family = 'normal', verbose = FALSE)
 	captured = list()
-	local_mocked_bindings(ame_als_refit = function(object, Y_new = NULL, Z_new = NULL, ...) {
-		captured[[length(captured) + 1L]] <<- if (is.null(Z_new)) Y_new else Z_new
+	local_mocked_bindings(ame_als_refit = function(object, Y_new = NULL, ...) {
+		captured[[length(captured) + 1L]] <<- Y_new
 		object
 	}, .package = 'lame')
-	for (route in c('normal', 'binary', 'poisson', 'transform')) {
-		g = f;g$family = if (route == 'transform') 'binary' else route
-		g$non_normal_method = if (route == 'transform') 'transform' else 'irls'
+	for (route in c('normal', 'binary', 'poisson')) {
+		g = f;g$family = route
+		g$non_normal_method = 'irls'
 		g$link = if (route == 'poisson') 'log' else 'probit'
-		# the draw routes are the subject here: a corrected binary fit is bootstrapped
-		g$bias_correct = list(method = 'jackknife', applied = TRUE)
 		captured = list()
 		b = ame_als_bootstrap(g, R = 12, type = 'parametric', seed = 782025L, verbose = FALSE)
 		expect_equal(b$n_valid, 12)

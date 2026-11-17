@@ -57,13 +57,19 @@ the draws, and the full posterior is in the BETA matrix.}
 \item{ve}{Residual variance}
 }
 For symmetric networks, only va and ve are estimated.}
-\item{Rhat and ESS}{A fit of two or more chains adds the columns
-\code{Rhat} and \code{ESS} to both tables. \code{Rhat} is the split
-rank-normalised R-hat of Vehtari et al. (2021) that the between-chain
-gate compares with 1.05, on the draws the fit holds (the last block of
-every chain); for a monitored quantity it is the value in
-\code{fit$rhat}. \code{ESS} is the effective sample size of the pooled
-draws. A one-chain fit has neither column: R-hat compares chains.}
+\item{Rhat, Threshold and ESS}{A fit of two or more chains adds the
+columns \code{Rhat}, \code{Threshold} and \code{ESS} to both tables.
+\code{Rhat} is the split rank-normalised R-hat of Vehtari et al. (2021)
+on the draws the fit holds (the last block of every chain); for a
+monitored quantity it is the value in \code{fit$rhat}, and for a
+coefficient monitored per period that of the period with the largest. \code{Threshold}
+is the R-hat the between-chain gate held that quantity to: 1.05, or the
+R-hat settled chains with its effective draws reach by chance when every
+monitored quantity is compared, whichever is larger. The print names any
+monitored quantity on which the chains disagree or hold too few effective
+draws to be compared, or that they agree on every one. \code{ESS} is
+the effective sample size of the pooled draws. A one-chain fit has none
+of these columns: R-hat compares chains.}
 }
 }
 \seealso{

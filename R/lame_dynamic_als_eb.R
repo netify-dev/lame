@@ -1,4 +1,4 @@
-# empirical-Bayes estimator for dynamic binary ALS fits (bias_correct = "eb"),
+# empirical-Bayes estimator for dynamic binary ALS fits,
 # the dynamic counterpart of ame_als_eb.R. Poisson panels use the
 # Poisson-lognormal cell (`ctx$pln`, lame_dynamic_als_eb_pln.R) and normal
 # panels the exact Gaussian cell (`ctx$nrm`, lame_dynamic_als_eb_nrm.R).
@@ -53,10 +53,21 @@
 	if (!is.null(ch)) return(ch)
 	S <- (S + t(S)) / 2
 	# ridge relative to the largest diagonal entry, floored at the unit cell information
-	ridge <- 1e-10 * max(abs(diag(S)), unit)
+	base <- max(abs(diag(S)), unit)
+	ridge <- 1e-10 * base
 	for (k in 1:12) {
 		ch <- tryCatch(chol(S + diag(ridge, nrow(S))), error = function(e) NULL)
-		if (!is.null(ch)) return(ch)
+		if (!is.null(ch)) {
+			# a ridge above rounding level changes the system the standard errors and evidence come from
+			if (ridge > 1e-8 * base) {
+				.ae_note_failure(
+					"lde_chol_ridge",
+					"the exact information of a dynamic empirical-Bayes block (it was solved with a ridge)",
+					paste0("the block needed a ridge of ", signif(ridge / base, 2), " of its largest diagonal entry to factor")
+				)
+			}
+			return(ch)
+		}
 		ridge <- ridge * 100
 	}
 	cli::cli_abort(
@@ -244,53 +255,7 @@
 	out
 }
 
-# a dense reference (tests)
-
-# the full information matrix built densely, in the order (s_1, ..., s_Tt, z)
-.lde_dense_matrix <- function(A, b, C, Hzz) {
-	Tt <- length(A); qs <- nrow(A[[1L]]); r <- ncol(Hzz)
-	n <- Tt * qs + r
-	H <- matrix(0, n, n)
-	blk <- function(t) (t - 1L) * qs + seq_len(qs)
-	zi <- Tt * qs + seq_len(r)
-	for (t in seq_len(Tt)) {
-		H[blk(t), blk(t)] <- A[[t]]
-		if (t < Tt) {
-			H[blk(t), blk(t + 1L)] <- diag(-b, qs)
-			H[blk(t + 1L), blk(t)] <- diag(-b, qs)
-		}
-		H[blk(t), zi] <- C[[t]]
-		H[zi, blk(t)] <- t(C[[t]])
-	}
-	H[zi, zi] <- Hzz
-	H
-}
-
 # hyperprior and state
-
-# the binary additive-effects prior of lame() (probit-moment scale and degrees
-# of freedom from the first slice); kept separate from the static estimator
-.lde_hyperprior <- function(Yarr, bip) {
-	nact <- max(dim(Yarr)[1:2])
-	fallback <- list(Sab0 = diag(2), eta0 = round(4 + 3 * nact / 100))
-	Y1 <- matrix(Yarr[, , 1L], dim(Yarr)[1L], dim(Yarr)[2L])
-	ydist <- table(Y1)
-	if (!length(ydist)) return(fallback)
-	ymode <- as.numeric(names(ydist)[ydist == max(ydist)])[1L]
-	YB <- 1 * (Y1 != ymode)
-	ybar <- mean(YB, na.rm = TRUE)
-	if (!is.finite(ybar) || ybar <= 0 || ybar >= 1) return(fallback)
-	E <- (YB - ybar) / stats::dnorm(stats::qnorm(ybar))
-	if (!bip && nrow(E) == ncol(E)) diag(E) <- 0
-	a_tmp <- rowMeans(E, na.rm = TRUE); a_tmp[is.na(a_tmp)] <- 0
-	b_tmp <- colMeans(E, na.rm = TRUE); b_tmp[is.na(b_tmp)] <- 0
-	vscale <- mean(c(stats::var(a_tmp), stats::var(b_tmp)))
-	if (!is.finite(vscale) || vscale <= 0) vscale <- 1
-	PHAT <- stats::pnorm(stats::qnorm(ybar) + outer(a_tmp, b_tmp, "+"))
-	vdfmlt <- 0.25 / mean(PHAT * (1 - PHAT))
-	if (!is.finite(vdfmlt) || vdfmlt < 1) vdfmlt <- 1
-	list(Sab0 = diag(2) * vscale, eta0 = round(4 * vdfmlt))
-}
 
 # the unit of a variance: var(y) for a normal panel, 1 for families with a
 # fixed latent scale; variance floors are fractions of it
@@ -302,24 +267,36 @@
 
 # hyperparameter priors of the dynamic additive effects as lame() sets them;
 # `prior` overrides the defaults
-.lde_prior <- function(prep, kind, prior = list(), rvar = TRUE, cvar = TRUE, pln = FALSE, nrm = FALSE) {
+.lde_prior <- function(prep, kind, prior = list(), rvar = TRUE, cvar = TRUE, pln = FALSE, nrm = FALSE, static_ab = FALSE) {
 	prior <- if (is.list(prior)) prior else list()
-	hp <- if (isTRUE(pln)) .lde_hyperprior_pois(prep$Yarr) else if (isTRUE(nrm)) .lde_hyperprior_nrm(prep$Yarr) else .lde_hyperprior(prep$Yarr, prep$bip)
+	hp <- if (isTRUE(pln)) .lde_hyperprior_pois(prep$Yarr) else if (isTRUE(nrm)) .lde_hyperprior_nrm(prep$Yarr) else .ae_eb_hyperprior(prep$Yarr, prep$bip)
 	vunit <- .lde_vunit(prep, nrm)
 	Sab0 <- prior$Sab0
 	if (is.null(Sab0)) Sab0 <- hp$Sab0
 	Sab0 <- as.matrix(Sab0)
 	eta0 <- prior$etaab
 	if (is.null(eta0)) eta0 <- prior$eta0
-	if (is.null(eta0)) eta0 <- hp$eta0
-	rho_mean <- .lda_default(prior$rho_ab_mean, 0.8)
-	rho_sd <- .lda_default(prior$rho_ab_sd, 0.15)
-	shape <- .lda_default(prior$sigma_ab_shape, 2)
+	# the innovation scale below reads the prior mean of the level variance at the sampler's weight
+	eta_s <- if (is.null(eta0)) hp$eta0 else eta0
+	if (is.null(eta0) && !isTRUE(static_ab)) eta0 <- hp$eta0
+	# static effects take the default weight of the static route (.ae_eb_prior, .ae_eb_hyperprior_norm),
+	# whose fit this one then is: one actor for a normal fit and for a directed binary fit, whose actors
+	# count half. the levels of moving effects keep the sampler's weight: they share each actor's
+	# cells with its ar(1) deviations, and at one actor the levels took up the deviations (binary
+	# dynamic_ab, 30 actors: va covered 0.86 against 0.89, its bias +0.022 against +0.004)
+	if (is.null(eta0) && isTRUE(static_ab)) {
+		n_act <- min(prep$nr, prep$nc)
+		eta0 <- if (isTRUE(nrm)) .ae_eb_prior_weight(hp$eta0, n_act) else
+			if (!isTRUE(pln) && identical(kind, "directed")) .ae_eb_prior_weight(hp$eta0, n_act / 2) else hp$eta0
+	}
+	rho_mean <- .ae_default(prior$rho_ab_mean, 0.8)
+	rho_sd <- .ae_default(prior$rho_ab_sd, 0.15)
+	shape <- .ae_default(prior$sigma_ab_shape, 2)
 	scale <- prior$sigma_ab_scale
 	if (is.null(scale)) {
 		# pooled level variance times (1 - rho^2), so the stationary deviation
 		# variance matches the level variance a priori
-		mult <- if (is.finite(eta0) && eta0 > 3) eta0 / (eta0 - 3) else 1
+		mult <- if (is.finite(eta_s) && eta_s > 3) eta_s / (eta_s - 3) else 1
 		v <- if (identical(kind, "symmetric")) {
 			if (isTRUE(rvar)) Sab0[1L, 1L]
 		} else c(if (isTRUE(rvar)) Sab0[1L, 1L], if (isTRUE(cvar)) Sab0[2L, 2L])
@@ -479,9 +456,11 @@
 
 # layout of the coefficient unknowns: static coefficients first, then for each
 # moving coefficient its states of periods 0 to Tt (1 to Tt under rw2), grouped
-# by block. `thidx[[t]]` gives each coefficient's position in period t and
-# `pos_all(i)` all states of moving coefficient i
-.lde_beta_layout <- function(names, block, mask, kind, Tt) {
+# by block, then the long-run mean of each ar1 coefficient. `thidx[[t]]` gives
+# each coefficient's position in period t, `pos_all(i)` all states of moving
+# coefficient i and `mupos[i]` the position of its long-run mean (0 off ar1)
+.lde_beta_layout <- function(names, block, mask, kind, Tt, kind_by_block = NULL) {
+	if (is.null(kind_by_block)) kind_by_block <- stats::setNames(character(0), character(0))
 	pall <- length(names)
 	if (is.null(mask) || !any(mask)) {
 		return(list(
@@ -512,9 +491,15 @@
 		v
 	})
 	groups <- unique(block[dyn_idx])
+	grp <- match(block[dyn_idx], groups)
+	# kind of each group: the fit's, or rw1 for the intercept the dynamic_ab rule adds to ar1 blocks
+	kind_g <- unname(ifelse(groups %in% names(kind_by_block), kind_by_block[groups], kind))
+	ar1 <- identical(kind, "ar1") & kind_g[grp] == "ar1"
+	mupos <- integer(pd)
+	mupos[ar1] <- ps + pd * nst + seq_len(sum(ar1))
 	list(
 		any = TRUE,
-		mth = ps + pd * nst,
+		mth = ps + pd * nst + sum(ar1),
 		ps = ps,
 		pd = pd,
 		static_idx = static_idx,
@@ -524,20 +509,26 @@
 		posd = posd,
 		pos_all = pos_all,
 		groups = groups,
-		grp = match(block[dyn_idx], groups),
+		grp = grp,
 		ng = length(groups),
-		kind = kind
+		kind = kind,
+		kind_g = kind_g,
+		ar1 = ar1,
+		mupos = mupos
 	)
 }
 
 # precision of the coefficient unknowns: the g-prior of the static ones and the
-# AR(1) prior of lame() on moving states (or the sampler's rw2 precision)
+# AR(1) prior of lame() on moving states (or the sampler's rw2 precision). an
+# ar1 path is stationary around its long-run mean mu, with mu ~ N(0, vmu): the
+# joint precision of (states, mu) is [K, -K 1; -1' K, 1' K 1 + 1 / vmu]
 .lde_theta_prior <- function(ctx, hyp) {
 	lay <- ctx$beta
 	P <- ctx$Lstat
 	if (!lay$any) return(P)
 	Tt <- ctx$Tt
-	K2 <- if (identical(lay$kind, "rw2")) .rw2_precision(Tt)
+	# an rw2 path: its change since the first period, with its level under the coefficient prior
+	K2 <- if (identical(lay$kind, "rw2")) .lame_beta_change_precision("rw2", Tt)
 	for (i in seq_len(lay$pd)) {
 		g <- lay$grp[i]
 		rho <- hyp$beta$rho[g]
@@ -545,12 +536,22 @@
 		pos <- lay$pos_all(i)
 		if (!is.null(K2)) {
 			P[pos, pos] <- P[pos, pos] + K2 * tau
+			P[pos[1L], pos[1L]] <- P[pos[1L], pos[1L]] + 1 / lay$vmu[i]
 			next
 		}
-		d <- c(1 / lay$v0[i] + rho^2 * tau, rep((1 + rho^2) * tau, max(Tt - 1L, 0L)), tau)
+		first <- if (isTRUE(lay$ar1[i])) tau else 1 / lay$v0[i] + rho^2 * tau
+		d <- c(first, rep((1 + rho^2) * tau, max(Tt - 1L, 0L)), tau)
 		P[cbind(pos, pos)] <- P[cbind(pos, pos)] + d
 		P[cbind(pos[-1L], pos[-length(pos)])] <- P[cbind(pos[-1L], pos[-length(pos)])] - rho * tau
 		P[cbind(pos[-length(pos)], pos[-1L])] <- P[cbind(pos[-length(pos)], pos[-1L])] - rho * tau
+		if (isTRUE(lay$ar1[i])) {
+			# row sums of the stationary block couple the states with their mean
+			k1 <- c((1 - rho) * tau, rep((1 - rho)^2 * tau, max(Tt - 1L, 0L)), (1 - rho) * tau)
+			mp <- lay$mupos[i]
+			P[pos, mp] <- P[pos, mp] - k1
+			P[mp, pos] <- P[mp, pos] - k1
+			P[mp, mp] <- P[mp, mp] + sum(k1) + 1 / lay$vmu[i]
+		}
 	}
 	P
 }
@@ -575,7 +576,8 @@
 	beta_pool = "none",
 	dynamic_uv = FALSE,
 	dynamic_uv_kind = "ar1",
-	dcor = FALSE
+	dcor = FALSE,
+	beta_kind_by_block = NULL
 ) {
 	coef_prior <- match.arg(coef_prior)
 	bip <- isTRUE(prep$bip)
@@ -623,13 +625,13 @@
 	if (identical(beta_kind, "rw2") && !is.null(beta_mask) && any(beta_mask) && Tt < 3L) {
 		cli::cli_abort("{.arg dynamic_beta_kind = \"rw2\"} requires at least 3 time periods.")
 	}
-	lay <- .lde_beta_layout(des$names, des$block, beta_mask, beta_kind, Tt)
+	lay <- .lde_beta_layout(des$names, des$block, beta_mask, beta_kind, Tt, beta_kind_by_block)
 	# pooled moving-coefficient hyperparameters, as dynamic_beta_pool in the
 	# sampler: a shared gamma scale for the innovations, a logit-normal law for the
 	# persistences (ar1 only)
 	pool <- list(
 		sigma = lay$any && lay$ng >= 2L && beta_pool %in% c("sigma", "both"),
-		rho = lay$any && lay$ng >= 2L && beta_pool %in% c("rho", "both") &&
+		rho = lay$any && sum(lay$kind_g == "ar1") >= 2L && beta_pool %in% c("rho", "both") &&
 			identical(lay$kind, "ar1")
 	)
 	yred <- Y[ia, ib, , drop = FALSE]
@@ -663,7 +665,15 @@
 	gscale <- unit_var
 	Lth <- if (identical(coef_prior, "mcmc")) XtX / (Tt * prep$nr^2 * gscale) else matrix(0, pall, pall)
 	Lstat <- matrix(0, lay$mth, lay$mth)
-	Lstat[seq_len(lay$ps), seq_len(lay$ps)] <- Lth[lay$static_idx, lay$static_idx, drop = FALSE]
+	# static coefficients next to paths take the sampler's prior: the marginal of the panel prior on their
+	# block (unipartite) or n^2 over the mean square of each column in the unit of the response (bipartite);
+	# without paths every coefficient is static and the panel prior is the prior of the block
+	Lstat[seq_len(lay$ps), seq_len(lay$ps)] <- if (!lay$any || !identical(coef_prior, "mcmc") || !lay$ps) {
+		Lth[lay$static_idx, lay$static_idx, drop = FALSE]
+	} else if (bip) {
+		ms_s <- ifelse(ms[lay$static_idx] > 0, ms[lay$static_idx], 1)
+		diag(1 / (prep$nr^2 * gscale * ifelse(lay$static_idx == 1L, 1, 1 / ms_s)), lay$ps)
+	} else .lame_static_panel_precision(Lth, lay$static_idx)
 	if (lay$any) {
 		# initial-state variance per unit of the covariate: the response variance
 		# over the mean square of the column, unless prior$beta0_var is given
@@ -678,6 +688,12 @@
 		) else rep(v0, length(lay$dyn_idx))
 		# innovation multiplier: one over the mean square of the column
 		lay$lam <- 1 / ifelse(ms[lay$dyn_idx] > 0, ms[lay$dyn_idx], 1)
+		# prior variance of the long-run mean of an ar1 path (the level of an rw2 path), the sampler's static
+		# coefficient prior: unipartite, the marginal of the panel prior Lth on its column; bipartite, n^2
+		# over the mean square of the column (n^2 for the intercept), in the unit of the response
+		lay$vmu <- if (!identical(coef_prior, "mcmc")) rep(Inf, length(lay$dyn_idx))
+		else if (bip) prep$nr^2 * gscale * ifelse(lay$dyn_idx == 1L, 1, lay$lam)
+		else .lame_static_panel_var(Lth, lay$dyn_idx)
 	}
 	shape_b <- if (is.null(prior$sigma_beta_shape)) 2 else prior$sigma_beta_shape
 	# the sampler's default innovation scale (.lame_sigma_beta_prior_scale())
@@ -724,9 +740,10 @@
 		link = link,
 		pln = pln,
 		nrm = nrm,
+		ysd = sqrt(unit_var),
 		vehyp = vehyp,
 		lgy = lgy,
-		prior = .lde_prior(prep, kind, prior, rvar = !fzm[1L], cvar = !fzm[2L], pln = pln, nrm = nrm),
+		prior = .lde_prior(prep, kind, prior, rvar = !fzm[1L], cvar = !fzm[2L], pln = pln, nrm = nrm, static_ab = !isTRUE(dynamic_ab)),
 		fzm = fzm,
 		fz = fz,
 		pm = ifelse(fz, 1e8, 1),
@@ -747,7 +764,8 @@
 				if (nrm) "normal" else "binary",
 				bip = bip,
 				symmetric = sym
-			)
+			),
+			light = !nrm
 		),
 		# moving-position transition: Gaussian AR(1) ("ar1") or Student-t with
 		# t_nu degrees of freedom ("t", default 4)
@@ -795,7 +813,11 @@
 	} else {
 		# the intercept is the first design column: static or moving
 		if (1L %in% lay$static_idx) theta[match(1L, lay$static_idx)] <- b0
-		else theta[lay$pos_all(match(1L, lay$dyn_idx))] <- b0
+		else {
+			i0 <- match(1L, lay$dyn_idx)
+			theta[lay$pos_all(i0)] <- b0
+			if (isTRUE(lay$ar1[i0])) theta[lay$mupos[i0]] <- b0
+		}
 	}
 	pr <- ctx$prior
 	sab <- .lde_freeze_sab(ctx, if (!identical(ctx$kind, "directed")) diag(diag(pr$Sab0), 2L) else pr$Sab0)
@@ -811,7 +833,7 @@
 	if (lay$any) {
 		bp <- ctx$betaprior
 		hyp$beta <- list(
-			rho = rep(if (lay$kind %in% c("rw1", "rw2")) 1 else bp$rho_mean, lay$ng),
+			rho = ifelse(lay$kind_g %in% c("rw1", "rw2"), 1, bp$rho_mean),
 			s2 = rep(bp$scale / max(bp$shape - 1, 1), lay$ng)
 		)
 		# pooled hyperparameters start where the sampler starts them
@@ -1246,17 +1268,27 @@
 	pool_s <- isTRUE(ctx$pool$sigma); pool_r <- isTRUE(ctx$pool$rho)
 	share <- if (pool_s) h$share else bp$scale
 	kind <- lay$kind
-	K2 <- if (identical(kind, "rw2")) .rw2_precision(Tt)
+	K2 <- if (identical(kind, "rw2")) .lame_beta_change_precision("rw2", Tt)
 	logit <- function(r) stats::qlogis((r - bp$rho_lo) / (bp$rho_hi - bp$rho_lo))
 	Ag <- numeric(lay$ng); cg <- numeric(lay$ng)
 	for (g in seq_len(lay$ng)) {
 		members <- which(lay$grp == g)
-		A0 <- 0; A1 <- 0; A2 <- 0; Aq <- 0
+		A0 <- 0; A1 <- 0; A2 <- 0; Aq <- 0; E0 <- 0
+		n_stat <- 0L
 		for (i in members) {
 			pos <- lay$pos_all(i)
 			m <- st$theta[pos]
 			Cv <- post$cov_zz[q + pos, q + pos, drop = FALSE]
 			w <- 1 / lay$lam[i]
+			if (isTRUE(lay$ar1[i])) {
+				# moments of the deviations from the long-run mean; the first state is stationary
+				mp <- lay$mupos[i]
+				cm <- post$cov_zz[q + pos, q + mp]
+				m <- m - st$theta[mp]
+				Cv <- Cv - outer(cm, rep(1, length(pos))) - outer(rep(1, length(pos)), cm) + post$cov_zz[q + mp, q + mp]
+				E0 <- E0 + w * (m[1L]^2 + Cv[1L, 1L])
+				n_stat <- n_stat + 1L
+			}
 			if (!is.null(K2)) {
 				# expected second-difference quadratic form (with the sampler's ridge)
 				Aq <- Aq + w * (sum(m * (K2 %*% m)) + sum(K2 * Cv))
@@ -1268,9 +1300,10 @@
 				A2 <- A2 + w * sum(E2[-(Tt + 1L)]) # sum_t E b_{t-1}^2
 			}
 		}
-		cnt <- length(members) * Tt
-		A <- if (!is.null(K2)) function(r) Aq else function(r) A0 - 2 * r * A1 + r^2 * A2
-		if (kind %in% c("rw1", "rw2")) {
+		# an rw2 path informs its scale through Tt - 1 changes
+		cnt <- length(members) * (if (!is.null(K2)) Tt - 1L else Tt) + n_stat
+		A <- if (!is.null(K2)) function(r) Aq else function(r) A0 - 2 * r * A1 + r^2 * A2 + (1 - r^2) * E0
+		if (lay$kind_g[g] %in% c("rw1", "rw2")) {
 			r_new <- 1
 		} else {
 			nstar <- cnt / 2 + bp$shape + 1
@@ -1280,7 +1313,7 @@
 				prior_term <- if (pool_r) {
 					-(logit(r) - h$mu)^2 / (2 * h$tau2)
 				} else -(r - bp$rho_mean)^2 / (2 * bp$rho_sd^2)
-				v <- -nstar * log(a / 2 + share) + prior_term
+				v <- -nstar * log(a / 2 + share) + prior_term + n_stat / 2 * log1p(-r^2)
 				if (is.finite(v)) v else -Inf
 			}
 			grid <- seq(bp$rho_lo, bp$rho_hi, length.out = 81L)
@@ -1299,10 +1332,12 @@
 			(bp$scale + sum((bp$shape + cg / 2) / (share + Ag / 2)))
 	}
 	if (pool_r) {
-		th <- logit(rho)
-		prec <- 1 / 100 + lay$ng / h$tau2
+		# pool the persistences of the ar1 groups
+		ar1g <- lay$kind_g == "ar1"
+		th <- logit(rho[ar1g])
+		prec <- 1 / 100 + sum(ar1g) / h$tau2
 		out$mu <- (sum(th) / h$tau2) / prec
-		out$tau2 <- (0.5 + sum((th - out$mu)^2) / 2) / (2 + lay$ng / 2 - 1)
+		out$tau2 <- (0.5 + sum((th - out$mu)^2) / 2) / (2 + sum(ar1g) / 2 - 1)
 	}
 	out
 }
@@ -1347,19 +1382,28 @@
 		for (i in seq_len(lay$pd)) {
 			g <- lay$grp[i]
 			v0_term <- if (identical(lay$kind, "rw2")) 0 else log(lay$v0[i])
-			pen_th <- pen_th + Tt * log(hb$s2[g] * lay$lam[i]) + v0_term
+			pen_th <- pen_th + if (identical(lay$kind, "rw2")) {
+				# the change since the first period and the level prior
+				(Tt - 1) * log(hb$s2[g] * lay$lam[i]) + log(lay$vmu[i])
+			} else if (isTRUE(lay$ar1[i])) {
+				# stationary first state and the prior of the long-run mean
+				(Tt + 1) * log(hb$s2[g] * lay$lam[i]) - log(1 - hb$rho[g]^2) + log(lay$vmu[i])
+			} else Tt * log(hb$s2[g] * lay$lam[i]) + v0_term
 		}
 		share <- if (ctx$pool$sigma) hb$share else bp$scale
+		ar1g <- lay$kind_g == "ar1"
 		rho_term <- if (!identical(lay$kind, "ar1")) 0 else if (ctx$pool$rho) {
-			(stats::qlogis((hb$rho - bp$rho_lo) / (bp$rho_hi - bp$rho_lo)) - hb$mu)^2 / hb$tau2
-		} else (hb$rho - bp$rho_mean)^2 / bp$rho_sd^2
+			rho_unit <- (pmin(hb$rho, bp$rho_hi - 1e-12) - bp$rho_lo) / (bp$rho_hi - bp$rho_lo)
+			ifelse(ar1g, (stats::qlogis(rho_unit) - hb$mu)^2 / hb$tau2, 0)
+		} else ifelse(ar1g, (hb$rho - bp$rho_mean)^2 / bp$rho_sd^2, 0)
 		pen_th <- pen_th + sum(2 * (bp$shape - 1) * log(hb$s2) + 2 * share / hb$s2 + rho_term)
 		# hyperprior of the pooled hyperparameters
 		if (ctx$pool$sigma) {
 			pen_th <- pen_th + 2 * bp$scale * hb$share - 2 * (bp$shape + lay$ng * bp$shape) * log(hb$share)
 		}
 		if (ctx$pool$rho) {
-			pen_th <- pen_th + hb$mu^2 / 100 + lay$ng * log(hb$tau2) + 2 * (2 - 1) * log(hb$tau2) + 2 * 0.5 / hb$tau2
+			pen_th <- pen_th + hb$mu^2 / 100 + sum(lay$kind_g == "ar1") * log(hb$tau2) +
+				2 * (2 - 1) * log(hb$tau2) + 2 * 0.5 / hb$tau2
 		}
 	}
 	nser <- sum(!ctx$fz)
@@ -1853,6 +1897,7 @@
 			}
 		}
 		out <- .lde_fit_core_dyn(ctx, st0, max_iter = max_iter, tol = tol)
+		out <- .lde_fac_tail_retry(ctx, out, max_iter = max_iter, tol = tol)
 		out$ctx <- ctx
 		return(out)
 	}
@@ -1863,14 +1908,13 @@
 
 # refusals
 
-# refuse a specification the estimator does not cover; bias_correct = "none"
-# still fits the uncorrected penalised model
+# refuse a specification the estimator does not cover
 .lde_refuse <- function(what, why, call = parent.frame(), .envir = parent.frame()) {
 	cli::cli_abort(
 		c(
 			paste0("The empirical-Bayes estimator of a dynamic ALS fit is not available for ", what, "."),
 			"x" = why,
-			"i" = "{.code bias_correct = \"none\"} fits the uncorrected penalised model (finite-sample bias of order 10 to 50 percent on small or sparse networks); {.code method = \"mcmc\"} fits the calibrated model."
+			"i" = "{.code method = \"mcmc\"} fits the calibrated model."
 		),
 		class = c("lame_dynamic_eb_unsupported", "lame_als_eb"),
 		call = call,
@@ -1889,23 +1933,9 @@
 	dynamic_uv_kind,
 	beta_dyn,
 	dynamic_beta_kind,
-	lambda_ab,
-	lambda_beta,
-	lambda_uv,
 	prior,
 	link
 ) {
-	if (!is.null(lambda_ab) || !is.null(lambda_beta) || !is.null(lambda_uv) ||
-			!is.null(prior$lambda_ab_als) || !is.null(prior$lambda_beta_als) ||
-			!is.null(prior$lambda_uv_als)) {
-		cli::cli_abort(
-			c(
-				"{.arg lambda_ab}, {.arg lambda_beta} and {.arg lambda_uv} fix the smoothness penalties of the uncorrected penalised fit.",
-				"i" = "The empirical-Bayes estimator estimates the innovation scales and persistences of the paths by EM under the {.fn lame} hyperpriors ({.code prior$sigma_ab_shape}, {.code prior$sigma_ab_scale}, {.code prior$rho_ab_mean}, {.code prior$rho_ab_sd}); use {.code bias_correct = \"none\"} to fix the penalties."
-			),
-			class = c("lame_dynamic_eb_unsupported", "lame_als_eb")
-		)
-	}
 	if (isTRUE(dynamic_uv) && !dynamic_uv_kind %in% c("ar1", "t")) {
 		.lde_refuse(
 			"{.code dynamic_uv_kind = \"{dynamic_uv_kind}\"} latent positions",
@@ -1987,7 +2017,6 @@
 	mode,
 	symmetric,
 	link,
-	bias_requested,
 	tol,
 	seed,
 	R_row = NULL,
@@ -2012,6 +2041,7 @@
 	vc <- .lde_report_vcov(ctx, Vc)
 	vcc <- vc
 	fac_scale <- NULL
+	fac_joint <- NULL
 	# directed count panel: the dyadic correlation enters the coefficient
 	# covariance only (lame_dynamic_als_eb_plnpair.R)
 	pair <- fit$pair
@@ -2028,6 +2058,7 @@
 		Vc <- fv$vcov
 		vc <- .lde_report_vcov(ctx, Vc)
 		fac_scale <- fv$scale
+		fac_joint <- fv$joint
 	}
 	embed_paths <- function(x) {
 		a <- matrix(0, nr, Tt, dimnames = list(prep$row_names, prep$time_names))
@@ -2057,7 +2088,18 @@
 	lv <- embed_levels(lev_rep)
 	# effects reported at mean zero over the actors, with the matching intercept
 	cen <- .lde_centre_report(ctx, ev, ab, lv, th, cpath, vc, vcc, st = st)
+	# the folded grand mean of a directed or undirected static product adds its variance
+	# to the intercept's (bipartite fits keep the covariance they had)
+	fold <- if (!is.null(fac_joint) && !isTRUE(ctx$bip) && isTRUE(cen$o_shift != 0)) .lde_fold_var(ctx, fac_joint)
+	if (!is.null(fold)) cen$vc <- .lde_fold_vcov(cen$vc, fold, cond = isTRUE(cen$icpt_cond), Vc = cen$vcc)
 	ab <- cen$ab; lv <- cen$lv; th <- cen$th; cpath <- cen$cpath; vc <- cen$vc; vcc <- cen$vcc
+	# a count panel's coefficients carry the uncertainty of ve (delta method, .lde_ve_sens())
+	ve_sens <- tryCatch(.lde_ve_sens(ctx, st, ev, moving_icpt = !is.null(cen$d_var_path)), error = function(e) NULL)
+	v_ve <- if (is.null(ve_sens)) NA_real_ else tryCatch(.lde_ve_vc(ctx, st, ev, ve_sens), error = function(e) NA_real_)
+	if (isTRUE(is.finite(v_ve) && v_ve > 0)) {
+		vc <- vc + v_ve * tcrossprod(ve_sens$g)
+		vcc <- vcc + v_ve * tcrossprod(ve_sens$g)
+	} else ve_sens <- NULL
 	eb_centre <- cen$centre
 	a_mat <- ab$a; b_mat <- ab$b
 	# the multiplicative term on the full actor set
@@ -2210,9 +2252,24 @@
 	se_path <- NULL
 	if (lay$any) {
 		dv <- sqrt(pmax(diag(Vc), 0))
-		se_path <- vapply(seq_len(Tt), function(t) dv[ctx$thidx[[t]]], numeric(p))
+		# keep a matrix for a single coefficient (the intercept alone)
+		se_path <- matrix(vapply(seq_len(Tt), function(t) dv[ctx$thidx[[t]]], numeric(p)), p, Tt)
 		dimnames(se_path) <- list(coef_names, prep$time_names)
 		if (!is.null(cen$d_var_path)) se_path[1L, ] <- sqrt(se_path[1L, ]^2 + cen$d_var_path)
+		if (!is.null(fold)) {
+			sp2 <- se_path[1L, ]^2 + fold$v_path
+			se_path[1L, ] <- sqrt(ifelse(sp2 > 0, sp2, se_path[1L, ]^2 + fold$vg))
+		}
+		if (!is.null(ve_sens)) se_path[] <- sqrt(se_path^2 + v_ve * ve_sens$g_path^2)
+	}
+	# long-run means of the ar1 coefficient paths, the intercept's with the reported centring
+	mu_beta <- NULL
+	mu_beta_se <- NULL
+	if (lay$any && any(lay$ar1)) {
+		mp <- lay$mupos[lay$ar1]
+		mu_beta <- stats::setNames(st$theta[mp], coef_names[lay$dyn_idx[lay$ar1]])
+		mu_beta_se <- stats::setNames(sqrt(pmax(diag(Vc)[mp], 0)), names(mu_beta))
+		if ("intercept" %in% names(mu_beta)) mu_beta[["intercept"]] <- mu_beta[["intercept"]] + sum(eb_centre)
 	}
 	trace <- fit$trace
 	# objective after each reweighting step (the start is not a step)
@@ -2316,9 +2373,7 @@
 		sigma_ab = if (no_ab) NULL else sigma_ab,
 		rho_beta = if (lay$any) stats::setNames(hb$rho, lay$groups) else NULL,
 		sigma_beta = if (lay$any) stats::setNames(sqrt(hb$s2), lay$groups) else NULL,
-		lambda_uv_als = NULL,
-		lambda_ab_als = NULL,
-		lambda_beta_als = NULL,
+		mu_beta = mu_beta,
 		lowrank_method = if (dyn_uv) "empirical-Bayes mean-field Gaussian positions" else if (R > 0L) "empirical-Bayes joint Gauss-Newton" else NULL,
 		non_normal_method = if (nrm) "none" else "irls",
 		link = if (nrm) NULL else link,
@@ -2332,7 +2387,7 @@
 			ab_kind = if (no_ab) NULL else "ar1_eb",
 			beta = lay$any,
 			beta_kind = if (lay$any) lay$kind else NULL,
-			G = FALSE,
+			beta_kind_by_block = if (lay$any) stats::setNames(lay$kind_g, lay$groups) else NULL,
 			snap_model_estimated = FALSE,
 			t_model_estimated = FALSE,
 			mode = mode
@@ -2377,7 +2432,9 @@
 			factor_scale = if (ctx$fmode == "fac") list(
 				rule = ctx$fscale,
 				s = mean(.lde_fac_scales(hyp$fac)),
-				sd_log = if (is.null(fac_scale)) NA_real_ else fac_scale$sd_log
+				sd_log = if (is.null(fac_scale)) NA_real_ else fac_scale$sd_log,
+				# the response of each eigenvalue of an undirected product to that scale, times its sd
+				L_scale = if (!is.null(fac_scale$J_L)) fac_scale$J_L * fac_scale$sd_log
 			),
 			rho_uv = if (dyn_uv) uvh$rho else NULL,
 			sigma_uv = if (dyn_uv) sqrt(uvh$s2) else NULL,
@@ -2404,6 +2461,7 @@
 			vcov = vc,
 			vcov_cond = vcc,
 			centre = eb_centre,
+			centre_path = cen$centre_path,
 			predictive = if (!pln && !nrm) .lde_predictive_record(
 				ctx,
 				st,
@@ -2419,9 +2477,10 @@
 			),
 			se = sqrt(diag(vc)),
 			se_path = se_path,
-			vcov_path = if (lay$any) Vc else NULL,
+			vcov_path = if (!lay$any) NULL else if (is.null(ve_sens)) Vc else Vc + v_ve * tcrossprod(ve_sens$z),
 			beta_rho = if (lay$any) stats::setNames(hb$rho, lay$groups) else NULL,
 			beta_sigma = if (lay$any) stats::setNames(sqrt(hb$s2), lay$groups) else NULL,
+			mu_beta_se = mu_beta_se,
 			se_method = if (dyn_uv) "laplace (penalised Fisher information of the paths, levels and coefficients, at the mean-field mean of the positions with the position noise in the weights)" else if (R > 0L) "laplace (penalised Fisher information of the paths, levels, coefficients and positions)" else "laplace (penalised Fisher information of the paths, levels and coefficients)",
 			coef_prior = ctx$coef_prior,
 			hyper_gap = ev$cert$scale_change
@@ -2484,15 +2543,13 @@
 		)
 	}
 	if (isTRUE(ctx$dcor) && !nrm && is.list(out$rho_estimation)) out$rho_estimation$method <- "Laplace-marginal pair likelihood"
-	out$bias_correct <- list(
-		method = "eb",
-		applied = FALSE,
-		requested = bias_requested,
-		default = is.null(bias_requested),
-		dynamic = TRUE
-	)
+	# standard errors of the effects, their paths, the variance components, the
+	# dynamic hyperparameters and the product cells (lame_dynamic_als_eb_se.R)
+	out <- .lde_attach_se(out, ctx, st, ev, fit, prep, fac_joint)
 	# information about the latent product, withheld below the threshold
 	out <- .lde_withhold_product(out)
+	# a weak static product keeps the variational spread of its rows (lame_dynamic_als_eb_se.R)
+	out <- .lde_widen_weak_positions(out)
 	out
 }
 
@@ -2526,46 +2583,40 @@
 	if (!nrm) info <- c(info, signal_per_loading = signal / loadings)
 	out$eb$information <- info
 	out <- .lde_withhold_intercept(out, moving)
-	if (isFALSE(
-		getOption("lame.eb_withhold_product", TRUE)
-	) || !is.finite(info[["per_loading"]]) || info[["per_loading"]] >= thr) {
+	# a product below the threshold is reported with its cell errors (product cells
+	# covered 0.95 of simulated weak normal panels with moving positions and 0.92 with
+	# static factors, binary ones 0.97 and 0.93, count ones with moving positions
+	# 0.94)
+	if (is.finite(info[["per_loading"]]) && info[["per_loading"]] < thr &&
+			!isFALSE(getOption("lame.eb_withhold_product", TRUE))) {
+		out$eb$product_weak <- list(per_loading = info[["per_loading"]], threshold = thr, moving = moving)
 		return(out)
 	}
-	em <- .ae_product_empty(out)
-	out <- em$fit
-	out$eb$product_withheld <- list(
-		reason = "the latent product is not identified by the data at this rank",
-		per_loading = info[["per_loading"]],
-		threshold = thr,
-		loadings = loadings,
-		rank = R,
-		family = out$family,
-		moving = moving,
-		log_marginal = NULL,
-		rank_chosen = NA_integer_,
-		means = em$means
-	)
 	out
 }
 
 # signal per loading of a period below which the moving positions of a dynamic
-# normal fit are withheld, calibrated against the products of lame()
+# normal fit are reported as weak, calibrated against the products of lame()
 .lde_moving_product_threshold <- 1.3
 
 # signal per loading below which the latent product of a dynamic binary or count
-# fit is withheld (static factors and moving positions), calibrated against lame()
+# fit is reported as weak (static factors and moving positions), calibrated against lame()
 .lde_glm_product_threshold <- 0.7
 
-# signal per loading from which the intercept of a dynamic binary fit with static
-# factors is withheld: the intercept compensates the shrinkage of the variational
-# posterior and sits below the sampler's
+# signal per loading from which the static intercept of a dynamic binary fit with
+# static factors is withheld: the intercept compensates the shrinkage of the
+# variational posterior and sits below the sampler's
 .lde_binary_intercept_threshold <- 1.5
 
-# withhold the intercept of a dynamic binary fit with static factors above the
-# threshold; fit$eb$intercept_withheld keeps the values internal computations use
+# withhold the static intercept of a dynamic binary fit with static factors above
+# the threshold; fit$eb$intercept_withheld keeps the values internal computations
+# use. an intercept path (dynamic_ab or dynamic_beta) is kept: per period it stays
+# within about one posterior sd of lame()'s at any signal
 .lde_withhold_intercept <- function(out, moving) {
 	info <- out$eb$information
+	icpt_path <- isTRUE(out$beta_dynamic_mask["intercept"])
 	if (isFALSE(getOption("lame.eb_withhold_intercept", TRUE)) || !identical(out$family, "binary") || isTRUE(moving) ||
+			icpt_path ||
 			is.null(info) || !"signal_per_loading" %in% names(info) || !isTRUE(
 				is.finite(info[["signal_per_loading"]])
 			) ||
@@ -2587,10 +2638,14 @@
 	out
 }
 
-# a vector, matrix or array with the intercept's elements, rows and columns set to NA
+# a vector, matrix or array with the intercept's elements, rows and columns set to NA;
+# a coefficient array (draw x coefficient x period) has its intercept slice set to NA
 .lde_intercept_na <- function(x) {
 	if (is.null(x)) return(x)
-	if (is.matrix(x)) {
+	if (length(dim(x)) == 3L) {
+		k <- which(dimnames(x)[[2L]] == "intercept")
+		if (length(k)) x[, k, ] <- NA_real_
+	} else if (is.matrix(x)) {
 		r <- which(rownames(x) == "intercept"); cc <- which(colnames(x) == "intercept")
 		if (length(r)) x[r, ] <- NA_real_
 		if (length(cc)) x[, cc] <- NA_real_
@@ -2612,7 +2667,7 @@
 # the sentence print() and summary() give for a withheld intercept
 .lde_intercept_withheld_text <- function(iw) {
 	paste0(
-		"The intercept is withheld (NA, with its standard error and covariances; the coefficient path of a moving intercept too): at ",
+		"The intercept is withheld (NA, with its standard error and covariances, also in {.code fit$coef_path} and {.code fit$BETA}): at ",
 		signif(iw$per_loading, 2),
 		" units of signal per loading (the threshold is ",
 		iw$threshold,
@@ -2644,9 +2699,12 @@
 	bp <- if (is.null(start$b_path)) start$b_dynamic else start$b_path
 	if (is.matrix(ap) && is.matrix(bp) && ncol(ap) == ctx$Tt && ncol(bp) == ctx$Tt &&
 			nrow(ap) == ctx$nr && nrow(bp) == ctx$nc && all(is.finite(ap)) && all(is.finite(bp))) {
+		# a moving intercept took each period's mean of the effects
+		cp <- start$eb$centre_path
+		if (!(is.matrix(cp) && ncol(cp) == ctx$Tt && all(is.finite(cp)))) cp <- matrix(0, 2L, ctx$Tt)
 		st$x <- rbind(
-			ap[ctx$ia, , drop = FALSE] + ce[["a"]],
-			if (ctx$sym) NULL else bp[ctx$ib, , drop = FALSE] + ce[["b"]]
+			sweep(ap[ctx$ia, , drop = FALSE] + ce[["a"]], 2L, cp[1L, ], "+"),
+			if (ctx$sym) NULL else sweep(bp[ctx$ib, , drop = FALSE] + ce[["b"]], 2L, cp[2L, ], "+")
 		)
 		if (!ctx$beta$any) st$theta[1L] <- st$theta[1L] - sum(ce)
 		st$lev <- rowMeans(st$x)
@@ -2795,7 +2853,7 @@
 				} else {
 					"The marginal objective keeps falling up to the largest scale searched, {signif(rg[2L], 3)} (the range searched: {signif(rg[1L], 3)} to {signif(rg[2L], 3)}): at rank {ctx$R} the positions reproduce the panel exactly."
 				},
-				"i" = "Lower {.arg R}, use {.code bias_correct = \"none\"}, or fit with {.code method = \"mcmc\"}. The fit at the end of the range is in the {.field fit} field of the condition."
+				"i" = "Lower {.arg R}, or fit with {.code method = \"mcmc\"}. The fit at the end of the range is in the {.field fit} field of the condition."
 			),
 			class = c("lame_dynamic_uv_scale_edge", "lame_als_eb"),
 			call = call,
@@ -2818,7 +2876,7 @@
 			c(
 				"The iteration did not settle at {n_bad} of the {n_near} position scale{?s} nearest the minimum of the search within {max_iter} passes.",
 				"x" = "The profile of the marginal objective over the scale of the positions is not determined: the positions reproduce the panel at these scales, or the panel is too sparse to identify them.",
-				"i" = "Lower {.arg R}, use {.code bias_correct = \"none\"}, or fit with {.code method = \"mcmc\"}. The last iterate is in the {.field fit} field of the condition."
+				"i" = "Lower {.arg R}, or fit with {.code method = \"mcmc\"}. The last iterate is in the {.field fit} field of the condition."
 			),
 			class = c("lame_dynamic_uv_scale_unsettled", "lame_als_convergence", "lame_als_eb"),
 			call = call,
@@ -2852,7 +2910,6 @@
 	seed,
 	call,
 	call_args,
-	bias_requested,
 	start = NULL,
 	start_jitter = 0,
 	stability = "none",
@@ -2868,7 +2925,8 @@
 	beta_pool = "none",
 	dynamic_uv = FALSE,
 	dynamic_uv_kind = "ar1",
-	dcor = FALSE
+	dcor = FALSE,
+	beta_kind_by_block = NULL
 ) {
 	# the pair quadrature cache belongs to one fit
 	.lde_pair_reset()
@@ -2888,7 +2946,8 @@
 		beta_pool = beta_pool,
 		dynamic_uv = dynamic_uv,
 		dynamic_uv_kind = dynamic_uv_kind,
-		dcor = dcor
+		dcor = dcor,
+		beta_kind_by_block = beta_kind_by_block
 	)
 	if (verbose) {
 		cli::cli_h3("Dynamic empirical-Bayes ALS fit")
@@ -2945,7 +3004,6 @@
 		mode,
 		symmetric,
 		link,
-		bias_requested,
 		tol,
 		seed,
 		R_row = R_row,
@@ -2956,7 +3014,56 @@
 		args = call_args[setdiff(names(call_args), c("Y", "Xdyad", "call"))],
 		seed = seed
 	)
+	# a fit whose empirical-Bayes equations are certified when the passes run out is
+	# returned: only the tail of a scalar hyperparameter was still moving
+	certified <- isTRUE(out$diagnostics$stationarity$pass)
+	if (!finished && !edge && !unsettled && certified) {
+		tr <- out$diagnostics$convergence_trace
+		nt <- if (is.data.frame(tr)) nrow(tr) else 0L
+		out$eb$iteration_limit <- list(
+			iterations = fit$iterations,
+			max_score = out$diagnostics$stationarity$max_score,
+			threshold = out$diagnostics$stationarity$threshold,
+			merit_fall_10 = if (nt > 10L) tr$merit[nt - 10L] / tr$merit[nt] else NA_real_,
+			tail_retries = .ae_default(fit$tail_retries, 0L)
+		)
+		finished <- TRUE
+	}
 	if (!finished) .lde_refuse_unfinished(out, fit, ctx, max_iter, edge, unsettled)
+	# a withheld static intercept is fitted as a path instead (rw1 among ar1
+	# blocks, as the dynamic_ab rule adds it), which is reported at any signal
+	if (!is.null(out$eb$intercept_withheld) && "intercept" %in% ctx$names &&
+			!isTRUE(getOption("lame.eb_intercept_path_off", FALSE))) {
+		# with no other moving coefficient the whole layout is rw1, as in lame()
+		lone <- !isTRUE(ctx$beta$any)
+		mask1 <- if (lone) ctx$names == "intercept" else as.logical(beta_mask)
+		mask1[ctx$names == "intercept"] <- TRUE
+		kind0 <- if (lone) "rw1" else beta_kind
+		kind1 <- c(beta_kind_by_block, intercept = if (identical(kind0, "ar1")) "rw1" else kind0)
+		kind1 <- kind1[!duplicated(names(kind1), fromLast = TRUE)]
+		if (lone) kind1 <- NULL
+		beta_kind <- kind0
+		refit <- tryCatch(
+			.lde_dynamic_fit(
+				prep, family, mode, symmetric, link, prior, max_iter, tol, FALSE, seed, call, call_args,
+				start = start, start_jitter = start_jitter,
+				stability = "none", coef_prior = coef_prior, R = R, beta_mask = mask1, beta_kind = beta_kind,
+				dynamic_ab = dynamic_ab, rvar = rvar, cvar = cvar, R_row = R_row, R_col = R_col,
+				beta_pool = beta_pool, dynamic_uv = dynamic_uv, dynamic_uv_kind = dynamic_uv_kind,
+				dcor = dcor, beta_kind_by_block = kind1
+			),
+			error = function(e) NULL
+		)
+		if (!is.null(refit) && is.null(refit$eb$intercept_withheld) && all(is.finite(refit$eb$se))) {
+			refit$eb$intercept_path <- list(
+				reason = "the static intercept is not reproduced by the variational posterior of the static factors at this signal",
+				kind = if (is.null(kind1)) "rw1" else kind1[["intercept"]],
+				per_loading = out$eb$intercept_withheld$per_loading,
+				threshold = out$eb$intercept_withheld$threshold
+			)
+			out <- refit
+		}
+	}
 	if (!identical(stability, "none")) {
 		out$stability <- .lda_dynamic_stability(
 			out,
@@ -2971,15 +3078,25 @@
 # printing
 
 # the lines a dynamic empirical-Bayes fit adds to print() and summary()
-.lde_print_eb <- function(x, digits = 4) {
+.lde_print_eb <- function(x, digits = 4, se_block = TRUE) {
 	if (!is.null(x$eb$product_withheld)) cli::cli_text(.ae_product_withheld_text(x$eb$product_withheld))
 	if (!is.null(x$eb$intercept_withheld)) cli::cli_text(.lde_intercept_withheld_text(x$eb$intercept_withheld))
-	eb <- if (is.list(x$eb)) x$eb else x$diagnostics$eb
-	if (is.null(x$bias_correct) || !isTRUE(x$bias_correct$dynamic) || is.null(eb)) {
-		return(invisible(NULL))
+	if (!is.null(x$eb$iteration_limit)) {
+		il <- x$eb$iteration_limit
+		cli::cli_text("The passes ran out ({il$iterations}) with the empirical-Bayes equations certified (largest scaled residual {signif(il$max_score, 2)} against {signif(il$threshold, 2)}); the fit is returned ({.code fit$eb$iteration_limit}).")
 	}
+	if (!is.null(x$eb$product_weak)) {
+		pw <- x$eb$product_weak
+		cli::cli_text("The latent product carries little signal ({signif(pw$per_loading, 2)} per loading, below {pw$threshold}): it is shrunken towards zero and reported with its cell errors ({.code fit$UVPM_sd}).")
+	}
+	if (!is.null(x$eb$intercept_path)) {
+		ip <- x$eb$intercept_path
+		cli::cli_text("The intercept is fitted as a path ({ip$kind}): at {signif(ip$per_loading, 2)} units of signal per loading (from {ip$threshold}) the variational posterior of the static factors does not reproduce a static intercept ({.code fit$eb$intercept_path}).")
+	}
+	eb <- if (is.list(x$eb)) x$eb else x$diagnostics$eb
+	if (!.ae_fit_eb(x) || is.null(eb)) return(invisible(NULL))
 	if (!is.null(eb$rho_ab)) {
-		cli::cli_text("Dynamic effects: persistence rho_ab = {round(eb$rho_ab, digits)}, innovation scale sigma_ab = {round(eb$sigma_ab, digits)} (EM estimates under the {.fn lame} hyperpriors); level covariance in {.code fit$eb$sab}.")
+		cli::cli_text("Dynamic effects: AR(1) deviation paths around the actor levels, their persistence and innovation scale set by EM under the {.fn lame} hyperpriors; level covariance in {.code fit$eb$sab}.")
 	} else if (!any(eb$effects)) {
 		cli::cli_text("Additive effects: none (every margin disabled).")
 	} else {
@@ -2996,13 +3113,17 @@
 		}
 	}
 	if (!is.null(eb$rho_uv)) {
-		cli::cli_text("Moving latent positions (mean-field Gaussian posterior{if (identical(eb$uv_kind, 't')) paste0(' with Student-t transitions, nu = ', eb$t_nu)}): persistence rho_uv = {round(eb$rho_uv, digits)}, innovation scale sigma_uv = {round(eb$sigma_uv, digits)} (stationary variance {round(eb$uv_scale, digits)} chosen by the profile of the marginal objective, persistence by EM, under the {.fn lame} hyperpriors).")
+		cli::cli_text("Moving latent positions (mean-field Gaussian posterior{if (identical(eb$uv_kind, 't')) paste0(' with Student-t transitions, nu = ', eb$t_nu)}): their AR(1) law has its stationary variance set by the profile of the marginal objective ({.code fit$eb$uv_scale}) and its persistence by EM, under the {.fn lame} hyperpriors.")
 	}
 	if (!is.null(eb$factor_scale)) {
 		fs <- eb$factor_scale
 		cli::cli_text("Static latent factors (mean-field Gaussian posterior, the static estimator's): the scale of their prior is set by the {fs$rule} rule{if (identical(fs$rule, 'cavity')) ' (second moments at the cavity covariances of the rows)' else ' (second moments at the mean-field covariances)'}.")
 	}
-	if (!is.null(eb$se)) {
+	if (!is.null(x$mu_beta)) {
+		mu_txt <- paste0(names(x$mu_beta), " ", round(x$mu_beta, digits), " (se ", round(eb$mu_beta_se[names(x$mu_beta)], digits), ")", collapse = ", ")
+		cli::cli_text("Long-run means of the AR(1) coefficient paths, with Laplace standard errors: {mu_txt}.")
+	}
+	if (!is.null(eb$se) && isTRUE(se_block)) {
 		cli::cli_text("Laplace standard errors (coefficients, marginal over the paths, levels{if (!is.null(eb$factor_scale)) ' and factors' else ''}{if (!is.null(eb$factor_scale) && is.finite(eb$factor_scale$sd_log)) ', with the uncertainty of the factor scale' else ''}, conditional on the variance components):")
 		cli::cli_verbatim(utils::capture.output(print(round(eb$se, digits))))
 	}

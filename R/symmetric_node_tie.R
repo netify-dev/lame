@@ -40,11 +40,13 @@
 
 # number of parameter dimensions the tie removes from the scale moves (R/binary_scale_orbit.R,
 # R/ordinal_scale_move.R), which count coefficients in their Jacobian c^(d - 1): a tied pair is one
-# parameter (a static pair one dimension, a pair of paths one per period)
-.lame_sym_tie_dims <- function(rb, cb, dyn_idx, stat_idx, nt, any_dyn) {
+# parameter (a static pair one dimension, a pair of paths one per period, and one more for the
+# long-run mean of a pair of ar1 paths, `ar1` marking those among the dynamic coefficients)
+.lame_sym_tie_dims <- function(rb, cb, dyn_idx, stat_idx, nt, any_dyn, ar1 = NULL) {
 	if (!any_dyn) return(length(rb))
 	sum(vapply(seq_along(rb), function(k) {
-		if (!is.na(match(rb[k], dyn_idx)) && !is.na(match(cb[k], dyn_idx))) nt
+		jr <- match(rb[k], dyn_idx)
+		if (!is.na(jr) && !is.na(match(cb[k], dyn_idx))) nt + isTRUE(ar1[jr])
 		else if (!is.na(match(rb[k], stat_idx)) && !is.na(match(cb[k], stat_idx))) 1L
 		else 0L
 	}, 0))

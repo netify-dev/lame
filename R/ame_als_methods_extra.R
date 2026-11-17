@@ -31,11 +31,11 @@ nobs.ame_als <- function(object, ...) {
 #' \code{"ame.sim"} so it is compatible with \code{plot_ppc_*}-style consumers
 #' (where applicable).
 #'
-#' ALS is a point estimator. \code{simulate.ame_als} holds
-#' \code{mu, beta, a, b, U, V} at the point estimate and resamples the noise.
-#' For uncertainty over the parameters themselves, use
-#' \code{\link{ame_als_bootstrap}} (whose replicates each carry their own
-#' resampled \code{Y}) and combine those simulations.
+#' \code{simulate.ame_als} holds \code{mu, beta, a, b, U, V} at their
+#' estimates and resamples the noise, so the replicates do not carry the
+#' uncertainty of the estimates; their standard errors are in
+#' \code{vcov()}, \code{confint()} and \code{summary()}, and
+#' \code{\link{ame_als_bootstrap}} gives bootstrap ones.
 #'
 #' @param object an \code{ame_als} fit.
 #' @param nsim integer; number of replicates to simulate (default 1).
@@ -102,7 +102,7 @@ simulate.ame_als <- function(object, nsim = 1, seed = NULL, ...) {
 	# residual sd for the Gaussian response
 	sigma_e <- sqrt(max(object$VC["ve"], 0, na.rm = TRUE))
 	# an IRLS Poisson fit reports EZ on the latent scale of y ~ Pois(exp(z)),
-	# z ~ N(EZ, ve); the transform path has no latent layer
+	# z ~ N(EZ, ve)
 	pois_latent_sd <- if (identical(family, "poisson") &&
 			identical(object$link, "log")) sigma_e else 0
 	sim_list <- vector("list", nsim)
@@ -175,7 +175,7 @@ simulate.ame_als <- function(object, nsim = 1, seed = NULL, ...) {
 #' central 95 percent of the simulated values in that period.
 #'
 #' Uses \code{\link{simulate.ame_als}} for the replicates and is therefore
-#' conditional on the fitted point estimates: the noise is resampled, but
+#' conditional on the fitted estimates: the noise is resampled, but
 #' \code{mu, beta, a, b, U, V} are held fixed. The MCMC \code{gof_plot.ame}
 #' also averages over posterior movement in those parameters.
 #'
@@ -185,11 +185,13 @@ simulate.ame_als <- function(object, nsim = 1, seed = NULL, ...) {
 #' @param ... reserved.
 #' @return A \code{ggplot} (or \code{patchwork}) object.
 #' @examples
+#' \donttest{
 #' set.seed(1)
 #' n <- 12
 #' Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
 #' fit <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
 #' gof_plot(fit, nsim = 20, seed = 1)
+#' }
 #' @export
 gof_plot.ame_als <- function(fit, nsim = 100, seed = NULL, ...) {
 	if (!inherits(fit, "ame_als")) {
@@ -366,11 +368,12 @@ gof_plot.ame_als <- function(fit, nsim = 100, seed = NULL, ...) {
 
 #' Additive-effects plot for an ame_als fit
 #'
-#' Sender (a) and receiver (b) additive-effect point estimates as a sorted
-#' lollipop chart. Mirrors \code{\link{ab_plot}} but without posterior
-#' intervals: this is a point estimator. If the fit was produced via
-#' \code{ame_als(..., bootstrap = N)}, bootstrap 95\% intervals are drawn as
-#' error bars.
+#' Sender (a) and receiver (b) additive-effect estimates as a sorted
+#' lollipop chart. Mirrors \code{\link{ab_plot}}, with 95\% Wald intervals
+#' from the posterior standard deviations of the effects (\code{fit$a_sd},
+#' \code{fit$b_sd}) as error bars. If the fit was produced via
+#' \code{ame_als(..., bootstrap = N)}, the bootstrap 95\% intervals are drawn
+#' instead.
 #'
 #' @param fit an \code{ame_als} fit.
 #' @param effect \code{"sender"} (default), \code{"receiver"}, or \code{"both"}.
@@ -379,11 +382,13 @@ gof_plot.ame_als <- function(fit, nsim = 100, seed = NULL, ...) {
 #' @param ... reserved.
 #' @return A \code{ggplot} object.
 #' @examples
+#' \donttest{
 #' set.seed(1)
 #' n <- 12
 #' Y <- matrix(rnorm(n * n), n, n); diag(Y) <- NA
 #' fit <- ame_als(Y, R = 1, family = "normal", verbose = FALSE)
 #' ab_plot(fit, effect = "sender")
+#' }
 #' @export
 ab_plot.ame_als <- function(
 	fit,
@@ -425,7 +430,14 @@ ab_plot.ame_als <- function(
 			)
 			df$lo <- q[1, ]; df$hi <- q[2, ]
 		} else {
-			df$lo <- NA_real_; df$hi <- NA_real_
+			# otherwise the Wald interval of the posterior sd of the effect (fit$a_sd, fit$b_sd)
+			sdv <- if (lbl == "sender") fit$a_sd else fit$b_sd
+			if (length(sdv) == nrow(df)) {
+				df$lo <- df$value - stats::qnorm(0.975) * unname(sdv)
+				df$hi <- df$value + stats::qnorm(0.975) * unname(sdv)
+			} else {
+				df$lo <- NA_real_; df$hi <- NA_real_
+			}
 		}
 		# top-n filtering
 		if (is.finite(top_n) && nrow(df) > top_n) {
@@ -442,12 +454,12 @@ ab_plot.ame_als <- function(
 		cli::cli_abort("No additive effects to plot for {.arg effect} = {.val {effect}}.")
 	}
 	df_all$effect <- c(sender = "Sender", receiver = "Receiver")[df_all$effect]
-	ab_subtitle <- if (!all(is.na(df_all$lo))) {
+	ab_subtitle <- if (!all(is.na(df_all$lo)) && !is.null(bt) && !any(c("a", "b") %in% .ae_boot_withheld_names(bt, "effects"))) {
 		"With bootstrap 95% intervals"
-	} else if (!is.null(bt)) {
-		"Point estimates (the bootstrap returns no interval for these effects)"
+	} else if (!all(is.na(df_all$lo))) {
+		"With 95% intervals from the posterior sds of the effects"
 	} else {
-		"Point estimates (refit with bootstrap replicates for intervals)"
+		"Estimates"
 	}
 	p <- ggplot2::ggplot(
 		df_all,
@@ -490,8 +502,8 @@ ab_plot.ame_als <- function(
 #' Bayesian-hygiene helper modelled on \code{rstanarm::prior_summary()}.
 #' Prints recorded prior settings and the coefficient-prior specification
 #' saved by the fitting build. Older fits without that specification are
-#' identified explicitly; their prior is not inferred from the current build. For \code{ame_als} fits it just states that the estimator is a
-#' frequentist point estimator and there are no priors.
+#' identified explicitly; their prior is not inferred from the current build. For \code{ame_als} fits it describes the empirical-Bayes
+#' priors of the fast fit, whose variances are estimated from the data.
 #'
 #' @param object a fitted \code{ame}, \code{lame}, or \code{ame_als} object.
 #' @param ... ignored.
@@ -592,7 +604,8 @@ prior_summary.lame <- function(object, ...) {
 			cli::cli_h3("Dynamic process prior settings")
 			dynamic_keys <- c(
 				if (isTRUE(object$dynamic_uv)) c(
-					"rho_uv_mean", "rho_uv_sd", "sigma_uv_shape", "sigma_uv_scale", "uv_var_cap", "sigma_uv_max", "uv_max_abs"
+					"rho_uv_mean", "rho_uv_sd", "sigma_uv_shape", "sigma_uv_scale",
+					"uv_var_shape", "uv_var_scale", "uv_var_cap", "sigma_uv_max", "uv_max_abs"
 				),
 				if (isTRUE(object$dynamic_ab)) c(
 					"rho_ab_mean", "rho_ab_sd", "sigma_ab_shape", "sigma_ab_scale", "ab_var_cap"
@@ -626,11 +639,11 @@ prior_summary.ame_als <- function(object, ...) {
 	.lame_cli_stdout({
 		cli::cli_h2("Priors (ame_als fit)")
 		if (identical(object$non_normal_method, "irls") && object$R > 0L) {
-			cli::cli_text("IRLS estimates fixed effects and regularized latent factors. Gaussian factor penalties use empirically updated variance scales; the result is a point estimate, without posterior draws.")
+			cli::cli_text("The fast fit is an empirical-Bayes fit with regularized latent factors: the sender and receiver effects have a Gaussian prior and the factors Gaussian penalties, with their variances estimated from the data. It has no posterior draws.")
 		} else {
-			cli::cli_text("The ALS estimator is a frequentist iterative block coordinate descent point estimator. There are no priors.")
+			cli::cli_text("The fast fit is an empirical-Bayes fit: the actor effects have a Gaussian prior whose variances are estimated from the data. It has no posterior draws.")
 		}
-		cli::cli_text("For uncertainty, refit with {.code bootstrap = N} (parametric / block bootstrap).")
+		cli::cli_text("Every estimate has a standard error (see {.fn vcov}, {.fn confint} and {.fn summary}); {.code bootstrap = N} adds bootstrap intervals.")
 		cli::cli_text("For Bayesian inference (priors, credible intervals, posterior summaries), use {.fn ame} / {.fn lame} (MCMC).")
 	})
 	invisible(object)

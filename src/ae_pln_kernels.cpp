@@ -1,10 +1,10 @@
 // Compiled kernels of the empirical-Bayes Poisson estimator (ame_als(), lame_als() with
 // family = "poisson"): the Poisson-lognormal cell of ae_pln.h over vectors of cells, its expectation over
 // a Gaussian predictor (the cell quadrature of the variational stage) and the cavity weights. The R
-// references are the functions with the suffix _r in R/ame_als_pln.R, which these agree with to rounding
-// (the tests compare the two engines). Like the kernels of ae_kernels.cpp, each takes whole vectors,
-// allocates its outputs before the loop, calls no R API inside it and writes each output element once, so
-// the result does not depend on the number of threads.
+// references are the functions with the suffix _r in tests/testthat/helper-reference-engines-als.R, which
+// these agree with to rounding (the tests compare the two engines). Like the kernels of ae_kernels.cpp,
+// each takes whole vectors, allocates its outputs before the loop, calls no R API inside it and writes each
+// output element once, so the result does not depend on the number of threads.
 
 #define USE_FC_LEN_T
 #include <Rcpp.h>
@@ -46,7 +46,7 @@ void check_rule(const NumericVector& zk, const NumericVector& lwk) {
 
 // The cells of the Poisson-lognormal likelihood at the linear predictors `eta` (variance of the noise `ve`,
 // recycled): the log likelihood l, the score s, the observed information w, its derivative hp in eta, and the
-// second moment ee and the mean me of the posterior of the noise (.ae_pln_node_r in R/ame_als_pln.R). `lgy` is
+// second moment ee and the mean me of the posterior of the noise (.ae_pln_node_r in tests/testthat/helper-reference-engines-als.R). `lgy` is
 // lgamma(y + 1); `zk` and `lwk` the nodes and the log weights of the inner Gauss-Hermite rule. Zero off the
 // observed cells and where the predictor is not finite.
 // [[Rcpp::export(rng = false)]]
@@ -197,7 +197,7 @@ NumericVector ae_pln_info_w_cpp(const NumericVector& y, const NumericVector& lgy
 
 // The pairs of cells of a dyad: for each pair the log probability L of the two counts at the predictor means
 // (m1, m2) with the noise covariance (s11, s22, s12), the score (L1, L2) and the information (w11, w22, w12) in the
-// means (.ae_pln2_node_r in R/ame_als_pln_pair.R). `zk` and `lwk` are the nodes and log weights of the rule on each
+// means (.ae_pln2_node_r in tests/testthat/helper-reference-engines-als.R). `zk` and `lwk` are the nodes and log weights of the rule on each
 // axis (K nodes, at most kPln2MaxNodes).
 // [[Rcpp::export(rng = false)]]
 List ae_pln2_node_cpp(const NumericVector& y1, const NumericVector& y2, const NumericVector& lg1, const NumericVector& lg2,

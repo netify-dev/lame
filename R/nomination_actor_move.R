@@ -501,9 +501,11 @@
 
 # prior state of the intercept of a dynamic_beta fit, in the form
 # .lame_actor_move_icpt reads: its path (first state N(beta0_mean, beta0_var),
-# AR(1) transitions) when it is dynamic, otherwise its static value with prior
-# N(0, g s2). `k` is the column of the path or the position among the static
-# coefficients that the move writes back to.
+# AR(1) transitions, read as the deviation from its long-run mean when `mu`
+# gives one) when it is dynamic, otherwise its static value with prior
+# N(0, g s2), or its conditional under the static panel precision P0. `k` is the
+# column of the path or the position among the static coefficients that the
+# move writes back to.
 .lame_nom_icpt_state <- function(
 	beta_dyn,
 	beta_dyn_path,
@@ -515,7 +517,9 @@
 	beta0_mean,
 	beta0_cov,
 	g,
-	s2
+	s2,
+	P0 = NULL,
+	mu = NULL
 ) {
 	kd <- match(1L, beta_dyn$dynamic_idx)
 	if (!is.na(kd)) {
@@ -526,16 +530,12 @@
 			rho = rho_by_group[group_id[kd]],
 			sd2 = sigma_by_group[group_id[kd]]^2 * Lambda_full[kd, kd],
 			m0 = beta0_mean[kd],
-			v0 = beta0_cov[kd, kd]
+			v0 = beta0_cov[kd, kd],
+			centre = if (!is.null(mu)) mu[kd]
 		))
 	}
 	ks <- match(1L, beta_dyn$static_idx)
-	list(
-		kind = "static",
-		k = ks,
-		value = beta_static[ks],
-		prec = 1 / (.lame_static_g_scale(g, beta_dyn$static_idx)[ks] * s2)
-	)
+	c(list(k = ks), .lame_static_icpt_prior(beta_static, ks, P0, g, beta_dyn$static_idx, s2))
 }
 
 # intercept-means ridge of a bipartite fit with uncentred levels (ame()):
@@ -553,7 +553,10 @@
 	P <- P[act, act, drop = FALSE]
 	h <- h[act]
 	ch <- tryCatch(chol(P), error = function(e) NULL)
-	if (is.null(ch) || !all(is.finite(h))) return(none)
+	if (is.null(ch) || !all(is.finite(h))) {
+		.lame_fallback_note('nomination_ridge')
+		return(none)
+	}
 	cc <- solve(P, h) + backsolve(ch, stats::rnorm(length(h)))
 	if (act[1L]) a <- a + cc[1L]
 	if (act[2L]) b <- b + cc[sum(act)]

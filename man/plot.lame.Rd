@@ -7,7 +7,6 @@
 \method{plot}{lame}(
   x,
   which = c(1, 2, 3, 4),
-  time.points = NULL,
   ask = FALSE,
   pages = c("single", "multiple"),
   ...
@@ -20,12 +19,8 @@
 1 or "trace" = MCMC trace plots,
 2 or "density" = posterior density plots,
 3 or "gof" = longitudinal goodness-of-fit plots,
-4 or "effects" = additive and multiplicative effects,
-5 or "network" = network snapshots at selected times.
+4 or "effects" = additive and multiplicative effects.
 Default is c(1,2,3,4) to show main diagnostic plots.}
-
-\item{time.points}{numeric vector of time points for network snapshots
-(only used if "network" in which). Default is c(1, middle, last).}
 
 \item{ask}{logical; if TRUE, user is prompted before each plot page}
 
@@ -54,7 +49,6 @@ and variance components}
 posterior predictive intervals}
 \item{Effects over time}{Evolution of additive effects across time periods
 (if applicable)}
-\item{Network snapshots}{Visualization of network at selected time points}
 }
 
 The plot adapts to the longitudinal structure:

@@ -7,7 +7,9 @@
 gof(fit, Y = NULL, custom_gof = NULL, nsim = 100, verbose = TRUE)
 }
 \arguments{
-\item{fit}{An ame model object that was run with posterior sampling enabled}
+\item{fit}{An ame or lame model object that was run with posterior sampling
+enabled, or an ALS fit (\code{method = "als"}, \code{\link{ame_als}},
+\code{\link{lame_als}})}
 
 \item{Y}{Original data. For ame objects, an n x n matrix (or nA x nB for
 bipartite). For lame objects, a list of matrices (one per time period).
@@ -55,7 +57,18 @@ one: the GOF statistics and \code{YPM} cannot show a marginal misfit for
 ordinal outcomes and only assess the dependence structure (degree spread,
 dyadic and triadic dependence).
 
-This function requires joint posterior replication and refuses fits that
+A panel whose actor set changes is checked period by period on the actors
+present in each period, as the sampler's own goodness of fit is; an actor
+absent from a period has no observed cell there.
+
+An ALS fit has no posterior draws: its replicates are
+drawn from \code{\link{simulate.ame_als}} at the estimate, with the noise
+resampled (attribute \code{replication_method} \code{"point estimate"}), the
+replicates \code{\link{gof_plot}} draws for it. The parameters are held at
+the estimate; the posterior predictive check, which also draws them, is the
+one of an \code{\link{ame}} or \code{\link{lame}} (MCMC) fit.
+
+For a sampler fit this function requires joint posterior replication and refuses fits that
 lack aligned saved draws; it never substitutes conditional mean trajectories.
 This function requires that the model was estimated with posterior sampling
 of the parameters needed to generate posterior predictive datasets.

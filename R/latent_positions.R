@@ -47,7 +47,11 @@
 #'     position, or \code{NA} if posterior draws are not available. To enable,
 #'     fit the model with \code{posterior_opts = posterior_options(save_UV = TRUE)}
 #'     (static positions) or \code{posterior_opts = list(save_UV_draws = TRUE)}
-#'     (dynamic positions).}
+#'     (dynamic positions). An \code{ame_als} fit, or a \code{lame(method =
+#'     "als")} fit with static factors, reports the sd of each
+#'     reported coordinate under its Laplace posterior (\code{fit$U_sd},
+#'     \code{fit$V_sd}), with the directions that leave the product unchanged
+#'     left out.}
 #'   \item{type}{Character. \code{"U"} for sender/row positions,
 #'     \code{"V"} for receiver/column positions. Symmetric models have
 #'     only \code{"U"}.}
@@ -102,8 +106,8 @@ latent_positions.lame <- function(object, align = TRUE, ...) {
 #' @method latent_positions ame_als
 #' @export
 latent_positions.ame_als <- function(object, align = FALSE, ...) {
-	# ALS positions are static with no draws, so posterior_sd is NA; a withheld
-	# product (.ae_withhold_product) gives NA positions
+	# ALS positions are static with no draws: posterior_sd is the Laplace sd the fit
+	# carries in U_sd / V_sd; a withheld product (.ae_withhold_product) gives NA positions
 	if (.ae_product_is_withheld(object)) {
 		pw <- object$eb$product_withheld
 		cli::cli_inform(
@@ -171,14 +175,18 @@ latent_positions.ame_als <- function(object, align = FALSE, ...) {
 
 	# explain why posterior_sd is NA
 	if (nrow(out) > 0L && all(is.na(out$posterior_sd)) && inherits(object, "ame_als")) {
-		cli::cli_inform(
-			c(
-				"i" = "{.code posterior_sd} is {.val NA} because an ALS fit holds point estimates of the positions and no posterior draws.",
-				"i" = "For posterior SDs, fit by MCMC with {.fn ame} or {.fn lame} and {.code posterior_opts = posterior_options(save_UV = TRUE)}."
-			),
-			.frequency = "once",
-			.frequency_id = "latent_positions_no_sd_als"
-		)
+		# an ALS fit carries the Laplace sds of its positions; they are missing only where the product is
+		# withheld (noted above) or the standard errors could not be formed
+		if (!.ae_product_is_withheld(object)) {
+			cli::cli_inform(
+				c(
+					"i" = "{.code posterior_sd} is {.val NA}: the standard errors of the positions could not be formed for this fit.",
+					"i" = "{.code fit$numerical_failures} records what failed."
+				),
+				.frequency = "once",
+				.frequency_id = "latent_positions_no_sd_als"
+			)
+		}
 	} else if (nrow(out) > 0L && all(is.na(out$posterior_sd))) {
 		cli::cli_inform(
 			c(

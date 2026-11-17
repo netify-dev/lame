@@ -245,15 +245,9 @@ test_that("vcov.ame_als returns the bootstrap covariance when one is attached", 
 		(2 * stats::qnorm(0.975))
 	rat = implied_se / se_v
 	expect_true(all(rat > 0.6 & rat < 1.6))
-	# an explicit cluster= is announced, not dropped silently
-	expect_message(
-		V2 <- vcov(fb, cluster = "none"),
-		"applies to the sandwich only"
-	)
-	expect_equal(V2, V)
 })
 
-test_that("vcov.ame_als without a bootstrap keeps the sandwich and its warning", {
+test_that("vcov.ame_als without a bootstrap is the Laplace covariance", {
 	skip_on_cran()
 	set.seed(5)
 	n = 24
@@ -264,18 +258,20 @@ test_that("vcov.ame_als without a bootstrap keeps the sandwich and its warning",
 	V = vcov(f0)
 	expect_identical(dim(V), c(2L, 2L))
 	expect_identical(rownames(V), c("intercept", "Xd_dyad"))
-	# the anti-conservative warning fires for a discrete-family fit
+	expect_equal(V, f0$eb$vcov)
+	# a discrete-family fit too, with no warning
 	Yb = 1 * (Y > median(Y, na.rm = TRUE))
 	diag(Yb) = NA
-	fp = suppressWarnings(ame_als(
+	fp = suppressMessages(ame_als(
 		Yb,
 		Xdyad = Xd,
 		R = 0,
 		family = "binary",
-		bias_correct = "none",
 		verbose = FALSE
 	))
-	expect_warning(vcov(fp), "conditional sandwich")
+	expect_no_warning(Vp <- vcov(fp))
+	expect_equal(Vp, fp$eb$vcov)
+	expect_true(all(diag(Vp) > 0))
 })
 
 test_that("reconstruct_EZ and predict(type = 'link') work on a legacy amen fit", {

@@ -142,52 +142,6 @@ test_that("posterior_quantiles computes correct intervals", {
 	expect_equal(beta_medians, beta_means, tolerance = 0.5)
 })
 
-test_that("posterior samples are saved when requested", {
-	set.seed(6886)
-	n = 15
-	R = 2
-
-	Y = matrix(rnorm(n * n), n, n)
-	diag(Y) = NA
-
-	# a fit that saves posterior samples
-	opts = posterior_options(
-		save_UV = TRUE, save_ab = TRUE,
-		thin_UV = 5, thin_ab = 5
-	)
-
-	fit = ame(
-		Y,
-		R = R,
-		rvar = TRUE,
-		cvar = TRUE,
-		burn = 50,
-		nscan = 200,
-		odens = 5,
-		posterior_opts = opts,
-		verbose = FALSE
-	)
-
-	# the samples were saved
-	if (!is.null(opts) && opts$save_UV) {
-		expect_false(is.null(fit$U_samples))
-		expect_false(is.null(fit$V_samples))
-
-		n_expected = floor(200 / (5 * 5)) # nscan / (odens * thin)
-		expect_equal(dim(fit$U_samples)[1], n)
-		expect_equal(dim(fit$U_samples)[2], R)
-		expect_lte(dim(fit$U_samples)[3], n_expected + 1)
-	}
-
-	if (!is.null(opts) && opts$save_ab) {
-		expect_false(is.null(fit$a_samples))
-		expect_false(is.null(fit$b_samples))
-
-		expect_equal(nrow(fit$a_samples), n)
-		expect_equal(nrow(fit$b_samples), n)
-	}
-})
-
 test_that("simulate_posterior works with saved samples", {
 	set.seed(6886)
 	n = 15
@@ -219,36 +173,6 @@ test_that("simulate_posterior works with saved samples", {
 		expect_equal(dim(UV_post)[1:2], c(n, n))
 		expect_lte(dim(UV_post)[3], 5)
 	}
-})
-
-test_that("posterior functions work for bipartite networks", {
-	set.seed(6886)
-	nA = 10
-	nB = 12
-
-	Y = matrix(rnorm(nA * nB), nA, nB)
-
-	# a bipartite fit
-	fit = ame(
-		Y,
-		mode = "bipartite",
-		R_row = 1,
-		R_col = 1,
-		burn = 50,
-		nscan = 200,
-		verbose = FALSE
-	)
-
-	# posterior draws work
-	beta_post = suppressWarnings(
-		simulate_posterior(fit, "beta", n_samples = 20)
-	)
-	expect_lte(nrow(beta_post), 20) # fewer when the MCMC kept fewer samples
-	expect_gt(nrow(beta_post), 0) # but some
-
-	# quantiles work
-	beta_quants = posterior_quantiles(fit, "beta")
-	expect_equal(nrow(beta_quants), 3) # 3 quantiles by default
 })
 
 test_that("simulate_Y_posterior generates reasonable predictions", {
@@ -371,30 +295,6 @@ test_that("simulate_posterior('UV') is symmetric per period for symmetric dynami
 	uv = simulate_posterior(f, "UV", n_samples = 6)
 	m = apply(uv[, , 1, ], c(1, 2), mean)
 	expect_lt(max(abs(m - t(m)), na.rm = TRUE), 1e-6)
-})
-
-test_that("simulate_posterior('UV') on bipartite dynamic fits is nA x nB x T x draw", {
-	set.seed(2)
-	Y = lapply(1:3, function(t) {
-		m = matrix(rnorm(8 * 6), 8, 6)
-		rownames(m) = sprintf("r%02d", 1:8); colnames(m) = sprintf("c%02d", 1:6); m
-	})
-	f = lame(
-		Y,
-		mode = "bipartite",
-		family = "normal",
-		R = 2,
-		dynamic_uv = TRUE,
-		burn = 20,
-		nscan = 60,
-		odens = 2,
-		verbose = FALSE,
-		plot = FALSE,
-		posterior_opts = list(save_UV = TRUE)
-	)
-	uv = simulate_posterior(f, "UV", n_samples = 5)
-	expect_equal(dim(uv)[1:2], c(8L, 6L))
-	expect_equal(dim(uv)[3], 3L)
 })
 
 test_that("simulate_posterior('beta') handles a 3-D dynamic_beta array", {

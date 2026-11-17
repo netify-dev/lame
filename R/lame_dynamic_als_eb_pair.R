@@ -94,28 +94,23 @@
 	)
 	out <- stats::setNames(lapply(nm, function(f) numeric(n)), nm)
 	K <- integer(n)
-	r_engine <- identical(.ae_engine(), "r")
 	threads <- .ae_threads()
 	todo <- plan$direct
 	ix <- which(plan$tab)
 	if (length(ix)) {
 		tab <- .lde_pair_table(plan, rho, plan$vmask, threads, tier)
-		ap <- if (r_engine) {
-			.lde_pair_apply_r(tab, m1[ix], m2[ix], sd1[ix], sd2[ix], variant[ix], plan$cutoff, deriv, rho_deriv)
-		} else {
-			lde_pair_apply_cpp(
-				tab,
-				m1[ix],
-				m2[ix],
-				sd1[ix],
-				sd2[ix],
-				variant[ix],
-				plan$cutoff,
-				deriv,
-				rho_deriv,
-				threads
-			)
-		}
+		ap <- lde_pair_apply_cpp(
+			tab,
+			m1[ix],
+			m2[ix],
+			sd1[ix],
+			sd2[ix],
+			variant[ix],
+			plan$cutoff,
+			deriv,
+			rho_deriv,
+			threads
+		)
 		good <- ap$ok == 1L
 		for (f in nm) out[[f]][ix[good]] <- ap[[f]][good]
 		K[ix[good]] <- ap$K[good]
@@ -128,44 +123,24 @@
 		}
 	}
 	if (length(todo)) {
-		dr <- if (r_engine) {
-			.lde_pair_direct_r(
-				m1[todo],
-				m2[todo],
-				sd1[todo],
-				sd2[todo],
-				variant[todo],
-				plan$type1,
-				plan$type2,
-				plan$K1,
-				plan$K2,
-				rho,
-				plan$cc,
-				plan$du,
-				plan$cutoff,
-				deriv,
-				rho_deriv
-			)
-		} else {
-			lde_pair_direct_cpp(
-				m1[todo],
-				m2[todo],
-				sd1[todo],
-				sd2[todo],
-				variant[todo],
-				plan$type1,
-				plan$type2,
-				plan$K1,
-				plan$K2,
-				rho,
-				plan$cc,
-				plan$du,
-				plan$cutoff,
-				deriv,
-				rho_deriv,
-				threads
-			)
-		}
+		dr <- lde_pair_direct_cpp(
+			m1[todo],
+			m2[todo],
+			sd1[todo],
+			sd2[todo],
+			variant[todo],
+			plan$type1,
+			plan$type2,
+			plan$K1,
+			plan$K2,
+			rho,
+			plan$cc,
+			plan$du,
+			plan$cutoff,
+			deriv,
+			rho_deriv,
+			threads
+		)
 		okd <- dr$ok == 1L
 		for (f in nm) out[[f]][todo[okd]] <- dr[[f]][okd]
 		K[todo[okd]] <- dr$K[okd]

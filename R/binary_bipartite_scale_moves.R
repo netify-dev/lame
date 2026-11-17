@@ -163,5 +163,25 @@
 			drawn <- drawn + 1L
 		}
 	}
+	# shears (U A, A^-1 G with A = I + h e_k e_l'): U_l -> U_l + h U_k, G_k. -> G_k. - h G_l.; under the
+	# unit prior of the rows and N(0, g_var) on G, h is Gaussian (unit Jacobian, Haar dh); a draw beyond
+	# g_max keeps the state, exact for the truncated target. then the same for V against the columns of G
+	shear <- function(X, Gm) {
+		hits <- 0L
+		for (k in seq_len(ncol(X))) for (l in seq_len(ncol(X))[-k]) {
+			prec <- sum(X[, k]^2) + sum(Gm[l, ]^2) / g_var
+			if (!(prec > 0)) next
+			m <- -(sum(X[, l] * X[, k]) - sum(Gm[k, ] * Gm[l, ]) / g_var) / prec
+			h <- stats::rnorm(1L, m, 1 / sqrt(prec))
+			g_k <- Gm[k, ] - h * Gm[l, ]
+			if (is.finite(g_max) && g_max > 0 && max(abs(g_k)) > g_max) next
+			X[, l] <- X[, l] + h * X[, k]
+			Gm[k, ] <- g_k
+			hits <- hits + 1L
+		}
+		list(X = X, G = Gm, hits = hits)
+	}
+	if (RA >= 2L) { sh <- shear(U, G); U <- sh$X; G <- sh$G; drawn <- drawn + sh$hits }
+	if (RB >= 2L) { sh <- shear(V, t(G)); V <- sh$X; G <- t(sh$G); drawn <- drawn + sh$hits }
 	list(U = U, V = V, G = G, drawn = drawn)
 }

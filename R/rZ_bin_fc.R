@@ -116,7 +116,7 @@ rZ_bin_fc <-
 #' @return updated symmetric n x n latent matrix; the diagonal is refreshed
 #'   with unconstrained normal draws around \code{diag(EZ)}.
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
-#' @keywords internal
+#' @noRd
 rZ_bin_sym_fc <- function(Z, EZ, Y, rho = 0) {
 	n <- nrow(Z)
 	ut <- upper.tri(Z)

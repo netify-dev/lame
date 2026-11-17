@@ -1,5 +1,6 @@
 # ALS start values passed to the MCMC samplers: an ALS fit labels its effects and positions by actor (and period),
 # while the sampler state is plain numeric, so the labels stay out of the translation moves that index it by actor
+
 skip_on_cran()
 
 asm_panel = function(mode, family, n = 8L, nb = 6L, N = 3L, seed = 11L) {
@@ -32,9 +33,10 @@ asm_args = function(p, dab, duv, R = 1L) {
 	if (identical(p$mode, 'symmetric')) a$symmetric = TRUE
 	a
 }
-asm_als = function(p, dab, duv, bias_correct = NULL) {
+# penalised = TRUE asks for the penalised dynamic fit, as the sampler's warm start does
+asm_als = function(p, dab, duv, penalised = FALSE) {
 	a = c(asm_args(p, dab, duv), list(method = 'als', verbose = FALSE, gof = FALSE, plot = FALSE))
-	if (!is.null(bias_correct)) a$bias_correct = bias_correct
+	if (penalised) a$prior = structure(list(), lame_als_estimator = 'none')
 	suppressWarnings(suppressMessages(do.call(lame, a)))
 }
 asm_mcmc = function(p, dab, duv, sv, every = 1L, seed = 1L) {
@@ -61,7 +63,7 @@ asm_plain = function(sv) {
 
 test_that('a bipartite dynamic_ab fit starts from its ALS fit', {
 	p = asm_panel('bipartite', 'poisson')
-	fit = asm_als(p, TRUE, FALSE, bias_correct = 'none')
+	fit = asm_als(p, TRUE, FALSE, penalised = TRUE)
 	sv = als_start_vals(fit)
 	# the start carries actor labels, as the fit it comes from
 	expect_equal(dim(sv$a), c(8L, 3L))
@@ -75,22 +77,11 @@ test_that('a bipartite dynamic_ab fit starts from its ALS fit', {
 	expect_identical(names(m$BPM), colnames(p$Y[[1L]]))
 })
 
-test_that('a start that carries the paths of one margin only runs', {
-	p = asm_panel('bipartite', 'poisson')
-	sv = als_start_vals(asm_als(p, TRUE, FALSE, bias_correct = 'none'))
-	for (drop in c('a', 'b')) {
-		s = sv; s[[drop]] = NULL
-		m = asm_mcmc(p, TRUE, FALSE, s, every = 2L)
-		expect_equal(dim(m$BETA)[1L], 6L, info = drop)
-		expect_true(all(is.finite(m$BETA)) && all(is.finite(m$VC)), info = drop)
-	}
-})
-
 test_that('a start with one margin missing runs in every mode', {
 	skip_on_cran()
 	for (mode in c('directed', 'symmetric', 'bipartite')) {
 		p = asm_panel(mode, 'normal')
-		sv = als_start_vals(asm_als(p, TRUE, FALSE, bias_correct = 'none'))
+		sv = als_start_vals(asm_als(p, TRUE, FALSE, penalised = TRUE))
 		for (drop in c('a', 'b', 'ab')) {
 			s = sv
 			for (d in strsplit(drop, '')[[1L]]) s[[d]] = NULL
@@ -150,7 +141,7 @@ test_that('the chain from named start values is the chain from plain ones', {
 	skip_on_cran()
 	for (mode in c('bipartite', 'directed')) {
 		p = asm_panel(mode, 'poisson')
-		sv = als_start_vals(asm_als(p, TRUE, FALSE, bias_correct = 'none'))
+		sv = als_start_vals(asm_als(p, TRUE, FALSE, penalised = TRUE))
 		m1 = asm_mcmc(p, TRUE, FALSE, sv, every = 1L)
 		m2 = asm_mcmc(p, TRUE, FALSE, asm_plain(sv), every = 1L)
 		for (nm in c('BETA', 'VC', 'APM', 'BPM')) expect_identical(m1[[nm]], m2[[nm]])
@@ -162,7 +153,7 @@ test_that('ALS start values run through every mode, family and dynamic effect', 
 	for (mode in c('directed', 'symmetric', 'bipartite')) for (family in c('normal', 'binary', 'poisson')) {
 		p = asm_panel(mode, family)
 		for (dab in c(FALSE, TRUE)) for (duv in c(FALSE, TRUE)) {
-			fit = asm_als(p, dab, duv, bias_correct = 'none')
+			fit = asm_als(p, dab, duv, penalised = TRUE)
 			sv = als_start_vals(fit)
 			label = paste(mode, family, 'ab', dab, 'uv', duv)
 			m = tryCatch(asm_mcmc(p, dab, duv, sv), error = function(e) e)
@@ -198,7 +189,7 @@ test_that('an ALS start also enters a fit with changing coefficients', {
 	skip_on_cran()
 	for (mode in c('directed', 'bipartite')) {
 		p = asm_panel(mode, 'poisson')
-		sv = als_start_vals(asm_als(p, FALSE, FALSE, bias_correct = 'none'))
+		sv = als_start_vals(asm_als(p, FALSE, FALSE))
 		a = c(
 			asm_args(p, FALSE, FALSE),
 			list(
@@ -235,8 +226,7 @@ test_that('ame() starts a bipartite fit from an ALS fit in every family', {
 			method = 'als',
 			verbose = FALSE,
 			gof = FALSE,
-			plot = FALSE,
-			bias_correct = 'none'
+			plot = FALSE
 		)))
 		sv = als_start_vals(fit)
 		# an ALS start carries no latent array: the sampler draws its own

@@ -56,7 +56,6 @@ reference:
     - lame_parallel
     - lame_multi
     - lame_resume
-    - ame_options
 
   - title: "Robust Continuous Networks"
     desc: "Persistent directed-pair variance and joint temporal prediction"
@@ -108,11 +107,10 @@ reference:
     - autoplot.ame_als
 
   - title: "Fast Estimator (MCMC-free)"
-    desc: "Empirical-Bayes (binary, Poisson) and block coordinate descent (normal) point estimators with Laplace or bootstrap uncertainty"
+    desc: "Empirical-Bayes estimators for normal, binary and Poisson networks, with a standard error for every estimate and optional bootstrap intervals"
     contents:
     - ame_als
     - lame_als
-    - lame_snap_als
     - als_start_vals
     - ame_als_bootstrap
     - ame_als_refit
@@ -226,7 +224,6 @@ reference:
     - sm2el
     - array_to_list
     - list_to_array
-    - list_to_array_bipartite
     - as_lame_y
     - nodematch
     - check_format
@@ -244,9 +241,7 @@ reference:
     contents:
     - rZ_nrm_fc
     - rZ_bin_fc
-    - rZ_ord_fc
     - rZ_pois_fc
-    - rZ_cbin_fc
     - rZ_frn_fc
     - rbeta_ab_fc
     - rbeta_ab_rep_fc
@@ -259,6 +254,8 @@ reference:
     - rUV_dynamic_fc_cpp
     - rUV_dynamic_snap_fc
     - rUV_dynamic_snap_fc_cpp
+    - rUV_dynamic_snap_bip_fc_cpp
+    - rUV_dynamic_snap_sym_fc_cpp
     - rUV_dynamic_t_fc
     - rUV_dynamic_t_fc_cpp
     - raSab_bin_fc
@@ -281,7 +278,6 @@ reference:
   - title: "Internal Helpers"
     desc: "Design matrix construction and low-level utilities"
     contents:
-    - bipartite_helpers
     - design_array
     - design_array_listwisedel
     - get_design_rep

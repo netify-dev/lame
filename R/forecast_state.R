@@ -150,3 +150,51 @@
 	}
 	out
 }
+
+# forecast law of rw2 and matern32 coefficient paths: the Gaussian conditional of the h future periods
+# given the fitted ones under the prior of the path (its level plus its change since the first period),
+# on the fitted time positions extended by the common gap. the change has precision K / (sigma^2 lam),
+# so the conditional mean A beta does not depend on the scale and the conditional covariance is
+# sigma^2 lam C. returns, per kind present, A (h x T), the lower Cholesky factor L of C and the
+# coefficients that follow the kind
+.lame_beta_smooth_forecast_map <- function(object, h) {
+	B <- object$BETA
+	nt <- dim(B)[3L]
+	names_beta <- dimnames(B)[[2L]]
+	mask <- object$beta_dynamic_mask
+	groups <- object$beta_dynamic_groups
+	kinds <- .lame_beta_block_kinds(object)
+	coef_kind <- rep("", length(names_beta))
+	coef_kind[mask] <- unname(kinds[groups[mask]])
+	present <- intersect(c("rw2", "matern32"), coef_kind)
+	if (!length(present)) return(NULL)
+	ti <- object$time_index
+	tpos <- if (is.null(ti)) seq_len(nt) else as.numeric(ti)
+	gap <- if (nt > 1L) tpos[nt] - tpos[nt - 1L] else 1
+	all_pos <- c(tpos, tpos[nt] + gap * seq_len(h))
+	past <- seq_len(nt)
+	fut <- nt + seq_len(h)
+	# the length scale of the fit: the prior's, or the default of the fitted periods
+	ls <- object$prior$matern32_length_scale %||% max(2, nt / 4)
+	out <- list()
+	for (kind in present) {
+		K <- .lame_beta_change_precision(kind, nt + h, ls, all_pos)
+		C <- solve(K[fut, fut, drop = FALSE])
+		C <- (C + t(C)) / 2
+		A <- -C %*% K[fut, past, drop = FALSE]
+		out[[kind]] <- list(A = A, L = t(chol(C)), coefs = which(coef_kind == kind))
+	}
+	out
+}
+
+# one forecast draw of the rw2 and matern32 coefficients: `path` the fitted p x T path of the draw,
+# `sd` the per-coefficient scale sigma sqrt(lam), `beta_path` the h x p forecast to fill in
+.lame_beta_smooth_forecast_draw <- function(beta_path, path, sd, map) {
+	h <- nrow(beta_path)
+	for (m in map) {
+		for (k in m$coefs) {
+			beta_path[, k] <- drop(m$A %*% path[k, ]) + sd[k] * drop(m$L %*% stats::rnorm(h))
+		}
+	}
+	beta_path
+}

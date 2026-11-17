@@ -46,11 +46,6 @@ test_that("as_lame_y reads igraph objects, including bipartite ones", {
 	expect_equal(dim(yb), c(2L, 3L))
 })
 
-test_that("ame_options returns its arguments as a list", {
-	expect_identical(ame_options(), list(parallel_chains = 1, verbose = TRUE, odens = 25, use_sparse_matrices = FALSE))
-	expect_identical(ame_options(parallel_chains = 2, odens = 5)$odens, 5)
-})
-
 test_that("evaluate_heldout scores binary, normal and Poisson cells on the mask only", {
 	y = matrix(c(1, 0, 1, 0), 2); p = matrix(c(.8, .3, .6, .9), 2)
 	mask = matrix(c(TRUE, TRUE, TRUE, FALSE), 2)
@@ -78,18 +73,13 @@ test_that("ame_memory_settings and ame_memory_usage report sizes", {
 	expect_equal(s$matrix_mb, 8 * 200^2 / 1024^2)
 	expect_equal(s$factor_mb, 8 * 200 * 2 * 2 / 1024^2)
 	expect_equal(s$total_mb, 3 * s$matrix_mb + s$factor_mb)
-	expect_equal(s$optimized_mb, s$matrix_mb + s$factor_mb)
-	expect_equal(
-		suppressMessages(ame_memory_settings(50))$optimized_mb,
-		suppressMessages(ame_memory_settings(50))$total_mb
-	)
+	expect_null(s$optimized_mb)
 	expect_match(paste(capture_messages(ame_memory_settings(1200)), collapse = ""), "n > 1000")
-	# the printed optimized figure is the returned one on both sides of the n > 100 rule
+	# the printed total is the returned one
 	for (n in c(50, 200)) {
 		msg = gsub("\\s+", " ", paste(capture_messages(s_n <- ame_memory_settings(n)), collapse = ""))
-		expect_match(msg, paste0("Optimized [^:]*: ", round(s_n$optimized_mb, 1), " MB"))
+		expect_match(msg, paste0("UVPM[^:]*: ", round(s_n$total_mb, 1), " MB"))
 	}
-	expect_match(paste(capture_messages(ame_memory_settings(50)), collapse = ""), "all matrices kept")
 	fit = structure(list(BETA = matrix(0, 10, 2), YPM = matrix(0, 30, 30), APM = 1:3), class = "ame")
 	u = ame_memory_usage(fit, detailed = FALSE)
 	expect_setequal(u$Component, c("BETA", "YPM", "APM"))

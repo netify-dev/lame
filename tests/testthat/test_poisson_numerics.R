@@ -9,10 +9,6 @@ test_that("Poisson log masses preserve extreme rates and cancellation near the m
 		eta = log(y) + delta
 		expect_equal(pm(y, eta), dpois(y, exp(eta), log = TRUE), tolerance = 1e-8)
 	}
-	z = matrix(c(0, -1000, log(1e12), 0), 2);y = matrix(c(NA, 1, 1e12, NA), 2)
-	expected = matrix(c(0, sum(pm(y[c(2, 3)], z[c(2, 3)])), sum(pm(y[c(2, 3)], z[c(2, 3)])), 0), 2)
-	expect_equal(lame:::ldZgbme_cpp(z, y, z, 0, 1), expected, tolerance = 1e-10)
-	expect_identical(lame:::ldZgbme_cpp(z, y, z, 0, 1), lame:::ldZgbme_pois_exposure_cpp(z, y, z, 0, 1, 0))
 })
 
 test_that("Poisson simulation preserves large rates and explicit two-mode diagonals", {

@@ -45,7 +45,7 @@ covariate contribution while holding the intercept, additive effects and
 multiplicative term fixed; it predicts counterfactual dyadic covariates for
 the same network, not out-of-sample actors.
 
-For a binary empirical-Bayes fit (the default) the response-scale
+For a binary fit the response-scale
 predictions are predictive probabilities: the response integrated over the
 posterior of the linear predictor, \eqn{\Phi(m / \sqrt{1 + v})} for a probit
 link, rather than applied at its mean (see \strong{Predictions} in

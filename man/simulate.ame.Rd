@@ -12,7 +12,7 @@
   burn_in = 0,
   thin = 1,
   return_latent = FALSE,
-  type = c("posterior", "approximate", "auto"),
+  type = c("posterior", "approximate"),
   ...
 )
 }
@@ -42,8 +42,7 @@ burn-in already removed)}
 
 \item{type}{simulation route: \code{"posterior"} (default) replicates the
 network from aligned saved posterior draws; \code{"approximate"} is the
-conditional approximation. \code{"auto"} is accepted as an alias of
-\code{"posterior"}. See Details.}
+conditional approximation. See Details.}
 
 \item{...}{additional arguments (not currently used)}
 }
@@ -74,9 +73,7 @@ save_UV = TRUE, thin_ab = 1, thin_UV = 1)} when fitting.
 
 \code{type = "approximate"} is the conditional approximation: it substitutes
 posterior summaries for the latent trajectories and does not propagate their
-joint posterior uncertainty. It runs only when requested. The former default
-\code{type = "auto"} chose between the two routes; it is now an alias of
-\code{"posterior"}. The returned \code{method} identifies the route.
+joint posterior uncertainty. It runs only when requested. The returned \code{method} identifies the route.
 
 Ordinal fits with explicit cutpoints use the corresponding saved cutpoint
 draw. Data-induced ordinal fits match the observed category frequencies, so

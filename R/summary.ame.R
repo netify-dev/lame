@@ -23,13 +23,19 @@
 #'       \item{ve}{Residual variance}
 #'     }
 #'     For symmetric networks, only va and ve are estimated.}
-#'   \item{Rhat and ESS}{A fit of two or more chains adds the columns
-#'     \code{Rhat} and \code{ESS} to both tables. \code{Rhat} is the split
-#'     rank-normalised R-hat of Vehtari et al. (2021) that the between-chain
-#'     gate compares with 1.05, on the draws the fit holds (the last block of
-#'     every chain); for a monitored quantity it is the value in
-#'     \code{fit$rhat}. \code{ESS} is the effective sample size of the pooled
-#'     draws. A one-chain fit has neither column: R-hat compares chains.}
+#'   \item{Rhat, Threshold and ESS}{A fit of two or more chains adds the
+#'     columns \code{Rhat}, \code{Threshold} and \code{ESS} to both tables.
+#'     \code{Rhat} is the split rank-normalised R-hat of Vehtari et al. (2021)
+#'     on the draws the fit holds (the last block of every chain); for a
+#'     monitored quantity it is the value in \code{fit$rhat}, and for a
+#'     coefficient monitored per period that of the period with the largest. \code{Threshold}
+#'     is the R-hat the between-chain gate held that quantity to: 1.05, or the
+#'     R-hat settled chains with its effective draws reach by chance when every
+#'     monitored quantity is compared, whichever is larger. The print names any
+#'     monitored quantity on which the chains disagree or hold too few effective
+#'     draws to be compared, or that they agree on every one. \code{ESS} is
+#'     the effective sample size of the pooled draws. A one-chain fit has none
+#'     of these columns: R-hat compares chains.}
 #' }
 #'
 #' @param object an object of class "ame", typically the result of fitting an
@@ -112,73 +118,10 @@ summary.ame <- function(object, ...) {
 		fit$call
 	})
 
-	# multi-chain diagnostics (R-hat, ESS) when the fit carries them
-	diag_block <- NULL
-	if (!is.null(fit$diagnostics) &&
-			(!is.null(fit$diagnostics$rhat) || !is.null(fit$diagnostics$ess))) {
-		n_chains_val <- fit$diagnostics$n_chains %||% NA_integer_
-		rhat_all <- fit$diagnostics$rhat
-		# monitored quantities take the gate's split rank-normalised R-hat, so the column matches fit$rhat
-		gate <- fit$rhat
-		if (!is.null(rhat_all) && is.data.frame(gate) && nrow(gate) > 0L) {
-			hit <- intersect(names(rhat_all), gate$parameter)
-			rhat_all[hit] <- gate$rhat[match(hit, gate$parameter)]
-		}
-		ess_all <- fit$diagnostics$ess
-		# match the diagnostics to the table rows by name
-		if (!is.null(rhat_all)) {
-			beta_table <- cbind(
-				beta_table,
-				Rhat = unname(
-					rhat_all[match(
-						rownames(beta_table),
-						names(rhat_all)
-					)]
-				)
-			)
-		}
-		if (!is.null(ess_all)) {
-			beta_table <- cbind(
-				beta_table,
-				ESS = unname(
-					ess_all[match(
-						rownames(beta_table),
-						names(ess_all)
-					)]
-				)
-			)
-		}
-		# same for the variance components
-		if (!is.null(rhat_all)) {
-			vc_table <- cbind(
-				vc_table,
-				Rhat = unname(
-					rhat_all[match(
-						rownames(vc_table),
-						names(rhat_all)
-					)]
-				)
-			)
-		}
-		if (!is.null(ess_all)) {
-			vc_table <- cbind(
-				vc_table,
-				ESS = unname(
-					ess_all[match(
-						rownames(vc_table),
-						names(ess_all)
-					)]
-				)
-			)
-		}
-		max_rhat <- if (length(rhat_all) > 0) max(rhat_all, na.rm = TRUE) else NA_real_
-		min_ess <- if (length(ess_all) > 0) min(ess_all, na.rm = TRUE) else NA_real_
-		diag_block <- list(
-			n_chains = n_chains_val,
-			max_rhat = max_rhat,
-			min_ess = min_ess
-		)
-	}
+	# multi-chain diagnostics (R-hat, threshold, ESS) when the fit carries them
+	diag_block <- .lame_summary_diag(fit)
+	beta_table <- .lame_summary_chain_cols(beta_table, fit)
+	vc_table <- .lame_summary_chain_cols(vc_table, fit)
 
 	# a sparse panel reports its variances as not estimated (the draws stay in
 	# fit$VC) unless the effects prior was supplied
@@ -218,7 +161,8 @@ summary.ame <- function(object, ...) {
 		family = fit$family,
 		dynamic_uv = isTRUE(fit$dynamic_uv),
 		dynamic_ab = isTRUE(fit$dynamic_ab),
-		diagnostics = diag_block
+		diagnostics = diag_block,
+		fallback_line = .lame_fallback_share_line(fit)
 	)
 
 	class(sum_obj) <- "summary.ame"
@@ -279,6 +223,71 @@ print.summary.ame <- function(x, digits = 3, ...) {
 		}
 		# why va and cab are not estimated, or the prior they are reported under
 		for (st_ in .lame_ab_statements(x)) cli::cli_alert_info("{st_}", wrap = TRUE)
+		if (!is.null(x$fallback_line)) cli::cli_alert_info("{x$fallback_line}", wrap = TRUE)
+		.lame_print_gate_verdict(x$diagnostics)
 	})
 	invisible(x)
+}
+
+# Rhat, Threshold and ESS columns of a summary table: the R-hat and threshold of the between-chain
+# gate (fit$rhat) for a monitored quantity, and the diagnostics of the chains otherwise; a quantity
+# monitored per period shows its period with the largest R-hat
+.lame_summary_chain_cols <- function(tab, fit) {
+	dg <- fit$diagnostics
+	if (is.null(dg) || (is.null(dg$rhat) && is.null(dg$ess)) || is.null(rownames(tab))) return(tab)
+	gate <- fit$rhat
+	rn <- rownames(tab)
+	idx <- rep(NA_integer_, length(rn))
+	if (is.data.frame(gate) && nrow(gate) > 0L) for (r in seq_along(rn)) {
+		i <- match(rn[r], gate$parameter)
+		if (is.na(i)) {
+			per <- which(startsWith(gate$parameter, paste0(rn[r], "[")))
+			if (length(per)) i <- per[if (all(is.na(gate$rhat[per]))) 1L else which.max(gate$rhat[per])]
+		}
+		idx[r] <- i
+	}
+	if (!is.null(dg$rhat) || any(!is.na(idx))) {
+		rh <- if (is.null(dg$rhat)) rep(NA_real_, length(rn)) else unname(dg$rhat[rn])
+		rh[!is.na(idx)] <- gate$rhat[idx[!is.na(idx)]]
+		tab <- cbind(tab, Rhat = rh)
+		if (is.data.frame(gate) && !is.null(gate$threshold)) tab <- cbind(tab, Threshold = gate$threshold[idx])
+	}
+	if (!is.null(dg$ess)) tab <- cbind(tab, ESS = unname(dg$ess[rn]))
+	tab
+}
+
+# the chain block of a summary: chains, largest R-hat, smallest ESS and the gate's verdict
+.lame_summary_diag <- function(fit) {
+	dg <- fit$diagnostics
+	if (is.null(dg) || (is.null(dg$rhat) && is.null(dg$ess))) return(NULL)
+	gate <- fit$rhat
+	has_gate <- is.data.frame(gate) && nrow(gate) > 0L && !is.null(gate$threshold)
+	rhat_all <- c(dg$rhat, if (has_gate) stats::setNames(gate$rhat, gate$parameter))
+	bad <- if (has_gate) .lame_gate_flagged(gate) else gate[0, , drop = FALSE]
+	short <- if (has_gate) .lame_gate_short(bad) else logical(0)
+	list(
+		n_chains = dg$n_chains %||% NA_integer_,
+		max_rhat = if (length(rhat_all) > 0L && any(!is.na(rhat_all))) max(rhat_all, na.rm = TRUE) else NA_real_,
+		min_ess = if (length(dg$ess) > 0L && any(!is.na(dg$ess))) min(dg$ess, na.rm = TRUE) else NA_real_,
+		gate = has_gate,
+		too_few = if (has_gate) bad$parameter[short] else character(0),
+		above = if (has_gate) .lame_gate_text(bad[!short, , drop = FALSE]) else character(0)
+	)
+}
+
+# the gate's verdict under the tables of a printed summary
+.lame_print_gate_verdict <- function(d) {
+	if (!isTRUE(d$gate)) return(invisible())
+	cli::cli_bullets(c(
+		"i" = "Threshold is the R-hat the between-chain gate held each monitored quantity to: 1.05, or the R-hat that settled chains with the same effective draws reach by chance, if larger."
+	))
+	if (length(d$above)) cli::cli_alert_warning("The chains disagree on {d$above}.", wrap = TRUE)
+	if (length(d$too_few)) cli::cli_alert_warning(
+		"The chains hold too few effective draws to be compared on {.val {d$too_few}}.",
+		wrap = TRUE
+	)
+	if (!length(d$above) && !length(d$too_few)) cli::cli_alert_success(
+		"The chains agree on every monitored quantity (R-hat at most its threshold, with enough effective draws to compare)."
+	)
+	invisible()
 }

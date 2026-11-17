@@ -17,7 +17,6 @@
 	symmetric = FALSE,
 	symmetric_missing = TRUE
 ) {
-	`%||%` <- function(x, y) if (is.null(x)) y else x
 	fit_method <- match.arg(fit_method)
 	if (!.lame_is_netify(Y)) {
 		return(list(converted = FALSE))

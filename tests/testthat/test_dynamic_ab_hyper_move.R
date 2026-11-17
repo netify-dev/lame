@@ -441,3 +441,31 @@ test_that('the update runs with changing coefficients and with the dynamic corre
 	expect_equal(unname(on$ab_hyper_move['attempts']), 55 * 8)
 	expect_true(all(is.finite(on$BETA)) && all(is.finite(on$VC)))
 })
+
+test_that("the additive-effect innovation scale respects its stationary-variance cap", {
+	set.seed(9)
+	n = 40; TT = 8; rho = 0.9
+	a = matrix(0, n, TT); b = matrix(0, n, TT)
+	a[, 1] = rnorm(n, 0, 2); b[, 1] = rnorm(n, 0, 2)
+	for (t in 2:TT) {
+		a[, t] = rho * a[, t - 1] + rnorm(n, 0, 1)
+		b[, t] = rho * b[, t - 1] + rnorm(n, 0, 1)
+	}
+	# these paths imply a stationary variance near 1 / (1 - 0.81) = 5.3; a cap of 1 holds every draw at or below
+	# sqrt(1 * (1 - rho^2))
+	capped = replicate(300, lame:::.lame_sample_sigma_ab(a, b, rho, 0.5, FALSE, stat_var_cap = 1))
+	expect_true(all(capped <= sqrt(1 - rho^2) + 1e-9))
+	expect_true(all(capped > 0))
+	# without a cap the draw sits near the innovation scale that generated the paths
+	free = replicate(300, lame:::.lame_sample_sigma_ab(a, b, rho, 0.5, FALSE, stat_var_cap = Inf))
+	expect_gt(median(free), 0.8)
+	expect_lt(median(free), 1.25)
+	# a symmetric fit reads only the row paths
+	sym = replicate(50, lame:::.lame_sample_sigma_ab(a, a * 100, rho, 0.5, TRUE, stat_var_cap = Inf))
+	expect_lt(median(sym), 1.5)
+	# missing periods contribute nothing
+	a2 = a; a2[3, 4] = NA
+	expect_true(is.finite(lame:::.lame_sample_sigma_ab(a2, b, rho, 0.5, FALSE, stat_var_cap = Inf)))
+	# one period gives no innovations, so the current value is kept
+	expect_equal(lame:::.lame_sample_sigma_ab(a[, 1, drop = FALSE], b[, 1, drop = FALSE], rho, 0.37, FALSE), 0.37)
+})

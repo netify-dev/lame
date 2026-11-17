@@ -1,6 +1,9 @@
 library(lame)
 skip_on_cran()
 
+# the penalised dynamic fit, as the sampler's warm start asks for it
+pen = structure(list(), lame_als_estimator = "none")
+
 test_that("lame method als fits Gaussian dynamic additive effects", {
 	set.seed(11)
 	n = 8L
@@ -17,7 +20,7 @@ test_that("lame method als fits Gaussian dynamic additive effects", {
 	fit = lame(
 		Y,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		R = 0,
 		method = "als",
 		dynamic_ab = TRUE,
@@ -73,7 +76,7 @@ test_that("dynamic ALS fits symmetric dynamic additive effects", {
 	fit = lame(
 		Y,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		R = 0,
 		method = "als",
 		symmetric = TRUE,
@@ -370,7 +373,7 @@ test_that("dynamic ALS supports node covariates by orthogonal decomposition", {
 		Xrow = Xrow,
 		Xcol = Xcol,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		R = 0,
 		method = "als",
 		dynamic_ab = TRUE,
@@ -419,18 +422,17 @@ test_that("dynamic ALS aligns named unipartite panels with changing actor compos
 		Xrow[[tt]] = matrix(w, n, 1L, dimnames = list(a, "sender"))
 	}
 
-	fit = suppressWarnings(lame(
+	fit = suppressWarnings(lame:::lame_dynamic_als(
 		Y,
 		Xdyad = X,
 		Xrow = Xrow,
 		family = "normal",
-		bias_correct = "none",
 		R = 0,
-		method = "als",
 		dynamic_ab = TRUE,
 		dynamic_beta = c("dyad", "row"),
-		prior = list(lambda_beta_als = 0),
-		als_max_iter = 20,
+		bias_correct = "none",
+		lambda_beta = 0,
+		max_iter = 20,
 		verbose = FALSE,
 		seed = 301
 	))
@@ -478,7 +480,7 @@ test_that("dynamic ALS aligns named bipartite panels with changing actor composi
 	fit = suppressWarnings(lame(
 		Y,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		mode = "bipartite",
 		R = 1,
 		R_row = 1,
@@ -502,65 +504,6 @@ test_that("dynamic ALS aligns named bipartite panels with changing actor composi
 	expect_true(all(is.na(fit$Y["r5", , "t1"])))
 	expect_true(all(is.na(fit$Y[, "c1", "t2"])))
 })
-
-test_that("dynamic ALS refuses bipartite dynamic_G", {
-	set.seed(303)
-	row_sets = list(
-		t1 = paste0("r", 1:4),
-		t2 = paste0("r", 2:5),
-		t3 = paste0("r", c(1, 3, 5))
-	)
-	col_sets = list(
-		t1 = paste0("c", 1:3),
-		t2 = paste0("c", 2:4),
-		t3 = paste0("c", c(1, 3, 4))
-	)
-	Y = vector("list", 3L)
-	names(Y) = names(row_sets)
-	for (tt in seq_along(Y)) {
-		rn = row_sets[[tt]]
-		cn = col_sets[[tt]]
-		Y[[tt]] = matrix(
-			rnorm(length(rn) * length(cn)),
-			length(rn),
-			length(cn),
-			dimnames = list(rn, cn)
-		)
-	}
-
-	expect_error(
-		suppressWarnings(lame(
-			Y,
-			family = "normal",
-			mode = "bipartite",
-			R = 1,
-			R_row = 1,
-			R_col = 1,
-			method = "als",
-			dynamic_G = TRUE,
-			als_max_iter = 4,
-			verbose = FALSE,
-			seed = 303
-		)),
-		"not supported"
-	)
-	expect_error(
-		suppressWarnings(lame:::lame_dynamic_als(
-			Y,
-			family = "normal",
-			mode = "bipartite",
-			R = 1,
-			R_row = 1,
-			R_col = 1,
-			dynamic_G = TRUE,
-			max_iter = 4,
-			verbose = FALSE,
-			seed = 303
-		)),
-		"not supported"
-	)
-})
-
 
 test_that("dynamic ALS rejects unnamed changing-composition panels", {
 	Y = list(
@@ -616,17 +559,16 @@ test_that("dynamic ALS estimates unipartite row and column node beta paths", {
 		y
 	})
 
-	fit = suppressWarnings(lame(
+	fit = suppressWarnings(lame:::lame_dynamic_als(
 		Y,
 		Xrow = Xrow,
 		Xcol = Xcol,
 		family = "normal",
-		bias_correct = "none",
 		R = 0,
-		method = "als",
 		dynamic_beta = c("row", "col"),
-		prior = list(lambda_beta_als = 0),
-		als_max_iter = 30,
+		bias_correct = "none",
+		lambda_beta = 0,
+		max_iter = 30,
 		verbose = FALSE,
 		seed = 117
 	))
@@ -679,18 +621,17 @@ test_that("dynamic ALS estimates bipartite row and column node beta paths", {
 			matrix(rnorm(nr * nc, 0, 0.04), nr, nc)
 	})
 
-	fit = suppressWarnings(lame(
+	fit = suppressWarnings(lame:::lame_dynamic_als(
 		Y,
 		Xrow = Xrow,
 		Xcol = Xcol,
 		family = "normal",
-		bias_correct = "none",
 		mode = "bipartite",
 		R = 0,
-		method = "als",
 		dynamic_beta = c("row", "col"),
-		prior = list(lambda_beta_als = 0),
-		als_max_iter = 30,
+		bias_correct = "none",
+		lambda_beta = 0,
+		max_iter = 30,
 		verbose = FALSE,
 		seed = 118
 	))
@@ -744,17 +685,16 @@ test_that("dynamic ALS uses period-specific row node values selected by dynamic_
 
 	fit = NULL
 	expect_no_warning({
-		fit = lame(
+		fit = lame:::lame_dynamic_als(
 			Y,
 			Xdyad = X,
 			Xrow = Xrow,
 			family = "normal",
-			bias_correct = "none",
 			R = 0,
-			method = "als",
 			dynamic_beta = "row",
-			prior = list(lambda_beta_als = 0),
-			als_max_iter = 40,
+			bias_correct = "none",
+			lambda_beta = 0,
+			max_iter = 40,
 			verbose = FALSE,
 			seed = 202
 		)
@@ -818,7 +758,7 @@ test_that("dynamic ALS warns when varying node values are left static", {
 			Xdyad = X,
 			Xrow = Xrow,
 			family = "normal",
-			bias_correct = "none",
+			prior = pen,
 			R = 0,
 			method = "als",
 			dynamic_beta = "dyad",
@@ -874,19 +814,18 @@ test_that("dynamic ALS uses period-specific bipartite node values", {
 
 	fit = NULL
 	expect_no_warning({
-		fit = lame(
+		fit = lame:::lame_dynamic_als(
 			Y,
 			Xdyad = X,
 			Xrow = Xrow,
 			Xcol = Xcol,
 			family = "normal",
-			bias_correct = "none",
 			mode = "bipartite",
 			R = 0,
-			method = "als",
 			dynamic_beta = c("row", "col"),
-			prior = list(lambda_beta_als = 0),
-			als_max_iter = 50,
+			bias_correct = "none",
+			lambda_beta = 0,
+			max_iter = 50,
 			verbose = FALSE,
 			seed = 204
 		)
@@ -1062,25 +1001,10 @@ test_that("a bipartite panel with a moving interaction is fitted through dynamic
 		y
 	})
 
-	expect_error(
-		suppressWarnings(lame(
-			Y,
-			family = "normal",
-			mode = "bipartite",
-			R = R,
-			method = "als",
-			dynamic_G = TRUE,
-			als_max_iter = 12,
-			verbose = FALSE,
-			seed = 154
-		)),
-		"not supported"
-	)
-
 	fit = suppressWarnings(lame(
 		Y,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		mode = "bipartite",
 		R = R,
 		method = "als",
@@ -1129,26 +1053,10 @@ test_that("dynamic ALS honors unequal bipartite R_row and R_col", {
 			matrix(rnorm(nr * nc, 0, 0.1), nr, nc)
 	})
 
-	expect_error(
-		suppressWarnings(lame(
-			Y,
-			family = "normal",
-			mode = "bipartite",
-			R_row = RA,
-			R_col = RB,
-			method = "als",
-			dynamic_G = TRUE,
-			als_max_iter = 5,
-			verbose = FALSE,
-			seed = 156
-		)),
-		"not supported"
-	)
-
 	fuv = suppressWarnings(lame(
 		Y,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		mode = "bipartite",
 		R_row = RA,
 		R_col = RB,
@@ -1253,7 +1161,7 @@ test_that("dynamic ALS expands static bipartite low-rank terms across time", {
 	fit = suppressWarnings(lame(
 		Y,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		mode = "bipartite",
 		R_row = RA,
 		R_col = RB,
@@ -1275,7 +1183,7 @@ test_that("dynamic ALS expands static bipartite low-rank terms across time", {
 	fit_zero = suppressWarnings(lame(
 		Y,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		mode = "bipartite",
 		R_row = RA,
 		R_col = 0,
@@ -1352,7 +1260,7 @@ test_that("lame method als exposes t dynamic UV and stability controls", {
 	fit = suppressWarnings(lame(
 		Y,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		R = R,
 		method = "als",
 		dynamic_uv = TRUE,
@@ -1407,20 +1315,9 @@ test_that("dynamic ALS keeps remaining unsupported stacks explicit", {
 		),
 		"normal.*binary.*poisson"
 	)
-	expect_error(
-		lame(
-			Y,
-			family = "normal",
-			R = 1,
-			method = "als",
-			dynamic_G = TRUE,
-			verbose = FALSE
-		),
-		"not supported"
-	)
 })
 
-test_that("dynamic ALS exposes stability and dynamic bootstrap refits", {
+test_that("dynamic ALS exposes stability refits", {
 	set.seed(16)
 	n = 6L
 	Tt = 3L
@@ -1433,12 +1330,11 @@ test_that("dynamic ALS exposes stability and dynamic bootstrap refits", {
 	fit = suppressWarnings(lame(
 		Y,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		R = 0,
 		method = "als",
 		dynamic_ab = TRUE,
 		als_stability = "quick",
-		bootstrap = 30,
 		verbose = FALSE,
 		seed = 16
 	))
@@ -1447,50 +1343,6 @@ test_that("dynamic ALS exposes stability and dynamic bootstrap refits", {
 	expect_equal(fit$stability$preset, "quick")
 	expect_equal(fit$stability$n_start, 2L)
 	expect_true("max_surface_delta" %in% names(fit$stability))
-	expect_equal(fit$bootstrap_dynamic$R, 30L)
-	expect_equal(fit$bootstrap_dynamic$n_success, 30L)
-	expect_true("coef_paths" %in% names(fit$bootstrap_dynamic))
-	expect_true(isTRUE(fit$meta$uncertainty_available))
-})
-
-test_that("dynamic bootstrap preserves changing-composition missingness", {
-	set.seed(17)
-	sets = list(
-		t1 = paste0("a", 1:4),
-		t2 = paste0("a", 2:5),
-		t3 = paste0("a", c(1, 3, 5))
-	)
-	Y = lapply(seq_along(sets), function(tt) {
-		a = sets[[tt]]
-		y = matrix(
-			rnorm(length(a)^2),
-			length(a),
-			length(a),
-			dimnames = list(a, a)
-		)
-		diag(y) = NA_real_
-		y
-	})
-	names(Y) = names(sets)
-
-	fit = suppressWarnings(lame(
-		Y,
-		family = "normal",
-		bias_correct = "none",
-		R = 0,
-		method = "als",
-		dynamic_ab = TRUE,
-		bootstrap = 30,
-		verbose = FALSE,
-		seed = 17
-	))
-	refit = fit$bootstrap_dynamic$refits[[1L]]
-
-	expect_true(isTRUE(fit$changing_composition))
-	expect_true(isTRUE(refit$changing_composition))
-	expect_equal(is.finite(refit$Y), is.finite(fit$Y))
-	expect_false(refit$actor_presence["a5", "t1"])
-	expect_false(refit$actor_presence["a2", "t3"])
 })
 
 test_that("dynamic UV level prior bounds a null binary panel (defect 5)", {
@@ -1590,7 +1442,7 @@ test_that("dynamic ALS stays bounded on a sparse binary bipartite panel (regress
 		dynamic_uv = TRUE,
 		dynamic_ab = TRUE,
 		verbose = FALSE,
-		bias_correct = "none"
+		prior = pen
 	))
 	expect_true(isTRUE(fit$converged))
 	# the accepted outer path never keeps a step that raised the deviance
@@ -1624,7 +1476,7 @@ test_that("dynamic ALS reports innovation scales and prior-mean persistences for
 		dynamic_uv = TRUE,
 		method = "als",
 		seed = 1,
-		bias_correct = "none"
+		prior = pen
 	))
 	expect_equal(fit$rho_uv, 0.9)
 	expect_equal(fit$rho_ab, 0.8)
@@ -1662,8 +1514,7 @@ test_that("dynamic ALS reports innovation scales and prior-mean persistences for
 		dynamic_uv = TRUE,
 		method = "als",
 		seed = 1,
-		bias_correct = "none",
-		prior = list(rho_uv_mean = 0.5, rho_ab_mean = 0.6)
+		prior = structure(list(rho_uv_mean = 0.5, rho_ab_mean = 0.6), lame_als_estimator = "none")
 	))
 	expect_equal(fit2$rho_uv, 0.5)
 	expect_equal(fit2$rho_ab, 0.6)
@@ -1689,9 +1540,8 @@ test_that(".lda_innov_sd differences across periods only", {
 	expect_null(lame:::.lda_innov_sd(path[, 1, drop = FALSE], rho, 1L))
 })
 
-test_that("a warm restart never reports a worse objective than its start", {
-	# working objectives are not comparable across a reweight, so the fit reports the penalized deviance, which a warm
-	# restart from a converged fit cannot raise
+test_that("the penalised dynamic fit reports its penalized deviance and a monotone descent history", {
+	# working objectives are not comparable across a reweight, so the fit reports the penalized deviance
 	skip_on_cran()
 	set.seed(311)
 	n = 24L; Tt = 5L
@@ -1721,7 +1571,7 @@ test_that("a warm restart never reports a worse objective than its start", {
 		method = "als",
 		verbose = FALSE,
 		seed = 11L,
-		bias_correct = "none"
+		prior = pen
 	))
 	expect_identical(fit$objective_label, "penalized deviance")
 	expect_identical(
@@ -1733,11 +1583,6 @@ test_that("a warm restart never reports a worse objective than its start", {
 		"within one IRLS working problem"
 	)
 	expect_false(is.null(fit$diagnostics$reweight_steps))
-	tol = 1e-6 * (abs(fit$objective) + 1)
-	up = suppressWarnings(update(fit))
-	rf = suppressWarnings(ame_als_refit(fit))
-	expect_lte(up$objective, fit$objective + tol)
-	expect_lte(rf$objective, fit$objective + tol)
 	# the stored descent history is the penalized deviance and is monotone, unlike the working trace in objective_history
 	dh = fit$dev_history
 	expect_gt(length(dh), 1L)
@@ -1765,7 +1610,7 @@ test_that("dynamic_uv_kind = 't' descends monotonically", {
 			fit = suppressWarnings(lame(
 				Yl,
 				family = "normal",
-				bias_correct = "none",
+				prior = pen,
 				method = "als",
 				dynamic_uv = TRUE,
 				dynamic_uv_kind = kind,
@@ -1783,7 +1628,7 @@ test_that("dynamic_uv_kind = 't' descends monotonically", {
 	fs = suppressWarnings(lame(
 		Ys,
 		family = "normal",
-		bias_correct = "none",
+		prior = pen,
 		symmetric = TRUE,
 		method = "als",
 		dynamic_uv = TRUE,
@@ -1826,7 +1671,7 @@ test_that("the dynamic additive block keeps its per-period gauge and descends", 
 		method = "als",
 		verbose = FALSE,
 		seed = 11L,
-		bias_correct = "none"
+		prior = pen
 	))
 	expect_equal(fit$diagnostics$objective_increases, 0L)
 	expect_lt(max(abs(colMeans(fit$a_dynamic))), 1e-8)
@@ -1846,7 +1691,7 @@ test_that("lame(method = 'als') passes ALS solver options to the route that has 
 		dimnames(m) = list(sprintf("a%02d", seq_len(n)), sprintf("a%02d", seq_len(n)))
 		m
 	})
-	# static route: forwarded, and equal to the direct lame_als() call
+	# static route: equal to the direct lame_als() call
 	f_opt = suppressWarnings(lame(
 		Y,
 		Xdyad = X,
@@ -1862,7 +1707,6 @@ test_that("lame(method = 'als') passes ALS solver options to the route that has 
 		Xdyad = X,
 		family = "normal",
 		R = 2,
-		lowrank_method = "als",
 		linear_solver = "qr",
 		verbose = FALSE,
 		max_iter = 1000L
@@ -1882,7 +1726,7 @@ test_that("lame(method = 'als') passes ALS solver options to the route that has 
 		),
 		"als_lowrank_method"
 	)
-	# dynamic route: the factor solver is honoured and static-only controls are refused
+	# dynamic route: the fit runs, and static-only controls are refused
 	f_dyn = suppressWarnings(lame(
 		Y,
 		Xdyad = X,

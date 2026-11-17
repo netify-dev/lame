@@ -472,6 +472,21 @@ test_that('a covariate that separates the ties is reported as a property, with t
 		),
 		sqrt(24 * 2)
 	)
+	# default g divided by the mean square of the covariate
+	expect_equal(
+		lame:::.ame_separation_prior_sd(
+			matrix(0, 6, 4),
+			array(2, c(6, 4, 1)),
+			NULL,
+			NULL,
+			TRUE,
+			'bipartite',
+			NA,
+			list(s20 = 2),
+			1L
+		),
+		sqrt(24 * 2 / 4)
+	)
 	# a covariate that leaves the ties unseparated is not reported
 	ns = bso_panel('dir', n = 10L, nt = 1L, sep = FALSE)
 	expect_false(any(grepl('separates', testthat::capture_warnings(suppressMessages(run(ns$Y[[1]], ns$X[[1]]))))))

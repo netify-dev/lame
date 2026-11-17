@@ -1,7 +1,8 @@
 # moving latent positions (dynamic_uv = TRUE) of the dynamic binary empirical-Bayes
 # estimator of lame_dynamic_als_eb.R. each coordinate follows the stationary AR(1) of lame(),
 #   u_i1 ~ N(0, S), u_it = rho u_i,t-1 + e_it, e_it ~ N(0, s2), S = s2 / (1 - rho^2),
-# with s2 ~ IG(2, 1) and rho ~ TN(0.9, 0.1); an undirected network has one position per actor
+# with s2 ~ IG(1 / 2, 1 / 4) (the sampler's IG(2, 1) at the weight of one observation, .lde_pos_prior())
+# and rho ~ TN(0.9, 0.1); an undirected network has one position per actor
 # and the product F S F' with the start's sign pattern. point estimates of a bilinear term
 # overfit a sparse binary panel, so the positions get a mean-field Gaussian posterior
 # q(U) q(V) with one full path covariance per actor. the two sides are updated in turn and
@@ -12,16 +13,22 @@
 
 # hyperprior and the AR(1) precision
 
-# hyperprior of the positions as lame() sets it; the user's `prior` list overrides the defaults
-.lde_pos_prior <- function(prior = list(), gaussian_bip_ar = FALSE, scale_default = 1) {
+# hyperprior of the positions as lame() sets it; the user's `prior` list overrides the defaults.
+# `light`: the innovation variance keeps the sampler's prior guess s2 = scale / shape but with the
+# weight of one observation, IG(1 / 2, scale / 4) for the sampler's IG(2, scale). binary and count
+# panels use it: under the sampler's weight the mean-field profile put the stationary variance of
+# weak positions near three times its value, the product's variance then inflated every probit
+# coefficient by about 5 percent, and the dyadic coefficient's interval covered 0.82
+.lde_pos_prior <- function(prior = list(), gaussian_bip_ar = FALSE, scale_default = 1, light = FALSE) {
 	prior <- if (is.list(prior)) prior else list()
+	light <- isTRUE(light) && is.null(prior$sigma_uv_shape) && is.null(prior$sigma_uv_scale)
 	# a normal bipartite panel with the Gaussian AR(1) transition takes the sampler's wider,
 	# lower persistence prior (its interaction matrix carries the scale)
 	list(
-		rho_mean = .lda_default(prior$rho_uv_mean, if (gaussian_bip_ar) 0.5 else 0.9),
-		rho_sd = .lda_default(prior$rho_uv_sd, if (gaussian_bip_ar) 0.2 else 0.1),
-		shape = .lda_default(prior$sigma_uv_shape, 2),
-		scale = .lda_default(prior$sigma_uv_scale, scale_default),
+		rho_mean = .ae_default(prior$rho_uv_mean, if (gaussian_bip_ar) 0.5 else 0.9),
+		rho_sd = .ae_default(prior$rho_uv_sd, if (gaussian_bip_ar) 0.2 else 0.1),
+		shape = if (light) 0.5 else .ae_default(prior$sigma_uv_shape, 2),
+		scale = if (light) scale_default / 4 else .ae_default(prior$sigma_uv_scale, scale_default),
 		# the support of the sampler's truncated normal
 		rho_lo = -0.99,
 		rho_hi = 0.99
@@ -79,53 +86,6 @@
 
 # position update of one side
 
-# q of one side's positions given the other's. W and Rr are per-period lists of the (n x m)
-# weights and working residuals (zero off the observed cells), Vh and Om the other side's
-# (m x R) means and (R x R x m) covariances. returns the means (n x R x Tt), the diagonal
-# covariance blocks of each actor's stacked path (R x R x n x Tt), the lag-one blocks
-# (R x R x n x (Tt - 1)) and the KL pieces sum_i log|P_i| (ldp), sum_i tr(P0 Sigma_i) (trp)
-# and n log|P0| (ldp0)
-.lde_pos_side <- function(W, Rr, Vh, Om, s2, rho, n, R, Tt, lam = NULL) {
-	P0 <- kronecker(.lde_pos_q(Tt, rho) / s2, diag(R))
-	Lam <- array(0, dim = c(R, R, n, Tt))
-	H <- array(0, dim = c(n, R, Tt))
-	for (t in seq_len(Tt)) {
-		for (k in seq_len(R)) for (l in k:R) {
-			ev <- Vh[[t]][, k] * Vh[[t]][, l] + Om[[t]][k, l, ]
-			v <- as.vector(W[[t]] %*% ev)
-			Lam[k, l, , t] <- v
-			Lam[l, k, , t] <- v
-		}
-		H[, , t] <- (W[[t]] * Rr[[t]]) %*% Vh[[t]]
-	}
-	mean_ <- array(0, dim = c(n, R, Tt))
-	sig <- array(0, dim = c(R, R, n, Tt))
-	cl <- array(0, dim = c(R, R, n, max(Tt - 1L, 1L)))
-	ldp <- 0
-	trp <- 0
-	ldp0 <- n * as.numeric(determinant(P0)$modulus)
-	for (i in seq_len(n)) {
-		# the prior precision of this actor's path (its transition weights, if the transition is a scale mixture)
-		P0i <- if (is.null(lam)) P0 else kronecker(.lde_pos_qw(Tt, rho, lam[i, ]) / s2, diag(R))
-		Pi <- P0i
-		for (t in seq_len(Tt)) {
-			ix <- (t - 1L) * R + seq_len(R)
-			Pi[ix, ix] <- Pi[ix, ix] + Lam[, , i, t]
-		}
-		ch <- .lde_chol(Pi)
-		ldp <- ldp + 2 * sum(log(diag(ch)))
-		Sg <- chol2inv(ch)
-		trp <- trp + sum(P0i * Sg)
-		mean_[i, , ] <- matrix(as.vector(Sg %*% as.vector(H[i, , ])), R, Tt)
-		for (t in seq_len(Tt)) {
-			ix <- (t - 1L) * R + seq_len(R)
-			sig[, , i, t] <- Sg[ix, ix]
-			if (t < Tt) cl[, , i, t] <- Sg[ix, ix + R]
-		}
-	}
-	list(mean = mean_, sig = sig, cl = cl, ldp = ldp, trp = trp, ldp0 = ldp0, P0 = P0)
-}
-
 # one sweep over both sides: q(U) given q(V), then q(V) given the fresh q(U), by the compiled
 # lde_pos_sweep_cpp (src/dynamic_eb_positions.cpp)
 .lde_pos_sweep <- function(ctx, pos, hp, wk, eta_add) {
@@ -152,32 +112,6 @@
 	out$qu$lam <- pos$qu$lam
 	out$qv$lam <- pos$qv$lam
 	out
-}
-
-# R reference of the sweep, used by the tests
-.lde_pos_sweep_ref <- function(ctx, pos, hp, wk, eta_add) {
-	if (isTRUE(ctx$sym)) return(.lde_pos_sweep_sym(ctx, pos, hp, wk, eta_add))
-	Tt <- ctx$Tt; na <- ctx$na; nb <- ctx$nb; R <- ctx$R
-	obs <- ctx$obs
-	W <- lapply(seq_len(Tt), function(t) {
-		w <- wk$w[, , t]
-		w[!obs[, , t] | !is.finite(w)] <- 0
-		w
-	})
-	Rr <- lapply(seq_len(Tt), function(t) {
-		r <- wk$z[, , t] - eta_add[, , t]
-		r[!obs[, , t] | !is.finite(r)] <- 0
-		r
-	})
-	Vh <- lapply(seq_len(Tt), function(t) matrix(pos$qv$mean[, , t], nb, R))
-	Om <- lapply(seq_len(Tt), function(t) array(pos$qv$sig[, , , t], c(R, R, nb)))
-	qu <- .lde_pos_side(W, Rr, Vh, Om, hp$s2, hp$rho, na, R, Tt, lam = pos$qu$lam)
-	Uh <- lapply(seq_len(Tt), function(t) matrix(qu$mean[, , t], na, R))
-	Omu <- lapply(seq_len(Tt), function(t) array(qu$sig[, , , t], c(R, R, na)))
-	qv <- .lde_pos_side(lapply(W, t), lapply(Rr, t), Uh, Omu, hp$s2, hp$rho, nb, R, Tt, lam = pos$qv$lam)
-	qu$lam <- pos$qu$lam
-	qv$lam <- pos$qv$lam
-	list(qu = qu, qv = qv)
 }
 
 # undirected networks
@@ -271,8 +205,8 @@
 #     tr(G M_u) + tr(G^-1 M_v) - T (n_u - n_v) log det G ,
 # minimised at G = M_u^-1/2 H M_u^-1/2, H = c/2 I + (M_u^1/2 M_v M_u^1/2 + c^2/4 I)^1/2,
 # c = T (n_u - n_v). the state moves there at once (B = G^1/2 for the senders, G^-1/2 for the
-# receivers), which keeps the fixed points of the sweeps; rotations and undirected networks
-# are left alone
+# receivers), which keeps the fixed points of the sweeps; rotations have their own step
+# (.lde_pos_turn()) and undirected networks have no such valley
 .lde_pos_moments <- function(qs, rho, s2) {
 	n <- dim(qs$mean)[1L]; R <- dim(qs$mean)[2L]; Tt <- dim(qs$mean)[3L]
 	# the entries of the (weighted) precision of every actor's path, up to the innovation variance
@@ -337,6 +271,71 @@
 	list(qu = qu, qv = qv)
 }
 
+# gauge: the rotation of every period
+
+# the likelihood is also blind to a rotation of both sides' coordinates within a period,
+# u_it -> W_t' u_it, v_jt -> W_t' v_jt with W_t orthogonal, and so is every part of the prior but the lag
+# term, sum_i lambda_it E[u_i,t-1' u_it] = tr(W_t-1' C_t W_t) with C_t the (weighted) lag cross moment of
+# both sides. the sweeps turn the periods against each other very slowly; the maximum over the rotations is
+# in closed form, one period after the other: W_1 = I and, with rho W_t-1' C_t = U D V', W_t = V U' (every
+# term reaches its largest value, the sum of its singular values). the state moves there at once, which keeps
+# the fixed points of the sweeps. an undirected network keeps the signs of its product (`sgn`), so its
+# rotations stay within the coordinates of one sign
+
+# the lag cross moment of one side between t and t + 1 (R x R, rows the coordinates at t): the part of
+# the means and the part of the covariances
+.lde_pos_lag <- function(qs, t) {
+	n <- dim(qs$mean)[1L]; R <- dim(qs$mean)[2L]
+	w <- if (is.null(qs$lam)) rep(1, n) else qs$lam[, t + 1L]
+	m0 <- matrix(qs$mean[, , t], n, R)
+	m1 <- matrix(qs$mean[, , t + 1L], n, R)
+	list(mean = crossprod(m0 * w, m1), cov = matrix(matrix(qs$cl[, , , t], R * R, n) %*% w, R, R))
+}
+
+# Wl' a_i Wr for every block of a (R x R x n)
+.lde_pos_turn_blocks <- function(a, Wl, Wr) {
+	d <- dim(a)
+	a1 <- aperm(array(crossprod(Wl, matrix(a, d[1L], d[2L] * d[3L])), d), c(2L, 1L, 3L))
+	aperm(array(crossprod(Wr, matrix(a1, d[2L], d[1L] * d[3L])), d[c(2L, 1L, 3L)]), c(2L, 1L, 3L))
+}
+
+.lde_pos_turn <- function(pos, hp, sgn = NULL) {
+	R <- dim(pos$qu$mean)[2L]; Tt <- dim(pos$qu$mean)[3L]
+	if (Tt < 2L || hp$rho == 0) return(pos)
+	sym <- !is.null(sgn)
+	sides <- if (sym) "qu" else c("qu", "qv")
+	blocks <- if (sym) split(seq_len(R), sgn) else list(seq_len(R))
+	W <- vector("list", Tt)
+	W[[1L]] <- diag(R)
+	dtr <- c(qu = 0, qv = 0)
+	for (t in seq_len(Tt - 1L)) {
+		lag <- lapply(pos[sides], .lde_pos_lag, t = t)
+		M <- hp$rho * crossprod(W[[t]], Reduce(`+`, lapply(lag, function(l) l$mean + l$cov)))
+		Wt <- matrix(0, R, R)
+		for (ix in blocks) {
+			sv <- svd(M[ix, ix, drop = FALSE])
+			Wt[ix, ix] <- tcrossprod(sv$v, sv$u)
+		}
+		W[[t + 1L]] <- Wt
+		# the change of the lag covariances' trace, for tr(P0 Sigma)
+		for (s in sides) dtr[s] <- dtr[s] + sum(diag(crossprod(W[[t]], lag[[s]]$cov) %*% Wt)) - sum(diag(lag[[s]]$cov))
+	}
+	if (all(vapply(W, function(w) max(abs(w - diag(R))), numeric(1)) < 1e-14)) return(pos)
+	for (s in sides) {
+		qs <- pos[[s]]
+		n <- dim(qs$mean)[1L]
+		for (t in seq_len(Tt)) {
+			qs$mean[, , t] <- matrix(qs$mean[, , t], n, R) %*% W[[t]]
+			qs$sig[, , , t] <- .lde_pos_turn_blocks(array(qs$sig[, , , t], c(R, R, n)), W[[t]], W[[t]])
+			if (t < Tt) qs$cl[, , , t] <- .lde_pos_turn_blocks(array(qs$cl[, , , t], c(R, R, n)), W[[t]], W[[t + 1L]])
+		}
+		if (!is.null(qs$trp)) qs$trp <- qs$trp - 2 * hp$rho * dtr[[s]] / hp$s2
+		pos[[s]] <- qs
+	}
+	if (sym) pos$qv <- .lde_pos_mirror(pos$qu, sgn)
+	pos
+}
+
 # moments of the product
 
 # E_q[u_it' v_jt] for every cell: na x nb x Tt
@@ -367,21 +366,6 @@
 			cbind(su, Ut[, kk, drop = FALSE] * Ut[, ll, drop = FALSE]),
 			cbind(sv + Vt[, kk, drop = FALSE] * Vt[, ll, drop = FALSE], sv)
 		)
-	}
-	out
-}
-
-# R reference, one outer product per pair and period (used by the tests)
-.lde_pos_prodvar_ref <- function(pos, R, Tt) {
-	Um <- pos$qu$mean; Vm <- pos$qv$mean
-	na <- dim(Um)[1L]; nb <- dim(Vm)[1L]
-	out <- array(0, dim = c(na, nb, Tt))
-	for (t in seq_len(Tt)) {
-		for (k in seq_len(R)) for (l in seq_len(R)) {
-			su <- pos$qu$sig[k, l, , t]; sv <- pos$qv$sig[k, l, , t]
-			out[, , t] <- out[, , t] + outer(su, sv) + outer(Um[, k, t] * Um[, l, t], sv) +
-				outer(su, Vm[, k, t] * Vm[, l, t])
-		}
 	}
 	out
 }
@@ -528,106 +512,9 @@
 	out
 }
 
-# expected working problem of a binary (probit or logit) cell whose predictor is N(eta, vnoise),
-# vnoise the variance of the product under q, as in .ae_mf_cells(): E log p and its derivative in
-# eta, E psi, and the expected Fisher weight with its first two derivatives (for the Laplace
-# correction), all by Gauss-Hermite quadrature on the ladder above. the working response is
-# eta + E psi / E w (the increment capped as in .lde_work()); vnoise = 0 gives the plain problem.
-#   dev:      -2 E log p, the deviance of the expected log likelihood
-#   dev_marg: -2 log E p = -2 log Phi(s c eta), c = (1 + vnoise)^-1/2, the marginal deviance used by
-#             the profile over the position scale, since E log p is optimised by the collapse
-#             (by quadrature for the logit)
-.lde_work_gh_ref <- function(
-	y,
-	eta,
-	vnoise,
-	K = 9L,
-	delta_cap = formals(.lde_work)$delta_cap,
-	wfloor = formals(.lde_work)$wfloor,
-	block = 20000L,
-	per_sd = .lde_gh_per_sd,
-	link = "probit"
-) {
-	logit <- identical(link, "logit")
-	ix <- which(is.finite(y))
-	nobs <- length(ix)
-	rules <- .lde_gh_rules(K)
-	es <- ew <- eh <- ehh <- el <- dmarg <- numeric(nobs)
-	vv <- pmax(vnoise[ix], 0)
-	# the rule of every cell: the smallest rung with at least per_sd * sd nodes, the last one beyond it
-	lev <- pmin(findInterval(per_sd * sqrt(vv), rules$K, left.open = TRUE) + 1L, length(rules$K))
-	lev[is.na(lev)] <- 1L
-	for (r in seq_along(rules$K)) {
-		cells <- which(lev == r)
-		nd <- list(z = rules$z[[r]], w = rules$w[[r]])
-		# cells in blocks so the cells x nodes matrices stay small; the node terms are those of
-		# .lde_probit_raw(), with the outcome picked by index
-		for (b0 in seq.int(1L, max(length(cells), 1L), by = block)) {
-			if (!length(cells)) break
-			bi <- cells[b0:min(b0 + block - 1L, length(cells))]
-			yy <- y[ix[bi]]
-			m <- eta[ix[bi]]
-			v <- vv[bi]
-			e <- outer(sqrt(v), nd$z) + m
-			one <- yy == 1
-			if (logit) {
-				# the score of an outcome of 1 is p0 and minus that of an outcome of 0 is p1 (the roles of lam1 and
-				# lam0), so the weight is p0 p1 = lam1 lam0; w' = w (p0 - p1), w'' = w' (p0 - p1) - 2 w^2
-				lp1 <- stats::plogis(e, log.p = TRUE)
-				lp0 <- stats::plogis(e, lower.tail = FALSE, log.p = TRUE)
-				lam1 <- stats::plogis(e, lower.tail = FALSE)
-				lam0 <- stats::plogis(e)
-				wr <- lam1 * lam0
-				mm <- lam1 - lam0
-				hpr <- wr * mm
-				hppr <- hpr * mm - 2 * wr * wr
-			} else {
-				lp1 <- stats::pnorm(e, log.p = TRUE)
-				lp0 <- stats::pnorm(e, lower.tail = FALSE, log.p = TRUE)
-				ld <- -0.5 * e * e - 0.91893853320467267
-				lam1 <- exp(ld - lp1)
-				lam0 <- exp(ld - lp0)
-				wr <- lam1 * lam0
-				mm <- lam0 - lam1 - 2 * e
-				hpr <- wr * mm
-				hppr <- hpr * mm + wr * (lam0 * lam0 + lam1 * lam1 + e * (lam1 - lam0) - 2)
-			}
-			sc <- lam0
-			sc[one, ] <- lam1[one, ]
-			lg <- lp0
-			lg[one, ] <- lp1[one, ]
-			es[bi] <- as.vector(sc %*% nd$w) * (2 * one - 1)
-			ew[bi] <- as.vector(pmax(wr, wfloor) %*% nd$w)
-			eh[bi] <- as.vector(hpr %*% nd$w)
-			ehh[bi] <- as.vector(hppr %*% nd$w)
-			el[bi] <- as.vector(lg %*% nd$w)
-			# marginal deviance: the noise integrated out of the likelihood, Phi(c eta) (by quadrature for the logit)
-			if (logit) {
-				pm <- lam1
-				pm[one, ] <- lam0[one, ]
-				dmarg[bi] <- log(as.vector(pm %*% nd$w))
-			} else {
-				dmarg[bi] <- .lde_probit_raw(yy, m / sqrt(1 + v))$ell
-			}
-		}
-	}
-	delta <- es / ew
-	big <- abs(delta) > delta_cap
-	if (any(big)) {
-		delta[big] <- sign(delta[big]) * delta_cap
-		ew[big] <- abs(es[big]) / delta_cap
-	}
-	z <- w <- score <- hprime <- hpp <- array(0, dim(y))
-	z[ix] <- eta[ix] + delta
-	w[ix] <- ew
-	score[ix] <- es
-	hprime[ix] <- ifelse(is.finite(eh), eh, 0)
-	hpp[ix] <- ifelse(is.finite(ehh), ehh, 0)
-	list(z = z, w = w, score = score, hprime = hprime, hpp = hpp, dev = -2 * sum(el), dev_marg = -2 * sum(dmarg))
-}
-
-# the same problem by the compiled kernel lde_gh_cells_cpp() (src/dynamic_eb_kernels.cpp), equal
-# to the reference to rounding. `block` is ignored; `what` selects the outputs (0 the working
+# expected working problem of a binary (probit or logit) cell whose predictor is N(eta, vnoise), vnoise
+# the variance of the product under q, by the compiled kernel lde_gh_cells_cpp() (src/dynamic_eb_kernels.cpp).
+# `block` is ignored; `what` selects the outputs (0 the working
 # response and weight, 1 also the score, the weight derivatives and the marginal deviance, 2 everything)
 .lde_work_gh <- function(
 	y,
@@ -757,6 +644,8 @@
 		pos <- fs$pos; O <- fs$O; Vpos <- fs$Vpos
 	} else {
 		pos <- .lde_pos_sweep(ctx, st$pos, hp, wk0, eta_add)
+		# the two gauges the likelihood does not see: the rotation of every period, then the two sides' scales
+		pos <- .lde_pos_turn(pos, hp, sgn = if (isTRUE(ctx$sym)) ctx$sgn)
 		if (!isTRUE(ctx$sym)) pos <- .lde_pos_gauge(pos, hp, R, Tt)
 		# scale-mixture transition: the mixing weights take their variational update from the new q,
 		# read by the next sweep
@@ -1025,6 +914,7 @@
 
 # the reweighting loop at a held position scale (the loop of .lde_fit_core() with the evaluation above)
 #   settle = TRUE: converged when the certificate passes, the objective has stayed within tol / 10
+#   (or, for a large objective, within the relative tolerance sqrt(machine epsilon) of its size)
 #   over the last `window` passes and an extrapolation moved it by less than 10 times that range;
 #   the certificate alone misses the slow modes of a weakly identified bilinear term. the range is
 #   relaxed for a search point far above the best fixed point so far (obj_ref, `excess`)
@@ -1033,7 +923,9 @@
 #   acceleration: after `gate` plain passes that have not halved the merit, a squared extrapolation
 #   (.lde_squarem()) is tried; it is kept when finite, within `kappa` of the plain iterate's merit
 #   and without a jump in the objective, and it must lower the merit a cycle later, else the gate
-#   doubles and three failures in a row end extrapolation. it changes the speed, not the fixed point
+#   doubles and three failures in a row end extrapolation, until `lapse` plain passes have gone by
+#   without one: the tail of a weakly identified position scale contracts by under one percent a
+#   pass, and only an extrapolation ends it. it changes the speed, not the fixed point
 #   settle = FALSE: the certificate alone, the starting state included
 .lde_fit_core_dyn <- function(
 	ctx,
@@ -1046,7 +938,8 @@
 	gate = 5L,
 	kappa = 100,
 	obj_ref = NULL,
-	excess = 0.01
+	excess = 0.01,
+	lapse = 50L
 ) {
 	st <- st0
 	ev <- .lde_eval_dyn(ctx, st, tol, freeze_ab = freeze_ab, move_ve = !(isTRUE(st$seeded) && !settle))
@@ -1156,6 +1049,12 @@
 			}
 		}
 		since_jump <- if (jumped) 0L else since_jump + 1L
+		# the record of failed extrapolations lapses after `lapse` plain passes
+		if (since_jump >= lapse && (n_fail > 0L || kappa_eff < kappa)) {
+			n_fail <- 0L
+			gate_eff <- gate
+			kappa_eff <- kappa
+		}
 		st <- cand
 		ev <- evc
 		if (pln_t) hs <- if (jumped) matrix(
@@ -1194,9 +1093,10 @@
 			)
 		)
 		n_h <- length(hist_obj)
-		# how far the objective may still move: tol / 10, or a fraction `excess` of a search point's
-		# distance above the best fixed point so far (obj_ref)
-		slack <- tol / 10
+		# how far the objective may still move: tol / 10 and no less than the relative tolerance of
+		# stats::optim() on its size, or a fraction `excess` of a search point's distance above the best
+		# fixed point so far (obj_ref)
+		slack <- max(tol / 10, sqrt(.Machine$double.eps) * abs(ev$objective))
 		if (!is.null(obj_ref) && is.finite(obj_ref)) slack <- max(slack, excess * max(0, ev$objective - obj_ref))
 		quiet <- n_h > window && diff(range(hist_obj[(n_h - window):n_h])) <= slack
 		if (!pln_t) {
@@ -1234,7 +1134,9 @@
 		iterations = it,
 		termination = termination,
 		trace = trace,
-		objective_limit = ev$objective + if (clean && is.finite(rem_end)) sign(d_last) * rem_end else 0
+		objective_limit = ev$objective + if (clean && is.finite(rem_end)) sign(d_last) * rem_end else 0,
+		# the watched scalars of a count fit since the last extrapolation
+		tails = hs
 	)
 }
 
@@ -1438,7 +1340,15 @@
 		if (!length(todo) || unsettled) break
 		for (k in todo) {
 			ent <- cache[[key(ss[k])]]
-			f2 <- .lde_fit_core_dyn(ctx_s, ent$st, max_iter = max_iter, tol = tol_inner, freeze_ab = TRUE)
+			# as in the search, a point far above the best of the others need not settle as tightly
+			others <- values()[-k]
+			f2 <- .lde_fit_core_dyn(
+				ctx_s, ent$st,
+				max_iter = max_iter,
+				tol = tol_inner,
+				freeze_ab = TRUE,
+				obj_ref = if (any(is.finite(others))) min(others[is.finite(others)])
+			)
 			val <- f2$objective_limit
 			if (!is.finite(val)) val <- Inf
 			cache[[key(ss[k])]] <- list(

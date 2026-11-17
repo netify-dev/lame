@@ -14,7 +14,7 @@
 #' @param width optional original interval widths, before centering the bounds.
 #'   Retains legitimate short intervals whose centered endpoints round together.
 #' @return numeric, log(Phi(hi) - Phi(lo))
-#' @keywords internal
+#' @noRd
 log_phi_diff <- function(hi, lo, width = NULL) {
 	if (length(hi) != length(lo) || anyNA(hi) || anyNA(lo))
 		stop("Normal interval bounds must have matching lengths and no missing values.")
@@ -142,7 +142,7 @@ log_phi_diff <- function(hi, lo, width = NULL) {
 #' @return list with elements \code{alpha}, \code{delta}, \code{accept}
 #'   (logical).
 #' @author Cassy Dorff, Shahryar Minhas, Tosin Salau
-#' @keywords internal
+#' @noRd
 sample_alpha_cowles <- function(alpha, Y_int, EZ, tau_prop, symmetric = FALSE) {
 	K_minus_1 <- length(alpha)
 	if (K_minus_1 < 2L) {
@@ -205,7 +205,7 @@ sample_alpha_cowles <- function(alpha, Y_int, EZ, tau_prop, symmetric = FALSE) {
 #' @param alpha length-(K-1) cutpoints with \code{alpha[1] = 0}
 #' @param rho directed within-dyad correlation; zero for independent cells.
 #' @return updated Z
-#' @keywords internal
+#' @noRd
 rZ_ord_explicit_fc <- function(Z, EZ, Y_int, alpha, rho = 0) {
 	if (length(rho) != 1L || !is.finite(rho) || abs(rho) >= 1)
 		stop("Explicit ordinal correlation must be finite and inside (-1, 1).")
@@ -242,7 +242,7 @@ rZ_ord_explicit_fc <- function(Z, EZ, Y_int, alpha, rho = 0) {
 #' @param Y_int integer ordinal Y (symmetric)
 #' @param alpha length-(K-1) cutpoints with \code{alpha[1] = 0}
 #' @return updated symmetric Z (diagonal sampled from unconstrained prior)
-#' @keywords internal
+#' @noRd
 rZ_ord_sym_explicit_fc <- function(Z, EZ, Y_int, alpha) {
 	n <- nrow(Y_int)
 	obs_input <- !is.na(Y_int)

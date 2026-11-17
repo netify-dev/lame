@@ -45,7 +45,9 @@ test_that('symmetric saved effects retain actor names and their shared draws', {
 		)
 		for (tt in 1:3) {
 			aa = if (dyn) ab$a[, tt, ] else ab$a
-			expected = mean(f$BETA[, 1]) + outer(rowMeans(aa), rowMeans(aa), '+')
+			# intercept of period tt under dynamic_ab
+			icpt = if (dyn) mean(f$BETA[, 1, tt]) else mean(f$BETA[, 1])
+			expected = icpt + outer(rowMeans(aa), rowMeans(aa), '+')
 			if (rank > 0) expected = expected + f$ULUPM
 			target = f$EZ[[tt]];keep = is.finite(target)
 			expect_equal(unname(expected[keep]), unname(target[keep]), tolerance = 1e-8)

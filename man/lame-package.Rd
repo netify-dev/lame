@@ -24,10 +24,9 @@ by Hoff (2009) and Hoff, Fosdick, Volfovsky and Stovel (2013).
 estimators, for calibrated posterior inference (cross-sectional and
 longitudinal respectively).
 \item \code{\link{ame_als}} / \code{\link{lame_als}} -- a fast,
-MCMC-free point estimator by iterative block coordinate descent, with
-bootstrap uncertainty via \code{\link{ame_als_bootstrap}}. Use it
-for rapid model exploration, rank selection and starting values; use the
-MCMC estimators for final inference.
+MCMC-free estimator that reports a standard error for every
+estimate. Use it for rapid model exploration, rank selection and
+starting values; use the MCMC estimators for final inference.
 }
 
 \tabular{ll}{ Package: \tab lame\cr Type: \tab Package\cr License: \tab

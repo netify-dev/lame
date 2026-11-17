@@ -54,7 +54,10 @@ get_fit_object(
 
 \item{UVPS}{summed multiplicative random effects}
 
-\item{YPS}{summed Y posterior predictive values. For a Poisson fit the
+\item{YPS}{sum over the stored draws of the mean response given each draw
+(binary, normal and explicit-cutpoint ordinal), of the average of ten
+replicated outcomes per draw (cbin, frn, data-induced ordinal) or of the
+replicated outcome (Poisson). For a Poisson fit the
 fitted values \code{YPM} are not formed from it: they are the mean counts
 at the posterior means of the linear predictor and of the residual variance}
 

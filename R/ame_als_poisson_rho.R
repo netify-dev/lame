@@ -1,7 +1,6 @@
 # latent Poisson reciprocity from the cross-dyad identity
 # cov(y_ij / mu_ij - 1, y_ji / mu_ji - 1) = exp(rho * ve) - 1, with inverse
-# marginal-variance weights. rho is NA unless ve is distinguishable from zero;
-# the raw moment and covariance are kept for the count jackknife
+# marginal-variance weights. rho is NA unless ve is distinguishable from zero
 .ae_poisson_pair_rho <- function(y, eta, variance, overdispersed = TRUE) {
 	context <- .lame_binary_dynamic_collapsed_rho_context(y)
 	keep <- context$observed1 & context$observed2 &

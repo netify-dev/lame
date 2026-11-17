@@ -73,6 +73,8 @@ test_that("symmetric dynamic positions keep U L U' and its signs", {
 		plot = FALSE
 	)
 	expect_equal(sort(sign(fit$L)), c(-1, 1))
+	# with unit stationary variance of the paths the innovation sd is tied to rho_uv
+	expect_equal(fit$sigma_uv, sqrt(1 - fit$rho_uv^2), tolerance = 1e-6)
 	off = row(d$truth) != col(d$truth)
 	for (t in 1:3) {
 		P = fit$U[, , t] %*% diag(fit$L) %*% t(fit$U[, , t])

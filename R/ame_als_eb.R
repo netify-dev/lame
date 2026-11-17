@@ -1,11 +1,14 @@
-# empirical-Bayes ALS estimator (bias_correct = "eb"). the actor effects are random,
-# (a_i, b_i) ~ N(0, Sab) under the lame() hyperprior (Sab0, eta0), and node
+# empirical-Bayes ALS estimator. the actor effects are random,
+# (a_i, b_i) ~ N(0, Sab) under the lame() hyperprior (Sab0, eta0; a directed binary or a normal fit
+# gives it the weight of one actor, .ae_eb_prior_weight), and node
 # covariates enter as fixed effects gamma. (mu, beta, gamma, a, b) are solved
 # jointly at each IRLS weight, Sab takes an EM update whose fixed point is the
 # inverse-Wishart posterior mean (shift = -(d + 1)), and every cell score loses
 # the Laplace correction kappa_c = 0.5 (h'_c v_c - h_c (u_i + u_j)) so the
 # coefficients are not shrunk towards zero. a symmetric fit halves the ordered
-# cells (nu = 1/2), and mu is the population intercept (effects are not re-centred).
+# cells (nu = 1/2). mu is the population intercept of a cross-sectional fit, as in ame(); a
+# longitudinal fit reports the effects at mean zero over the observed actors and the intercept
+# takes their means, as in lame().
 
 # BCD sweeps per reweighting step of an empirical-Bayes fit
 .ae_eb_sweeps <- 5L
@@ -34,11 +37,37 @@
 	list(Sab0 = diag(2) * vscale, eta0 = round(4 * vdfmlt))
 }
 
+# weight of the effect-covariance hyperprior of a normal or directed binary fit: one actor, as the
+# count prior has. the scale of a normal fit (.lame_ab_scale) is read from the row and column means,
+# which carry the noise and the latent product, so it lies well above the effect variance and the
+# sampler's weight of round(4 + 3 n / 100) actors pulls the estimate up. the probit-moment scale of
+# a binary fit is diagonal, and its eta0 pseudo-actors are exact effects while the data's actors are
+# estimated ones (about 0.6 of an actor each at 25 actors), so the sampler's weight pulls the
+# sender-receiver covariance to zero by far more than eta0 / n: the estimate followed 0.58 of the
+# realised covariance of the effects at 25 actors. a bipartite or undirected binary fit has no
+# covariance and keeps the sampler's weight, whose scale below the effect variance offsets the
+# upward bias of a posterior-mean variance. a network with no more actors on a side than the
+# sampler's weight (a binary network: no more than twice that, its actors counted at half an actor)
+# keeps it too: there the prior is the main information on the covariance, and one actor leaves its
+# inverse-wishart posterior barely proper (an 8-actor binary network then separated). internal option
+# lame.eb_unit_prior_weight: FALSE restores the sampler's weight, a positive number sets the weight
+.ae_eb_prior_weight <- function(eta0, n_act = Inf) {
+	w <- getOption("lame.eb_unit_prior_weight")
+	if (isFALSE(w)) return(eta0)
+	if (is.numeric(w) && length(w) == 1L && is.finite(w) && w > 0) return(as.numeric(w))
+	if (n_act > eta0) 1 else eta0
+}
+
 # the state of the actor-effect prior carried through the IRLS loop
-.ae_eb_prior <- function(prep, symmetric = FALSE, family = "binary", s20 = NULL) {
+.ae_eb_prior <- function(prep, symmetric = FALSE, family = "binary", s20 = NULL, nu0 = NULL) {
 	kind <- if (symmetric) "symmetric" else if (prep$bip) "bipartite" else "directed"
 	hp <- if (identical(family, "poisson")) .ae_eb_hyperprior_pois(prep$Yarr) else
 	if (identical(family, "normal")) .ae_eb_hyperprior_norm(prep$Yarr) else .ae_eb_hyperprior(prep$Yarr, prep$bip)
+	# a directed binary fit gives its sender-receiver covariance the weight of .ae_eb_prior_weight,
+	# its actors counted at half an actor each (the information a binary row carries on its effect)
+	if (!family %in% c("poisson", "normal") && identical(kind, "directed")) {
+		hp$eta0 <- .ae_eb_prior_weight(hp$eta0, min(prep$nr, prep$nc) / 2)
+	}
 	cells <- rowSums(!is.na(prep$Yarr), dims = 2L)
 	cnt_r <- rowSums(cells); cnt_c <- colSums(cells)
 	act_a <- cnt_r > 0; act_b <- cnt_c > 0
@@ -70,11 +99,12 @@
 		sab_change = Inf,
 		hprime = NULL
 	)
-	# a count network has Poisson-lognormal cell noise (ame_als_pln.R) whose variance
-	# has the sampler's inverse-gamma prior on the scale s20
+	# a count network has Poisson-lognormal cell noise (ame_als_pln.R) whose variance has the
+	# sampler's inverse-gamma prior when the user gives its scale s20, and no prior otherwise; a
+	# refit passes the degrees of freedom of its fit
 	if (identical(family, "poisson")) {
 		out$family <- "poisson"
-		out$ve_prior <- c(nu0 = .ae_pln_ve_prior[["nu0"]], s20 = if (is.null(s20)) .ae_pln_ve_prior[["s20"]] else s20)
+		out$ve_prior <- .ae_pln_ve_prior_of(s20, nu0)
 	}
 	# a normal network has Gaussian cell noise (ame_als_gauss.R) with the sampler's
 	# variance prior on the scale s20
@@ -133,17 +163,38 @@
 	out
 }
 
-# inverse of a penalised information matrix: the Cholesky inverse, or the
-# minimum-norm pseudo-inverse when it is numerically singular
+# inverse of a penalised information matrix: the Cholesky inverse, then the Cholesky
+# inverse of the equilibrated matrix (unit diagonal, so the conditioning does not depend on
+# the units of the parameters), or the minimum-norm pseudo-inverse when it is numerically
+# singular, marked by attr `ae_singular`
 .ae_eb_inverse <- function(H) {
 	ch <- tryCatch(chol(H), error = function(e) NULL)
 	if (!is.null(ch)) {
 		d <- diag(ch)
 		if (min(d)^2 > 1e-12 * max(d)^2) return(chol2inv(ch))
 	}
+	h <- diag(H)
+	if (all(is.finite(h)) && all(h > 0)) {
+		sc <- outer(1 / sqrt(h), 1 / sqrt(h))
+		chs <- tryCatch(chol((H + t(H)) / 2 * sc), error = function(e) NULL)
+		if (!is.null(chs)) {
+			d <- diag(chs)
+			if (min(d)^2 > 1e-12 * max(d)^2) return(chol2inv(chs) * sc)
+		}
+	}
 	eg <- eigen((H + t(H)) / 2, symmetric = TRUE)
 	keep <- eg$values > max(eg$values) * 1e-10
-	eg$vectors[, keep, drop = FALSE] %*% (t(eg$vectors[, keep, drop = FALSE]) / eg$values[keep])
+	out <- eg$vectors[, keep, drop = FALSE] %*% (t(eg$vectors[, keep, drop = FALSE]) / eg$values[keep])
+	if (!all(keep)) {
+		why <- paste0(sum(!keep), " of ", length(keep), " directions have no information")
+		.ae_note_failure(
+			"eb_inverse",
+			"the variance along the singular directions of the penalised information (the pseudo-inverse leaves them out)",
+			why
+		)
+		attr(out, "ae_singular") <- why
+	}
+	out
 }
 
 # inverses of `H` and of its actor-effect block `H[s, s]` through the Schur
@@ -251,30 +302,16 @@
 	if (identical(link, "identity")) return(array(0, .ae_dims(eta)))
 	if (identical(link, "probit")) {
 		if (is.null(terms)) terms <- .ae_probit_terms(eta, NULL)
-		if (!identical(.ae_engine(), "r")) {
-			out <- ae_probit_hprime_cpp(eta, terms$ld, terms$lp1, terms$lp0, .ae_threads())
-			dim(out) <- dim(eta)
-			return(out)
-		}
-		lam1 <- exp(terms$ld - terms$lp1)
-		lam0 <- exp(terms$ld - terms$lp0)
-		return(lam1 * lam0 * (lam0 - lam1 - 2 * eta))
+		out <- ae_probit_hprime_cpp(eta, terms$ld, terms$lp1, terms$lp0, .ae_threads())
+		dim(out) <- dim(eta)
+		return(out)
 	}
 	p <- stats::plogis(eta)
 	p * (1 - p) * (1 - 2 * p)
 }
 
-# sum_t h' [1, x] for every dyad (n_row * n_col x (p + 1)); h' can be negative, so
-# the R reference sums its positive and negative parts apart
-.ae_eb_hprime_sums_r <- function(hprime, X, nr, nc, Tt, p) {
-	hp <- hprime
-	hp[!is.finite(hp)] <- 0
-	pos <- ae_bcd_stats_cpp(pmax(hp, 0), hp, X, nr, nc, Tt, p)$gm
-	neg <- ae_bcd_stats_cpp(pmax(-hp, 0), hp, X, nr, nc, Tt, p)$gm
-	pos - neg
-}
+# sum_t h' [1, x] for every dyad (n_row * n_col x (p + 1)) by the compiled kernel (ae_weighted_sums_cpp)
 .ae_eb_hprime_sums <- function(hprime, X, nr, nc, Tt, p) {
-	if (identical(.ae_engine(), "r")) return(.ae_eb_hprime_sums_r(hprime, X, nr, nc, Tt, p))
 	hp <- hprime
 	hp[!is.finite(hp)] <- 0
 	ae_weighted_sums_cpp(hp, X, nr, nc, Tt, p, .ae_threads())
@@ -644,7 +681,7 @@
 		object$col_names,
 		object$time_names
 	)
-	ab <- .ae_eb_prior(prep, sym, object$family, s20 = object$eb$ve_prior[["s20"]])
+	ab <- .ae_eb_prior(prep, sym, object$family, s20 = object$eb$ve_prior[["s20"]], nu0 = object$eb$ve_prior[["nu0"]])
 	eb <- object$eb
 	R <- object$R
 	fit <- list(
@@ -851,9 +888,9 @@
 .ae_eb_evidence_core <- function(prep, ab, fit, R, eta, link, ld_joint, ld_actor) {
 	y <- prep$Yarr
 	if (identical(link, "log")) {
-		dev <- .ae_dev_pln(.ae_pln_terms(y, eta, fit$ve))
+		dev <- .ae_dev_terms(.ae_pln_terms(y, eta, fit$ve))
 	} else if (identical(link, "identity")) {
-		dev <- .ae_dev_gauss(.ae_gauss_terms(y, eta, fit$ve))
+		dev <- .ae_dev_terms(.ae_gauss_terms(y, eta, fit$ve))
 	} else {
 		terms <- if (identical(link, "probit")) .ae_probit_terms(eta, which(y == 1))
 		dev <- .ae_irls_deviance(y, eta, "binary", link, terms)
@@ -883,22 +920,15 @@
 	)
 }
 
-# the evidence of a fitted object (the value stored in fit$eb$log_marginal)
-.ae_eb_evidence <- function(object) {
-	if (identical(object$eb$estimator, "variational")) return(object$eb$laplace)
-	lp <- .ae_eb_laplace_state(object, inverse = FALSE)
-	jp <- lp$jp; ctx <- jp$ctx
-	iz <- setdiff(seq_len(nrow(jp$Hf)), c(ctx$i_th, ctx$i_g))
-	.ae_eb_evidence_core(
-		lp$prep,
-		lp$ab,
-		lp$fit,
-		lp$R,
-		lp$eta0,
-		lp$link,
-		2 * sum(log(diag(chol(jp$Hf[iz, iz, drop = FALSE])))),
-		2 * sum(log(diag(chol(jp$H0[ctx$i_s, ctx$i_s, drop = FALSE]))))
-	)
+# gradient of the grand mean of the latent product in the factor coordinates of .ae_eb_extend
+.ae_eb_fold_grad <- function(ab, fit, vb = NULL) {
+	if (identical(ab$kind, "symmetric")) {
+		Fm <- if (is.null(vb)) sweep(fit$U, 2L, sqrt(abs(fit$L)), "*") else vb$S$F
+		sg <- if (is.null(vb)) ifelse(fit$L < 0, -1, 1) else vb$S$sg
+		return(rep(2 * sg * colMeans(Fm) / nrow(Fm), each = nrow(Fm)))
+	}
+	U <- fit$U; V <- fit[["V"]]
+	c(rep(colMeans(V) / nrow(U), each = nrow(U)), rep(colMeans(U) / nrow(V), each = nrow(V)))
 }
 
 # inverse penalised Fisher information at the final IRLS weights `Wobs`: covariance
@@ -913,7 +943,8 @@
 	link = NULL,
 	vb = NULL,
 	extra = NULL,
-	evidence_only = FALSE
+	evidence_only = FALSE,
+	report = TRUE
 ) {
 	nr <- prep$nr; nc <- prep$nc; p <- prep$p_dyad; Tt <- prep$Tt
 	Warr <- Wobs; Warr[!is.finite(Warr)] <- 0
@@ -943,16 +974,32 @@
 				2 * sum(log(diag(chol(Hf[iz, iz, drop = FALSE])))),
 				2 * sum(log(diag(chol(H0[ctx$i_s, ctx$i_s, drop = FALSE]))))
 			),
-			error = function(e) NULL
+			error = function(e) {
+				.ae_note_failure("eb_evidence", "the Laplace evidence (log marginal likelihood)", e)
+				NULL
+			}
 		)
 		return(list(vcov = NULL, vcov_cond = NULL, evidence = evidence, elbo = NULL))
 	}
 	cond <- .ae_eb_inverse(H0)
 	joint <- cond
 	Hf <- H0
+	Sf <- NULL
+	# the reported intercept also carries the grand mean of the product (.ae_report_fold): its
+	# covariance with every element of the solve and its variance, by the delta method
+	fold <- NULL
 	if (R > 0L && !is.null(fit$U)) {
 		Hf <- .ae_eb_extend(ctx, ab, H0, fit, vb)
-		joint <- .ae_eb_inverse(Hf)[seq_len(m0), seq_len(m0), drop = FALSE]
+		Sf <- .ae_eb_inverse(Hf)
+		joint <- Sf[seq_len(m0), seq_len(m0), drop = FALSE]
+		gf <- .ae_eb_fold_grad(ab, fit, vb)
+		jf <- m0 + seq_along(gf)
+		if (length(gf) == nrow(Sf) - m0 && any(gf != 0)) {
+			fold <- list(
+				cross = as.vector(Sf[seq_len(m0), jf, drop = FALSE] %*% gf),
+				var = sum(gf * as.vector(Sf[jf, jf, drop = FALSE] %*% gf))
+			)
+		}
 	}
 	# the evidence, from the information already formed (a variational fit brings its bound)
 	evidence <- NULL
@@ -971,14 +1018,65 @@
 				2 * sum(log(diag(chol(Hf[iz, iz, drop = FALSE])))),
 				2 * sum(log(diag(chol(H0[ctx$i_s, ctx$i_s, drop = FALSE]))))
 			),
-			error = function(e) NULL
+			error = function(e) {
+				.ae_note_failure("eb_evidence", "the Laplace evidence (log marginal likelihood)", e)
+				NULL
+			}
 		)
 	}
+	# a count fit's noise variance is searched on the evidence with its second-order term
+	# (.ae_pln_second_order)
+	if (!is.null(evidence) && is.null(vb) && !is.null(Sf) && identical(ab$family, "poisson")) {
+		evidence$second_order <- tryCatch(
+			.ae_pln_second_order(Sf, ctx, ab, fit, R, wsum),
+			error = function(e) {
+				.ae_note_failure("eb_second_order", "the second-order term of the count evidence", e)
+				NULL
+			}
+		)
+	}
+	# sds of the reported effects, positions and product cells (ame_als_report_se.R)
+	report_se <- if (isTRUE(report)) tryCatch(
+		.ae_eb_report_se(
+			if (is.null(Sf)) cond else Sf,
+			ctx,
+			ab,
+			fit,
+			vb,
+			if (is.null(Sf)) 0L else R,
+			W = Warr,
+			X = prep[["X"]]
+		),
+		error = function(e) {
+			.ae_note_failure("eb_report_se", "the standard errors of the actor effects and the latent product", e)
+			NULL
+		}
+	) else NULL
+	# the uncertainty of hyperparameters the coefficients respond to: `extra` is one term or a
+	# list of terms, each adding var J J' with J = d coefficients / d log hyperparameter (and
+	# J_s that of the effects, which the centred intercept carries); the product cells and
+	# the grand mean of the product respond too
+	terms <- if (is.null(extra)) list() else if (is.null(extra$var)) extra else list(extra)
 	idx <- c(ctx$i_th, ctx$i_g)
-	# add the uncertainty of a hyperparameter the coefficients respond to
-	# (J = d coefficients / d log scale)
-	if (!is.null(extra) && length(extra$J) == length(idx) && is.finite(extra$var) && extra$var > 0) {
-		joint[idx, idx] <- joint[idx, idx] + extra$var * tcrossprod(extra$J)
+	for (ex in terms) {
+		if (!isTRUE(is.finite(ex$var) && ex$var > 0)) next
+		if (!is.null(report_se$cells) && identical(dim(ex$J_cells), dim(report_se$cells))) {
+			report_se$cells <- sqrt(report_se$cells^2 + ex$var * ex$J_cells^2)
+			# and the eigenvalues of an undirected product (.ae_eb_attach_se())
+			report_se$cells_scale <- c(report_se$cells_scale, list(sqrt(ex$var) * ex$J_cells))
+		}
+		if (length(ex$J) != length(idx)) next
+		jx <- idx
+		Jx <- ex$J
+		if (length(ex$J_s) == length(ctx$i_s) && all(is.finite(ex$J_s))) {
+			jx <- c(idx, ctx$i_s)
+			Jx <- c(Jx, ex$J_s)
+		}
+		joint[jx, jx] <- joint[jx, jx] + ex$var * tcrossprod(Jx)
+		if (!is.null(fold) && isTRUE(is.finite(ex$J_fold))) {
+			fold$cross[jx] <- fold$cross[jx] + ex$var * Jx * ex$J_fold
+			fold$var <- fold$var + ex$var * ex$J_fold^2
+		}
 	}
 	# reported parametrisation: the intercept refers to uncentred node covariates
 	A <- diag(length(idx))
@@ -993,15 +1091,44 @@
 		if (!is.null(prep$W_row)) colnames(prep$W_row),
 		if (!is.null(prep$W_col)) colnames(prep$W_col)
 	)
-	wrap <- function(S) {
-		V <- A %*% S[idx, idx, drop = FALSE] %*% t(A)
+	# a longitudinal fit reports its effects at mean zero over the observed actors,
+	# as lame() does, so its intercept is mu + mean(a) + mean(b): that row adds the
+	# means of the effects net of their covariate part, s - M gamma. a
+	# cross-sectional fit keeps mu. both add the grand mean of the product, as the
+	# sampler's stored draws do; vcov_population is the covariance with mu itself
+	Tm <- matrix(0, length(idx), m0)
+	Tm[, idx] <- A
+	ca <- numeric(ctx$q)
+	if (identical(ab$kind, "symmetric")) {
+		if (any(ab$act_a)) ca[ab$act_a] <- 2 / sum(ab$act_a)
+	} else {
+		if (any(ab$act_a)) ca[seq_len(ab$nr)][ab$act_a] <- 1 / sum(ab$act_a)
+		if (any(ab$act_b)) ca[ab$nr + seq_len(ab$nc)][ab$act_b] <- 1 / sum(ab$act_b)
+	}
+	Tm[1L, ctx$i_s] <- ca
+	if (pg > 0L) Tm[1L, ctx$i_g] <- Tm[1L, ctx$i_g] - as.vector(crossprod(ctx$M, ca))
+	wrap <- function(S, Tr = Tm, fold = NULL) {
+		V <- Tr %*% S[seq_len(m0), seq_len(m0), drop = FALSE] %*% t(Tr)
+		if (!is.null(fold)) {
+			cr <- as.vector(Tr %*% fold$cross)
+			V[1L, ] <- V[1L, ] + cr
+			V[, 1L] <- V[, 1L] + cr
+			V[1L, 1L] <- V[1L, 1L] + fold$var
+		}
 		V <- (V + t(V)) / 2
 		dimnames(V) <- list(nm, nm)
 		V
 	}
+	Tp <- matrix(0, length(idx), m0)
+	Tp[, idx] <- A
 	list(
-		vcov = wrap(joint),
-		vcov_cond = wrap(cond),
+		vcov = wrap(joint, Tp, fold),
+		vcov_cond = wrap(cond, Tp),
+		vcov_centred = wrap(joint, Tm, fold),
+		vcov_cond_centred = wrap(cond),
+		vcov_population = wrap(joint, Tp),
+		report_se = report_se,
+		singular = c(attr(cond, "ae_singular"), attr(Sf, "ae_singular"))[1L],
 		evidence = evidence,
 		elbo = if (!is.null(vb)) vb$elbo
 	)

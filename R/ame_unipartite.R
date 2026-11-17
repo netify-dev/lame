@@ -261,6 +261,7 @@ ame_unipartite <- function(
 
 	# count in-loop sampler failures, reported as fit$tryErrorChecks
 	tryErrorChecks <- list(beta = 0L, Sab = 0L, s2 = 0L, rho = 0L, UV = 0L)
+	.lame_fallback_reset()
 	if (!is.null(start_vals)) {
 		# the state is plain numeric: an ALS start carries actor labels (see .start_vals_plain)
 		start_vals <- .start_vals_plain(start_vals)
@@ -620,12 +621,16 @@ ame_unipartite <- function(
 		normal = rZ_nrm_fc,
 		# symmetric fits carry one latent per unordered pair (the *_sym_fc samplers)
 		binary = if (symmetric) function(Z, EZ, rho, Y) rZ_bin_sym_fc(Z, EZ, Y, rho) else function(Z, EZ, rho, Y) {
-			# compiled kernel (same full conditional and sweep order as rZ_bin_fc), with the R sampler as fallback
+			# compiled kernel (same full conditional and sweep order as rZ_bin_fc); the R sampler
+			# draws the same conditional when it fails, counted as an exact fallback
 			z_new <- tryCatch(
 				rZ_bin_fused_cpp(Z, EZ, rho, Y),
 				error = function(e) NULL
 			)
-			if (is.null(z_new)) return(rZ_bin_fc(Z, EZ, rho, Y))
+			if (is.null(z_new)) {
+				.lame_fallback_note("Z_compiled")
+				return(rZ_bin_fc(Z, EZ, rho, Y))
+			}
 			dimnames(z_new) <- dimnames(Z)
 			z_new
 		},
@@ -1049,6 +1054,16 @@ ame_unipartite <- function(
 				uv_sp <- .lame_uv_split_draw(U, V, prior$kappa0, prior$kappa0 * prior$Suv0)
 				U[] <- uv_sp$U; V[] <- uv_sp$V
 				uv_split_stats <- uv_split_stats + c(1, uv_sp$c != 1)
+				# column scales and shears, the rest of the gauge U A, V A^-T
+				uv_sp <- .lame_uv_gauge_draw(U, V, prior$kappa0, prior$kappa0 * prior$Suv0)
+				U[] <- uv_sp$U; V[] <- uv_sp$V
+				rm(uv_sp)
+			}
+			# a symmetric fit splits each column against its eigen-weight
+			if (symmetric && !identical(prior[["uv_split_move"]], FALSE)) {
+				uv_sp <- .lame_uv_sym_split_draw(U, V, unit_var, hier = shrink)
+				U[] <- uv_sp$U; V[] <- uv_sp$V
+				uv_split_stats <- uv_split_stats + c(1, uv_sp$moved > 0)
 				rm(uv_sp)
 			}
 			UV_cache <- U %*% t(V)
@@ -1661,11 +1676,26 @@ ame_unipartite <- function(
 			if (symmetric) { EZ <- (EZ + t(EZ)) / 2 }
 
 			rho_eff <- rho
-			Ys <- simulate_Y_fn(EZ, rho_eff, s2)
+			draw_ys <- function() {
+				y_rep <- simulate_Y_fn(EZ, rho_eff, s2)
+				if (symmetric) { y_rep[lower.tri(y_rep)] <- 0 ; y_rep <- y_rep + t(y_rep) }
+				y_rep
+			}
+			Ys <- draw_ys()
 
-			if (symmetric) { Ys[lower.tri(Ys)] <- 0 ; Ys <- Ys + t(Ys) }
-
-			YPS <- YPS + Ys
+			# the running sum takes the replicate's mean given this draw where it has a closed form,
+			# otherwise the average of ten replicates
+			YPS <- YPS + .predictive_mean_term(
+				Ys,
+				EZ,
+				family,
+				alpha = if (use_explicit_cutpoints) alpha else NULL,
+				levels = if (use_explicit_cutpoints) ord_lvls else NULL,
+				symmetric = symmetric,
+				draw = draw_ys,
+				seed = seed,
+				index = sample_idx
+			)
 
 			if (gof) {
 				Ys[is.na(Y)] <- NA
@@ -1972,7 +2002,9 @@ ame_unipartite <- function(
 	}
 	fit$sampler_health <- .lame_sampler_health(tryErrorChecks)
 	fit$sampler_health_iterations <- s
+	fit$exact_fallbacks <- .lame_fallback_take()
 	.lame_report_sampler_health(fit$sampler_health, fit$sampler_health_iterations)
+	.lame_report_fallbacks(fit$exact_fallbacks, fit$sampler_health_iterations)
 	.lame_separation_check(fit)
 	fit
 }
@@ -1991,6 +2023,52 @@ ame_unipartite <- function(
 	vscale <- mean(c(stats::var(a_tmp), stats::var(b_tmp)), na.rm = TRUE)
 	if (!is.finite(vscale) || vscale <= 0) vscale <- 1
 	vscale
+}
+
+# default effects prior of a count sampler: the weight of one actor (eta0 = 1) at the effects
+# covariance the fast route estimates for the same call (va, cab, vb of .ae_run(), the engine
+# of ame_als() and lame_als(), which never calls the sampler). the log-rate scale
+# (.ame_pois_effect_scale) also carries the product and the noise, several times the effect variance,
+# and its old weight round(4 + 3 n / 100) held va and vb near it; it remains the centre, at weight
+# one, where the fast fit fails or its covariance is not positive definite. `prior` is returned with
+# Sab0 and eta0 set; the RNG state is left as it was
+.ame_pois_effects_prior <- function(prior, Y, Xdyad, Xrow, Xcol, R, mode, symmetric, longitudinal) {
+	if (!is.null(prior) && !is.list(prior)) return(prior)
+	if (is.null(prior)) prior <- list()
+	bip <- identical(mode, "bipartite")
+	sym <- isTRUE(symmetric) && !bip
+	if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+		rng <- get(".Random.seed", envir = globalenv(), inherits = FALSE)
+		on.exit(assign(".Random.seed", rng, envir = globalenv()), add = TRUE)
+	} else {
+		on.exit(if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) rm(".Random.seed", envir = globalenv()), add = TRUE)
+	}
+	notes_top <- .ae_notes_open()
+	if (notes_top) on.exit(.ae_notes_close(), add = TRUE)
+	# the empirical-bayes fit ame_als() returns; the uncertainty of the
+	# factor scale enters its standard errors only, which the centre does not use
+	op <- options(lame.eb_scale_uncertainty = FALSE)
+	on.exit(options(op), add = TRUE)
+	fit <- tryCatch(
+		suppressWarnings(suppressMessages(.ae_run(
+			Y, Xdyad, Xrow, Xcol, R, "poisson", if (bip) "bipartite" else "unipartite", sym, 200, 1e-6, FALSE, 6886,
+			longitudinal = longitudinal, call = quote(ame_als()), dcor = .ae_check_dcor(!sym),
+			dcor_given = FALSE, prior = .ae_check_prior(NULL, "poisson")
+		))),
+		error = function(e) NULL
+	)
+	vc <- if (is.list(fit) && !is.null(fit$VC)) suppressWarnings(as.numeric(fit$VC[c("va", "cab", "vb")])) else rep(NA_real_, 3L)
+	S0 <- if (sym) diag(2) * vc[1L] else if (bip) diag(vc[c(1L, 3L)]) else matrix(vc[c(1L, 2L, 2L, 3L)], 2L)
+	ok <- all(is.finite(S0)) && isTRUE(tryCatch(all(eigen(S0, symmetric = TRUE, only.values = TRUE)$values > 0), error = function(e) FALSE))
+	if (!ok) {
+		yl <- if (is.list(Y) && !is.data.frame(Y)) simplify2array(lapply(Y, function(y) as.matrix(y))) else Y
+		vs <- tryCatch(.ame_pois_effect_scale(yl), error = function(e) 1)
+		if (!is.finite(vs) || vs <= 0) vs <- 1
+		S0 <- diag(2) * vs
+	}
+	prior$Sab0 <- S0
+	prior$eta0 <- 1
+	prior
 }
 
 # starting latent log-rates log(y + c), c the mean count capped at 1; missing cells and a

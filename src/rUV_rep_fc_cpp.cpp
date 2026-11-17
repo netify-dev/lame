@@ -17,7 +17,6 @@ static inline arma::uvec indices_excluding(int total, int exclude) {
   return idx;
 }
 
-// [[Rcpp::export]]
 arma::mat rwish_cpp(const arma::mat& S0, int nu) {
   const int n = S0.n_rows;
   if (n == 0 || S0.n_cols != S0.n_rows || !S0.is_finite()) {
@@ -69,6 +68,7 @@ List rUV_rep_fc_cpp(
   arma::mat UV = join_rows(U_work, V_work);
   arma::mat Suv;
   arma::mat Puv;
+  arma::mat W; // the wishart precision draw, the exact precision of Suv
   // switch algebra before large factors lose the identity in I + W'W.
   // both routes have the same inverse-Wishart conditional law.
   const bool use_precision = shrink &&
@@ -90,7 +90,8 @@ List rUV_rep_fc_cpp(
     // inverse-Wishart draw of the factor covariance.
     arma::mat UV_prod = UV.t() * UV;
     arma::mat inv_mat = inv_sympd(prior_psi * eye<mat>(R*2, R*2) + UV_prod);
-    Suv = inv_sympd(rwish_cpp(inv_mat, n + df0));
+    W = rwish_cpp(inv_mat, n + df0);
+    Suv = inv_sympd(W);
   } else {
     // the diffuse covariance of the first half of burn-in, n times the scale of the prior (prior_psi / prior_df: 1 for a
     // unit response, the unit of the factor rows for the normal family)
@@ -98,7 +99,7 @@ List rUV_rep_fc_cpp(
   }
 
 
-  if (!use_precision) Puv = lame_factor::covariance_precision(Suv);
+  if (!use_precision) Puv = lame_factor::covariance_precision(Suv, W.n_elem ? &W : nullptr);
   if (!Puv.is_finite() || arma::any(Puv.diag() <= 0))
     Rcpp::stop("Factor conditional prior precision must be finite and positive.");
   const arma::mat E_mean = arma::mean(ET, 2);

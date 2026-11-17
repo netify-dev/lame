@@ -8,49 +8,6 @@ test_that("a converged ALS start takes priority over unfinished lower scores", {
 	expect_error(choose(c(Inf, NA_real_), c(FALSE, FALSE)), class = 'lame_als_numerical')
 })
 
-test_that("a stalled warm logit half restarts with the same estimator", {
-	skip_on_cran()
-	set.seed(1269004L);n = 60L;nt = 6L;rank = 2L
-	a = rnorm(n, sd = .5);b = rnorm(n, sd = .5);u = matrix(rnorm(n * rank, sd = .5), n);v = matrix(rnorm(n * rank, sd = .5), n)
-	Y = X = vector('list', nt)
-	for (t in 1:nt) {x = matrix(rnorm(n * n), n);eta = -.5 + .5 * x + outer(a, b, '+') + tcrossprod(u, v);g = matrix(rnorm(n * n), n);z = (sqrt(.7) * (g + t(g)) + sqrt(.3) * (g - t(g))) / sqrt(2);y = 1 * (qnorm(plogis(eta)) + z > 0);diag(y) = NA_real_;dimnames(y) = list(
-		paste0('r', 1:n),
-		paste0('r', 1:n)
-	);Y[[t]] = y;X[[t]] = array(
-		x,
-		c(n, n, 1),
-		dimnames = c(dimnames(y), list('x'))
-	)}
-	set.seed(76031);rng = .Random.seed
-	f = lame_als(
-		Y,
-		Xdyad = X,
-		R = rank,
-		family = 'binary',
-		link = 'logit',
-		multistart = 'cheap',
-		bias_correct = 'jackknife',
-		verbose = FALSE
-	)
-	expect_identical(.Random.seed, rng);expect_true(f$converged)
-	expect_true(
-		all(
-			vapply(c(list(f$irls_diagnostics), f$bias_correct$irls_diagnostics), function(z) isTRUE(z$pass), logical(1))
-		)
-	)
-	expect_identical(f$multistart_criterion, 'penalised deviance');expect_length(f$multistart_converged, 4)
-	retry = f$bias_correct$irls_diagnostics[[2]]$warm_retry
-	expect_true(retry$attempted);expect_false(retry$original$pass)
-	expect_equal(
-		f$multistart_sse[f$multistart_selected],
-		min(f$multistart_sse[f$multistart_converged]),
-		tolerance = 1e-10
-	)
-	# a start reports its own estimate: the correction is made on the kept start only
-	expect_identical(f$multistart_coefficients[f$multistart_selected, ], f$raw$coefficients)
-	expect_false(isTRUE(all.equal(f$multistart_coefficients[f$multistart_selected, ], coef(f), tolerance = 0)))
-})
-
 # stand-ins for .ae_irls_run() results: data deviance, loop objective, the actor-effect covariance at
 # convergence, and the fitted predictor with the weights that measure its distance from another start;
 # `shift` moves the predictor of every cell and `w` is their weight
@@ -70,10 +27,6 @@ test_that("an irls multistart keeps the start with the lowest objective, not the
 	# the second start fits better (deviance 200) and is rated worse by the
 	# objective the loop minimises (348 against 302): inflated scales fit better
 	irs = list(fake_start(300, 302), fake_start(200, 348))
-	fe = lame:::.ae_irls_select(irs)
-	expect_identical(fe$best, 1L)
-	expect_identical(fe$criterion, "penalised deviance")
-	expect_equal(fe$value, c(302, 348))
 	eb = lame:::.ae_irls_select(irs, fake_prior)
 	expect_identical(eb$best, 1L)
 	expect_identical(eb$criterion, "empirical-Bayes objective")
@@ -122,7 +75,6 @@ test_that("starts at the same fitted predictor are one optimum, whatever their o
 	# however far apart the objectives are: only the fitted values decide
 	irs = list(fake_start(178.065, -34.2), fake_start(178.065, 5), fake_start(178.065, 250))
 	expect_false(lame:::.ae_irls_select(irs, fake_prior)$material)
-	expect_false(lame:::.ae_irls_select(irs)$material)
 })
 
 test_that("a converged start more than a deviance unit away in fitted values is a materially different optimum", {
@@ -142,19 +94,19 @@ test_that("a converged start more than a deviance unit away in fitted values is 
 	expect_equal(lame:::.ae_irls_distance(a, b), lame:::.ae_irls_distance(b, a))
 	# less than a unit apart is one optimum
 	irs = list(fake_start(294, 302), fake_start(294, 303, shift = 0.5))
-	expect_equal(lame:::.ae_irls_select(irs)$distance[2L], 12 * 0.2 * 0.25)
-	expect_false(lame:::.ae_irls_select(irs)$material)
+	expect_equal(lame:::.ae_irls_select(irs, fake_prior)$distance[2L], 12 * 0.2 * 0.25)
+	expect_false(lame:::.ae_irls_select(irs, fake_prior)$material)
 	# the objective does not decide: a distant start rated as well is still a different optimum
 	irs = list(fake_start(294, 302), fake_start(250, 302.01, shift = 1))
-	expect_true(lame:::.ae_irls_select(irs)$material)
+	expect_true(lame:::.ae_irls_select(irs, fake_prior)$material)
 	# a start that has not converged is not an optimum to compare, but its distance is recorded
 	irs = list(fake_start(294, 302), fake_start(198, 349, pass = FALSE, shift = 1))
-	sel = lame:::.ae_irls_select(irs)
+	sel = lame:::.ae_irls_select(irs, fake_prior)
 	expect_false(sel$material)
 	expect_equal(sel$distance[2L], 2.4)
 	# nothing converged: the kept start is the best that finished and there is nothing to compare
 	irs = list(fake_start(294, 302, pass = FALSE), fake_start(198, 349, pass = FALSE, shift = 1))
-	sel = lame:::.ae_irls_select(irs)
+	sel = lame:::.ae_irls_select(irs, fake_prior)
 	expect_identical(sel$best, 1L)
 	expect_false(sel$material)
 })
@@ -193,8 +145,6 @@ test_that("a multistart fit keeps the coefficients of every start and the distan
 	))
 	routes = list(
 		eb = one(),
-		fixed_effects = one(bias_correct = "none"),
-		transform = one(non_normal_method = "transform"),
 		normal = suppressMessages(ame_als(
 			d$Y,
 			d$X,
@@ -227,9 +177,11 @@ test_that("a multistart fit keeps the coefficients of every start and the distan
 	# the summaries leave the kept fit as it is: its reciprocity is estimated as
 	# in a single-start fit
 	expect_false(is.null(routes$eb$rho_estimation))
-	expect_false(is.null(routes$fixed_effects$rho_estimation))
 	# a fit without a multiplicative term runs no multistart and keeps no summaries
-	r0 = suppressMessages(ame_als(d$Y, d$X, R = 0, family = "binary", multistart = "cheap", verbose = FALSE))
+	r0 = suppressWarnings(
+		suppressMessages(ame_als(d$Y, d$X, R = 0, family = "binary", multistart = "cheap", verbose = FALSE)),
+		classes = "lame_fast_binary_density"
+	)
 	expect_null(r0$multistart_coefficients)
 	expect_null(r0$multistart_product_distance)
 })
@@ -309,96 +261,6 @@ test_that("an empirical-Bayes start with a latent rank is rated by its Laplace m
 	irs = list(with_ev(300, 302, 910.0), with_ev(300, 102, 910.2, pass = FALSE))
 	irs[[2]]$fit$eb_vcov = NULL
 	expect_identical(lame:::.ae_irls_select(irs, fake_prior)$criterion, "Laplace marginal likelihood")
-	# a fit without a latent rank, or without the empirical-Bayes prior, keeps its rule
-	expect_identical(lame:::.ae_irls_select(irs)$criterion, "penalised deviance")
-})
-
-test_that("the multistart of an empirical-Bayes fit does not keep the overfit optimum", {
-	skip_on_cran()
-	d = ms_network(6040)
-	warns = character()
-	# the posterior mode (the stage a variational fit starts from) has several
-	# local optima; the multistart rates them by the Laplace marginal likelihood
-	fit = withCallingHandlers(
-		suppressMessages(lame:::.ae_run(
-			d$Y,
-			d$X,
-			NULL,
-			NULL,
-			2,
-			"binary",
-			"unipartite",
-			FALSE,
-			200,
-			1e-6,
-			FALSE,
-			7886,
-			longitudinal = FALSE,
-			call = quote(ame_als()),
-			lowrank_method = "mm",
-			non_normal_method = "irls",
-			link = "probit",
-			linear_solver = "eigen",
-			multistart = "cheap",
-			bias_correct = NULL,
-			eb_posterior = "mode"
-		)),
-		warning = function(w) {
-			warns <<- c(warns, conditionMessage(w))
-			invokeRestart("muffleWarning")
-		}
-	)
-	expect_identical(fit$multistart_criterion, "Laplace marginal likelihood")
-	ok = fit$multistart_converged
-	dev = fit$multistart_deviance
-	val = fit$multistart_sse
-	skip_if(diff(range(dev[ok])) < 10, "the starts agree on this platform")
-	# one start reaches a lower deviance and a higher objective
-	expect_gt(max(val[ok]) - min(val[ok]), 10)
-	expect_identical(fit$multistart_selected, which(ok)[which.min(val[ok])])
-	expect_false(fit$multistart_selected == which.min(dev))
-	expect_gt(fit$deviance, min(dev[ok]) + 10)
-	# a single start from the deterministic start keeps the same optimum
-	one = suppressMessages(lame:::.ae_run(
-		d$Y,
-		d$X,
-		NULL,
-		NULL,
-		2,
-		"binary",
-		"unipartite",
-		FALSE,
-		200,
-		1e-6,
-		FALSE,
-		6886,
-		longitudinal = FALSE,
-		call = quote(ame_als()),
-		lowrank_method = "mm",
-		non_normal_method = "irls",
-		link = "probit",
-		linear_solver = "eigen",
-		multistart = "none",
-		bias_correct = NULL,
-		eb_posterior = "mode"
-	))
-	expect_equal(unname(coef(fit)), unname(coef(one)), tolerance = 1e-3)
-	# the start the objective rejects is far from the kept one in fitted values,
-	# and the warning says so
-	expect_equal(fit$multistart_distance[fit$multistart_selected], 0)
-	expect_gt(max(fit$multistart_distance[ok]), 1)
-	expect_true(any(grepl("materially different local optima", warns)))
-	expect_true(any(grepl("Laplace marginal likelihood is higher by up to", gsub("\\s+", " ", warns))))
-	# the coefficients and the product of that start differ from the kept ones'
-	# by far more than the starts at the kept optimum differ among themselves
-	far = fit$multistart_distance > 1
-	m = fit$multistart_coefficients
-	expect_identical(m[fit$multistart_selected, ], coef(fit))
-	expect_gt(min(fit$multistart_product_distance[far]), 0.1)
-	expect_lt(max(fit$multistart_product_distance[!far]), 1e-2)
-	within = max(abs(sweep(m[!far, , drop = FALSE], 2, coef(fit))))
-	between = max(abs(sweep(m[far, , drop = FALSE], 2, coef(fit))))
-	expect_gt(between, 100 * max(within, 1e-8))
 })
 
 test_that("the starts of a variational fit end at one optimum", {
@@ -447,7 +309,7 @@ ms_null_network = function(data_seed, n = 40, b0 = -2.8) {
 
 test_that("starts that end at the same fitted values do not warn, whatever their objectives", {
 	skip_on_cran()
-	# rank 1 (the rank-2 fit of a null network has its own test below)
+	# rank 1
 	d = ms_null_network(5)
 	warns = character()
 	fit = withCallingHandlers(
@@ -474,53 +336,9 @@ test_that("starts that end at the same fitted values do not warn, whatever their
 	# the objectives do not: the factor scales still move when the convergence test
 	# accepts them, and the objective is not stationary in them
 	val = fit$multistart_sse
-	skip_if(diff(range(val)) / max(1, abs(min(val))) < 1e-4, "the objectives agree on this platform")
+	# with the objectives equal or apart, the starts are one optimum and do not warn
 	expect_lt(diff(range(val)), 0.5)
 	expect_false(any(grepl("different local optima", warns)))
-})
-
-test_that("the multistart of a fixed-effects fit is compared by the penalised deviance", {
-	skip_on_cran()
-	d = ms_network(3040)
-	fit = suppressWarnings(suppressMessages(
-		ame_als(
-			d$Y,
-			d$X,
-			R = 2,
-			family = "binary",
-			bias_correct = "none",
-			multistart = "cheap",
-			seed = 7886,
-			verbose = FALSE
-		)
-	))
-	expect_identical(fit$multistart_criterion, "penalised deviance")
-	ok = fit$multistart_converged
-	dev = fit$multistart_deviance
-	val = fit$multistart_sse
-	skip_if(diff(range(dev[ok])) < 10, "the starts agree on this platform")
-	# a start the deterministic start misses has the lower penalised deviance and the higher deviance
-	expect_identical(fit$multistart_selected, which(ok)[which.min(val[ok])])
-	expect_false(fit$multistart_selected == which.min(dev))
-	one = suppressMessages(ame_als(
-		d$Y,
-		d$X,
-		R = 2,
-		family = "binary",
-		bias_correct = "none",
-		verbose = FALSE
-	))
-	expect_lt(fit$objective, one$objective - 5)
-	expect_equal(fit$multistart_distance[fit$multistart_selected], 0)
-	expect_gt(max(fit$multistart_distance[ok]), 1)
-	far = fit$multistart_distance > 1
-	m = fit$multistart_coefficients
-	expect_identical(m[fit$multistart_selected, ], coef(fit))
-	expect_gt(min(fit$multistart_product_distance[far]), 0.1)
-	expect_lt(max(fit$multistart_product_distance[!far]), 1e-2)
-	within = max(abs(sweep(m[!far, , drop = FALSE], 2, coef(fit))))
-	between = max(abs(sweep(m[far, , drop = FALSE], 2, coef(fit))))
-	expect_gt(between, 100 * max(within, 1e-8))
 })
 
 test_that("the covariance of the actor effects is a minimum of the objective its start is rated by", {
@@ -551,23 +369,4 @@ test_that("the covariance of the actor effects is a minimum of the objective its
 	# the penalty alone puts the minimum elsewhere: the hyperprior is part of the objective
 	Jp = function(m) lame:::.ae_eb_penalty(ir$fit, sab * m, ab, wsum = wsum)
 	expect_gt(Jp(1) - min(vapply(grid, Jp, numeric(1))), 1e-3)
-})
-
-test_that("a rank the null network barely supports converges: the stall of the five-node pair rule is refined, not refused", {
-	skip_on_cran()
-	d = ms_null_network(5)
-	# the stall belongs to the unit factor prior IW(2R + 2, (2R + 2) I); the data-scaled default (R/uv_prior.R)
-	# settles at five nodes on this network, so the unit prior is set here
-	testthat::local_mocked_bindings(
-		.lame_uv_prior_moments = function(Y, family, odmax = NULL) list(vscale = 1, vdfmlt = 1),
-		.package = "lame"
-	)
-	fit = suppressMessages(ame_als(d$Y, d$X, R = 2, family = "binary", seed = 7886, verbose = FALSE))
-	expect_true(fit$converged)
-	expect_identical(fit$R, 2L)
-	expect_null(fit$eb$retirement)
-	# no damped step improved the objective at five nodes (a residual of 5e-3); the fit reports the rule it settled on
-	expect_gte(fit$eb$pair$quad, 7L)
-	expect_identical(fit$eb$pair$refined[1L], 7L)
-	expect_identical(fit$eb$variational$termination, "converged")
 })

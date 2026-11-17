@@ -13,12 +13,10 @@
 		attr(prior, "lame_checkpoint_input_prior") <- input %||% list()
 		return(prior)
 	}
-	# checkpoints without a stored prior: Gaussian bipartite AR(1) fits take
-	# these rho_uv defaults unless the saved call supplied them
+	# checkpoints without a stored prior predate 1.4.1, when every dynamic_uv fit took the
+	# rho_uv prior below; they keep it unless the saved call supplied it
 	layout <- checkpoint$start_vals[["checkpoint_state"]][["layout"]]
-	if (!is.list(layout) || !identical(layout$family, "normal") ||
-			!identical(layout$mode, "bipartite") || !isTRUE(layout$dynamic_uv) ||
-			!identical(layout$dynamic_uv_kind, "ar1")) return(NULL)
+	if (!is.list(layout) || !isTRUE(layout$dynamic_uv)) return(NULL)
 	input <- checkpoint$call_args$prior
 	input <- if (is.null(input)) list() else if (is.list(input)) input else
 		eval(input, envir = envir)

@@ -31,25 +31,44 @@
 	list(n = n, p = p, nt = nt, H = H, index = idx, native = native)
 }
 
-.lame_joint_levels_parameters <- function(Z, a_dev, b_dev, Sab, rho, cx) {
+.lame_joint_levels_parameters <- function(Z, a_dev, b_dev, Sab, rho, cx, offset = NULL) {
 	if (length(rho) != 1L || !is.finite(rho) || abs(rho) >= 1 || !all(is.finite(Sab)))
 		stop("Invalid joint coefficient/level covariance.", call. = FALSE)
 	residual <- unlist(lapply(seq_len(cx$nt), function(t) {
 		z <- Z[, , t] - outer(a_dev[, t], b_dev[, t], "+")
+		if (!is.null(offset)) z <- z - offset[, , t]
 		z[cx$index]
 	}))
 	if (any(!is.finite(residual))) stop("Nonfinite joint coefficient/level residual.", call. = FALSE)
 	joint_levels_parameters_cpp(cx$native, residual, Sab, rho)
 }
 
-.lame_joint_levels_draw <- function(Z, a_dev, b_dev, Sab, rho, cx) {
-	moments <- .lame_joint_levels_parameters(Z, a_dev, b_dev, Sab, rho, cx)
+.lame_joint_levels_draw <- function(Z, a_dev, b_dev, Sab, rho, cx, offset = NULL) {
+	moments <- .lame_joint_levels_parameters(Z, a_dev, b_dev, Sab, rho, cx, offset)
 	q <- drop(moments$mean + moments$noise_root %*% rnorm(length(moments$mean)))
 	p <- cx$p; k <- cx$n - 1L
 	list(
-		beta = q[seq_len(p)],
+		beta = if (isTRUE(cx$placeholder)) numeric(0) else q[seq_len(p)],
 		a = drop(cx$H %*% q[p + seq_len(k)]),
 		b = drop(cx$H %*% q[p + k + seq_len(k)]),
 		q = q
 	)
+}
+
+# context of a dynamic_beta fit: the static design columns under precision 1 / var_static (or the panel
+# precision P_static), the paths entering as an offset; with no static coefficient a zero column with a
+# unit prior is drawn and dropped
+.lame_joint_levels_static_context <- function(Xlist, static_idx, var_static, P_static = NULL) {
+	placeholder <- length(static_idx) == 0L
+	X <- if (placeholder) {
+		lapply(Xlist, function(x) array(0, c(dim(x)[1:2], 1L)))
+	} else lapply(Xlist, function(x) x[, , static_idx, drop = FALSE])
+	Q <- if (placeholder) {
+		matrix(1, 1L, 1L)
+	} else if (!is.null(P_static)) {
+		P_static
+	} else diag(1 / var_static, length(static_idx))
+	cx <- .lame_joint_levels_context(X, Q)
+	if (!is.null(cx)) cx$placeholder <- placeholder
+	cx
 }

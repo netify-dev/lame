@@ -54,38 +54,12 @@
 	)
 }
 
-.lame_binary_static_hmc_unpack <- function(q, cx) {
-	out <- lapply(seq_along(cx$dims), function(j) {
-		d <- cx$dims[[j]]
-		z <- q[cx$indices[[j]]]
-		if (length(d) > 1L)
-			dim(z) <- d
-		z
-	})
-	names(out) <- names(cx$dims)
-	out
-}
-
-.lame_binary_static_hmc_pack <- function(z) unlist(z, use.names = FALSE)
-
-.lame_binary_static_hmc_ar <- function(path, rho, var, initial_precision) {
-	nt <- nrow(path)
-	p <- ncol(path)
-	gr <- matrix(0, nt, p)
-	gr[1, ] <- -drop(initial_precision %*% path[1, ])
-	q <- -sum(gr[1, ] * path[1, ])
-	if (nt > 1L) {
-		e <- path[-1, , drop = FALSE] - sweep(path[-nt, , drop = FALSE], 2, rho, "*")
-		v <- sweep(e, 2, var, "/")
-		q <- q + sum(e * v)
-		gr[-1, ] <- gr[-1, , drop = FALSE] - v
-		gr[-nt, ] <- gr[-nt, , drop = FALSE] + sweep(v, 2, rho, "*")
-	}
-	list(logp = -q / 2, gradient = gr)
-}
+# the static move packs, unpacks and scores its coefficient path as the dynamic move does
+# (R/binary_marginal_move.R)
+.lame_binary_static_hmc_unpack <- .lame_binary_hmc_unpack
 
 .lame_binary_static_hmc_evaluate <- function(q, cx, h) {
-	z <- .lame_binary_static_hmc_unpack(q, cx)
+	z <- .lame_binary_hmc_unpack(q, cx)
 	n <- cx$n
 	nt <- cx$nt
 	H <- cx$H
@@ -107,9 +81,22 @@
 	ga <- apply(ge, c(1, 3), sum)
 	gbactor <- apply(ge, c(2, 3), sum)
 	for (t in seq_len(nt)) gb[t, ] <- drop(crossprod(cx$X[[t]], c(ge[, , t])))
-	gs <- colSums(gb[, cx$static_idx, drop = FALSE]) - z$static / h$g
-	lg <- lg - 0.5 * sum(z$static^2 / h$g)
-	ar <- .lame_binary_static_hmc_ar(z$path, h$rho_beta, h$var_beta, h$iC0)
+	# static coefficients under N(0, g) each, or the panel precision h$P
+	if (is.null(h$P)) {
+		gs <- colSums(gb[, cx$static_idx, drop = FALSE]) - z$static / h$g
+		lg <- lg - 0.5 * sum(z$static^2 / h$g)
+	} else {
+		ps <- drop(h$P %*% z$static)
+		gs <- colSums(gb[, cx$static_idx, drop = FALSE]) - ps
+		lg <- lg - 0.5 * sum(z$static * ps)
+	}
+	# an ar1 path enters its prior as the deviation from its long-run mean
+	ar <- .lame_binary_hmc_ar(
+		if (is.null(h$mu_beta)) z$path else .lame_beta_deviation(z$path, h$mu_beta),
+		h$rho_beta,
+		h$var_beta,
+		h$iC0
+	)
 	gp <- gb[, cx$dynamic_idx, drop = FALSE] + ar$gradient
 	lg <- lg + ar$logp
 	gl <- crossprod(H, cbind(rowSums(ga), rowSums(gbactor))) - z$level %*% h$iSab
@@ -123,7 +110,7 @@
 	e <- apply(ge, c(1, 2), sum)
 	gu <- e %*% z$V + gW[, seq_len(cx$rank), drop = FALSE]
 	gv <- t(e) %*% z$U + gW[, cx$rank + seq_len(cx$rank), drop = FALSE]
-	list(logp = lg, gradient = .lame_binary_static_hmc_pack(list(gs, gp, gl, gu, gv)), eta = eta)
+	list(logp = lg, gradient = .lame_binary_hmc_pack(list(gs, gp, gl, gu, gv)), eta = eta)
 }
 
 # diagonal mass: prior precision plus a data-based Fisher scale, held fixed within a trajectory
@@ -138,11 +125,11 @@
 		q
 	}
 	xx <- t(vapply(cx$X, function(x) colSums(x^2), numeric(cx$p))) * cx$weight
-	ms <- 1 / h$g + colSums(xx[, cx$static_idx, drop = FALSE])
+	ms <- (if (is.null(h$P)) 1 / h$g else diag(h$P)) + colSums(xx[, cx$static_idx, drop = FALSE])
 	mp <- ardiag(cx$nt, h$rho_beta, h$var_beta, diag(h$iC0)) + xx[, cx$dynamic_idx, drop = FALSE]
 	ml <- matrix(rep(diag(h$iSab) + cx$nt * (cx$n - 1) * cx$weight, each = cx$k), cx$k, 2)
 	mu <- matrix((cx$n + cx$uv_df) / cx$uv_psi + cx$nt * cx$n * cx$weight, cx$n, cx$rank)
-	pmax(.lame_binary_static_hmc_pack(list(ms, mp, ml, mu, mu)), 1e-08)
+	pmax(.lame_binary_hmc_pack(list(ms, mp, ml, mu, mu)), 1e-08)
 }
 
 # leapfrog integrator; a trajectory that turns non-finite is rejected whole

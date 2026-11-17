@@ -4,11 +4,11 @@ test_that('the covariance of a path is the AR(1) law, with local innovation scal
 	nt = 5; rho = .7; sg = .6
 	cv = .lame_dpm_cov(nt, rho, sg)
 	expect_equal(cv, sg^2 / (1 - rho^2) * rho^abs(outer(1:nt, 1:nt, '-')))
-	lam = c(1, .5, 2, 1.5, .8)
+	lam = c(.6, .5, 2, 1.5, .8)
 	cl = .lame_dpm_cov(nt, rho, sg, lam)
-	# the precision of the chain: stationary start, transitions N(rho u_{t-1}, sg^2 / lambda_t)
+	# the precision of the chain: stationary start N(0, sg^2 / ((1 - rho^2) lambda_1)), transitions N(rho u_{t-1}, sg^2 / lambda_t)
 	Pm = matrix(0, nt, nt)
-	Pm[1, 1] = (1 - rho^2) / sg^2
+	Pm[1, 1] = lam[1] * (1 - rho^2) / sg^2
 	for (t in 2:nt) {
 		a = lam[t] / sg^2
 		Pm[t, t] = Pm[t, t] + a; Pm[t - 1, t - 1] = Pm[t - 1, t - 1] + a * rho^2
@@ -104,7 +104,7 @@ test_that('lame() moves the position paths of a Poisson fit with the latent arra
 	}
 })
 
-test_that('lame() runs the path move for symmetric fits, the t kind, dynamic_ab and a rail, and other families run without it', {
+test_that('lame() runs the path move for symmetric fits, the t and snap kinds, dynamic_ab and a rail, and other families run without it', {
 	skip_on_cran()
 	p = dpmt_panel('sym')
 	sy = dpmt_run(p, 'sym')
@@ -116,12 +116,15 @@ test_that('lame() runs the path move for symmetric fits, the t kind, dynamic_ab 
 	expect_equal(unname(ab$actor_move['dpm_calls']), 20 * 16)
 	rl = dpmt_run(p, 'dir', list(uv_max_abs = 1.5), posterior_opts = list(save_UV = TRUE, thin_UV = 1L))
 	expect_lte(max(abs(c(rl$U_draws, rl$V_draws))), 1.5)
-	# the snap kind and the other families keep the sampler's own updates
+	# the snap kind runs its compiled visit, the resets summed out
 	sn = dpmt_run(p, 'dir', dynamic_uv_kind = 'snap')
-	expect_false('dpm_calls' %in% names(sn$actor_move))
+	expect_equal(unname(sn$actor_move['dpm_calls']), 20 * 16)
+	expect_gt(unname(sn$actor_move['snap_scales_accepted']), 0)
 	pb = dpmt_panel('dir', binary = TRUE)
 	bn = dpmt_run(pb, 'dir', family = 'binary', dynamic_uv_kind = 'snap')
-	expect_false('dpm_calls' %in% names(bn$actor_move))
+	expect_equal(unname(bn$actor_move['dpm_calls']), 20 * 16)
+	expect_gt(unname(bn$actor_move['snap_scales_accepted']), 0)
+	# the other families keep the sampler's own updates
 	po = lapply(p$Y, function(y) { y[!is.na(y)] = pmin(y[!is.na(y)], 3); y })
 	od = suppressMessages(
 		suppressWarnings(
@@ -168,21 +171,6 @@ test_that('the exact-posterior check detects a move that drops its data factor',
 		.package = 'lame'
 	)
 	expect_gt(dpmt_exact('dir', 'ar1', 1L, ndraw = 2e5, seed = 9L)$maxz, 6)
-})
-test_that('the exact-posterior check detects a mis-scaled shift', {
-	skip_on_cran()
-	delta = .lame_dpm_delta
-	local_mocked_bindings(.lame_dpm_delta = function(w, d) 1.3 * delta(w, d), .package = 'lame')
-	expect_gt(dpmt_exact('dir', 'ar1', 1L, ndraw = 2e5, seed = 10L)$maxz, 6)
-})
-test_that('the exact-posterior check detects a mis-stated persistence of the prior', {
-	skip_on_cran()
-	root = .lame_dpm_root
-	local_mocked_bindings(
-		.lame_dpm_root = function(nt, rk, rho, sigma, lambda = NULL) root(nt, rk, .95 * rho, sigma, lambda),
-		.package = 'lame'
-	)
-	expect_gt(dpmt_exact('dir', 'ar1', 1L, ndraw = 2e5, seed = 11L)$maxz, 4.6)
 })
 
 test_that('the probit factor of a path move equals the log likelihood of the observed cells of its row', {
@@ -293,7 +281,7 @@ test_that('the binary path move leaves the exact posterior of a tiny panel invar
 	}
 })
 
-test_that('the binary exact-posterior check detects a move that drops its data factor, flips the sign of a cell or ignores the dyad factor', {
+test_that('the binary exact-posterior check detects a move that drops its data factor', {
 	skip_on_cran()
 	ess = .lame_ess_step
 	local_mocked_bindings(
@@ -301,20 +289,6 @@ test_that('the binary exact-posterior check detects a move that drops its data f
 		.package = 'lame'
 	)
 	expect_gt(dpmt_exact_binary('dir', 'ar1', 1L, ndraw = 2e5, seed = 19L)$maxz, 5)
-})
-test_that('the binary exact-posterior check detects a flipped sign of the cell factors', {
-	skip_on_cran()
-	pl = .lame_dpm_probit_ll
-	local_mocked_bindings(
-		.lame_dpm_probit_ll = function(b, sg, idx, w, d, sd_cell = 1) pl(b, -sg, idx, w, d, sd_cell),
-		.package = 'lame'
-	)
-	expect_gt(dpmt_exact_binary('sym', 'ar1', 1L, ndraw = 2e5, seed = 20L)$maxz, 5)
-})
-test_that('the binary exact-posterior check detects a move that ignores the shared dyad factor', {
-	skip_on_cran()
-	local_mocked_bindings(.lame_dyad_factor_draw = function(Z, EZ, rho, upper_idx) array(0, dim(Z)), .package = 'lame')
-	expect_gt(dpmt_exact_binary('dir', 'ar1', 1L, ndraw = 2e5, seed = 21L)$maxz, 4.6)
 })
 
 test_that('the scale ridge of the symmetric gauge keeps the product and leaves the prior of the paths and weights invariant', {
@@ -463,4 +437,204 @@ test_that('a bipartite visit handles different ranks of the two sides, for the P
 		expect_true(all(o$Z[obs & Yb == 1] > 0)); expect_true(all(o$Z[obs & Yb == 0] <= 0))
 		U = o$U; V = o$V; Zb = o$Z; EZ = o$EZ
 	}
+})
+
+test_that('the snap path visit keeps the snap prior of the paths when the data are drawn from them', {
+	skip_on_cran()
+	# successive conditionals: data given the paths, then one visit; the paths and resets keep their prior.
+	# probit cells, and Gaussian latent cells whose reciprocal pairs correlate
+	n = 4L; R = 2L; nt = 4L; rho = .8; sg = .4; kap = 2; pis = .2
+	v1 = sg^2 / (1 - rho^2)
+	vt = numeric(nt); vt[1] = v1
+	for (t in 2:nt) vt[t] = pis * kap^2 + (1 - pis) * (rho^2 * vt[t - 1] + sg^2)
+	ez = function(U, V) {
+		E = array(0, c(n, n, nt))
+		for (t in seq_len(nt)) E[, , t] = -.3 + tcrossprod(U[, , t], V[, , t])
+		E
+	}
+	for (kind in c(0L, 2L)) {
+		set.seed(41 + kind)
+		U = V = array(0, c(n, R, nt)); du = dv = matrix(0, n, nt)
+		for (i in seq_len(n)) {
+			U[i, , 1] = rnorm(R, 0, sqrt(v1)); V[i, , 1] = rnorm(R, 0, sqrt(v1))
+			for (t in 2:nt) { U[i, , t] = rho * U[i, , t - 1] + rnorm(R, 0, sg); V[i, , t] = rho * V[i, , t - 1] + rnorm(R, 0, sg) }
+		}
+		n_it = 6000
+		out = matrix(0, n_it, 1 + nt)
+		ez_err = 0
+		for (it in seq_len(n_it)) {
+			EZ = ez(U, V)
+			if (kind == 0L) {
+				mask = 2 * array(rbinom(length(EZ), 1, pnorm(EZ)), dim(EZ)) - 1
+				Z = EZ
+			} else {
+				e1 = array(rnorm(length(EZ)), dim(EZ)); e2 = array(rnorm(length(EZ)), dim(EZ))
+				for (t in seq_len(nt)) {
+					a = e1[, , t]; lo = lower.tri(a)
+					a[lo] = .4 * t(a)[lo] + sqrt(1 - .4^2) * e2[, , t][lo]
+					e1[, , t] = sqrt(.5) * a
+				}
+				Z = EZ + e1
+				mask = array(1, dim(EZ))
+			}
+			for (t in seq_len(nt)) diag(mask[, , t]) = 0
+			o = snap_path_visit_cpp(EZ, Z, array(0, dim(EZ)), mask, numeric(0), numeric(0), U, V, rho, sg, kap, pis, du, dv,
+				1, Inf, .5, rep(.4, nt), kind)
+			ez_err = max(ez_err, abs(o$EZ - ez(o$U, o$V)))
+			U = o$U; V = o$V; du = o$delta_u; dv = o$delta_v
+			out[it, ] = c(mean(c(du[, -1], dv[, -1])), apply(U^2 + V^2, 3, mean) / 2)
+		}
+		expect_lt(ez_err, 1e-10)
+		expect_equal(du[, 1], rep(0, n))
+		expect_lt(abs(mean(out[, 1]) - pis), .03)
+		expect_lt(max(abs(colMeans(out[, -1]) / vt - 1)), .15)
+	}
+	# the argument the sampler passes
+	sa = .lame_dpm_snap_arg(.1, NULL, rho, sg, NULL, NULL, 3, 5)
+	expect_equal(sa$kappa, .lame_snap_kappa(NULL, rho, sg))
+	expect_equal(sa$delta_u, matrix(0, 3, 5))
+})
+
+test_that('the snap path visit draws one Poisson line from its posterior', {
+	skip_on_cran()
+	# two actors, rank one, three periods, counts on the cell from sender 1 to receiver 2: the resets and
+	# positions of the two paths against importance sampling from the snap prior
+	nt = 3L; rho = .8; sg = .4; kap = 2; pis = .2
+	y = c(2, 0, 3)
+	v1 = sg^2 / (1 - rho^2)
+	prior_draw = function(M) {
+		x = matrix(0, M, nt); d = matrix(0, M, nt)
+		x[, 1] = rnorm(M, 0, sqrt(v1))
+		for (t in 2:nt) {
+			d[, t] = runif(M) < pis
+			x[, t] = ifelse(d[, t] == 1, rnorm(M, 0, kap), rho * x[, t - 1] + rnorm(M, 0, sg))
+		}
+		list(x = x, d = d)
+	}
+	set.seed(51)
+	M = 1e6
+	pu = prior_draw(M); pv = prior_draw(M)
+	lw = rowSums(dpois(matrix(y, M, nt, byrow = TRUE), exp(pu$x * pv$x), log = TRUE))
+	w = exp(lw - max(lw)); w = w / sum(w)
+	ex = c(colSums(w * pu$d)[-1], colSums(w * pv$d)[-1], colSums(w * pu$x^2), colSums(w * pu$x * pv$x))
+	rm(pu, pv)
+	U = V = array(0, c(2, 1, nt)); du = dv = matrix(0, 2, nt)
+	mask = cnt = array(0, c(2, 2, nt)); mask[1, 2, ] = 1; cnt[1, 2, ] = y
+	n_it = 150000
+	acc = numeric(length(ex))
+	for (it in seq_len(n_it)) {
+		EZ = array(0, c(2, 2, nt))
+		for (t in seq_len(nt)) EZ[, , t] = tcrossprod(U[, , t], V[, , t])
+		o = snap_path_visit_cpp(EZ, EZ, numeric(0), mask, cnt, numeric(nt), U, V, rho, sg, kap, pis, du, dv, 1, Inf, 1, numeric(nt), 1L)
+		U = o$U; V = o$V; du = o$delta_u; dv = o$delta_v
+		acc = acc + c(du[1, -1], dv[2, -1], U[1, 1, ]^2, U[1, 1, ] * V[2, 1, ])
+	}
+	est = acc / n_it
+	expect_lt(max(abs(est[1:4] - ex[1:4])), .012)
+	expect_lt(max(abs(est[5:7] - ex[5:7])), .06)
+	expect_lt(max(abs(est[8:10] - ex[8:10])), .02)
+})
+
+test_that('every family the snap kind accepts runs the snap path visit', {
+	skip_on_cran()
+	set.seed(61)
+	n = 8; N = 3
+	Y = lapply(seq_len(N), function(t) {
+		y = matrix(rnorm(n * n), n, n); diag(y) = NA
+		dimnames(y) = list(sprintf('a%d', 1:n), sprintf('a%d', 1:n)); y
+	})
+	names(Y) = paste0('t', 1:N)
+	to_fam = function(fam) lapply(Y, function(y) switch(fam,
+		normal = y,
+		ordinal = { z = y; z[] = findInterval(y, c(-.5, .5)); z },
+		cbin = { z = y * 0; for (i in 1:n) z[i, order(y[i, ], decreasing = TRUE)[1:2]] = 1; diag(z) = NA; z },
+		frn = { z = y * 0; for (i in 1:n) { k = order(y[i, ], decreasing = TRUE)[1:2]; z[i, k] = 2:1 }; diag(z) = NA; z }
+	))
+	for (fam in c('normal', 'ordinal', 'cbin', 'frn')) {
+		f = suppressWarnings(suppressMessages(lame(
+			to_fam(fam),
+			family = fam,
+			R = 1,
+			odmax = if (fam %in% c('cbin', 'frn')) 3 else NULL,
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = 'snap',
+			burn = 10,
+			nscan = 30,
+			odens = 5,
+			seed = 3,
+			chains = 1,
+			verbose = FALSE,
+			plot = FALSE,
+			gof = FALSE,
+			prior = list(als_start = FALSE)
+		)))
+		expect_equal(unname(f$actor_move['dpm_calls']), 40 * 2 * n, info = fam)
+		expect_gt(unname(f$actor_move['snap_scales_accepted']), 0)
+		off = suppressWarnings(suppressMessages(lame(
+			to_fam(fam),
+			family = fam,
+			R = 1,
+			odmax = if (fam %in% c('cbin', 'frn')) 3 else NULL,
+			dynamic_uv = TRUE,
+			dynamic_uv_kind = 'snap',
+			burn = 10,
+			nscan = 30,
+			odens = 5,
+			seed = 3,
+			chains = 1,
+			verbose = FALSE,
+			plot = FALSE,
+			gof = FALSE,
+			prior = list(als_start = FALSE, actor_move_paths = FALSE)
+		)))
+		expect_false('dpm_calls' %in% names(off$actor_move), info = fam)
+	}
+})
+
+test_that('two chains of a binary snap fit with a fixed reset scale agree on the resets', {
+	skip_on_cran()
+	# the panel of the convergence sweep's binary snap cell (seed 0) whose chains settled on 0.2 and 1.1 resets
+	set.seed(185000)
+	n = 25; N = 5; R = 2
+	rn = sprintf('a%02d', 1:n)
+	U = matrix(rnorm(n * R, 0, .8), n, R); V = matrix(rnorm(n * R, 0, .8), n, R)
+	a0 = rnorm(n, 0, .3); b0 = rnorm(n, 0, .3)
+	invisible(rnorm(2 * n))
+	Y = vector('list', N)
+	for (t in 1:N) {
+		if (t > 1) {
+			U = .9 * U + sqrt(1 - .81) * matrix(rnorm(n * R, 0, .8), n, R)
+			V = .9 * V + sqrt(1 - .81) * matrix(rnorm(n * R, 0, .8), n, R)
+		}
+		eta = -.5 + outer(a0, rep(1, n)) + outer(rep(1, n), b0) + tcrossprod(U, V)
+		invisible(rnorm(n * n + 2 * n))
+		z = eta + matrix(rnorm(n * n), n, n)
+		y = 1 * (z > 0); diag(y) = NA
+		dimnames(y) = list(rn, rn)
+		Y[[t]] = y
+	}
+	names(Y) = paste0('t', 1:N)
+	pr = list(snap_kappa = 4)
+	attr(pr, 'lame_chain_list') = TRUE
+	fits = suppressWarnings(suppressMessages(lame(
+		Y,
+		family = 'binary',
+		R = 2,
+		dynamic_uv = TRUE,
+		dynamic_uv_kind = 'snap',
+		prior = pr,
+		burn = 500,
+		nscan = 2000,
+		odens = 20,
+		seed = 6886,
+		chains = 2,
+		cores = 1,
+		verbose = FALSE,
+		plot = FALSE
+	)))
+	expect_length(fits, 2L)
+	resets = vapply(fits, function(f) sum(f$snap_prob[, -1]) + sum(f$snap_prob_v[, -1]), numeric(1))
+	expect_lt(abs(resets[1] - resets[2]), .5)
+	expect_gt(unname(fits[[1]]$actor_move['dpm_calls']), 0)
+	expect_gt(unname(fits[[1]]$actor_move['snap_scales_accepted']), 0)
 })

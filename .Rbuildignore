@@ -21,3 +21,6 @@
 ^vignettes/articles$
 ^backups$
 ^CRAN-SUBMISSION$
+^AGENTS\.md$
+^CODE_STYLE\.txt$
+^tests/testthat/testthat-problems\.rds$

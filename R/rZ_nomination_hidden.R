@@ -58,44 +58,6 @@
 .lame_cbin_implied_labels <- function(Z, Y, odmax, hid) {
 	cbin_implied_labels_cpp(Z, Y, as.numeric(rep_len(odmax, nrow(Y))), hid)
 }
-# R reference of cbin_implied_labels_cpp, used in the tests
-.lame_cbin_implied_labels_r <- function(Z, Y, odmax, hid) {
-	Ya <- Y
-	cap <- rep_len(odmax, nrow(Y))
-	n1 <- rowSums(!is.na(Y) & Y > 0)
-	for (i in which(rowSums(hid) > 0L)) {
-		h <- which(hid[i, ])
-		zh <- Z[i, h]
-		lab <- numeric(length(h))
-		r <- max(cap[i] - n1[i], 0)
-		pos <- which(zh > 0)
-		if (r > 0 && length(pos)) {
-			top <- pos[order(zh[pos], decreasing = TRUE)][seq_len(min(r, length(pos)))]
-			lab[top] <- 1
-		}
-		Ya[i, h] <- lab
-	}
-	Ya
-}
-
-# log of the standard normal mass on (lo, hi), stable in both tails
-.lame_log_norm_mass <- function(lo, hi) {
-	out <- rep(-Inf, length(lo))
-	ok <- hi > lo
-	up <- ok & lo >= 0
-	dn <- ok & !up
-	if (any(up)) {
-		a <- stats::pnorm(lo[up], lower.tail = FALSE, log.p = TRUE)
-		b <- stats::pnorm(hi[up], lower.tail = FALSE, log.p = TRUE)
-		out[up] <- a + log1p(-exp(b - a))
-	}
-	if (any(dn)) {
-		a <- stats::pnorm(hi[dn], log.p = TRUE)
-		b <- stats::pnorm(lo[dn], log.p = TRUE)
-		out[dn] <- a + log1p(-exp(b - a))
-	}
-	out
-}
 
 # redraw each hidden cell from its conditional given the rest of its row and the observed cells; the
 # row's consistency changes only at 0, M0 and m1, so the support is a union of intervals. one hidden
@@ -107,86 +69,8 @@
 	names(hl) <- NULL
 	for (i in which(lengths(hl) > 1L)) hl[[i]] <- hl[[i]][sample.int(length(hl[[i]]))]
 	if (!max(lengths(hl))) return(Z)
-	# compiled rounds; .lame_cbin_hidden_moves_r is the R reference with the same draws
+	# compiled rounds (the R reference with the same draws is in the tests)
 	cbin_hidden_moves_cpp(Z, EZ, rho, !bip, as.numeric(rep_len(odmax, n_r)), Y, hid, hl)
-}
-.lame_cbin_hidden_moves_r <- function(Z, EZ, rho, Y, odmax, hid, bip) {
-	n_r <- nrow(Z); n_c <- ncol(Z)
-	sq <- !bip
-	cond_sd <- if (sq) sqrt(1 - rho^2) else 1
-	cap <- rep_len(odmax, n_r)
-	o1 <- !is.na(Y) & Y > 0
-	o0 <- !is.na(Y) & Y == 0
-	if (sq) { diag(o1) <- FALSE; diag(o0) <- FALSE }
-	n1 <- rowSums(o1)
-	r <- cap - n1
-	z1 <- Z; z1[!o1] <- Inf
-	m1 <- apply(z1, 1L, min)
-	z0 <- Z; z0[!o0] <- -Inf
-	M0 <- apply(z0, 1L, max)
-	P0 <- rowSums(o0 & Z > 0)
-	# the hidden cells of each row, in a random order
-	hl <- lapply(seq_len(n_r), function(i) {
-		h <- which(hid[i, ])
-		if (length(h) > 1L) h[sample.int(length(h))] else h
-	})
-	n_round <- max(lengths(hl))
-	if (!n_round) return(Z)
-	for (k in seq_len(n_round)) {
-		rows <- which(lengths(hl) >= k)
-		cols <- vapply(rows, function(i) hl[[i]][k], integer(1))
-		blocks <- if (sq) list(rows < cols, rows > cols) else list(rep(TRUE, length(rows)))
-		for (bl in blocks) {
-			if (!any(bl)) next
-			ii <- rows[bl]; jj <- cols[bl]
-			pos <- ii + (jj - 1L) * n_r
-			x_old <- Z[pos]
-			# the other hidden cells of each row above 0, M0 and m1
-			cnt <- function(t) rowSums(hid[ii, , drop = FALSE] & (Z[ii, , drop = FALSE] > t)) - (x_old > t)
-			a0 <- cnt(0); aM <- cnt(M0[ii]); am <- cnt(m1[ii])
-			M <- M0[ii]; m <- m1[ii]; rr <- r[ii]; cp <- cap[ii]; nn <- n1[ii]; p0 <- P0[ii]
-			Mp <- pmax(M, 0)
-			lo <- cbind(-Inf, 0, Mp, m)
-			hi <- cbind(0, Mp, m, Inf)
-			feas <- matrix(FALSE, length(ii), 4L)
-			for (g in 1:4) {
-				gt0 <- g >= 2L
-				gtM <- g >= 3L & M > 0
-				gtm <- g == 4L
-				K <- nn + a0 + p0 + gt0
-				ok_le <- K <= cp & p0 == 0
-				ok_gt <- K > cp & (am + gtm) <= rr & (M <= 0 | (aM + gtM) >= rr)
-				feas[, g] <- (ok_le | ok_gt) & hi[, g] > lo[, g]
-			}
-			mu <- EZ[pos]
-			if (sq && rho != 0) {
-				mp <- jj + (ii - 1L) * n_r
-				mu <- mu + rho * (Z[mp] - EZ[mp])
-			}
-			lm <- .lame_log_norm_mass((lo - mu) / cond_sd, (hi - mu) / cond_sd)
-			lm <- matrix(lm, length(ii), 4L)
-			lm[!feas] <- -Inf
-			mx <- apply(lm, 1L, max)
-			good <- is.finite(mx)
-			if (!any(good)) next
-			w <- exp(lm[good, , drop = FALSE] - mx[good])
-			w <- w / rowSums(w)
-			u <- stats::runif(sum(good))
-			g_pick <- 1L + rowSums(u > t(apply(w, 1L, cumsum)))
-			g_pick <- pmin(g_pick, 4L)
-			sel <- cbind(seq_len(sum(good)), g_pick)
-			lb <- lo[good, , drop = FALSE][sel]; ub <- hi[good, , drop = FALSE][sel]
-			val <- mu[good] + cond_sd * rtnorm_interval_logp(
-				rep(0, sum(good)),
-				(lb - mu[good]) / cond_sd,
-				(ub - mu[good]) / cond_sd
-			)
-			bad <- !is.finite(val)
-			if (any(bad)) val[bad] <- x_old[good][bad]
-			Z[pos[good]] <- val
-		}
-	}
-	Z
 }
 
 # frn rows with hidden cells: observed ranks are read for their order only, since a hidden

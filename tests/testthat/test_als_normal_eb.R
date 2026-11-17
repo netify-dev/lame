@@ -144,7 +144,7 @@ test_that("the terms of the mode are the log likelihood and its derivatives, the
 	# working problem: response y, weight 1 / ve, no cap on the increment
 	wk = lame:::.ae_irls_gauss(y * 1e4, lame:::.ae_gauss_terms(y * 1e4, eta, ve))
 	expect_equal(wk$z[obs], (y * 1e4)[obs]); expect_equal(wk$w[obs], rep(1 / ve, sum(obs)))
-	expect_equal(lame:::.ae_dev_gauss(tm), -2 * sum(tm$l))
+	expect_equal(lame:::.ae_dev_terms(tm), -2 * sum(tm$l))
 })
 
 test_that("the posterior of the dyadic correlation is the sampler's prior times the pair likelihood", {
@@ -271,7 +271,7 @@ gls_reference = function(f, d, pair = FALSE) {
 test_that("a rank-0 fit is the exact posterior of the linear Gaussian model at its hyperparameters", {
 	d = sim_norm_net(12, seed = 7)
 	f = fit_norm(d, 0, dcor = FALSE, tol = 1e-10)
-	expect_identical(f$bias_correct$method, "eb"); expect_identical(f$eb$estimator, "variational")
+	expect_null(f$bias_correct); expect_identical(f$eb$estimator, "variational")
 	g = gls_reference(f, d)
 	# coefficients, node coefficients included, are the GLS ones; their covariance is the Laplace one
 	expect_equal(unname(f$coefficients), g$theta, tolerance = 1e-6)
@@ -311,31 +311,16 @@ test_that("a rank-0 fit with the dyadic correlation is the generalised least squ
 	expect_gt(f$eb$pair$sd, 0)
 })
 
-test_that("a normal fit is empirical Bayes by default and the fixed-effects fit is one argument away", {
+test_that("a normal fit is empirical Bayes", {
 	d = sim_norm_net(16, seed = 9)
 	f = fit_norm(d, 0)
-	expect_identical(f$bias_correct$method, "eb"); expect_true(f$bias_correct$default)
+	expect_null(f$bias_correct)
 	expect_identical(f$non_normal_method, "irls"); expect_identical(f$link, "identity")
 	expect_false(is.null(f$eb$se)); expect_true(
 		all(c("intercept", "x1_dyad", "x2_dyad", "xr_row", "xc_col") %in% names(f$eb$se))
 	)
 	expect_equal(f$s2, f$VC[["ve"]]); expect_equal(f$VC[["ve"]], f$eb$ve)
 	expect_true(is.finite(f$eb$log_marginal))
-	fe = fit_norm(d, 0, bias_correct = "eb")
-	expect_false(isTRUE(fe$bias_correct$default)); expect_equal(fe$coefficients, f$coefficients)
-	fx = fit_norm(d, 0, bias_correct = "none", tol = 1e-10)
-	expect_identical(fx$bias_correct$method, "none"); expect_identical(
-		fx$bias_correct$requested,
-		"none"
-	); expect_null(fx$eb)
-	expect_identical(fx$non_normal_method, "transform")
-	# the rank-0 fixed-effects fit is two-way least squares, so the dyadic slopes are lm()'s
-	y = as.vector(d$Y[, , 1]); x1 = as.vector(d$X[, , 1, 1]); x2 = as.vector(d$X[, , 2, 1])
-	rw = factor(rep(seq_len(16), 16)); cl = factor(rep(seq_len(16), each = 16))
-	ls = lm(y ~ x1 + x2 + rw + cl)
-	expect_equal(unname(fx$coefficients[c("x1_dyad", "x2_dyad")]), unname(coef(ls)[c("x1", "x2")]), tolerance = 1e-6)
-	# its standard errors are the conditional sandwich of the dyadic coefficients
-	expect_null(fx$eb$vcov); expect_true(all(c("x1_dyad", "x2_dyad") %in% rownames(suppressMessages(vcov(fx)))))
 	# the empirical-Bayes covariance covers every coefficient, node covariates included
 	expect_setequal(rownames(vcov(f)), names(f$coefficients))
 	expect_true(all(diag(vcov(f)) > 0))
@@ -350,7 +335,7 @@ test_that("every kind of network converges at ranks 0 to 2, with node covariates
 		f = fit_norm(d, R)
 		lab = paste(kind, "R", R, "T", nt)
 		expect_true(f$converged, label = lab)
-		expect_identical(f$bias_correct$method, "eb", label = lab)
+		expect_null(f$bias_correct, label = lab)
 		expect_true(all(is.finite(f$coefficients)) && all(is.finite(f$eb$se)) && all(f$eb$se > 0), label = lab)
 		expect_true(f$VC[["ve"]] > 0, label = lab)
 		expect_equal(is.null(f$eb$pair), kind != "directed", label = lab)
@@ -399,8 +384,7 @@ test_that("a fit that is held to R and its pair model also runs on the R referen
 	skip_on_cran()
 	d = sim_norm_net(14, R = 1, seed = 41)
 	f1 = fit_norm(d, 1)
-	op = options(lame.als_engine = "r"); on.exit(options(op), add = TRUE)
-	f2 = fit_norm(d, 1)
+	f2 = local({ local_als_r_engine(); fit_norm(d, 1) })
 	expect_equal(f1$coefficients, f2$coefficients, tolerance = 1e-6)
 	expect_equal(f1$eb$se, f2$eb$se, tolerance = 1e-6)
 	expect_equal(f1$VC, f2$VC, tolerance = 1e-6)
@@ -469,16 +453,9 @@ test_that("a response without variation, or in units the estimator is not condit
 	expect_error(ame_als(Y, family = "normal", verbose = FALSE), class = "lame_als_data")
 	set.seed(5); Y2 = matrix(rnorm(n * n), n) * 1e-9; diag(Y2) = NA
 	expect_error(ame_als(Y2, family = "normal", verbose = FALSE), class = "lame_als_scale")
-	# the fixed-effects fit is unaffected
-	expect_no_error(suppressWarnings(ame_als(Y, family = "normal", bias_correct = "none", verbose = FALSE)))
 	# a fit that does not settle within its iterations is refused, as in the other families
 	d = sim_norm_net(24, R = 1, seed = 71)
 	expect_error(fit_norm(d, 2, max_iter = 2), class = "lame_als_convergence")
-	yb = 1 * (d$Y[, , 1] > 0.3)
-	expect_error(
-		ame_als(yb, R = 0, family = "binary", non_normal_method = "transform", bias_correct = "eb", verbose = FALSE),
-		class = "lame_als_eb"
-	)
 })
 
 test_that("nearly collinear covariates get a huge standard error, and a design collinear to rounding is refused with the cause", {
@@ -537,13 +514,6 @@ test_that("a refit on the same data returns the fit, and a refit and a bootstrap
 	expect_equal(bt$n_valid, 12L)
 	expect_true(all(is.finite(bt$se)))
 	ci = suppressWarnings(confint(bt)); expect_true(all(names(f$coefficients) %in% rownames(ci)))
-	# a fixed-effects fit refitted with the empirical-Bayes estimator gets all of it
-	fx = fit_norm(d, 1, bias_correct = "none")
-	re = ame_als_refit(fx, bias_correct = "eb", verbose = FALSE)
-	expect_identical(re$bias_correct$method, "eb"); expect_identical(
-		re$eb$estimator,
-		"variational"
-	); expect_false(is.null(re$eb$se))
 })
 
 test_that("multistart keeps the start with the largest evidence, and lame() and ame() with method = 'als' reach the estimator", {
@@ -564,7 +534,7 @@ test_that("multistart keeps the start with the largest evidence, and lame() and 
 			verbose = FALSE
 		)
 	)
-	expect_identical(fa$bias_correct$method, "eb")
+	expect_null(fa$bias_correct)
 	fl = suppressWarnings(
 		lame(
 			list(d$Y[, , 1]),
@@ -577,7 +547,7 @@ test_that("multistart keeps the start with the largest evidence, and lame() and 
 			verbose = FALSE
 		)
 	)
-	expect_identical(fl$bias_correct$method, "eb")
+	expect_null(fl$bias_correct)
 	# the dynamic route is its own estimator (lame_dynamic_als_eb_nrm.R)
 	Yl = lapply(1:4, function(t) { z = sim_norm_net(14, seed = 300 + t)$Y[, , 1]; z })
 	fd = suppressWarnings(lame(Yl, R = 0, family = "normal", method = "als", dynamic_ab = TRUE, verbose = FALSE))
@@ -608,21 +578,4 @@ test_that("an undirected network given as a directed one is refused as the sampl
 	# one unequal pair makes the posterior proper, so it is not refused
 	Y[1, 2] = Y[1, 2] + 0.5
 	expect_no_error(ame_als(Y, R = 0, family = "normal", verbose = FALSE))
-})
-
-test_that("a product that the data barely determine is flagged by its signal per loading", {
-	skip_on_cran()
-	weak = sim_norm_net(30, R = 2, suv = 0.04, seed = 111)
-	f = fit_norm(weak, 2)
-	info = f$eb$variational$information
-	expect_true(all(c("signal", "loadings", "per_loading", "threshold") %in% names(info)))
-	expect_equal(info[["loadings"]], 2 * 60)
-	expect_lt(info[["per_loading"]], 1)
-	expect_match(printed(f), "noise variances of signal per loading", fixed = TRUE)
-	strong = sim_norm_net(30, R = 2, suv = 0.8, seed = 112)
-	g = fit_norm(strong, 2)
-	expect_gt(g$eb$variational$information[["per_loading"]], 1)
-	expect_false(grepl("signal per loading", printed(g), fixed = TRUE))
-	# a fit without a latent rank has no such measure
-	expect_null(fit_norm(strong, 0)$eb$variational$information)
 })

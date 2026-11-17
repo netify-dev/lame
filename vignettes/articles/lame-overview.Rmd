@@ -42,7 +42,7 @@ The package works with [`netify`](https://netify-dev.github.io/netify/) for data
 
 ### Migrating from `amen`
 
-Both `amen` and `lame` export an `ame()` function; if both packages are attached, a startup message reminds you that unqualified `ame(...)` calls dispatch to whichever was attached last, so write `lame::ame(...)` to be explicit. Old `amen` scripts largely run unchanged -- the most common porting fix is `family = "nrm"` becoming `family = "normal"` (the short forms are accepted as aliases, with a message), and `print =` is deprecated in favour of `verbose =`. The full mapping of argument and output differences lives in the *Migration from amen* sections of `?ame` and `?lame`.
+Both `amen` and `lame` export an `ame()` function; if both packages are attached, a startup message reminds you that unqualified `ame(...)` calls dispatch to whichever was attached last, so write `lame::ame(...)` to be explicit. Old `amen` scripts largely run unchanged -- the most common porting fix is `family = "nrm"` becoming `family = "normal"` (the short forms are accepted as aliases, with a message), and `verbose =` takes the place of `print =`. The full mapping of argument and output differences lives in the *Migration from amen* sections of `?ame` and `?lame`.
 
 ## Application: Dutch College Friendships
 
@@ -109,7 +109,7 @@ sapply(Y, function(y) round(mean(y, na.rm = TRUE), 2))
 
 We fit a binary probit AME model with sender random effects (`rvar`), receiver random effects (`cvar`), dyadic correlation (`dcor`), and a one-dimensional latent space (`R = 1`). The random effects capture sender heterogeneity (some students simply nominate more friends) and receiver heterogeneity (some students are nominated more often), while the latent space picks up residual clustering: students who befriend similar people for reasons the observed covariates do not capture. (Why `R = 1` and not 2? See the Latent Space section below.)
 
-The chain has 2,000 burn-in and 60,000 production iterations, and every 60th production iteration is stored (1,000 draws). `seed = 1` fixes the chain: `lame()` seeds its own sampler, so `set.seed()` does not change it. `chains = 1` runs the single chain behind the stored fit (the package default is two chains, seeds `seed` and `seed + 1000`, gated against each other). The chain meets the convergence thresholds (see Checking Convergence below), and it takes about nine minutes on one core, so this vignette loads the fit stored with the package instead of refitting it. The call that produced it is below; `data-raw/lame-overview-fits.R` in the package's source repository runs it, with the other fits in this vignette, and rebuilds the stored file.
+The chain has 2,000 burn-in and 60,000 production iterations, and every 60th production iteration is stored (1,000 draws). `seed = 1` fixes the chain: `lame()` seeds its own sampler, so `set.seed()` does not change it. `chains = 1` runs the single chain behind the stored fit (the package default is two chains, seeded `seed` and `seed + 1000` and compared by $\hat R$ before the fit returns). The chain meets the convergence thresholds (see Checking Convergence below). It takes about nine minutes on one core, so this vignette loads the fit stored with the package. The call that produced it is below; `data-raw/lame-overview-fits.R` in the package's source repository runs it, with the other fits in this vignette, and rebuilds the stored file.
 
 ```{r fit-call, eval = FALSE}
 fit <- lame(
@@ -139,7 +139,7 @@ stored <- readRDS("lame-overview-fits.rds")
 fit <- stored$fit
 ```
 
-The stored copy keeps the additive-effect and latent-position draws of every fifth stored draw (200 draws; `thin_ab = 5`), which is what `simulate()`, `gof_temporal()`, `latent_positions()` and `prediction_draws_long()` use below. It leaves out what this vignette does not read (the forecast state, the refit data and the start values), so `predict(fit, h = 1)` is not available on it.
+The stored copy keeps the additive-effect and latent-position draws of every fifth stored draw (200 draws; `thin_ab = 5`), which is what `simulate()`, `gof_temporal()`, `latent_positions()` and `prediction_draws_long()` use below. It is trimmed to what this vignette reads; forecasting with `predict(fit, h = )` is covered in `vignette("forecasting")`.
 
 ```{r fit-numbers, include = FALSE}
 # numbers quoted in the text below, taken from the stored fit
@@ -282,7 +282,7 @@ The `gof_plot` function compares observed network statistics to their posterior 
 gof_plot(fit)
 ```
 
-For a longitudinal model, `gof_plot` shows these statistics across time, with three elements per panel: the **observed series is a solid black line with filled points**, the **posterior-predictive median is a dashed grey line**, and the **95% credible interval is a grey band** (width set by `credible.level`). Observed values inside the band are features the model reproduces; values outside flag structure it is missing -- itself a substantive finding, not a failure to report.
+For a longitudinal model, `gof_plot` shows these statistics across time, with three elements per panel: the **observed series is a solid black line with filled points**, the **posterior-predictive median is a dashed grey line**, and the **95% credible interval is a grey band** (width set by `credible.level`). Observed values inside the band are features the model reproduces; values outside flag structure it is missing, which is itself a substantive finding.
 
 ```{r overview-gof-counts, include = FALSE}
 # count the observed periods below, inside, and above the plotted bands
@@ -296,9 +296,9 @@ band_counts <- vapply(fit$GOF, function(mat) {
 }, c(below = 0, inside = 0, above = 0))
 ```
 
-Reading the figure: triadic dependence is inside the band at `r band_counts["inside", "cycle.dep"]` of `r length(Y)` periods. Sender degree heterogeneity is above the band at `r band_counts["above", "sd.rowmean"]` periods, and transitivity is above it at `r band_counts["above", "trans.dep"]` periods. These are discrepancies to retain and investigate. Receiver heterogeneity is inside the band at `r band_counts["inside", "sd.colmean"]` periods; dyadic dependence is inside at `r band_counts["inside", "dyad.dep"]`, above at `r band_counts["above", "dyad.dep"]`, and below at `r band_counts["below", "dyad.dep"]`. The observed and simulated statistics use the same cells in each period.
+Reading the figure: triadic dependence is inside the band at `r band_counts["inside", "cycle.dep"]` of `r length(Y)` periods. Sender degree heterogeneity is above the band at `r band_counts["above", "sd.rowmean"]` periods, and transitivity is above it at `r band_counts["above", "trans.dep"]` periods. Receiver heterogeneity is inside the band at `r band_counts["inside", "sd.colmean"]` periods; dyadic dependence is inside at `r band_counts["inside", "dyad.dep"]`, above at `r band_counts["above", "dyad.dep"]`, and below at `r band_counts["below", "dyad.dep"]`. The observed and simulated statistics use the same cells in each period.
 
-The discrepancies above are posterior-predictive features to investigate. The chain meets the convergence thresholds, so they describe the fitted model, not the sampler. AME assumes conditional independence between distinct dyads (the two directions within a dyad can remain correlated), so triangle closure must be represented by clustering of the latent positions; ERGMs model it directly via terms like `gwesp`. The two classes are complementary: ERGM for triangle-closure questions, AME for stable, non-degenerate estimates with explicit actor heterogeneity and a coherent posterior to forecast or simulate from.
+The chain meets the convergence thresholds, so the periods outside the bands describe the fitted model, not the sampler. AME assumes conditional independence between distinct dyads (the two directions within a dyad can remain correlated), so triangle closure must be represented by clustering of the latent positions; ERGMs model it directly via terms like `gwesp`. The two classes are complementary: ERGM for triangle-closure questions, AME for stable, non-degenerate estimates with explicit actor heterogeneity and a coherent posterior to forecast or simulate from.
 
 #### Posterior-predictive temporal-trend test: `gof_temporal()`
 
@@ -320,18 +320,14 @@ The observed slope is `r round(gt_density$slope_obs, 4)` per period, with a two-
 
 The multiplicative effects capture association patterns beyond what the
 covariates and additive effects explain. We fit `R = 1`, so each student's
-sender position ($u_i$) and receiver position ($v_i$) is a single number --
-and a one-dimensional space should be *plotted* as one dimension (a 2-D
-scatter of a 1-D space piles every point onto a line and looks degenerate
-even when the positions are informative). Why not just fit `R = 2`?
-Extra dimensions are not free: they can absorb signal the dyadic
-covariates would otherwise pick up, and a one-dimensional space is far
-easier to display and interpret. Parsimony wins here; to let the data
-adjudicate a rank choice, compare fits with `loo::loo_compare()` out
-of sample, as done for `R = 1` versus `R = 0` at the end of this
-vignette.
+sender position ($u_i$) and receiver position ($v_i$) is a single number,
+plotted on one axis. Why `R = 1` and not `R = 2`? Extra dimensions can
+absorb signal the dyadic covariates would otherwise pick up, and a
+one-dimensional space is easier to display and interpret. To let the data
+choose a rank, compare fits with `loo::loo_compare()` out of sample, as
+done for `R = 1` versus `R = 0` at the end of this vignette.
 
-The honest display for a 1-D space is a ranked dot plot: every student's
+The display for a 1-D space is a ranked dot plot: every student's
 sender and receiver position with a 95% interval, ordered by sender
 position. The intervals come from the 200 saved U/V draws
 (`thin_ab = 5` in the fit above).
@@ -437,7 +433,7 @@ netlet <- netify::netify(
 	output_format = "longit_array"
 )
 
-# a netify object goes straight into lame() (a short demonstration fit)
+# a netify object goes straight into lame()
 fit_netlet <- lame(
 	netlet,
 	family = "binary",
@@ -587,16 +583,15 @@ reshaping step needed.
 
 ## Model comparison: `loo::loo_compare()` as a one-liner
 
-This cellwise comparison uses two independent-residual specifications with
-`dcor = FALSE`. A fit that estimates reciprocity (`dcor = TRUE`, as in the fits
-above) has directed-cell marginal scores that are not likelihood factors, and
-`loo()` refuses them (class `lame_loo_factorization_unsupported`); for those
-models, use a held-out dyad or future-period evaluation that preserves dyad
-dependence.
+`loo()` scores one likelihood factor per observation. With independent
+residuals (`dcor = FALSE`) every directed cell is its own factor, so this
+cellwise comparison uses two `dcor = FALSE` specifications. For fits that
+estimate reciprocity (`dcor = TRUE`, as in the fits above) the factor is the
+dyad; compare those on held-out dyads or future periods.
 
 The independent models save observed likelihood factors with
-`save_log_lik = TRUE`; `fit$log_lik_contract$factorization` records the
-observation unit and whether LOO/WAIC is supported. Each model has 2,000
+`save_log_lik = TRUE`; `fit$log_lik_contract` records the observation unit
+and, in `$factorization`, that the scores are valid for LOO/WAIC. Each model has 2,000
 burn-in and 100,000 production iterations, every 100th stored (1,000 draws), and
 `seed = 1`. A log-likelihood matrix of 1,000 draws by 5,952 cells is too large
 to ship, so the package stores the `loo` objects computed from it;
@@ -662,8 +657,7 @@ Pareto-$k$ diagnostics are in the printed objects: `no_latent` has no observatio
 with $k$ above 0.67, and `latent_R1` has `r length(flag_R1)` of `r n_cells`
 (`r round(100 * length(flag_R1) / n_cells, 1)` percent), the cells for which its
 PSIS estimate is least reliable. Leaving those cells out of both models, `latent_R1`
-is ahead by `r round(d_keep, 1)` elpd units (SE `r round(se_keep, 1)`). This comparison
-uses the independent-residual fits defined in this section.
+is ahead by `r round(d_keep, 1)` elpd units (SE `r round(se_keep, 1)`).
 
 ## Reproducibility: `sessionInfo()` and `renv.lock`
 

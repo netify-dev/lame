@@ -190,7 +190,6 @@ test_that("a fit that reaches the direct additive start matches the plain recurs
 		Xdyad = X,
 		R = 1,
 		family = "binary",
-		bias_correct = "none",
 		verbose = FALSE,
 		max_iter = 60
 	)))
