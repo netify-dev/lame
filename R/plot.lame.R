@@ -93,21 +93,18 @@ plot.lame <- function(
 		pages <- "multiple"
 	}
 
-	# label mappings
+	# label mappings; a bipartite network has rows and columns, not senders and receivers,
+	# and no cab or rho (nor a ve where the family fixes it) to draw
+	bip <- identical(fit$mode, "bipartite")
+	vc_absent <- if (bip) c("cab", "rho", if (isTRUE(fit$family %in% c("binary", "ordinal", "cbin", "frn"))) "ve")
+	row_word <- if (bip) "Row" else "Sender"
+	col_word <- if (bip) "Column" else "Receiver"
 	vc_labels <- c(
-		"va" = "Sender variance",
-		"vb" = "Receiver variance",
+		"va" = paste(row_word, "variance"),
+		"vb" = paste(col_word, "variance"),
 		"cab" = "Sender-receiver covariance",
 		"rho" = "Dyadic correlation",
 		"ve" = "Error variance"
-	)
-	gof_stat_labels <- c(
-		"sd.rowmean" = "Sender degree heterogeneity",
-		"sd.colmean" = "Receiver degree heterogeneity",
-		"dyad.dep" = "Dyadic dependence",
-		"cycle.dep" = "Triadic dependence",
-		"four.cycles" = "Four cycles",
-		"trans.dep" = "Transitivity"
 	)
 	# the observed series is the solid line (predictive median dashed), or the
 	# vertical line over the predictive histogram
@@ -137,7 +134,7 @@ plot.lame <- function(
 
 		if (!is.null(fit$VC)) {
 			vc_names <- colnames(fit$VC)
-			for (i in 1:ncol(fit$VC)) {
+			for (i in which(!vc_names %in% vc_absent)) {
 				trace_data <- rbind(
 					trace_data,
 					data.frame(
@@ -187,7 +184,7 @@ plot.lame <- function(
 
 		if (!is.null(fit$VC)) {
 			vc_names <- colnames(fit$VC)
-			for (i in 1:ncol(fit$VC)) {
+			for (i in which(!vc_names %in% vc_absent)) {
 				density_data <- rbind(
 					density_data,
 					data.frame(
@@ -267,7 +264,7 @@ plot.lame <- function(
 			}
 
 			if (nrow(gof_long_data) > 0) {
-				gof_long_data$statistic <- relabel(gof_long_data$statistic, gof_stat_labels)
+				gof_long_data$statistic <- gof_label(gof_long_data$statistic, bip)
 
 				p_gof <- ggplot2::ggplot(gof_long_data, ggplot2::aes(x = time)) +
 					ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper), alpha = 0.3) +
@@ -322,7 +319,7 @@ plot.lame <- function(
 			}
 
 			if (nrow(gof_long_data) > 0) {
-				gof_long_data$statistic <- relabel(gof_long_data$statistic, gof_stat_labels)
+				gof_long_data$statistic <- gof_label(gof_long_data$statistic, bip)
 
 				p_gof <- ggplot2::ggplot(gof_long_data, ggplot2::aes(x = as.numeric(factor(time)))) +
 					ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper), alpha = 0.3) +
@@ -382,7 +379,7 @@ plot.lame <- function(
 				}
 
 				if (nrow(gof_long_data) > 0) {
-					gof_long_data$statistic <- relabel(gof_long_data$statistic, gof_stat_labels)
+					gof_long_data$statistic <- gof_label(gof_long_data$statistic, bip)
 
 					p_gof <- ggplot2::ggplot(gof_long_data, ggplot2::aes(x = time)) +
 						ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper), alpha = 0.3) +
@@ -421,7 +418,7 @@ plot.lame <- function(
 				}
 
 				if (nrow(gof_plot_data) > 0) {
-					gof_plot_data$statistic <- relabel(gof_plot_data$statistic, gof_stat_labels)
+					gof_plot_data$statistic <- gof_label(gof_plot_data$statistic, bip)
 
 					p_gof <- ggplot2::ggplot(gof_plot_data, ggplot2::aes(x = value)) +
 						ggplot2::geom_histogram(ggplot2::aes(y = ggplot2::after_stat(density)), bins = 30) +
@@ -457,7 +454,7 @@ plot.lame <- function(
 				)
 			}
 
-			gof_plot_data$statistic <- relabel(gof_plot_data$statistic, gof_stat_labels)
+			gof_plot_data$statistic <- gof_label(gof_plot_data$statistic, bip)
 
 			p_gof <- ggplot2::ggplot(gof_plot_data, ggplot2::aes(x = value)) +
 				ggplot2::geom_histogram(ggplot2::aes(y = ggplot2::after_stat(density)), bins = 30) +
@@ -492,12 +489,12 @@ plot.lame <- function(
 
 				df_a <- as.data.frame(as.table(A))
 				names(df_a) <- c("actor", "time", "effect")
-				df_a$type <- "Sender"
+				df_a$type <- row_word
 				df_a$time <- as.integer(df_a$time)
 
 				df_b <- as.data.frame(as.table(B))
 				names(df_b) <- c("actor", "time", "effect")
-				df_b$type <- "Receiver"
+				df_b$type <- col_word
 				df_b$time <- as.integer(df_b$time)
 
 				effects_time_data <- rbind(df_a, df_b)
@@ -515,7 +512,7 @@ plot.lame <- function(
 									time = t,
 									effect = fit$APM_T[[t]][i],
 									name = names(fit$APM_T[[t]])[i],
-									type = "Sender",
+									type = row_word,
 									stringsAsFactors = FALSE
 								)
 							)
@@ -529,7 +526,7 @@ plot.lame <- function(
 									time = t,
 									effect = fit$BPM_T[[t]][i],
 									name = names(fit$BPM_T[[t]])[i],
-									type = "Receiver",
+									type = col_word,
 									stringsAsFactors = FALSE
 								)
 							)
@@ -570,14 +567,14 @@ plot.lame <- function(
 				sender_data <- data.frame(
 					effect = fit$APM,
 					name = names(fit$APM),
-					type = "Sender",
+					type = row_word,
 					stringsAsFactors = FALSE
 				)
 
 				receiver_data <- data.frame(
 					effect = fit$BPM,
 					name = names(fit$BPM),
-					type = "Receiver",
+					type = col_word,
 					stringsAsFactors = FALSE
 				)
 
@@ -604,7 +601,8 @@ plot.lame <- function(
 			cli::cli_alert_info("No additive effects available to plot")
 		}
 
-		# latent multiplicative effects
+		# latent multiplicative effects, factored from the posterior mean product
+		fit <- .lame_positions(fit)
 		if (!is.null(fit$U) && !is.null(fit[["V"]])) {
 			if (length(dim(fit$U)) == 3) {
 				U_2d <- apply(fit$U, c(1, 2), mean)
@@ -616,6 +614,8 @@ plot.lame <- function(
 
 			if (is.matrix(U_2d) && is.matrix(V_2d) && ncol(U_2d) > 0 && ncol(V_2d) > 0) {
 				# separate data frames for U and V (row counts differ for bipartite)
+				u_type <- paste0("U (", tolower(row_word), ")")
+				v_type <- paste0("V (", tolower(col_word), ")")
 				u_names <- rownames(U_2d)
 				if (is.null(u_names)) u_names <- paste0("U", seq_len(nrow(U_2d)))
 				v_names <- rownames(V_2d)
@@ -626,14 +626,14 @@ plot.lame <- function(
 						x = U_2d[, 1],
 						y = U_2d[, 2],
 						name = u_names,
-						type = "U (sender)",
+						type = u_type,
 						stringsAsFactors = FALSE
 					)
 					v_data <- data.frame(
 						x = V_2d[, 1],
 						y = V_2d[, 2],
 						name = v_names,
-						type = "V (receiver)",
+						type = v_type,
 						stringsAsFactors = FALSE
 					)
 				} else {
@@ -641,14 +641,14 @@ plot.lame <- function(
 						x = U_2d[, 1],
 						y = rep(0, nrow(U_2d)),
 						name = u_names,
-						type = "U (sender)",
+						type = u_type,
 						stringsAsFactors = FALSE
 					)
 					v_data <- data.frame(
 						x = V_2d[, 1],
 						y = rep(0, nrow(V_2d)),
 						name = v_names,
-						type = "V (receiver)",
+						type = v_type,
 						stringsAsFactors = FALSE
 					)
 				}

@@ -1,3 +1,17 @@
+# lame 1.4.3
+
+* Latent positions of bipartite fits now use the whole posterior instead of a
+  single draw, and their SDs are fixed (they were far too large for static
+  fits).
+* Fast fits (`ame_als()`, `lame_als()`) are much faster on bipartite data and
+  keep all the dimensions you ask for.
+* A fast fit that does not fully converge now returns with a warning instead
+  of an error.
+* Symmetric models use a node covariate once, whether it is passed as `Xrow`
+  or `Xcol`.
+* `uv_plot()` can show more than two dimensions and handles large bipartite
+  networks.
+
 # lame 1.4.2
 
 * Fast fits (`ame_als()`, `lame_als()`, `method = "als"`) now give a standard

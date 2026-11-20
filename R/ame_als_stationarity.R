@@ -147,8 +147,8 @@
 		al <- al - as.vector(M %*% fit$gamma)
 	}
 	pos <- 1L + p + seq_len(ab_prior$q)
-	gradient[pos] <- gradient[pos] + 2 * dup * as.vector(Lam %*% al)
-	curvature[pos] <- curvature[pos] + 2 * dup * diag(Lam)
+	gradient[pos] <- gradient[pos] + 2 * dup * .ae_prec_mult(Lam, al)
+	curvature[pos] <- curvature[pos] + 2 * dup * Lam$d
 	# Laplace-marginal score of (mu, beta)
 	corr <- eb_img$corr_th
 	if (length(corr) == p + 1L) {
@@ -157,8 +157,8 @@
 	if (!is.null(M) && length(fit$gamma) == ncol(M)) {
 		corr_g <- if (length(eb_img$corr_g) == ncol(M)) eb_img$corr_g else numeric(ncol(M))
 		eb_extra <- list(
-			gradient = dup * (-2 * as.vector(crossprod(M, Lam %*% al)) + 2 * corr_g),
-			curvature = dup * 2 * pmax(diag(crossprod(M, Lam %*% M)), 0)
+			gradient = dup * (-2 * as.vector(crossprod(M, .ae_prec_mult(Lam, al))) + 2 * corr_g),
+			curvature = dup * 2 * pmax(diag(crossprod(M, .ae_prec_mult(Lam, M))), 0)
 		)
 	}
 	# the factors take the same Laplace cell correction as the coefficients
@@ -176,6 +176,11 @@
 		kappa0 <- uvp$df
 		suv0 <- uvp$psi
 	}
+	# a bipartite fit holds one side's scale at 1 and the other side's factors carry the whole unit
+	# of the product, as in .ae_irls_run
+	fixed_side <- .ae_fixed_side(prep, R, symmetric)
+	factor_unit <- if (fixed_side != "none") .lame_unit_sd(y, family) else 1
+	suv0 <- suv0 * factor_unit
 	if (R > 0L) {
 		if (symmetric) {
 			factor <- sweep(fit$U, 2, sqrt(abs(fit$L)), "*")
@@ -231,23 +236,43 @@
 				c(2 * info_sum %*% (fit[["V"]]^2) + matrix(rep(2 / sig2_u, each = nr), nr, R)),
 				c(2 * t(info_sum) %*% (fit$U^2) + matrix(rep(2 / sig2_v, each = nc), nc, R))
 			)
-			# the variance update's posterior second moments, leaving the supplied factors unchanged
-			next_variance <- als_factor_update_cpp(
-				matrix(0, nr, nc),
-				weight_sum,
-				fit$U,
-				fit[["V"]],
-				sig2_u,
-				sig2_v,
-				suv0,
-				kappa0,
-				1L,
-				1e-6
-			)
-			scale_change <- max(abs(log(c(
-				next_variance$sig2_u / sig2_u,
-				next_variance$sig2_v / sig2_v
-			))))
+			# the variance update's posterior second moments, leaving the supplied factors unchanged;
+			# a scale held at 1 has no fixed point to certify. with the sender scale held, the
+			# receiver scale is updated as the sender scale is, on the transposed table
+			if (fixed_side == "sender") {
+				next_variance <- als_factor_update_cpp(
+					matrix(0, nc, nr),
+					t(weight_sum),
+					fit[["V"]],
+					fit$U,
+					sig2_v,
+					sig2_u,
+					suv0,
+					kappa0,
+					1L,
+					1e-6,
+					factor_unit
+				)
+				scale_change <- max(abs(log(next_variance$sig2_u / sig2_v)))
+			} else {
+				next_variance <- als_factor_update_cpp(
+					matrix(0, nr, nc),
+					weight_sum,
+					fit$U,
+					fit[["V"]],
+					sig2_u,
+					sig2_v,
+					suv0,
+					kappa0,
+					1L,
+					1e-6,
+					factor_unit
+				)
+				scale_change <- max(abs(log(c(
+					next_variance$sig2_u / sig2_u,
+					if (fixed_side == "none") next_variance$sig2_v / sig2_v
+				))))
+			}
 		}
 	}
 	# EM fixed point of the actor-effect covariance, at the iterate itself

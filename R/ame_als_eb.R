@@ -127,42 +127,6 @@
 	M
 }
 
-# prior precision of the stacked effects: diagonal, or 2 x 2 diagonal blocks for
-# a directed fit; the entries are kept in attr `ae_prior` to add them by index
-.ae_eb_precision <- function(sab, ab) {
-	if (identical(ab$kind, "symmetric")) {
-		q <- ab$q
-		out <- matrix(0, q, q)
-		d <- 1 / sab[1L, 1L]
-		out[cbind(seq_len(q), seq_len(q))] <- d
-		attr(out, "ae_prior") <- list(d = rep(d, q))
-		return(out)
-	}
-	nr <- ab$nr; nc <- ab$nc
-	if (identical(ab$kind, "bipartite")) {
-		d <- c(rep(1 / sab[1L, 1L], nr), rep(1 / sab[2L, 2L], nc))
-		q <- nr + nc
-		out <- matrix(0, q, q)
-		out[cbind(seq_len(q), seq_len(q))] <- d
-		attr(out, "ae_prior") <- list(d = d)
-		return(out)
-	}
-	P <- solve(sab)
-	ia <- seq_len(nr); ib <- nr + ia
-	out <- matrix(0, 2L * nr, 2L * nr)
-	out[cbind(ia, ia)] <- P[1L, 1L]
-	out[cbind(ib, ib)] <- P[2L, 2L]
-	out[cbind(ia, ib)] <- P[1L, 2L]
-	out[cbind(ib, ia)] <- P[2L, 1L]
-	attr(out, "ae_prior") <- list(
-		d = c(rep(P[1L, 1L], nr), rep(P[2L, 2L], nr)),
-		nr = nr,
-		o12 = P[1L, 2L],
-		o21 = P[2L, 1L]
-	)
-	out
-}
-
 # inverse of a penalised information matrix: the Cholesky inverse, then the Cholesky
 # inverse of the equilibrated matrix (unit diagonal, so the conditioning does not depend on
 # the units of the parameters), or the minimum-norm pseudo-inverse when it is numerically
@@ -236,61 +200,32 @@
 }
 
 # likelihood part of the normal equations of (mu, beta | actor effects | gamma)
-# at given IRLS weights, from the BCD dyad-level sums `st`
+# at given IRLS weights, from the BCD dyad-level sums `st`: the (mu, beta) block `Hth`, the
+# block `C` of the effects against (mu, beta) and the weights `wsum` the actor block is built
+# from (.ae_ak_build()); the matrix is .ae_eb_dense_H()
 .ae_eb_context <- function(ab, st, wsum, p) {
 	pa <- p + 1L
 	M <- .ae_eb_mean_design(ab)
 	pg <- if (is.null(M)) 0L else ncol(M)
 	q <- ab$q
-	m <- pa + q + pg
-	i_th <- seq_len(pa); i_s <- pa + seq_len(q); i_g <- pa + q + seq_len(pg)
-	C <- if (identical(ab$kind, "symmetric")) ab$nu * (st$gr + st$gc) else rbind(st$gr, st$gc)
-	H <- matrix(0, m, m)
-	H[i_th, i_th] <- ab$nu * st$xtx
-	H[i_s, i_th] <- C; H[i_th, i_s] <- t(C)
-	H[i_s, i_s] <- .ae_eb_info_s(wsum, ab)
 	list(
-		H = H,
+		Hth = ab$nu * st$xtx,
+		C = if (identical(ab$kind, "symmetric")) ab$nu * (st$gr + st$gc) else rbind(st$gr, st$gc),
+		kind = ab$kind,
+		nu = ab$nu,
 		pa = pa,
 		pg = pg,
-		m = m,
+		m = pa + q + pg,
 		M = M,
 		wsum = wsum,
 		gm = st$gm,
-		i_th = i_th,
-		i_s = i_s,
-		i_g = i_g,
+		i_th = seq_len(pa),
+		i_s = pa + seq_len(q),
+		i_g = pa + q + seq_len(pg),
 		nr = ab$nr,
 		nc = ab$nc,
 		q = q
 	)
-}
-
-# add the actor-effect penalty (s - M gamma)' Lam (s - M gamma) to the Hessian
-.ae_eb_penalise <- function(ctx, Lam) {
-	H <- ctx$H
-	s <- ctx$i_s
-	pr <- attr(Lam, "ae_prior")
-	if (is.null(pr)) {
-		H[s, s] <- H[s, s] + Lam
-	} else {
-		# the precision is diagonal or has diagonal blocks, so its entries are added by index
-		dd <- cbind(s, s)
-		H[dd] <- H[dd] + pr$d
-		if (!is.null(pr$nr)) {
-			ia <- s[seq_len(pr$nr)]; ib <- s[pr$nr + seq_len(pr$nr)]
-			iab <- cbind(ia, ib); iba <- cbind(ib, ia)
-			H[iab] <- H[iab] + pr$o12
-			H[iba] <- H[iba] + pr$o21
-		}
-	}
-	if (ctx$pg > 0L) {
-		LM <- Lam %*% ctx$M
-		H[s, ctx$i_g] <- -LM
-		H[ctx$i_g, s] <- t(-LM)
-		H[ctx$i_g, ctx$i_g] <- crossprod(ctx$M, LM)
-	}
-	H
 }
 
 # d h / d eta of the Fisher weight h(eta) of one cell (probit: h' = h (lam0 - lam1 - 2 eta);
@@ -318,24 +253,22 @@
 }
 
 # Laplace cell correction at an iterate: the (mu, beta) and gamma score corrections
-# and their dyad sum kd. `Hss` is K_w + Lam, `hpg` the time sums of h' [1, x]
-.ae_eb_laplace <- function(ctx, ab, Hss, st, hpg, Lam, Sc = NULL) {
+# and their dyad sum kd. `Sc` is the covariance of the actor effects given the coefficients
+# (.ae_acov(), the inverse of K_w + Lam), `hpg` the time sums of h' [1, x]
+.ae_eb_laplace <- function(ctx, ab, Sc, st, hpg, Lam) {
 	nr <- ctx$nr; nc <- ctx$nc
-	# covariance of the actor effects given the coefficients, the inverse of `Hss`
-	if (is.null(Sc)) Sc <- .ae_eb_inverse(Hss)
 	hp <- matrix(hpg[, 1L], nr, nc)
+	dg <- Sc$dg
 	if (identical(ab$kind, "symmetric")) {
-		dg <- diag(Sc)
-		v <- outer(dg, dg, "+") + 2 * Sc
-		u <- as.vector(Sc %*% rowSums(hp * v))
+		v <- outer(dg, dg, "+") + 2 * Sc$full
+		u <- .ae_acov_mult(Sc, rowSums(hp * v))
 		cell <- crossprod(hpg, as.vector(v)) -
 			as.vector(crossprod(st$gr + st$gc, u))
 		kd <- 0.5 * (hp * v - ctx$wsum * outer(u, u, "+"))
 	} else {
 		ia <- seq_len(nr); ib <- nr + seq_len(nc)
-		dg <- diag(Sc)
-		v <- outer(dg[ia], dg[ib], "+") + 2 * Sc[ia, ib, drop = FALSE]
-		u <- as.vector(Sc %*% c(rowSums(hp * v), colSums(hp * v)))
+		v <- outer(dg[ia], dg[ib], "+") + 2 * Sc$cross
+		u <- .ae_acov_mult(Sc, c(rowSums(hp * v), colSums(hp * v)))
 		cell <- crossprod(hpg, as.vector(v)) -
 			as.vector(crossprod(st$gr, u[ia]) + crossprod(st$gc, u[ib]))
 		kd <- 0.5 * (hp * v - ctx$wsum * outer(u[ia], u[ib], "+"))
@@ -343,7 +276,7 @@
 	# the caller applies nu (a symmetric network counts each dyad once)
 	list(
 		corr_th = 0.5 * as.vector(cell),
-		corr_g = if (ctx$pg > 0L) 0.5 * as.vector(crossprod(ctx$M, Lam %*% u)) else numeric(0),
+		corr_g = if (ctx$pg > 0L) 0.5 * as.vector(crossprod(ctx$M, .ae_prec_mult(Lam, u))) else numeric(0),
 		kd = kd
 	)
 }
@@ -368,7 +301,7 @@
 	nr <- ctx$nr; nc <- ctx$nc; pg <- ctx$pg
 	nu <- ab$nu; sym <- identical(ab$kind, "symmetric")
 	Lam <- .ae_eb_precision(sab, ab)
-	H <- .ae_eb_penalise(ctx, Lam)
+	inv <- .ae_eb_system_inverse(ctx, Lam, schur = !is.null(hpg))
 	# right-hand side: the working response less the multiplicative term
 	g0 <- st$xtz; rs <- st$szr; cs <- st$szc
 	if (!is.null(Omat)) {
@@ -383,14 +316,10 @@
 	rhs <- c(rhs_th, rhs_s, numeric(pg))
 	if (!is.null(hpg)) {
 		# Laplace-marginal equations for (mu, beta, gamma), corrected at the incoming iterate
-		inv <- .ae_eb_inverse_pair(H, s)
-		S <- inv$S
-		lap <- .ae_eb_laplace(ctx, ab, H[s, s, drop = FALSE], st, hpg, Lam, Sc = inv$Sc)
+		lap <- .ae_eb_laplace(ctx, ab, inv$Sc, st, hpg, Lam)
 		rhs <- rhs - c(nu * lap$corr_th, numeric(ctx$q), lap$corr_g)
-	} else {
-		S <- .ae_eb_inverse(H)
 	}
-	x <- as.vector(S %*% rhs)
+	x <- inv$solve(rhs)
 	gam <- x[ctx$i_g]
 	alpha <- x[s] - if (pg > 0L) as.vector(ctx$M %*% gam) else 0
 	a <- x[s][seq_len(nr)]
@@ -402,7 +331,7 @@
 		gamma = gam,
 		alpha = alpha,
 		kd = lap$kd,
-		sab_new = .ae_eb_update_sab(ab, alpha, .ae_eb_css(ctx, S))
+		sab_new = .ae_eb_update_sab(ab, alpha, inv$css)
 	)
 }
 
@@ -417,17 +346,16 @@
 	wsum <- rowSums(Warr, dims = 2L)
 	ctx <- .ae_eb_context(ab, st, wsum, p)
 	Lam <- .ae_eb_precision(fit$sab, ab)
-	H <- .ae_eb_penalise(ctx, Lam)
 	if (identical(link, "identity")) {
 		# a Gaussian cell: the Laplace approximation is exact and there is no correction
-		inv <- list(S = .ae_eb_inverse(H))
+		inv <- .ae_eb_system_inverse(ctx, Lam, schur = FALSE)
 		lap <- list(corr_th = numeric(ctx$pa), corr_g = numeric(ctx$pg), kd = matrix(0, nr, nc))
 	} else {
 		hprime <- .ae_eb_hprime(eta, link, terms)
 		hprime[!observed | !is.finite(hprime)] <- 0
 		hpg <- .ae_eb_hprime_sums(hprime, prep$X, nr, nc, Tt, p)
-		inv <- .ae_eb_inverse_pair(H, ctx$i_s)
-		lap <- .ae_eb_laplace(ctx, ab, H[ctx$i_s, ctx$i_s, drop = FALSE], st, hpg, Lam, Sc = inv$Sc)
+		inv <- .ae_eb_system_inverse(ctx, Lam)
+		lap <- .ae_eb_laplace(ctx, ab, inv$Sc, st, hpg, Lam)
 	}
 	al <- if (identical(ab$kind, "symmetric")) fit$a else c(fit$a, fit$b)
 	if (ctx$pg > 0L && length(fit$gamma) == ctx$pg) {
@@ -437,16 +365,17 @@
 		corr_th = lap$corr_th,
 		corr_g = lap$corr_g,
 		kd = lap$kd,
-		sab_new = .ae_eb_update_sab(ab, al, .ae_eb_css(ctx, inv$S))
+		sab_new = .ae_eb_update_sab(ab, al, inv$css)
 	)
 }
 
-# EM update of the additive-effect covariance from the posterior second moments
-.ae_eb_update_sab <- function(ab, alpha, Css) {
+# EM update of the additive-effect covariance from the posterior second moments; `css` holds
+# the diagonal of the covariance of alpha and its (a_i, b_i) entries (.ae_eb_system_inverse())
+.ae_eb_update_sab <- function(ab, alpha, css) {
 	nr <- ab$nr; nc <- ab$nc
 	al_a <- alpha[seq_len(nr)]
 	ia <- ab$act_a
-	ca <- diag(Css)[seq_len(nr)]
+	ca <- css$dg[seq_len(nr)]
 	if (identical(ab$kind, "symmetric")) {
 		va <- (ab$eta0 * ab$Sab0[1L, 1L] + sum(al_a[ia]^2 + ca[ia])) /
 			(sum(ia) + ab$eta0 + ab$shift)
@@ -455,14 +384,14 @@
 	}
 	al_b <- alpha[nr + seq_len(nc)]
 	ib <- ab$act_b
-	cb <- diag(Css)[nr + seq_len(nc)]
+	cb <- css$dg[nr + seq_len(nc)]
 	if (identical(ab$kind, "bipartite")) {
 		va <- (ab$eta0 * ab$Sab0[1L, 1L] + sum(al_a[ia]^2 + ca[ia])) / (sum(ia) + ab$eta0 + ab$shift)
 		vb <- (ab$eta0 * ab$Sab0[2L, 2L] + sum(al_b[ib]^2 + cb[ib])) / (sum(ib) + ab$eta0 + ab$shift)
 		fl <- .ae_sab_floor(ab)
 		return(diag(c(max(va, fl), max(vb, fl))))
 	}
-	cab <- Css[cbind(seq_len(nr), nr + seq_len(nc))]
+	cab <- css$pair
 	act <- ia
 	S2 <- matrix(
 		c(
@@ -492,10 +421,7 @@
 	al <- if (sym) f$a else c(f$a, f$b)
 	M <- .ae_eb_mean_design(ab)
 	if (!is.null(M) && length(f$gamma) == ncol(M)) al <- al - as.vector(M %*% f$gamma)
-	ld <- if (is.null(wsum)) 0 else {
-		K <- .ae_eb_precision(sab, ab) + .ae_eb_info_s(wsum, ab)
-		2 * sum(log(diag(chol(K))))
-	}
+	ld <- if (is.null(wsum)) 0 else .ae_ak_logdet(.ae_ak_build(.ae_ak_ctx(wsum, ab), .ae_eb_precision(sab, ab)))
 	al_a <- al[seq_len(nr)]
 	if (sym) {
 		quad <- sum(al_a[ab$act_a]^2) / sab[1L, 1L] + sum(ab$act_a) * log(sab[1L, 1L])
@@ -645,19 +571,15 @@
 	if (!is.null(cross)) {
 		ctx <- .ae_pair_add_cross(ctx, .ae_pair_cross(list(nr = nr, Tt = Tt, p = p, X = prep[["X"]]), cross))
 	}
-	H0 <- .ae_eb_penalise(ctx, .ae_eb_precision(fit$sab, ab))
 	use_f <- R > 0L && !is.null(fit$U)
-	Hf <- if (use_f) .ae_eb_extend(ctx, ab, H0, fit) else H0
-	lay <- .ae_eb_layout(ctx, ab, if (use_f) R else 0L)
-	list(
-		ctx = ctx,
-		st = st,
-		wsum = wsum,
-		H0 = H0,
-		Hf = Hf,
-		lay = lay,
-		S = if (inverse) .ae_eb_inverse(Hf)
-	)
+	sys <- .ae_jb_system(ctx, ab, fit, if (use_f) R else 0L)
+	out <- list(ctx = ctx, st = st, wsum = wsum, sys = sys, lay = .ae_eb_layout(ctx, ab, if (use_f) R else 0L))
+	# the covariance (.ae_ji_*()) and that of the effects and factors given the coefficients
+	if (inverse) {
+		out$S <- .ae_jb_inverse(sys)
+		out$Sz <- .ae_jb_inverse_z(sys, out$S)
+	}
+	out
 }
 
 # predictive probability: the link integrated over the Gaussian Laplace posterior
@@ -765,21 +687,19 @@
 }
 
 # gradient q of half the log determinant of the effect and factor information
-# (whose inverse is `Sz`), summed over observed dyads; `posz` maps stacked
-# positions to rows of `Sz`
-.ae_eb_logdet_grad <- function(lp, sl, Sz, posz, chunk = 20000L) {
+# (whose inverse is `Sz`, .ae_ji_*()), summed over observed dyads, at the stacked positions
+.ae_eb_logdet_grad <- function(lp, sl, Sz, chunk = 20000L) {
 	R <- lp$R; jp <- lp$jp; hp <- lp$hp; wsum <- jp$wsum
 	nr <- lp$prep$nr; k <- sl$k
-	q <- numeric(nrow(Sz))
+	q <- numeric(Sz$d)
 	obs_d <- which(wsum > 0 | hp != 0)
 	for (start in seq(1L, length(obs_d), by = chunk)) {
 		idx <- obs_d[start:min(start + chunk - 1L, length(obs_d))]
 		I <- (idx - 1L) %% nr + 1L; J <- (idx - 1L) %/% nr + 1L
 		P <- sl$pos(I, J)
-		P[] <- posz[P]
 		g <- if (R > 0L) sl$grad(I, J, sl$Fu, sl$Fv) else matrix(1, length(I), 2L)
 		sg <- matrix(0, length(I), k)
-		for (a in seq_len(k)) for (b in seq_len(k)) sg[, a] <- sg[, a] + Sz[cbind(P[, a], P[, b])] * g[, b]
+		for (a in seq_len(k)) for (b in seq_len(k)) sg[, a] <- sg[, a] + .ae_ji_ent(Sz, P[, a], P[, b]) * g[, b]
 		v <- rowSums(sg * g)
 		hv <- 0.5 * hp[idx] * v
 		for (a in seq_len(k)) {
@@ -813,21 +733,15 @@
 	if (is.null(X)) X <- prep[["X"]]
 	ctx <- jp$ctx; lay <- jp$lay; Sf <- jp$S
 	pa <- ctx$pa
-	iz <- setdiff(seq_len(nrow(jp$Hf)), c(ctx$i_th, ctx$i_g))
-	posz <- integer(nrow(jp$Hf)); posz[iz] <- seq_along(iz)
-	# covariance of the effects and factors given the coefficients
-	it <- c(ctx$i_th, ctx$i_g)
-	Sz <- Sf[iz, iz, drop = FALSE] -
-		Sf[iz, it, drop = FALSE] %*% solve(Sf[it, it, drop = FALSE], Sf[it, iz, drop = FALSE])
 	sl <- .ae_eb_slots(lp)
 	k <- sl$k; sgn <- sl$sgn; Fu <- sl$Fu; Fv <- sl$Fv
 	chunk <- 20000L
 	# shift of the integrated parameters to their posterior mean: -Sz q
 	shift <- if (displace) {
-		-as.vector(Sz %*% .ae_eb_logdet_grad(lp, sl, Sz, posz, chunk))
-	} else numeric(nrow(Sz))
+		-.ae_ji_mult(jp$Sz, .ae_eb_logdet_grad(lp, sl, jp$Sz, chunk))
+	} else numeric(Sf$d)
 	# the posterior means of the parameters
-	get <- function(pos) shift[posz[pos]]
+	get <- function(pos) shift[pos]
 	a_t <- fit$a + get(lay$ia); b_t <- fit$b + get(lay$ib)
 	if (R > 0L) {
 		Ut <- Fu + vapply(seq_len(R), function(r) get(lay$iu(r)), numeric(nr))
@@ -839,12 +753,12 @@
 	if (R > 0L) {
 		for (r in seq_len(R)) {
 			core <- core + sgn[r] * tcrossprod(Ut[, r], Vt[, r]) +
-				sgn[r] * Sf[lay$iu(r), lay$iv(r), drop = FALSE]
+				sgn[r] * .ae_ji_sub(Sf, lay$iu(r), lay$iv(r))
 		}
 	}
 	# variance: the coefficients (with their covariance with the effects and
 	# factors of the dyad) and the dyad's own parameters, linearised at the mean
-	Sth <- Sf[ctx$i_th, ctx$i_th, drop = FALSE]
+	Sth <- .ae_ji_sub(Sf, ctx$i_th, ctx$i_th)
 	var_core <- matrix(0, nr, nc)
 	cth <- array(0, c(nr, nc, pa))
 	all_d <- seq_len(nr * nc)
@@ -854,11 +768,11 @@
 		P <- sl$pos(I, J)
 		g <- if (R > 0L) sl$grad(I, J, Ut, Vt) else matrix(1, length(I), 2L)
 		vz <- numeric(length(I))
-		for (a in seq_len(k)) for (b in seq_len(k)) vz <- vz + g[, a] * g[, b] * Sf[cbind(P[, a], P[, b])]
+		for (a in seq_len(k)) for (b in seq_len(k)) vz <- vz + g[, a] * g[, b] * .ae_ji_ent(Sf, P[, a], P[, b])
 		var_core[idx] <- vz
 		for (m in seq_len(pa)) {
 			cm <- numeric(length(I))
-			for (a in seq_len(k)) cm <- cm + g[, a] * Sf[cbind(ctx$i_th[m], P[, a])]
+			for (a in seq_len(k)) cm <- cm + g[, a] * .ae_ji_ent(Sf, rep(ctx$i_th[m], length(I)), P[, a])
 			cth[cbind(I, J, m)] <- cm
 		}
 	}
@@ -956,73 +870,51 @@
 	if (!is.null(vb$cross)) {
 		ctx <- .ae_pair_add_cross(ctx, .ae_pair_cross(list(nr = nr, Tt = Tt, p = p, X = prep[["X"]]), vb$cross))
 	}
-	H0 <- .ae_eb_penalise(ctx, .ae_eb_precision(fit$sab, ab))
 	m0 <- ctx$m
 	pa <- ctx$pa; pg <- ctx$pg
+	use_f <- R > 0L && !is.null(fit$U)
+	# the information of the coefficients and effects, and with the factors (.ae_jb_system())
+	sys0 <- .ae_jb_system(ctx, ab, fit, 0L)
+	sysf <- if (use_f) .ae_jb_system(ctx, ab, fit, R, vb) else sys0
+	evidence_of <- function() tryCatch(
+		.ae_eb_evidence_core(
+			prep,
+			ab,
+			fit,
+			R,
+			eta,
+			link,
+			.ae_jb_logdet_z(sysf),
+			.ae_ak_logdet(.ae_ak_build(ctx, sys0$Lam))
+		),
+		error = function(e) {
+			.ae_note_failure("eb_evidence", "the Laplace evidence (log marginal likelihood)", e)
+			NULL
+		}
+	)
 	# the evidence alone needs the log determinants, not the inverse (.ae_gauss_evidence)
-	if (isTRUE(evidence_only)) {
-		Hf <- if (R > 0L && !is.null(fit$U)) .ae_eb_extend(ctx, ab, H0, fit, vb) else H0
-		iz <- setdiff(seq_len(nrow(Hf)), c(ctx$i_th, ctx$i_g))
-		evidence <- tryCatch(
-			.ae_eb_evidence_core(
-				prep,
-				ab,
-				fit,
-				R,
-				eta,
-				link,
-				2 * sum(log(diag(chol(Hf[iz, iz, drop = FALSE])))),
-				2 * sum(log(diag(chol(H0[ctx$i_s, ctx$i_s, drop = FALSE]))))
-			),
-			error = function(e) {
-				.ae_note_failure("eb_evidence", "the Laplace evidence (log marginal likelihood)", e)
-				NULL
-			}
-		)
-		return(list(vcov = NULL, vcov_cond = NULL, evidence = evidence, elbo = NULL))
-	}
-	cond <- .ae_eb_inverse(H0)
-	joint <- cond
-	Hf <- H0
+	if (isTRUE(evidence_only)) return(list(vcov = NULL, vcov_cond = NULL, evidence = evidence_of(), elbo = NULL))
+	cond <- .ae_jb_inverse(sys0)
 	Sf <- NULL
 	# the reported intercept also carries the grand mean of the product (.ae_report_fold): its
 	# covariance with every element of the solve and its variance, by the delta method
 	fold <- NULL
-	if (R > 0L && !is.null(fit$U)) {
-		Hf <- .ae_eb_extend(ctx, ab, H0, fit, vb)
-		Sf <- .ae_eb_inverse(Hf)
-		joint <- Sf[seq_len(m0), seq_len(m0), drop = FALSE]
+	if (use_f) {
+		Sf <- .ae_jb_inverse(sysf)
 		gf <- .ae_eb_fold_grad(ab, fit, vb)
 		jf <- m0 + seq_along(gf)
-		if (length(gf) == nrow(Sf) - m0 && any(gf != 0)) {
-			fold <- list(
-				cross = as.vector(Sf[seq_len(m0), jf, drop = FALSE] %*% gf),
-				var = sum(gf * as.vector(Sf[jf, jf, drop = FALSE] %*% gf))
-			)
+		if (length(gf) == Sf$d - m0 && any(gf != 0)) {
+			sgf <- .ae_ji_mult(Sf, c(numeric(m0), gf))
+			fold <- list(cross = sgf[seq_len(m0)], var = sum(gf * sgf[jf]))
 		}
 	}
+	joint <- if (is.null(Sf)) cond else Sf
 	# the evidence, from the information already formed (a variational fit brings its bound)
 	evidence <- NULL
 	if (!is.null(vb)) {
 		evidence <- vb$evidence
 	} else if (!is.null(eta) && !is.null(link)) {
-		iz <- setdiff(seq_len(nrow(Hf)), c(ctx$i_th, ctx$i_g))
-		evidence <- tryCatch(
-			.ae_eb_evidence_core(
-				prep,
-				ab,
-				fit,
-				R,
-				eta,
-				link,
-				2 * sum(log(diag(chol(Hf[iz, iz, drop = FALSE])))),
-				2 * sum(log(diag(chol(H0[ctx$i_s, ctx$i_s, drop = FALSE]))))
-			),
-			error = function(e) {
-				.ae_note_failure("eb_evidence", "the Laplace evidence (log marginal likelihood)", e)
-				NULL
-			}
-		)
+		evidence <- evidence_of()
 	}
 	# a count fit's noise variance is searched on the evidence with its second-order term
 	# (.ae_pln_second_order)
@@ -1038,7 +930,7 @@
 	# sds of the reported effects, positions and product cells (ame_als_report_se.R)
 	report_se <- if (isTRUE(report)) tryCatch(
 		.ae_eb_report_se(
-			if (is.null(Sf)) cond else Sf,
+			joint,
 			ctx,
 			ab,
 			fit,
@@ -1058,6 +950,8 @@
 	# the grand mean of the product respond too
 	terms <- if (is.null(extra)) list() else if (is.null(extra$var)) extra else list(extra)
 	idx <- c(ctx$i_th, ctx$i_g)
+	# each term as var J J' on the coefficients and effects (J of length m0)
+	added <- list()
 	for (ex in terms) {
 		if (!isTRUE(is.finite(ex$var) && ex$var > 0)) next
 		if (!is.null(report_se$cells) && identical(dim(ex$J_cells), dim(report_se$cells))) {
@@ -1072,7 +966,9 @@
 			jx <- c(idx, ctx$i_s)
 			Jx <- c(Jx, ex$J_s)
 		}
-		joint[jx, jx] <- joint[jx, jx] + ex$var * tcrossprod(Jx)
+		Jm <- numeric(m0)
+		Jm[jx] <- Jx
+		added[[length(added) + 1L]] <- list(J = Jm, var = ex$var)
 		if (!is.null(fold) && isTRUE(is.finite(ex$J_fold))) {
 			fold$cross[jx] <- fold$cross[jx] + ex$var * Jx * ex$J_fold
 			fold$var <- fold$var + ex$var * ex$J_fold^2
@@ -1107,8 +1003,10 @@
 	}
 	Tm[1L, ctx$i_s] <- ca
 	if (pg > 0L) Tm[1L, ctx$i_g] <- Tm[1L, ctx$i_g] - as.vector(crossprod(ctx$M, ca))
-	wrap <- function(S, Tr = Tm, fold = NULL) {
-		V <- Tr %*% S[seq_len(m0), seq_len(m0), drop = FALSE] %*% t(Tr)
+	# Tr S Tr' over the coefficients and effects of the covariance S (.ae_ji_*()), with the added terms
+	wrap <- function(S, Tr = Tm, fold = NULL, add = list()) {
+		V <- Tr %*% .ae_ji_mult(S, rbind(t(Tr), matrix(0, S$d - m0, nrow(Tr))))[seq_len(m0), , drop = FALSE]
+		for (a in add) V <- V + a$var * tcrossprod(as.vector(Tr %*% a$J))
 		if (!is.null(fold)) {
 			cr <- as.vector(Tr %*% fold$cross)
 			V[1L, ] <- V[1L, ] + cr
@@ -1122,11 +1020,11 @@
 	Tp <- matrix(0, length(idx), m0)
 	Tp[, idx] <- A
 	list(
-		vcov = wrap(joint, Tp, fold),
+		vcov = wrap(joint, Tp, fold, added),
 		vcov_cond = wrap(cond, Tp),
-		vcov_centred = wrap(joint, Tm, fold),
+		vcov_centred = wrap(joint, Tm, fold, added),
 		vcov_cond_centred = wrap(cond),
-		vcov_population = wrap(joint, Tp),
+		vcov_population = wrap(joint, Tp, add = added),
 		report_se = report_se,
 		singular = c(attr(cond, "ae_singular"), attr(Sf, "ae_singular"))[1L],
 		evidence = evidence,

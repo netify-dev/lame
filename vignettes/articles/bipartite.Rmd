@@ -156,48 +156,28 @@ uv_plot(fit_cross, layout = "biplot") +
 	ggtitle("Bipartite latent space: students and courses")
 ```
 
-In `ame()` the estimated quantity is the overall multiplicative term $U G V'$
-(rotation and scaling sit in $U$ and $V$), so that is what we plot:
+In `ame()` the estimated quantity is the overall multiplicative term $U G V'$,
+and `fit_cross$U` and `fit_cross$V` are its factors: they factor the posterior
+mean of that product, so they are posterior summaries, not a single draw.
+`layout = "heatmap"` draws the product itself, students against courses, with
+each side ordered by clustering:
 
-```{r interaction_heatmap, fig.height=6, fig.alt="Heatmap of the fitted multiplicative structure U G V' across student-course pairs using a diverging colour-blind-safe ColorBrewer RdBu palette with the scale capped at the 99th percentile of absolute fitted values: red tiles mark positive latent affinity (predicted enrollment above baseline), blue tiles mark negative latent affinity (predicted below baseline), and near-white tiles mark a posterior estimate near zero."}
-G_mult <- fit_cross$U %*% fit_cross$G %*% t(fit_cross$V)
-G_df <- data.frame(
-	Student = rownames(G_mult)[row(G_mult)],
-	Course = colnames(G_mult)[col(G_mult)],
-	Fitted = as.vector(G_mult)
-)
-# numeric axis order (Student1, Student2, ...) rather than alphabetical
-G_df$Student <- factor(G_df$Student, levels = paste0("Student", n_students:1))
-G_df$Course <- factor(G_df$Course, levels = paste0("Course", 1:n_courses))
-# reversed RdBu with symmetric limits, so white sits at zero
-# cap at the 99th percentile of |UGV'| so a few extreme cells do not wash out the map
-mx <- quantile(abs(G_df$Fitted), 0.99, na.rm = TRUE)
-G_df$Fitted_capped <- pmax(pmin(G_df$Fitted, mx), -mx)
-ggplot(G_df, aes(x = Course, y = Student, fill = Fitted_capped)) +
-	geom_tile() +
-	scale_fill_distiller(
-		palette = "RdBu",
-		direction = -1,
-		limits = c(-mx, mx)
-	) +
-	labs(
-		title = "Fitted multiplicative structure (U G V')",
-		subtitle = "Red = positive, blue = negative; colour scale capped at the 99th percentile",
-		x = "Course", y = "Student",
-		fill = "U G V'"
-	) +
-	theme_bw() +
-	theme(
-		panel.border = element_blank(),
-		axis.line = element_blank(),
-		axis.ticks = element_blank(),
-		legend.position = "top",
-		plot.title = element_text(hjust = 0),
-		plot.subtitle = element_text(hjust = 0),
-		plot.caption = element_text(hjust = 0),
-		axis.text.x = element_text(angle = 45, hjust = 1),
-		axis.text.y = element_text(size = 6)
-	)
+```{r interaction_heatmap, fig.height=6, fig.alt="Heatmap of the fitted latent product U G V' across student-course pairs, with students and courses each ordered by clustering, on a diverging colour-blind-safe scale symmetric about zero: red tiles mark positive latent affinity (predicted enrollment above baseline), blue tiles negative affinity, and near-white tiles a product near zero."}
+uv_plot(fit_cross, layout = "heatmap")
+```
+
+With `nodes = "col"` the heatmap shows how similar the courses are: the cosine
+between their columns of the product, using every fitted dimension. Courses
+with similarity near 1 draw the same students, near -1 opposite ones. Courses
+in grey have positions not distinguishable from zero, so they have no direction
+to compare; they are placed last and named in the caption.
+`latent_similarity(fit_cross, "col")` returns the same matrix. Because the
+latent product is centred, similarity is measured against the average course:
+courses with no pattern of their own sit opposite that average and look
+similar to each other.
+
+```{r course_similarity, fig.height=6, fig.alt="Heatmap of the cosine similarity between courses in the fitted latent product, ordered by clustering, on a diverging scale from -1 to 1; blocks of red tiles along the diagonal mark groups of courses that draw the same students."}
+uv_plot(fit_cross, layout = "heatmap", nodes = "col")
 ```
 
 ## Longitudinal Analysis with `lame()`

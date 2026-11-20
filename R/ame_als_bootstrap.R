@@ -300,6 +300,8 @@
 	args$stability <- "none"
 	args$seed <- cfg$seed
 	args$start <- .ae_static_seed(object)
+	# a symmetric fit saved before 1.4.3 kept its Xcol covariates apart (W_col) and is refit so
+	if (isTRUE(object$symmetric) && !is.null(object$W_col)) args$sym_node_legacy <- TRUE
 	if ("bootstrap" %in% names(formals(fitter))) args$bootstrap <- 0L
 	if (!is.null(max_iter)) args$max_iter <- max_iter
 	if (!is.null(tol)) args$tol <- tol
@@ -1919,6 +1921,8 @@ print.summary.boot_ame <- function(x, ...) {
 			`2.5%` = object$vc_ci_lo,
 			`97.5%` = object$vc_ci_hi
 		)
+		# the components the model has and estimates (see .ae_vc_print)
+		vtab <- .ae_vc_print(object, vtab)$table
 		cli::cli_verbatim(utils::capture.output(print(round(vtab, 4))))
 		if (!is.null(object$vc_uncentred) && nrow(object$vc_uncentred)) {
 			un <- object$vc_uncentred
@@ -1963,8 +1967,10 @@ print.summary.boot_ame <- function(x, ...) {
 			}
 			cli::cli_text("{txt}")
 		}
-		se_line(object$se_a, "Sender a")
-		se_line(object$se_b, "Receiver b")
+		# a bipartite network has row and column actors, not senders and receivers
+		bip <- identical(object$mode, "bipartite")
+		se_line(object$se_a, if (bip) "Row a" else "Sender a")
+		se_line(object$se_b, if (bip) "Column b" else "Receiver b")
 
 		if (object$R > 0) {
 			if (isFALSE(object$uv_summary)) {

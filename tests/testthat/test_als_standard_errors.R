@@ -84,8 +84,8 @@ test_that("the effect sds are the delta method under the joint laplace covarianc
 	f = ame_als(d$y, R = 0, family = "normal", verbose = FALSE)
 	st = lame:::.ae_eb_laplace_state(f)
 	# with no product and no covariates the reported a is the stacked effect itself
-	S = st$jp$S
-	expect_equal(unname(f$a_sd), sqrt(diag(S)[st$jp$ctx$i_s[seq_len(nrow(d$y))]]), tolerance = 0.05)
+	ia = st$jp$ctx$i_s[seq_len(nrow(d$y))]
+	expect_equal(unname(f$a_sd), sqrt(lame:::.ae_ji_ent(st$jp$S, ia, ia)), tolerance = 0.05)
 })
 
 test_that("summary and print show the standard errors of the variance components", {

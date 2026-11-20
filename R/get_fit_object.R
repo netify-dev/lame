@@ -205,8 +205,11 @@ get_fit_object <- function(
 		# per-period or overall beta mean, depending on dynamic_beta
 		beta_per_t <- .beta_post_mean_per_t(BETA) # p x T matrix or p-vector
 		beta_overall <- .beta_post_mean_overall(BETA)
+		# a symmetric fit stores one <v>_node coefficient for the <v>_row and <v>_col slices of
+		# the design, so the coefficients are laid out on the design's slices before contraction
 		.beta_at_t <- function(t) {
-			if (.beta_is_dynamic) beta_per_t[, t] else beta_overall
+			b <- if (.beta_is_dynamic) beta_per_t[, t] else beta_overall
+			.beta_on_design(b, dimnames(Xlist[[t]])[[3]])
 		}
 		if (dynamic_uv && length(dim(UVPS)) == 3) {
 			UVPM <- UVPS
@@ -265,7 +268,7 @@ get_fit_object <- function(
 				} else {
 					EZ <- get_EZ_cpp(
 						Xlist,
-						beta_overall,
+						.beta_at_t(1L),
 						outer(APM_avg, BPM_avg, "+"),
 						UVPM,
 						diag(nrow(UVPM))
@@ -403,21 +406,10 @@ get_fit_object <- function(
 					rownames(U) <- rownames(V) <- actors
 				}
 			}
-		} else {
-			if (!bip) {
-				UDV <- svd(UVPM)
-				U <- UDV$u[, seq(1, R, length = R)] %*% diag(sqrt(UDV$d)[seq(1, R, length = R)], nrow = R)
-				V <- UDV$v[, seq(1, R, length = R)] %*% diag(sqrt(UDV$d)[seq(1, R, length = R)], nrow = R)
-				rownames(U) <- rownames(V) <- actors
-			} else if (!is.null(U) && !is.null(V)) {
-				if (length(dim(U)) == 3) {
-					dimnames(U) <- list(row_actors, NULL, pd_labs)
-					dimnames(V) <- list(col_actors, NULL, pd_labs)
-				} else {
-					rownames(U) <- row_actors
-					rownames(V) <- col_actors
-				}
-			}
+		} else if (bip) {
+			# static positions are the factors of UVPM, formed below (see .lame_static_positions)
+			if (length(dim(UVPM)) == 2L && length(row_actors) == nrow(UVPM) && length(col_actors) == ncol(UVPM))
+				dimnames(UVPM) <- list(row_actors, col_actors)
 		}
 	}
 
@@ -434,12 +426,10 @@ get_fit_object <- function(
 				L <- L_dyn
 			}
 		} else {
+			# static positions are the factors of ULUPM, formed below (see .lame_static_positions)
 			ULUPM <- UVPM
-			eULU <- eigen(ULUPM)
-			eR <- which(rank(-abs(eULU$val), ties.method = "first") <= R)
-			U <- eULU$vec[, eR, drop = FALSE]
-			L <- eULU$val[eR]
-			rownames(U) <- rownames(ULUPM) <- colnames(ULUPM) <- actors
+			L <- NULL
+			rownames(ULUPM) <- colnames(ULUPM) <- actors
 		}
 		for (t in 1:N) {
 			EZ[, , t] <- .5 * (EZ[, , t] + t(EZ[, , t]))
@@ -578,6 +568,14 @@ get_fit_object <- function(
 	# average of the replicated counts (see .poisson_fitted_mean)
 	if (identical(family, "poisson") && !is.null(fit$EZ) && is.matrix(VC) && "ve" %in% colnames(VC)) {
 		fit$YPM <- .poisson_fitted_from_fit(fit, EZ = fit$EZ, exposure = period_exposure)
+	}
+	# static positions: the factors of the posterior mean product at the rank of the sampler's state
+	if (!dynamic_uv) {
+		if (is.null(fit[["U"]]) && !is.null(start_vals)) {
+			fit[["U"]] <- start_vals[["U"]]
+			if (!symmetric) fit[["V"]] <- start_vals[["V"]]
+		}
+		fit <- .lame_static_positions(fit)
 	}
 	class(fit) <- "ame"
 	return(fit)

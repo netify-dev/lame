@@ -179,6 +179,6 @@ test_that("bipartite and symmetric designs are checked on what the fit uses", {
 		),
 		class = "lame_design_rank"
 	)
-	expect_identical(err$aliased, "s2_row")
-	expect_match(squash(err), "s2_row = -2 s1_row", fixed = TRUE)
+	expect_identical(err$aliased, "s2_node")
+	expect_match(squash(err), "s2_node = -2 s1_node", fixed = TRUE)
 })

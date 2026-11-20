@@ -223,7 +223,7 @@ gof_plot.ame_als <- function(fit, nsim = 100, seed = NULL, ...) {
 		m
 	})
 	if (Tt > 1L) {
-		return(.ae_gof_plot_slices(obs, rep_stats, nsim))
+		return(.ae_gof_plot_slices(obs, rep_stats, nsim, bipartite = identical(mode_arg, "bipartite")))
 	}
 	obs <- obs[[1L]]
 	rep_stats <- rep_stats[[1L]]
@@ -264,7 +264,7 @@ gof_plot.ame_als <- function(fit, nsim = 100, seed = NULL, ...) {
 		ggplot2::facet_wrap(
 			~ .data$statistic,
 			scales = "free",
-			labeller = ggplot2::as_labeller(gof_label)
+			labeller = ggplot2::as_labeller(function(x) gof_label(x, identical(mode_arg, "bipartite")))
 		) +
 		ggplot2::labs(
 			title = "Goodness of fit (bootstrap-based)",
@@ -286,7 +286,7 @@ gof_plot.ame_als <- function(fit, nsim = 100, seed = NULL, ...) {
 
 # per-period GOF of a longitudinal ame_als fit, drawn as gof_plot() draws a lame
 # fit: observed value against the median and central 95 percent of the replicates
-.ae_gof_plot_slices <- function(obs, rep_stats, nsim) {
+.ae_gof_plot_slices <- function(obs, rep_stats, nsim, bipartite = FALSE) {
 	stat_names <- names(obs[[1L]])
 	plot_data <- do.call(rbind, lapply(seq_along(obs), function(t) {
 		do.call(rbind, lapply(stat_names, function(nm) {
@@ -308,7 +308,7 @@ gof_plot.ame_als <- function(fit, nsim = 100, seed = NULL, ...) {
 	if (is.null(plot_data) || nrow(plot_data) == 0L) {
 		cli::cli_abort("No finite GOF values are available to plot.")
 	}
-	plot_data$statistic <- gof_label(plot_data$statistic)
+	plot_data$statistic <- gof_label(plot_data$statistic, bipartite)
 	ggplot2::ggplot(plot_data, ggplot2::aes(x = .data$time)) +
 		ggplot2::geom_ribbon(
 			ggplot2::aes(
@@ -453,7 +453,12 @@ ab_plot.ame_als <- function(
 	if (is.null(df_all) || nrow(df_all) == 0L) {
 		cli::cli_abort("No additive effects to plot for {.arg effect} = {.val {effect}}.")
 	}
-	df_all$effect <- c(sender = "Sender", receiver = "Receiver")[df_all$effect]
+	# a bipartite network has row and column actors, not senders and receivers
+	df_all$effect <- if (identical(fit$mode, "bipartite")) {
+		c(sender = "Row", receiver = "Column")[df_all$effect]
+	} else {
+		c(sender = "Sender", receiver = "Receiver")[df_all$effect]
+	}
 	ab_subtitle <- if (!all(is.na(df_all$lo)) && !is.null(bt) && !any(c("a", "b") %in% .ae_boot_withheld_names(bt, "effects"))) {
 		"With bootstrap 95% intervals"
 	} else if (!all(is.na(df_all$lo))) {
@@ -639,7 +644,8 @@ prior_summary.ame_als <- function(object, ...) {
 	.lame_cli_stdout({
 		cli::cli_h2("Priors (ame_als fit)")
 		if (identical(object$non_normal_method, "irls") && object$R > 0L) {
-			cli::cli_text("The fast fit is an empirical-Bayes fit with regularized latent factors: the sender and receiver effects have a Gaussian prior and the factors Gaussian penalties, with their variances estimated from the data. It has no posterior draws.")
+			effects <- if (identical(object$mode, "bipartite")) "row and column" else "sender and receiver"
+			cli::cli_text("The fast fit is an empirical-Bayes fit with regularized latent factors: the {effects} effects have a Gaussian prior and the factors Gaussian penalties, with their variances estimated from the data. It has no posterior draws.")
 		} else {
 			cli::cli_text("The fast fit is an empirical-Bayes fit: the actor effects have a Gaussian prior whose variances are estimated from the data. It has no posterior draws.")
 		}

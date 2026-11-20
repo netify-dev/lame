@@ -39,9 +39,9 @@ object is also accepted and converted with
 
 \item{Xdyad}{a list of \code{T} dyadic covariate matrices/arrays, or \code{NULL}.}
 
-\item{Xrow}{a list of \code{T} row/sender covariate matrices, or \code{NULL}.}
+\item{Xrow}{a list of \code{T} row/sender covariate matrices, or \code{NULL}. In a symmetric model (\code{symmetric = TRUE}) each node covariate enters a dyad through both of its actors.}
 
-\item{Xcol}{a list of \code{T} column/receiver covariate matrices, or \code{NULL}.}
+\item{Xcol}{a list of \code{T} column/receiver covariate matrices, or \code{NULL}. In a symmetric model a node covariate may be given in \code{Xrow}, in \code{Xcol} or in both, and each distinct covariate enters once, as \code{<name>_node}.}
 
 \item{R}{integer dimension of the multiplicative effects (default \code{0}).
 \strong{The covariate coefficients are conditional on this choice.} The
@@ -63,12 +63,16 @@ panel, its first period), as in \code{\link{ame}} and \code{\link{lame}}.}
 
 \item{max_iter}{maximum number of block coordinate descent iterations
 (default 200), and maximum number of outer reweighting steps for IRLS. A
-fit that does not settle within it is an error (class
-\code{"lame_als_convergence"}). A reweighting step runs at most five
+fit that does not settle within it follows the rank rule of
+\strong{Choosing the rank} in \code{\link{ame_als}} (a retired column, or a warning of class
+\code{"lame_als_unsettled"}); with \code{max_iter} below 200 a stop at
+the limit is an error (class \code{"lame_als_convergence"}). A reweighting step runs at most five
 sweeps (it refreshes the weights, the Laplace correction and the variance
 updates after them). The variational stage runs at most
-\code{2 * max_iter} iterations. A fit whose iteration does
+\code{20 * max_iter} iterations (\code{2 * max_iter} with
+\code{options(lame.eb_scale = "plugin")}). A fit whose iteration does
 not settle retires its weakest latent column and fits the next rank down
+when that fit's lower bound is at least as high
 (see \strong{A rank the data do not support}); a \code{max_iter} below 200
 disables that for an iteration that merely ran out of it.}
 

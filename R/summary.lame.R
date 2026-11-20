@@ -271,6 +271,8 @@ summary.lame <- function(object, ...) {
 		odmax_saturated_share = fit$odmax_saturated_share,
 		ab_coef_reason = .lame_ab_coef_reason(fit),
 		R = fit$R,
+		latent_strength = .lame_dim_strength(fit),
+		rank_text = .lame_rank_text(fit),
 		cells_hidden = fit$cells_hidden,
 		n.periods = n_periods,
 		symmetric = isTRUE(fit$symmetric),
@@ -502,6 +504,7 @@ print.summary.lame <- function(x, digits = 3, ...) {
 			model_info <- c(model_info, "*" = "Mode: {.field {x$mode}}")
 		}
 		cli::cli_bullets(model_info)
+		.lame_print_latent_lines(x)
 		if (!is.null(x$bound_line)) cli::cli_alert_info("{x$bound_line}", wrap = TRUE)
 		if (!is.null(x$fallback_line)) cli::cli_alert_info("{x$fallback_line}", wrap = TRUE)
 		if (isTRUE(x$dynamic_uv)) {
@@ -643,23 +646,14 @@ print.summary.lame <- function(x, digits = 3, ...) {
 		}
 
 		cli::cli_h3("Variance components")
-		var_table <- round(x$variance, digits)
+		vc_print <- .lame_vc_print(x)
+		var_table <- round(vc_print$table, digits)
 		cli::cli_verbatim(utils::capture.output(print(var_table, quote = FALSE, right = TRUE)))
-
-		if (isTRUE(x$symmetric)) {
-			cli::cli_bullets(c(" " = "va = nodal variance, ve = residual variance"))
-		} else {
-			cli::cli_bullets(c(
-				" " = "va = sender variance, cab = sender-receiver covariance, vb = receiver variance, rho = dyadic correlation, ve = residual variance"
-			))
-		}
+		cli::cli_bullets(c(" " = vc_print$legend))
 		if (isTRUE(x$dynamic_ab)) {
 			cli::cli_bullets(c(
 				" " = "Under {.code dynamic_ab}, va and vb are the variances of the actor levels; rho_ab and sigma_ab describe the per-period deviations around them."
 			))
-		}
-		if (!is.null(x$mode) && x$mode == "bipartite") {
-			cli::cli_bullets(c("i" = "Bipartite model: rho and cab are fixed to 0."))
 		}
 		# why va, vb and cab are withheld, or the prior they are reported under
 		for (st_ in .lame_ab_statements(x)) cli::cli_alert_info("{st_}", wrap = TRUE)

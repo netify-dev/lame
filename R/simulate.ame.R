@@ -103,7 +103,8 @@ simulate.ame <- function(
 		return(.simulate_joint(object, joint, nsim, 1L, return_latent, designs))
 	}
 
-	fit <- object
+	# positions factored from the posterior mean product
+	fit <- .lame_positions(object)
 	family <- if (!is.null(fit$family)) fit$family else "normal"
 	symmetric <- if (!is.null(fit$symmetric)) {
 		if (is.na(fit$symmetric)) FALSE else fit$symmetric
@@ -287,26 +288,27 @@ simulate.ame <- function(
 
 		EZ <- EZ + outer(a, b, "+")
 
-		# multiplicative effects from a saved draw, else the posterior-mean U and V
-		U_s <- fit$U; V_s <- fit[["V"]]
-		# symmetric fits store U and L but no V: the term U L U' uses V = U
-		if (is.null(V_s) && !is.null(U_s) && isTRUE(symmetric) && !bip) V_s <- U_s
-		if (!is.null(fit$U_samples)) {
+		# multiplicative effects from a saved draw (its own product: U G V' with its G draw, and
+		# U V' otherwise, symmetric draws storing V = U L), else the posterior-mean factors
+		if (!is.null(fit$U_samples) && !is.null(fit$V_samples) &&
+				(!bip || !is.null(fit$G_samples))) {
 			uidx <- sample.int(dim(fit$U_samples)[3], 1)
-			U_s <- fit$U_samples[, , uidx]
-			V_s <- if (!is.null(fit$V_samples)) fit$V_samples[, , uidx] else U_s
-		}
-		# symmetric fits store no V: the term is U L U'
-		if (is.null(V_s) && isTRUE(symmetric) && !bip) V_s <- U_s
-		if (!is.null(U_s) && !is.null(V_s)) {
-			if (bip && !is.null(fit[["G"]])) {
-				EZ <- EZ + U_s %*% fit[["G"]] %*% t(V_s)
+			U_s <- matrix(fit$U_samples[, , uidx], dim(fit$U_samples)[1L])
+			V_s <- matrix(fit$V_samples[, , uidx], dim(fit$V_samples)[1L])
+			EZ <- EZ + if (bip) {
+				U_s %*% matrix(fit$G_samples[, , uidx], ncol(U_s)) %*% t(V_s)
+			} else U_s %*% t(V_s)
+		} else if (!is.null(fit$U) && NCOL(fit$U) > 0L) {
+			U_s <- fit$U
+			if (bip && !is.null(fit[["V"]]) && !is.null(fit[["G"]])) {
+				EZ <- EZ + U_s %*% fit[["G"]] %*% t(fit[["V"]])
 			} else if (!bip && isTRUE(symmetric) && !is.null(fit$L)) {
+				# symmetric fits store U and L: the term is U L U'
 				L_mat <- if (is.matrix(fit$L)) fit$L else
 					diag(fit$L, nrow = length(fit$L))
-				EZ <- EZ + U_s %*% L_mat %*% t(V_s)
-			} else if (!bip) {
-				EZ <- EZ + U_s %*% t(V_s)
+				EZ <- EZ + U_s %*% L_mat %*% t(U_s)
+			} else if (!bip && !is.null(fit[["V"]])) {
+				EZ <- EZ + U_s %*% t(fit[["V"]])
 			}
 		}
 

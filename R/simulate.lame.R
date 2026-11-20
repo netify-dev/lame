@@ -144,10 +144,8 @@ simulate.lame <- function(
 	}
 
 	fit <- object
-	# dynamic positions factored from the posterior mean products
-	if (isTRUE(fit$dynamic_uv) && !identical(fit$uv_positions, "posterior_mean_product")) {
-		fit <- .lame_dynamic_positions(fit)
-	}
+	# positions factored from the posterior mean products
+	fit <- .lame_positions(fit)
 	family <- if (!is.null(fit$family)) fit$family else "normal"
 	symmetric <- if (!is.null(fit$symmetric)) fit$symmetric else FALSE
 	mode <- if (!is.null(fit$mode)) fit$mode else "unipartite"
@@ -323,11 +321,11 @@ simulate.lame <- function(
 		if (beta_is_dyn) {
 			beta_per_t <- BETA[s, , , drop = FALSE]
 			beta_per_t <- matrix(beta_per_t, nrow = dim(BETA)[2], ncol = dim(BETA)[3])
-			beta <- as.numeric(apply(beta_per_t, 1, mean)) # period-averaged coefficients
 		} else {
-			beta <- BETA[s, ]
-			beta_per_t <- matrix(beta, nrow = length(beta), ncol = n_time)
+			beta_per_t <- matrix(BETA[s, ], nrow = ncol(BETA), ncol = n_time)
 		}
+		# named so a symmetric fit's <v>_node coefficient reaches its row and column slices
+		rownames(beta_per_t) <- dimnames(BETA)[[2L]]
 
 		# per-iteration temporal parameters
 		rho_ab <- rho_ab_samples[min(s, length(rho_ab_samples))]
@@ -443,7 +441,8 @@ simulate.lame <- function(
 				} else {
 					U_t <- fit$U
 				}
-				if (!is.null(fit[["V"]])) {
+				# a symmetric term is U L U', so V mirrors U even when the fit also carries V = U L
+				if (!is.null(fit[["V"]]) && (bip || !symmetric)) {
 					if (length(dim(fit[["V"]])) == 3) {
 						V_t <- matrix(
 							fit[["V"]][, , dim(fit[["V"]])[3]],
@@ -549,7 +548,10 @@ simulate.lame <- function(
 			}
 
 			# linear predictor (per-period beta from beta_per_t)
-			beta_t_here <- beta_per_t[, t]
+			beta_t_here <- .beta_on_design(
+				beta_per_t[, t],
+				if (length(dim(X_t)) == 3L) dimnames(X_t)[[3L]]
+			)
 			if (length(beta_t_here) > 0 && any(beta_t_here != 0)) {
 				if (length(dim(X_t)) == 3 && dim(X_t)[3] > 0) {
 					EZ <- array(0, dim = c(n_row, n_col))

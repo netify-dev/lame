@@ -495,14 +495,10 @@
 }
 
 # leading eigenvectors U and eigenvalues L of the posterior mean product, with V = U L
+# (see .lame_static_positions); the zero matrices only carry the rank
 .lame_tempered_factors <- function(f, rank) {
-	ev <- eigen(f$ULUPM, symmetric = TRUE)
-	take <- order(abs(ev$values), decreasing = TRUE)[seq_len(rank)]
-	f$U <- ev$vectors[, take, drop = FALSE]
-	rownames(f$U) <- rownames(f$ULUPM)
-	f$L <- ev$values[take]
-	f[["V"]] <- sweep(f$U, 2L, f$L, "*")
-	f
+	f$U <- f[["V"]] <- matrix(0, nrow(f$ULUPM), rank)
+	.lame_static_positions(f)
 }
 
 # pooled fit of several tempered chains: factors of the pooled product and the tempering record of each chain

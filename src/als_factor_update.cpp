@@ -21,8 +21,8 @@ arma::vec als_factor_solve(const arma::mat& gram, const arma::vec& rhs) {
 }
 
 arma::vec als_factor_trace(const arma::mat& weights, const arma::mat& factors,
-	const arma::vec& variance, bool rows) {
-	arma::mat ridge = arma::diagmat(1.0 / arma::clamp(variance, 1e-8, arma::datum::inf));
+	const arma::vec& variance, bool rows, double floor = 1e-8) {
+	arma::mat ridge = arma::diagmat(1.0 / arma::clamp(variance, floor, arma::datum::inf));
 	arma::vec total(factors.n_cols, arma::fill::zeros);
 	arma::uword count = rows ? weights.n_rows : weights.n_cols;
 	for (arma::uword i = 0; i < count; ++i) {
@@ -195,14 +195,23 @@ void expand_gram(const std::vector<double>& gram, int count, int idx, int r,
 	}
 }
 
-inline double clamped_scale(double s) {
-	return std::min(std::max(s, 1e-8), arma::datum::inf);
+inline double clamped_scale(double s, double floor = 1e-8) {
+	return std::min(std::max(s, floor), arma::datum::inf);
+}
+
+// with the receiver scale fixed the sweeps stop when the sender factors stop moving,
+// max |u - u_old| < tol max(unit, max |u|), `unit` the unit the sender factors carry
+inline bool factors_settled(const arma::mat& u, const arma::mat& u_old, double tol, double unit) {
+	return arma::abs(u - u_old).max() < tol * std::max(unit, arma::abs(u).max());
 }
 
 Rcpp::List als_factor_update_small(const arma::mat& response, const arma::mat& weights,
 	const arma::mat& u_init, const arma::mat& v_init, const arma::vec& su_init,
-	const arma::vec& sv_init, double prior_scale, double prior_df, int maxit, double tol) {
+	const arma::vec& sv_init, double prior_scale, double prior_df, int maxit, double tol,
+	bool fixed_receiver, double unit) {
 	const int nr = (int) response.n_rows, nc = (int) response.n_cols;
+	// the sender scale carries the unit squared, so its floor does too
+	const double floor_u = 1e-8 * unit * unit;
 	const int r = (int) u_init.n_cols;
 	const int npair = r * (r + 1) / 2;
 	const double* w = weights.memptr();
@@ -217,7 +226,7 @@ Rcpp::List als_factor_update_small(const arma::mat& response, const arma::mat& w
 	// posterior-variance trace terms from the incoming factors
 	arma::vec su(r), sv(r);
 	{
-		for (int k = 0; k < r; ++k) ridge[k] = 1.0 / clamped_scale(su_init[k]);
+		for (int k = 0; k < r; ++k) ridge[k] = 1.0 / clamped_scale(su_init[k], floor_u);
 		accumulate_rows(w, nullptr, v.memptr(), nr, nc, r, gram_r, rhs_r);
 		std::vector<double> total(r, 0.0);
 		for (int i = 0; i < nr; ++i) {
@@ -228,7 +237,9 @@ Rcpp::List als_factor_update_small(const arma::mat& response, const arma::mat& w
 		arma::vec uss = arma::sum(arma::square(u), 0).t();
 		for (int k = 0; k < r; ++k) su[k] = (prior_scale + uss[k] + total[k]) / (nr + prior_df);
 	}
-	{
+	if (fixed_receiver) {
+		for (int k = 0; k < r; ++k) sv[k] = 1.0;
+	} else {
 		for (int k = 0; k < r; ++k) ridge[k] = 1.0 / clamped_scale(sv_init[k]);
 		accumulate_cols(w, nullptr, u.memptr(), nr, nc, r, gram_c, rhs_c);
 		std::vector<double> total(r, 0.0);
@@ -242,7 +253,7 @@ Rcpp::List als_factor_update_small(const arma::mat& response, const arma::mat& w
 	}
 	double lu[kFastRank], lv[kFastRank];
 	for (int k = 0; k < r; ++k) {
-		lu[k] = 1.0 / clamped_scale(su[k]);
+		lu[k] = 1.0 / clamped_scale(su[k], floor_u);
 		lv[k] = 1.0 / clamped_scale(sv[k]);
 	}
 
@@ -251,6 +262,7 @@ Rcpp::List als_factor_update_small(const arma::mat& response, const arma::mat& w
 	int iterations = 0;
 	for (int it = 0; it < maxit; ++it) {
 		Rcpp::checkUserInterrupt();
+		const arma::mat u_old = u;
 		// rows: u_i = (v' diag(w_i) v + ridge)^+ v' (w_i y_i)
 		accumulate_rows(w, y, v.memptr(), nr, nc, r, gram_r, rhs_r);
 		for (int i = 0; i < nr; ++i) {
@@ -282,12 +294,12 @@ Rcpp::List als_factor_update_small(const arma::mat& response, const arma::mat& w
 			double uu = 0.0, vv = 0.0;
 			for (int i = 0; i < nr; ++i) uu += u(i, k) * u(i, k);
 			for (int j = 0; j < nc; ++j) vv += v(j, k) * v(j, k);
-			penalty += uu / clamped_scale(su[k]) + vv / clamped_scale(sv[k]);
+			penalty += uu / clamped_scale(su[k], floor_u) + vv / clamped_scale(sv[k]);
 		}
 		const double objective = data_term + penalty;
 		++iterations;
-		bool done = std::isfinite(old_objective) &&
-			std::abs(old_objective - objective) / std::max(1.0, std::abs(old_objective)) < tol;
+		bool done = fixed_receiver ? factors_settled(u, u_old, tol, unit) : (std::isfinite(old_objective) &&
+			std::abs(old_objective - objective) / std::max(1.0, std::abs(old_objective)) < tol);
 		old_objective = objective;
 		if (done) break;
 	}
@@ -303,7 +315,7 @@ namespace {
 Rcpp::List als_factor_update_core(const arma::mat& response, const arma::mat& weights,
 	const arma::mat& u_init, const arma::mat& v_init, const arma::vec& su_init,
 	const arma::vec& sv_init, double prior_scale, double prior_df,
-	int maxit, double tol) {
+	int maxit, double tol, bool fixed_receiver, double unit) {
 	const arma::uword nr = response.n_rows, nc = response.n_cols, rank = u_init.n_cols;
 	if (weights.n_rows != nr || weights.n_cols != nc || u_init.n_rows != nr ||
 		v_init.n_rows != nc || v_init.n_cols != rank || su_init.n_elem != rank ||
@@ -312,20 +324,23 @@ Rcpp::List als_factor_update_core(const arma::mat& response, const arma::mat& we
 	}
 	if (rank <= (arma::uword) kFastRank) {
 		return als_factor_update_small(response, weights, u_init, v_init, su_init,
-			sv_init, prior_scale, prior_df, maxit, tol);
+			sv_init, prior_scale, prior_df, maxit, tol, fixed_receiver, unit);
 	}
+	const double floor_u = 1e-8 * unit * unit;
 	arma::mat u = u_init, v = v_init;
 	arma::vec su = (prior_scale + arma::sum(arma::square(u), 0).t() +
-		als_factor_trace(weights, v, su_init, true)) / (nr + prior_df);
-	arma::vec sv = (prior_scale + arma::sum(arma::square(v), 0).t() +
-		als_factor_trace(weights, u, sv_init, false)) / (nc + prior_df);
-	arma::mat lu = arma::diagmat(1.0 / arma::clamp(su, 1e-8, arma::datum::inf));
+		als_factor_trace(weights, v, su_init, true, floor_u)) / (nr + prior_df);
+	arma::vec sv = fixed_receiver ? arma::vec(rank, arma::fill::ones) :
+		arma::vec((prior_scale + arma::sum(arma::square(v), 0).t() +
+			als_factor_trace(weights, u, sv_init, false)) / (nc + prior_df));
+	arma::mat lu = arma::diagmat(1.0 / arma::clamp(su, floor_u, arma::datum::inf));
 	arma::mat lv = arma::diagmat(1.0 / arma::clamp(sv, 1e-8, arma::datum::inf));
 	arma::mat product(nr, nc, arma::fill::zeros);
 	double old_objective = arma::datum::inf;
 	int iterations = 0;
 	for (int it = 0; it < maxit; ++it) {
 		Rcpp::checkUserInterrupt();
+		const arma::mat u_old = u;
 		for (arma::uword i = 0; i < nr; ++i) {
 			arma::vec w = weights.row(i).t();
 			arma::mat gram = v.t() * (v.each_col() % w) + lu;
@@ -338,11 +353,11 @@ Rcpp::List als_factor_update_core(const arma::mat& response, const arma::mat& we
 		}
 		product = u * v.t();
 		double objective = arma::accu(weights % arma::square(response - product)) +
-			arma::dot(arma::sum(arma::square(u), 0).t(), 1.0 / arma::clamp(su, 1e-8, arma::datum::inf)) +
+			arma::dot(arma::sum(arma::square(u), 0).t(), 1.0 / arma::clamp(su, floor_u, arma::datum::inf)) +
 			arma::dot(arma::sum(arma::square(v), 0).t(), 1.0 / arma::clamp(sv, 1e-8, arma::datum::inf));
 		++iterations;
-		bool done = std::isfinite(old_objective) &&
-			std::abs(old_objective - objective) / std::max(1.0, std::abs(old_objective)) < tol;
+		bool done = fixed_receiver ? factors_settled(u, u_old, tol, unit) : (std::isfinite(old_objective) &&
+			std::abs(old_objective - objective) / std::max(1.0, std::abs(old_objective)) < tol);
 		old_objective = objective;
 		if (done) break;
 	}
@@ -354,14 +369,15 @@ Rcpp::List als_factor_update_core(const arma::mat& response, const arma::mat& we
 }
 }
 
-// penalized factor sweeps with fixed hyperparameters during each m-step
+// penalized factor sweeps with fixed hyperparameters during each m-step; `unit`
+// is the unit of the sender factors (the response's for a two-mode normal fit)
 // [[Rcpp::export(rng = false)]]
 Rcpp::List als_factor_update_cpp(const arma::mat& response, const arma::mat& weights,
 	const arma::mat& u_init, const arma::mat& v_init, const arma::vec& su_init,
 	const arma::vec& sv_init, double prior_scale, double prior_df,
-	int maxit = 15, double tol = 1e-6) {
+	int maxit = 15, double tol = 1e-6, double unit = 1.0) {
 	return als_factor_update_core(response, weights, u_init, v_init, su_init, sv_init,
-		prior_scale, prior_df, maxit, tol);
+		prior_scale, prior_df, maxit, tol, false, unit);
 }
 
 // ---- balanced factors -----------------------------------------------------
@@ -374,7 +390,11 @@ Rcpp::List als_factor_update_cpp(const arma::mat& response, const arma::mat& wei
 // to the factor columns in the order of the prior variances. the r path is
 // kept for every state this routine does not take (a column order that
 // differs from the variance order, a failed svd): the result then carries
-// balanced = false and the unbalanced update.
+// balanced = false and the unbalanced update. with `fixed_receiver` (two-mode
+// fits) the receiver scale is held at 1, only the sender scale takes its
+// update, the sweeps stop on the change of the sender factors and nothing is
+// balanced; the sender factors then carry the whole unit of the product,
+// `unit` (the response's for a normal fit, else 1).
 namespace {
 // positions of the values in decreasing order; ties keep their original
 // order and non-finite values come last, as order(x, decreasing = TRUE)
@@ -529,7 +549,7 @@ std::vector<double> column_norms_sq(const arma::mat& f) {
 Rcpp::List als_factor_balanced_cpp(const arma::mat& response, const arma::mat& weights,
 	const arma::mat& u_init, const arma::mat& v_init, const arma::vec& su_init,
 	const arma::vec& sv_init, double prior_scale, double prior_df,
-	int maxit = 15, double tol = 1e-6) {
+	int maxit = 15, double tol = 1e-6, bool fixed_receiver = false, double unit = 1.0) {
 	const arma::uword nr = response.n_rows, nc = response.n_cols, rank = u_init.n_cols;
 	if (weights.n_rows != nr || weights.n_cols != nc || u_init.n_rows != nr ||
 		v_init.n_rows != nc || v_init.n_cols != rank || su_init.n_elem != rank ||
@@ -537,8 +557,10 @@ Rcpp::List als_factor_balanced_cpp(const arma::mat& response, const arma::mat& w
 		Rcpp::stop("Incompatible dimensions for the ALS factor update.");
 	}
 	Rcpp::List out = als_factor_update_core(response, weights, u_init, v_init, su_init,
-		sv_init, prior_scale, prior_df, maxit, tol);
+		sv_init, prior_scale, prior_df, maxit, tol, fixed_receiver, unit);
 	out["balanced"] = false;
+	// a fixed receiver scale fixes the gauge, so the factors are returned as solved
+	if (fixed_receiver) return out;
 	const int r = (int) rank;
 	if (rank > (arma::uword) kFastRank) return out;
 	arma::mat u = Rcpp::as<arma::mat>(out["U"]), v = Rcpp::as<arma::mat>(out["V"]);

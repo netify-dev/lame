@@ -56,19 +56,91 @@
 	(Sc + t(Sc)) / 2
 }
 
+# what a report reads of the gauge-projected, centred covariance Sc of the factor block
+# (.ae_eb_factor_cov()), from the joint covariance `S` (.ae_ji_*()) whose factor block starts after
+# m0: for each pair of ranks (r, s) the diagonals `uu`, `vv` of the row-row and column-column blocks
+# and the row-by-column block `uv`. with P = I - Q Q' (Q a basis of the gauge directions) and C the
+# centring of each rank block, Sc = C A C with A = P Sff P: its entries are those of Sff less the
+# rank-R^2 terms of Q, and C subtracts the block means of A, A 1_b / n_b, formed by solves. an
+# undirected fit (a dense S) forms Sc itself, which it also returns with Sff
+.ae_eb_factor_cov_parts <- function(S, Fu, Fv, sg, sym, m0) {
+	nr <- nrow(Fu); R <- ncol(Fu)
+	if (sym) {
+		jf <- m0 + seq_len(nr * R)
+		Sff <- .ae_ji_sub(S, jf, jf)
+		Sc <- .ae_eb_factor_cov(Sff, .ae_eb_gauge_dirs(Fu, Fv, sg, TRUE), rep(nr, R))
+		bl <- lapply(seq_len(R), function(r) lapply(seq_len(R), function(s) {
+			Sc[(r - 1L) * nr + seq_len(nr), (s - 1L) * nr + seq_len(nr), drop = FALSE]
+		}))
+		dg <- lapply(bl, lapply, diag)
+		return(list(uu = dg, vv = dg, uv = bl, Sc = Sc, Sff = Sff))
+	}
+	nc <- nrow(Fv)
+	nf <- R * (nr + nc)
+	at_u <- function(r) (r - 1L) * nr + seq_len(nr)
+	at_v <- function(r) R * nr + (r - 1L) * nc + seq_len(nc)
+	sizes <- c(rep(nr, R), rep(nc, R))
+	blk <- rep(seq_along(sizes), sizes)
+	jf <- m0 + seq_len(nf)
+	ff <- function(x) .ae_ji_mult(S, rbind(matrix(0, m0, ncol(x)), x))[jf, , drop = FALSE]
+	ones <- outer(blk, seq_along(sizes), "==") * 1
+	Td <- .ae_eb_gauge_dirs(Fu, Fv, sg, FALSE)
+	Q <- NULL
+	if (!is.null(Td)) {
+		Q <- qr.Q(qr(Td))
+		Y <- ff(Q)
+		Hq <- crossprod(Q, Y)
+		Z <- ff(ones - Q %*% crossprod(Q, ones))
+		Z <- Z - Q %*% crossprod(Q, Z)
+	} else {
+		Z <- ff(ones)
+	}
+	tb <- crossprod(ones, Z)
+	# Sc at pairs of factor positions x[k], y[k]
+	at_pairs <- function(x, y) {
+		a <- .ae_ji_ent(S, m0 + x, m0 + y)
+		if (!is.null(Q)) {
+			Qx <- Q[x, , drop = FALSE]; Qy <- Q[y, , drop = FALSE]
+			a <- a - rowSums(Qx * Y[y, , drop = FALSE]) - rowSums(Y[x, , drop = FALSE] * Qy) + rowSums((Qx %*% Hq) * Qy)
+		}
+		bx <- blk[x]; by <- blk[y]
+		a - Z[cbind(x, by)] / sizes[by] - Z[cbind(y, bx)] / sizes[bx] + tb[cbind(bx, by)] / (sizes[bx] * sizes[by])
+	}
+	# Sc on the grid of one row block x and one column block y
+	at_grid <- function(x, y) {
+		a <- .ae_ji_sub(S, m0 + x, m0 + y)
+		if (!is.null(Q)) {
+			Qx <- Q[x, , drop = FALSE]; Qy <- Q[y, , drop = FALSE]
+			a <- a - tcrossprod(Qx, Y[y, , drop = FALSE]) - tcrossprod(Y[x, , drop = FALSE], Qy) + tcrossprod(Qx %*% Hq, Qy)
+		}
+		bx <- blk[x[1L]]; by <- blk[y[1L]]
+		a <- a - Z[x, by] / sizes[by]
+		a <- a - rep(Z[y, bx] / sizes[bx], each = length(x))
+		a + tb[bx, by] / (sizes[bx] * sizes[by])
+	}
+	ranks <- function(fun, x, y) lapply(seq_len(R), function(r) lapply(seq_len(R), function(s) fun(x(r), y(s))))
+	list(
+		uu = ranks(at_pairs, at_u, at_u),
+		vv = ranks(at_pairs, at_v, at_v),
+		uv = ranks(at_grid, at_u, at_v)
+	)
+}
+
 # variance of every cell of the centred product x_i' S y_j for Gaussian rows x_i, y_j with
-# means Xm, Ym: the delta-method term plus the second-order term of the product
-.ae_eb_cell_var <- function(Xm, Ym, cov_xx, cov_yy, cov_xy, sg) {
+# means Xm, Ym: the delta-method term plus the second-order term of the product. `dxx`, `dyy` hold
+# the diagonals of the row-row and column-column covariance blocks of each pair of ranks, `cov_xy`
+# the row-by-column blocks
+.ae_eb_cell_var <- function(Xm, Ym, dxx, dyy, cov_xy, sg) {
 	R <- ncol(Xm)
 	out <- matrix(0, nrow(Xm), nrow(Ym))
 	for (r in seq_len(R)) for (s in seq_len(R)) {
 		w <- sg[r] * sg[s]
-		dxx <- diag(cov_xx[[r]][[s]]); dyy <- diag(cov_yy[[r]][[s]])
+		dx <- dxx[[r]][[s]]; dy <- dyy[[r]][[s]]
 		out <- out + w * (
-			outer(dxx, Ym[, r] * Ym[, s]) +
-				outer(Xm[, r] * Xm[, s], dyy) +
+			outer(dx, Ym[, r] * Ym[, s]) +
+				outer(Xm[, r] * Xm[, s], dy) +
 				2 * outer(Xm[, s], Ym[, r]) * cov_xy[[r]][[s]] +
-				outer(dxx, dyy) +
+				outer(dx, dy) +
 				cov_xy[[r]][[s]] * cov_xy[[s]][[r]]
 		)
 	}
@@ -331,9 +403,8 @@
 # its variance, and without it the noise variance of the count drops by about its mean
 .ae_pln_second_order <- function(S, ctx, ab, fit, R, wsum) {
 	m0 <- ctx$m; nr <- ctx$nr; nc <- ctx$nc
-	if (R < 1L || is.null(fit$U) || nrow(S) <= m0) return(NULL)
+	if (R < 1L || is.null(fit$U) || S$d <= m0) return(NULL)
 	sym <- identical(ab$kind, "symmetric")
-	fc <- .ae_eb_factor_cols(m0, nr, nc, R, sym)
 	if (sym) {
 		Fu <- sweep(fit$U, 2L, sqrt(abs(fit$L)), "*")
 		sg <- ifelse(fit$L < 0, -1, 1)
@@ -342,16 +413,10 @@
 		Fu <- fit$U; Fv <- fit[["V"]]
 		sg <- rep(1, R)
 	}
-	jf <- (m0 + 1L):nrow(S)
-	sizes <- if (sym) rep(nr, R) else c(rep(nr, R), rep(nc, R))
-	Sc <- .ae_eb_factor_cov(S[jf, jf, drop = FALSE], .ae_eb_gauge_dirs(Fu, Fv, sg, sym), sizes)
-	ju <- lapply(fc$iu, function(ix) ix - m0)
-	jv <- if (sym) ju else lapply(fc$iv, function(ix) ix - m0)
+	pt <- .ae_eb_factor_cov_parts(S, Fu, Fv, sg, sym, m0)
 	t2 <- matrix(0, nr, nc)
 	for (r in seq_len(R)) for (s in seq_len(R)) {
-		dxx <- diag(Sc[ju[[r]], ju[[s]], drop = FALSE])
-		dyy <- diag(Sc[jv[[r]], jv[[s]], drop = FALSE])
-		t2 <- t2 + sg[r] * sg[s] * (outer(dxx, dyy) + Sc[ju[[r]], jv[[s]], drop = FALSE] * Sc[ju[[s]], jv[[r]], drop = FALSE])
+		t2 <- t2 + sg[r] * sg[s] * (outer(pt$uu[[r]][[s]], pt$vv[[r]][[s]]) + pt$uv[[r]][[s]] * pt$uv[[s]][[r]])
 	}
 	t2 <- pmax(t2, 0)
 	# noise the weak columns take up beyond the regular count (.ae_pln_bulk_charge)
@@ -435,29 +500,26 @@
 .ae_eb_report_se <- function(S, ctx, ab, fit, vb = NULL, R = 0L, W = NULL, X = NULL) {
 	nr <- ctx$nr; nc <- ctx$nc; m0 <- ctx$m
 	sym <- identical(ab$kind, "symmetric")
-	d <- nrow(S)
+	d <- S$d
 	use_f <- R > 0L && !is.null(fit$U) && d > m0
 	ia <- ctx$i_s[seq_len(nr)]
 	ib <- if (sym) ia else ctx$i_s[nr + seq_len(nc)]
 	pr <- if (is.null(ab$Wr)) 0L else ncol(ab$Wr)
 	pc <- if (is.null(ab$Wc)) 0L else ncol(ab$Wc)
-	# effects net of their covariate part, a = s - M gamma
-	Ga <- matrix(0, nr, d)
-	Ga[cbind(seq_len(nr), ia)] <- 1
+	# effects net of their covariate part, a = s - M gamma (.ae_eb_grad_rows())
+	Ga <- .ae_eb_grad_rows(ia, d)
 	Gb <- NULL
 	if (sym) {
-		if (ctx$pg > 0L) Ga[, ctx$i_g] <- -ctx$M
+		if (ctx$pg > 0L) Ga <- .ae_eb_grad_low(Ga, -ctx$M, ctx$i_g)
 	} else {
-		Gb <- matrix(0, nc, d)
-		Gb[cbind(seq_len(nc), ib)] <- 1
-		if (pr) Ga[, ctx$i_g[seq_len(pr)]] <- -ab$Wr
-		if (pc) Gb[, ctx$i_g[pr + seq_len(pc)]] <- -ab$Wc
+		Gb <- .ae_eb_grad_rows(ib, d)
+		if (pr) Ga <- .ae_eb_grad_low(Ga, -ab$Wr, ctx$i_g[seq_len(pr)])
+		if (pc) Gb <- .ae_eb_grad_low(Gb, -ab$Wc, ctx$i_g[pr + seq_len(pc)])
 	}
 	# a longitudinal fit reports the effects of the observed actors at mean zero: their gradient
 	# loses the mean gradient of the observed actors, taken before the product's means are added
-	mean_act <- function(G, act) if (is.null(G) || !any(act)) NULL else colMeans(G[act, , drop = FALSE])
-	ma <- mean_act(Ga, ab$act_a)
-	mb <- if (sym) NULL else mean_act(Gb, ab$act_b)
+	ma <- .ae_eb_grad_mean(Ga, ab$act_a)
+	mb <- if (sym) NULL else .ae_eb_grad_mean(Gb, ab$act_b)
 	out <- list()
 	if (use_f) {
 		fc <- .ae_eb_factor_cols(m0, nr, nc, R, sym)
@@ -471,11 +533,14 @@
 		}
 		ubar <- colMeans(Fu); vbar <- colMeans(Fv)
 		Uc <- sweep(Fu, 2L, ubar); Vc <- sweep(Fv, 2L, vbar)
-		# the row and column means of the product the report moves into a and b
+		# the row and column means of the product the report moves into a and b: on the own
+		# factor entry ybar (I - 11' / n_x), on the other side's Xc 1' / n_y
 		add_fold <- function(G, Xc, ybar, ix, iy, n_x, n_y) {
 			for (r in seq_len(R)) {
-				G[, ix[[r]]] <- G[, ix[[r]]] + sg[r] * ybar[r] * (diag(n_x) - 1 / n_x)
-				G[, iy[[r]]] <- G[, iy[[r]]] + sg[r] * outer(Xc[, r], rep(1 / n_y, n_y))
+				G$pos <- cbind(G$pos, ix[[r]])
+				G$cf <- cbind(G$cf, sg[r] * ybar[r])
+				G <- .ae_eb_grad_low(G, matrix(-sg[r] * ybar[r] / n_x, n_x, 1L), list(ix[[r]]))
+				G <- .ae_eb_grad_low(G, matrix(sg[r] * Xc[, r], ncol = 1L), list(iy[[r]]), 1 / n_y)
 			}
 			G
 		}
@@ -487,20 +552,8 @@
 			Gb <- add_fold(Gb, Vc, ubar, fc$iv, fc$iu, nc, nr)
 		}
 		# factor block with the gauge projected out, centred as reported
-		jf <- (m0 + 1L):d
-		sizes <- if (sym) rep(nr, R) else c(rep(nr, R), rep(nc, R))
-		Sc <- .ae_eb_factor_cov(
-			S[jf, jf, drop = FALSE],
-			.ae_eb_gauge_dirs(Fu, Fv, sg, sym),
-			sizes
-		)
-		ju <- lapply(fc$iu, function(ix) ix - m0)
-		jv <- lapply(fc$iv, function(ix) ix - m0)
-		blocks <- function(ix, iy) lapply(seq_len(R), function(r) lapply(seq_len(R), function(s) Sc[ix[[r]], iy[[s]], drop = FALSE]))
-		cov_uu <- blocks(ju, ju)
-		cov_vv <- if (sym) cov_uu else blocks(jv, jv)
-		cov_uv <- if (sym) cov_uu else blocks(ju, jv)
-		out$cells <- sqrt(.ae_eb_cell_var(Uc, Vc, cov_uu, cov_vv, cov_uv, sg))
+		pt <- .ae_eb_factor_cov_parts(S, Fu, Fv, sg, sym, m0)
+		out$cells <- sqrt(.ae_eb_cell_var(Uc, Vc, pt$uu, pt$vv, pt$uv, sg))
 		# a directed binary column held at zero: its scale reads the rows' full second moments
 		# (.ae_mf_scale_target), under which a column below the bulk edge falls to the floor of its
 		# prior, so the prior no longer carries its cell variance. the strength of such a column (its
@@ -514,13 +567,13 @@
 		}
 		if (sym) {
 			# positions are the eigenvectors of the centred product (.ae_eb_eigen_sd)
-			es <- .ae_eb_eigen_sd(Uc, sg, S[jf, jf, drop = FALSE], diag(nr) - 1 / nr, cov_uu, Sc)
+			es <- .ae_eb_eigen_sd(Uc, sg, pt$Sff, diag(nr) - 1 / nr, pt$uv, pt$Sc)
 			out$U <- es$U
 			out$L <- es$L
 			out$L_shift <- es$L_shift
 		} else {
-			out$U <- sqrt(pmax(vapply(seq_len(R), function(r) diag(cov_uu[[r]][[r]]), numeric(nr)), 0))
-			out[["V"]] <- sqrt(pmax(vapply(seq_len(R), function(r) diag(cov_vv[[r]][[r]]), numeric(nc)), 0))
+			out$U <- sqrt(pmax(vapply(seq_len(R), function(r) pt$uu[[r]][[r]], numeric(nr)), 0))
+			out[["V"]] <- sqrt(pmax(vapply(seq_len(R), function(r) pt$vv[[r]][[r]], numeric(nc)), 0))
 			dim(out$U) <- c(nr, R); dim(out[["V"]]) <- c(nc, R)
 			# below the signal threshold, the rows with the spread they take from the other side
 			# (.ae_eb_weak_row_var()), for the position sds of .ae_eb_attach_se()
@@ -539,7 +592,7 @@
 			}
 		}
 	}
-	out$sab_info <- .ae_eb_sab_info(S[seq_len(m0), seq_len(m0), drop = FALSE], ctx, ab, fit$sab)
+	out$sab_info <- .ae_eb_sab_info(S, ctx, ab, fit$sab)
 	if (!is.null(W)) {
 		Fu_s <- if (use_f) Fu else NULL
 		Fv_s <- if (use_f) Fv else NULL
@@ -548,56 +601,168 @@
 		out$df_linear <- if (use_f) .ae_eb_cell_df(S, ctx, ab, 0L, W, X) else out$df_eff
 	}
 	# variances of G theta and, for the observed rows, of (G - 1 m') theta
-	quad <- function(G, m, act) {
-		if (is.null(G)) return(NULL)
-		GS <- G %*% S
-		v <- rowSums(GS * G)
-		vc <- v
-		if (!is.null(m)) {
-			vc[act] <- v[act] - 2 * as.vector(GS[act, , drop = FALSE] %*% m) + sum(m * as.vector(S %*% m))
-		}
-		list(sqrt(pmax(v, 0)), sqrt(pmax(vc, 0)))
-	}
-	qa <- quad(Ga, ma, ab$act_a)
-	qb <- if (sym) qa else quad(Gb, mb, ab$act_b)
+	qa <- .ae_eb_grad_quad(S, Ga, ma, ab$act_a)
+	qb <- if (sym) qa else .ae_eb_grad_quad(S, Gb, mb, ab$act_b)
 	out$a <- qa[[1L]]; out$a_centred <- qa[[2L]]
 	out$b <- qb[[1L]]; out$b_centred <- qb[[2L]]
 	out
 }
 
+# the gradients of the reported effects in the stacked vector of length `d`, one row per actor: the
+# entries `cf` at the positions `pos` (n x k each) plus the low-rank part L1 L2' (L1 n x l, L2 d x l)
+.ae_eb_grad_rows <- function(pos, d) list(pos = matrix(pos, ncol = 1L), cf = matrix(1, length(pos), 1L), d = d)
+
+# add columns L1 to the low-rank part, the j-th with L2 column `val` at the positions `at[[j]]`
+.ae_eb_grad_low <- function(G, L1, at, val = 1) {
+	L2 <- matrix(0, G$d, ncol(L1))
+	for (j in seq_len(ncol(L1))) L2[at[[j]], j] <- val
+	G$L1 <- cbind(G$L1, L1)
+	G$L2 <- cbind(G$L2, L2)
+	G
+}
+
+# the mean gradient of the rows `act` (a vector of length d), NULL when there are none
+.ae_eb_grad_mean <- function(G, act) {
+	if (is.null(G) || !any(act)) return(NULL)
+	m <- numeric(G$d)
+	na <- sum(act)
+	for (s in seq_len(ncol(G$pos))) {
+		p <- G$pos[act, s]
+		m[p] <- m[p] + rep_len(G$cf[, s], nrow(G$pos))[act] / na
+	}
+	if (!is.null(G$L1)) m <- m + as.vector(G$L2 %*% colMeans(G$L1[act, , drop = FALSE]))
+	m
+}
+
+# sds of G theta under the covariance S (.ae_ji_*()) and, for the rows `act`, of (G - 1 m') theta
+.ae_eb_grad_quad <- function(S, G, m, act) {
+	if (is.null(G)) return(NULL)
+	n <- nrow(G$pos); k <- ncol(G$pos)
+	cf <- vapply(seq_len(k), function(s) rep_len(G$cf[, s], n), numeric(n))
+	dim(cf) <- c(n, k)
+	v <- numeric(n)
+	for (s in seq_len(k)) for (t in seq_len(k)) v <- v + cf[, s] * cf[, t] * .ae_ji_ent(S, G$pos[, s], G$pos[, t])
+	# G S x for the columns of x: the entries plus the low-rank part
+	gs <- function(Sx) {
+		Sx <- as.matrix(Sx)
+		out <- 0
+		for (s in seq_len(k)) out <- out + cf[, s] * Sx[G$pos[, s], , drop = FALSE]
+		if (!is.null(G$L1)) out <- out + G$L1 %*% crossprod(G$L2, Sx)
+		out
+	}
+	if (!is.null(G$L1)) {
+		SL <- .ae_ji_mult(S, G$L2)
+		GSL <- 0
+		for (s in seq_len(k)) GSL <- GSL + cf[, s] * SL[G$pos[, s], , drop = FALSE]
+		v <- v + 2 * rowSums(GSL * G$L1) + rowSums((G$L1 %*% crossprod(G$L2, SL)) * G$L1)
+	}
+	vc <- v
+	if (!is.null(m)) {
+		Sm <- .ae_ji_mult(S, m)
+		vc[act] <- v[act] - 2 * as.vector(gs(Sm))[act] + sum(m * Sm)
+	}
+	list(sqrt(pmax(v, 0)), sqrt(pmax(vc, 0)))
+}
+
 # fisher information of the effect covariance (va, cab, vb) in the marginal likelihood of
 # the data with the effects integrated out: 0.5 tr(B D_j B D_k) with B = Lam - Lam P Lam,
 # Lam the prior precision of the effects, P their posterior covariance marginal over the
-# coefficients and factors and D_j the derivative of the prior covariance; the inverse-wishart
-# hyperprior adds eta0 / 2 tr(Sab^-1 d_j Sab^-1 d_k)
-.ae_eb_sab_info <- function(S0, ctx, ab, sab) {
-	P <- .ae_eb_css(ctx, S0)
+# coefficients and factors (from the joint covariance `S`, .ae_eb_css_blocks()) and D_j the
+# derivative of the prior covariance; the inverse-wishart hyperprior adds
+# eta0 / 2 tr(Sab^-1 d_j Sab^-1 d_k). with the blocks A = B_aa, C = B_ab and E = B_bb the traces are
+# tr(A A), tr(C' C), tr(E E), tr(A C), tr(C E) and tr(C C) + tr(A E)
+.ae_eb_sab_info <- function(S, ctx, ab, sab) {
+	P <- .ae_eb_css_blocks(S, ctx)
 	Lam <- .ae_eb_precision(sab, ab)
-	attr(Lam, "ae_prior") <- NULL
-	B <- Lam - Lam %*% P %*% Lam
 	nr <- ab$nr
-	q <- nrow(B)
-	ia <- seq_len(nr)
-	ib <- if (identical(ab$kind, "symmetric")) ia else nr + seq_len(ab$nc)
-	# B D_j: the columns of B that D_j selects, swapped for the covariance
-	BD <- list(va = { M <- matrix(0, q, q); M[, ia] <- B[, ia]; M })
-	dd <- list(va = matrix(c(1, 0, 0, 0), 2L))
-	if (identical(ab$kind, "directed")) {
-		BD$cab <- { M <- matrix(0, q, q); M[, ia] <- B[, ib]; M[, ib] <- B[, ia]; M }
-		dd$cab <- matrix(c(0, 1, 1, 0), 2L)
+	la <- Lam$d[1L]
+	tr <- function(X, Y) sum(X * t(Y))
+	# la I - la^2 P for a block P held as a matrix, and the sum of squares of that of a low-rank P
+	unit <- function(P, l) {
+		B <- -l^2 * P
+		B[cbind(seq_len(nrow(B)), seq_len(nrow(B)))] <- B[cbind(seq_len(nrow(B)), seq_len(nrow(B)))] + l
+		B
 	}
-	if (!identical(ab$kind, "symmetric")) {
-		BD$vb <- { M <- matrix(0, q, q); M[, ib] <- B[, ib]; M }
-		dd$vb <- matrix(c(0, 0, 0, 1), 2L)
+	sq <- function(P, l) {
+		if (is.matrix(P)) {
+			B <- unit(P, l)
+			return(tr(B, B))
+		}
+		cd <- rowSums(P$ZS * P$Z)
+		N <- P$Srr %*% crossprod(P$Z)
+		sum((l - l^2 * (P$dg + cd))^2) + l^4 * (tr(N, N) - sum(cd^2))
 	}
-	k <- names(BD)
+	k <- "va"
+	if (identical(ab$kind, "symmetric")) {
+		sv <- c(va = sq(P$aa, la))
+	} else {
+		lb <- Lam$d[nr + 1L]
+		if (identical(ab$kind, "directed")) {
+			o12 <- Lam$o12; o21 <- Lam$o21
+			Pba <- t(P$ab)
+			A <- la * diag(nr) - (la^2 * P$aa + la * o21 * P$ab + o12 * la * Pba + o12 * o21 * P$bb)
+			C <- o12 * diag(nr) - (la * o12 * P$aa + la * lb * P$ab + o12^2 * Pba + o12 * lb * P$bb)
+			E <- lb * diag(nr) - (o21 * o12 * P$aa + o21 * lb * P$ab + lb * o12 * Pba + lb^2 * P$bb)
+			k <- c("va", "cab", "vb")
+			sv <- c(aa = tr(A, A), cc = sum(C * C), ee = tr(E, E), ac = tr(A, C), ce = tr(C, E), cct = tr(C, C), ae = tr(A, E))
+		} else {
+			k <- c("va", "vb")
+			sv <- c(aa = sq(P$aa, la), cc = la^2 * lb^2 * sum(P$ab * P$ab), ee = sq(P$bb, lb))
+		}
+	}
+	tt <- function(j, l) {
+		key <- paste(sort(c(j, l)), collapse = " ")
+		switch(key,
+			"va va" = 0.5 * sv[[1L]],
+			"va vb" = 0.5 * sv[["cc"]],
+			"vb vb" = 0.5 * sv[["ee"]],
+			"cab va" = sv[["ac"]],
+			"cab vb" = sv[["ce"]],
+			"cab cab" = sv[["cct"]] + sv[["ae"]]
+		)
+	}
+	dd <- list(va = matrix(c(1, 0, 0, 0), 2L), cab = matrix(c(0, 1, 1, 0), 2L), vb = matrix(c(0, 0, 0, 1), 2L))
 	Si <- if (identical(ab$kind, "symmetric")) diag(1 / sab[1L, 1L], 2L) else solve(sab)
 	info <- matrix(0, length(k), length(k), dimnames = list(k, k))
 	for (j in k) for (l in k) {
-		info[j, l] <- 0.5 * sum(BD[[j]] * t(BD[[l]])) +
-			0.5 * ab$eta0 * sum(diag(Si %*% dd[[j]] %*% Si %*% dd[[l]]))
+		info[j, l] <- tt(j, l) + 0.5 * ab$eta0 * sum(diag(Si %*% dd[[j]] %*% Si %*% dd[[l]]))
 	}
 	info
+}
+
+# the blocks aa, ab, bb (aa alone when undirected) of the covariance P of alpha = s - M gamma
+# (.ae_eb_css()) from the joint covariance `S` (.ae_ji_*()). in block form, with Z = Gt + M_1 E_g' the
+# loadings of the long side's alpha on the rest and T = E_e - E_g M_2' those of the short side's,
+# P_11 = diag(D^-1 entries of the effects) + Z Srr Z', P_12 = -Z Srr T and P_22 = T' Srr T; P_11 is kept
+# as (dg, Z, ZS = Z Srr, Srr) when the long side outnumbers the rest
+.ae_eb_css_blocks <- function(S, ctx) {
+	nr <- ctx$nr
+	if (identical(S$form, "dense")) {
+		P <- .ae_eb_css(ctx, S$S)
+		if (identical(ctx$kind, "symmetric")) return(list(aa = P))
+		ia <- seq_len(nr); ib <- nr + seq_len(ctx$nc)
+		return(list(aa = P[ia, ia, drop = FALSE], ab = P[ia, ib, drop = FALSE], bb = P[ib, ib, drop = FALSE]))
+	}
+	g <- S$info
+	Srr <- S$Srr
+	Z <- S$Gt[seq.int(1L, by = S$k, length.out = S$n1), , drop = FALSE]
+	if (length(g$r_g)) Z[, g$r_g] <- Z[, g$r_g] + g$M1
+	ZS <- Z %*% Srr
+	P12 <- -ZS[, g$r_e, drop = FALSE]
+	P22 <- Srr[g$r_e, g$r_e, drop = FALSE]
+	if (length(g$r_g)) {
+		P12 <- P12 + ZS[, g$r_g, drop = FALSE] %*% t(g$M2)
+		SM <- Srr[g$r_e, g$r_g, drop = FALSE] %*% t(g$M2)
+		P22 <- P22 - SM - t(SM) + g$M2 %*% Srr[g$r_g, g$r_g, drop = FALSE] %*% t(g$M2)
+	}
+	dg <- S$Dinv[1L, 1L, ]
+	if (S$n1 <= ncol(Z)) {
+		P11 <- tcrossprod(ZS, Z)
+		P11[cbind(seq_len(S$n1), seq_len(S$n1))] <- P11[cbind(seq_len(S$n1), seq_len(S$n1))] + dg
+	} else {
+		P11 <- list(dg = dg, Z = Z, ZS = ZS, Srr = Srr)
+	}
+	if (g$rows) list(aa = P11, ab = P12, bb = P22) else list(aa = P22, ab = t(P12), bb = P11)
 }
 
 # effective number of mean parameters, sum over observed cells of the information weight
@@ -624,7 +789,7 @@
 			g <- cbind(g, sg[r] * Fv[J, r], sg[r] * Fu[I, r])
 		}
 		v <- numeric(length(ok))
-		for (x in seq_len(ncol(g))) for (y in seq_len(ncol(g))) v <- v + g[, x] * g[, y] * S[cbind(pos[, x], pos[, y])]
+		for (x in seq_len(ncol(g))) for (y in seq_len(ncol(g))) v <- v + g[, x] * g[, y] * .ae_ji_ent(S, pos[, x], pos[, y])
 		total <- total + sum(wt[ok] * pmax(v, 0))
 	}
 	total

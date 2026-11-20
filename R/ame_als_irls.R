@@ -207,6 +207,14 @@
 # (probit latent scale), the moment-scaled row/column-mean variance of log1p(y)
 # for Poisson. the EB fit of a directed unipartite network takes the prior of
 # ame() and lame() (R/uv_prior.R) instead
+# the factor side whose prior scale a bipartite posterior mode holds at 1: the side with fewer
+# actors, the receivers unless the table has more columns than rows, so the scale estimated is
+# that of the side with more actors ("none" for a one-mode fit or rank 0)
+.ae_fixed_side <- function(prep, R, symmetric) {
+	if (R == 0 || symmetric || !isTRUE(prep$bip)) return("none")
+	if (prep$nc > prep$nr) "sender" else "receiver"
+}
+
 .ae_uv_prior_scale <- function(y, family) {
 	# a normal response is in its own unit (R/normal_scale.R)
 	if (identical(family, "normal")) return(.lame_unit_sd(y, "normal"))
@@ -241,8 +249,14 @@
 				(uv_prior$kappa0 + 2 * nr * R)
 			sig2_u <- sig2_v <- rep(s2, R)
 		} else {
-			sig2_u <- (uv_prior$suv0 + colSums(U^2)) / (nr + uv_prior$kappa0)
-			sig2_v <- (uv_prior$suv0 + colSums(V^2)) / (nc + uv_prior$kappa0)
+			# the start splits the product's unit between the two factors; the side whose scale is
+			# held at 1 gives its share to the other
+			side <- .ae_default(uv_prior$fixed_side, "none")
+			if (side == "receiver") { U <- U * sqrt(uv_prior$unit); V <- V / sqrt(uv_prior$unit) }
+			if (side == "sender") { U <- U / sqrt(uv_prior$unit); V <- V * sqrt(uv_prior$unit) }
+			sig2_u <- if (side == "sender") rep(1, R) else (uv_prior$suv0 + colSums(U^2)) / (nr + uv_prior$kappa0)
+			sig2_v <- if (side == "receiver") rep(1, R) else
+				(uv_prior$suv0 + colSums(V^2)) / (nc + uv_prior$kappa0)
 		}
 	}
 	out <- list(
@@ -386,7 +400,13 @@
 		kappa0 <- uvp$df
 		suv0 <- uvp$psi
 	}
-	uv_prior <- if (R > 0) list(suv0 = suv0, kappa0 = kappa0) else NULL
+	# a bipartite fit holds the scale of one side at 1 (.ae_fixed_side); the other side's factors
+	# then carry the whole unit of the product (the response's for a normal fit), and their prior
+	# scale its square, as in the variational stage
+	fixed_side <- .ae_fixed_side(prep, R, symmetric)
+	factor_unit <- if (fixed_side != "none") .lame_unit_sd(y, family) else 1
+	suv0 <- suv0 * factor_unit
+	uv_prior <- if (R > 0) list(suv0 = suv0, kappa0 = kappa0, fixed_side = fixed_side, unit = factor_unit) else NULL
 
 	# an EB step runs a few BCD sweeps, then refreshes weights, Laplace correction
 	# and EM scale images, so the loop does not stall on stale weights
@@ -429,12 +449,16 @@
 			dev + (2 * suv0 + 2 * sum(abs(f$L))) / s2 +
 				(2 * nr * R + 2 * kappa0) * log(s2)
 		} else {
-			su <- pmax(scales$sig2_u, 1e-12)
+			# a scale held at 1 has no hyperprior
+			if (fixed_side == "sender") {
+				sv <- pmax(scales$sig2_v, 1e-12 * factor_unit^2)
+				return(dev + sum((suv0 + colSums(f[["V"]]^2)) / sv) + (nc + kappa0) * sum(log(sv)) + sum(f$U^2))
+			}
+			su <- pmax(scales$sig2_u, 1e-12 * factor_unit^2)
+			sender <- dev + sum((suv0 + colSums(f$U^2)) / su) + (nr + kappa0) * sum(log(su))
+			if (fixed_side == "receiver") return(sender + sum(f[["V"]]^2))
 			sv <- pmax(scales$sig2_v, 1e-12)
-			dev + sum((suv0 + colSums(f$U^2)) / su) +
-				(nr + kappa0) * sum(log(su)) +
-				sum((suv0 + colSums(f[["V"]]^2)) / sv) +
-				(nc + kappa0) * sum(log(sv))
+			sender + sum((suv0 + colSums(f[["V"]]^2)) / sv) + (nc + kappa0) * sum(log(sv))
 		}
 	}
 

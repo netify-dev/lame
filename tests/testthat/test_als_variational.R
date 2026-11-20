@@ -204,7 +204,7 @@ test_that("a variational fit is a stationary point of its objective and the mode
 				S$mu = S$mu + e * dm[1]; S$beta = S$beta + e * dm[2]
 				S$a = S$a + e * da; S$b = S$b + e * db; S$U = S$U + e * dU; S$V = S$V + e * dV
 			} else {
-				S$Sc = S$Sc + e * dSc; S$vact = lame:::.ae_mf_vact(S$Sc, cx$ab)
+				S$Sc = lame:::.ae_acov_dense(lame:::.ae_acov_full(S$Sc) + e * dSc, cx$ab); S$vact = lame:::.ae_mf_vact(S$Sc, cx$ab)
 				S$Sig = S$Sig + e * dSig; S$Om = S$Om + e * dOm
 			}
 			S
@@ -257,7 +257,7 @@ test_that("the divergences in the lower bound are those of the gaussians they na
 	Lam = lame:::.ae_eb_precision(S$sab, ab)
 	expect_equal(
 		lame:::.ae_mf_kl_actors(S$Sc, c(S$a, S$b), 0, Lam),
-		kl(c(S$a, S$b), S$Sc, solve(Lam)),
+		kl(c(S$a, S$b), lame:::.ae_acov_full(S$Sc), solve(.ae_prec_dense(Lam))),
 		tolerance = 1e-8
 	)
 	# the lower bound is the expected log likelihood (nu = 1/2 on the ordered cells of an undirected network) less both

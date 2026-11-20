@@ -193,9 +193,9 @@
 #' \code{array(x, dim = c(n, n, 1))}; \code{Inf}/\code{NaN} entries are rejected.
 #' @param Xrow For unipartite: an n x pr matrix of \strong{sender} (row) covariates (e.g. sender's age, group).
 #' For bipartite: an nA x pr matrix of row-node covariates. A \code{data.frame} is accepted and coerced
-#' to numeric matrix internally.
+#' to numeric matrix internally. In a symmetric model (\code{symmetric = TRUE}) each node covariate enters a dyad through both of its actors.
 #' @param Xcol For unipartite: an n x pc matrix of \strong{receiver} (column) covariates. For bipartite:
-#' an nB x pc matrix of column-node covariates. A \code{data.frame} is accepted and coerced internally.
+#' an nB x pc matrix of column-node covariates. A \code{data.frame} is accepted and coerced internally. In a symmetric model a node covariate may be given in \code{Xrow}, in \code{Xcol} or in both, and each distinct covariate enters once, as \code{<name>_node}.
 #' @param rvar logical: fit row random effects (asymmetric case)?
 #' @param cvar logical: fit column random effects (asymmetric case)?
 #' @param dcor logical: fit a dyadic correlation (asymmetric case)? Note: not used for bipartite networks. With \code{method = "als"} the argument goes to \code{\link{ame_als}}, whose directed binary probit, Poisson or normal fit then has the correlation in its likelihood.
@@ -889,9 +889,17 @@
 #' \item{APM_sd, BPM_sd}{posterior standard deviation of each additive effect
 #'   (static effects), used by \code{simulate()} to draw the effects}
 #' \item{BPM}{Additive column/receiver effects (m-vector); NULL for symmetric networks}
-#' \item{U}{Multiplicative row/sender factors (n xR matrix)}
+#' \item{U}{Multiplicative row/sender factors (n xR matrix): the factors of the
+#' posterior mean product \code{UVPM} at rank R, columns in decreasing order of
+#' its singular values (see \code{\link{latent_positions}})}
 #' \item{V}{Multiplicative column/receiver factors (m xR matrix); NULL for symmetric networks}
 #' \item{L}{Eigenvalue matrix (R xR diagonal); symmetric networks only}
+#' \item{G}{Bipartite networks only: the interaction matrix of \eqn{U G V'},
+#' the identity, so that \eqn{U G V'} is the best rank-R part of \code{UVPM}}
+#' \item{U_sd, V_sd}{With saved latent draws (\code{posterior_options(save_UV =
+#' TRUE)}), the posterior standard deviation of each coordinate of \code{U} and
+#' \code{V}, each draw matched onto the reported positions by a move that
+#' leaves its product unchanged}
 #' \item{YPM}{Stored response-scale fitted value: the average over the stored
 #' draws of the mean response given each draw, which is the tie probability for
 #' binary fits, the linear predictor for normal fits and the expected category
@@ -1717,6 +1725,19 @@ ame <- function(
 	.check_all_na_cov(Xdyad, "Xdyad")
 	.check_all_na_cov(Xrow, "Xrow")
 	.check_all_na_cov(Xcol, "Xcol")
+	# a symmetric model uses each distinct node covariate of Xrow and Xcol once, under a unique
+	# name; when Xcol adds one or a name repeats, Xrow carries the merged set from here on
+	# (R/design_array.R). both are checked and aligned to Y's actors above
+	if (isTRUE(symmetric) && identical(mode, "unipartite") && !(is.null(Xrow) && is.null(Xcol))) {
+		sym_cov <- .lame_symmetric_node_covariates(
+			if (!is.null(Xrow)) list(as.matrix(Xrow)),
+			if (!is.null(Xcol)) list(as.matrix(Xcol))
+		)
+		if (sym_cov$changed) {
+			Xrow <- sym_cov$X[[1L]]
+			Xcol <- NULL
+		}
+	}
 	# warn on unrecognised prior-list keys
 	if (length(prior) > 0L && !is.null(names(prior))) {
 		known_prior <- c(

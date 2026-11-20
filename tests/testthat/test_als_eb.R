@@ -299,7 +299,7 @@ test_that("the conditional trace of the factor rows is the trace of the diagonal
 		# the fit's state: the variational means (a weak product is withheld from the report)
 		fit = lame:::.ae_product_restore(eb_fit(d, R = 2, symmetric = sym))
 		lp = lame:::.ae_eb_laplace_state(fit, inverse = FALSE)
-		Hf = lp$jp$Hf; lay = lp$jp$lay; wsum = lp$jp$wsum
+		Hf = lame:::.ae_jb_dense(lp$jp$sys); lay = lp$jp$lay; wsum = lp$jp$wsum
 		rows = function(i, side) vapply(1:2, function(r) if (side == "u") lay$iu(r)[i] else lay$iv(r)[i], 0L)
 		if (sym) {
 			fm = sweep(fit$U, 2, sqrt(abs(fit$L)), "*")
@@ -342,7 +342,7 @@ test_that("the predictive variance is the variance of the predictor under the jo
 	fit = eb_fit(d)
 	pr = lame:::.ae_eb_predictive(fit)
 	lp = lame:::.ae_eb_laplace_state(fit)
-	S = lp$jp$S; ctx = lp$jp$ctx; lay = lp$jp$lay
+	S = lame:::.ae_ji_full(lp$jp$S); ctx = lp$jp$ctx; lay = lp$jp$lay
 	x = d$X[[1]][, , 1]
 	for (cell in list(c(2, 5), c(7, 3), c(11, 1))) {
 		i = cell[1]; j = cell[2]
@@ -389,8 +389,9 @@ test_that("the displacement of the integrated parameters is the gradient of half
 	half_ld = function(obj) {
 		lp = lame:::.ae_eb_laplace_state(obj, inverse = FALSE)
 		ctx = lp$jp$ctx
-		iz = setdiff(seq_len(nrow(lp$jp$Hf)), c(ctx$i_th, ctx$i_g))
-		sum(log(diag(chol(lp$jp$Hf[iz, iz, drop = FALSE]))))
+		Hf = lame:::.ae_jb_dense(lp$jp$sys)
+		iz = setdiff(seq_len(nrow(Hf)), c(ctx$i_th, ctx$i_g))
+		sum(log(diag(chol(Hf[iz, iz, drop = FALSE]))))
 	}
 	# the identity is one of the fitted state: the directed product of this ten-actor panel is below the withholding threshold
 	# under the data-scaled factor prior (R/uv_prior.R), so it is read without the rule
@@ -404,10 +405,10 @@ test_that("the displacement of the integrated parameters is the gradient of half
 		expect_true(!sym || abs(fit$L[1]) > 0.5)
 		lp = lame:::.ae_eb_laplace_state(fit)
 		jp = lp$jp; ctx = jp$ctx; lay = jp$lay
-		iz = setdiff(seq_len(nrow(jp$Hf)), c(ctx$i_th, ctx$i_g))
-		posz = integer(nrow(jp$Hf)); posz[iz] = seq_along(iz)
-		Sz = solve(jp$Hf[iz, iz])
-		q = lame:::.ae_eb_logdet_grad(lp, lame:::.ae_eb_slots(lp), Sz, posz)
+		Hf = lame:::.ae_jb_dense(jp$sys)
+		iz = setdiff(seq_len(nrow(Hf)), c(ctx$i_th, ctx$i_g))
+		Sz = lame:::.ae_ji_dense(solve(Hf[iz, iz]), iz, nrow(Hf))
+		q = lame:::.ae_eb_logdet_grad(lp, lame:::.ae_eb_slots(lp), Sz)
 		Lr = if (sym) abs(fit$L[1]) else 1
 		sg = if (sym && fit$L[1] < 0) -1 else 1
 		Fm = if (sym) fit$U[, 1] * sqrt(Lr) else NULL
@@ -441,7 +442,7 @@ test_that("the displacement of the integrated parameters is the gradient of half
 			for (i in c(2, 5)) {
 				fd = (half_ld(bump(fit, what, i, eps)) - half_ld(bump(fit, what, i, -eps))) / (2 * eps)
 				expect_equal(
-					unname(q[posz[pos_of(what, i)]]),
+					unname(q[pos_of(what, i)]),
 					fd,
 					tolerance = 1e-5,
 					info = paste(if (sym) "symmetric" else "directed", what, i)

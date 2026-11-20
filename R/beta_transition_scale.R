@@ -60,11 +60,7 @@
 			class = "lame_beta_transition"
 		)
 	}
-	stored <- match(xn, names_beta)
-	if (isTRUE(object$symmetric)) {
-		collapsed <- gsub("row|col", "node", xn)
-		stored[is.na(stored)] <- match(collapsed[is.na(stored)], names_beta)
-	}
+	stored <- if (isTRUE(object$symmetric)) .lame_node_match(xn, names_beta) else match(xn, names_beta)
 	if (anyNA(stored) || !all(seq_along(names_beta) %in% stored)) {
 		cli::cli_abort(
 			"The saved design cannot be matched to the stored coefficient paths.",

@@ -191,6 +191,7 @@ reference:
     desc: "Extract and align latent positions"
     contents:
     - latent_positions
+    - latent_similarity
     - procrustes_align
 
   - title: "Posterior Utilities"

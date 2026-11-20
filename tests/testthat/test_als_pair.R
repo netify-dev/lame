@@ -132,9 +132,10 @@ test_that("the information of the additive block with the cross weights is the h
 	ctx = lame:::.ae_eb_context(cx$ab, st, rowSums(Warr, dims = 2L), cx$p)
 	ctx2 = lame:::.ae_pair_add_cross(ctx, lame:::.ae_pair_cross(cx, ev$pair$cw))
 	idx = c(ctx$i_th, ctx$i_s)
-	expect_lt(max(abs(Hfd + ctx2$H[idx, idx])), 1e-4 * max(abs(ctx2$H[idx, idx])))
+	H1 = lame:::.ae_eb_dense_H(ctx)[idx, idx]; H2 = lame:::.ae_eb_dense_H(ctx2)[idx, idx]
+	expect_lt(max(abs(Hfd + H2)), 1e-4 * max(abs(H2)))
 	# the diagonal weights alone are not the Hessian: the cross weights matter at this correlation
-	expect_gt(max(abs(Hfd + ctx$H[idx, idx])), 100 * max(abs(Hfd + ctx2$H[idx, idx])))
+	expect_gt(max(abs(Hfd + H1)), 100 * max(abs(Hfd + H2)))
 })
 
 test_that("the posterior of rho is the prior without information and the peak with a lot", {

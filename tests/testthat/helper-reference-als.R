@@ -7,7 +7,9 @@
 	if (identical(object$eb$estimator, "variational")) return(object$eb$laplace)
 	lp = .ae_eb_laplace_state(object, inverse = FALSE)
 	jp = lp$jp; ctx = jp$ctx
-	iz = setdiff(seq_len(nrow(jp$Hf)), c(ctx$i_th, ctx$i_g))
+	Hf = .ae_jb_dense(jp$sys)
+	H0 = .ae_eb_dense_H(ctx, jp$sys$Lam)
+	iz = setdiff(seq_len(nrow(Hf)), c(ctx$i_th, ctx$i_g))
 	.ae_eb_evidence_core(
 		lp$prep,
 		lp$ab,
@@ -15,8 +17,8 @@
 		lp$R,
 		lp$eta0,
 		lp$link,
-		2 * sum(log(diag(chol(jp$Hf[iz, iz, drop = FALSE])))),
-		2 * sum(log(diag(chol(jp$H0[ctx$i_s, ctx$i_s, drop = FALSE]))))
+		2 * sum(log(diag(chol(Hf[iz, iz, drop = FALSE])))),
+		2 * sum(log(diag(chol(H0[ctx$i_s, ctx$i_s, drop = FALSE]))))
 	)
 }
 
@@ -275,4 +277,17 @@
 		),
 		sgs = sgs
 	)
+}
+
+# the precision of the effects (.ae_eb_precision()) as a q x q matrix
+.ae_prec_dense = function(Lam) {
+	q = length(Lam$d)
+	out = matrix(0, q, q)
+	out[cbind(seq_len(q), seq_len(q))] = Lam$d
+	if (!is.null(Lam$o12)) {
+		ia = seq_len(Lam$nr); ib = Lam$nr + ia
+		out[cbind(ia, ib)] = Lam$o12
+		out[cbind(ib, ia)] = Lam$o21
+	}
+	out
 }

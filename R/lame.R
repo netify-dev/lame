@@ -2650,8 +2650,8 @@
 #' omitted, the value inferred by \pkg{netify} is used. See family below for
 #' data types.
 #' @param Xdyad a T length list of n x n x pd arrays of covariates
-#' @param Xrow a T length list of n x pr matrices of nodal row covariates
-#' @param Xcol a T length list of n x pc matrices of nodal column covariates
+#' @param Xrow a T length list of n x pr matrices of nodal row covariates. In a symmetric model (\code{symmetric = TRUE}) each node covariate enters a dyad through both of its actors.
+#' @param Xcol a T length list of n x pc matrices of nodal column covariates. In a symmetric model a node covariate may be given in \code{Xrow}, in \code{Xcol} or in both, and each distinct covariate enters once, as \code{<name>_node}.
 #' @param rvar logical: fit row random effects (asymmetric case)?
 #'   With \code{method = "als"} and a normal, binary or Poisson dynamic fit by
 #'   the empirical-Bayes estimator, \code{rvar}, \code{cvar}, \code{nvar} and
@@ -4214,14 +4214,19 @@
 #' mean of additive column effects b}
 #' \item{APM_sd, BPM_sd}{posterior standard deviation of each additive effect
 #'   (static effects), used by \code{simulate()} to draw the effects}
-#' \item{U}{multiplicative row effects u. For \code{dynamic_uv = TRUE}, a 3D
+#' \item{U}{multiplicative row effects u. For static positions, a matrix
+#'   (n x R) that factors the posterior mean product at rank R, columns in
+#'   decreasing order of its singular values. For \code{dynamic_uv = TRUE}, a 3D
 #'   array (n x R x T) whose periods factor the posterior mean product of each
 #'   period at rank R and are aligned across periods; \code{NA} for an actor
 #'   absent from a period (see \code{\link{latent_positions}})}
 #' \item{V}{multiplicative column effects v (asymmetric case), with the same
 #'   layout as \code{U}}
-#' \item{U_sd, V_sd}{for \code{dynamic_uv = TRUE} with saved latent draws (the
-#'   default), the posterior standard deviation of each reported coordinate,
+#' \item{U_sd, V_sd}{for static positions with saved latent draws
+#'   (\code{posterior_options(save_UV = TRUE)}), and for \code{dynamic_uv =
+#'   TRUE} with saved latent draws (the default), the posterior standard
+#'   deviation of each reported coordinate, each draw matched onto the reported
+#'   positions by a move that leaves its product unchanged,
 #'   same shape as \code{U} and \code{V}; \code{latent_positions()} reports
 #'   them as \code{posterior_sd}. A \code{method = "als"} fit with static
 #'   factors (\code{dynamic_ab} or \code{dynamic_beta} without
@@ -4396,7 +4401,9 @@
 #'   inverse-gamma scale of the coefficient innovation variance, fixed before
 #'   sampling from the response scale}
 #' \item{G}{for bipartite fits, the interaction matrix of \eqn{U G V'}: the
-#'   posterior mean of the gauged draws when the positions are static; when they
+#'   identity when the positions are static (the scale is split evenly between
+#'   \code{U} and \code{V}, and \eqn{U G V'} is the best rank-R part of
+#'   \code{UVPM}); when they
 #'   are dynamic, a diagonal matrix fixed across periods that carries the scale,
 #'   so that \eqn{U_t G V_t'} is the best rank-R part of each period's
 #'   \code{UVPM}}
@@ -5863,6 +5870,24 @@ lame <- function(
 	}
 	Y <- arrayObj$Y ; Xdyad <- arrayObj$Xdyad ; Xrow <- arrayObj$Xrow
 	Xcol <- arrayObj$Xcol ; rm(arrayObj)
+	# a symmetric model uses each distinct node covariate of Xrow and Xcol once, under a unique
+	# name; when Xcol adds one or a name repeats, Xrow carries the merged set (R/design_array.R).
+	# both were checked and placed on the actors by name above
+	if (isTRUE(symmetric) && !bip && !(is.null(Xrow) && is.null(Xcol))) {
+		periods <- function(X) if (!is.null(X)) lapply(seq_len(dim(X)[3L]), function(t) {
+			matrix(X[, , t], dim(X)[1L], dim(X)[2L], dimnames = dimnames(X)[1:2])
+		})
+		sym_cov <- .lame_symmetric_node_covariates(periods(Xrow), periods(Xcol))
+		if (sym_cov$changed) {
+			dn <- dimnames(if (is.null(Xrow)) Xcol else Xrow)
+			Xrow <- array(
+				unlist(sym_cov$X, use.names = FALSE),
+				c(length(dn[[1L]]), length(sym_cov$stems), length(sym_cov$X)),
+				dimnames = list(dn[[1L]], sym_cov$stems, dn[[3L]])
+			)
+			Xcol <- NULL
+		}
+	}
 	if (bip && is.list(Xdyad) && !is.null(Xdyad) && length(Xdyad) > 0) {
 		pd_tmp <- dim(Xdyad[[1]])[3]
 		# keep the per-slice covariate names of the first period
@@ -6942,9 +6967,6 @@ lame <- function(
 		BETA <- matrix(nrow = nscan / odens, ncol = dim(X)[3] - pr * symmetric)
 	}
 	VC <- matrix(nrow = nscan / odens, ncol = 5 - 3 * symmetric)
-	# a static bipartite G is summarised by the posterior mean of its gauged draws
-	G_sum <- if (isTRUE(bip) && !is.null(G) && is.matrix(G)) array(0, dim = dim(G)) else NULL
-	G_n <- 0L
 	# storage for the Cowles explicit cutpoints: alpha[1] = 0 is the anchor, so K - 2 free cutpoints are
 	# stored; none for K = 2
 	if (use_explicit_cutpoints && K_ord >= 3L) {
@@ -7195,11 +7217,11 @@ lame <- function(
 		excl <- c(rb, cb)
 		if (intercept) {
 			bni <- bnames[1]
-			bnn <- gsub("row", bnames[rb], replacement = "node")
+			bnn <- .lame_node_name(bnames[rb])
 			bnd <- bnames[-c(1, excl)]
 			colnames(BETA) <- c(bni, bnn, bnd)
 		} else {
-			bnn <- gsub("row", bnames[rb], replacement = "node")
+			bnn <- .lame_node_name(bnames[rb])
 			bnd <- if (length(excl) > 0) bnames[-excl] else bnames
 			colnames(BETA) <- c(bnn, bnd)
 		}
@@ -13535,11 +13557,6 @@ lame <- function(
 			if (use_explicit_cutpoints && !is.null(ALPHA)) {
 				ALPHA[iter, ] <- alpha[-1L]
 			}
-			# accumulate the static bipartite interaction matrix
-			if (!is.null(G_sum) && !is.null(G) && all(is.finite(G))) {
-				G_sum <- G_sum + G
-				G_n <- G_n + 1L
-			}
 			# pointwise log-likelihood at this draw, per observed dyad, from the refreshed EZ
 			if (!is.null(LOG_LIK) || !is.null(LOG_LIK_CONNS)) {
 				n_obs_iter <- if (!is.null(LOG_LIK)) ncol(LOG_LIK) else LOG_LIK_META$n_obs_total
@@ -14113,23 +14130,9 @@ lame <- function(
 			V_SD <- sqrt(V_var)
 		} else { V_SD <- NULL }
 	} else {
+		# the sampler's state gives the ranks; the reported positions are the factors of UVPM
 		U_final <- U
 		V_final <- V
-		# the last draw is centred the same way as the reported positions, so the raw matrices carry the split
-		# the effects and intercept assume
-		if (R_eff > 0 && !is.null(U) && !is.null(V) && NCOL(U) > 0L && NCOL(V) > 0L) {
-			U_st <- if (length(dim(U)) == 3L) matrix(U[, , 1L], nrow = dim(U)[1L]) else as.matrix(U)
-			V_st <- if (length(dim(V)) == 3L) matrix(V[, , 1L], nrow = dim(V)[1L]) else as.matrix(V)
-			G_st <- if (bip && !is.null(G)) G else diag(1, ncol(U_st))
-			cen_fin <- if (all(is.finite(U_st)) && all(is.finite(V_st)) && all(is.finite(G_st)) &&
-					ncol(U_st) == nrow(G_st) && ncol(V_st) == ncol(G_st)) {
-				.lame_center_uv_period(U_st, V_st, G_st)
-			} else NULL
-			if (!is.null(cen_fin)) {
-				if (length(dim(U)) == 3L) { for (tt in seq_len(dim(U)[3L])) U_final[, , tt] <- cen_fin$U } else U_final <- cen_fin$U
-				if (length(dim(V)) == 3L) { for (tt in seq_len(dim(V)[3L])) V_final[, , tt] <- cen_fin[["V"]] } else V_final <- cen_fin[["V"]]
-			}
-		}
 		UVPS_final <- UVPS / n_stored_draws
 	}
 
@@ -14445,10 +14448,6 @@ lame <- function(
 			fit$alpha_post_mean <- 0
 		}
 	}
-	# a static bipartite G is reported as the posterior mean of its gauged draws, like the positions
-	if (exists("G_sum", inherits = FALSE) && !is.null(G_sum) && G_n > 0L) {
-		fit[["G"]] <- G_sum / G_n
-	}
 	# per-actor slopes (draws or streaming summary)
 	if (isTRUE(per_actor_active)) {
 		fit$dynamic_beta_per_actor <- dynamic_beta_per_actor
@@ -14723,11 +14722,13 @@ lame <- function(
 			fit$EZ[[tt]] <- fit$EZ[[tt]] + offset
 		}
 	}
-	# latent positions from the posterior mean products, aligned over time
+	# latent positions from the posterior mean products, aligned over time when dynamic
 	if (isTRUE(dynamic_uv)) {
 		fit <- .lame_dynamic_positions(fit)
 		rho_hat <- estimate_rho_from_U(fit$U)
 		if (is.finite(rho_hat)) fit$rho_uv_aligned <- as.numeric(rho_hat)
+	} else {
+		fit <- .lame_static_positions(fit)
 	}
 	# posterior sd of the static additive effects, for simulate(); dynamic effects carry a_dynamic_sd / b_dynamic_sd
 	if (!dynamic_ab && exists("APS2", inherits = FALSE) && length(APS2) == length(fit$APM)) {

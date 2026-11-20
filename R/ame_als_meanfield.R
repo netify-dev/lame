@@ -303,13 +303,12 @@
 }
 
 # the variance of the additive part of the predictor of every cell from the
-# covariance `Sc` of the stacked actor effects
+# covariance `Sc` of the stacked actor effects (.ae_acov())
 .ae_mf_vact <- function(Sc, ab) {
 	nr <- ab$nr
-	dg <- diag(Sc)
-	if (identical(ab$kind, "symmetric")) return(outer(dg, dg, "+") + 2 * Sc)
-	ia <- seq_len(nr); ib <- nr + seq_len(ab$nc)
-	outer(dg[ia], dg[ib], "+") + 2 * Sc[ia, ib, drop = FALSE]
+	dg <- Sc$dg
+	if (identical(ab$kind, "symmetric")) return(outer(dg, dg, "+") + 2 * Sc$full)
+	outer(dg[seq_len(nr)], dg[nr + seq_len(ab$nc)], "+") + 2 * Sc$cross
 }
 
 # factor part of the objective with the scales integrated out: the entropy of q (up to a constant) plus
@@ -335,8 +334,8 @@
 # means `m_s`, prior mean `mu0`, precision `Lam`) and the factor rows
 .ae_mf_kl_actors <- function(Sc, m_s, mu0, Lam) {
 	d <- m_s - mu0
-	0.5 * (sum(Lam * Sc) + sum(d * as.vector(Lam %*% d)) - length(d) -
-			.ae_mf_logdet(Lam) - .ae_mf_logdet(Sc))
+	0.5 * (.ae_acov_trace(Lam, Sc) + sum(d * .ae_prec_mult(Lam, d)) - length(d) -
+			.ae_prec_logdet(Lam) - .ae_acov_logdet(Sc))
 }
 .ae_mf_kl_factors <- function(S, R) {
 	pr <- S$prior
@@ -376,7 +375,6 @@
 	nu <- ab$nu
 	sym <- identical(ab$kind, "symmetric")
 	Lam <- .ae_eb_precision(sab, ab)
-	H <- .ae_eb_penalise(ctx, Lam)
 	g0 <- st$xtz; rs <- st$szr; cs <- st$szc
 	if (!is.null(Omat)) {
 		g0 <- g0 - ae_bcd_gtc_cpp(numeric(nr), numeric(nc), Omat, st$gm)
@@ -391,9 +389,8 @@
 	}
 	rhs <- c(nu * g0, if (sym) nu * (rs + cs) else c(rs, cs), numeric(pg))
 	s <- ctx$i_s
-	inv <- .ae_eb_inverse_pair(H, s)
-	S <- inv$S
-	x <- as.vector(S %*% rhs)
+	inv <- .ae_eb_system_inverse(ctx, Lam)
+	x <- inv$solve(rhs)
 	gam <- x[ctx$i_g]
 	alpha <- x[s] - if (pg > 0L) as.vector(ctx$M %*% gam) else 0
 	list(
@@ -403,8 +400,7 @@
 		gamma = gam,
 		alpha = alpha,
 		Sc = inv$Sc,
-		Lam = Lam,
-		sab_new = .ae_eb_update_sab(ab, alpha, .ae_eb_css(ctx, S))
+		sab_new = .ae_eb_update_sab(ab, alpha, inv$css)
 	)
 }
 
@@ -539,7 +535,7 @@
 	)
 	# noise variance of a count or normal cell, a hyperparameter of the state
 	if (cx$has_ve) S$ve <- fit$ve
-	S$Sc <- .ae_eb_inverse(.ae_eb_info_s(C0, ab) + .ae_eb_precision(S$sab, ab))
+	S$Sc <- .ae_ak_inverse(.ae_ak_build(.ae_ak_ctx(C0, ab), .ae_eb_precision(S$sab, ab)))
 	S$vact <- .ae_mf_vact(S$Sc, ab)
 	if (R == 0L) return(S)
 	if (cx$sym) {
@@ -637,8 +633,8 @@
 	Lam_s <- .ae_eb_precision(sab_ref, cx$ab)
 	d <- c(S$a, if (!cx$sym) S$b)
 	if (!is.null(cx$M)) d <- d - as.vector(cx$M %*% S$gamma)
-	kl_s <- 0.5 * (sum(Lam_s * S$Sc) + sum(d * as.vector(Lam_s %*% d)) -
-			.ae_mf_logdet(S$Sc))
+	kl_s <- 0.5 * (.ae_acov_trace(Lam_s, S$Sc) + sum(d * .ae_prec_mult(Lam_s, d)) -
+			.ae_acov_logdet(S$Sc))
 	cx$nu * ev$ell - kl_s + (if (cx$R > 0L) .ae_mf_factor_term(S, cx$R) else 0) +
 		(if (cx$has_ve) .ae_pln_ve_logprior(S$ve, cx$ab$ve_prior) else 0)
 }
@@ -708,7 +704,7 @@
 	B <- S
 	B$mu <- mix(S$mu, tg$theta[1L]); B$beta <- mix(S$beta, tg$theta[-1L])
 	B$a <- mix(S$a, tg$a); B$b <- mix(S$b, tg$b); B$gamma <- mix(S$gamma, tg$gamma)
-	B$Sc <- mix(S$Sc, tg$Sc)
+	B$Sc <- .ae_acov_mix(S$Sc, tg$Sc, rho)
 	if (cx$has_ve) B$ve <- mix(S$ve, tg$ve)
 	B$vact <- .ae_mf_vact(B$Sc, cx$ab)
 	if (cx$R > 0L) {
@@ -1009,8 +1005,8 @@
 	Lam_s <- .ae_eb_precision(sab_ref, cx$ab)
 	d <- c(S$a, if (!cx$sym) S$b)
 	if (!is.null(cx$M)) d <- d - as.vector(cx$M %*% S$gamma)
-	kl_s <- 0.5 * (sum(Lam_s * S$Sc) + sum(d * as.vector(Lam_s %*% d)) -
-			.ae_mf_logdet(S$Sc))
+	kl_s <- 0.5 * (.ae_acov_trace(Lam_s, S$Sc) + sum(d * .ae_prec_mult(Lam_s, d)) -
+			.ae_acov_logdet(S$Sc))
 	cx$nu * ev$ell - kl_s + .ae_mf_factor_term_fixed(S, cx$R) +
 		(if (cx$has_ve) .ae_pln_ve_logprior(S$ve, cx$ab$ve_prior) else 0)
 }

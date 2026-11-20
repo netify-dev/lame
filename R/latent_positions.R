@@ -17,15 +17,29 @@
 #' @details
 #' The latent product of each period is identified, the positions only up to a
 #' rotation or sign change that leaves the product unchanged. The positions of
-#' a \code{lame} fit with \code{dynamic_uv = TRUE} therefore factor the
+#' a static \code{ame} or \code{lame} fit therefore factor the posterior mean
+#' product at the fitted rank, with columns in decreasing order of its singular
+#' values and the sign of each column set so that its positive entries carry
+#' more of its squared length than its negative ones: \eqn{U V'} with the scale split evenly between \eqn{U} and
+#' \eqn{V}; \eqn{U L U'} for symmetric fits, with \eqn{U} orthonormal and
+#' \code{fit$L} the eigenvalues largest in absolute value; and \eqn{U G V'}
+#' for bipartite fits, with the scale split evenly and \code{fit$G} the
+#' identity (when \code{R_row} and \code{R_col} differ, the product has rank
+#' \eqn{k}, the smaller of the two, the columns of \code{fit$U} or \code{fit$V}
+#' past \eqn{k} are zero, and only the \eqn{k} dimensions are listed). The positions of
+#' a \code{lame} fit with \code{dynamic_uv = TRUE} factor the
 #' posterior mean product of every period at the fitted rank: \eqn{U_t V_t'}
 #' with the scale split evenly between \eqn{U_t} and \eqn{V_t};
 #' \eqn{U_t L U_t'} for symmetric fits, with \code{fit$L} fixed across periods;
 #' and \eqn{U_t G V_t'} for bipartite fits, with a diagonal \code{fit$G} fixed
 #' across periods. Each period is matched to the one before by moves that keep
 #' its product. The posterior standard deviations come from the saved draws
-#' (\code{posterior_opts = list(save_UV_draws = TRUE)}), each draw factored the
-#' same way and matched onto the reported positions.
+#' (\code{posterior_opts = posterior_options(save_UV = TRUE)} for static
+#' positions, \code{posterior_opts = list(save_UV_draws = TRUE)} for dynamic
+#' ones), each draw factored the same way and matched onto the reported
+#' positions by a move that leaves its product unchanged (a rotation, or a
+#' relabelling and sign change of the columns when \code{L} or a dynamic
+#' \code{G} is held fixed).
 #'
 #' Alignment only ever happens across the periods of one fit. Nothing here aligns two
 #' different fits (two chains, or the same model with and without a
@@ -59,6 +73,21 @@
 #'
 #' Returns a zero-row data frame with correct column names if R = 0.
 #'
+#' For a fit with static positions (\code{ame}, \code{lame} without
+#' \code{dynamic_uv}, and static \code{ame_als} fits) the data frame carries
+#' an attribute \code{"strength"}: a data frame with one row per dimension and
+#' columns \code{dimension}, \code{strength} (the singular value of the
+#' reported product for that dimension, or the absolute eigenvalue for
+#' symmetric fits), \code{share} (its squared strength over the sum of the
+#' squared strengths) and \code{tied_with_next}. Dimensions \eqn{j} and
+#' \eqn{j + 1} are tied when the reported gap between their strengths is less
+#' than twice the posterior sd of that gap over the saved draws (each draw's
+#' own strengths): the two axes are then not well separated and are read
+#' together as a plane, and a message says so. \code{tied_with_next} is \code{NA} for fits
+#' without saved draws of the positions. Fits with \code{dynamic_uv = TRUE}
+#' carry no strength attribute: their per-period positions are rotated to match
+#' the period before, so a column is not one dimension of each period's product.
+#'
 #' @seealso \code{\link{procrustes_align}} for standalone Procrustes alignment,
 #'   \code{\link{uv_plot}} for visualizing latent positions,
 #'   \code{\link{posterior_options}} for enabling posterior sampling of U/V
@@ -84,7 +113,8 @@ latent_positions <- function(object, ...) {
 #' @export
 latent_positions.ame <- function(object, align = FALSE, ...) {
 	.lame_require_draws(object, "latent_positions")
-	.extract_latent_positions(object, align = align)
+	object <- .lame_positions(object)
+	.lame_with_strength(.extract_latent_positions(object, align = align), object)
 }
 
 #' @rdname latent_positions
@@ -92,14 +122,10 @@ latent_positions.ame <- function(object, align = FALSE, ...) {
 #' @export
 latent_positions.lame <- function(object, align = TRUE, ...) {
 	.lame_require_draws(object, "latent_positions")
-	if (isTRUE(object$dynamic_uv)) {
-		# dynamic positions are factored and aligned when the model is fitted
-		if (!identical(object$uv_positions, "posterior_mean_product")) {
-			object <- .lame_dynamic_positions(object)
-		}
-		align <- FALSE
-	}
-	.extract_latent_positions(object, align = align)
+	# positions are factored (and dynamic ones aligned) when the model is fitted
+	object <- .lame_positions(object)
+	if (isTRUE(object$dynamic_uv)) align <- FALSE
+	.lame_with_strength(.extract_latent_positions(object, align = align), object)
 }
 
 #' @rdname latent_positions
@@ -116,7 +142,18 @@ latent_positions.ame_als <- function(object, align = FALSE, ...) {
 			)
 		)
 	}
-	.extract_latent_positions(object, align = align)
+	.lame_with_strength(.extract_latent_positions(object, align = align), object)
+}
+
+# the strength table of the dimensions as attribute "strength" (.lame_dim_strength),
+# and the statement on tied dimensions
+.lame_with_strength <- function(out, object) {
+	st <- .lame_dim_strength(object)
+	if (is.null(st) || nrow(out) == 0L) return(out)
+	attr(out, "strength") <- st
+	tie <- .lame_tie_sentence(st)
+	if (!is.null(tie)) cli::cli_inform(c("i" = tie))
+	out
 }
 
 .extract_latent_positions <- function(object, align = FALSE) {
@@ -151,17 +188,22 @@ latent_positions.ame_als <- function(object, align = FALSE, ...) {
 		G <- aligned$G
 	}
 
-	# posterior sds: static fits keep [n, R, S] draws in U_samples / V_samples;
-	# dynamic fits carry the sds of the reported coordinates in U_sd / V_sd
-	U_sd <- .compute_posterior_sd(object$U_samples)
-	V_sd <- .compute_posterior_sd(object$V_samples)
-	if (is.null(U_sd) && !is.null(object$U_sd) &&
-			identical(dim(object$U_sd), dim(U))) {
-		U_sd <- object$U_sd
-	}
-	if (is.null(V_sd) && !is.null(object$V_sd) && !is.null(V) &&
-			identical(dim(object$V_sd), dim(V))) {
-		V_sd <- object$V_sd
+	# posterior sds of the reported coordinates, from the draws matched onto them
+	U_sd <- if (identical(dim(object$U_sd), dim(U))) object$U_sd
+	V_sd <- if (!is.null(V) && identical(dim(object$V_sd), dim(V))) object$V_sd
+
+	# bipartite ranks R_row != R_col: the product has rank k = min of the two, and
+	# the columns past k are zero, so only the k dimensions are listed
+	if (!is_symmetric && length(dim(U)) >= 2L && length(dim(V)) >= 2L && dim(U)[2L] != dim(V)[2L]) {
+		k <- seq_len(min(dim(U)[2L], dim(V)[2L]))
+		first_k <- function(A) {
+			if (is.null(A)) return(NULL)
+			if (length(dim(A)) == 3L) A[, k, , drop = FALSE] else A[, k, drop = FALSE]
+		}
+		U <- first_k(U)
+		V <- first_k(V)
+		U_sd <- first_k(U_sd)
+		V_sd <- first_k(V_sd)
 	}
 
 	u_df <- .array_to_df(U, type = "U", sd_array = U_sd)
@@ -203,13 +245,6 @@ latent_positions.ame_als <- function(object, align = FALSE, ...) {
 	}
 
 	out
-}
-
-# element-wise posterior sd from a 3-d draws array [n, R, n_samples]
-.compute_posterior_sd <- function(samples) {
-	if (is.null(samples)) return(NULL)
-	if (length(dim(samples)) != 3L) return(NULL)
-	apply(samples, c(1, 2), sd, na.rm = TRUE)
 }
 
 # 2-d matrix or 3-d array to a tidy data frame; sd_array an optional array of

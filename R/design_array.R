@@ -226,3 +226,61 @@ design_array <- function(Xrow = NULL, Xcol = NULL, Xdyad = NULL, intercept = TRU
 		class = "lame_symmetric_xdyad"
 	)
 }
+
+# node covariates of a symmetric model: every column of Xrow, then every column of Xcol that
+# does not repeat a column of Xrow (the same missing cells and values equal to a relative 1e-10
+# in every period); each enters as beta * (x_i + x_j). Xrow and Xcol are NULL or lists of
+# per-period numeric node matrices already aligned to the actors. Returns the merged per-period
+# matrices `X`, named by unique `stems` (`<stem>_node` names the coefficient), and `changed`,
+# whether X differs from Xrow as given: Xcol adds a covariate or two names had to be made unique
+.lame_symmetric_node_covariates <- function(Xrow, Xcol) {
+	as_list <- function(X) if (is.null(X)) NULL else lapply(X, as.matrix)
+	Xrow <- as_list(Xrow)
+	Xcol <- as_list(Xcol)
+	ref <- if (is.null(Xrow)) Xcol else Xrow
+	Tt <- length(ref)
+	pr <- if (is.null(Xrow)) 0L else ncol(Xrow[[1L]])
+	pc <- if (is.null(Xcol)) 0L else ncol(Xcol[[1L]])
+	same_column <- function(a, b) {
+		a <- as.numeric(a); b <- as.numeric(b)
+		na <- is.na(a)
+		if (!identical(na, is.na(b))) return(FALSE)
+		if (all(na)) return(TRUE)
+		all(abs(a[!na] - b[!na]) <= 1e-10 * max(abs(a[!na]), abs(b[!na])))
+	}
+	same <- function(k, i) all(vapply(seq_len(Tt), function(t) {
+		same_column(Xcol[[t]][, k], Xrow[[t]][, i])
+	}, logical(1L)))
+	extra <- which(vapply(seq_len(pc), function(k) {
+		!any(vapply(seq_len(pr), function(i) same(k, i), logical(1L)))
+	}, logical(1L)))
+	# the names a period gives, the same in every period that names its columns
+	names_of <- function(X, p) {
+		nms <- NULL
+		for (m in X) if (!is.null(colnames(m))) { nms <- colnames(m); break }
+		if (is.null(nms)) nms <- rep("", p)
+		nms[is.na(nms)] <- ""
+		nms
+	}
+	# the covariate's own name, as the samplers turn `<name>_row` into `<name>_node`
+	stem <- function(nms, default) {
+		out <- sub("_node$", "", .lame_node_name(.lame_apply_suffix(nms, "row")))
+		out[!nzchar(nms)] <- default[!nzchar(nms)]
+		out
+	}
+	given <- c(
+		stem(names_of(Xrow, pr), paste0("Xnode", seq_len(pr))),
+		stem(names_of(Xcol, pc)[extra], paste0("Xnode", pr + seq_along(extra)))
+	)
+	stems <- make.unique(given)
+	X <- lapply(seq_len(Tt), function(t) {
+		m <- cbind(
+			if (pr > 0L) Xrow[[t]],
+			if (length(extra)) Xcol[[t]][, extra, drop = FALSE]
+		)
+		dimnames(m) <- list(rownames(ref[[t]]), stems)
+		m
+	})
+	names(X) <- names(ref)
+	list(X = X, stems = stems, changed = length(extra) > 0L || !identical(stems, given))
+}

@@ -158,7 +158,11 @@
 #   sig2_r = (suv0 + sum_i u_ir^2 + sum_i Var(u_ir | data)) / (nr + kappa0);
 # updating it after every shrink collapses to Suv -> 0 when suv0 is small.
 # suv0 is the per-coordinate IW prior scale (1 on the probit scale, the
-# moment-scaled vscale of prior$Suv0 for poisson)
+# moment-scaled vscale of prior$Suv0 for poisson). with `fixed_receiver` (two-mode
+# fits, the prior of the variational stage) the receiver scale stays at 1, only
+# sig2_u takes the update, and the factors are not balanced: the fixed scale
+# fixes their gauge, and the sender factors carry the whole unit of the
+# product, `unit` (suv0 is then in its square)
 .ae_lowrank_em_als <- function(
 	Rbar,
 	C,
@@ -172,7 +176,9 @@
 	kappa0,
 	maxit = 15L,
 	tol = 1e-6,
-	off = which(!obs_dyad)
+	off = which(!obs_dyad),
+	fixed_receiver = FALSE,
+	unit = 1
 ) {
 	# cells off the observed set carry no weight, so zero their target and weight
 	Rb0 <- Rbar; C0 <- C
@@ -192,9 +198,11 @@
 		suv0,
 		kappa0,
 		maxit,
-		tol
+		tol,
+		fixed_receiver,
+		unit
 	)
-	balanced_done <- isTRUE(out$balanced)
+	balanced_done <- isTRUE(out$balanced) || fixed_receiver
 	out$balanced <- NULL
 	if (balanced_done) return(out)
 	variance_order <- order(sqrt(out$sig2_u * out$sig2_v), decreasing = TRUE)
@@ -340,7 +348,8 @@
 # dispatch the penalized multiplicative-block update (IRLS families):
 # directed / bipartite fits use the ridged ALS solver seeded by one
 # unpenalized MM step, symmetric fits the soft-thresholded MM; the incoming
-# sig2 only seeds the ALS ridge on the cold-start sweep
+# sig2 only seeds the ALS ridge on the cold-start sweep. a bipartite fit
+# (`fixed_receiver`) holds the receiver scale at 1, as the variational stage does
 .ae_lowrank_update_pen <- function(
 	Omat,
 	Rbar,
@@ -356,7 +365,9 @@
 	kappa0,
 	off = which(!obs_dyad),
 	second_moment = FALSE,
-	cfloor = 1
+	cfloor = 1,
+	fixed_receiver = FALSE,
+	unit = 1
 ) {
 	if (symmetric) {
 		return(.ae_lowrank_em_mm(
@@ -376,10 +387,16 @@
 	if (is.null(U) || is.null(V)) {
 		seed <- .ae_lowrank_mm(Omat, Rbar, C, obs_dyad, R, FALSE, maxit = 1L, cfloor = cfloor)
 		U <- seed$U; V <- seed[["V"]]
+		# the seed splits the product's unit between the factors; the sender takes it all
+		if (fixed_receiver) { U <- U * sqrt(unit); V <- V / sqrt(unit) }
 	}
 	nr <- nrow(Rbar); nc <- ncol(Rbar)
 	if (is.null(sig2_u)) sig2_u <- (suv0 + colSums(U^2)) / (nr + kappa0)
-	if (is.null(sig2_v)) sig2_v <- (suv0 + colSums(V^2)) / (nc + kappa0)
+	if (fixed_receiver) {
+		sig2_v <- rep(1, R)
+	} else if (is.null(sig2_v)) {
+		sig2_v <- (suv0 + colSums(V^2)) / (nc + kappa0)
+	}
 	.ae_lowrank_em_als(
 		Rbar,
 		C,
@@ -391,7 +408,9 @@
 		sig2_v,
 		suv0,
 		kappa0,
-		off = off
+		off = off,
+		fixed_receiver = fixed_receiver,
+		unit = unit
 	)
 }
 

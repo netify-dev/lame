@@ -674,7 +674,7 @@
 # `max_iter` and `tol`: the variational iteration is a damped fixed point and
 # needs more iterations than a reweighting step
 .ae_mf_budget <- function(max_iter, scale = "plugin") {
-	(if (identical(scale, "cavity")) 5L else 2L) * as.integer(max_iter)
+	(if (identical(scale, "cavity")) 20L else 2L) * as.integer(max_iter)
 }
 
 # rule for the scale of the factor prior: "cavity" (default) updates it from the cavity
@@ -770,18 +770,13 @@
 	if (object$family %in% c("poisson", "normal")) S$ve <- fit$ve
 	if (!is.null(object$eb$pair)) S$rho <- object$eb$pair$rho
 	W <- st$w; W[!is.finite(W)] <- 0
-	info_s <- .ae_eb_info_s(rowSums(W, dims = 2L), ab)
 	# the cross weights of the pairs of a fit with a dyadic correlation couple the effects of the two actors of a dyad
+	cross <- NULL
 	if (!is.null(st$cross)) {
 		Cx <- rowSums(st$cross, dims = 2L)
-		nr <- ab$nr
-		ia <- seq_len(nr); ib <- nr + seq_len(nr)
-		info_s[ia, ia] <- info_s[ia, ia] + Cx
-		info_s[ib, ib] <- info_s[ib, ib] + Cx
-		info_s[cbind(ia, ib)] <- info_s[cbind(ia, ib)] + rowSums(Cx)
-		info_s[cbind(ib, ia)] <- info_s[cbind(ib, ia)] + rowSums(Cx)
+		cross <- list(Csum = Cx, d = rowSums(Cx))
 	}
-	S$Sc <- .ae_eb_inverse(info_s + .ae_eb_precision(S$sab, ab))
+	S$Sc <- .ae_ak_inverse(.ae_ak_build(.ae_ak_ctx(rowSums(W, dims = 2L), ab, cross), .ae_eb_precision(S$sab, ab)))
 	S$vact <- .ae_mf_vact(S$Sc, ab)
 	if (R > 0L) {
 		S$prior <- post$prior

@@ -39,7 +39,7 @@
 reconstruct_EZ <- function(fit, X = NULL) {
 	# lame fits: YPM is a list, so return the stored EZ
 	if (!is.null(fit$YPM) && is.list(fit$YPM)) {
-		if (!is.null(fit$EZ)) return(fit$EZ)
+		if (!is.null(fit$EZ)) return(.lame_stored_link(fit))
 		cli::cli_abort("reconstruct_EZ for lame objects requires fit$EZ to be stored")
 	}
 	# amen fits store EZ directly and carry no mode or symmetric metadata
@@ -171,4 +171,43 @@ reconstruct_UVPM <- function(fit) {
 	}
 
 	return(NULL)
+}
+
+# TRUE for a lame fit whose symmetric design keeps <v>_row and <v>_col slices for one stored
+# <v>_node coefficient
+.lame_pooled_node_fit <- function(fit) {
+	fd <- fit[["Xlist", exact = TRUE]]
+	B <- fit[["BETA", exact = TRUE]]
+	bn <- if (length(dim(B)) == 3L) dimnames(B)[[2L]] else colnames(B)
+	isTRUE(fit[["symmetric", exact = TRUE]]) && is.list(fit[["EZ", exact = TRUE]]) && is.list(fd) &&
+		length(fd) == length(fit[["EZ", exact = TRUE]]) && !is.null(bn) &&
+		length(dim(fd[[1L]])) == 3L && length(bn) < dim(fd[[1L]])[3L]
+}
+
+# the stored link fit$EZ of a lame fit. fits saved by lame 1.4.2 and earlier contracted the pooled
+# <v>_node coefficients of a symmetric fit against its design positionally, so the link of such a
+# fit is rebuilt from its own dyadic slices, as predict(newdata) builds it, keeping the cells the
+# stored EZ leaves empty
+.lame_stored_link <- function(fit) {
+	ez <- fit[["EZ", exact = TRUE]]
+	if (!.lame_pooled_node_fit(fit)) return(ez)
+	own <- lapply(fit$Xlist, function(X) X[, , grepl("_dyad$|\\.dyad$", dimnames(X)[[3L]]), drop = FALSE])
+	link <- predict.lame(fit, newdata = own, type = "link")
+	for (t in seq_along(ez)) {
+		e <- ez[[t]]
+		l <- link[[t]]
+		if (!is.null(rownames(e)) && !is.null(rownames(l))) l <- l[rownames(e), colnames(e), drop = FALSE]
+		l[is.na(e)] <- NA_real_
+		dimnames(l) <- dimnames(e)
+		ez[[t]] <- l
+	}
+	ez
+}
+
+# the stored response mean fit$YPM of a lame fit; a Poisson fit forms it from the link, so a
+# symmetric Poisson fit with pooled node coefficients takes it from the rebuilt link
+.lame_stored_fitted <- function(fit) {
+	ypm <- fit[["YPM", exact = TRUE]]
+	if (!identical(fit[["family", exact = TRUE]], "poisson") || !.lame_pooled_node_fit(fit)) return(ypm)
+	.poisson_fitted_from_fit(fit, EZ = .lame_stored_link(fit))
 }

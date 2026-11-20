@@ -67,7 +67,7 @@
 	if (is.null(S$Sc)) return(rep(0, cx$pair$n_pairs))
 	nr <- cx$nr
 	i <- cx$pair$i; j <- cx$pair$j
-	Sc <- S$Sc
+	Sc <- .ae_acov_full(S$Sc)
 	Sc[cbind(i, j)] + Sc[cbind(i, nr + i)] + Sc[cbind(nr + j, j)] + Sc[cbind(nr + j, nr + i)]
 }
 
@@ -155,20 +155,13 @@
 # add the cross blocks to the likelihood part of the normal equations of
 # (mu, beta | actor effects | gamma): H += sum_{ordered (i, j), t} cw_ijt g_ij g_ji'
 # with g_ij the gradient of the predictor of the cell in the parameters
+# (the actor block, .ae_ak_build(), adds Csum to both diagonal blocks and d to the (a_i, b_i) entries)
 .ae_pair_add_cross <- function(ctx, cross) {
 	nr <- ctx$nr
-	ia <- ctx$i_s[seq_len(nr)]; ib <- ctx$i_s[nr + seq_len(nr)]
-	H <- ctx$H
-	H[ctx$i_th, ctx$i_th] <- H[ctx$i_th, ctx$i_th] + cross$xx
-	H[ia, ctx$i_th] <- H[ia, ctx$i_th] + t(cross$th_a)
-	H[ctx$i_th, ia] <- H[ctx$i_th, ia] + cross$th_a
-	H[ib, ctx$i_th] <- H[ib, ctx$i_th] + t(cross$th_b)
-	H[ctx$i_th, ib] <- H[ctx$i_th, ib] + cross$th_b
-	H[ia, ia] <- H[ia, ia] + cross$Csum
-	H[ib, ib] <- H[ib, ib] + cross$Csum
-	H[cbind(ia, ib)] <- H[cbind(ia, ib)] + cross$d
-	H[cbind(ib, ia)] <- H[cbind(ib, ia)] + cross$d
-	ctx$H <- H
+	ia <- seq_len(nr); ib <- nr + seq_len(nr)
+	ctx$Hth <- ctx$Hth + cross$xx
+	ctx$C[ia, ] <- ctx$C[ia, , drop = FALSE] + t(cross$th_a)
+	ctx$C[ib, ] <- ctx$C[ib, , drop = FALSE] + t(cross$th_b)
 	ctx$cross <- cross
 	ctx
 }

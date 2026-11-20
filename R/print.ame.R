@@ -102,18 +102,24 @@ print.ame <- function(x, ...) {
 		cli::cli_h3("Model parameters")
 		param_info <- c("*" = "Regression coefficients: {.val {ncol(x$BETA)}}")
 
+		# a bipartite network has rows and columns, not senders and receivers
+		bip <- identical(x$mode, "bipartite")
 		if (!is.null(x$rvar) && x$rvar) {
-			param_info <- c(param_info, "*" = "Row/sender effects: enabled")
+			param_info <- c(param_info, "*" = if (bip) "Row effects: enabled" else "Row/sender effects: enabled")
 		}
 		if (!is.null(x$cvar) && x$cvar) {
-			param_info <- c(param_info, "*" = "Column/receiver effects: enabled")
+			param_info <- c(param_info, "*" = if (bip) "Column effects: enabled" else "Column/receiver effects: enabled")
 		}
 		if (!is.null(x$dcor) && x$dcor) {
 			param_info <- c(param_info, "*" = "Dyadic correlation: enabled")
 		}
 
 		if (!is.null(x$R) && x$R > 0) {
-			param_info <- c(param_info, "*" = "Multiplicative effects dimension: {.val {x$R}}")
+			# unequal bipartite ranks give a product of the smaller rank
+			rank_txt <- .lame_rank_text(x)
+			param_info <- c(param_info, "*" = if (is.null(rank_txt)) {
+				"Multiplicative effects dimension: {.val {x$R}}"
+			} else "Multiplicative effects: {rank_txt}")
 		}
 		cli::cli_bullets(param_info)
 

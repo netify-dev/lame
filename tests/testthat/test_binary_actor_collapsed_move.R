@@ -481,6 +481,6 @@ test_that('the default symmetric update recovers a heterophilous dimension', {
 		gof = FALSE
 	)
 	expect_gt(fit$actor_move[['uv_calls']], 0)
-	expect_equal(sort(sign(fit$L)), c(-1, 1))
+	expect_equal(sort(sign(diag(fit$L))), c(-1, 1))
 	expect_gt(cor(EZ[upper.tri(EZ)], fit$EZ[[1]][upper.tri(EZ)]), 0.80)
 })

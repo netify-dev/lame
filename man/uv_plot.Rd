@@ -11,7 +11,9 @@ uv_plot(
   V = NULL,
   row.names = NULL,
   col.names = NULL,
-  layout = c("circle", "biplot"),
+  layout = c("circle", "biplot", "heatmap"),
+  dims = NULL,
+  nodes = c("both", "row", "col"),
   vscale = 0.8,
   show.edges = FALSE,
   edge.alpha = 0.3,
@@ -43,7 +45,21 @@ or a network matrix Y if U and V are provided separately}
 
 \item{col.names}{Names for column nodes (defaults to colnames of Y or V)}
 
-\item{layout}{Character string specifying layout: "circle" (default) or "biplot"}
+\item{layout}{Character string specifying layout: \code{"circle"}
+(default), \code{"biplot"} or \code{"heatmap"}}
+
+\item{dims}{Which latent dimensions to draw in the circle and biplot
+layouts: distinct whole numbers within the fitted rank. The default
+is the first two (the single one when the fitted rank is 1). Two
+values draw one map; three or four values draw every pair of them as
+panels. Dynamic fits take exactly two values. The heatmap uses every
+dimension and takes no \code{dims}.}
+
+\item{nodes}{Which side to draw: \code{"both"} (default), \code{"row"}
+(row actors; senders in a one-mode network) or \code{"col"} (column
+actors; receivers). A symmetric fit has one set of positions: the maps
+take only \code{"both"}, and the heatmap takes \code{"row"} or
+\code{"col"} (the same similarity of its nodes) or \code{"both"}.}
 
 \item{vscale}{Scaling factor for V positions relative to U (default 0.8)}
 
@@ -68,7 +84,8 @@ or a network matrix Y if U and V are provided separately}
 \item{title}{Optional title for the plot}
 
 \item{time_point}{For dynamic UV, which time point to plot (default: last).
-Can be numeric index or "average" for time-averaged positions}
+Can be numeric index or "average" for time-averaged
+positions (not for the heatmap, which draws one period)}
 
 \item{plot_type}{For dynamic UV: "snapshot" (single time), "trajectory" (evolution),
 "faceted" (grid of time points). For static UV, this is ignored.}
@@ -84,9 +101,10 @@ rendered in grey at lower alpha. Ignored for static or snapshot plots.}
 A ggplot2 object that can be further customized
 }
 \description{
-Creates a two-dimensional visualization of the multiplicative effects (U and V)
-from an AME or LAME model. These latent factors capture network structure
-beyond what is explained by covariates and additive effects, including
+Visualizes the multiplicative effects (U and V) of an AME or LAME model:
+maps of two latent dimensions at a time, or a heatmap that uses every
+fitted dimension. These latent factors capture network structure beyond
+what is explained by covariates and additive effects, including
 clustering, transitivity, and other higher-order dependencies.
 }
 \details{
@@ -103,8 +121,27 @@ The visualization can show:
 \item{Circular layout}{Default layout placing nodes on a circle with
 latent positions shown as deviations}
 \item{Biplot layout}{Shows U and V positions directly in latent space}
+\item{Heatmap layout}{Uses every fitted dimension. With
+\code{nodes = "row"} or \code{"col"} it shows the similarity of
+the nodes of that side (see \code{\link{latent_similarity}}),
+ordered by clustering; with \code{nodes = "both"} it shows the
+latent product, rows against columns. The latent product is
+centred, so positions are relative to the average node of each
+side: a node with no structure of its own sits opposite the average
+pattern rather than at the origin, and several such nodes look
+similar to each other.}
 \item{Network overlay}{Optional display of actual network ties}
 }
+
+A map shows two dimensions. When the fit has more than two, the axis labels
+give each dimension's share of the latent product and a caption names the
+dimensions shown; three or four values of \code{dims} draw every pair of
+them as panels of one plot. When a side has more than 50 nodes and
+\code{show.usernames} is not set, only its 20 nodes with the longest
+position vectors in the plotted dimensions are labelled and the rest are
+drawn as small light points. The biplot of a bipartite fit rescales the
+row positions for display so that their root-mean-square radius equals
+that of the column positions, and says so in the caption.
 
 Interpretation (this is an eigenmodel, not a latent-distance model):
 \itemize{
@@ -129,7 +166,16 @@ uv_plot(fit)
 
 # Use biplot layout
 uv_plot(fit, layout = "biplot")
+
+# three dimensions: every pair as a panel, and the heatmap of all of them
+fit3 <- ame(YX_nrm$Y, Xdyad = YX_nrm$X, R = 3,
+            nscan = 100, burn = 10, odens = 1, verbose = FALSE, chains = 1)
+uv_plot(fit3, layout = "biplot", dims = 1:3)
+uv_plot(fit3, layout = "heatmap", nodes = "row")
 }
+}
+\seealso{
+\code{\link{latent_similarity}}, \code{\link{latent_positions}}
 }
 \author{
 Cassy Dorff, Shahryar Minhas, Tosin Salau

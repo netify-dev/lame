@@ -142,9 +142,9 @@
 		return(X)
 	}
 	out <- array(0, c(n, m, length(beta_names)), dimnames = list(rows, cols, beta_names))
+	slice_coef <- .lame_node_match(xn, beta_names)
 	for (j in seq_along(beta_names)) {
-		hit <- which(xn == beta_names[j])
-		if (!length(hit)) hit <- which(sub("_(row|col)$", "_node", xn) == beta_names[j])
+		hit <- which(slice_coef == j)
 		if (!length(hit)) cli::cli_abort("The forecast design lacks coefficient {.val {beta_names[j]}}.")
 		out[, , j] <- Reduce(`+`, lapply(hit, function(k) X[, , k]))
 	}

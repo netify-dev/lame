@@ -82,7 +82,7 @@ test_that("trace_plot leaves out the quantities a binary bipartite model fixes",
 	expect_true(all(fit$VC[, "ve"] == 1))
 	d = tp_data(trace_plot(fit, params = "variance"))
 	expect_false(any(c("Error variance", "Dyadic correlation", "Sender-receiver covariance") %in% d$parameter))
-	expect_true(all(c("Sender variance", "Receiver variance") %in% d$parameter))
+	expect_true(all(c("Row variance", "Column variance") %in% d$parameter))
 })
 
 test_that("trace_plot keeps an estimated quantity whose chain is stuck", {

@@ -169,9 +169,10 @@ procrustes_align <- function(
 		}
 	}
 
-	# take positions from the fit; exact [[ ]] access because object$G would
-	# partial-match GOF
+	# take positions from the fit, factored from its posterior mean product; exact [[ ]]
+	# access because object$G would partial-match GOF
 	if (!is.null(object)) {
+		object <- .lame_positions(object)
 		if (is.null(U)) U <- object[["U"]]
 		if (is.null(V)) V <- object[["V"]]
 		if (is.null(G)) G <- object[["G"]]

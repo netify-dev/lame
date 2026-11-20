@@ -162,7 +162,9 @@ summary.ame <- function(object, ...) {
 		dynamic_uv = isTRUE(fit$dynamic_uv),
 		dynamic_ab = isTRUE(fit$dynamic_ab),
 		diagnostics = diag_block,
-		fallback_line = .lame_fallback_share_line(fit)
+		fallback_line = .lame_fallback_share_line(fit),
+		latent_strength = .lame_dim_strength(fit),
+		rank_text = .lame_rank_text(fit)
 	)
 
 	class(sum_obj) <- "summary.ame"
@@ -208,25 +210,50 @@ print.summary.ame <- function(x, digits = 3, ...) {
 		))
 
 		cli::cli_h3("Variance components")
-		var_table <- round(x$variance, digits)
+		vc_print <- .lame_vc_print(x)
+		var_table <- round(vc_print$table, digits)
 		cli::cli_verbatim(utils::capture.output(print(var_table, quote = FALSE, right = TRUE)))
-
-		if (isTRUE(x$symmetric)) {
-			cli::cli_bullets(c(" " = "va = nodal variance, ve = residual variance"))
-		} else {
-			cli::cli_bullets(c(
-				" " = "va = sender variance, cab = sender-receiver covariance, vb = receiver variance, rho = dyadic correlation, ve = residual variance"
-			))
-		}
-		if (!is.null(x$mode) && x$mode == "bipartite") {
-			cli::cli_bullets(c("i" = "Bipartite model: rho and cab are fixed to 0."))
-		}
+		cli::cli_bullets(c(" " = vc_print$legend))
+		.lame_print_latent_lines(x)
 		# why va and cab are not estimated, or the prior they are reported under
 		for (st_ in .lame_ab_statements(x)) cli::cli_alert_info("{st_}", wrap = TRUE)
 		if (!is.null(x$fallback_line)) cli::cli_alert_info("{x$fallback_line}", wrap = TRUE)
 		.lame_print_gate_verdict(x$diagnostics)
 	})
 	invisible(x)
+}
+
+# rows of the variance table that a summary prints, and their legend: a bipartite model has no
+# cab or rho, and a family whose residual variance is fixed at 1 has no ve to estimate. the
+# summary object keeps every row
+.lame_vc_print <- function(x) {
+	tab <- x$variance
+	rn <- rownames(tab)
+	bip <- identical(x$mode, "bipartite")
+	drop <- if (bip) c("cab", "rho") else character(0)
+	if (isTRUE(x$family %in% c("binary", "ordinal", "cbin", "frn")) && "ve" %in% rn &&
+			"StdError" %in% colnames(tab) && isTRUE(tab["ve", "StdError"] == 0)) {
+		drop <- c(drop, "ve")
+	}
+	words <- if (isTRUE(x$symmetric)) {
+		c(va = "nodal variance", ve = "residual variance")
+	} else if (bip) {
+		c(va = "row variance", vb = "column variance", ve = "residual variance")
+	} else {
+		c(
+			va = "sender variance",
+			cab = "sender-receiver covariance",
+			vb = "receiver variance",
+			rho = "dyadic correlation",
+			ve = "residual variance"
+		)
+	}
+	keep <- !rn %in% drop
+	shown <- intersect(rn[keep], names(words))
+	list(
+		table = tab[keep, , drop = FALSE],
+		legend = paste(paste(shown, "=", words[shown]), collapse = ", ")
+	)
 }
 
 # Rhat, Threshold and ESS columns of a summary table: the R-hat and threshold of the between-chain

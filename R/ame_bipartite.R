@@ -1360,25 +1360,14 @@ ame_bipartite <- function(
 	rownames(UVPM) <- rownames(Y)
 	colnames(UVPM) <- colnames(Y)
 
-	# the returned draw of the positions is centred as the stored draws are; start_vals keeps the sampler's
-	U_fin <- U; V_fin <- V
-	if (isTRUE(rvar) && isTRUE(cvar) && !is.null(U) && !is.null(V) && !is.null(G) &&
-			NCOL(U) > 0L && NCOL(V) > 0L &&
-			all(is.finite(U)) && all(is.finite(V)) && all(is.finite(G))) {
-		cen_fin <- .lame_center_uv_period(U, V, G)
-		if (!is.null(cen_fin)) {
-			U_fin <- cen_fin$U; V_fin <- cen_fin[["V"]]
-			dimnames(U_fin) <- dimnames(U); dimnames(V_fin) <- dimnames(V)
-		}
-	}
-
 	fit <- list(
 		BETA = BETA,
 		VC = VC,
 		APM = APM,
 		BPM = BPM,
-		U = U_fin,
-		V = V_fin,
+		# the sampler's positions; replaced below by the factors of UVPM (see .lame_static_positions)
+		U = U,
+		V = V,
 		G = G,
 		UVPM = UVPM,
 		YPM = YPM,
@@ -1478,6 +1467,8 @@ ame_bipartite <- function(
 	.lame_report_fallbacks(fit$exact_fallbacks, fit$sampler_health_iterations)
 	if (!is.null(s2_prior_scale)) fit$s2_prior_scale <- s2_prior_scale
 	class(fit) <- "ame"
+	# reported positions: the factors of UVPM, with posterior sds from the saved draws
+	fit <- .lame_static_positions(fit)
 	# Poisson fitted count at the posterior means of the predictor and s2 (see .poisson_fitted_mean)
 	if (identical(family, "poisson")) fit$YPM <- .poisson_fitted_from_fit(fit)
 	.lame_separation_check(fit)

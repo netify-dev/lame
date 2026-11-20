@@ -324,10 +324,9 @@ test_that("the effect step forms the inverse of the information and of its actor
 		sab = matrix(c(.9, -.3, -.3, .6), 2)
 		Lam = lame:::.ae_eb_precision(sab, ab)
 		# the penalty added by index is the penalty added as a matrix
-		Lbare = Lam; attr(Lbare, "ae_prior") = NULL
-		H = lame:::.ae_eb_penalise(ctx, Lam)
-		expect_identical(H, lame:::.ae_eb_penalise(ctx, Lbare))
+		H = lame:::.ae_eb_dense_H(ctx, Lam)
 		s = ctx$i_s
+		expect_identical(H[s, s], lame:::.ae_eb_dense_H(ctx)[s, s] + .ae_prec_dense(Lam))
 		inv = lame:::.ae_eb_inverse_pair(H, s)
 		expect_equal(inv$S, lame:::.ae_eb_inverse(H), tolerance = 1e-10)
 		expect_equal(inv$Sc, lame:::.ae_eb_inverse(H[s, s]), tolerance = 1e-10)

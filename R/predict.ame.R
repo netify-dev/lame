@@ -511,9 +511,9 @@ predict.lame <- function(
 	if (is.null(newdata)) {
 		if (type == "response") {
 			# return the stored response-scale summary, as in fitted.lame
-			if (!is.null(object$YPM)) return(object$YPM)
+			if (!is.null(object$YPM)) return(.lame_stored_fitted(object))
 		}
-		EZ <- object$EZ
+		EZ <- if (is.null(object$EZ)) NULL else .lame_stored_link(object)
 		if (is.null(EZ)) {
 			cli::cli_warn("EZ not available in model object")
 			return(object$YPM)
@@ -678,7 +678,10 @@ predict.lame <- function(
 #'
 #' @method fitted lame
 #' @export
-fitted.lame <- fitted.ame
+fitted.lame <- function(object, ...) {
+	.lame_require_draws(object, "fitted")
+	.lame_stored_fitted(object)
+}
 
 #' Extract residuals from LAME model
 #'
@@ -723,7 +726,8 @@ residuals.lame <- function(object, type = c("response", "pearson"), ...) {
 	# posterior-mean linear predictor of the period
 	eta <- if (type == "pearson" && identical(object[["family", exact = TRUE]], "ordinal"))
 		reconstruct_EZ(object)
-	if (is.null(eta)) eta <- vector("list", length(object$YPM))
+	ypm <- .lame_stored_fitted(object)
+	if (is.null(eta)) eta <- vector("list", length(ypm))
 
 	# lame stores Y and YPM as lists
 	mapply(function(y, ypm, eta_t) {
@@ -743,5 +747,5 @@ residuals.lame <- function(object, type = c("response", "pearson"), ...) {
 			}
 			.pearson_residual(object, y, ypm, eta_t)
 		}
-	}, Y, object$YPM, eta, SIMPLIFY = FALSE)
+	}, Y, ypm, eta, SIMPLIFY = FALSE)
 }

@@ -536,7 +536,7 @@ ame_unipartite <- function(
 		# build the exclude index explicitly: `-c(0, integer(0))` would silently empty the vector
 		excl_idx <- c(if (intercept) 1L else integer(0), rb, cb)
 		bni <- if (intercept) bnames[1L] else character(0)
-		bnn <- if (length(rb) > 0L) gsub("row", bnames[rb], replacement = "node") else character(0)
+		bnn <- if (length(rb) > 0L) .lame_node_name(bnames[rb]) else character(0)
 		bnd <- if (length(excl_idx) > 0L) bnames[-excl_idx] else bnames
 		colnames(BETA) <- c(bni, bnn, bnd)
 	}
@@ -1785,16 +1785,12 @@ ame_unipartite <- function(
 	rownames(BETA) <- NULL
 
 	if (!symmetric) {
-		if (R > 0) {
-			UDV <- svd(UVPM)
-			U <- UDV$u[, seq(1, R, length = R)] %*% diag(sqrt(UDV$d)[seq(1, R, length = R)], nrow = R)
-			V <- UDV$v[, seq(1, R, length = R)] %*% diag(sqrt(UDV$d)[seq(1, R, length = R)], nrow = R)
-			rownames(U) <- rownames(V) <- rownames(Y)
-		} else {
-			U <- NULL
-			V <- NULL
-		}
-		start_vals_final <- list(Z = Z, beta = beta, a = a, b = b, U = U, V = V, rho = rho, s2 = s2, Sab = Sab)
+		# the chain's final state, to continue it (start_vals of ame())
+		start_vals_final <- list(
+			Z = Z, beta = beta, a = a, b = b,
+			U = if (R > 0) U else NULL, V = if (R > 0) V else NULL,
+			rho = rho, s2 = s2, Sab = Sab
+		)
 		if (use_explicit_cutpoints) start_vals_final <- c(start_vals_final, list(alpha = alpha, tau_prop = tau_prop))
 		# resolved g and prior (with sampler defaults filled in), for prior_summary()
 		.resolved_prior <- prior
@@ -1803,8 +1799,9 @@ ame_unipartite <- function(
 			VC = VC,
 			APM = APM,
 			BPM = BPM,
-			U = U,
-			V = V,
+			# the sampler's positions; replaced below by the factors of UVPM (see .lame_static_positions)
+			U = if (R > 0) U else NULL,
+			V = if (R > 0) V else NULL,
 			L = NULL,
 			UVPM = UVPM,
 			YPM = YPM,
@@ -1860,28 +1857,23 @@ ame_unipartite <- function(
 
 	if (symmetric) {
 		ULUPM <- UVPM
-		if (R > 0) {
-			eULU <- eigen(ULUPM)
-			# keep the R eigenvalues largest in magnitude, so U L U' is the rank-R truncation of ULUPM
-			eR <- which(rank(-abs(eULU$val), ties.method = "first") <= R)
-			U <- eULU$vec[, eR, drop = FALSE]
-			L <- diag(eULU$val[eR], nrow = R)
-			rownames(U) <- rownames(ULUPM)
-		} else {
-			U <- NULL
-			L <- NULL
-		}
 		YPM <- .5 * (YPM + t(YPM))
-		start_vals_final <- list(Z = Z, beta = beta, a = a, b = b, U = U, V = U, rho = rho, s2 = s2, Sab = Sab)
+		# the chain's final state, to continue it (start_vals of ame())
+		start_vals_final <- list(
+			Z = Z, beta = beta, a = a, b = b,
+			U = if (R > 0) U else NULL, V = if (R > 0) V else NULL,
+			rho = rho, s2 = s2, Sab = Sab
+		)
 		if (use_explicit_cutpoints) start_vals_final <- c(start_vals_final, list(alpha = alpha, tau_prop = tau_prop))
 		fit <- list(
 			BETA = BETA,
 			VC = VC,
 			APM = APM,
 			BPM = NULL,
-			U = U,
+			# the sampler's positions; replaced below by the factors of ULUPM (see .lame_static_positions)
+			U = if (R > 0) U else NULL,
 			V = NULL,
-			L = L,
+			L = NULL,
 			ULUPM = ULUPM,
 			YPM = YPM,
 			GOF = GOF,
@@ -1958,6 +1950,8 @@ ame_unipartite <- function(
 
 	if (!is.null(s2_prior_scale)) fit$s2_prior_scale <- s2_prior_scale
 	class(fit) <- "ame"
+	# reported positions: the factors of the posterior mean product, with posterior sds from the saved draws
+	fit <- .lame_static_positions(fit)
 	# Poisson fitted count at the posterior means of the predictor and s2 (see .poisson_fitted_mean)
 	if (identical(family, "poisson")) fit$YPM <- .poisson_fitted_from_fit(fit)
 	# chain summary, and posterior sd of the additive effects for simulate()

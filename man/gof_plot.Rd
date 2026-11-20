@@ -98,14 +98,16 @@ increasing the latent dimension R.
 }
 
 \emph{For bipartite (rectangular) networks:}
+Rows and columns are different node sets, so the panels are labelled by row
+and column rather than by sender and receiver.
 \describe{
-\item{\code{sd.row} (Type A activity variation)}{
-Standard deviation of row means for Type A nodes. Indicates heterogeneity
-in how actively Type A nodes connect to Type B nodes.
+\item{\code{sd.row} (Row degree heterogeneity)}{
+Standard deviation of row means. Indicates heterogeneity in how actively
+the row nodes connect to the column nodes.
 }
-\item{\code{sd.col} (Type B popularity variation)}{
-Standard deviation of column means for Type B nodes. Indicates heterogeneity
-in how popular Type B nodes are with Type A nodes.
+\item{\code{sd.col} (Column degree heterogeneity)}{
+Standard deviation of column means. Indicates heterogeneity in how
+often the column nodes are connected to by the row nodes.
 }
 \item{\code{four.cycles} (Bipartite clustering)}{
 Count of 4-cycles (rectangular paths A1-B1-A2-B2-A1). High values indicate

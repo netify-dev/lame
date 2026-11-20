@@ -122,10 +122,12 @@ trace_plot <- function(
 	chain_vec <- fit$chain_indicator
 	has_chains <- !is.null(chain_vec) && length(unique(chain_vec)) > 1L
 
-	# display labels for variance components and dynamic hyperparameters
+	# display labels for variance components and dynamic hyperparameters; a
+	# bipartite network has rows and columns, not senders and receivers
+	bip <- identical(fit$mode, "bipartite")
 	vc_labels <- c(
-		"va" = "Sender variance",
-		"vb" = "Receiver variance",
+		"va" = if (bip) "Row variance" else "Sender variance",
+		"vb" = if (bip) "Column variance" else "Receiver variance",
 		"cab" = "Sender-receiver covariance",
 		"rho" = "Dyadic correlation",
 		"ve" = "Error variance"

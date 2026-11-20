@@ -137,6 +137,15 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol) {
 		Xdyad <- tmp
 	}
 
+	# a named node covariate is placed by actor name, so its names must be actors of Y
+	.check_node_names <- function(rn, what) {
+		if (all(rn %in% actors)) return(invisible())
+		cli::cli_abort(c(
+			"{.arg {what}} carries actor names that do not match {.arg Y}'s.",
+			"i" = "Covariates are aligned to {.arg Y} by name; rename {.arg {what}} to match, or drop its dimnames to force positional alignment."
+		))
+	}
+
 	# convert Xrow
 	if (!is.null(Xrow)) {
 		tmp <- array(
@@ -147,7 +156,7 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol) {
 		for (t in 1:N) {
 			rn <- rownames(Xrow[[t]])
 			if (is.null(rn)) { tmp[, , t] <- Xrow[[t]] }
-			else { tmp[rn, , t] <- Xrow[[t]] }
+			else { .check_node_names(rn, "Xrow"); tmp[rn, , t] <- Xrow[[t]] }
 		}
 		Xrow <- tmp
 	}
@@ -162,7 +171,7 @@ list_to_array <- function(actors, Y, Xdyad, Xrow, Xcol) {
 		for (t in 1:N) {
 			rn <- rownames(Xcol[[t]])
 			if (is.null(rn)) { tmp[, , t] <- Xcol[[t]] }
-			else { tmp[rn, , t] <- Xcol[[t]] }
+			else { .check_node_names(rn, "Xcol"); tmp[rn, , t] <- Xcol[[t]] }
 		}
 		Xcol <- tmp
 	}

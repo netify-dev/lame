@@ -9,6 +9,10 @@ gof_stats_cpp <- function(Y) {
     .Call(`_lame_gof_stats_cpp`, Y)
 }
 
+ae_dlr_pivots_cpp <- function(D, Zt, P) {
+    .Call(`_lame_ae_dlr_pivots_cpp`, D, Zt, P)
+}
+
 ae_bcd_stats_cpp <- function(warr, zf, xarr, nr, nc, tt, p, threads = 1L) {
     .Call(`_lame_ae_bcd_stats_cpp`, warr, zf, xarr, nr, nc, tt, p, threads)
 }
@@ -43,6 +47,14 @@ ae_additive_resid_cpp <- function(wsum, base_rs, base_cs, a, b, cnt_row, cnt_col
 
 ae_bcd_sse_exact_cpp <- function(warr, zf, xarr, nr, nc, tt, p, mu, beta, cmat) {
     .Call(`_lame_ae_bcd_sse_exact_cpp`, warr, zf, xarr, nr, nc, tt, p, mu, beta, cmat)
+}
+
+ae_jb_blocks_cpp <- function(D, Bt) {
+    .Call(`_lame_ae_jb_blocks_cpp`, D, Bt)
+}
+
+ae_jb_pivots_cpp <- function(D, Bt, Si, R) {
+    .Call(`_lame_ae_jb_pivots_cpp`, D, Bt, Si, R)
 }
 
 ae_probit_terms_cpp <- function(eta, threads = 1L) {
@@ -101,12 +113,12 @@ ae_pln2_node_cpp <- function(y1, y2, lg1, lg2, m1, m2, s11, s22, s12, zk, lwk, t
     .Call(`_lame_ae_pln2_node_cpp`, y1, y2, lg1, lg2, m1, m2, s11, s22, s12, zk, lwk, threads)
 }
 
-als_factor_update_cpp <- function(response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit = 15L, tol = 1e-6) {
-    .Call(`_lame_als_factor_update_cpp`, response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit, tol)
+als_factor_update_cpp <- function(response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit = 15L, tol = 1e-6, unit = 1.0) {
+    .Call(`_lame_als_factor_update_cpp`, response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit, tol, unit)
 }
 
-als_factor_balanced_cpp <- function(response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit = 15L, tol = 1e-6) {
-    .Call(`_lame_als_factor_balanced_cpp`, response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit, tol)
+als_factor_balanced_cpp <- function(response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit = 15L, tol = 1e-6, fixed_receiver = FALSE, unit = 1.0) {
+    .Call(`_lame_als_factor_balanced_cpp`, response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit, tol, fixed_receiver, unit)
 }
 
 bso_loglik_cpp <- function(es, mm, sg, k, inv_sd) {

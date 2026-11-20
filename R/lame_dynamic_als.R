@@ -2967,6 +2967,7 @@ lame_dynamic_als <- function(
 	dcor = NULL,
 	dynamic_beta_pool = NULL,
 	beta_kind_intercept = NULL,
+	sym_node_legacy = FALSE,
 	...
 ) {
 	notes_top <- .ae_notes_open()
@@ -3135,7 +3136,8 @@ lame_dynamic_als <- function(
 		mode,
 		longitudinal = TRUE,
 		node_time_policy = "quiet",
-		symmetric = isTRUE(symmetric)
+		symmetric = isTRUE(symmetric),
+		sym_node_merge = !isTRUE(sym_node_legacy)
 	)
 	# family and data checks
 	prep$Yarr <- .ae_check_als_response(prep$Yarr, family)

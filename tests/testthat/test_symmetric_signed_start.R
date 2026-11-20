@@ -39,7 +39,7 @@ test_that('a static symmetric binary panel recovers a heterophilous dimension', 
 		gof = FALSE,
 		prior = list(actor_move = FALSE)
 	))
-	expect_equal(sort(sign(fit$L)), c(-1, 1))
+	expect_equal(sort(sign(diag(fit$L))), c(-1, 1))
 	truth = EZ[upper.tri(EZ)]
 	fitted = fit$EZ[[1]][upper.tri(EZ)]
 	expect_gt(cor(truth, fitted), 0.85)

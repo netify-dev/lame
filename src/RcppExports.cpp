@@ -34,6 +34,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// ae_dlr_pivots_cpp
+Rcpp::NumericVector ae_dlr_pivots_cpp(const arma::vec& D, const arma::mat& Zt, arma::mat P);
+RcppExport SEXP _lame_ae_dlr_pivots_cpp(SEXP DSEXP, SEXP ZtSEXP, SEXP PSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Zt(ZtSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type P(PSEXP);
+    rcpp_result_gen = Rcpp::wrap(ae_dlr_pivots_cpp(D, Zt, P));
+    return rcpp_result_gen;
+END_RCPP
+}
 // ae_bcd_stats_cpp
 List ae_bcd_stats_cpp(const NumericVector& warr, const NumericVector& zf, const NumericVector& xarr, int nr, int nc, int tt, int p, int threads);
 RcppExport SEXP _lame_ae_bcd_stats_cpp(SEXP warrSEXP, SEXP zfSEXP, SEXP xarrSEXP, SEXP nrSEXP, SEXP ncSEXP, SEXP ttSEXP, SEXP pSEXP, SEXP threadsSEXP) {
@@ -175,6 +188,32 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const NumericVector& >::type beta(betaSEXP);
     Rcpp::traits::input_parameter< const NumericMatrix& >::type cmat(cmatSEXP);
     rcpp_result_gen = Rcpp::wrap(ae_bcd_sse_exact_cpp(warr, zf, xarr, nr, nc, tt, p, mu, beta, cmat));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ae_jb_blocks_cpp
+Rcpp::List ae_jb_blocks_cpp(const arma::cube& D, const arma::mat& Bt);
+RcppExport SEXP _lame_ae_jb_blocks_cpp(SEXP DSEXP, SEXP BtSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Bt(BtSEXP);
+    rcpp_result_gen = Rcpp::wrap(ae_jb_blocks_cpp(D, Bt));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ae_jb_pivots_cpp
+Rcpp::NumericVector ae_jb_pivots_cpp(const arma::cube& D, const arma::mat& Bt, arma::mat Si, int R);
+RcppExport SEXP _lame_ae_jb_pivots_cpp(SEXP DSEXP, SEXP BtSEXP, SEXP SiSEXP, SEXP RSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Bt(BtSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Si(SiSEXP);
+    Rcpp::traits::input_parameter< int >::type R(RSEXP);
+    rcpp_result_gen = Rcpp::wrap(ae_jb_pivots_cpp(D, Bt, Si, R));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -396,8 +435,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // als_factor_update_cpp
-Rcpp::List als_factor_update_cpp(const arma::mat& response, const arma::mat& weights, const arma::mat& u_init, const arma::mat& v_init, const arma::vec& su_init, const arma::vec& sv_init, double prior_scale, double prior_df, int maxit, double tol);
-RcppExport SEXP _lame_als_factor_update_cpp(SEXP responseSEXP, SEXP weightsSEXP, SEXP u_initSEXP, SEXP v_initSEXP, SEXP su_initSEXP, SEXP sv_initSEXP, SEXP prior_scaleSEXP, SEXP prior_dfSEXP, SEXP maxitSEXP, SEXP tolSEXP) {
+Rcpp::List als_factor_update_cpp(const arma::mat& response, const arma::mat& weights, const arma::mat& u_init, const arma::mat& v_init, const arma::vec& su_init, const arma::vec& sv_init, double prior_scale, double prior_df, int maxit, double tol, double unit);
+RcppExport SEXP _lame_als_factor_update_cpp(SEXP responseSEXP, SEXP weightsSEXP, SEXP u_initSEXP, SEXP v_initSEXP, SEXP su_initSEXP, SEXP sv_initSEXP, SEXP prior_scaleSEXP, SEXP prior_dfSEXP, SEXP maxitSEXP, SEXP tolSEXP, SEXP unitSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type response(responseSEXP);
@@ -410,13 +449,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type prior_df(prior_dfSEXP);
     Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
-    rcpp_result_gen = Rcpp::wrap(als_factor_update_cpp(response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit, tol));
+    Rcpp::traits::input_parameter< double >::type unit(unitSEXP);
+    rcpp_result_gen = Rcpp::wrap(als_factor_update_cpp(response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit, tol, unit));
     return rcpp_result_gen;
 END_RCPP
 }
 // als_factor_balanced_cpp
-Rcpp::List als_factor_balanced_cpp(const arma::mat& response, const arma::mat& weights, const arma::mat& u_init, const arma::mat& v_init, const arma::vec& su_init, const arma::vec& sv_init, double prior_scale, double prior_df, int maxit, double tol);
-RcppExport SEXP _lame_als_factor_balanced_cpp(SEXP responseSEXP, SEXP weightsSEXP, SEXP u_initSEXP, SEXP v_initSEXP, SEXP su_initSEXP, SEXP sv_initSEXP, SEXP prior_scaleSEXP, SEXP prior_dfSEXP, SEXP maxitSEXP, SEXP tolSEXP) {
+Rcpp::List als_factor_balanced_cpp(const arma::mat& response, const arma::mat& weights, const arma::mat& u_init, const arma::mat& v_init, const arma::vec& su_init, const arma::vec& sv_init, double prior_scale, double prior_df, int maxit, double tol, bool fixed_receiver, double unit);
+RcppExport SEXP _lame_als_factor_balanced_cpp(SEXP responseSEXP, SEXP weightsSEXP, SEXP u_initSEXP, SEXP v_initSEXP, SEXP su_initSEXP, SEXP sv_initSEXP, SEXP prior_scaleSEXP, SEXP prior_dfSEXP, SEXP maxitSEXP, SEXP tolSEXP, SEXP fixed_receiverSEXP, SEXP unitSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type response(responseSEXP);
@@ -429,7 +469,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type prior_df(prior_dfSEXP);
     Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
-    rcpp_result_gen = Rcpp::wrap(als_factor_balanced_cpp(response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit, tol));
+    Rcpp::traits::input_parameter< bool >::type fixed_receiver(fixed_receiverSEXP);
+    Rcpp::traits::input_parameter< double >::type unit(unitSEXP);
+    rcpp_result_gen = Rcpp::wrap(als_factor_balanced_cpp(response, weights, u_init, v_init, su_init, sv_init, prior_scale, prior_df, maxit, tol, fixed_receiver, unit));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1710,6 +1752,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_lame_Xbeta_cpp", (DL_FUNC) &_lame_Xbeta_cpp, 2},
     {"_lame_gof_stats_cpp", (DL_FUNC) &_lame_gof_stats_cpp, 1},
+    {"_lame_ae_dlr_pivots_cpp", (DL_FUNC) &_lame_ae_dlr_pivots_cpp, 3},
     {"_lame_ae_bcd_stats_cpp", (DL_FUNC) &_lame_ae_bcd_stats_cpp, 8},
     {"_lame_ae_weighted_sums_cpp", (DL_FUNC) &_lame_ae_weighted_sums_cpp, 7},
     {"_lame_ae_bcd_gtc_cpp", (DL_FUNC) &_lame_ae_bcd_gtc_cpp, 4},
@@ -1719,6 +1762,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_ae_additive_cpp", (DL_FUNC) &_lame_ae_additive_cpp, 9},
     {"_lame_ae_additive_resid_cpp", (DL_FUNC) &_lame_ae_additive_resid_cpp, 7},
     {"_lame_ae_bcd_sse_exact_cpp", (DL_FUNC) &_lame_ae_bcd_sse_exact_cpp, 10},
+    {"_lame_ae_jb_blocks_cpp", (DL_FUNC) &_lame_ae_jb_blocks_cpp, 2},
+    {"_lame_ae_jb_pivots_cpp", (DL_FUNC) &_lame_ae_jb_pivots_cpp, 4},
     {"_lame_ae_probit_terms_cpp", (DL_FUNC) &_lame_ae_probit_terms_cpp, 2},
     {"_lame_ae_probit_hprime_cpp", (DL_FUNC) &_lame_ae_probit_hprime_cpp, 5},
     {"_lame_ae_cells_cpp", (DL_FUNC) &_lame_ae_cells_cpp, 6},
@@ -1733,8 +1778,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lame_ae_pln_cells_cpp", (DL_FUNC) &_lame_ae_pln_cells_cpp, 11},
     {"_lame_ae_pln_info_w_cpp", (DL_FUNC) &_lame_ae_pln_info_w_cpp, 8},
     {"_lame_ae_pln2_node_cpp", (DL_FUNC) &_lame_ae_pln2_node_cpp, 12},
-    {"_lame_als_factor_update_cpp", (DL_FUNC) &_lame_als_factor_update_cpp, 10},
-    {"_lame_als_factor_balanced_cpp", (DL_FUNC) &_lame_als_factor_balanced_cpp, 10},
+    {"_lame_als_factor_update_cpp", (DL_FUNC) &_lame_als_factor_update_cpp, 11},
+    {"_lame_als_factor_balanced_cpp", (DL_FUNC) &_lame_als_factor_balanced_cpp, 12},
     {"_lame_bso_loglik_cpp", (DL_FUNC) &_lame_bso_loglik_cpp, 5},
     {"_lame_sample_dynamic_ab_cpp", (DL_FUNC) &_lame_sample_dynamic_ab_cpp, 12},
     {"_lame_init_dynamic_ab_cpp", (DL_FUNC) &_lame_init_dynamic_ab_cpp, 6},

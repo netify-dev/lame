@@ -51,6 +51,12 @@ test_that("stored draws are centred and keep the predictor of the sampled state"
 
 test_that("a fit without one margin keeps the sampled coordinates", {
 	f = bi_fit(bi_net("normal", seed = 4), "normal", R = 2, cvar = FALSE)
-	expect_gt(max(abs(colMeans(f$U))), 1e-6)
-	expect_identical(f$U, f$start_vals$U)
+	# without a column margin to absorb them the draws keep their means, and so does the product
+	ns = dim(f$U_samples)[3]
+	expect_gt(max(abs(colMeans(matrix(f$U_samples[, , ns], nrow(f$U))))), 1e-6)
+	expect_gt(max(abs(colMeans(f$UVPM))), 1e-6)
+	# the reported positions factor that product; start_vals keeps the sampler's state
+	s = svd(f$UVPM, nu = 2, nv = 2)
+	expect_equal(unname(f$U %*% f$G %*% t(f$V)), s$u %*% diag(s$d[1:2]) %*% t(s$v), tolerance = 1e-10)
+	expect_gt(max(abs(colMeans(f$start_vals$U))), 1e-6)
 })

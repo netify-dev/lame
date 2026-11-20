@@ -93,7 +93,16 @@ print.lame <- function(x, compact = TRUE, digits = 3, ...) {
 		)
 	}
 
-	if (!is.null(x$U)) {
+	rank_txt <- .lame_rank_text(x)
+	if (!is.null(x$U) && !is.null(rank_txt)) {
+		# unequal bipartite ranks give a product of the smaller rank
+		param_info <- c(
+			param_info,
+			"*" = if (is_dynamic_uv) {
+				"Multiplicative effects: {rank_txt} {.emph (dynamic over {dim(x$U)[3]} periods)}"
+			} else "Multiplicative effects: {rank_txt}"
+		)
+	} else if (!is.null(x$U)) {
 		if (is_dynamic_uv) {
 			R <- dim(x$U)[2]
 			Tn <- dim(x$U)[3]

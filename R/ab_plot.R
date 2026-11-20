@@ -98,7 +98,11 @@ ab_plot <- function(
 			}
 			cli::cli_abort(c(
 				"{.code effect = \"both\"} is only available for static fits and dynamic snapshots (one period, or {.code time_point = \"average\"}).",
-				"i" = "Plot {.val sender} and {.val receiver} separately with {.code {view}}."
+				"i" = if (identical(fit$mode, "bipartite")) {
+					"Plot the row effects ({.val sender}) and column effects ({.val receiver}) separately with {.code {view}}."
+				} else {
+					"Plot {.val sender} and {.val receiver} separately with {.code {view}}."
+				}
 			))
 		}
 		return(ab_plot_both_internal(
@@ -342,15 +346,18 @@ ab_plot_dynamic_internal <- function(
 	show_actors
 ) {
 
+	# a bipartite network has row and column actors, not senders and receivers
+	is_bip <- identical(fit$mode, "bipartite")
 	if (effect == "sender") {
 		effects_mat <- fit$a_dynamic
-		ylabel <- "Sender effects (a)"
-		default_title <- "Dynamic sender effects"
+		what <- if (is_bip) "Row actor" else "Sender"
+		ylabel <- paste0(what, " effects (a)")
 	} else {
 		effects_mat <- fit$b_dynamic
-		ylabel <- "Receiver effects (b)"
-		default_title <- "Dynamic receiver effects"
+		what <- if (is_bip) "Column actor" else "Receiver"
+		ylabel <- paste0(what, " effects (b)")
 	}
+	default_title <- paste0("Dynamic ", tolower(what), " effects")
 
 	n_actors <- nrow(effects_mat)
 	n_times <- ncol(effects_mat)

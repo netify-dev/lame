@@ -240,8 +240,10 @@ test_that("the bipartite interaction no longer collapses at a large unit and the
 	# at sd(y) of order 1e3 the interaction prior variance is in the unit of the response, so it is not shrunk to zero
 	f = eq_fit(d, 1e4, "ame", nscan = 60, burn = 20)
 	g = eq_fit(d, 1, "ame", nscan = 60, burn = 20)
-	expect_equal(mean(abs(f$G)) / 1e4, mean(abs(g$G)), tolerance = 1e-8)
-	expect_gt(mean(abs(f$G)), 1e3)
+	# the sampler's interaction state; the reported G is the identity, with the scale in U and V
+	expect_equal(mean(abs(f$start_vals$G)) / 1e4, mean(abs(g$start_vals$G)), tolerance = 1e-8)
+	expect_gt(mean(abs(f$start_vals$G)), 1e3)
+	expect_equal(abs(f$U) / 1e2, abs(g$U), tolerance = 1e-6)
 	# symmetric kernel: the prior variance of an eigen-weight enters its conditional precision
 	set.seed(1); n = 8
 	U = matrix(rnorm(n * 2), n); E = U %*% diag(c(2, -1)) %*% t(U); E = (E + t(E)) / 2
@@ -299,7 +301,7 @@ test_that("ame_als() and lame_als() fit c * y as y to their stopping tolerance",
 		}
 		for (fun in c("ame_als", "lame_als")) {
 			f1 = fit(1, fun)
-			for (cc in c(1e-3, 1e3)) {
+			for (cc in c(1e-3, 1e3, 1e6)) {
 				fc = fit(cc, fun)
 				rel = function(x, y) max(abs(x - y)) / max(abs(y))
 				lab = sprintf("%s %s R=%d c=%g", fun, mode, R, cc)
@@ -318,6 +320,35 @@ test_that("ame_als() and lame_als() fit c * y as y to their stopping tolerance",
 				}
 				expect_lt(rel(unlist(fc$a), cc * unlist(f1$a)), 3e-4, label = lab)
 			}
+		}
+	}
+})
+
+test_that("tall and wide two-mode ame_als() fits of c * y are the fits of y: the free side carries the unit", {
+	skip_on_cran()
+	# the scale of the side with fewer actors is held at 1, so the other side's scale carries the unit squared
+	for (shape in list(c(500, 38), c(38, 500))) {
+		d = eq_net("bip", R = 2, n = shape[1], nB = shape[2], miss = 0)
+		fit = function(scale) suppressWarnings(suppressMessages(ame_als(
+			d$Y[[1]] * scale,
+			Xdyad = d$Xdyad[[1]],
+			Xrow = d$Xrow,
+			Xcol = d$Xcol,
+			R = 2,
+			mode = "bipartite",
+			family = "normal",
+			verbose = FALSE
+		)))
+		f1 = fit(1)
+		rel = function(x, y) max(abs(x - y)) / max(abs(y))
+		for (cc in c(1e-6, 1e6)) {
+			fc = fit(cc)
+			lab = sprintf("%d x %d c=%g", shape[1], shape[2], cc)
+			expect_lt(rel(unname(fc$coefficients), cc * unname(f1$coefficients)), 3e-4, label = lab)
+			expect_lt(rel(fc$VC[["ve"]], cc^2 * f1$VC[["ve"]]), 3e-4, label = lab)
+			expect_lt(rel(fc$UVPM, cc * f1$UVPM), 3e-4, label = lab)
+			# the scale settles more loosely than the product (about 5e-4 at c = 2 as well); a collapse moves it by orders
+			expect_lt(rel(fc$eb$sig2_u, cc^2 * f1$eb$sig2_u), 2e-3, label = lab)
 		}
 	}
 })

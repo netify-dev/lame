@@ -174,7 +174,7 @@ test_that("the expected pair problem is the one of the bivariate normal law unde
 	q = 2 * prep$nr
 	Sc = crossprod(matrix(rnorm(q * q), q)) / q * 0.05 + diag(0.02, q)
 	ve = 0.9; rho = 0.35
-	S = list(Sc = Sc, ve = ve); S$vact = lame:::.ae_mf_vact(Sc, ab)
+	S = list(Sc = lame:::.ae_acov_dense(Sc, ab), ve = ve); S$vact = lame:::.ae_mf_vact(S$Sc, ab)
 	eta = array(rnorm(prep$nr^2), dim(prep$Yarr)); V3 = array(S$vact, dim(prep$Yarr))
 	pe = lame:::.ae_gauss_pair_cells(cx, S, eta, V3, rho)
 	pc = cx$pair

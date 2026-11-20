@@ -40,9 +40,9 @@ single slice named after the argument expression, so
 \code{Xdyad = distance} yields the coefficient \code{distance_dyad}, the
 same name \code{\link{ame}} gives it.}
 
-\item{Xrow}{an \code{n_row x pr} matrix of row/sender covariates, or \code{NULL}.}
+\item{Xrow}{an \code{n_row x pr} matrix of row/sender covariates, or \code{NULL}. In a symmetric model (\code{symmetric = TRUE}) each node covariate enters a dyad through both of its actors.}
 
-\item{Xcol}{an \code{n_col x pc} matrix of column/receiver covariates, or \code{NULL}.}
+\item{Xcol}{an \code{n_col x pc} matrix of column/receiver covariates, or \code{NULL}. In a symmetric model a node covariate may be given in \code{Xrow}, in \code{Xcol} or in both, and each distinct covariate enters once, as \code{<name>_node}.}
 
 \item{R}{integer dimension of the multiplicative effects (default \code{0}).
 \strong{The covariate coefficients are conditional on this choice.} The
@@ -64,12 +64,16 @@ panel, its first period), as in \code{\link{ame}} and \code{\link{lame}}.}
 
 \item{max_iter}{maximum number of block coordinate descent iterations
 (default 200), and maximum number of outer reweighting steps for IRLS. A
-fit that does not settle within it is an error (class
-\code{"lame_als_convergence"}). A reweighting step runs at most five
+fit that does not settle within it follows the rank rule of
+\strong{Choosing the rank} in \code{\link{ame_als}} (a retired column, or a warning of class
+\code{"lame_als_unsettled"}); with \code{max_iter} below 200 a stop at
+the limit is an error (class \code{"lame_als_convergence"}). A reweighting step runs at most five
 sweeps (it refreshes the weights, the Laplace correction and the variance
 updates after them). The variational stage runs at most
-\code{2 * max_iter} iterations. A fit whose iteration does
+\code{20 * max_iter} iterations (\code{2 * max_iter} with
+\code{options(lame.eb_scale = "plugin")}). A fit whose iteration does
 not settle retires its weakest latent column and fits the next rank down
+when that fit's lower bound is at least as high
 (see \strong{A rank the data do not support}); a \code{max_iter} below 200
 disables that for an iteration that merely ran out of it.}
 
@@ -243,8 +247,8 @@ penalty. A changing empirical factor
 variance means successive penalized objective values need not decrease;
 a step is also accepted when it lowers the residual of
 the estimating equations that the checks evaluate. A fit
-that does not pass the checks within \code{max_iter} is an error of class
-\code{"lame_als_convergence"}: no fit is returned.
+that does not pass the checks within \code{max_iter} follows the rank rule
+of \strong{Choosing the rank}.
 A part of the fit that could not be computed (an evidence, a covariance
 term) is named, with its first error, in \code{numerical_failures} and in a
 warning of class \code{"lame_als_numerical_fallback"}; a step that took an
@@ -314,7 +318,14 @@ with the \code{requested_rank}, the \code{effective_rank}, whether the fit
 of the effective rank \code{settled}, and \code{steps}, one record per
 retired column (the \code{rank} it was retired at, its \code{column},
 its \code{strength} and \code{share} of the strongest column, and the
-\code{stage} and \code{termination} of the iteration that did not settle);
+\code{stage}, \code{termination} and \code{iterations} of the iteration that did not settle, and
+the \code{reason}: \code{"lower bound"}, the next rank down scored at least as high, or
+\code{"not formed"}, the rank scored higher but its estimates could not be formed, or
+\code{"bootstrap"}, the rank scored higher but the call asks for a bootstrap, which needs a settled fit);
+\code{unsettled}, present only when the fit is the last iterate of a rank that did not
+settle: its \code{rank}, \code{iterations}, \code{stage}, \code{termination}, and the lower
+bounds of that rank (\code{elbo}) and of the next rank down (\code{elbo_lower}, \code{NA}
+when that rank has none);
 for a normal fit, \code{ve}, the variance of the
 noise (also \code{VC["ve"]} and \code{fit$s2}) and \code{ve_prior}, the degrees of freedom and
 the scale of its prior; and, for a Poisson fit, \code{ve},
@@ -436,11 +447,12 @@ and a weighted low-rank update for the multiplicative factors \eqn{(U, V)}
 via SVD (eigen-decomposition when \code{symmetric = TRUE}). The weighting
 makes the multiplicative step correct for unbalanced longitudinal panels
 (dyads observed at unequal numbers of time points); severely unbalanced
-panels converge in more iterations. A fit that does not settle is refused
-with an error of class \code{"lame_als_convergence"}: the message gives the
-state it stopped in (iteration limit, or no step that lowers the objective),
-the score against its threshold, and the remedy. The last iterate is not
-returned.
+panels converge in more iterations. A fit that does not settle is handled
+by the rank rule of \strong{Choosing the rank} below: its weakest column is
+retired, or its last iterate is returned with a warning, and only the cases
+named there are refused with an error of class \code{"lame_als_convergence"}
+whose message gives the state it stopped in (iteration limit, or no step that
+lowers the objective) and the remedy.
 
 A normal response is fitted by the empirical-Bayes estimator of
 \strong{Normal data (the Gaussian empirical-Bayes estimator)} below.
@@ -469,7 +481,10 @@ is the actor's effects less the part its node covariates explain (the
 node-covariate coefficients are fixed effects of the prior mean, as in the
 MCMC model); the factor block is the penalised ridge above, whose scales are
 updated by EM from the posterior second moments of the factors, an undirected
-fit's too. At every
+fit's too, except that a bipartite fit holds its receiver factor at unit scale,
+the prior of its variational stage below, and updates only the sender scales
+(with both scales free the product can move along \eqn{U c}, \eqn{V / c} at
+almost no cost and the mode drifts). At every
 reweighting step the intercept, the coefficients and all the effects are
 solved jointly and exactly from dyad-level sums, in one dense system with no
 centring step. (2) \eqn{\Sigma_{ab}}{Sigma_ab} is updated by an EM step from the
@@ -517,12 +532,10 @@ says which estimator produced the values (\code{"variational"}, or
 iteration (convergence, stop reason, number of iterations, the largest step a
 full update would still take, the lower bound and its parts, and the scale of
 the prior of the factors) and \code{fit$eb$factor_posterior} the covariances.
-A fit whose mode or whose iteration stops short of its fixed point is not
-returned: the call stops with an error of class
-\code{"lame_als_convergence"} that reports the state and the remedy (a
-smaller rank, a larger \code{max_iter}, or \code{\link{ame}} /
-\code{\link{lame}}); the values of an iteration that has not settled are
-never reported as the estimate, nor replaced by the mode.
+A fit whose mode or whose iteration stops short of its fixed point follows the
+rank rule below: a column is retired, or the last iterate of the rank is
+returned with a warning of class \code{"lame_als_unsettled"} that says which
+stage stopped and why (\code{fit$eb$unsettled}); it is never replaced by the mode.
 
 \strong{The scale of the prior of the factors.} The rows of the factors have
 a Gaussian prior whose covariance the data inform weakly where there are few
@@ -931,8 +944,20 @@ quadrature as often as of the data: a stall of the pair rule is first refined, t
 and then to nine nodes a side, from the state it reached (\code{fit$eb$pair$refined}). An
 iteration that is still not settled retires its weakest column, the one with the smallest
 norm of the product \eqn{\|u_k\| \|v_k\|} (the smallest \eqn{|l_k|} of an undirected fit),
-and the fit of the next rank down starts from the other columns; this repeats while the
-iteration does not settle. The fit is the one of the rank it reached: \code{fit$R} is that
+when the fit of the next rank down, which starts from the other columns, has a variational
+lower bound at least as high; this repeats while the iteration does not settle. A rank whose
+lower bound is above that of the next rank down keeps its columns: when its coefficients,
+standard errors, positions and fitted values can all be formed and are finite at its last
+iterate, that iterate is the fit, with a warning of class \code{"lame_als_unsettled"} that
+names the stage that stopped (the posterior mode or the variational refinement) and why (the
+iteration limit, or no improving step) and, after an iteration limit, says that a larger
+\code{max_iter} continues the fit. \code{fit$eb$unsettled} records it, \code{fit$converged} is \code{FALSE}, and the
+Laplace evidence \code{fit$eb$log_marginal}, defined at a settled mode (for a normal fit, at
+the settled noise variance of the variational stage), is \code{NA} when the posterior mode
+did not settle or the family is normal. When some of them cannot be formed, or the call asks for
+a bootstrap (\code{bootstrap > 0}, which needs a settled fit), the fit of the next
+rank down, already computed, is returned (and the rule goes on from it), with a retirement
+message that says the rank did not converge. The fit is the one of the rank it reached: \code{fit$R} is that
 rank, \code{fit$R_requested} the rank asked for, \code{fit$eb$retirement} the record, and
 the evidence, the standard errors and the factors are those of the effective rank;
 the fit says so with a message of class \code{"lame_als_retirement"} when it is made, and

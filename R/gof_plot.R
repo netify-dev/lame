@@ -50,14 +50,16 @@ if (getRversion() >= "2.15.1") {
 #' }
 #'
 #' \emph{For bipartite (rectangular) networks:}
+#' Rows and columns are different node sets, so the panels are labelled by row
+#' and column rather than by sender and receiver.
 #' \describe{
-#'   \item{\code{sd.row} (Type A activity variation)}{
-#'     Standard deviation of row means for Type A nodes. Indicates heterogeneity
-#'     in how actively Type A nodes connect to Type B nodes.
+#'   \item{\code{sd.row} (Row degree heterogeneity)}{
+#'     Standard deviation of row means. Indicates heterogeneity in how actively
+#'     the row nodes connect to the column nodes.
 #'   }
-#'   \item{\code{sd.col} (Type B popularity variation)}{
-#'     Standard deviation of column means for Type B nodes. Indicates heterogeneity
-#'     in how popular Type B nodes are with Type A nodes.
+#'   \item{\code{sd.col} (Column degree heterogeneity)}{
+#'     Standard deviation of column means. Indicates heterogeneity in how
+#'     often the column nodes are connected to by the row nodes.
 #'   }
 #'   \item{\code{four.cycles} (Bipartite clustering)}{
 #'     Count of 4-cycles (rectangular paths A1-B1-A2-B2-A1). High values indicate
@@ -208,12 +210,7 @@ gof_plot <- function(
 				nrow(fit$GOF[[1]]) == 1L) type <- "static"
 	}
 
-	is_bipartite <- FALSE
-	if (!is.null(colnames(fit$GOF))) {
-		is_bipartite <- any(c("four.cycles", "four.cycle.dep") %in% colnames(fit$GOF))
-	} else if (!is.null(fit$mode)) {
-		is_bipartite <- fit$mode == "bipartite"
-	}
+	is_bipartite <- .gof_is_bipartite(fit)
 
 	# `statistics = NULL` means the standard panels plus any custom GOF columns;
 	# unknown names in a user-supplied vector are dropped with a warning
@@ -322,9 +319,24 @@ gof_stat_labels <- c(
 	"trans.dep" = "Transitivity"
 )
 
-# display label of a statistic name
-gof_label <- function(x) {
-	ifelse(x %in% names(gof_stat_labels), gof_stat_labels[x], x)
+# display label of a statistic name; a bipartite network has rows and columns,
+# not senders and receivers
+gof_label <- function(x, bipartite = FALSE) {
+	labels <- gof_stat_labels
+	if (isTRUE(bipartite)) {
+		labels[c("sd.row", "sd.rowmean")] <- "Row degree heterogeneity"
+		labels[c("sd.col", "sd.colmean")] <- "Column degree heterogeneity"
+	}
+	ifelse(x %in% names(labels), labels[x], x)
+}
+
+# whether the GOF panels of a fit describe a bipartite network
+.gof_is_bipartite <- function(fit) {
+	if (!is.null(colnames(fit$GOF))) {
+		any(c("four.cycles", "four.cycle.dep") %in% colnames(fit$GOF))
+	} else {
+		identical(fit$mode, "bipartite")
+	}
 }
 
 # standard theme for GOF plots
@@ -419,7 +431,7 @@ gof_plot_static <- function(fit, statistics, stat.names, ncol, line.size, title)
 			ggplot2::labs(
 				x = "Statistic value",
 				y = "Density",
-				title = gof_label(stat)
+				title = gof_label(stat, .gof_is_bipartite(fit))
 			) +
 			gof_theme() +
 			ggplot2::theme(
@@ -569,7 +581,7 @@ gof_plot_longitudinal <- function(
 		cli::cli_abort("No finite GOF values are available to plot.")
 	}
 
-	plot_data$statistic <- gof_label(plot_data$statistic)
+	plot_data$statistic <- gof_label(plot_data$statistic, .gof_is_bipartite(fit))
 
 	# observed series as a solid line with points, predictive median dashed grey,
 	# interval as a grey band

@@ -25,10 +25,7 @@
 	out <- stats::setNames(numeric(length(design_names)), design_names)
 	# a slice takes the coefficient of its own name, or the merged <v>_node
 	# coefficient when row and column coefficients are pooled
-	hit <- match(design_names, names(beta))
-	key <- sub("_(row|col)$", "_node", design_names)
-	miss <- is.na(hit)
-	hit[miss] <- match(key[miss], names(beta))
+	hit <- .lame_node_match(design_names, names(beta))
 	ok <- !is.na(hit)
 	if (!any(ok)) {
 		cli::cli_abort(c(
@@ -81,8 +78,8 @@
 
 	# intercept and nodal slices are held at fitted values
 	nondyad_pos <- which(!is_dyad)
-	# match slices to coefficients by name (own name first, then the merged
-	# <v>_node key), since a symmetric fit pools <v>_row and <v>_col
+	# match slices to coefficients by name over the whole fit (own name first, then the
+	# merged <v>_node key), since a symmetric fit pools <v>_row and <v>_col
 	design_names <- if (!is.null(fitted_design)) dimnames(fitted_design)[[3]] else NULL
 	has_design <- !is.null(fitted_design) && length(dim(fitted_design)) == 3L &&
 		!is.null(design_names)
@@ -94,13 +91,12 @@
 			"i" = "Refit without dropping the design (avoid compaction / {.code use_sparse_matrices}), or predict without {.arg newdata}."
 		))
 	}
-	design_key <- if (has_design) sub("_(row|col)$", "_node", design_names) else character(0)
+	slice_coef <- if (has_design) .lame_node_match(design_names, model_names) else integer(0)
 	for (k in nondyad_pos) {
 		if (identical(model_names[k], "intercept")) {
 			out[, , k] <- 1
 		} else {
-			src <- which(design_names == model_names[k])
-			if (length(src) == 0L) src <- which(design_key == model_names[k])
+			src <- which(slice_coef == k)
 			if (length(src) == 0L) {
 				cli::cli_abort(c(
 					"No design slice matches the coefficient {.val {model_names[k]}}.",

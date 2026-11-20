@@ -67,10 +67,10 @@ bipartite: an nA x nB x pd array. A 2-D matrix (single dyadic covariate) must be
 
 \item{Xrow}{For unipartite: an n x pr matrix of \strong{sender} (row) covariates (e.g. sender's age, group).
 For bipartite: an nA x pr matrix of row-node covariates. A \code{data.frame} is accepted and coerced
-to numeric matrix internally.}
+to numeric matrix internally. In a symmetric model (\code{symmetric = TRUE}) each node covariate enters a dyad through both of its actors.}
 
 \item{Xcol}{For unipartite: an n x pc matrix of \strong{receiver} (column) covariates. For bipartite:
-an nB x pc matrix of column-node covariates. A \code{data.frame} is accepted and coerced internally.}
+an nB x pc matrix of column-node covariates. A \code{data.frame} is accepted and coerced internally. In a symmetric model a node covariate may be given in \code{Xrow}, in \code{Xcol} or in both, and each distinct covariate enters once, as \code{<name>_node}.}
 
 \item{rvar}{logical: fit row random effects (asymmetric case)?}
 
@@ -546,9 +546,17 @@ See \code{\link{gof}} for post-hoc computation and \code{\link{gof_plot}} for vi
 \item{APM_sd, BPM_sd}{posterior standard deviation of each additive effect
 (static effects), used by \code{simulate()} to draw the effects}
 \item{BPM}{Additive column/receiver effects (m-vector); NULL for symmetric networks}
-\item{U}{Multiplicative row/sender factors (n xR matrix)}
+\item{U}{Multiplicative row/sender factors (n xR matrix): the factors of the
+posterior mean product \code{UVPM} at rank R, columns in decreasing order of
+its singular values (see \code{\link{latent_positions}})}
 \item{V}{Multiplicative column/receiver factors (m xR matrix); NULL for symmetric networks}
 \item{L}{Eigenvalue matrix (R xR diagonal); symmetric networks only}
+\item{G}{Bipartite networks only: the interaction matrix of \eqn{U G V'},
+the identity, so that \eqn{U G V'} is the best rank-R part of \code{UVPM}}
+\item{U_sd, V_sd}{With saved latent draws (\code{posterior_options(save_UV =
+TRUE)}), the posterior standard deviation of each coordinate of \code{U} and
+\code{V}, each draw matched onto the reported positions by a move that
+leaves its product unchanged}
 \item{YPM}{Stored response-scale fitted value: the average over the stored
 draws of the mean response given each draw, which is the tie probability for
 binary fits, the linear predictor for normal fits and the expected category

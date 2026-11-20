@@ -743,7 +743,8 @@
 	mode,
 	longitudinal,
 	node_time_policy = c("mean", "dynamic", "quiet"),
-	symmetric = FALSE
+	symmetric = FALSE,
+	sym_node_merge = TRUE
 ) {
 	node_time_policy <- match.arg(node_time_policy)
 
@@ -879,7 +880,11 @@
 		if (length(Xn) != Tt) {
 			cli::cli_abort("{.arg {arg}} must have one entry per time slice ({Tt}).")
 		}
-		lapply(Xn, as.matrix)
+		lapply(Xn, function(x) {
+			m <- as.matrix(x)
+			if (!is.null(m) && !is.numeric(m) && !is.logical(m)) cli::cli_abort("{.arg {arg}} must be numeric.")
+			m
+		})
 	}
 
 	Xdyad <- norm_dyad(Xdyad)
@@ -983,6 +988,15 @@
 	# covariate missingness: refuse covariates missing everywhere, otherwise mark
 	# cells with a missing covariate unobserved and record actors left with no cell
 	.ae_check_all_na_cov(Xdyad, Xrow, Xcol, longitudinal)
+	# a symmetric fit has one effect per actor and a node covariate enters through both members
+	# of a dyad: as in ame() and lame(), each distinct covariate of Xrow and Xcol is used once
+	# (a refit of a fit saved before 1.4.3, which kept Xcol apart as W_col, keeps that layout)
+	sym_node <- isTRUE(symmetric) && !bip && !(is.null(Xrow) && is.null(Xcol)) && isTRUE(sym_node_merge)
+	if (sym_node) {
+		sym_cov <- .lame_symmetric_node_covariates(Xrow, Xcol)
+		Xrow <- sym_cov$X
+		Xcol <- NULL
+	}
 	# a symmetric fit needs symmetric dyadic covariates: fill a hole in one triangle
 	# from the other and refuse a slice that stays asymmetric
 	if (isTRUE(symmetric) && !bip && !is.null(Xdyad)) {
@@ -1044,6 +1058,12 @@
 			dimnames(des$X)[[3L]],
 			time_names
 		)
+	}
+	# symmetric node coefficients are named as the samplers name them (`x_row` becomes `x_node`)
+	if (sym_node && !is.null(des$W_row)) {
+		node_nms <- paste0(sym_cov$stems, "_node")
+		colnames(des$W_row) <- node_nms
+		dimnames(des$W_row_arr)[[2L]] <- node_nms
 	}
 	if (!is.null(des$W_row)) rownames(des$W_row) <- row_names
 	if (!is.null(des$W_col)) rownames(des$W_col) <- col_names
@@ -1209,8 +1229,10 @@
 
 # Z        : n_row x n_col x t Gaussian working response (NA = unobserved)
 # X        : n_row x n_col x p x t design array
-# uv_prior : NULL (unpenalized factors), or list(Suv0, kappa0, sig2_u, sig2_v)
-#            for the penalized MAP factor block with EM-updated scales (IRLS)
+# uv_prior : NULL (unpenalized factors), or list(suv0, kappa0, sig2_u, sig2_v,
+#            fixed_side, unit) for the penalized MAP factor block with EM-updated
+#            scales (IRLS); fixed_side "receiver" or "sender" holds that side's scale
+#            at 1 and the other side's factors carry the unit `unit`
 # ab_prior : NULL (unpenalized additive effects), or the EB actor-effect prior
 #            (the empirical-Bayes fit): regression and additive blocks are solved
 #            jointly and Sab is updated by EM across calls
@@ -1507,6 +1529,30 @@
 					lowrank_method,
 					rel = unit_rules
 				)
+			} else if (identical(uv_prior$fixed_side, "sender")) {
+				# the sender scale is held at 1: the update with the receiver scale held, on the
+				# transposed table with the factors exchanged
+				lr <- .ae_lowrank_update_pen(
+					t(Omat),
+					t(Rbar),
+					t(wsum),
+					t(obs_dyad),
+					R,
+					symmetric,
+					V,
+					U,
+					sig2_v,
+					sig2_u,
+					uv_prior$suv0,
+					uv_prior$kappa0,
+					off = which(!t(obs_dyad)),
+					second_moment = !is.null(ab_prior),
+					cfloor = if (!is.null(ab_prior) && identical(ab_prior$family, "normal")) 0 else 1,
+					fixed_receiver = TRUE,
+					unit = uv_prior$unit
+				)
+				lr <- list(U = lr[["V"]], V = lr$U, L = lr$L, Omat = t(lr$Omat), sig2_u = lr$sig2_v, sig2_v = lr$sig2_u)
+				sig2_u <- lr$sig2_u; sig2_v <- lr$sig2_v
 			} else {
 				lr <- .ae_lowrank_update_pen(
 					Omat,
@@ -1523,7 +1569,9 @@
 					uv_prior$kappa0,
 					off = off_dyad,
 					second_moment = !is.null(ab_prior),
-					cfloor = if (!is.null(ab_prior) && identical(ab_prior$family, "normal")) 0 else 1
+					cfloor = if (!is.null(ab_prior) && identical(ab_prior$family, "normal")) 0 else 1,
+					fixed_receiver = identical(uv_prior$fixed_side, "receiver"),
+					unit = if (is.null(uv_prior$unit)) 1 else uv_prior$unit
 				)
 				sig2_u <- lr$sig2_u; sig2_v <- lr$sig2_v
 			}
@@ -1666,8 +1714,11 @@
 #   K = [[diag(rowsums(w)), w], [w', diag(colsums(w))]]   (a_i + b_j)
 #   K = diag(rowsums(w)) + w                              (symmetric a_i + a_j)
 # with w the pooled observed-cell weights, so the excess is the centered trace
-# of ve * K^+, conditional on the other blocks. above `max_dim` the diagonal
-# approximation ve * mean(1 / rowsums(w)) is used
+# of ve * K^+, conditional on the other blocks. a directed or bipartite K is
+# factored by blocks (.ae_gauge_traces()); the dense pseudo-inverse is used
+# where that factor fails the test of .ae_gauge_inverse(), and above `max_dim`
+# actors there (and for an undirected K) the diagonal approximation
+# ve * mean(1 / rowsums(w))
 .ae_effect_noise_var <- function(
 	mask,
 	Wobs,
@@ -1714,6 +1765,13 @@
 	Wab <- W[ia, ib, drop = FALSE]
 	na <- length(ia); nb <- length(ib)
 	rs <- rowSums(Wab); cs <- colSums(Wab)
+	centred <- function(tr, n) if (n < 2L) NA_real_ else (tr[["trace"]] - tr[["sum"]] / n) / (n - 1L)
+	tr <- .ae_gauge_traces(rs, cs, Wab)
+	if (!is.null(tr)) {
+		if (na > 1L) out$va <- ve * centred(tr$a, na)
+		if (nb > 1L) out$vb <- ve * centred(tr$b, nb)
+		return(out)
+	}
 	if (na + nb > max_dim) {
 		out$va <- if (na > 1L) diag_only(rs, na) else NA_real_
 		out$vb <- if (nb > 1L) diag_only(cs, nb) else NA_real_
@@ -1728,6 +1786,52 @@
 	if (na > 1L) out$va <- ve * .ae_centered_trace(S[seq_len(na), seq_len(na), drop = FALSE])
 	if (nb > 1L) out$vb <- ve * .ae_centered_trace(S[na + seq_len(nb), na + seq_len(nb), drop = FALSE])
 	out
+}
+
+# the trace and the sum of the entries of the row and column blocks of Kg^-1, Kg = K + c v v' the
+# matrix of .ae_gauge_inverse() for K = [diag(rs), W; W', diag(cs)] and v = (1, -1), c = mean(diag(K)) / n.
+# the larger side (the rows when equal) is eliminated first: its block diag(d1) + c 11' has the
+# inverse diag(u) - u u' / (1 / c + sum(u)), u = 1 / d1, and leaves the Schur complement S2 of the other
+# side. NULL when the pivots of Kg in its own order (rows, then columns) fail the test of
+# .ae_gauge_inverse()
+.ae_gauge_traces <- function(rs, cs, W) {
+	na <- length(rs); nb <- length(cs)
+	n <- na + nb
+	scale <- mean(c(rs, cs))
+	if (!is.finite(scale) || scale <= 0 || !na || !nb) return(NULL)
+	cc <- scale / n
+	rows <- na >= nb
+	d1 <- if (rows) rs else cs
+	d2 <- if (rows) cs else rs
+	B <- (if (rows) W else t(W)) - cc
+	if (!all(is.finite(d1)) || any(d1 <= 0)) return(NULL)
+	u <- 1 / d1
+	den <- 1 / cc + sum(u)
+	# G = A^-1 B, A = diag(d1) + c 11'
+	G <- u * B - outer(u, colSums(u * B)) / den
+	S2 <- diag(d2, length(d2)) + cc - crossprod(B, G)
+	L2 <- tryCatch(chol((S2 + t(S2)) / 2), error = function(e) NULL)
+	if (is.null(L2)) return(NULL)
+	# the pivots: the rows (diag(rs) + c 11'), then the columns given them
+	p_a <- ae_dlr_pivots_cpp(rs, matrix(1, 1L, na), matrix(cc))
+	p_b <- if (rows) diag(L2)^2 else {
+		ua <- 1 / rs
+		Ai <- -(diag(ua, na) - tcrossprod(ua) / (1 / cc + sum(ua)))
+		P0 <- matrix(0, na + 1L, na + 1L)
+		P0[seq_len(na), seq_len(na)] <- Ai
+		P0[na + 1L, na + 1L] <- cc
+		ae_dlr_pivots_cpp(cs, rbind(W - cc, rep(1, nb)), P0)
+	}
+	p <- c(p_a, p_b)
+	if (!(all(is.finite(p)) && min(p) > 1e-10 * max(p))) return(NULL)
+	S2i <- chol2inv(L2)
+	g1 <- colSums(G)
+	t1 <- list(
+		trace = sum(u) - sum(u^2) / den + sum((G %*% S2i) * G),
+		sum = sum(u) - sum(u)^2 / den + sum(g1 * as.vector(S2i %*% g1))
+	)
+	t2 <- list(trace = sum(diag(S2i)), sum = sum(S2i))
+	if (rows) list(a = t1, b = t2) else list(a = t2, b = t1)
 }
 
 # lag-k cross-actor covariance profile of a per-period path matrix (actors by
@@ -2510,7 +2614,8 @@
 	report_cov_na = TRUE,
 	dcor = FALSE,
 	dcor_given = FALSE,
-	prior = NULL
+	prior = NULL,
+	bootstrap = FALSE
 ) {
 	node_time_policy <- match.arg(node_time_policy)
 	estimator <- match.arg(estimator)
@@ -2793,6 +2898,61 @@
 		.ae_gauss_check_reciprocity(prep, R)
 		pair_cfg <- list(gauss = TRUE)
 	}
+	# the fit object of the iteration `ir` at rank R
+	build <- function(ir, fit, R) {
+		out <- if (use_irls) {
+			.ae_assemble(
+				fit,
+				prep,
+				family,
+				mode,
+				symmetric,
+				R,
+				longitudinal,
+				call,
+				Zwork = ir$Z,
+				link = eff_link,
+				Wobs = ir$W
+			)
+		} else {
+			.ae_assemble(fit, prep, family, mode, symmetric, R, longitudinal, call)
+		}
+		# final objective: for IRLS the penalized deviance at the stopping iterate
+		if (use_irls) {
+			out$objective <- ir$best_obj
+			out$irls_iterations <- ir$irls_iters
+			out$irls_diagnostics <- ir$stationarity
+			# EB: iterations count the reweighting steps
+			out$iterations <- ir$irls_iters
+		}
+		out$gaussian_diagnostics <- fit$gaussian_diagnostics
+		out$lowrank_method <- lowrank_method
+		out$meta$lowrank_method <- lowrank_method
+		out$non_normal_method <- if (use_irls) "irls" else "transform"
+		out$link <- if (use_irls) eff_link else NULL
+		out$linear_solver <- linear_solver
+		out$multistart <- multistart
+		# final IRLS weights (NULL = unit)
+		out$obs_weights <- if (use_irls) ir$W else NULL
+		if (!is.null(fit$multistart_sse)) {
+			out$multistart_sse <- fit$multistart_sse
+			if (!is.null(fit$multistart_deviance)) {
+				out$multistart_deviance <- fit$multistart_deviance
+				out$multistart_distance <- fit$multistart_distance
+			}
+			out$multistart_coefficients <- fit$multistart_coefficients
+			out$multistart_product_distance <- fit$multistart_product_distance
+			out$multistart_selected <- fit$multistart_selected
+			out$multistart_converged <- fit$multistart_converged
+			out$multistart_criterion <- fit$multistart_criterion
+			out$multistart_gaussian_diagnostics <- fit$multistart_gaussian_diagnostics
+		}
+
+		# the transform fit records its estimator; the empirical-Bayes fit carries no record
+		if (!use_eb) out$bias_correct <- list(method = "none", applied = FALSE, requested = "none")
+		out <- .ae_mark_not_estimated(out, db)
+		out
+	}
 	# requested rank; unsupported columns may be retired (R/ame_als_retire.R)
 	R_requested <- R
 	retirement <- NULL
@@ -2857,16 +3017,24 @@
 					ir$fit$converged <- TRUE
 				}
 			}
-			# skip the refinement for an unconverged rank-1 mode, whose column is retired anyway;
-			# such a mode reports the standard errors of its own effects and product
-			if (Rr == 1L && !isTRUE(ir$stationarity$pass) && !is.null(ir$fit$eb_vcov$vcov)) {
-				ir$fit$eb_vcov$report_se <- tryCatch(
-					.ae_eb_vcov(prep, ir$fit, ir$W, ab_prior, Rr)$report_se,
-					error = function(e) NULL
-				)
-			}
-			if (!(Rr == 1L && !isTRUE(ir$stationarity$pass))) {
-				ir <- .ae_mf_stage(
+			# every rank, settled or not, takes its refinement: retirement compares the lower bounds
+			# of neighbouring ranks (R/ame_als_retire.R)
+			ir <- .ae_mf_stage(
+				prep,
+				ir,
+				ab_prior,
+				Rr,
+				symmetric,
+				eff_link,
+				max_iter,
+				tol,
+				pair = pair_cfg,
+				ve_fixed = pln_ve,
+				defer_uncertainty = TRUE
+			)
+			# normal: evidence of the mode at the settled noise variance
+			if (identical(family, "normal")) {
+				ir <- .ae_gauss_evidence(
 					prep,
 					ir,
 					ab_prior,
@@ -2875,25 +3043,9 @@
 					eff_link,
 					max_iter,
 					tol,
-					pair = pair_cfg,
-					ve_fixed = pln_ve,
-					defer_uncertainty = TRUE
+					lowrank_method,
+					linear_solver
 				)
-				# normal: evidence of the mode at the settled noise variance
-				if (identical(family, "normal")) {
-					ir <- .ae_gauss_evidence(
-						prep,
-						ir,
-						ab_prior,
-						Rr,
-						symmetric,
-						eff_link,
-						max_iter,
-						tol,
-						lowrank_method,
-						linear_solver
-					)
-				}
 			}
 			if (Rr == 0L) rank0[[length(rank0) + 1L]] <<- list(init = init, ir = ir)
 			ir
@@ -2906,8 +3058,25 @@
 			}
 			.ae_mf_finish(ir)
 		}
+		# an unsettled rank kept for its lower bound, with the factor-scale uncertainty added, when
+		# every quantity the fit reports can be formed at its last iterate; NULL otherwise, and
+		# "bootstrap" when the call asks for a bootstrap, which needs a settled fit
+		formed <- function(z) {
+			if (isTRUE(bootstrap)) return("bootstrap")
+			notes <- function() mget(c("failures", "fallbacks"), envir = .ae_notes, ifnotfound = list(NULL, NULL))
+			put <- function(kept) for (k in names(kept)) assign(k, kept[[k]], envir = .ae_notes)
+			before <- notes()
+			z <- .ae_mf_finish(z)
+			after <- notes()
+			out <- tryCatch(build(z, z$fit, .ae_fit_rank(z$fit)), error = function(e) NULL)
+			ok <- suppressWarnings(suppressMessages(.ae_fit_formed(out)))
+			put(if (ok) after else before)
+			if (ok) z
+		}
 		# retire the weakest column and refit until the iteration settles (R/ame_als_retire.R)
-		irls_once <- function(init) .ae_retire_columns(irls_once_rank, init, R, symmetric, vb_follows, max_iter)
+		irls_once <- function(init) {
+			.ae_retire_columns(irls_once_rank, init, R, symmetric, vb_follows, max_iter, formed = formed)
+		}
 		if (multistart != "none" && R > 0) {
 			# multistart on the IRLS path: keep the converged start with the lowest
 			# objective at its own scales (.ae_irls_objective), or the highest Laplace
@@ -2991,6 +3160,8 @@
 		)
 	}
 
+	# a rank kept unsettled for its lower bound is returned with a warning (R/ame_als_retire.R)
+	unsettled <- if (use_irls) ir$unsettled
 	# convergence of the posterior mode, or of the whole fit when no variational stage follows
 	mode_ok <- if (vb_follows) isTRUE(ir$stationarity$pass) else isTRUE(fit$converged)
 	if (verbose) {
@@ -3001,7 +3172,7 @@
 			cli::cli_alert_warning("Did not converge in {max_iter} iterations.")
 		}
 	}
-	if (!mode_ok) {
+	if (!mode_ok && is.null(unsettled)) {
 		if (vb_follows) {
 			# the rank evidence is the Laplace marginal likelihood at the mode, so an
 			# unsettled mode is refused
@@ -3042,62 +3213,13 @@
 		if (verbose) {
 			cli::cli_alert_info("Variational posterior: {rec$iterations} iteration{?s}, {rec$termination}; lower bound {round(rec$elbo, 3)}.")
 		}
-		if (!isTRUE(rec$converged)) .ae_mf_refuse(rec, R, R_requested)
+		if (!isTRUE(rec$converged) && is.null(unsettled)) .ae_mf_refuse(rec, R, R_requested)
 	}
 
-	out <- if (use_irls) {
-		.ae_assemble(
-			fit,
-			prep,
-			family,
-			mode,
-			symmetric,
-			R,
-			longitudinal,
-			call,
-			Zwork = ir$Z,
-			link = eff_link,
-			Wobs = ir$W
-		)
-	} else {
-		.ae_assemble(fit, prep, family, mode, symmetric, R, longitudinal, call)
-	}
-	# final objective: for IRLS the penalized deviance at the stopping iterate
-	if (use_irls) {
-		out$objective <- ir$best_obj
-		out$irls_iterations <- ir$irls_iters
-		out$irls_diagnostics <- ir$stationarity
-		# EB: iterations count the reweighting steps
-		out$iterations <- ir$irls_iters
-	}
-	out$gaussian_diagnostics <- fit$gaussian_diagnostics
-	out$lowrank_method <- lowrank_method
-	out$meta$lowrank_method <- lowrank_method
-	out$non_normal_method <- if (use_irls) "irls" else "transform"
-	out$link <- if (use_irls) eff_link else NULL
-	out$linear_solver <- linear_solver
-	out$multistart <- multistart
+	out <- build(ir, fit, R)
 	# requested rank, when fewer columns were supported
 	if (!is.null(retirement)) out$R_requested <- R_requested
-	# final IRLS weights (NULL = unit)
-	out$obs_weights <- if (use_irls) ir$W else NULL
-	if (!is.null(fit$multistart_sse)) {
-		out$multistart_sse <- fit$multistart_sse
-		if (!is.null(fit$multistart_deviance)) {
-			out$multistart_deviance <- fit$multistart_deviance
-			out$multistart_distance <- fit$multistart_distance
-		}
-		out$multistart_coefficients <- fit$multistart_coefficients
-		out$multistart_product_distance <- fit$multistart_product_distance
-		out$multistart_selected <- fit$multistart_selected
-		out$multistart_converged <- fit$multistart_converged
-		out$multistart_criterion <- fit$multistart_criterion
-		out$multistart_gaussian_diagnostics <- fit$multistart_gaussian_diagnostics
-	}
-
-	# the transform fit records its estimator; the empirical-Bayes fit carries no record
-	if (!use_eb) out$bias_correct <- list(method = "none", applied = FALSE, requested = "none")
-	out <- .ae_mark_not_estimated(out, db)
+	if (!is.null(unsettled)) out <- .ae_mark_unsettled(out, unsettled, family)
 	# an empirical-Bayes fit reports standard errors for every estimate, so a covariance that
 	# cannot be formed, even on the equilibrated information, is an error
 	if (use_eb && (is.null(out$eb$vcov) || !is.null(out$eb$vcov_singular))) {
@@ -3113,6 +3235,7 @@
 	}
 	.ae_inform_not_estimated(out$not_estimated)
 	.ae_inform_retirement(out$eb$retirement)
+	if (!is.null(unsettled)) .ae_warn_unsettled(unsettled, !is.finite(out$eb$log_marginal))
 	out
 }
 
@@ -3164,11 +3287,12 @@
 #' via SVD (eigen-decomposition when \code{symmetric = TRUE}). The weighting
 #' makes the multiplicative step correct for unbalanced longitudinal panels
 #' (dyads observed at unequal numbers of time points); severely unbalanced
-#' panels converge in more iterations. A fit that does not settle is refused
-#' with an error of class \code{"lame_als_convergence"}: the message gives the
-#' state it stopped in (iteration limit, or no step that lowers the objective),
-#' the score against its threshold, and the remedy. The last iterate is not
-#' returned.
+#' panels converge in more iterations. A fit that does not settle is handled
+#' by the rank rule of \strong{Choosing the rank} below: its weakest column is
+#' retired, or its last iterate is returned with a warning, and only the cases
+#' named there are refused with an error of class \code{"lame_als_convergence"}
+#' whose message gives the state it stopped in (iteration limit, or no step that
+#' lowers the objective) and the remedy.
 #'
 #' A normal response is fitted by the empirical-Bayes estimator of
 #' \strong{Normal data (the Gaussian empirical-Bayes estimator)} below.
@@ -3197,7 +3321,10 @@
 #' node-covariate coefficients are fixed effects of the prior mean, as in the
 #' MCMC model); the factor block is the penalised ridge above, whose scales are
 #' updated by EM from the posterior second moments of the factors, an undirected
-#' fit's too. At every
+#' fit's too, except that a bipartite fit holds its receiver factor at unit scale,
+#' the prior of its variational stage below, and updates only the sender scales
+#' (with both scales free the product can move along \eqn{U c}, \eqn{V / c} at
+#' almost no cost and the mode drifts). At every
 #' reweighting step the intercept, the coefficients and all the effects are
 #' solved jointly and exactly from dyad-level sums, in one dense system with no
 #' centring step. (2) \eqn{\Sigma_{ab}}{Sigma_ab} is updated by an EM step from the
@@ -3245,12 +3372,10 @@
 #' iteration (convergence, stop reason, number of iterations, the largest step a
 #' full update would still take, the lower bound and its parts, and the scale of
 #' the prior of the factors) and \code{fit$eb$factor_posterior} the covariances.
-#' A fit whose mode or whose iteration stops short of its fixed point is not
-#' returned: the call stops with an error of class
-#' \code{"lame_als_convergence"} that reports the state and the remedy (a
-#' smaller rank, a larger \code{max_iter}, or \code{\link{ame}} /
-#' \code{\link{lame}}); the values of an iteration that has not settled are
-#' never reported as the estimate, nor replaced by the mode.
+#' A fit whose mode or whose iteration stops short of its fixed point follows the
+#' rank rule below: a column is retired, or the last iterate of the rank is
+#' returned with a warning of class \code{"lame_als_unsettled"} that says which
+#' stage stopped and why (\code{fit$eb$unsettled}); it is never replaced by the mode.
 #'
 #' \strong{The scale of the prior of the factors.} The rows of the factors have
 #' a Gaussian prior whose covariance the data inform weakly where there are few
@@ -3659,8 +3784,20 @@
 #' and then to nine nodes a side, from the state it reached (\code{fit$eb$pair$refined}). An
 #' iteration that is still not settled retires its weakest column, the one with the smallest
 #' norm of the product \eqn{\|u_k\| \|v_k\|} (the smallest \eqn{|l_k|} of an undirected fit),
-#' and the fit of the next rank down starts from the other columns; this repeats while the
-#' iteration does not settle. The fit is the one of the rank it reached: \code{fit$R} is that
+#' when the fit of the next rank down, which starts from the other columns, has a variational
+#' lower bound at least as high; this repeats while the iteration does not settle. A rank whose
+#' lower bound is above that of the next rank down keeps its columns: when its coefficients,
+#' standard errors, positions and fitted values can all be formed and are finite at its last
+#' iterate, that iterate is the fit, with a warning of class \code{"lame_als_unsettled"} that
+#' names the stage that stopped (the posterior mode or the variational refinement) and why (the
+#' iteration limit, or no improving step) and, after an iteration limit, says that a larger
+#' \code{max_iter} continues the fit. \code{fit$eb$unsettled} records it, \code{fit$converged} is \code{FALSE}, and the
+#' Laplace evidence \code{fit$eb$log_marginal}, defined at a settled mode (for a normal fit, at
+#' the settled noise variance of the variational stage), is \code{NA} when the posterior mode
+#' did not settle or the family is normal. When some of them cannot be formed, or the call asks for
+#' a bootstrap (\code{bootstrap > 0}, which needs a settled fit), the fit of the next
+#' rank down, already computed, is returned (and the rule goes on from it), with a retirement
+#' message that says the rank did not converge. The fit is the one of the rank it reached: \code{fit$R} is that
 #' rank, \code{fit$R_requested} the rank asked for, \code{fit$eb$retirement} the record, and
 #' the evidence, the standard errors and the factors are those of the effective rank;
 #' the fit says so with a message of class \code{"lame_als_retirement"} when it is made, and
@@ -3842,8 +3979,8 @@
 #'   single slice named after the argument expression, so
 #'   \code{Xdyad = distance} yields the coefficient \code{distance_dyad}, the
 #'   same name \code{\link{ame}} gives it.
-#' @param Xrow an \code{n_row x pr} matrix of row/sender covariates, or \code{NULL}.
-#' @param Xcol an \code{n_col x pc} matrix of column/receiver covariates, or \code{NULL}.
+#' @param Xrow an \code{n_row x pr} matrix of row/sender covariates, or \code{NULL}. In a symmetric model (\code{symmetric = TRUE}) each node covariate enters a dyad through both of its actors.
+#' @param Xcol an \code{n_col x pc} matrix of column/receiver covariates, or \code{NULL}. In a symmetric model a node covariate may be given in \code{Xrow}, in \code{Xcol} or in both, and each distinct covariate enters once, as \code{<name>_node}.
 #' @param R integer dimension of the multiplicative effects (default \code{0}).
 #'   \strong{The covariate coefficients are conditional on this choice.} The
 #'   multiplicative term \eqn{u_i'v_j} is a flexible high-variance regressor
@@ -3860,12 +3997,16 @@
 #'   panel, its first period), as in \code{\link{ame}} and \code{\link{lame}}.
 #' @param max_iter maximum number of block coordinate descent iterations
 #'   (default 200), and maximum number of outer reweighting steps for IRLS. A
-#'   fit that does not settle within it is an error (class
-#'   \code{"lame_als_convergence"}). A reweighting step runs at most five
+#'   fit that does not settle within it follows the rank rule of
+#'   \strong{Choosing the rank} in \code{\link{ame_als}} (a retired column, or a warning of class
+#'   \code{"lame_als_unsettled"}); with \code{max_iter} below 200 a stop at
+#'   the limit is an error (class \code{"lame_als_convergence"}). A reweighting step runs at most five
 #'   sweeps (it refreshes the weights, the Laplace correction and the variance
 #'   updates after them). The variational stage runs at most
-#'   \code{2 * max_iter} iterations. A fit whose iteration does
+#'   \code{20 * max_iter} iterations (\code{2 * max_iter} with
+#'   \code{options(lame.eb_scale = "plugin")}). A fit whose iteration does
 #'   not settle retires its weakest latent column and fits the next rank down
+#'   when that fit's lower bound is at least as high
 #'   (see \strong{A rank the data do not support}); a \code{max_iter} below 200
 #'   disables that for an iteration that merely ran out of it.
 #' @param tol convergence tolerance on the relative change in residual sum of
@@ -4000,8 +4141,8 @@
 #'   variance means successive penalized objective values need not decrease;
 #'   a step is also accepted when it lowers the residual of
 #'   the estimating equations that the checks evaluate. A fit
-#'   that does not pass the checks within \code{max_iter} is an error of class
-#'   \code{"lame_als_convergence"}: no fit is returned.
+#'   that does not pass the checks within \code{max_iter} follows the rank rule
+#'   of \strong{Choosing the rank}.
 #'   A part of the fit that could not be computed (an evidence, a covariance
 #'   term) is named, with its first error, in \code{numerical_failures} and in a
 #'   warning of class \code{"lame_als_numerical_fallback"}; a step that took an
@@ -4071,7 +4212,14 @@
 #'   of the effective rank \code{settled}, and \code{steps}, one record per
 #'   retired column (the \code{rank} it was retired at, its \code{column},
 #'   its \code{strength} and \code{share} of the strongest column, and the
-#'   \code{stage} and \code{termination} of the iteration that did not settle);
+#'   \code{stage}, \code{termination} and \code{iterations} of the iteration that did not settle, and
+#'   the \code{reason}: \code{"lower bound"}, the next rank down scored at least as high, or
+#'   \code{"not formed"}, the rank scored higher but its estimates could not be formed, or
+#'   \code{"bootstrap"}, the rank scored higher but the call asks for a bootstrap, which needs a settled fit);
+#'   \code{unsettled}, present only when the fit is the last iterate of a rank that did not
+#'   settle: its \code{rank}, \code{iterations}, \code{stage}, \code{termination}, and the lower
+#'   bounds of that rank (\code{elbo}) and of the next rank down (\code{elbo_lower}, \code{NA}
+#'   when that rank has none);
 #'   for a normal fit, \code{ve}, the variance of the
 #'   noise (also \code{VC["ve"]} and \code{fit$s2}) and \code{ve_prior}, the degrees of freedom and
 #'   the scale of its prior; and, for a Poisson fit, \code{ve},
@@ -4352,7 +4500,8 @@ ame_als <- function(
 		multistart = multistart,
 		dcor = dcor,
 		dcor_given = dcor_given,
-		prior = prior
+		prior = prior,
+		bootstrap = bootstrap > 0L
 	)
 	if (bootstrap > 0L) {
 		fit <- .ae_attach_bootstrap(
@@ -4398,8 +4547,8 @@ ame_als <- function(
 #'   object is also accepted and converted with
 #'   \code{netify::to_lame(lame = TRUE)}.
 #' @param Xdyad a list of \code{T} dyadic covariate matrices/arrays, or \code{NULL}.
-#' @param Xrow a list of \code{T} row/sender covariate matrices, or \code{NULL}.
-#' @param Xcol a list of \code{T} column/receiver covariate matrices, or \code{NULL}.
+#' @param Xrow a list of \code{T} row/sender covariate matrices, or \code{NULL}. In a symmetric model (\code{symmetric = TRUE}) each node covariate enters a dyad through both of its actors.
+#' @param Xcol a list of \code{T} column/receiver covariate matrices, or \code{NULL}. In a symmetric model a node covariate may be given in \code{Xrow}, in \code{Xcol} or in both, and each distinct covariate enters once, as \code{<name>_node}.
 #' @section Sparse and dense binary networks:
 #' A binary panel whose observed density \eqn{d} (the share of
 #' observed cells that are ties, the diagonal of a one-mode network left out, pooled over the periods)
@@ -4530,7 +4679,8 @@ lame_als <- function(
 		multistart = multistart,
 		dcor = dcor,
 		dcor_given = dcor_given,
-		prior = prior
+		prior = prior,
+		bootstrap = bootstrap > 0L
 	)
 	if (bootstrap > 0L) {
 		fit <- .ae_attach_bootstrap(
@@ -5017,6 +5167,7 @@ print.ame_als <- function(x, digits = 4, ...) {
 		cli::cli_text("Network: {x$dims$n_row} x {x$dims$n_col}, {x$n_time} time slice{?s}")
 		cli::cli_text("Converged: {.val {x$converged}} in {x$iterations} iteration{?s}")
 		.ae_print_retirement(x$eb$retirement)
+		.ae_print_unsettled(x$eb$unsettled)
 		.ae_print_estimator(x, x$family, x$eb$estimator)
 		.ae_print_information(x$eb$variational$information, x$eb$product_withheld)
 		# note that lame_als() is static even on a panel
@@ -5033,17 +5184,16 @@ print.ame_als <- function(x, digits = 4, ...) {
 		cli::cli_text("")
 		cli::cli_text("{.strong Variance components:}")
 		vc_tab <- .ae_vc_table(x)
-		cli::cli_verbatim(utils::capture.output(print(round(if (is.null(vc_tab)) x$VC else vc_tab, digits))))
+		vc_print <- .ae_vc_print(x, if (is.null(vc_tab)) x$VC else vc_tab)
+		cli::cli_verbatim(utils::capture.output(print(round(vc_print$table, digits))))
 		rho_note <- .ae_rho_not_estimated_text(x)
 		if (!is.null(rho_note)) cli::cli_text("{rho_note}")
 		.ae_print_vc_fixed(x)
 		cli::cli_text("")
-		cli::cli_text(
-			cli::col_grey("va/vb: variances of the sender/receiver effects | cab: their covariance | rho: dyadic residual reciprocity | ve: residual variance.")
-		)
+		cli::cli_text(cli::col_grey(vc_print$legend))
 		if (.ae_fit_eb(x)) {
 			cli::cli_text(
-				cli::col_grey(paste("va, cab and vb are the fitted covariance of the actor effects (the model's random-effect variances).", if (inherits(x, "lame_als")) "The effects a and b have mean zero over the observed actors, and the intercept is their level, as in lame()." else if (!is.null(x$eb$report_fold)) "The intercept, a and b carry the grand, row and column means of the latent product, as ame() reports them; fit$eb$population keeps the population intercept." else "The effects a and b are not re-centred; the intercept is the population intercept, as in ame()."))
+				cli::col_grey(paste(vc_print$eb_line, if (inherits(x, "lame_als")) "The effects a and b have mean zero over the observed actors, and the intercept is their level, as in lame()." else if (!is.null(x$eb$report_fold)) "The intercept, a and b carry the grand, row and column means of the latent product, as ame() reports them; fit$eb$population keeps the population intercept." else "The effects a and b are not re-centred; the intercept is the population intercept, as in ame()."))
 			)
 		}
 		if (!is.null(x$eb$se)) {
@@ -5096,16 +5246,41 @@ print.ame_als <- function(x, digits = 4, ...) {
 	tab
 }
 
-# which reported variance components are fixed by the model rather than estimated
+# which printed variance components are fixed by the model rather than estimated; the
+# components .ae_vc_print leaves out need no note
 .ae_print_vc_fixed <- function(x) {
 	if (is.null(x$VC_se)) return(invisible(NULL))
-	fixed <- character()
-	if (identical(x$family, "binary")) fixed <- c(fixed, "ve is 1 by the probit scale")
-	if (isTRUE(x$symmetric) || identical(x$mode, "bipartite")) {
-		fixed <- c(fixed, if (isTRUE(x$symmetric)) "cab, vb and rho are not parameters of a symmetric model" else "cab and rho are not parameters of a bipartite model")
-	}
+	fixed <- if (isTRUE(x$symmetric)) "cab, vb and rho are not parameters of a symmetric model"
 	if (length(fixed)) cli::cli_text(cli::col_grey(paste0("No standard error where ", paste(fixed, collapse = "; "), ".")))
 	invisible(NULL)
+}
+
+# rows of the variance table that a fast fit prints, with the legend of those rows: a bipartite
+# model has no cab or rho, and the probit scale fixes ve at 1 (`x` the fit or its vc_fixed record)
+.ae_vc_print <- function(x, tab) {
+	vec <- is.null(dim(tab))
+	rn <- if (vec) names(tab) else rownames(tab)
+	bip <- identical(x$mode, "bipartite")
+	drop <- c(if (bip) c("cab", "rho"), if (identical(x$family, "binary")) "ve")
+	keep <- !rn %in% drop
+	shown <- rn[keep]
+	legend <- c(
+		if (all(c("va", "vb") %in% shown)) {
+			if (bip) "va/vb: variances of the row/column effects" else "va/vb: variances of the sender/receiver effects"
+		},
+		if ("cab" %in% shown) "cab: their covariance",
+		if ("rho" %in% shown) "rho: dyadic residual reciprocity",
+		if ("ve" %in% shown) "ve: residual variance"
+	)
+	list(
+		table = if (vec) tab[keep] else tab[keep, , drop = FALSE],
+		legend = paste0(paste(legend, collapse = " | "), "."),
+		eb_line = if (bip) {
+			"va and vb are the fitted variances of the actor effects (the model's random-effect variances)."
+		} else {
+			"va, cab and vb are the fitted covariance of the actor effects (the model's random-effect variances)."
+		}
+	)
 }
 
 # where the posterior sds of the effects, positions and product are kept
@@ -5186,6 +5361,7 @@ summary.ame_als <- function(object, ...) {
 		mode = object$mode,
 		symmetric = object$symmetric,
 		R = object$R,
+		latent_strength = .lame_dim_strength(object),
 		n_time = object$n_time,
 		dims = object$dims,
 		coefficients = tab,
@@ -5204,6 +5380,7 @@ summary.ame_als <- function(object, ...) {
 		product_withheld = object$eb$product_withheld,
 		report_fold = if (!is.null(object$eb$report_fold)) TRUE,
 		retirement = object$eb$retirement,
+		unsettled = object$eb$unsettled,
 		approximation_note = object$meta$approximation_note,
 		uncertainty_available = isTRUE(object$meta$uncertainty_available),
 		uncertainty_source = object$meta$uncertainty_source,
@@ -5231,7 +5408,9 @@ print.summary.ame_als <- function(x, digits = 4, ...) {
 		cli::cli_text("Family: {.field {x$family}} | Mode: {.field {x$mode}}{ifelse(x$symmetric, ' (symmetric)', '')} | R = {x$R}")
 		cli::cli_text("Network: {x$dims$n_row} x {x$dims$n_col}, {x$n_time} time slice{?s}, {x$dims$p} covariate{?s}")
 		cli::cli_text("Converged: {.val {x$converged}} ({x$iterations} iteration{?s}); deviance = {round(x$deviance, digits)}{if (!is.null(x$objective) && is.finite(x$objective) && abs(x$objective - x$deviance) > 1e-8 * max(1, abs(x$deviance))) paste0(' (optimiser objective ', round(x$objective, digits), ')') else ''}")
+		.lame_print_latent_lines(x)
 		.ae_print_retirement(x$retirement)
+		.ae_print_unsettled(x$unsettled)
 		.ae_print_estimator(x, x$family, x$estimator)
 		.ae_print_information(x$information, x$product_withheld)
 		if (!is.null(x$n_time) && x$n_time > 1L) {
@@ -5246,15 +5425,14 @@ print.summary.ame_als <- function(x, digits = 4, ...) {
 		cli::cli_verbatim(utils::capture.output(print(round(x$coefficients, digits))))
 		cli::cli_text("")
 		cli::cli_text("{.strong Variance components}")
-		cli::cli_verbatim(utils::capture.output(print(round(if (is.null(x$VC_table)) x$VC else x$VC_table, digits))))
+		vc_print <- .ae_vc_print(x$vc_fixed, if (is.null(x$VC_table)) x$VC else x$VC_table)
+		cli::cli_verbatim(utils::capture.output(print(round(vc_print$table, digits))))
 		if (!is.null(x$rho_note)) cli::cli_text("{x$rho_note}")
 		.ae_print_vc_fixed(x$vc_fixed)
-		cli::cli_text(
-			cli::col_grey("va/vb: variances of the sender/receiver effects | cab: their covariance | rho: dyadic residual reciprocity | ve: residual variance.")
-		)
+		cli::cli_text(cli::col_grey(vc_print$legend))
 		if (.ae_fit_eb(x)) {
 			cli::cli_text(
-				cli::col_grey(paste("va, cab and vb are the fitted covariance of the actor effects (the model's random-effect variances).", if (inherits(x, "lame_als")) "The effects a and b have mean zero over the observed actors, and the intercept is their level, as in lame()." else if (!is.null(x$report_fold)) "The intercept, a and b carry the grand, row and column means of the latent product, as ame() reports them; fit$eb$population keeps the population intercept." else "The effects a and b are not re-centred; the intercept is the population intercept, as in ame()."))
+				cli::col_grey(paste(vc_print$eb_line, if (inherits(x, "lame_als")) "The effects a and b have mean zero over the observed actors, and the intercept is their level, as in lame()." else if (!is.null(x$report_fold)) "The intercept, a and b carry the grand, row and column means of the latent product, as ame() reports them; fit$eb$population keeps the population intercept." else "The effects a and b are not re-centred; the intercept is the population intercept, as in ame()."))
 			)
 		}
 		cli::cli_rule()
@@ -5273,9 +5451,12 @@ print.summary.ame_als <- function(x, digits = 4, ...) {
 			)
 		}
 		if (!is.null(x$VC_table)) {
-			cli::cli_text(
-				cli::col_grey("Variance components: the inverse Fisher information of the marginal likelihood with the effects integrated out for va, cab and vb, the inverse-gamma posterior less the effective number of mean parameters (normal) or the marginal-likelihood profile (counts) for ve, the pair likelihood for rho; intervals on the log scale for variances (va and vb centred at the lognormal median of their posterior mean), the Fisher z scale for rho and score-type, inside its bound, for cab.")
-			)
+			# a bipartite model has no cab or rho
+			cli::cli_text(cli::col_grey(if (identical(x$mode, "bipartite")) {
+				"Variance components: the inverse Fisher information of the marginal likelihood with the effects integrated out for va and vb, the inverse-gamma posterior less the effective number of mean parameters (normal) or the marginal-likelihood profile (counts) for ve; intervals on the log scale for variances (va and vb centred at the lognormal median of their posterior mean)."
+			} else {
+				"Variance components: the inverse Fisher information of the marginal likelihood with the effects integrated out for va, cab and vb, the inverse-gamma posterior less the effective number of mean parameters (normal) or the marginal-likelihood profile (counts) for ve, the pair likelihood for rho; intervals on the log scale for variances (va and vb centred at the lognormal median of their posterior mean), the Fisher z scale for rho and score-type, inside its bound, for cab."
+			}))
 		}
 		.ae_print_effect_sd(x$effect_sd)
 	})

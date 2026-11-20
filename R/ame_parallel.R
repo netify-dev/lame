@@ -278,7 +278,7 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 		V_list <- lapply(chain_list, function(x) x[["V"]])
 		# under dynamic_uv, U and V are 3-d and averaged element-wise to keep the dynamics
 		u_is_dyn <- length(dim(U_list[[1]])) == 3L
-		# bipartite fits pool U G V' and leave U, V and G per chain; exact [["G"]] avoids matching $GOF
+		# bipartite fits pool U G V'; exact [["G"]] avoids matching $GOF
 		bip_G <- !is.null(chain_list[[1]][["G"]])
 		G_list <- lapply(chain_list, function(x) x[["G"]])
 		.slice2d <- function(A, t) matrix(A[, , t], nrow = dim(A)[1L], ncol = dim(A)[2L])
@@ -300,7 +300,7 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 			}
 
 		} else if (bip_G) {
-			# pool the stored per-chain UVPM; the last-draw product is a fallback for fits without one
+			# pool the stored per-chain UVPM, else the per-chain factor products
 			UVPM_list <- lapply(chain_list, function(x) x$UVPM)
 			if (!any(vapply(UVPM_list, is.null, logical(1)))) {
 				combined$UVPM <- weighted_mean(UVPM_list)
@@ -310,44 +310,24 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 			}
 		} else {
 			# pooled rotation-invariant product, from the stored full-rank UVPM when available, else the
-			# rank-R
-			# factor product; U and V are recovered from its SVD
+			# rank-R factor product
 			UVPM_list <- lapply(chain_list, function(x) x[["UVPM"]])
-			UVprod <- if (!any(vapply(UVPM_list, is.null, logical(1)))) {
+			combined$UVPM <- if (!any(vapply(UVPM_list, is.null, logical(1)))) {
 				weighted_mean(UVPM_list)
 			} else {
 				weighted_mean(Map(function(U, V) U %*% t(V), U_list, V_list))
 			}
-			combined$UVPM <- UVprod
-			R_lat <- ncol(U_list[[1]])
-			sv <- svd(UVprod, nu = R_lat, nv = R_lat)
-			d_sqrt <- sqrt(pmax(sv$d[seq_len(R_lat)], 0))
-			combined$U <- sweep(sv$u, 2, d_sqrt, "*")
-			combined[["V"]] <- sweep(sv$v, 2, d_sqrt, "*")
-			rownames(combined$U) <- rownames(U_list[[1]])
-			rownames(combined[["V"]]) <- rownames(V_list[[1]])
 		}
 	} else if (!is.null(combined$UVPM)) {
 		UVPM_list <- lapply(chain_list, function(x) x$UVPM)
 		combined$UVPM <- weighted_mean(UVPM_list)
 	}
 
-	# symmetric fits store the multiplicative mean as ULUPM with V = NULL; pool it when every chain has
-	# one and refresh U and L from its eigendecomposition so U L U' stays its rank-R truncation
+	# symmetric fits store the multiplicative mean as ULUPM with V = NULL; pool it when every chain has one
 	if (!is.null(combined$ULUPM)) {
 		ULUPM_list <- lapply(chain_list, function(x) x[["ULUPM"]])
 		if (!any(vapply(ULUPM_list, is.null, logical(1)))) {
 			combined$ULUPM <- weighted_mean(ULUPM_list)
-			# under dynamic_uv the positions are refactored from the pooled product below
-			ulu_is_dyn <- length(dim(ULUPM_list[[1]])) == 3L
-			if (!ulu_is_dyn && !is.null(combined$U)) {
-				R_lat <- ncol(combined$U)
-				eULU <- eigen(combined$ULUPM)
-				eR <- which(rank(-abs(eULU$val), ties.method = "first") <= R_lat)
-				combined$U <- eULU$vec[, eR, drop = FALSE]
-				combined$L <- diag(eULU$val[eR], nrow = R_lat)
-				rownames(combined$U) <- rownames(combined$ULUPM)
-			}
 		}
 	}
 
@@ -408,9 +388,14 @@ combine_ame_chains <- function(chain_list, diagnostics = TRUE) {
 				0
 			))
 	}
-	# coordinate summaries cannot inherit one chain's uncertainty after pooling
+	# coordinate summaries cannot inherit one chain's uncertainty after pooling: the positions are refactored
+	# from the pooled product and their sds come from the pooled draws
 	combined$U_sd <- combined$V_sd <- NULL
-	combined <- .lame_dynamic_positions(combined)
+	combined <- if (isTRUE(combined$dynamic_uv)) {
+		.lame_dynamic_positions(combined)
+	} else {
+		.lame_static_positions(combined)
+	}
 	if (!is.null(combined$ALPHA)) combined$alpha_post_mean <- c(0, colMeans(combined$ALPHA))
 	if (!is.null(combined$THETA_ACTOR)) {
 		combined$theta_actor_mean <- apply(combined$THETA_ACTOR, c(2, 3), mean)

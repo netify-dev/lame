@@ -12,6 +12,7 @@ utils::globalVariables(c(
 	"x_from", "y_from", "x_to", "y_to", "node", # plot methods
 	"xend", "yend", "color", "size", "label", # uv_plot aesthetics
 	"x_prev", "y_prev", # uv_plot trajectory arrows
+	"fill_value", # uv_plot heatmap
 	"r", # ggforce::geom_circle aes
 	".data" # aes pronoun, supplied by the ggplot2 data mask
 ))
@@ -31,4 +32,31 @@ utils::globalVariables(c(
 	bare <- !has_us & !has_dot
 	if (any(bare)) out[bare] <- paste0(out[bare], "_", sfx)
 	out
+}
+
+# the pooled node-coefficient name of a symmetric fit for a row (or column) slice name:
+# only the generated markers change, the `_row` / `_col` suffix and the `X<row|col>` of a
+# default name, so `growth_row` becomes `growth_node` and `Xrow1_row` becomes `Xnode1_node`
+.lame_node_name <- function(nms) {
+	out <- sub("_(row|col)$", "_node", nms)
+	sub("^X(row|col)([0-9]+)_node$", "Xnode\\2_node", out)
+}
+
+# position in `table` (all coefficient names of one fit) of the coefficient each design-slice
+# name in `x` feeds. the rule is chosen for the whole fit: a slice takes its own name, else its
+# pooled node name (.lame_node_name); when that leaves a `_node` coefficient of the fit without a
+# slice, the fit was saved by 1.4.2, whose samplers replaced every "row" in the row-slice name
+# (`growth_row` became `gnodeth_node`, its twin `growth_col` feeds the same coefficient)
+.lame_node_match <- function(x, table) {
+	own <- match(x, table)
+	pick <- function(key) {
+		hit <- own
+		hit[is.na(own)] <- match(key[is.na(own)], table)
+		hit
+	}
+	hit <- pick(.lame_node_name(x))
+	node <- grep("_node$", table)
+	if (all(node %in% hit)) return(hit)
+	row_form <- sub("^Xcol([0-9]+)_row$", "Xrow\\1_row", sub("_col$", "_row", x))
+	pick(ifelse(grepl("_row$", row_form), gsub("row", "node", row_form, fixed = TRUE), NA_character_))
 }

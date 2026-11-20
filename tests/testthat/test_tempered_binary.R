@@ -91,7 +91,7 @@ test_that('tempered saved states reconstruct unique unordered likelihoods', {
 		expect_equal(f$log_lik[s, j], pnorm((2 * f$Y[[t]][cells] - 1) * eta[cells], log.p = TRUE), tolerance = 1e-10)
 	}
 	expect_equal(crossprod(f$U), diag(1), tolerance = 1e-10)
-	expect_equal(tcrossprod(f$U, f$V), f$U %*% diag(f$L, nrow = 1L) %*% t(f$U), tolerance = 1e-12)
+	expect_equal(tcrossprod(f$U, f$V), f$U %*% f$L %*% t(f$U), tolerance = 1e-12)
 })
 
 test_that('both tempered priors continue exactly, including coordinate restoration', {
@@ -401,7 +401,7 @@ test_that('tempered fits run two chains under the between-chain gate by default'
 	expect_null(f$tempered_checkpoint)
 	expect_null(f$chain_summary)
 	expect_true(all(vapply(f$chain_start_vals, function(s) identical(names(s), 'tempered_checkpoint'), TRUE)))
-	expect_equal(tcrossprod(f$U, f$V), f$U %*% diag(f$L, nrow = 1L) %*% t(f$U), tolerance = 1e-12)
+	expect_equal(tcrossprod(f$U, f$V), f$U %*% f$L %*% t(f$U), tolerance = 1e-12)
 	# the first chain is the tail of one chain run for both blocks: the extension continued it exactly
 	one = .tempered_fit(seed = 1L, nscan = 240L + 4L * n_keep, chains = 1L)
 	tail_one = seq_len(n_keep) + 60L
