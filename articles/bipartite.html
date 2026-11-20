@@ -19,7 +19,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,7 +68,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-11-17</h4>
+            <h4 data-toc-skip class="date">2026-11-20</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/articles/bipartite.Rmd" class="external-link"><code>vignettes/articles/bipartite.Rmd</code></a></small>
       <div class="d-none name"><code>bipartite.Rmd</code></div>
@@ -309,24 +309,20 @@ each node type separately via <code>R_row</code> and
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── Regression coefficients </span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper  Rhat Threshold</span></span>
-<span><span class="co">#&gt; intercept   -0.784    0.107  -7.324       0       -1   -0.587 1.005      1.05</span></span>
+<span><span class="co">#&gt; intercept   -0.793    0.113  -7.022       0   -1.011   -0.578 1.006      1.05</span></span>
 <span><span class="co">#&gt;               ESS    </span></span>
-<span><span class="co">#&gt; intercept 607.564 ***</span></span>
+<span><span class="co">#&gt; intercept 462.819 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Stars are a visual hint from the posterior mean / SD only; for inference use</span></span>
 <span><span class="co">#&gt;   the credible intervals.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── Variance components </span></span>
-<span><span class="co">#&gt;     Estimate StdError  Rhat Threshold      ESS</span></span>
-<span><span class="co">#&gt; va     0.049    0.021 1.004      1.05  961.772</span></span>
-<span><span class="co">#&gt; cab    0.000    0.000    NA        NA    0.000</span></span>
-<span><span class="co">#&gt; vb     0.059    0.030 1.000      1.05 1152.515</span></span>
-<span><span class="co">#&gt; rho    0.000    0.000    NA        NA    0.000</span></span>
-<span><span class="co">#&gt; ve     1.000    0.000    NA        NA    0.000</span></span>
-<span><span class="co">#&gt;   va = sender variance, cab = sender-receiver covariance, vb = receiver</span></span>
-<span><span class="co">#&gt;   variance, rho = dyadic correlation, ve = residual variance</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Bipartite model: rho and cab are fixed to 0.</span></span>
+<span><span class="co">#&gt;    Estimate StdError  Rhat Threshold      ESS</span></span>
+<span><span class="co">#&gt; va    0.050    0.022 1.001      1.05  864.628</span></span>
+<span><span class="co">#&gt; vb    0.059    0.029 1.000      1.05 1022.309</span></span>
+<span><span class="co">#&gt;   va = row variance, vb = column variance</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Latent dimensions: 96%, 4% of the latent product</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Threshold is the R-hat the between-chain gate held each monitored quantity</span></span>
 <span><span class="co">#&gt;   to: 1.05, or the R-hat that settled chains with the same effective draws</span></span>
 <span><span class="co">#&gt;   reach by chance, if larger.</span></span>
@@ -350,52 +346,28 @@ close together have a higher predicted probability of a tie.</p>
 <p><img src="bipartite_files/figure-html/visualize_cross_sectional-1.png" class="r-plt" alt="Bipartite latent-space biplot placing students and courses in the same 2D coordinate system, with proximity indicating a higher predicted enrollment probability." width="100%" style="display: block; margin: auto;"></p>
 <p>In <code><a href="../reference/ame.html">ame()</a></code> the estimated quantity is the overall
 multiplicative term
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>G</mi><msup><mi>V</mi><mo>′</mo></msup></mrow><annotation encoding="application/x-tex">U G V'</annotation></semantics></math>
-(rotation and scaling sit in
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>),
-so that is what we plot:</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>G</mi><msup><mi>V</mi><mo>′</mo></msup></mrow><annotation encoding="application/x-tex">U G V'</annotation></semantics></math>,
+and <code>fit_cross$U</code> and <code>fit_cross$V</code> are its
+factors: they factor the posterior mean of that product, so they are
+posterior summaries, not a single draw. <code>layout = "heatmap"</code>
+draws the product itself, students against courses, with each side
+ordered by clustering:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">G_mult</span> <span class="op">&lt;-</span> <span class="va">fit_cross</span><span class="op">$</span><span class="va">U</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">fit_cross</span><span class="op">$</span><span class="va">G</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">$</span><span class="va">V</span><span class="op">)</span></span>
-<span><span class="va">G_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>    Student <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/row.html" class="external-link">row</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span><span class="op">]</span>,</span>
-<span>    Course <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/col.html" class="external-link">col</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span><span class="op">]</span>,</span>
-<span>    Fitted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">G_mult</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co"># numeric axis order (Student1, Student2, ...) rather than alphabetical</span></span>
-<span><span class="va">G_df</span><span class="op">$</span><span class="va">Student</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">G_df</span><span class="op">$</span><span class="va">Student</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Student"</span>, <span class="va">n_students</span><span class="op">:</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">G_df</span><span class="op">$</span><span class="va">Course</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">G_df</span><span class="op">$</span><span class="va">Course</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Course"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n_courses</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co"># reversed RdBu with symmetric limits, so white sits at zero</span></span>
-<span><span class="co"># cap at the 99th percentile of |UGV'| so a few extreme cells do not wash out the map</span></span>
-<span><span class="va">mx</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">G_df</span><span class="op">$</span><span class="va">Fitted</span><span class="op">)</span>, <span class="fl">0.99</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="va">G_df</span><span class="op">$</span><span class="va">Fitted_capped</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmax</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin</a></span><span class="op">(</span><span class="va">G_df</span><span class="op">$</span><span class="va">Fitted</span>, <span class="va">mx</span><span class="op">)</span>, <span class="op">-</span><span class="va">mx</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">G_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">Course</span>, y <span class="op">=</span> <span class="va">Student</span>, fill <span class="op">=</span> <span class="va">Fitted_capped</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_tile</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_brewer.html" class="external-link">scale_fill_distiller</a></span><span class="op">(</span></span>
-<span>        palette <span class="op">=</span> <span class="st">"RdBu"</span>,</span>
-<span>        direction <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>,</span>
-<span>        limits <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="va">mx</span>, <span class="va">mx</span><span class="op">)</span></span>
-<span>    <span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span></span>
-<span>        title <span class="op">=</span> <span class="st">"Fitted multiplicative structure (U G V')"</span>,</span>
-<span>        subtitle <span class="op">=</span> <span class="st">"Red = positive, blue = negative; colour scale capped at the 99th percentile"</span>,</span>
-<span>        x <span class="op">=</span> <span class="st">"Course"</span>, y <span class="op">=</span> <span class="st">"Student"</span>,</span>
-<span>        fill <span class="op">=</span> <span class="st">"U G V'"</span></span>
-<span>    <span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
-<span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>        axis.line <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>        axis.ticks <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>        legend.position <span class="op">=</span> <span class="st">"top"</span>,</span>
-<span>        plot.title <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>,</span>
-<span>        plot.subtitle <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>,</span>
-<span>        plot.caption <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>,</span>
-<span>        axis.text.x <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>angle <span class="op">=</span> <span class="fl">45</span>, hjust <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
-<span>        axis.text.y <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">6</span><span class="op">)</span></span>
-<span>    <span class="op">)</span></span></code></pre></div>
-<p><img src="bipartite_files/figure-html/interaction_heatmap-1.png" class="r-plt" alt="Heatmap of the fitted multiplicative structure U G V' across student-course pairs using a diverging colour-blind-safe ColorBrewer RdBu palette with the scale capped at the 99th percentile of absolute fitted values: red tiles mark positive latent affinity (predicted enrollment above baseline), blue tiles mark negative latent affinity (predicted below baseline), and near-white tiles mark a posterior estimate near zero." width="100%" style="display: block; margin: auto;"></p>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_cross</span>, layout <span class="op">=</span> <span class="st">"heatmap"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="bipartite_files/figure-html/interaction_heatmap-1.png" class="r-plt" alt="Heatmap of the fitted latent product U G V' across student-course pairs, with students and courses each ordered by clustering, on a diverging colour-blind-safe scale symmetric about zero: red tiles mark positive latent affinity (predicted enrollment above baseline), blue tiles negative affinity, and near-white tiles a product near zero." width="100%" style="display: block; margin: auto;"></p>
+<p>With <code>nodes = "col"</code> the heatmap shows how similar the
+courses are: the cosine between their columns of the product, using
+every fitted dimension. Courses with similarity near 1 draw the same
+students, near -1 opposite ones. Courses in grey have positions not
+distinguishable from zero, so they have no direction to compare; they
+are placed last and named in the caption.
+<code>latent_similarity(fit_cross, "col")</code> returns the same
+matrix. Because the latent product is centred, similarity is measured
+against the average course: courses with no pattern of their own sit
+opposite that average and look similar to each other.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_cross</span>, layout <span class="op">=</span> <span class="st">"heatmap"</span>, nodes <span class="op">=</span> <span class="st">"col"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="bipartite_files/figure-html/course_similarity-1.png" class="r-plt" alt="Heatmap of the cosine similarity between courses in the fitted latent product, ordered by clustering, on a diverging scale from -1 to 1; blocks of red tiles along the diagonal mark groups of courses that draw the same students." width="100%" style="display: block; margin: auto;"></p>
 </div>
 </div>
 <div class="section level2">
@@ -427,7 +399,7 @@ with
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ϵ</mi><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\epsilon \sim N(0, \sigma_{uv}^2)</annotation></semantics></math>);
 the two coincide when
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi>u</mi><mi>v</mi></mrow><mn>2</mn></msubsup><mo>=</mo><mn>1</mn><mo>−</mo><msup><mi>ρ</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\sigma_{uv}^2 = 1 - \rho^2</annotation></semantics></math>.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">n_periods</span> <span class="op">&lt;-</span> <span class="fl">5</span></span>
 <span><span class="va">n_users</span> <span class="op">&lt;-</span> <span class="fl">20</span></span>
 <span><span class="va">n_items</span> <span class="op">&lt;-</span> <span class="fl">15</span></span>
@@ -472,7 +444,7 @@ the two coincide when
 <p>The simplest longitudinal model holds latent positions and additive
 effects constant over time, pooling all periods into a single, more
 precise estimate per actor.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_static</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
 <span>    mode <span class="op">=</span> <span class="st">"bipartite"</span>,</span>
@@ -499,6 +471,7 @@ precise estimate per actor.</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Time periods: <span style="color: #0000BB;">5</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Family: <span style="color: #00BB00;">normal</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Mode: <span style="color: #00BB00;">bipartite</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Latent dimensions: 91%, 9% of the latent product</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Static fit: U, V, a and b are shared across the 5 periods, and per-period</span></span>
 <span><span class="co">#&gt; predictions vary through the per-period covariates. `dynamic_uv = TRUE` and</span></span>
 <span><span class="co">#&gt; `dynamic_ab = TRUE` let them vary over time.</span></span>
@@ -514,15 +487,11 @@ precise estimate per actor.</p>
 <span><span class="co">#&gt;   the credible intervals.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── Variance components </span></span>
-<span><span class="co">#&gt;     Estimate StdError  Rhat Threshold ESS</span></span>
-<span><span class="co">#&gt; va     0.020    0.007 1.001      1.05 400</span></span>
-<span><span class="co">#&gt; cab    0.000    0.000    NA        NA   0</span></span>
-<span><span class="co">#&gt; vb     0.021    0.008 1.001      1.05 400</span></span>
-<span><span class="co">#&gt; rho    0.000    0.000    NA        NA   0</span></span>
-<span><span class="co">#&gt; ve     0.905    0.034 0.997      1.05 400</span></span>
-<span><span class="co">#&gt;   va = sender variance, cab = sender-receiver covariance, vb = receiver</span></span>
-<span><span class="co">#&gt;   variance, rho = dyadic correlation, ve = residual variance</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Bipartite model: rho and cab are fixed to 0.</span></span>
+<span><span class="co">#&gt;    Estimate StdError  Rhat Threshold ESS</span></span>
+<span><span class="co">#&gt; va    0.020    0.007 1.001      1.05 400</span></span>
+<span><span class="co">#&gt; vb    0.021    0.008 1.001      1.05 400</span></span>
+<span><span class="co">#&gt; ve    0.905    0.034 0.997      1.05 400</span></span>
+<span><span class="co">#&gt;   va = row variance, vb = column variance, ve = residual variance</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Threshold is the R-hat the between-chain gate held each monitored quantity</span></span>
 <span><span class="co">#&gt;   to: 1.05, or the R-hat that settled chains with the same effective draws</span></span>
 <span><span class="co">#&gt;   reach by chance, if larger.</span></span>
@@ -537,7 +506,7 @@ additive effects drift via AR(1) processes:
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
 close to 1 means slow, gradual change; close to 0, near-independent
 structure from period to period.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># same run length as the static fit</span></span>
 <span><span class="va">fit_dynamic</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/lame.html">lame</a></span><span class="op">(</span></span>
 <span>    Y <span class="op">=</span> <span class="va">Y_list</span>,</span>
@@ -596,17 +565,13 @@ structure from period to period.</p>
 <span><span class="co">#&gt; T5   -0.001    0.037   -0.072    0.079</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── Variance components </span></span>
-<span><span class="co">#&gt;     Estimate StdError  Rhat Threshold     ESS</span></span>
-<span><span class="co">#&gt; va     0.017    0.006 1.010      1.05 281.075</span></span>
-<span><span class="co">#&gt; cab    0.000    0.000    NA        NA   0.000</span></span>
-<span><span class="co">#&gt; vb     0.019    0.007 0.998      1.05 330.000</span></span>
-<span><span class="co">#&gt; rho    0.000    0.000    NA        NA   0.000</span></span>
-<span><span class="co">#&gt; ve     0.249    0.010 0.999      1.05 330.000</span></span>
-<span><span class="co">#&gt;   va = sender variance, cab = sender-receiver covariance, vb = receiver</span></span>
-<span><span class="co">#&gt;   variance, rho = dyadic correlation, ve = residual variance</span></span>
+<span><span class="co">#&gt;    Estimate StdError  Rhat Threshold     ESS</span></span>
+<span><span class="co">#&gt; va    0.017    0.006 1.010      1.05 281.075</span></span>
+<span><span class="co">#&gt; vb    0.019    0.007 0.998      1.05 330.000</span></span>
+<span><span class="co">#&gt; ve    0.249    0.010 0.999      1.05 330.000</span></span>
+<span><span class="co">#&gt;   va = row variance, vb = column variance, ve = residual variance</span></span>
 <span><span class="co">#&gt;   Under `dynamic_ab`, va and vb are the variances of the actor levels; rho_ab</span></span>
 <span><span class="co">#&gt;   and sigma_ab describe the per-period deviations around them.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Bipartite model: rho and cab are fixed to 0.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Threshold is the R-hat the between-chain gate held each monitored quantity</span></span>
 <span><span class="co">#&gt;   to: 1.05, or the R-hat that settled chains with the same effective draws</span></span>
 <span><span class="co">#&gt;   reach by chance, if larger.</span></span>
@@ -614,7 +579,7 @@ structure from period to period.</p>
 <p>The dynamic model reports estimated AR(1) persistence parameters for
 the latent positions (<code>rho_uv</code>) and additive effects
 (<code>rho_ab</code>).</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
 <span>    <span class="st">"True rho_uv = %.2f | posterior mean = %.3f | 95%% CI = [%.3f, %.3f]\n"</span>,</span>
 <span>    <span class="va">true_rho</span>,</span>
@@ -670,7 +635,7 @@ each line traces one actor’s latent position from the first to the last
 period. With 35 actors a per-actor legend and labels would swamp the
 panel, so we suppress both and read the plot for the overall pattern:
 positions drift gradually and stay clustered rather than scattering.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span>, plot_type <span class="op">=</span> <span class="st">"trajectory"</span>, label.nodes <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/guides.html" class="external-link">guides</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"none"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle</a></span><span class="op">(</span><span class="st">"Dynamic latent trajectories"</span><span class="op">)</span></span></code></pre></div>
@@ -678,7 +643,7 @@ positions drift gradually and stay clustered rather than scattering.</p>
 <p>To inspect specific actors, pass their names to
 <code>highlight =</code>: the named actors are coloured (and identified
 in the legend) while every other trajectory is greyed out.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/uv_plot.html">uv_plot</a></span><span class="op">(</span></span>
 <span>    <span class="va">fit_dynamic</span>,</span>
 <span>    plot_type <span class="op">=</span> <span class="st">"trajectory"</span>,</span>
@@ -696,7 +661,7 @@ coloured by chain. The dyadic correlation and sender-receiver covariance
 are structural constants in bipartite mode (fixed at zero; for a binary
 bipartite fit the probit error variance is likewise fixed at 1), so we
 exclude them and the panels show only sampled parameters.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/trace_plot.html">trace_plot</a></span><span class="op">(</span></span>
 <span>    <span class="va">fit_dynamic</span>,</span>
 <span>    exclude <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Dyadic correlation"</span>, <span class="st">"Sender-receiver covariance"</span><span class="op">)</span></span>
@@ -732,17 +697,17 @@ credible interval</strong>. The Gaussian bipartite checks are sender
 heterogeneity, receiver heterogeneity and weighted four-cycle dependence
 (the average product of centered, standardized values around fully
 observed rectangles). Compare all three for each fitted period.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># GOF panels for the static and dynamic fits</span></span>
 <span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit_static</span><span class="op">)</span></span></code></pre></div>
 <p><img src="bipartite_files/figure-html/model_comparison-1.png" class="r-plt" alt="Goodness-of-fit panels comparing posterior predictive sender and receiver heterogeneity and weighted four-cycle dependence for static and dynamic bipartite models." width="100%" style="display: block; margin: auto;"></p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/gof_plot.html">gof_plot</a></span><span class="op">(</span><span class="va">fit_dynamic</span><span class="op">)</span></span></code></pre></div>
 <p><img src="bipartite_files/figure-html/model_comparison-2.png" class="r-plt" alt="Goodness-of-fit panels comparing posterior predictive sender and receiver heterogeneity and weighted four-cycle dependence for static and dynamic bipartite models." width="100%" style="display: block; margin: auto;"></p>
 <p>The following boxplots summarize the two degree statistics across
 periods: the SD of row means (how much users vary in activity) and the
 SD of column means (how much items vary in popularity).</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gof_static</span> <span class="op">&lt;-</span> <span class="va">fit_static</span><span class="op">$</span><span class="va">GOF</span></span>
 <span><span class="va">gof_dynamic</span> <span class="op">&lt;-</span> <span class="va">fit_dynamic</span><span class="op">$</span><span class="va">GOF</span></span>
 <span></span>
@@ -827,7 +792,7 @@ and <code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="ex
 <p>The latent dimensions (<code>R_row</code>, <code>R_col</code>)
 control how rich the multiplicative structure is; a practical way to
 choose them is to fit at several ranks and compare GOF statistics.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># R = 0 is the no-latent-space baseline</span></span>
 <span><span class="va">dims_to_test</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>,</span>
@@ -903,16 +868,16 @@ draws via
 <code>posterior_opts = posterior_options(save_UV = TRUE)</code>; without
 that option the column is <code>NA</code> and a refit hint is
 printed.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
-<span><span class="co">#&gt;      actor dimension time      value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1 Student1         1    1  0.3910420    1.0410042    U</span></span>
-<span><span class="co">#&gt; 2 Student2         1    1  1.4286929    0.6872683    U</span></span>
-<span><span class="co">#&gt; 3 Student3         1    1  0.2827228    1.1740556    U</span></span>
-<span><span class="co">#&gt; 4 Student4         1    1 -1.9797377    1.3036939    U</span></span>
-<span><span class="co">#&gt; 5 Student5         1    1  0.6955299    0.8311135    U</span></span>
-<span><span class="co">#&gt; 6 Student6         1    1  0.4054586    1.3522073    U</span></span>
+<span><span class="co">#&gt;      actor dimension time       value posterior_sd type</span></span>
+<span><span class="co">#&gt; 1 Student1         1    1  0.92664928    0.4070340    U</span></span>
+<span><span class="co">#&gt; 2 Student2         1    1 -0.06600046    0.3098522    U</span></span>
+<span><span class="co">#&gt; 3 Student3         1    1 -1.32145387    0.4524009    U</span></span>
+<span><span class="co">#&gt; 4 Student4         1    1  1.69250957    0.5217933    U</span></span>
+<span><span class="co">#&gt; 5 Student5         1    1 -0.60815235    0.3155654    U</span></span>
+<span><span class="co">#&gt; 6 Student6         1    1 -1.56906407    0.4978761    U</span></span>
 <span></span>
 <span><span class="co"># row nodes (students) only</span></span>
 <span><span class="va">lp_students</span> <span class="op">&lt;-</span> <span class="va">lp</span><span class="op">[</span><span class="va">lp</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"U"</span>, <span class="op">]</span></span>

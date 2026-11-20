@@ -15,7 +15,7 @@ use the ame function."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -157,11 +157,11 @@ data types.</p></dd>
 
 
 <dt id="arg-xrow">Xrow<a class="anchor" aria-label="anchor" href="#arg-xrow"></a></dt>
-<dd><p>a T length list of n x pr matrices of nodal row covariates</p></dd>
+<dd><p>a T length list of n x pr matrices of nodal row covariates. In a symmetric model (<code>symmetric = TRUE</code>) each node covariate enters a dyad through both of its actors.</p></dd>
 
 
 <dt id="arg-xcol">Xcol<a class="anchor" aria-label="anchor" href="#arg-xcol"></a></dt>
-<dd><p>a T length list of n x pc matrices of nodal column covariates</p></dd>
+<dd><p>a T length list of n x pc matrices of nodal column covariates. In a symmetric model a node covariate may be given in <code>Xrow</code>, in <code>Xcol</code> or in both, and each distinct covariate enters once, as <code>&lt;name&gt;_node</code>.</p></dd>
 
 
 <dt id="arg-rvar">rvar<a class="anchor" aria-label="anchor" href="#arg-rvar"></a></dt>
@@ -2020,7 +2020,9 @@ mean of additive column effects b</p></dd>
 (static effects), used by <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> to draw the effects</p></dd>
 
 <dt>U</dt>
-<dd><p>multiplicative row effects u. For <code>dynamic_uv = TRUE</code>, a 3D
+<dd><p>multiplicative row effects u. For static positions, a matrix
+(n x R) that factors the posterior mean product at rank R, columns in
+decreasing order of its singular values. For <code>dynamic_uv = TRUE</code>, a 3D
 array (n x R x T) whose periods factor the posterior mean product of each
 period at rank R and are aligned across periods; <code>NA</code> for an actor
 absent from a period (see <code><a href="latent_positions.html">latent_positions</a></code>)</p></dd>
@@ -2030,8 +2032,11 @@ absent from a period (see <code><a href="latent_positions.html">latent_positions
 layout as <code>U</code></p></dd>
 
 <dt>U_sd, V_sd</dt>
-<dd><p>for <code>dynamic_uv = TRUE</code> with saved latent draws (the
-default), the posterior standard deviation of each reported coordinate,
+<dd><p>for static positions with saved latent draws
+(<code>posterior_options(save_UV = TRUE)</code>), and for <code>dynamic_uv =
+  TRUE</code> with saved latent draws (the default), the posterior standard
+deviation of each reported coordinate, each draw matched onto the reported
+positions by a move that leaves its product unchanged,
 same shape as <code>U</code> and <code>V</code>; <code><a href="latent_positions.html">latent_positions()</a></code> reports
 them as <code>posterior_sd</code>. A <code>method = "als"</code> fit with static
 factors (<code>dynamic_ab</code> or <code>dynamic_beta</code> without
@@ -2278,7 +2283,9 @@ sampling from the response scale</p></dd>
 
 <dt>G</dt>
 <dd><p>for bipartite fits, the interaction matrix of \(U G V'\): the
-posterior mean of the gauged draws when the positions are static; when they
+identity when the positions are static (the scale is split evenly between
+<code>U</code> and <code>V</code>, and \(U G V'\) is the best rank-R part of
+<code>UVPM</code>); when they
 are dynamic, a diagonal matrix fixed across periods that carries the scale,
 so that \(U_t G V_t'\) is the best rank-R part of each period's
 <code>UVPM</code></p></dd>
@@ -3407,9 +3414,8 @@ explicitly with <code>netify::to_lame(lame = TRUE)</code>.</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> cab    0.234    0.077</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> vb     0.420    0.121</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> rho    0.402    0.087</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ve     1.000    0.000</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   va = sender variance, cab = sender-receiver covariance, vb = receiver</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   variance, rho = dyadic correlation, ve = residual variance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   variance, rho = dyadic correlation</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

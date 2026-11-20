@@ -39,7 +39,7 @@ algorithm details."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -144,11 +144,11 @@ object is also accepted and converted with
 
 
 <dt id="arg-xrow">Xrow<a class="anchor" aria-label="anchor" href="#arg-xrow"></a></dt>
-<dd><p>a list of <code>T</code> row/sender covariate matrices, or <code>NULL</code>.</p></dd>
+<dd><p>a list of <code>T</code> row/sender covariate matrices, or <code>NULL</code>. In a symmetric model (<code>symmetric = TRUE</code>) each node covariate enters a dyad through both of its actors.</p></dd>
 
 
 <dt id="arg-xcol">Xcol<a class="anchor" aria-label="anchor" href="#arg-xcol"></a></dt>
-<dd><p>a list of <code>T</code> column/receiver covariate matrices, or <code>NULL</code>.</p></dd>
+<dd><p>a list of <code>T</code> column/receiver covariate matrices, or <code>NULL</code>. In a symmetric model a node covariate may be given in <code>Xrow</code>, in <code>Xcol</code> or in both, and each distinct covariate enters once, as <code>&lt;name&gt;_node</code>.</p></dd>
 
 
 <dt id="arg-r">R<a class="anchor" aria-label="anchor" href="#arg-r"></a></dt>
@@ -180,12 +180,16 @@ panel, its first period), as in <code><a href="ame.html">ame</a></code> and <cod
 <dt id="arg-max-iter">max_iter<a class="anchor" aria-label="anchor" href="#arg-max-iter"></a></dt>
 <dd><p>maximum number of block coordinate descent iterations
 (default 200), and maximum number of outer reweighting steps for IRLS. A
-fit that does not settle within it is an error (class
-<code>"lame_als_convergence"</code>). A reweighting step runs at most five
+fit that does not settle within it follows the rank rule of
+<strong>Choosing the rank</strong> in <code><a href="ame_als.html">ame_als</a></code> (a retired column, or a warning of class
+<code>"lame_als_unsettled"</code>); with <code>max_iter</code> below 200 a stop at
+the limit is an error (class <code>"lame_als_convergence"</code>). A reweighting step runs at most five
 sweeps (it refreshes the weights, the Laplace correction and the variance
 updates after them). The variational stage runs at most
-<code>2 * max_iter</code> iterations. A fit whose iteration does
+<code>20 * max_iter</code> iterations (<code>2 * max_iter</code> with
+<code>options(lame.eb_scale = "plugin")</code>). A fit whose iteration does
 not settle retires its weakest latent column and fits the next rank down
+when that fit's lower bound is at least as high
 (see <strong>A rank the data do not support</strong>); a <code>max_iter</code> below 200
 disables that for an iteration that merely ran out of it.</p></dd>
 

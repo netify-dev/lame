@@ -9,7 +9,7 @@ distributions to assess model fit."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -159,13 +159,15 @@ AME captures this through multiplicative effects (U,V). Poor fit suggests
 increasing the latent dimension R.</p></dd>
 
 
-</dl><p><em>For bipartite (rectangular) networks:</em></p><dl><dt><code>sd.row</code> (Type A activity variation)</dt>
-<dd><p>Standard deviation of row means for Type A nodes. Indicates heterogeneity
-in how actively Type A nodes connect to Type B nodes.</p></dd>
+</dl><p><em>For bipartite (rectangular) networks:</em>
+Rows and columns are different node sets, so the panels are labelled by row
+and column rather than by sender and receiver.</p><dl><dt><code>sd.row</code> (Row degree heterogeneity)</dt>
+<dd><p>Standard deviation of row means. Indicates heterogeneity in how actively
+the row nodes connect to the column nodes.</p></dd>
 
-<dt><code>sd.col</code> (Type B popularity variation)</dt>
-<dd><p>Standard deviation of column means for Type B nodes. Indicates heterogeneity
-in how popular Type B nodes are with Type A nodes.</p></dd>
+<dt><code>sd.col</code> (Column degree heterogeneity)</dt>
+<dd><p>Standard deviation of column means. Indicates heterogeneity in how
+often the column nodes are connected to by the row nodes.</p></dd>
 
 <dt><code>four.cycles</code> (Bipartite clustering)</dt>
 <dd><p>Count of 4-cycles (rectangular paths A1-B1-A2-B2-A1). High values indicate

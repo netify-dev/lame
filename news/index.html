@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,7 +46,16 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.4.2" id="lame-142">lame 1.4.2<a class="anchor" aria-label="anchor" href="#lame-142"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.4.3" id="lame-143">lame 1.4.3<a class="anchor" aria-label="anchor" href="#lame-143"></a></h2>
+<ul><li>Latent positions of bipartite fits now use the whole posterior instead of a single draw, and their SDs are fixed (they were far too large for static fits).</li>
+<li>Fast fits (<code><a href="../reference/ame_als.html">ame_als()</a></code>, <code><a href="../reference/lame_als.html">lame_als()</a></code>) are much faster on bipartite data and keep all the dimensions you ask for.</li>
+<li>A fast fit that does not fully converge now returns with a warning instead of an error.</li>
+<li>Symmetric models use a node covariate once, whether it is passed as <code>Xrow</code> or <code>Xcol</code>.</li>
+<li>
+<code><a href="../reference/uv_plot.html">uv_plot()</a></code> can show more than two dimensions and handles large bipartite networks.</li>
+</ul></div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.4.2" id="lame-142">lame 1.4.2<a class="anchor" aria-label="anchor" href="#lame-142"></a></h2><p class="text-muted">CRAN release: 2026-11-17</p>
 <ul><li>Fast fits (<code><a href="../reference/ame_als.html">ame_als()</a></code>, <code><a href="../reference/lame_als.html">lame_als()</a></code>, <code>method = "als"</code>) now give a standard error for every estimate.</li>
 <li>Fast fits on very sparse or very dense binary networks warn that the sampler is more accurate there.</li>
 <li>Removed options that were no longer supported, including <code>bias_correct</code>, <code>non_normal_method</code>, <code>dynamic_G</code> and the old <code>print</code> argument.</li>

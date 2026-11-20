@@ -19,7 +19,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,7 +68,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-11-17</h4>
+            <h4 data-toc-skip class="date">2026-11-20</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/lame.Rmd" class="external-link"><code>vignettes/lame.Rmd</code></a></small>
       <div class="d-none name"><code>lame.Rmd</code></div>
@@ -217,6 +217,9 @@ effect is <code>beta = 0.7</code>.</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Time periods: <span style="color: #0000BB;">3</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Family: <span style="color: #00BB00;">binary</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Mode: <span style="color: #00BB00;">unipartite</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Latent dimensions: 66%, 34% of the latent product</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Dimensions 1 and 2 have nearly equal strength, so their two axes are not well</span></span>
+<span><span class="co">#&gt; separated; read them together as a plane.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Static fit: U, V, a and b are shared across the 3 periods, and per-period</span></span>
 <span><span class="co">#&gt; predictions vary through the per-period covariates. `dynamic_uv = TRUE` and</span></span>
 <span><span class="co">#&gt; `dynamic_ab = TRUE` let them vary over time.</span></span>
@@ -224,7 +227,7 @@ effect is <code>beta = 0.7</code>.</p>
 <span><span class="co">#&gt; ── Regression coefficients </span></span>
 <span><span class="co">#&gt;                 Estimate StdError z_value p_value CI_lower CI_upper  Rhat</span></span>
 <span><span class="co">#&gt; intercept         -1.083    0.052 -20.728       0   -1.179   -0.975 1.021</span></span>
-<span><span class="co">#&gt; similarity_dyad    0.735    0.041  17.748       0     0.65    0.802 0.971</span></span>
+<span><span class="co">#&gt; similarity_dyad    0.735    0.041  17.748       0     0.65    0.802 0.968</span></span>
 <span><span class="co">#&gt;                 Threshold ESS    </span></span>
 <span><span class="co">#&gt; intercept            &lt;NA&gt;  40 ***</span></span>
 <span><span class="co">#&gt; similarity_dyad      &lt;NA&gt;  40 ***</span></span>
@@ -236,12 +239,11 @@ effect is <code>beta = 0.7</code>.</p>
 <span><span class="co">#&gt; ── Variance components </span></span>
 <span><span class="co">#&gt;     Estimate StdError  Rhat Threshold    ESS</span></span>
 <span><span class="co">#&gt; va     0.067    0.020 1.056        NA 40.000</span></span>
-<span><span class="co">#&gt; cab   -0.007    0.015 1.017        NA 16.943</span></span>
+<span><span class="co">#&gt; cab   -0.007    0.015 1.023        NA 16.943</span></span>
 <span><span class="co">#&gt; vb     0.055    0.018 0.985        NA 40.000</span></span>
 <span><span class="co">#&gt; rho   -0.121    0.098 1.021        NA 12.410</span></span>
-<span><span class="co">#&gt; ve     1.000    0.000    NA        NA  0.000</span></span>
 <span><span class="co">#&gt;   va = sender variance, cab = sender-receiver covariance, vb = receiver</span></span>
-<span><span class="co">#&gt;   variance, rho = dyadic correlation, ve = residual variance</span></span></code></pre></div>
+<span><span class="co">#&gt;   variance, rho = dyadic correlation</span></span></code></pre></div>
 <p>The intercept is estimated at -1.08 (truth <code>-1.0</code>) and
 <code>similarity_dyad</code> at 0.73 (truth <code>0.7</code>). The
 <code>_dyad</code> suffix on the coefficient name flags that the
@@ -511,13 +513,12 @@ near 0 = each period almost independent).</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── Variance components </span></span>
 <span><span class="co">#&gt;     Estimate StdError  Rhat Threshold    ESS</span></span>
-<span><span class="co">#&gt; va     0.065    0.025 1.031        NA 40.000</span></span>
+<span><span class="co">#&gt; va     0.065    0.025 1.027        NA 40.000</span></span>
 <span><span class="co">#&gt; cab   -0.003    0.014 1.035        NA 40.000</span></span>
 <span><span class="co">#&gt; vb     0.061    0.017 1.040        NA 40.000</span></span>
-<span><span class="co">#&gt; rho   -0.144    0.082 1.019        NA 17.702</span></span>
-<span><span class="co">#&gt; ve     1.000    0.000    NA        NA  0.000</span></span>
+<span><span class="co">#&gt; rho   -0.144    0.082 1.024        NA 17.702</span></span>
 <span><span class="co">#&gt;   va = sender variance, cab = sender-receiver covariance, vb = receiver</span></span>
-<span><span class="co">#&gt;   variance, rho = dyadic correlation, ve = residual variance</span></span>
+<span><span class="co">#&gt;   variance, rho = dyadic correlation</span></span>
 <span><span class="co">#&gt;   Under `dynamic_ab`, va and vb are the variances of the actor levels; rho_ab</span></span>
 <span><span class="co">#&gt;   and sigma_ab describe the per-period deviations around them.</span></span></code></pre></div>
 <p>The model estimates how persistent the latent positions are
@@ -589,6 +590,9 @@ again drives the ties.</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Time periods: <span style="color: #0000BB;">3</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Family: <span style="color: #00BB00;">binary</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Mode: <span style="color: #00BB00;">bipartite</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Latent dimensions: 97%, 3% of the latent product</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Dimensions 1 and 2 have nearly equal strength, so their two axes are not well</span></span>
+<span><span class="co">#&gt; separated; read them together as a plane.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Static fit: U, V, a and b are shared across the 3 periods, and per-period</span></span>
 <span><span class="co">#&gt; predictions vary through the per-period covariates. `dynamic_uv = TRUE` and</span></span>
 <span><span class="co">#&gt; `dynamic_ab = TRUE` let them vary over time.</span></span>
@@ -606,15 +610,10 @@ again drives the ties.</p>
 <span><span class="co">#&gt;   the credible intervals.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── Variance components </span></span>
-<span><span class="co">#&gt;     Estimate StdError  Rhat Threshold    ESS</span></span>
-<span><span class="co">#&gt; va     0.065    0.035 0.979        NA 40.000</span></span>
-<span><span class="co">#&gt; cab    0.000    0.000    NA        NA  0.000</span></span>
-<span><span class="co">#&gt; vb     0.072    0.031 1.161        NA 24.306</span></span>
-<span><span class="co">#&gt; rho    0.000    0.000    NA        NA  0.000</span></span>
-<span><span class="co">#&gt; ve     1.000    0.000    NA        NA  0.000</span></span>
-<span><span class="co">#&gt;   va = sender variance, cab = sender-receiver covariance, vb = receiver</span></span>
-<span><span class="co">#&gt;   variance, rho = dyadic correlation, ve = residual variance</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Bipartite model: rho and cab are fixed to 0.</span></span></code></pre></div>
+<span><span class="co">#&gt;    Estimate StdError  Rhat Threshold    ESS</span></span>
+<span><span class="co">#&gt; va    0.065    0.035 0.978        NA 40.000</span></span>
+<span><span class="co">#&gt; vb    0.072    0.031 1.161        NA 24.306</span></span>
+<span><span class="co">#&gt;   va = row variance, vb = column variance</span></span></code></pre></div>
 <p>The bipartite summary reports <code>cab = 0.000</code> and
 <code>rho = 0.000</code>. These two parameters describe relationships
 <em>between</em> the sender and receiver of a tie, which only makes

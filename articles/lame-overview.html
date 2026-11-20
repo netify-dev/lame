@@ -19,7 +19,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,7 +68,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-11-17</h4>
+            <h4 data-toc-skip class="date">2026-11-20</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/articles/lame-overview.Rmd" class="external-link"><code>vignettes/articles/lame-overview.Rmd</code></a></small>
       <div class="d-none name"><code>lame-overview.Rmd</code></div>
@@ -285,6 +285,7 @@ use below. It is trimmed to what this vignette reads; forecasting with
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Time periods: <span style="color: #0000BB;">6</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Family: <span style="color: #00BB00;">binary</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Mode: <span style="color: #00BB00;">unipartite</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Latent dimensions: 100% of the latent product</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Static fit: U, V, a and b are shared across the 6 periods, and per-period</span></span>
 <span><span class="co">#&gt; predictions vary through the per-period covariates. `dynamic_uv = TRUE` and</span></span>
 <span><span class="co">#&gt; `dynamic_ab = TRUE` let them vary over time.</span></span>
@@ -312,9 +313,8 @@ use below. It is trimmed to what this vignette reads; forecasting with
 <span><span class="co">#&gt; cab    0.293    0.120</span></span>
 <span><span class="co">#&gt; vb     0.284    0.085</span></span>
 <span><span class="co">#&gt; rho    0.325    0.041</span></span>
-<span><span class="co">#&gt; ve     1.000    0.000</span></span>
 <span><span class="co">#&gt;   va = sender variance, cab = sender-receiver covariance, vb = receiver</span></span>
-<span><span class="co">#&gt;   variance, rho = dyadic correlation, ve = residual variance</span></span></code></pre></div>
+<span><span class="co">#&gt;   variance, rho = dyadic correlation</span></span></code></pre></div>
 <p>A lot lands at once, so let’s walk through it.</p>
 <p><strong>Intercept.</strong> The probit intercept is the latent linear
 predictor when <em>every covariate is zero</em>. The covariates here are
@@ -401,7 +401,7 @@ per-parameter posterior summaries,
 and <strong>bulk / tail ESS</strong> in one call.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/posterior/" class="external-link">posterior</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; This is posterior version 1.7.0</span></span>
+<span><span class="co">#&gt; This is posterior version 1.8.0</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Attaching package: 'posterior'</span></span>
 <span><span class="co">#&gt; The following object is masked from 'package:lame':</span></span>
@@ -719,8 +719,8 @@ position. The intervals come from the 200 saved U/V draws
 <p><img src="lame-overview_files/figure-html/overview-uv-1.png" class="r-plt" alt="Ranked dot plot of the one-dimensional latent positions for all 32 students: for each student, a red point marks the posterior-mean sender position and a blue point the receiver position, each with a horizontal 95 percent interval; students are ordered by sender position, and a dashed vertical line marks zero." width="100%" style="display: block; margin: auto;"></p>
 <p>The sender posterior means range from -1.6 to 2.53. The sender and
 receiver means have correlation 0.61 in this parameterization. The 95%
-intervals of 9 of the 32 sender positions and 11 of the 32 receiver
-positions exclude zero, and the sender intervals of 113 of the 496 pairs
+intervals of 10 of the 32 sender positions and 15 of the 32 receiver
+positions exclude zero, and the sender intervals of 161 of the 496 pairs
 of students do not overlap. The likelihood depends on the positions only
 through the products
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>i</mi></msub><msub><mi>v</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">u_i v_j</annotation></semantics></math>,
@@ -748,12 +748,12 @@ the <code><a href="../reference/latent_positions.html">latent_positions()</a></c
 <code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   actor dimension time       value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1   S01         1    1 -1.59588275    0.4623493    U</span></span>
-<span><span class="co">#&gt; 2   S02         1    1 -0.23807874    0.1694207    U</span></span>
-<span><span class="co">#&gt; 3   S03         1    1  0.04418366    0.1660575    U</span></span>
-<span><span class="co">#&gt; 4   S04         1    1  0.25645125    0.1603640    U</span></span>
-<span><span class="co">#&gt; 5   S05         1    1  0.31027303    0.2230363    U</span></span>
-<span><span class="co">#&gt; 6   S06         1    1  0.62419689    0.3641167    U</span></span></code></pre></div>
+<span><span class="co">#&gt; 1   S01         1    1 -1.59588275    0.3023076    U</span></span>
+<span><span class="co">#&gt; 2   S02         1    1 -0.23807874    0.1591143    U</span></span>
+<span><span class="co">#&gt; 3   S03         1    1  0.04418366    0.1626386    U</span></span>
+<span><span class="co">#&gt; 4   S04         1    1  0.25645125    0.1513992    U</span></span>
+<span><span class="co">#&gt; 5   S05         1    1  0.31027303    0.1943098    U</span></span>
+<span><span class="co">#&gt; 6   S06         1    1  0.62419689    0.3222758    U</span></span></code></pre></div>
 <p>Each row gives one actor’s position on one latent dimension at one
 time point, with a <code>type</code> column distinguishing the sender
 position (<code>"U"</code>) from the receiver position
@@ -900,42 +900,42 @@ package consumes a <code>lame</code> fit directly – most compactly
 
     <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script><script>
       // Create table-specific functions using external factory
-      const tableFns_1wywpz35jngl4kr4eiq7 = TinyTable.createTableFunctions("tinytable_1wywpz35jngl4kr4eiq7");
+      const tableFns_wo5h2m5r0esyfeboi8c7 = TinyTable.createTableFunctions("tinytable_wo5h2m5r0esyfeboi8c7");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '28', j: 2 } ], css_id: 'tinytable_css_rrpf5ms8wy0ytuv50hqj',}, 
-          { positions: [ { i: '20', j: 2 } ], css_id: 'tinytable_css_7cwf21skdiyxtbh2rw46',}, 
-          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '21', j: 2 }, { i: '22', j: 2 }, { i: '23', j: 2 }, { i: '24', j: 2 }, { i: '25', j: 2 }, { i: '26', j: 2 }, { i: '27', j: 2 } ], css_id: 'tinytable_css_vdatc7mcc1w5dv24ssgg',}, 
-          { positions: [ { i: '0', j: 2 } ], css_id: 'tinytable_css_ykl7hw2h454c52jpfky8',}, 
-          { positions: [ { i: '28', j: 1 } ], css_id: 'tinytable_css_g7axe04yrgvl8a9f1roe',}, 
-          { positions: [ { i: '20', j: 1 } ], css_id: 'tinytable_css_9kyus0s4pzuy69ww0wsf',}, 
-          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '21', j: 1 }, { i: '22', j: 1 }, { i: '23', j: 1 }, { i: '24', j: 1 }, { i: '25', j: 1 }, { i: '26', j: 1 }, { i: '27', j: 1 } ], css_id: 'tinytable_css_twtuwucccrluhx6ss77l',}, 
-          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_xxmz0fbz5h3gptwkxfnj',}, 
+          { positions: [ { i: '28', j: 2 } ], css_id: 'tinytable_css_pkydoju3vurxerfbx2q0',}, 
+          { positions: [ { i: '20', j: 2 } ], css_id: 'tinytable_css_uclqiy5vwzl40ipert89',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '21', j: 2 }, { i: '22', j: 2 }, { i: '23', j: 2 }, { i: '24', j: 2 }, { i: '25', j: 2 }, { i: '26', j: 2 }, { i: '27', j: 2 } ], css_id: 'tinytable_css_5fjq1faqhd6f4p9e39ii',}, 
+          { positions: [ { i: '0', j: 2 } ], css_id: 'tinytable_css_iy51x19c39xt0ibc6f3v',}, 
+          { positions: [ { i: '28', j: 1 } ], css_id: 'tinytable_css_15fhygb1q1ksb6e2ygxx',}, 
+          { positions: [ { i: '20', j: 1 } ], css_id: 'tinytable_css_gxs2rm0jv6l3fcw75rdk',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '21', j: 1 }, { i: '22', j: 1 }, { i: '23', j: 1 }, { i: '24', j: 1 }, { i: '25', j: 1 }, { i: '26', j: 1 }, { i: '27', j: 1 } ], css_id: 'tinytable_css_dw8m1hul88z8ir7p217p',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_kem4zfkre2lu5ut78av1',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_1wywpz35jngl4kr4eiq7.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_wo5h2m5r0esyfeboi8c7.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
     </script><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
 <style>
     /* tinytable css entries after */
-    #tinytable_1wywpz35jngl4kr4eiq7 td.tinytable_css_rrpf5ms8wy0ytuv50hqj, #tinytable_1wywpz35jngl4kr4eiq7 th.tinytable_css_rrpf5ms8wy0ytuv50hqj {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_1wywpz35jngl4kr4eiq7 td.tinytable_css_7cwf21skdiyxtbh2rw46, #tinytable_1wywpz35jngl4kr4eiq7 th.tinytable_css_7cwf21skdiyxtbh2rw46 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_1wywpz35jngl4kr4eiq7 td.tinytable_css_vdatc7mcc1w5dv24ssgg, #tinytable_1wywpz35jngl4kr4eiq7 th.tinytable_css_vdatc7mcc1w5dv24ssgg { text-align: center }
-    #tinytable_1wywpz35jngl4kr4eiq7 td.tinytable_css_ykl7hw2h454c52jpfky8, #tinytable_1wywpz35jngl4kr4eiq7 th.tinytable_css_ykl7hw2h454c52jpfky8 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_1wywpz35jngl4kr4eiq7 td.tinytable_css_g7axe04yrgvl8a9f1roe, #tinytable_1wywpz35jngl4kr4eiq7 th.tinytable_css_g7axe04yrgvl8a9f1roe {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
-    #tinytable_1wywpz35jngl4kr4eiq7 td.tinytable_css_9kyus0s4pzuy69ww0wsf, #tinytable_1wywpz35jngl4kr4eiq7 th.tinytable_css_9kyus0s4pzuy69ww0wsf {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
-    #tinytable_1wywpz35jngl4kr4eiq7 td.tinytable_css_twtuwucccrluhx6ss77l, #tinytable_1wywpz35jngl4kr4eiq7 th.tinytable_css_twtuwucccrluhx6ss77l { text-align: left }
-    #tinytable_1wywpz35jngl4kr4eiq7 td.tinytable_css_xxmz0fbz5h3gptwkxfnj, #tinytable_1wywpz35jngl4kr4eiq7 th.tinytable_css_xxmz0fbz5h3gptwkxfnj {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_wo5h2m5r0esyfeboi8c7 td.tinytable_css_pkydoju3vurxerfbx2q0, #tinytable_wo5h2m5r0esyfeboi8c7 th.tinytable_css_pkydoju3vurxerfbx2q0 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_wo5h2m5r0esyfeboi8c7 td.tinytable_css_uclqiy5vwzl40ipert89, #tinytable_wo5h2m5r0esyfeboi8c7 th.tinytable_css_uclqiy5vwzl40ipert89 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_wo5h2m5r0esyfeboi8c7 td.tinytable_css_5fjq1faqhd6f4p9e39ii, #tinytable_wo5h2m5r0esyfeboi8c7 th.tinytable_css_5fjq1faqhd6f4p9e39ii { text-align: center }
+    #tinytable_wo5h2m5r0esyfeboi8c7 td.tinytable_css_iy51x19c39xt0ibc6f3v, #tinytable_wo5h2m5r0esyfeboi8c7 th.tinytable_css_iy51x19c39xt0ibc6f3v {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_wo5h2m5r0esyfeboi8c7 td.tinytable_css_15fhygb1q1ksb6e2ygxx, #tinytable_wo5h2m5r0esyfeboi8c7 th.tinytable_css_15fhygb1q1ksb6e2ygxx {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_wo5h2m5r0esyfeboi8c7 td.tinytable_css_gxs2rm0jv6l3fcw75rdk, #tinytable_wo5h2m5r0esyfeboi8c7 th.tinytable_css_gxs2rm0jv6l3fcw75rdk {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_wo5h2m5r0esyfeboi8c7 td.tinytable_css_dw8m1hul88z8ir7p217p, #tinytable_wo5h2m5r0esyfeboi8c7 th.tinytable_css_dw8m1hul88z8ir7p217p { text-align: left }
+    #tinytable_wo5h2m5r0esyfeboi8c7 td.tinytable_css_kem4zfkre2lu5ut78av1, #tinytable_wo5h2m5r0esyfeboi8c7 th.tinytable_css_kem4zfkre2lu5ut78av1 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
     </style>
 <div class="container">
-      <table class="table tinytable" id="tinytable_1wywpz35jngl4kr4eiq7" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="table tinytable" id="tinytable_wo5h2m5r0esyfeboi8c7" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
 <thead><tr>
 <th scope="col" data-row="0" data-col="1"> </th>
                 <th scope="col" data-row="0" data-col="2">Dutch college</th>
@@ -1098,42 +1098,42 @@ stored copy is loaded here):</p>
 
     <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script><script>
       // Create table-specific functions using external factory
-      const tableFns_46oi5pu9kul5vty5kkj6 = TinyTable.createTableFunctions("tinytable_46oi5pu9kul5vty5kkj6");
+      const tableFns_jz2y7607fn9xhj63d11g = TinyTable.createTableFunctions("tinytable_jz2y7607fn9xhj63d11g");
       // tinytable span after
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '28', j: 2 }, { i: '28', j: 3 } ], css_id: 'tinytable_css_cvdgugycrzvdcnj88dp1',}, 
-          { positions: [ { i: '20', j: 2 }, { i: '20', j: 3 } ], css_id: 'tinytable_css_b3ox2cq94nfpidwn3fhl',}, 
-          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '21', j: 2 }, { i: '22', j: 2 }, { i: '23', j: 2 }, { i: '24', j: 2 }, { i: '25', j: 2 }, { i: '26', j: 2 }, { i: '27', j: 2 }, { i: '1', j: 3 }, { i: '2', j: 3 }, { i: '3', j: 3 }, { i: '4', j: 3 }, { i: '5', j: 3 }, { i: '6', j: 3 }, { i: '7', j: 3 }, { i: '8', j: 3 }, { i: '9', j: 3 }, { i: '10', j: 3 }, { i: '11', j: 3 }, { i: '12', j: 3 }, { i: '13', j: 3 }, { i: '14', j: 3 }, { i: '15', j: 3 }, { i: '16', j: 3 }, { i: '17', j: 3 }, { i: '18', j: 3 }, { i: '19', j: 3 }, { i: '21', j: 3 }, { i: '22', j: 3 }, { i: '23', j: 3 }, { i: '24', j: 3 }, { i: '25', j: 3 }, { i: '26', j: 3 }, { i: '27', j: 3 } ], css_id: 'tinytable_css_bv8n8jfyf3d7isly26l1',}, 
-          { positions: [ { i: '0', j: 2 }, { i: '0', j: 3 } ], css_id: 'tinytable_css_xkouudhvf3w6dydhkhtp',}, 
-          { positions: [ { i: '28', j: 1 } ], css_id: 'tinytable_css_9hztqx0km84keg7a52t8',}, 
-          { positions: [ { i: '20', j: 1 } ], css_id: 'tinytable_css_8feuuou5qsshqz5etccc',}, 
-          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '21', j: 1 }, { i: '22', j: 1 }, { i: '23', j: 1 }, { i: '24', j: 1 }, { i: '25', j: 1 }, { i: '26', j: 1 }, { i: '27', j: 1 } ], css_id: 'tinytable_css_ug9qltah9u6jnhltlnpm',}, 
-          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_envp5gilldaroq5fq1rg',}, 
+          { positions: [ { i: '28', j: 2 }, { i: '28', j: 3 } ], css_id: 'tinytable_css_brtuhtqq5jb2jeigy8ki',}, 
+          { positions: [ { i: '20', j: 2 }, { i: '20', j: 3 } ], css_id: 'tinytable_css_o5osjzs4x5dep4hzq520',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '21', j: 2 }, { i: '22', j: 2 }, { i: '23', j: 2 }, { i: '24', j: 2 }, { i: '25', j: 2 }, { i: '26', j: 2 }, { i: '27', j: 2 }, { i: '1', j: 3 }, { i: '2', j: 3 }, { i: '3', j: 3 }, { i: '4', j: 3 }, { i: '5', j: 3 }, { i: '6', j: 3 }, { i: '7', j: 3 }, { i: '8', j: 3 }, { i: '9', j: 3 }, { i: '10', j: 3 }, { i: '11', j: 3 }, { i: '12', j: 3 }, { i: '13', j: 3 }, { i: '14', j: 3 }, { i: '15', j: 3 }, { i: '16', j: 3 }, { i: '17', j: 3 }, { i: '18', j: 3 }, { i: '19', j: 3 }, { i: '21', j: 3 }, { i: '22', j: 3 }, { i: '23', j: 3 }, { i: '24', j: 3 }, { i: '25', j: 3 }, { i: '26', j: 3 }, { i: '27', j: 3 } ], css_id: 'tinytable_css_4fd9jzakxncu1u038y4m',}, 
+          { positions: [ { i: '0', j: 2 }, { i: '0', j: 3 } ], css_id: 'tinytable_css_qcpbbg46kz3jkm7jfk6t',}, 
+          { positions: [ { i: '28', j: 1 } ], css_id: 'tinytable_css_fxajjabiwvml78l6navc',}, 
+          { positions: [ { i: '20', j: 1 } ], css_id: 'tinytable_css_cyeeor2sbyx10b620bti',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '21', j: 1 }, { i: '22', j: 1 }, { i: '23', j: 1 }, { i: '24', j: 1 }, { i: '25', j: 1 }, { i: '26', j: 1 }, { i: '27', j: 1 } ], css_id: 'tinytable_css_878vgzvbkxmvbkvyx6nm',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_hs1x570zy0lmwadzjh24',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_46oi5pu9kul5vty5kkj6.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_jz2y7607fn9xhj63d11g.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
     </script><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
 <style>
     /* tinytable css entries after */
-    #tinytable_46oi5pu9kul5vty5kkj6 td.tinytable_css_cvdgugycrzvdcnj88dp1, #tinytable_46oi5pu9kul5vty5kkj6 th.tinytable_css_cvdgugycrzvdcnj88dp1 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_46oi5pu9kul5vty5kkj6 td.tinytable_css_b3ox2cq94nfpidwn3fhl, #tinytable_46oi5pu9kul5vty5kkj6 th.tinytable_css_b3ox2cq94nfpidwn3fhl {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_46oi5pu9kul5vty5kkj6 td.tinytable_css_bv8n8jfyf3d7isly26l1, #tinytable_46oi5pu9kul5vty5kkj6 th.tinytable_css_bv8n8jfyf3d7isly26l1 { text-align: center }
-    #tinytable_46oi5pu9kul5vty5kkj6 td.tinytable_css_xkouudhvf3w6dydhkhtp, #tinytable_46oi5pu9kul5vty5kkj6 th.tinytable_css_xkouudhvf3w6dydhkhtp {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
-    #tinytable_46oi5pu9kul5vty5kkj6 td.tinytable_css_9hztqx0km84keg7a52t8, #tinytable_46oi5pu9kul5vty5kkj6 th.tinytable_css_9hztqx0km84keg7a52t8 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
-    #tinytable_46oi5pu9kul5vty5kkj6 td.tinytable_css_8feuuou5qsshqz5etccc, #tinytable_46oi5pu9kul5vty5kkj6 th.tinytable_css_8feuuou5qsshqz5etccc {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
-    #tinytable_46oi5pu9kul5vty5kkj6 td.tinytable_css_ug9qltah9u6jnhltlnpm, #tinytable_46oi5pu9kul5vty5kkj6 th.tinytable_css_ug9qltah9u6jnhltlnpm { text-align: left }
-    #tinytable_46oi5pu9kul5vty5kkj6 td.tinytable_css_envp5gilldaroq5fq1rg, #tinytable_46oi5pu9kul5vty5kkj6 th.tinytable_css_envp5gilldaroq5fq1rg {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_jz2y7607fn9xhj63d11g td.tinytable_css_brtuhtqq5jb2jeigy8ki, #tinytable_jz2y7607fn9xhj63d11g th.tinytable_css_brtuhtqq5jb2jeigy8ki {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_jz2y7607fn9xhj63d11g td.tinytable_css_o5osjzs4x5dep4hzq520, #tinytable_jz2y7607fn9xhj63d11g th.tinytable_css_o5osjzs4x5dep4hzq520 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_jz2y7607fn9xhj63d11g td.tinytable_css_4fd9jzakxncu1u038y4m, #tinytable_jz2y7607fn9xhj63d11g th.tinytable_css_4fd9jzakxncu1u038y4m { text-align: center }
+    #tinytable_jz2y7607fn9xhj63d11g td.tinytable_css_qcpbbg46kz3jkm7jfk6t, #tinytable_jz2y7607fn9xhj63d11g th.tinytable_css_qcpbbg46kz3jkm7jfk6t {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_jz2y7607fn9xhj63d11g td.tinytable_css_fxajjabiwvml78l6navc, #tinytable_jz2y7607fn9xhj63d11g th.tinytable_css_fxajjabiwvml78l6navc {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_jz2y7607fn9xhj63d11g td.tinytable_css_cyeeor2sbyx10b620bti, #tinytable_jz2y7607fn9xhj63d11g th.tinytable_css_cyeeor2sbyx10b620bti {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_jz2y7607fn9xhj63d11g td.tinytable_css_878vgzvbkxmvbkvyx6nm, #tinytable_jz2y7607fn9xhj63d11g th.tinytable_css_878vgzvbkxmvbkvyx6nm { text-align: left }
+    #tinytable_jz2y7607fn9xhj63d11g td.tinytable_css_hs1x570zy0lmwadzjh24, #tinytable_jz2y7607fn9xhj63d11g th.tinytable_css_hs1x570zy0lmwadzjh24 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --line-type-bottom: solid; --line-type-left: solid; --line-type-right: solid; --line-type-top: solid; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
     </style>
 <div class="container">
-      <table class="table tinytable" id="tinytable_46oi5pu9kul5vty5kkj6" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="table tinytable" id="tinytable_jz2y7607fn9xhj63d11g" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
 <thead><tr>
 <th scope="col" data-row="0" data-col="1"> </th>
                 <th scope="col" data-row="0" data-col="2">AME (R = 1)</th>
@@ -1467,7 +1467,7 @@ This vignette’s own session record:</p>
 <span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] netify_1.5.4    posterior_1.7.0 ggplot2_4.0.4   lame_1.4.2     </span></span>
+<span><span class="co">#&gt; [1] netify_1.5.4    posterior_1.8.0 ggplot2_4.0.4   lame_1.4.3     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
 <span><span class="co">#&gt;  [1] gtable_0.3.6          tensorA_0.36.2.1      xfun_0.62            </span></span>
@@ -1476,7 +1476,7 @@ This vignette’s own session record:</p>
 <span><span class="co">#&gt; [10] tools_4.6.2           generics_0.1.4        datawizard_1.5.0     </span></span>
 <span><span class="co">#&gt; [13] parallel_4.6.2        tibble_3.3.1          pkgconfig_2.0.3      </span></span>
 <span><span class="co">#&gt; [16] tinytable_0.19.0      data.table_1.18.6.1   checkmate_2.3.4      </span></span>
-<span><span class="co">#&gt; [19] ggnewscale_0.5.2      RColorBrewer_1.1-3    S7_0.2.2             </span></span>
+<span><span class="co">#&gt; [19] ggnewscale_0.5.2      RColorBrewer_1.1-3    S7_1.0.0             </span></span>
 <span><span class="co">#&gt; [22] desc_1.4.3            distributional_0.9.0  lifecycle_1.0.5      </span></span>
 <span><span class="co">#&gt; [25] compiler_4.6.2        farver_2.1.2          textshaping_1.0.5    </span></span>
 <span><span class="co">#&gt; [28] htmltools_0.5.9       sass_0.4.10           yaml_2.3.12          </span></span>

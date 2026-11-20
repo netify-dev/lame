@@ -19,7 +19,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,7 +68,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Tosin Salau, Shahryar Minhas</h4>
             
-            <h4 data-toc-skip class="date">2026-11-17</h4>
+            <h4 data-toc-skip class="date">2026-11-20</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/articles/dynamic_effects.Rmd" class="external-link"><code>vignettes/articles/dynamic_effects.Rmd</code></a></small>
       <div class="d-none name"><code>dynamic_effects.Rmd</code></div>
@@ -766,13 +766,12 @@ stationarity, with a negative intercept giving realistic density
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── Variance components </span></span>
 <span><span class="co">#&gt;     Estimate StdError  Rhat Threshold     ESS</span></span>
-<span><span class="co">#&gt; va     0.073    0.030 1.002      1.05 422.050</span></span>
+<span><span class="co">#&gt; va     0.073    0.030 1.001      1.05 422.050</span></span>
 <span><span class="co">#&gt; cab   -0.005    0.019 1.002      1.05 456.707</span></span>
 <span><span class="co">#&gt; vb     0.067    0.025 0.998      1.05 452.698</span></span>
 <span><span class="co">#&gt; rho   -0.148    0.096 1.009      1.05 314.102</span></span>
-<span><span class="co">#&gt; ve     1.000    0.000    NA        NA   0.000</span></span>
 <span><span class="co">#&gt;   va = sender variance, cab = sender-receiver covariance, vb = receiver</span></span>
-<span><span class="co">#&gt;   variance, rho = dyadic correlation, ve = residual variance</span></span>
+<span><span class="co">#&gt;   variance, rho = dyadic correlation</span></span>
 <span><span class="co">#&gt;   Under `dynamic_ab`, va and vb are the variances of the actor levels; rho_ab</span></span>
 <span><span class="co">#&gt;   and sigma_ab describe the per-period deviations around them.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Threshold is the R-hat the between-chain gate held each monitored quantity</span></span>
@@ -893,9 +892,8 @@ the prior alone produces when the data are uninformative.</p>
 <span><span class="co">#&gt; cab   -0.001    0.006 0.998      1.05 800.00</span></span>
 <span><span class="co">#&gt; vb     0.027    0.008 1.000      1.05 800.00</span></span>
 <span><span class="co">#&gt; rho    0.085    0.043 1.000      1.05 675.47</span></span>
-<span><span class="co">#&gt; ve     1.000    0.000    NA        NA   0.00</span></span>
 <span><span class="co">#&gt;   va = sender variance, cab = sender-receiver covariance, vb = receiver</span></span>
-<span><span class="co">#&gt;   variance, rho = dyadic correlation, ve = residual variance</span></span>
+<span><span class="co">#&gt;   variance, rho = dyadic correlation</span></span>
 <span><span class="co">#&gt;   Under `dynamic_ab`, va and vb are the variances of the actor levels; rho_ab</span></span>
 <span><span class="co">#&gt;   and sigma_ab describe the per-period deviations around them.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Threshold is the R-hat the between-chain gate held each monitored quantity</span></span>

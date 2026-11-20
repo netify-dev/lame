@@ -13,7 +13,7 @@ deviations when posterior draws of the positions are available."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">lame</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -128,20 +128,48 @@ only <code>"U"</code>.</p></dd>
 
 
 </dl><p>Returns a zero-row data frame with correct column names if R = 0.</p>
+<p>For a fit with static positions (<code>ame</code>, <code>lame</code> without
+<code>dynamic_uv</code>, and static <code>ame_als</code> fits) the data frame carries
+an attribute <code>"strength"</code>: a data frame with one row per dimension and
+columns <code>dimension</code>, <code>strength</code> (the singular value of the
+reported product for that dimension, or the absolute eigenvalue for
+symmetric fits), <code>share</code> (its squared strength over the sum of the
+squared strengths) and <code>tied_with_next</code>. Dimensions \(j\) and
+\(j + 1\) are tied when the reported gap between their strengths is less
+than twice the posterior sd of that gap over the saved draws (each draw's
+own strengths): the two axes are then not well separated and are read
+together as a plane, and a message says so. <code>tied_with_next</code> is <code>NA</code> for fits
+without saved draws of the positions. Fits with <code>dynamic_uv = TRUE</code>
+carry no strength attribute: their per-period positions are rotated to match
+the period before, so a column is not one dimension of each period's product.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The latent product of each period is identified, the positions only up to a
 rotation or sign change that leaves the product unchanged. The positions of
-a <code>lame</code> fit with <code>dynamic_uv = TRUE</code> therefore factor the
+a static <code>ame</code> or <code>lame</code> fit therefore factor the posterior mean
+product at the fitted rank, with columns in decreasing order of its singular
+values and the sign of each column set so that its positive entries carry
+more of its squared length than its negative ones: \(U V'\) with the scale split evenly between \(U\) and
+\(V\); \(U L U'\) for symmetric fits, with \(U\) orthonormal and
+<code>fit$L</code> the eigenvalues largest in absolute value; and \(U G V'\)
+for bipartite fits, with the scale split evenly and <code>fit$G</code> the
+identity (when <code>R_row</code> and <code>R_col</code> differ, the product has rank
+\(k\), the smaller of the two, the columns of <code>fit$U</code> or <code>fit$V</code>
+past \(k\) are zero, and only the \(k\) dimensions are listed). The positions of
+a <code>lame</code> fit with <code>dynamic_uv = TRUE</code> factor the
 posterior mean product of every period at the fitted rank: \(U_t V_t'\)
 with the scale split evenly between \(U_t\) and \(V_t\);
 \(U_t L U_t'\) for symmetric fits, with <code>fit$L</code> fixed across periods;
 and \(U_t G V_t'\) for bipartite fits, with a diagonal <code>fit$G</code> fixed
 across periods. Each period is matched to the one before by moves that keep
 its product. The posterior standard deviations come from the saved draws
-(<code>posterior_opts = list(save_UV_draws = TRUE)</code>), each draw factored the
-same way and matched onto the reported positions.</p>
+(<code>posterior_opts = posterior_options(save_UV = TRUE)</code> for static
+positions, <code>posterior_opts = list(save_UV_draws = TRUE)</code> for dynamic
+ones), each draw factored the same way and matched onto the reported
+positions by a move that leaves its product unchanged (a rotation, or a
+relabelling and sign change of the columns when <code>L</code> or a dynamic
+<code>G</code> is held fixed).</p>
 <p>Alignment only ever happens across the periods of one fit. Nothing here aligns two
 different fits (two chains, or the same model with and without a
 covariate) to a common orientation, so their latent positions are not
@@ -170,12 +198,12 @@ same <code>R</code>) and call <code>procrustes_align(U = that_array)</code> on i
 <span class="r-in"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu">latent_positions</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   actor dimension time      value posterior_sd type</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 node1         1    1 -0.1820285   0.19441259    U</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2 node2         1    1  0.6502813   0.16323385    U</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3 node3         1    1  0.1695219   0.12711219    U</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4 node4         1    1 -0.2035775   0.10874137    U</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5 node5         1    1  0.2482276   0.05602491    U</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6 node6         1    1  0.1786310   0.17454993    U</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 node1         1    1  0.1820285   0.06411356    U</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 node2         1    1 -0.6502813   0.12446819    U</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3 node3         1    1 -0.1695219   0.13456369    U</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4 node4         1    1  0.2035775   0.10322440    U</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5 node5         1    1 -0.2482276   0.07926787    U</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6 node6         1    1 -0.1786310   0.07715069    U</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
