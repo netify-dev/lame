@@ -591,18 +591,23 @@
 		work_cand <- work_fun(eta_cand, terms_cand)
 		dev_k <- pdev_of(cand, dev = dev_cand, work = work_cand)
 		prev <- pdev_of(fit, cand, dev = dev_fit, work = work_fit)
-		# the reweighted equations carry the previous Laplace correction, so a
-		# step is accepted when it lowers the scaled residual of the equations
+		# the reweighted equations carry the previous Laplace correction, so a step is accepted when it
+		# lowers the scaled residual of the equations, or when it lowers the objective against the
+		# iterate at the step's scales: the residual is not a descent function, and where the
+		# likelihood is nearly flat (row effects against a factor with constant receiver loadings) a
+		# step that lowers the objective can raise it
 		cert_cand <- cert_of(cand, eta_cand, work_cand, terms_cand)
 		merit_cand <- merit_of(cert_cand)
-		improves <- function(dev_s, merit_s) {
+		improves <- function(s, dev_s, merit_s, prev_s = pdev_of(fit, s, dev = dev_fit, work = work_fit)) {
+			if (!is.finite(dev_s)) return(FALSE)
 			# allow the residual to rise by 5 percent, never beyond twice the best
-			is.finite(dev_s) && merit_s < min(1.05 * merit_fit, 2 * merit_best)
+			merit_s < min(1.05 * merit_fit, 2 * merit_best) || dev_s < prev_s
 		}
 		anchor <- fit
+		accepted <- improves(cand, dev_k, merit_cand, prev)
 		# a full step can overshoot: halve toward the current iterate and keep
 		# the first improving point; stop when no halved step improves
-		if (!improves(dev_k, merit_cand)) {
+		if (!accepted) {
 			for (step in 2^(-seq_len(20L))) {
 				damped <- .ae_irls_blend(anchor, cand, step, symmetric)
 				eta_damped <- eta_of(damped)
@@ -612,7 +617,8 @@
 				dev_s <- pdev_of(damped, dev = dev_damped, work = work_damped)
 				cert_s <- cert_of(damped, eta_damped, work_damped, terms_damped)
 				merit_s <- merit_of(cert_s)
-				if (improves(dev_s, merit_s)) {
+				if (improves(damped, dev_s, merit_s)) {
+					accepted <- TRUE
 					cand <- damped; dev_k <- dev_s
 					eta_cand <- eta_damped; dev_cand <- dev_damped
 					terms_cand <- terms_damped; work_cand <- work_damped
@@ -622,7 +628,7 @@
 			}
 		}
 		dev_trace <- c(dev_trace, dev_k)
-		if (!improves(dev_k, merit_cand)) {
+		if (!accepted) {
 			termination <- "no improving conditional step"
 			break
 		}

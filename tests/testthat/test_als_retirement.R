@@ -205,8 +205,8 @@ test_that("a sparse rank-2 network whose posterior mode does not settle retires 
 
 test_that("a five-node pair rule that stalls is refined to seven nodes and the fit converges without retiring a column", {
 	skip_on_cran()
-	# network 201 stalled until a directed binary fit read its factor scale from the rows' full second moments
-	d = ret_sim_binary(50, 2, -3, 217)
+	# network 201 stalls under the five-node rule
+	d = ret_sim_binary(50, 2, -3, 201)
 	# the unit factor prior IW(2R + 2, (2R + 2) I) makes the five-node rule stall on this network, so it is set here
 	testthat::local_mocked_bindings(
 		.lame_uv_prior_moments = function(Y, family, odmax = NULL) list(vscale = 1, vdfmlt = 1),
@@ -223,20 +223,20 @@ test_that("a five-node pair rule that stalls is refined to seven nodes and the f
 	expect_identical(rf$eb$pair$quad, 7L)
 })
 
-test_that("an example network at rank 6 returns its rank-5 fit, and a rank that settles is not retired", {
+test_that("an example network settles at ranks 5 and 6, and a rank that settles is not retired", {
 	skip_on_cran()
-	# the first Lazega network (the second settles at rank 6 with six live columns since a directed
-	# binary fit gives the effect covariance the weight of one actor)
+	# the first Lazega network
 	data("lazegalaw", package = "lame", envir = environment())
 	Y = lazegalaw$Y[, , 1L]
 	diag(Y) = NA
 	fit = suppressMessages(suppressWarnings(ame_als(Y, R = 6, family = "binary", verbose = FALSE)))
 	expect_true(fit$converged)
-	expect_identical(fit$R, 5L)
-	expect_identical(fit$R_requested, 6L)
+	expect_identical(fit$R, 6L)
+	expect_null(fit$eb$retirement)
 	f5 = suppressMessages(suppressWarnings(ame_als(Y, R = 5, family = "binary", verbose = FALSE)))
+	expect_true(f5$converged)
+	expect_identical(f5$R, 5L)
 	expect_null(f5$eb$retirement)
-	expect_equal(unname(coef(fit)), unname(coef(f5)), tolerance = 1e-8)
 })
 
 test_that("a refinement that still does not settle after retiring every column is refused with the state and the requested rank", {

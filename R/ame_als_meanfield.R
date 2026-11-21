@@ -1,5 +1,6 @@
 # variational (mean-field) posterior of the latent factors of the EB fit, started from the posterior mode
-# (R/ame_als_lowrank.R). q is Gaussian and independent across actors and sides, q(u_i) = N(uhat_i, Sig_i),
+# (R/ame_als_lowrank.R) with the column means of its factors in the additive effects (.ae_mf_centre).
+# q is Gaussian and independent across actors and sides, q(u_i) = N(uhat_i, Sig_i),
 # q(v_j) = N(vhat_j, Om_j); the additive effects are Gaussian given the coefficients, and the coefficients and
 # scales are point estimates. a cell's predictor is Gaussian with the exact moments under q,
 #   m_c = x_c' theta + a_i + b_j + uhat_i' vhat_j,  V_c = var(a_i + b_j) + vprod_ij,
@@ -520,6 +521,28 @@
 	S
 }
 
+# the column means of the factors are additive effects: with ubar, vbar the means of the rows of U and V,
+#   u_i' v_j = (u_i - ubar)' (v_j - vbar) + (u_i - ubar)' vbar + ubar' (v_j - vbar) + ubar' vbar,
+# and the start moves them into the row effects, the column effects and the intercept, which leaves every
+# predictor as it is. the mode can hold the row effects in a factor with nearly constant receiver loadings
+# and the row-effect variance at its floor; q factorises the effects from the factors, so the variational
+# iteration cannot move them back from there and stops at a far lower bound, with the coefficients of the
+# row covariates about 5 percent low. the effect covariance takes its EM image at the moved effects
+.ae_mf_centre <- function(cx, S, C0) {
+	ab <- cx$ab
+	ubar <- colMeans(S$U); vbar <- colMeans(S$V)
+	S$U <- sweep(S$U, 2L, ubar); S$V <- sweep(S$V, 2L, vbar)
+	S$a <- S$a + as.vector(S$U %*% vbar)
+	S$b <- S$b + as.vector(S$V %*% ubar)
+	S$mu <- S$mu + sum(ubar * vbar)
+	alpha <- c(S$a, S$b)
+	if (!is.null(cx$M)) alpha <- alpha - as.vector(cx$M %*% S$gamma)
+	S$sab <- .ae_eb_update_sab(ab, alpha, list(dg = S$Sc$dg, pair = if (identical(ab$kind, "directed")) diag(S$Sc$cross)))
+	S$Sc <- .ae_ak_inverse(.ae_ak_build(.ae_ak_ctx(C0, ab), .ae_eb_precision(S$sab, ab)))
+	S$vact <- .ae_mf_vact(S$Sc, ab)
+	S
+}
+
 # start at the mode, with the covariances it implies at its Fisher weights
 .ae_mf_init <- function(cx, fit, W0) {
 	ab <- cx$ab; R <- cx$R
@@ -557,6 +580,7 @@
 		return(if (cx$pln) .ae_mf_reseed(cx, S, fit) else S)
 	}
 	S$U <- fit$U; S$V <- fit[["V"]]
+	S <- .ae_mf_centre(cx, S, C0)
 	S$prior <- if (cx$joint) {
 		sc <- c(fit$sig2_u, fit$sig2_v)
 		list(
