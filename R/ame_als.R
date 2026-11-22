@@ -384,7 +384,8 @@
 		unipartite_margin_mismatch
 
 	if (!needs_balance) {
-		if (any_named && !all_named) {
+		# one slice has nothing to align across
+		if (Tt > 1L && any_named && !all_named) {
 			cli::cli_warn(c(
 				"Some network slices have actor names and others do not.",
 				"i" = "ALS will use positional matching because the dimensions are fixed; give every slice names to align by actor."
