@@ -68,7 +68,7 @@
                         <h4 data-toc-skip class="author">Cassy Dorff,
 Shahryar Minhas, and Tosin Salau</h4>
             
-            <h4 data-toc-skip class="date">2026-11-20</h4>
+            <h4 data-toc-skip class="date">2026-11-21</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/netify-dev/lame/blob/main/vignettes/articles/bipartite.Rmd" class="external-link"><code>vignettes/articles/bipartite.Rmd</code></a></small>
       <div class="d-none name"><code>bipartite.Rmd</code></div>
@@ -309,9 +309,9 @@ each node type separately via <code>R_row</code> and
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── Regression coefficients </span></span>
 <span><span class="co">#&gt;           Estimate StdError z_value p_value CI_lower CI_upper  Rhat Threshold</span></span>
-<span><span class="co">#&gt; intercept   -0.793    0.113  -7.022       0   -1.011   -0.578 1.006      1.05</span></span>
+<span><span class="co">#&gt; intercept   -0.784    0.107  -7.324       0       -1   -0.587 1.005      1.05</span></span>
 <span><span class="co">#&gt;               ESS    </span></span>
-<span><span class="co">#&gt; intercept 462.819 ***</span></span>
+<span><span class="co">#&gt; intercept 607.564 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Stars are a visual hint from the posterior mean / SD only; for inference use</span></span>
@@ -319,8 +319,8 @@ each node type separately via <code>R_row</code> and
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── Variance components </span></span>
 <span><span class="co">#&gt;    Estimate StdError  Rhat Threshold      ESS</span></span>
-<span><span class="co">#&gt; va    0.050    0.022 1.001      1.05  864.628</span></span>
-<span><span class="co">#&gt; vb    0.059    0.029 1.000      1.05 1022.309</span></span>
+<span><span class="co">#&gt; va    0.049    0.021 1.004      1.05  961.772</span></span>
+<span><span class="co">#&gt; vb    0.059    0.030 1.000      1.05 1152.515</span></span>
 <span><span class="co">#&gt;   va = row variance, vb = column variance</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Latent dimensions: 96%, 4% of the latent product</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Threshold is the R-hat the between-chain gate held each monitored quantity</span></span>
@@ -872,12 +872,12 @@ printed.</p>
 <code class="sourceCode R"><span><span class="va">lp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/latent_positions.html">latent_positions</a></span><span class="op">(</span><span class="va">fit_cross</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lp</span><span class="op">)</span></span>
 <span><span class="co">#&gt;      actor dimension time       value posterior_sd type</span></span>
-<span><span class="co">#&gt; 1 Student1         1    1  0.92664928    0.4070340    U</span></span>
-<span><span class="co">#&gt; 2 Student2         1    1 -0.06600046    0.3098522    U</span></span>
-<span><span class="co">#&gt; 3 Student3         1    1 -1.32145387    0.4524009    U</span></span>
-<span><span class="co">#&gt; 4 Student4         1    1  1.69250957    0.5217933    U</span></span>
-<span><span class="co">#&gt; 5 Student5         1    1 -0.60815235    0.3155654    U</span></span>
-<span><span class="co">#&gt; 6 Student6         1    1 -1.56906407    0.4978761    U</span></span>
+<span><span class="co">#&gt; 1 Student1         1    1  0.95138577    0.3616242    U</span></span>
+<span><span class="co">#&gt; 2 Student2         1    1 -0.04430814    0.3170525    U</span></span>
+<span><span class="co">#&gt; 3 Student3         1    1 -1.30677517    0.4713360    U</span></span>
+<span><span class="co">#&gt; 4 Student4         1    1  1.62837357    0.4661259    U</span></span>
+<span><span class="co">#&gt; 5 Student5         1    1 -0.59749976    0.2842375    U</span></span>
+<span><span class="co">#&gt; 6 Student6         1    1 -1.54754250    0.5618205    U</span></span>
 <span></span>
 <span><span class="co"># row nodes (students) only</span></span>
 <span><span class="va">lp_students</span> <span class="op">&lt;-</span> <span class="va">lp</span><span class="op">[</span><span class="va">lp</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"U"</span>, <span class="op">]</span></span>
